@@ -1,8 +1,8 @@
 # Lesson X: [Title]
 
 **One-liner:** [What this unlocks in one sentence.]  
-**Time:** [Total time, e.g. 20–30 min]  
-**Deliverable:** [Exact artifact name, e.g. "Prompt Baseline Table"]  
+**Time:** [Total time, e.g. 20 to 30 min]  
+**Deliverable:** [Exact artifact name, e.g. "Prompt Baseline Table"]
 **Prerequisite (optional):** [One line, only if needed]
 
 ## Learning goal

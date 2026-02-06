@@ -204,3 +204,7 @@ After QA and import readiness pass, create a report file in the course folder na
 - QA summary (lesson QA, quiz QA, import readiness)
 - short notes
 - next step to import in UI
+
+## Header formatting (required)
+
+- In lesson headers, `**One-liner:**` and `**Time:**` must each end with two spaces to force line breaks in Markdown. `**Deliverable:**` must be on its own line.

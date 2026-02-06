@@ -159,6 +159,9 @@ When asked to “improve the skill”, “incorporate student feedback”, or �
 - `references/release-checklist.md`: lightweight release checklist for skill updates
 
 ## Continuous operations (required)
+- **Course repo location**: Amanoba course work lives in `/Users/moldovancsaba/Projects/amanoba_courses/`. Run course QA there.
+- **Separation rule**: Keep skill development and course development strictly separate. Skill edits go only to the skills repo. Course files stay local in the course repo and are never committed.
+
 
 - **After each work session**, update `SKILL.md` with any newly agreed conventions or lessons learned that improve consistency and quality.
 - **Skill development location**: All skill updates and improvements must be made in the local skill repo at `/Users/moldovancsaba/Projects/skills/amanoba-course-author/`.

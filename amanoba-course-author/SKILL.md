@@ -193,3 +193,14 @@ Run a final import readiness check against the v2 course package JSON before dec
 - each lesson has at least 7 quiz questions and each question meets minimum length rules
 
 Store the check result in the run log and report PASS or FAIL to the user.
+
+## Ready to import report (required)
+
+After QA and import readiness pass, create a report file in the course folder named `ready-to-import-report.md` with:
+- course name
+- course folder path
+- v2 package path
+- date
+- QA summary (lesson QA, quiz QA, import readiness)
+- short notes
+- next step to import in UI

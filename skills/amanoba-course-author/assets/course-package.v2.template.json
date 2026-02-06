@@ -1,0 +1,75 @@
+{
+  "packageVersion": "2.0",
+  "version": "2.0",
+  "exportedAt": "2026-02-06T00:00:00.000Z",
+  "exportedBy": "codex/course-author",
+  "course": {
+    "courseId": "CCS_ID_EN",
+    "name": "Course Name",
+    "description": "Public description (one paragraph).",
+    "language": "en",
+    "thumbnail": "https://example.com/thumbnail.png",
+    "durationDays": 30,
+    "isActive": true,
+    "requiresPremium": false,
+    "pointsConfig": { "completionPoints": 1000, "lessonPoints": 50, "perfectCourseBonus": 500 },
+    "xpConfig": { "completionXP": 500, "lessonXP": 25 },
+    "metadata": {
+      "category": "your_category",
+      "difficulty": "beginner|intermediate|advanced",
+      "estimatedHours": 20,
+      "tags": ["tag1", "tag2"]
+    },
+    "translations": {},
+    "discussionEnabled": false,
+    "leaderboardEnabled": false,
+    "studyGroupsEnabled": false,
+    "ccsId": "CCS_ID",
+    "prerequisiteEnforcement": "hard",
+    "certification": {
+      "enabled": true,
+      "premiumIncludesCertification": false,
+      "requireAllLessonsCompleted": true,
+      "requireAllQuizzesPassed": true
+    }
+  },
+  "lessons": [
+    {
+      "lessonId": "CCS_ID_EN_DAY_01",
+      "dayNumber": 1,
+      "language": "en",
+      "title": "Lesson title",
+      "content": "# Lesson 1: Lesson title\n\n**One-liner:** ...  \n**Time:** 20–30 min  \n**Deliverable:** ...\n\n## Learning goal\n\nYou will be able to: **...**\n",
+      "emailSubject": "Day 1 — Lesson title",
+      "emailBody": "## Today\n\nRead the lesson in the app.",
+      "quizConfig": { "enabled": true, "required": true, "successThreshold": 70, "questionCount": 7, "poolSize": 10 },
+      "unlockConditions": { "requirePreviousLesson": true },
+      "pointsReward": 50,
+      "xpReward": 25,
+      "isActive": true,
+      "displayOrder": 1,
+      "metadata": {},
+      "translations": {},
+      "quizQuestions": [
+        {
+          "uuid": "00000000-0000-0000-0000-000000000000",
+          "category": "Course Specific",
+          "isActive": true,
+          "questionType": "application",
+          "difficulty": "MEDIUM",
+          "hashtags": ["#day-01", "#topic-lesson-title", "#type-application"],
+          "question": "Standalone scenario question (>= 40 chars).",
+          "options": [
+            "Correct option (>= 25 chars).",
+            "Plausible wrong option 1 (>= 25 chars).",
+            "Plausible wrong option 2 (>= 25 chars).",
+            "Plausible wrong option 3 (>= 25 chars)."
+          ],
+          "correctIndex": 0
+        }
+      ]
+    }
+  ],
+  "canonicalSpec": null,
+  "courseIdea": null
+}

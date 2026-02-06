@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0",
+  "courseIdBase": "CCS_ID",
+  "courseName": "Course Name",
+  "version": "YYYY-MM-DD",
+  "language": "en",
+  "metadata": {},
+  "intent": {
+    "oneSentence": "One-sentence promise.",
+    "outcomes": ["Outcome 1", "Outcome 2"],
+    "nonGoals": ["Non-goal 1"]
+  },
+  "qualityGates": {
+    "lessonLengthMinutes": [20, 30],
+    "quizQuestions": 7,
+    "applicationMinimum": 5,
+    "criticalMinimum": 2,
+    "recallAllowed": false
+  },
+  "concepts": {},
+  "assessmentBlueprint": {},
+  "lessons": [
+    {
+      "dayNumber": 1,
+      "canonicalTitle": "Lesson title",
+      "objective": "Single measurable capability.",
+      "keyConcepts": ["Concept 1", "Concept 2"],
+      "exercise": "Guided + independent exercise summary.",
+      "deliverable": "Exact deliverable name.",
+      "sources": ["https://example.com/source-1", "https://example.com/source-2"]
+    }
+  ]
+}
+

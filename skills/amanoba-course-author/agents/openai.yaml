@@ -1,0 +1,5 @@
+interface:
+  display_name: "Amanoba Course Author"
+  short_description: "Write outcome-driven online courses"
+  default_prompt: "Use $amanoba-course-author to design a complete course for amanoba.com (outcomes, modules, lessons, projects, quizzes, rubrics, and student support)."
+

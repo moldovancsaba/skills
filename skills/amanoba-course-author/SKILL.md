@@ -9,22 +9,30 @@ description: Create, revise, and QA Amanoba courses end-to-end for amanoba.com, 
 
 When working inside the Amanoba repo, treat these as source-of-truth and follow them exactly:
 
-- `docs/amanoba_course_content_standard_v1_0.md` (hard rules + required lesson/quiz format)
-- `docs/CREATE_A_COURSE_HANDOVER.md` (end-to-end creation process + QA + smoke tests)
-- `docs/COURSE_PACKAGE_FORMAT.md` (export/import JSON schema v2)
+- `docs/amanoba-course-content-standard-v1-0.md` (hard rules + required lesson/quiz format)
+- `docs/create-a-course-handover.md` (end-to-end creation process + QA + smoke tests)
+- `docs/course-package-format.md` (export/import JSON schema v2)
 - Canonical family spec (example):
-  - `docs/canonical/<CCS_ID>/<CCS_ID>_CCS.md`
-  - `docs/canonical/<CCS_ID>/<CCS_ID>.canonical.json`
+- `docs/canonical/<course-folder>/<course-folder>-ccs.md`
+- `docs/canonical/<course-folder>/<course-folder>.canonical.json`
 - Quiz validator + hard rejects:
-  - `scripts/question-quality-validator.ts` (and the pipeline scripts referenced in the handover)
+- `scripts/question-quality-validator.ts` (and the pipeline scripts referenced in the handover)
 
 Internal navigation aid: `references/amanoba-ssot-map.md`.
+
+## Repository naming conventions (required)
+
+- **All files and directories must be kebab-case** in the repo (lowercase + hyphens).
+- Course family folder name must be kebab-case and reused as the canonical filename stem.
+- Example:
+  - `docs/canonical/generative-ai-apps-agents-2026/generative-ai-apps-agents-2026-ccs.md`
+  - `docs/canonical/generative-ai-apps-agents-2026/generative-ai-apps-agents-2026.canonical.json`
 
 ## Final deliverable (what “done” looks like)
 
 When asked for a “final course” (publish-ready artifact), output a **single v2 course package JSON** in the same shape as:
 
-- `docs/course/SPORT_SALES_NETWORK_EUROPE_2026_EN_export_2026-02-06_RECREATED.json`
+- `docs/course/sport-sales-network-europe-2026-en-export-2026-02-06-recreated.json`
 
 That means: `packageVersion: "2.0"`, `course` + `lessons` (30 lessons), each lesson has **v1.0 lesson Markdown** in `content` and a quiz pool that passes the validator gates.
 
@@ -40,20 +48,42 @@ Operate in two phases:
    - Constraints (language, time budget, industry/region, pricing/free, certification yes/no)
 2. Propose a crisp **1-sentence promise** and 5–10 measurable outcomes.
 3. Propose identifiers:
+   - `course-folder` (kebab-case family folder + filename stem)
    - `CCS_ID` (family id, `UPPERCASE_UNDERSCORE`)
    - `COURSE_ID` (variant id, typically `${CCS_ID}_${LANG}` like `_EN`)
 4. Stop and ask the user to confirm:
    - Topic + audience
+   - `course-folder` (kebab-case)
    - `CCS_ID` + language token
    - The 1-sentence promise (exact wording)
+   - **Course folder name** (new requirement: always create a new folder once agreed)
 
-### Phase 2 — Generate publish-ready artifacts (after explicit confirmation)
+### Phase 2 — Outline approval (after Phase 1 confirmation)
+
+Generate and present a 30-lesson outline for explicit user approval before producing any publish-ready artifacts. Do not proceed until the outline is approved.
+
+Store the outline in the course folder using this filename pattern:
+`<course-folder>/<course-folder>-course-outline.md`
+
+### Phase 3 — Generate publish-ready artifacts (after outline approval)
 
 Generate:
 
-1. `docs/canonical/<CCS_ID>/<CCS_ID>_CCS.md` (narrative CCS)
-2. `docs/canonical/<CCS_ID>/<CCS_ID>.canonical.json` (canonical JSON SSOT)
-3. `docs/course/<COURSE_ID>_export_<timestamp>_RECREATED.json` (final v2 course package JSON)
+1. **Create a new course folder** (named exactly as agreed, kebab-case) and place *all* course-related files inside it. Do not write course files outside this folder.
+1. `docs/canonical/<course-folder>/<course-folder>-ccs.md` (narrative CCS)
+2. `docs/canonical/<course-folder>/<course-folder>.canonical.json` (canonical JSON SSOT)
+3. `docs/course/<course-id-kebab>-export-<timestamp>-recreated.json` (final v2 course package JSON)
+
+## Lesson generation cadence (required)
+
+Generate lessons and quizzes in these four phases, requesting approval after showing the specified lesson each time:
+
+1) Phase A: Generate lesson 1 and its quiz. Show lesson 1 and its quiz for approval.
+2) Phase B: Generate lessons 2 to 10 and their quizzes. Show lesson 10 and its quiz for approval.
+3) Phase C: Generate lessons 11 to 20 and their quizzes. Show lesson 15 and its quiz for approval.
+4) Phase D: Generate lessons 21 to 30 and their quizzes. Show lesson 30 and its quiz for approval.
+
+Do not proceed to the next phase without explicit approval.
 
 Hard requirement: the final package must match the shape and conventions of:
 `docs/course/SPORT_SALES_NETWORK_EUROPE_2026_EN_export_2026-02-06_RECREATED.json`.
@@ -91,6 +121,8 @@ Follow the repo’s end-to-end workflow (Idea → Outline → CCS → Course →
 - Course structure: 30 lessons (day 1–30).
 - Lesson length: 20–30 minutes (per quality gates).
 - Quiz pool: at least 7 questions/lesson; platform may display fewer per attempt.
+- Commercial: default **free** (`requiresPremium=false`); admins may change later.
+- Certification: default **enabled**; admins may change later.
 
 ## Templates (use assets)
 
@@ -126,9 +158,18 @@ When asked to “improve the skill”, “incorporate student feedback”, or �
 - `references/regression-prompts.md`: canonical prompts to re-run after changes
 - `references/release-checklist.md`: lightweight release checklist for skill updates
 
+## Continuous operations (required)
+
+- **After each work session**, update `SKILL.md` with any newly agreed conventions or lessons learned that improve consistency and quality.
+- **Continuously commit and push to `main`** on `origin` as changes are made to the skill or skill resources only, unless explicitly told to pause or batch commits.
+- **Do not commit course content**. Course files are stored locally only and must not be added to git.
+
 ## Style rules
 
 - Prefer bullets and steps; avoid long prose.
 - Teach by doing: every concept gets a worked example and an exercise.
 - Call out common mistakes explicitly.
 - Use absolute dates when scheduling (e.g., 2026-02-06), not “today”.
+- **One question at a time:** Ask only one question per user turn. Keep each question focused on a single topic. You may return to earlier topics in later turns if needed.
+- **Never use “—” (em dash)** in any outputs.
+- **Human-friendly explanations:** In each lesson, write clear, plain language explanations for the “What it is,” “What it is not,” and “2-minute theory” sections. Avoid overly terse or generic lines.

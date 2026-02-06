@@ -161,8 +161,9 @@ When asked to “improve the skill”, “incorporate student feedback”, or �
 ## Continuous operations (required)
 
 - **After each work session**, update `SKILL.md` with any newly agreed conventions or lessons learned that improve consistency and quality.
+- **Skill development location**: All skill updates and improvements must be made in the local skill repo at `/Users/moldovancsaba/Projects/skills/skills/amanoba-course-author/`.
 - **Continuously commit and push to `main`** on `origin` as changes are made to the skill or skill resources only, unless explicitly told to pause or batch commits.
-- **Do not commit course content**. Course files are stored locally only and must not be added to git.
+- **Do not commit course content**. Course files are stored locally only and must not be added to git. The Amanoba courses repo is separate from the skill repo.
 
 ## Style rules
 

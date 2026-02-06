@@ -177,3 +177,8 @@ When asked to “improve the skill”, “incorporate student feedback”, or �
 - **One question at a time:** Ask only one question per user turn. Keep each question focused on a single topic. You may return to earlier topics in later turns if needed.
 - **Never use “—” (em dash)** in any outputs.
 - **Human-friendly explanations:** In each lesson, write clear, plain language explanations for the “What it is,” “What it is not,” and “2-minute theory” sections. Avoid overly terse or generic lines.
+
+## QA scripts (required)
+
+- Store all Amanoba course QA scripts in `/Users/moldovancsaba/Projects/skills/amanoba-course-author/scripts/`.
+- Run QA scripts from the skills repo and validate content stored in `/Users/moldovancsaba/Projects/amanoba_courses/`, scoped to the specific course folder.

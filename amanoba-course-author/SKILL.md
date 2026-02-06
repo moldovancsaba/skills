@@ -182,3 +182,14 @@ When asked to “improve the skill”, “incorporate student feedback”, or �
 
 - Store all Amanoba course QA scripts in `/Users/moldovancsaba/Projects/skills/amanoba-course-author/scripts/`.
 - Run QA scripts from the skills repo and validate content stored in `/Users/moldovancsaba/Projects/amanoba_courses/`, scoped to the specific course folder.
+
+## Import readiness checklist (required)
+
+Run a final import readiness check against the v2 course package JSON before declaring the course ready for UI import. At minimum verify:
+- packageVersion is 2.0
+- course has required fields (courseId, name, description, language, durationDays, isActive, requiresPremium, ccsId, certification)
+- 30 lessons present
+- each lesson has content, emailSubject, emailBody, quizConfig, quizQuestions
+- each lesson has at least 7 quiz questions and each question meets minimum length rules
+
+Store the check result in the run log and report PASS or FAIL to the user.

@@ -1,6 +1,6 @@
 ---
 name: amanoba-course-author
-description: Create, revise, and QA Amanoba courses end-to-end for amanoba.com, including CCS/canonical JSON specs, lesson content (strict v1.0 lesson format), quizzes (no-garbage rules + validator gates), and export/import course packages (v2). Use when asked to design curricula, write lessons/quizzes, build canonical course specs, generate course packages, run quiz/lesson quality checks, or prepare publish-ready course content.
+description: Create, revise, localize, and QA Amanoba courses end-to-end for amanoba.com, including CCS/canonical JSON specs, lesson content (strict v1.0 lesson format), quizzes (no-garbage rules + validator gates), export/import course packages (v2), and multilingual localization workflows. Use when asked to design curricula, write lessons/quizzes, build canonical course specs, generate course packages, run quiz/lesson quality checks, translate or localize existing courses, research language demand, select target languages, build glossary or style guides, or prepare publish-ready course content.
 ---
 
 # Amanoba Course Author
@@ -73,6 +73,61 @@ Generate:
 1. `docs/canonical/<course-folder>/<course-folder>-ccs.md` (narrative CCS)
 2. `docs/canonical/<course-folder>/<course-folder>.canonical.json` (canonical JSON SSOT)
 3. `docs/course/<course-id-kebab>-export-<timestamp>-recreated.json` (final v2 course package JSON)
+
+## Localization and Multilingual Expansion (new workflow)
+
+Use this workflow when the user wants the course in other languages or wants to choose the next target language together.
+
+### Step 0 — Confirm source course and language scope
+
+- Identify the source course folder and language, and confirm the exact course variant to localize.
+- Confirm target language options or request 3 to 6 candidate languages from the user.
+- Ask whether localization should include cultural adaptation or be a strict translation.
+
+### Step 1 — Language demand research
+
+- Gather evidence for each candidate language. Use `web.run` for up-to-date external signals.
+- Prefer signals like market size, developer population, platform traffic by language, or partner priorities.
+- Store a short, cited summary and a recommendation.
+- Output file: `<course-folder>/localization/language-demand-research.md`
+
+### Step 2 — Target language decision with the user
+
+- Present a concise comparison and a recommendation.
+- Ask the user to pick the target language before any content work.
+- Record the decision and reasons.
+- Output file: `<course-folder>/localization/target-language-decision.md`
+
+### Step 3 — Localization brief, glossary, and style guide
+
+- Write a localization brief that defines tone, formality, technical depth, and any regional constraints.
+- Create a glossary with locked terms, preferred translations, and notes.
+- Create a short language style guide for consistency.
+- Output files: `<course-folder>/localization/localization-brief.md`, `<course-folder>/localization/glossary-<lang>.md`, `<course-folder>/localization/style-guide-<lang>.md`
+
+### Step 4 — Cultural adaptation checks
+
+- Scan examples, idioms, dates, currency, regulations, and region-specific assumptions.
+- Replace or adapt examples that do not transfer cleanly.
+- Record changes and remaining risks.
+- Output file: `<course-folder>/localization/cultural-adaptation-checklist.md`
+
+### Step 5 — Localization production workflow
+
+- Duplicate the source course into a new course folder for the target language.
+- Keep the same `ccsId` family and create a new `courseId` variant with the target language token.
+- Localize all course content, quizzes, and email copy while preserving the required lesson and quiz structure.
+- Enforce glossary and style guide rules before QA.
+
+### Step 6 — Language-specific QA gates
+
+- Run standard QA plus language gates. Check terminology consistency against the glossary. Verify formality and tone match the style guide. Confirm the cultural adaptation checklist is fully resolved. Ensure examples and measurements are localization-appropriate.
+- Output file: `<course-folder>/localization/localization-qa-report.md`
+
+References:
+- `references/localization-workflow.md`
+- `references/glossary-template.md`
+- `references/language-qa-gates.md`
 
 ## Lesson generation cadence (required)
 

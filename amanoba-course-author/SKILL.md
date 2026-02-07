@@ -118,6 +118,7 @@ Use this workflow when the user wants the course in other languages or wants to 
 - Keep the same `ccsId` family and create a new `courseId` variant with the target language token.
 - Localize all course content, quizzes, and email copy while preserving the required lesson and quiz structure.
 - Enforce glossary and style guide rules before QA.
+- Checkpoint requirement for non-English lessons: At each lesson checkpoint, show the localized target language content first, then provide a raw mirror translation back to English for review.
 
 ### Step 6 — Language-specific QA gates
 

@@ -70,9 +70,14 @@ Store the outline in the course folder using this filename pattern:
 Generate:
 
 1. **Create a new course folder** (named exactly as agreed, kebab-case) and place *all* course-related files inside it. Do not write course files outside this folder.
-1. `docs/canonical/<course-folder>/<course-folder>-ccs.md` (narrative CCS)
-2. `docs/canonical/<course-folder>/<course-folder>.canonical.json` (canonical JSON SSOT)
-3. `docs/course/<course-id-kebab>-export-<timestamp>-recreated.json` (final v2 course package JSON)
+2. Create lesson-by-lesson source files inside the course folder:
+   - `lesson-01-<slug>.md` to `lesson-30-<slug>.md`
+   - `lesson-01-<slug>-quiz.md` to `lesson-30-<slug>-quiz.md`
+3. `docs/canonical/<course-folder>/<course-folder>-ccs.md` (narrative CCS)
+4. `docs/canonical/<course-folder>/<course-folder>.canonical.json` (canonical JSON SSOT)
+5. `docs/course/<course-id-kebab>-export-<timestamp>-recreated.json` (final v2 course package JSON)
+
+Rule: never generate the final package directly from a single repeated template loop. Author lesson and quiz files separately first, then assemble the export JSON from those files.
 
 ## Localization and Multilingual Expansion (new workflow)
 
@@ -144,6 +149,8 @@ Do not proceed to the next phase without explicit approval.
 Hard requirement: the final package must match the shape and conventions of:
 `docs/course/SPORT_SALES_NETWORK_EUROPE_2026_EN_export_2026-02-06_RECREATED.json`.
 
+Additional hard requirement: every lesson must be treated as an independent mini-product with unique teaching value. Avoid cross-lesson boilerplate reuse that makes lessons feel interchangeable.
+
 ## Outcomes
 
 Produce course materials that are:
@@ -203,6 +210,27 @@ Use the templates in `assets/`:
 - Exactly **1 callout** per lesson (`> **Pro tip:** ...` or `> **Common mistake:** ...`).
 - Quiz questions must be standalone (no “this lesson/course/today/day X”), have exactly 1 correct answer, and avoid “all/none of the above”.
 - Quiz gates (per lesson pool): **>=7 total**, **>=5 application**, **0 recall**; options must be concrete and plausible.
+- Never include broken or quoted exercise-fragments inside quiz questions (forbidden examples: `Egy új gyakorlatot vezetsz be`, `Gyakorlat (vezetett)`, truncated exercise titles).
+- Lesson and quiz text must be beginner-safe Hungarian: natural, complete sentences, no placeholder fragments, no cut-off clause starts.
+
+## Whole-course quality gate (required)
+
+Run quality checks across the entire 30-lesson package, not only spot checks:
+
+1. Lesson-level checks for all lessons:
+   - required section order present
+   - exactly 1 table
+   - exactly 1 callout
+   - clear beginner-friendly language
+2. Quiz-level checks for all questions in all lessons:
+   - no forbidden fragments or truncated exercise references
+   - no placeholders, no broken punctuation/quotes
+   - no exact duplicate question text across the full course
+3. Course-level consistency:
+   - each lesson has unique practical scenario and unique deliverable emphasis
+   - no mass template repetition that reduces independent lesson value
+
+Report PASS/FAIL with concrete findings in the run log before declaring ready-to-import.
 
 ## Continuous improvement (make it better over time)
 

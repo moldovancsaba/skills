@@ -1,4 +1,0 @@
-interface:
-  display_name: "Amanoba Course Author"
-  short_description: "Create and localize Amanoba courses"
-  default_prompt: "Use $amanoba-course-author to design or localize an Amanoba course with outcomes, lessons, quizzes, QA, and publish-ready packaging."

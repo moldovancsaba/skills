@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum ActionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+enum ContentType {
+  INTERNAL_NOTE
+  COMPETITOR_DATA
+  MARKET_INFO
+  GOAL_INFO
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  companyId String
+  role      UserRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company      @relation(fields: [companyId], references: [id])
+  goals      Goal[]
+  actions    Action[]
+  actionHistory ActionHistory[]
+}
+
+model Company {
+  id          String   @id @default(uuid())
+  name        String
+  industry    String?
+  description String?
+  goals       Json?
+  competitors Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users           User[]
+  goals           Goal[]
+  actions         Action[]
+  companyContexts CompanyContext[]
+}
+
+model Goal {
+  id          String     @id @default(uuid())
+  companyId   String
+  title       String
+  description String?
+  targetDate  DateTime?
+  status      GoalStatus @default(ACTIVE)
+  priority    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  company Company  @relation(fields: [companyId], references: [id])
+  actions Action[]
+}
+
+model Action {
+  id             String       @id @default(uuid())
+  goalId         String
+  title          String
+  description    String?
+  reasoning      String?
+  priorityScore  Float?
+  status         ActionStatus @default(PENDING)
+  scheduledDate  DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  goal          Goal           @relation(fields: [goalId], references: [id])
+  history       ActionHistory[]
+}
+
+model CompanyContext {
+  id           String      @id @default(uuid())
+  companyId    String
+  contentType  ContentType
+  content      String
+  embedding    Float[]?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+}
+
+model ActionHistory {
+  id            String       @id @default(uuid())
+  actionId      String
+  previousStatus ActionStatus?
+  newStatus     ActionStatus
+  changedById   String
+  changedAt     DateTime     @default(now())
+  note          String?
+
+  action    Action @relation(fields: [actionId], references: [id])
+  changedBy User   @relation(fields: [changedById], references: [id])
+}

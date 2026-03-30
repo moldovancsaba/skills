@@ -1,0 +1,9 @@
+---
+description: Production deploy is triggered by pushing to GitHub main; no separate deploy step.
+alwaysApply: true
+---
+
+# Deploy: commit + push to `origin/main`
+
+- **Pushing to `origin/main` on GitHub automatically deploys** the app (e.g. Vercel). Treat **commit + push** as completing deployment—do not ask the user to run a separate deploy unless they explicitly use a different flow.
+- After making changes that should go live, **commit and push to `main`** as part of finishing the task.

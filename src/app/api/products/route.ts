@@ -35,9 +35,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const id = request.nextUrl.searchParams.get("id");
+  const id = request.nextUrl.searchParams.get("id") ?? undefined;
   
   try {
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
     await prisma.product.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

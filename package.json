@@ -23,5 +23,8 @@
     "@types/react-dom": "^19.0.0",
     "prisma": "^6.0.0",
     "typescript": "^5.7.0"
+  },
+  "next": {
+    "reactStrictMode": true
   }
 }

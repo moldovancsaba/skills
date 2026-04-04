@@ -40,7 +40,7 @@ export default function CompanyNBAPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       refreshNBA();
-    }, 30000);
+    }, 600000);
     return () => clearInterval(interval);
   }, [company]);
 

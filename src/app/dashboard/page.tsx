@@ -32,9 +32,11 @@ const moduleStatus = [
 
 export default function Dashboard() {
   const router = useRouter();
-  const { company, isLoading, setCompany, setLoading, products, customers, competitors } = useStore();
+  const { company, isLoading, setCompany, setLoading, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [showForm, setShowForm] = useState(false);
   const [nbaItems, setNbaItems] = useState<NBAItem[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [showClientSelect, setShowClientSelect] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     industry: "",
@@ -47,12 +49,31 @@ export default function Dashboard() {
     fetch("/api/companies")
       .then(res => res.json())
       .then(data => {
+        setCompanies(data);
         if (data.length > 0) {
           setCompany(data[0]);
         }
       })
       .catch(console.error);
   }, []);
+
+  const switchClient = (companyId: string) => {
+    const selected = companies.find(c => c.id === companyId);
+    if (selected) {
+      setCompany(selected);
+      setShowClientSelect(false);
+      // Reset data
+      setProducts([]);
+      setCustomers([]);
+      setCompetitors([]);
+      setNbaItems([]);
+      // Load new data
+      fetch(`/api/products?companyId=${companyId}`).then(r => r.json()).then(setProducts);
+      fetch(`/api/customers?companyId=${companyId}`).then(r => r.json()).then(setCustomers);
+      fetch(`/api/competitors?companyId=${companyId}`).then(r => r.json()).then(setCompetitors);
+      fetch(`/api/nba?companyId=${companyId}`).then(r => r.json()).then(d => setNbaItems(d.slice(0, 3)));
+    }
+  };
 
   useEffect(() => {
     if (company) {
@@ -155,13 +176,39 @@ export default function Dashboard() {
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Command Center</h1>
-          <p className="text-sm text-muted-foreground mt-1">{company?.name}</p>
+          {companies.length > 1 ? (
+            <button 
+              onClick={() => setShowClientSelect(!showClientSelect)}
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mt-1"
+            >
+              {company?.name} ▼
+            </button>
+          ) : (
+            <p className="text-sm text-muted-foreground mt-1">{company?.name}</p>
+          )}
         </div>
         <Badge variant="outline" className="gap-1.5 py-1 px-3 text-xs font-medium">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
           Active
         </Badge>
       </motion.div>
+
+      {/* Client Selector Dropdown */}
+      {showClientSelect && companies.length > 1 && (
+        <div className="absolute right-8 mt-2 bg-card border border-border rounded-lg shadow-lg z-50 w-64">
+          {companies.map((c: any) => (
+            <button
+              key={c.id}
+              onClick={() => switchClient(c.id)}
+              className={`w-full text-left px-4 py-2 text-sm hover:bg-muted ${
+                company?.id === c.id ? "bg-muted font-medium" : ""
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Data Collection Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

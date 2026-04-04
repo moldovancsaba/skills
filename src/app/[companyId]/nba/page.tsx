@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Brain, Check, X, MessageSquare, Sparkles } from "lucide-react";
+import { Brain, Check, X, MessageSquare, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface NBAItem {
@@ -17,6 +17,7 @@ interface NBAItem {
   iceScore: number;
   status: string;
   userAnnotation?: string;
+  createdBy?: string;
 }
 
 export default function CompanyNBAPage() {
@@ -27,7 +28,6 @@ export default function CompanyNBAPage() {
   const { company, setCompany } = useStore();
   const [items, setItems] = useState<NBAItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [showDeclineForm, setShowDeclineForm] = useState<string | null>(null);
   const [declineAnnotation, setDeclineAnnotation] = useState("");
 
@@ -36,6 +36,13 @@ export default function CompanyNBAPage() {
       loadCompany(companyId);
     }
   }, [companyId]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshNBA();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [company]);
 
   const loadCompany = (cid: string) => {
     fetch(`/api/companies`)
@@ -58,27 +65,8 @@ export default function CompanyNBAPage() {
     setLoading(false);
   };
 
-  const handleGenerate = async (useLocal: boolean = false) => {
-    if (!company) return;
-    setGenerating(true);
-    
-    try {
-      const endpoint = useLocal ? "/api/agent/local" : "/api/brain";
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId: company.id }),
-      });
-      
-      const result = await res.json();
-      console.log("Generate result:", result);
-      
-      loadNBA(company.id);
-    } catch (err) {
-      console.error("Generate error:", err);
-    } finally {
-      setGenerating(false);
-    }
+  const refreshNBA = () => {
+    if (company) loadNBA(company.id);
   };
 
   const handleFeedback = async (itemId: string, action: "ACCEPT" | "DECLINE", annotation?: string) => {
@@ -106,24 +94,13 @@ export default function CompanyNBAPage() {
             <h1 className="text-2xl font-bold text-foreground mt-2">Recommendations</h1>
             <p className="text-sm text-muted-foreground mt-1">AI-powered Next Best Actions</p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleGenerate(false)}
-              disabled={generating}
-              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 disabled:opacity-50"
+          <button
+              onClick={refreshNBA}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             >
-              <Sparkles className="w-4 h-4" />
-              {generating ? "..." : "Brain"}
+              <Loader2 className="w-4 h-4" />
+              Refresh
             </button>
-            <button
-              onClick={() => handleGenerate(true)}
-              disabled={generating}
-              className="flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-md hover:bg-secondary/90 disabled:opacity-50"
-            >
-              <Sparkles className="w-4 h-4" />
-              {generating ? "..." : "Local AI"}
-            </button>
-          </div>
         </div>
       </motion.div>
 
@@ -131,7 +108,7 @@ export default function CompanyNBAPage() {
         <div className="text-center py-12 border border-dashed rounded-lg">
           <Brain className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground mb-4">No recommendations yet.</p>
-          <p className="text-sm text-muted-foreground">Click "Generate" to get AI-powered suggestions.</p>
+          <p className="text-sm text-muted-foreground">Add data to get AI-powered suggestions.</p>
         </div>
       ) : (
         <div className="space-y-4">

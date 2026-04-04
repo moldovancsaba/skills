@@ -83,11 +83,23 @@ export default function CompanyDataPage() {
       : { companyId: company.id, name: input, urls: [], strengths: [], weaknesses: [] };
 
     try {
-      await fetch(endpoint, {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      
+      if (res.ok) {
+        fetch("/api/webhook/trigger", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            companyId: company.id, 
+            dataType: type, 
+            action: "create" 
+          }),
+        }).catch(() => {});
+      }
       
       setInput("");
       setSaved(true);

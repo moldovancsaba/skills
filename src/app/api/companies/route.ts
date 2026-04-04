@@ -25,14 +25,20 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     
+    const createData: any = {
+      name: data.name,
+      industry: data.industry || null,
+      description: data.description || null,
+      targetMarket: data.targetMarket || null,
+    };
+    
+    // Only add mainGoal if it's a valid enum value
+    if (data.mainGoal && ["GROW_REVENUE", "LAUNCH_PRODUCT", "ENTER_NEW_MARKET", "BUILD_AWARENESS", "GENERATE_LEADS"].includes(data.mainGoal)) {
+      createData.mainGoal = data.mainGoal;
+    }
+    
     const company = await prisma.company.create({
-      data: {
-        name: data.name,
-        industry: data.industry,
-        description: data.description,
-        targetMarket: data.targetMarket,
-        mainGoal: data.mainGoal,
-      },
+      data: createData,
     });
     
     return NextResponse.json(company);

@@ -161,8 +161,8 @@ export default function Dashboard() {
         body: JSON.stringify(formData),
       });
       
-      const newCompany = await res.json();
-      setCompany(newCompany);
+      // After creating, redirect to home to select from company list
+      router.push("/");
       setShowForm(false);
     } catch (error) {
       console.error(error);

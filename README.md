@@ -34,6 +34,7 @@ AI-powered marketing checklist and Next Best Actions (NBA) system.
 
 ## Features
 
+- **Dark Mode** - System preference + manual toggle (roadmap #40)
 - **Full CRUD** for companies on home page
 - **Data Collection**: Products, customers, competitors
 - **AI-Powered Tasks**: Local Ollama generates NBA recommendations

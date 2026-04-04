@@ -119,7 +119,7 @@ GET https://checklist.sovereignsquad.com/api/feedback
 GET https://checklist.sovereignsquad.com/api/nba?companyId=UUID-HERE
 ```
 
-**NBA Response includes userAnnotation (decline reasons):**
+**NBA Response includes userAnnotation (optional for both):**
 ```json
 [
   {
@@ -140,11 +140,20 @@ GET https://checklist.sovereignsquad.com/api/nba?companyId=UUID-HERE
     "description": "...",
     "iceScore": 350,
     "status": "ACCEPTED",
-    "userAnnotation": null,
+    "userAnnotation": "Great idea, doing this now!",
     "impact": 7,
     "confidence": 70,
     "ease": 7,
     "createdAt": "2024-03-10T08:00:00Z"
+  },
+  {
+    "id": "nba-003",
+    "title": "Launch paid ads",
+    "status": "ACCEPTED",
+    "userAnnotation": null,
+    "impact": 7,
+    "confidence": 70,
+    "ease": 7
   }
 ]
 ```
@@ -153,7 +162,7 @@ GET https://checklist.sovereignsquad.com/api/nba?companyId=UUID-HERE
 | Status | Meaning |
 |--------|--------|
 | PENDING | Not yet responded |
-| ACCEPTED | User clicked ✓ |
+| ACCEPTED | User clicked ✓ (annotation optional) |
 | DECLINED | User clicked ✗ (has annotation) |
 
 ---

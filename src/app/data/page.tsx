@@ -1,0 +1,193 @@
+'use client';
+
+import { useState, useEffect } from "react";
+import { useStore } from "@/lib/store";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Package, Users, Search, Plus, X, CheckCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+type DataType = "product" | "customer" | "competitor";
+
+interface DataItem {
+  id: string;
+  name: string;
+  type: DataType;
+  description?: string;
+  createdAt: string;
+}
+
+export default function DataCollectionPage() {
+  const router = useRouter();
+  const { company, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
+  const [input, setInput] = useState("");
+  const [type, setType] = useState<DataType>("product");
+  const [saved, setSaved] = useState(false);
+  const [items, setItems] = useState<DataItem[]>([]);
+
+  useEffect(() => {
+    if (!company) {
+      fetch("/api/companies")
+        .then(res => res.json())
+        .then(data => {
+          if (data.length > 0) {
+            const co = data[0];
+            loadAllData(co.id);
+          }
+        });
+    } else {
+      loadAllData(company.id);
+    }
+  }, [company]);
+
+  const loadAllData = async (companyId: string) => {
+    const [p, c, r] = await Promise.all([
+      fetch(`/api/products?companyId=${companyId}`).then(res => res.json()),
+      fetch(`/api/customers?companyId=${companyId}`).then(res => res.json()),
+      fetch(`/api/competitors?companyId=${companyId}`).then(res => res.json()),
+    ]);
+    setProducts(p);
+    setCustomers(c);
+    setCompetitors(r);
+    
+    const all: DataItem[] = [
+      ...p.map((x: any) => ({ ...x, type: "product" as DataType })),
+      ...c.map((x: any) => ({ ...x, type: "customer" as DataType })),
+      ...r.map((x: any) => ({ ...x, type: "competitor" as DataType })),
+    ];
+    setItems(all);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || !company) return;
+
+    const endpoint = type === "product" ? "/api/products" 
+      : type === "customer" ? "/api/customers" 
+      : "/api/competitors";
+
+    const payload = type === "product" 
+      ? { companyId: company.id, name: input, features: [] }
+      : type === "customer"
+      ? { companyId: company.id, name: input, segments: [], painPoints: [], channels: [] }
+      : { companyId: company.id, name: input, urls: [], strengths: [], weaknesses: [] };
+
+    try {
+      await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      
+      setInput("");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+      
+      // Reload data
+      const res = await fetch(`/api/${type}s?companyId=${company.id}`);
+      const data = await res.json();
+      
+      if (type === "product") setProducts(data);
+      else if (type === "customer") setCustomers(data);
+      else setCompetitors(data);
+      
+      loadAllData(company.id);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const getIcon = (t: DataType) => {
+    switch (t) {
+      case "product": return Package;
+      case "customer": return Users;
+      case "competitor": return Search;
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-8">
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <h1 className="text-2xl font-bold text-foreground">Add Data</h1>
+        <p className="text-sm text-muted-foreground mt-1">Quickly add products, customers, or competitors.</p>
+      </motion.div>
+
+      {/* Simple Input Form */}
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as DataType)}
+          className="flex h-12 rounded-md border border-input bg-background px-3 py-2 text-sm"
+        >
+          <option value="product">Product</option>
+          <option value="customer">Customer</option>
+          <option value="competitor">Competitor</option>
+        </select>
+        
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={`Add a ${type}...`}
+          className="flex-1 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm"
+        />
+        
+        <button
+          type="submit"
+          disabled={!input.trim() || !company}
+          className="flex items-center gap-2 h-12 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          <Plus className="w-4 h-4" />
+          Add
+        </button>
+      </form>
+
+      {saved && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-green-600">
+          <CheckCircle className="w-4 h-4" />
+          <span className="text-sm">Saved!</span>
+        </motion.div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-card border border-border rounded-lg p-4 text-center">
+          <Package className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+          <p className="text-2xl font-bold text-foreground">{products.length}</p>
+          <p className="text-xs text-muted-foreground">Products</p>
+        </div>
+        <div className="bg-card border border-border rounded-lg p-4 text-center">
+          <Users className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+          <p className="text-2xl font-bold text-foreground">{customers.length}</p>
+          <p className="text-xs text-muted-foreground">Customers</p>
+        </div>
+        <div className="bg-card border border-border rounded-lg p-4 text-center">
+          <Search className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+          <p className="text-2xl font-bold text-foreground">{competitors.length}</p>
+          <p className="text-xs text-muted-foreground">Competitors</p>
+        </div>
+      </div>
+
+      {/* List */}
+      <div>
+        <h2 className="text-lg font-semibold text-foreground mb-3">All Data ({items.length})</h2>
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No data yet. Add your first item above.</p>
+        ) : (
+          <div className="space-y-2">
+            {items.map((item) => {
+              const Icon = getIcon(item.type);
+              return (
+                <div key={item.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg">
+                  <Icon className="w-4 h-4 text-muted-foreground" />
+                  <span className="flex-1 text-sm text-foreground">{item.name}</span>
+                  <Badge variant="outline" className="text-xs capitalize">{item.type}</Badge>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

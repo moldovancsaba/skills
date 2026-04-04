@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Brain, Target, BarChart3, Users, Package, Search, ArrowRight,
-  Clock, Bell, ChevronRight, CheckCircle, XCircle, AlertCircle,
+  Clock, Bell, ChevronRight, CheckCircle, XCircle, AlertCircle, Plus,
 } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import { Badge } from "@/components/ui/badge";
@@ -20,14 +20,14 @@ interface NBAItem {
 }
 
 const moduleStatus = [
-  { name: "Products", path: "/products", icon: Package, description: "Add your products and services" },
-  { name: "Customers", path: "/customers", icon: Users, description: "Add customer data" },
-  { name: "Competitors", path: "/competitors", icon: Search, description: "Add competitor info" },
+  { name: "Data Collection", path: "/data", icon: Plus, description: "Add products, customers, competitors" },
   { name: "Strategy", path: "/strategy", icon: Brain, description: "Strategic planning" },
   { name: "Intelligence", path: "/intelligence", icon: Target, description: "Market insights" },
   { name: "Lead Gen", path: "/leads", icon: BarChart3, description: "Lead generation" },
   { name: "CRM", path: "/crm", icon: Users, description: "Customer management" },
   { name: "Portfolio", path: "/portfolio", icon: Package, description: "Offerings" },
+  { name: "Content", path: "/content", icon: Search, description: "Content creation" },
+  { name: "Brand", path: "/brand", icon: Bell, description: "Brand management" },
 ];
 
 export default function Dashboard() {

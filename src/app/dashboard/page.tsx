@@ -182,7 +182,10 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-foreground">Welcome to Checklist</h1>
           <p className="text-sm text-muted-foreground mt-1">Set up your company to get AI-powered marketing recommendations.</p>
         </motion.div>
-        <button onClick={() => setShowForm(true)} className="bg-primary text-primary-foreground px-4 py-2 rounded-md">Set Up Company</button>
+        <div className="flex gap-3">
+          <button onClick={() => setShowForm(true)} className="bg-primary text-primary-foreground px-4 py-2 rounded-md">Set Up Company</button>
+          <a href="/" className="px-4 py-2 text-muted-foreground hover:text-foreground border border-border rounded-md">Select Existing Company</a>
+        </div>
       </div>
     );
   }

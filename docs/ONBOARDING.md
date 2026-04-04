@@ -163,7 +163,7 @@ GET https://checklist.sovereignsquad.com/api/nba?companyId=UUID-HERE
 |--------|--------|
 | PENDING | Not yet responded |
 | ACCEPTED | User clicked ✓ (annotation optional) |
-| DECLINED | User clicked ✗ (has annotation) |
+| DECLINED | User clicked ✗ (annotation **mandatory**) |
 
 ---
 
@@ -211,12 +211,12 @@ Content-Type: application/json
 }
 ```
 
-**Request Body - Decline:**
+**Request Body - Decline (annotation mandatory):**
 ```json
 {
   "nbaItemId": "NBA-UUID-HERE", 
   "action": "DECLINE",
-  "annotation": "Reason for declining"
+  "annotation": "Reason for declining (required)"
 }
 ```
 

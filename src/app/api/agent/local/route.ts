@@ -1,29 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-const SYSTEM_PROMPT = `You are a world-class marketing strategist AI. Your job is to analyze company data and generate actionable Next Best Actions (NBA).
+const SYSTEM_PROMPT = `You are a marketing strategist. Generate 2-4 NBA recommendations as JSON array with: title, description, impact (1-10), confidence (1-100), ease (1-10). Output ONLY JSON.`;
 
-Generate 2-4 marketing recommendations based on the data provided. Output as JSON array with fields:
-- title: short recommendation title
-- description: 1-2 sentence explanation
-- impact: 1-10 score (revenue/growth potential)
-- confidence: 1-100% (how sure you are it will work)
-- ease: 1-10 score (how easy to implement)
-
-Output ONLY valid JSON array, no markdown, no explanation.`;
+async function callLocalAI(prompt: string): Promise<any[]> {
+  const { default: ollama } = await import("ollama");
+  
+  const response = await ollama.chat({
+    model: "deepseek-r1:1.5b",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: prompt },
+    ],
+    format: "json",
+  });
+  
+  try {
+    return JSON.parse(response.message.content);
+  } catch {
+    const match = response.message.content.match(/\[[\s\S]*\]/);
+    if (match) return JSON.parse(match[0]);
+    return [];
+  }
+}
 
 export async function POST(request: NextRequest) {
-  const isLocalDev = process.env.VERCEL === undefined;
-  
-  if (!isLocalDev) {
-    return NextResponse.json({ 
-      error: "Local AI onlyavailable in local development. Use Brain button for production.",
-      fallback: "Run locally: npm run dev"
-    }, { status: 503 });
-  }
-
-  const ollama = (await import("ollama")).default;
-
   try {
     const { companyId } = await request.json();
     
@@ -45,63 +46,20 @@ export async function POST(request: NextRequest) {
 
     const company = await prisma.company.findUnique({ where: { id: companyId } });
 
-    let context = `# Company: ${company?.name} (${company?.industry || 'N/A'})\n`;
-    context += `# Target Market: ${company?.targetMarket || 'Not specified'}\n\n`;
-    
-    context += `## Products (${products.length}):\n`;
-    products.forEach(p => context += `- ${p.name}: ${p.description || 'No description'}\n`);
-    
-    context += `\n## Customers (${customers.length}):\n`;
-    customers.forEach(c => context += `- ${c.name}\n`);
-    
-    context += `\n## Competitors (${competitors.length}):\n`;
-    competitors.forEach(c => context += `- ${c.name}\n`);
-    
-    if (feedback.length > 0) {
-      context += `\n## Past Feedback (for learning):\n`;
-      feedback.forEach(f => {
-        context += `- ${f.action}: ${f.annotation || 'No comment'}\n`;
-      });
-    } else {
-      context += `\n## Past Feedback: None yet - first run\n`;
-    }
+    const context = `# Company: ${company?.name} (${company?.industry || 'N/A'})
+## Products: ${products.map(p => p.name).join(', ') || 'none'}
+## Customers: ${customers.map(c => c.name).join(', ') || 'none'}  
+## Competitors: ${competitors.map(c => c.name).join(', ') || 'none'}
+## Feedback: ${feedback.map(f => `${f.action}: ${f.annotation || ''}`).join('; ') || 'none'}
 
-    const messages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: context + "\n\nGenerate marketing recommendations:" },
-    ];
+Generate 2-4 marketing NBA recommendations:`;
 
-    const response = await ollama.chat({
-      model: "deepseek-r1:1.5b",
-      messages,
-      format: "json",
-    });
-
-    let recommendations = [];
-    try {
-      recommendations = JSON.parse(response.message.content);
-    } catch {
-      const match = response.message.content.match(/\[[\s\S]*\]/);
-      if (match) {
-        recommendations = JSON.parse(match[0]);
-      } else {
-        return NextResponse.json({ 
-          error: "Failed to parse AI response",
-          raw: response.message.content 
-        }, { status: 500 });
-      }
-    }
-
-    if (!Array.isArray(recommendations)) {
-      recommendations = [recommendations];
-    }
+    const recommendations = await callLocalAI(context);
 
     const created = [];
-    for (const rec of recommendations) {
+    for (const rec of recommendations || []) {
       if (!rec.title) continue;
-      
-      const isDuplicate = existingNBA.some(n => n.title === rec.title);
-      if (isDuplicate) continue;
+      if (existingNBA.some(n => n.title === rec.title)) continue;
 
       const iceScore = (rec.impact * (rec.confidence / 100) * rec.ease * 10);
 
@@ -121,13 +79,8 @@ export async function POST(request: NextRequest) {
       created.push(item);
     }
 
-    return NextResponse.json({ 
-      message: `Local AI generated ${created.length} recommendations`,
-      items: created,
-      model: "deepseek-r1:1.5b",
-    });
+    return NextResponse.json({ items: created });
   } catch (error) {
-    console.error("Local AI error:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

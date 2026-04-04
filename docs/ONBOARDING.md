@@ -2,8 +2,15 @@
 
 ## DEPLOYMENT URL
 ```
-https://checklist.sovereignsquad.com
+https://checklist.messmass.com
 ```
+
+## URL STRUCTURE (Company-based)
+Each company has their own URL with UUID:
+- `https://checklist.messmass.com/?company=UUID` - Select company
+- `https://checklist.messmass.com/dashboard?company=UUID` - Dashboard for company
+
+---
 
 ## LOCAL DATABASE (PostgreSQL)
 ```
@@ -26,7 +33,7 @@ postgresql://neondb_owner:npg_cT45qFYrdiSl@ep-patient-fire-alygo1nb-pooler.c-3.e
 
 ### 1. READ - Companies
 ```
-GET https://checklist.sovereignsquad.com/api/companies
+GET https://checklist.messmass.com/api/companies
 ```
 Returns: Array of all companies with their products, customers, competitors, pending NBA
 
@@ -34,7 +41,7 @@ Returns: Array of all companies with their products, customers, competitors, pen
 
 ### 2. READ - Products
 ```
-GET https://checklist.sovereignsquad.com/api/products?companyId=UUID-HERE
+GET https://checklist.messmass.com/api/products?companyId=UUID-HERE
 ```
 Parameter: `companyId` (query string)
 Returns: Array of products for that company
@@ -43,7 +50,7 @@ Returns: Array of products for that company
 
 ### 3. READ - Customers
 ```
-GET https://checklist.sovereignsquad.com/api/customers?companyId=UUID-HERE
+GET https://checklist.messmass.com/api/customers?companyId=UUID-HERE
 ```
 Parameter: `companyId` (query string)
 Returns: Array of customers for that company
@@ -52,7 +59,7 @@ Returns: Array of customers for that company
 
 ### 4. READ - Competitors
 ```
-GET https://checklist.sovereignsquad.com/api/competitors?companyId=UUID-HERE
+GET https://checklist.messmass.com/api/competitors?companyId=UUID-HERE
 ```
 Parameter: `companyId` (query string)
 Returns: Array of competitors for that company
@@ -61,7 +68,7 @@ Returns: Array of competitors for that company
 
 ### 5. READ - NBA (Existing Recommendations)
 ```
-GET https://checklist.sovereignsquad.com/api/nba?companyId=UUID-HERE
+GET https://checklist.messmass.com/api/nba?companyId=UUID-HERE
 ```
 Parameter: `companyId` (query string)
 Returns: Array of NBA items sorted by ICE score (highest first)
@@ -70,14 +77,14 @@ Returns: Array of NBA items sorted by ICE score (highest first)
 
 ### 6. READ - Feedback (Annotations from Webapp)
 ```
-GET https://checklist.sovereignsquad.com/api/feedback?nbaItemId=UUID-HERE
+GET https://checklist.messmass.com/api/feedback?nbaItemId=UUID-HERE
 ```
 Parameter: `nbaItemId` (query string)
 Returns: Array of feedback/annotations for that NBA item
 
 **OR get ALL feedback:**
 ```
-GET https://checklist.sovereignsquad.com/api/feedback
+GET https://checklist.messmass.com/api/feedback
 ```
 
 **Feedback Response Format:**
@@ -116,7 +123,7 @@ GET https://checklist.sovereignsquad.com/api/feedback
 
 ### 7. READ - NBA with User Annotations (Decline Reasons)
 ```
-GET https://checklist.sovereignsquad.com/api/nba?companyId=UUID-HERE
+GET https://checklist.messmass.com/api/nba?companyId=UUID-HERE
 ```
 
 **NBA Response includes userAnnotation (optional for both):**
@@ -169,7 +176,7 @@ GET https://checklist.sovereignsquad.com/api/nba?companyId=UUID-HERE
 
 ### 8. WRITE - Create NBA
 ```
-POST https://checklist.sovereignsquad.com/api/nba
+POST https://checklist.messmass.com/api/nba
 Content-Type: application/json
 ```
 
@@ -199,7 +206,7 @@ Content-Type: application/json
 
 ### 9. WRITE - Feedback (Optional)
 ```
-POST https://checklist.sovereignsquad.com/api/feedback
+POST https://checklist.messmass.com/api/feedback
 Content-Type: application/json
 ```
 
@@ -242,7 +249,7 @@ Content-Type: application/json
 import requests
 import json
 
-BASE = "https://checklist.sovereignsquad.com/api"
+BASE = "https://checklist.messmass.com/api"
 
 # 1. READ companies
 companies = requests.get(f"{BASE}/companies").json()
@@ -283,16 +290,16 @@ for co in companies:
 ### cURL Examples
 ```bash
 # Read products
-curl "https://checklist.sovereignsquad.com/api/products?companyId=550e8400-e29b-41d4-a716-446655440000"
+curl "https://checklist.messmass.com/api/products?companyId=550e8400-e29b-41d4-a716-446655440000"
 
 # Read all feedback/annotations
-curl "https://checklist.sovereignsquad.com/api/feedback"
+curl "https://checklist.messmass.com/api/feedback"
 
 # Read NBA for company (includes ACCEPTED/DECLINED status)
-curl "https://checklist.sovereignsquad.com/api/nba?companyId=550e8400-e29b-41d4-a716-446655440000"
+curl "https://checklist.messmass.com/api/nba?companyId=550e8400-e29b-41d4-a716-446655440000"
 
 # Create NBA
-curl -X POST "https://checklist.sovereignsquad.com/api/nba" \
+curl -X POST "https://checklist.messmass.com/api/nba" \
   -H "Content-Type: application/json" \
   -d '{"companyId":"550e8400-e29b-41d4-a716-446655440000","title":"Test","impact":8,"confidence":75,"ease":7}'
 ```

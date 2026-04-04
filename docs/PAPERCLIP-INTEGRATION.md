@@ -1,8 +1,13 @@
 # Checklist Database - Technical Guide for Paperclip
 
-## Quick Start
+## DEPLOYMENT URL
+```
+https://checklist.messmass.com
+```
 
-### 1. Connection
+---
+
+## Or Use API (Recommended)
 ```
 DATABASE_URL=postgresql://user:pass@host.neon.tech/checklist?sslmode=require
 ```

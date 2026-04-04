@@ -1,24 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-const SYSTEM_PROMPT = `You are a marketing strategist. Generate 2-4 NBA recommendations as JSON array with: title, description, impact (1-10), confidence (1-100), ease (1-10). Output ONLY JSON.`;
+const OLLAMA_URL = "http://127.0.0.1:11434";
+const MODEL = "deepseek-r1:1.5b";
+
+const SYSTEM_PROMPT = `You are a marketing strategist. Generate 2-4 NBA recommendations as JSON array with: title, description, impact (1-10), confidence (1-100), ease (1-10). Output ONLY JSON array.`;
 
 async function callLocalAI(prompt: string): Promise<any[]> {
-  const { default: ollama } = await import("ollama");
-  
-  const response = await ollama.chat({
-    model: "deepseek-r1:1.5b",
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: prompt },
-    ],
-    format: "json",
+  const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: prompt },
+      ],
+      stream: false,
+    }),
   });
+
+  const data = await res.json();
+  const content = data.message?.content || "";
   
   try {
-    return JSON.parse(response.message.content);
+    return JSON.parse(content);
   } catch {
-    const match = response.message.content.match(/\[[\s\S]*\]/);
+    const match = content.match(/\[[\s\S]*\]/);
     if (match) return JSON.parse(match[0]);
     return [];
   }
@@ -52,7 +60,7 @@ export async function POST(request: NextRequest) {
 ## Competitors: ${competitors.map(c => c.name).join(', ') || 'none'}
 ## Feedback: ${feedback.map(f => `${f.action}: ${f.annotation || ''}`).join('; ') || 'none'}
 
-Generate 2-4 marketing NBA recommendations:`;
+Generate 2-4 marketing NBA recommendations as JSON array:`;
 
     const recommendations = await callLocalAI(context);
 

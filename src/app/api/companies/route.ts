@@ -46,3 +46,50 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const id = request.nextUrl.searchParams.get("id");
+    const data = await request.json();
+    
+    if (!id) {
+      return NextResponse.json({ error: "Company ID required" }, { status: 400 });
+    }
+    
+    const company = await prisma.company.update({
+      where: { id },
+      data: {
+        name: data.name,
+        industry: data.industry || null,
+        description: data.description || null,
+        targetMarket: data.targetMarket || null,
+      },
+    });
+    
+    return NextResponse.json(company);
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const id = request.nextUrl.searchParams.get("id");
+    
+    if (!id) {
+      return NextResponse.json({ error: "Company ID required" }, { status: 400 });
+    }
+    
+    // Delete related data first
+    await prisma.nBAItem.deleteMany({ where: { companyId: id } });
+    await prisma.feedback.deleteMany({ where: { nbaItem: { companyId: id } } });
+    await prisma.product.deleteMany({ where: { companyId: id } });
+    await prisma.customer.deleteMany({ where: { companyId: id } });
+    await prisma.competitor.deleteMany({ where: { companyId: id } });
+    await prisma.company.delete({ where: { id } });
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}

@@ -14,6 +14,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "", industry: "" });
 
   const companyParam = searchParams.get("company");
@@ -55,8 +56,45 @@ export default function Home() {
     
     if (res.ok) {
       const newCompany = await res.json();
+      setFormData({ name: "", industry: "" });
+      setShowForm(false);
       selectCompany(newCompany);
     }
+  };
+
+  const handleUpdateCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim() || !editingId) return;
+    
+    const res = await fetch(`/api/companies?id=${editingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
+    
+    if (res.ok) {
+      setFormData({ name: "", industry: "" });
+      setEditingId(null);
+      fetch("/api/companies").then(r => r.json()).then(setCompanies);
+    }
+  };
+
+  const handleDeleteCompany = async (id: string) => {
+    if (!confirm("Delete this company?")) return;
+    
+    const res = await fetch(`/api/companies?id=${id}`, {
+      method: "DELETE",
+    });
+    
+    if (res.ok) {
+      fetch("/api/companies").then(r => r.json()).then(setCompanies);
+    }
+  };
+
+  const startEdit = (c: any) => {
+    setFormData({ name: c.name, industry: c.industry || "" });
+    setEditingId(c.id);
+    setShowForm(true);
   };
 
   if (loading) {
@@ -69,8 +107,8 @@ export default function Home() {
         <h1 className="text-2xl font-bold">Select Company</h1>
       </motion.div>
 
-      {companies.length === 0 || showForm ? (
-        <form onSubmit={handleCreateCompany} className="space-y-4">
+      {(companies.length === 0 || showForm) ? (
+        <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany} className="space-y-4">
           <div>
             <label className="text-sm font-medium">Company Name</label>
             <input 
@@ -90,26 +128,40 @@ export default function Home() {
               placeholder="e.g., SaaS, E-commerce"
             />
           </div>
-          <button type="submit" className="bg-primary text-primary-foreground px-4 py-2 rounded-md">
-            Create Company
-          </button>
+          <div className="flex gap-2">
+            <button type="submit" className="bg-primary text-primary-foreground px-4 py-2 rounded-md">
+              {editingId ? "Update" : "Create"} Company
+            </button>
+            {editingId && (
+              <button type="button" onClick={() => { setEditingId(null); setFormData({ name: "", industry: "" }); setShowForm(false); }} className="px-4 py-2 text-muted-foreground">
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
       ) : (
         <div className="space-y-2">
           {companies.map((c: any) => (
-            <button
-              key={c.id}
-              onClick={() => selectCompany(c)}
-              className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted transition-colors text-left"
-            >
-              <div>
-                <p className="font-medium">{c.name}</p>
-                <p className="text-xs text-muted-foreground">{c.industry}</p>
-              </div>
-              <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
-                {c.id.slice(0,8)}
-              </span>
-            </button>
+            <div key={c.id} className="flex items-center gap-2">
+              <button
+                onClick={() => selectCompany(c)}
+                className="flex-1 flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted transition-colors text-left"
+              >
+                <div>
+                  <p className="font-medium">{c.name}</p>
+                  <p className="text-xs text-muted-foreground">{c.industry}</p>
+                </div>
+                <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
+                  {c.id.slice(0,8)}
+                </span>
+              </button>
+              <button onClick={() => startEdit(c)} className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground border rounded">
+                Edit
+              </button>
+              <button onClick={() => handleDeleteCompany(c.id)} className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 border border-red-200 rounded">
+                Delete
+              </button>
+            </div>
           ))}
         </div>
       )}

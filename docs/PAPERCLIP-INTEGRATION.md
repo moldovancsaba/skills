@@ -1,185 +1,228 @@
-# Checklist + Paperclip Integration
+# Checklist Database - Technical Guide for Paperclip
 
-## Overview
-The Checklist app uses Paperclip as an automated AI marketing machine to generate Next Best Actions (NBA). This document describes how to integrate with Paperclip.
+## Quick Start
+
+### 1. Connection
+```
+DATABASE_URL=postgresql://user:pass@host.neon.tech/checklist?sslmode=require
+```
+
+**Get your connection string from:**
+1. Go to https://console.neon.tech
+2. Select your project
+3. Copy connection string from Dashboard
 
 ---
 
-## Local Database Schema (PostgreSQL via Prisma)
+## Or Use API (Recommended)
 
-### Tables
+Base URL: `https://checklist-[app-name].vercel.app/api`
 
-| Table | Purpose |
-|-------|---------|
-| `Company` | Your company profile |
-| `Product` | Your products/services |
-| `Customer` | Customer data and segments |
-| `Competitor` | Competitor information |
-| `NBAItem` | AI-generated recommendations |
-| `Feedback` | User feedback on NBAs |
+### 2a. READ Input - What Paperclip Pulls
 
-### Schema Location
-`prisma/schema.prisma`
+#### All Companies
+```http
+GET /api/companies
+```
+**Response:**
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Your Company",
+    "industry": "Youth Sports",
+    "description": "Soccer training academy",
+    "targetMarket": "Ages 6-14, NY Metro",
+    "mainGoal": "GROW_REVENUE",
+    "createdAt": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+#### Products by Company
+```http
+GET /api/products?companyId=550e8400-e29b-41d4-a716-446655440000
+```
+**Response:**
+```json
+[
+  {
+    "id": "prod-001",
+    "name": "Elite Training Program",
+    "description": "Premium soccer training",
+    "pricing": "$150/month",
+    "features": ["Weekly sessions", "Video analysis"],
+    "urls": ["https://..."],
+    "createdAt": "2024-01-15T00:00:00Z"
+  }
+]
+```
+
+#### Customers by Company  
+```http
+GET /api/customers?companyId=550e8400-e29b-41d4-a716-446655440000
+```
+**Response:**
+```json
+[
+  {
+    "id": "cust-001",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "segments": ["Elite", "U12"],
+    "painPoints": ["Time constraints"],
+    "channels": ["Referral"],
+    "lifetimeValue": 1800.00,
+    "createdAt": "2024-02-01T00:00:00Z"
+  }
+]
+```
+
+#### Competitors by Company
+```http
+GET /api/competitors?companyId=550e8400-e29b-41d4-a716-446655440000
+```
+**Response:**
+```json
+[
+  {
+    "id": "comp-001",
+    "name": "Chronis Elite",
+    "urls": ["https://chroniselite.com"],
+    "pricing": "$200/month",
+    "strengths": ["MLS connections"],
+    "weaknesses": ["Expensive"],
+    "positioning": "High-end academy"
+  }
+]
+```
+
+#### Existing NBA (to avoid duplicates)
+```http
+GET /api/nba?companyId=550e8400-e29b-41d4-a716-446655440000
+```
+**Response:**
+```json
+[
+  {
+    "id": "nba-001",
+    "title": "Launch email campaign",
+    "description": "Send targeted emails to warm leads",
+    "iceScore": 56.0,
+    "status": "PENDING",
+    "impact": 8,
+    "confidence": 75,
+    "ease": 7
+  }
+]
+```
 
 ---
 
-## API Endpoints (For Paperclip to Read)
+### 3a. LEARN - How to Score NBA
 
-### 1. GET /api/companies
-Returns your company profile.
-
+**ICE Formula:**
 ```
-Response: [{ id, name, industry, description, targetMarket, mainGoal }]
+ICE = Impact × (Confidence / 100) × Ease × 10
 ```
 
-### 2. GET /api/products?companyId={id}
-Returns your products/services.
+| Factor | Range | Description |
+|--------|-------|------------|
+| Impact | 1-10 | Revenue/growth potential |
+| Confidence | 1-100 | % sure it'll work |
+| Ease | 1-10 | How easy to implement |
 
-```
-Response: [{ id, name, description, pricing, features[], urls[] }]
-```
-
-### 3. GET /api/customers?companyId={id}
-Returns customer data.
-
-```
-Response: [{ id, name, email, segments[], painPoints[], channels[], lifetimeValue }]
-```
-
-### 4. GET /api/competitors?companyId={id}
-Returns competitor data.
-
-```
-Response: [{ id, name, urls[], pricing, strengths[], weaknesses[], positioning }]
-```
-
-### 5. GET /api/nba?companyId={id}
-Returns NBA recommendations sorted by ICE score (descending).
-
-```
-Response: [{ id, title, description, iceScore, status, impact, confidence, ease }]
-```
-
-### 6. GET /api/feedback?nbaItemId={id}
-Returns feedback history for an NBA item.
-
-```
-Response: [{ id, action, annotation, iceImpact, createdAt }]
-```
+**Example:**
+- Impact: 8 (high revenue potential)
+- Confidence: 75% (pretty sure)
+- Ease: 7 (moderate effort)
+- ICE = 8 × 0.75 × 7 × 10 = **420**
 
 ---
 
-## API Endpoints (For Paperclip to Write)
+### 4a. WRITE - Output Format Paperclip Writes
 
-### 1. POST /api/nba
-Create a new NBA recommendation (Paperclip generates these).
+#### Create NBA Recommendation
+```http
+POST /api/nba
+Content-Type: application/json
+```
 
-**Request:**
+**Request Body:**
 ```json
 {
-  "companyId": "uuid",
-  "title": "Launch email campaign for Q2 leads",
-  "description": "Send targeted emails to warm leads",
+  "companyId": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "Launch summer camp promotion",
+  "description": "Create urgency with limited-time offer for existing customer database",
   "impact": 8,
-  "confidence": 75,
-  "ease": 7
+  "confidence": 70,
+  "ease": 8
 }
 ```
 
-**Response:** Created NBA item with ICE score.
-
-### 2. POST /api/feedback
-Log user accept/decline decisions (for learning).
-
-**Request:**
+**Response (created):**
 ```json
 {
-  "nbaItemId": "uuid",
-  "action": "ACCEPT",  // or "DECLINE"
-  "annotation": "Already have this in place"
+  "id": "nba-new-001",
+  "companyId": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "Launch summer camp promotion",
+  "description": "Create urgency with limited-time offer for existing customer database",
+  "impact": 8,
+  "confidence": 70,
+  "ease": 8,
+  "iceScore": 448.0,
+  "status": "PENDING",
+  "createdAt": "2024-03-01T12:00:00Z"
 }
 ```
 
-**Response:** Created feedback record.
-
 ---
 
-## Learning System - How Feedback Works
+### Optional: Write Feedback
 
-### Accept Flow
-```
-1. User clicks ✓ (Accept)
-2. POST /api/feedback with action: "ACCEPT"
-3. NBA item status → "ACCEPTED"
-4. iceScore increases by 10% (reward learning)
-5. Future NBAs ranked higher
+```http
+POST /api/feedback
+Content-Type: application/json
 ```
 
-### Decline Flow
-```
-1. User clicks ✗ (Decline)  
-2. Modal asks for annotation
-3. POST /api/feedback with action: "DECLINE" + annotation
-4. NBA item status → "DECLINED"
-5. iceScore decreases by 50% (learning)
-6. Annotation saved for model improvement
-```
-
-### Feedback Improves AI
-- **ACCEPT**: +10% to ICE score
-- **DECLINE**: -50% to ICE score + store reason
-- Every feedback trains the model
-
----
-
-## Paperclip Agent Integration Guide
-
-### Recommended Workflow
-
-1. **Read Data**: Paperclip calls GET endpoints to read company, products, customers, competitors
-2. **Generate NBAs**: Paperclip calls POST /api/nba to create recommendations
-3. **Read NBAs**: Dashboard fetches and displays top 3
-4. **User Feedback**: User accepts/declines
-5. **Learning**: Feedback loop improves future NBAs
-
-### Environment Variables Needed
-```
-DATABASE_URL=postgresql://... (provided by Checklist)
-```
-
-### Base URL for API Calls
-```
-https://checklist-[your-app]..vercel.app/api
-```
-
----
-
-## ICE Scoring Formula
-
-```
-ICE Score = Impact × (Confidence / 100) × Ease × 10
-```
-
-- **Impact** (1-10): How much revenue/growth
-- **Confidence** (1-100): % sure it will work  
-- **Ease** (1-10): How easy to implement
-
----
-
-## Webhooks (Future)
-
-When NBA is created, Paperclip can receive webhook:
-```
-POST https://your-paperclip-agent.com/webhook/nba
+**Request Body (Accept):**
+```json
 {
-  "title": "...",
-  "description": "...",
-  "iceScore": 56.0
+  "nbaItemId": "nba-001",
+  "action": "ACCEPT"
+}
+```
+
+**Request Body (Decline with reason):**
+```json
+{
+  "nbaItemId": "nba-001", 
+  "action": "DECLINE",
+  "annotation": "Already have email marketing in place"
 }
 ```
 
 ---
 
-## Support
-- GitHub Issues: https://github.com/sovereignsquad/checklist/issues
-- Paperclip Docs: https://docs.paperclip.dev
+## Summary
+
+| Action | Endpoint | Method | Body |
+|--------|---------|--------|-----|
+| Read company | /api/companies | GET | - |
+| Read products | /api/products?companyId={id} | GET | - |
+| Read customers | /api/customers?companyId={id} | GET | - |
+| Read competitors | /api/competitors?companyId={id} | GET | - |
+| Read NBA | /api/nba?companyId={id} | GET | - |
+| Write NBA | /api/nba | POST | {companyId, title, description, impact, confidence, ease} |
+| Write feedback | /api/feedback | POST | {nbaItemId, action, annotation?} |
+
+---
+
+## Environment
+```
+# For Vercel deployment:
+DATABASE_URL=postgresql://... (neon.tech)
+
+# For local development:
+DATABASE_URL=postgresql://localhost:5432/checklist
+```

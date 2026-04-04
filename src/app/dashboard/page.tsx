@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Brain, Target, BarChart3, Users, Package, Search, ChevronRight, Plus } from "lucide-react";
+import { Brain, Package, ChevronRight, Plus, Users, Search } from "lucide-react";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -13,7 +13,7 @@ export default function Dashboard() {
   
   const { company, setCompany, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: "", industry: "", description: "", targetMarket: "", mainGoal: "" });
+  const [formData, setFormData] = useState({ name: "", industry: "", description: "", targetMarket: "" });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,7 +22,6 @@ export default function Dashboard() {
       return;
     }
 
-    // If we have a company ID in URL, load it
     if (companyId) {
       fetch(`/api/companies`)
         .then(res => res.json())
@@ -30,17 +29,17 @@ export default function Dashboard() {
           const found = data.find((c: any) => c.id === companyId);
           if (found) {
             setCompany(found);
-            loadCompanyData(found.id);
+            loadData(found.id);
           } else {
             router.push("/");
           }
         });
     } else if (company) {
-      loadCompanyData(company.id);
+      loadData(company.id);
     }
   }, [companyId]);
 
-  const loadCompanyData = (cid: string) => {
+  const loadData = (cid: string) => {
     Promise.all([
       fetch(`/api/products?companyId=${cid}`).then(r => r.json()),
       fetch(`/api/customers?companyId=${cid}`).then(r => r.json()),
@@ -65,14 +64,12 @@ export default function Dashboard() {
     
     if (res.ok) {
       const newCompany = await res.json();
-      setCompany(newCompany);
-      setShowForm(false);
       router.push(`/dashboard?company=${newCompany.id}`);
     }
     setLoading(false);
   };
 
-  if (loading || !company) {
+  if (loading) {
     return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
   }
 
@@ -99,10 +96,9 @@ export default function Dashboard() {
     <div className="max-w-7xl mx-auto space-y-8 p-8">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{company.name}</h1>
+          <h1 className="text-2xl font-bold">{company?.name}</h1>
           <a href="/" className="text-sm text-primary hover:underline">Switch company</a>
         </div>
-        <button onClick={() => setShowForm(true)} className="bg-primary text-primary-foreground px-4 py-2 rounded-md">Add Company</button>
       </div>
 
       <div className="grid grid-cols-3 gap-4">

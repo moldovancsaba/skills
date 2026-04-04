@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { motion } from "framer-motion";
-import { Plus, Users, Search, BarChart3 } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
@@ -14,7 +13,6 @@ export default function Home() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Check for company in URL first
   const companyParam = searchParams.get("company");
 
   useEffect(() => {
@@ -24,7 +22,6 @@ export default function Home() {
         setCompanies(data);
         setLoading(false);
         
-        // If company in URL, select it
         if (companyParam) {
           const found = data.find((c: any) => c.id === companyParam);
           if (found) {
@@ -35,14 +32,11 @@ export default function Home() {
       .catch(console.error);
   }, [companyParam]);
 
-  const selectCompany = async (company: any) => {
+  const selectCompany = (company: any) => {
     setCompany(company);
     setProducts([]);
     setCustomers([]);
     setCompetitors([]);
-    fetch(`/api/products?companyId=${company.id}`).then(r => r.json()).then(setProducts);
-    fetch(`/api/customers?companyId=${company.id}`).then(r => r.json()).then(setCustomers);
-    fetch(`/api/competitors?companyId=${company.id}`).then(r => r.json()).then(setCompetitors);
     router.push(`/dashboard?company=${company.id}`);
   };
 
@@ -53,16 +47,15 @@ export default function Home() {
   return (
     <div className="max-w-2xl mx-auto space-y-8 p-8">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold text-foreground">Select Company</h1>
-        <p className="text-sm text-muted-foreground mt-1">Choose which company to work with.</p>
+        <h1 className="text-2xl font-bold">Select Company</h1>
       </motion.div>
 
       {companies.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">No companies yet.</p>
-          <Link href="/dashboard" className="bg-primary text-primary-foreground px-4 py-2 rounded-md">
+          <button onClick={() => router.push('/dashboard')} className="bg-primary text-primary-foreground px-4 py-2 rounded-md">
             Create First Company
-          </Link>
+          </button>
         </div>
       ) : (
         <div className="space-y-2">
@@ -73,21 +66,21 @@ export default function Home() {
               className="w-full flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted transition-colors text-left"
             >
               <div>
-                <p className="font-medium text-foreground">{c.name}</p>
-                <p className="text-xs text-muted-foreground">{c.industry || "No industry"}</p>
+                <p className="font-medium">{c.name}</p>
+                <p className="text-xs text-muted-foreground">{c.industry}</p>
               </div>
               <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
-                /d/{c.id.slice(0,8)}
+                {c.id.slice(0,8)}
               </span>
             </button>
           ))}
         </div>
       )}
 
-      <div className="pt-4 border-t border-border">
-        <Link href="/dashboard" className="text-sm text-primary hover:underline">
-          + Add new company
-        </Link>
+      <div className="pt-4 border-t">
+        <button onClick={() => router.push('/dashboard')} className="text-primary hover:underline">
+          + Create new company
+        </button>
       </div>
     </div>
   );

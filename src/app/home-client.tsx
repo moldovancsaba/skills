@@ -13,6 +13,9 @@ export default function Home() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ name: "", industry: "" });
+
   const companyParam = searchParams.get("company");
 
   useEffect(() => {
@@ -37,7 +40,23 @@ export default function Home() {
     setProducts([]);
     setCustomers([]);
     setCompetitors([]);
-    router.push(`/dashboard?company=${company.id}`);
+    router.push(`/${company.id}`);
+  };
+
+  const handleCreateCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
+    
+    const res = await fetch("/api/companies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
+    
+    if (res.ok) {
+      const newCompany = await res.json();
+      selectCompany(newCompany);
+    }
   };
 
   if (loading) {
@@ -50,13 +69,31 @@ export default function Home() {
         <h1 className="text-2xl font-bold">Select Company</h1>
       </motion.div>
 
-      {companies.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">No companies yet.</p>
-          <button onClick={() => router.push('/dashboard')} className="bg-primary text-primary-foreground px-4 py-2 rounded-md">
-            Create First Company
+      {companies.length === 0 || showForm ? (
+        <form onSubmit={handleCreateCompany} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Company Name</label>
+            <input 
+              required 
+              className="flex h-10 w-full border rounded-md px-3 py-2 text-sm" 
+              value={formData.name} 
+              onChange={e => setFormData({...formData, name: e.target.value})} 
+              placeholder="Enter company name"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Industry</label>
+            <input 
+              className="flex h-10 w-full border rounded-md px-3 py-2 text-sm" 
+              value={formData.industry} 
+              onChange={e => setFormData({...formData, industry: e.target.value})} 
+              placeholder="e.g., SaaS, E-commerce"
+            />
+          </div>
+          <button type="submit" className="bg-primary text-primary-foreground px-4 py-2 rounded-md">
+            Create Company
           </button>
-        </div>
+        </form>
       ) : (
         <div className="space-y-2">
           {companies.map((c: any) => (
@@ -78,7 +115,7 @@ export default function Home() {
       )}
 
       <div className="pt-4 border-t">
-        <button onClick={() => router.push('/dashboard')} className="text-primary hover:underline">
+        <button onClick={() => setShowForm(true)} className="text-primary hover:underline">
           + Create new company
         </button>
       </div>

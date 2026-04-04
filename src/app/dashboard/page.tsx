@@ -150,10 +150,12 @@ export default function Dashboard() {
     }
   };
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    console.log("Creating company:", formData);
+    setError(null);
     
     try {
       const res = await fetch("/api/companies", {
@@ -162,16 +164,17 @@ export default function Dashboard() {
         body: JSON.stringify(formData),
       });
       
-      console.log("Response status:", res.status);
-      const data = await res.json();
-      console.log("Response data:", data);
-      
       if (res.ok) {
+        const data = await res.json();
         setCompany(data);
         setShowForm(false);
+      } else {
+        const err = await res.json();
+        setError(err.error || "Failed to create company");
       }
-    } catch (error) {
-      console.error("Error:", error);
+    } catch (err) {
+      console.error("Error:", err);
+      setError("Network error");
     } finally {
       setLoading(false);
     }
@@ -200,8 +203,9 @@ export default function Dashboard() {
     return (
       <div className="max-w-7xl mx-auto space-y-8">
         <h1 className="text-2xl font-bold text-foreground">Set Up Your Company</h1>
-        <div className="bg-card border border-border rounded-lg shadow-sm p-6 max-w-md">
-          <form onSubmit={handleSubmit} className="space-y-4">
+<div className="bg-card border border-border rounded-lg shadow-sm p-6 max-w-md">
+            {error && <div className="text-red-600 text-sm mb-4 p-2 bg-red-50 rounded">{error}</div>}
+            <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-sm font-medium">Company Name</label>
               <input className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />

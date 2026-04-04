@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
+export async function GET(request: NextRequest) {
+  try {
+    const nbaItemId = request.nextUrl.searchParams.get("nbaItemId");
+    
+    const where = nbaItemId ? { nbaItemId } : {};
+    const feedbacks = await prisma.feedback.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
+    
+    return NextResponse.json(feedbacks);
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();

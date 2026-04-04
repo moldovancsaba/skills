@@ -161,9 +161,11 @@ export default function Dashboard() {
         body: JSON.stringify(formData),
       });
       
-      // After creating, redirect to home to select from company list
-      router.push("/");
-      setShowForm(false);
+      if (res.ok) {
+        const newCompany = await res.json();
+        setCompany(newCompany);
+        setShowForm(false);
+      }
     } catch (error) {
       console.error(error);
     } finally {

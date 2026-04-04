@@ -46,6 +46,54 @@ const NBA_TEMPLATES = [
   },
 ];
 
+interface TemplateStats {
+  accepted: number;
+  declined: number;
+  avgIceAdjustment: number;
+}
+
+function calculateLearningAdjustments(
+  nbaItems: any[],
+  templates: typeof NBA_TEMPLATES
+): Record<string, { confidenceBoost: number; impactBoost: number; shouldSkip: boolean }> {
+  const adjustments: Record<string, { confidenceBoost: number; impactBoost: number; shouldSkip: boolean }> = {};
+
+  templates.forEach(template => {
+    const title = template.title;
+    const matchingItems = nbaItems.filter((item: any) => item.title === title);
+    
+    if (matchingItems.length === 0) {
+      adjustments[title] = { confidenceBoost: 0, impactBoost: 0, shouldSkip: false };
+      return;
+    }
+
+    const accepted = matchingItems.filter((item: any) => item.status === "ACCEPTED").length;
+    const declined = matchingItems.filter((item: any) => item.status === "DECLINED").length;
+    const total = accepted + declined;
+
+    if (total === 0) {
+      adjustments[title] = { confidenceBoost: 0, impactBoost: 0, shouldSkip: false };
+      return;
+    }
+
+    const acceptanceRate = accepted / total;
+
+    // If consistently declined (0% acceptance with 2+ instances), skip it
+    const shouldSkip = acceptanceRate === 0 && total >= 2;
+
+    // Adjust confidence based on acceptance rate
+    // High acceptance -> boost confidence, low acceptance -> reduce it
+    const confidenceBoost = Math.round((acceptanceRate - 0.5) * 20); // Range: -10 to +10
+
+    // Adjust impact based on acceptance rate
+    const impactBoost = Math.round((acceptanceRate - 0.5) * 2); // Range: -1 to +1
+
+    adjustments[title] = { confidenceBoost, impactBoost, shouldSkip };
+  });
+
+  return adjustments;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { companyId } = await request.json();
@@ -54,7 +102,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "companyId required" }, { status: 400 });
     }
 
-    const [products, customers, competitors, existingNBA] = await Promise.all([
+    const [products, customers, competitors, existingNBA, allNBAHistory] = await Promise.all([
       prisma.product.findMany({ where: { companyId } }),
       prisma.customer.findMany({ where: { companyId } }),
       prisma.competitor.findMany({ where: { companyId } }),
@@ -63,12 +111,18 @@ export async function POST(request: NextRequest) {
         orderBy: { iceScore: "desc" },
         take: 10
       }),
+      prisma.nBAItem.findMany({ 
+        where: { companyId, status: { in: ["ACCEPTED", "DECLINED"] } },
+      }),
     ]);
 
     const totalItems = products.length + customers.length + competitors.length;
     const hasProducts = products.length > 0;
     const hasCustomers = customers.length > 0;
     const hasCompetitors = competitors.length > 0;
+
+    // Calculate learning adjustments based on historical feedback
+    const adjustments = calculateLearningAdjustments(allNBAHistory, NBA_TEMPLATES);
 
     const created: any[] = [];
 
@@ -80,18 +134,26 @@ export async function POST(request: NextRequest) {
       if (trigger.hasCompetitors && !hasCompetitors) continue;
       if (trigger.minItems && totalItems < trigger.minItems) continue;
 
+      // Skip templates that are consistently declined
+      const adjustment = adjustments[rec.title];
+      if (adjustment?.shouldSkip) continue;
+
       const isDuplicate = existingNBA.some(n => n.title === rec.title);
       if (isDuplicate) continue;
 
-      const iceScore = (rec.impact * (rec.confidence / 100) * rec.ease * 10);
+      // Apply learning adjustments to ICE parameters
+      const adjustedConfidence = Math.max(10, Math.min(100, rec.confidence + (adjustment?.confidenceBoost || 0)));
+      const adjustedImpact = Math.max(1, Math.min(10, rec.impact + (adjustment?.impactBoost || 0)));
+      
+      const iceScore = (adjustedImpact * (adjustedConfidence / 100) * rec.ease * 10);
       
       const item = await prisma.nBAItem.create({
         data: {
           companyId,
           title: rec.title,
           description: rec.description,
-          impact: rec.impact,
-          confidence: rec.confidence,
+          impact: adjustedImpact,
+          confidence: adjustedConfidence,
           ease: rec.ease,
           iceScore,
           status: "PENDING",
@@ -104,7 +166,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       message: `Brain generated ${created.length} recommendations`,
-      items: created 
+      items: created,
+      learningApplied: allNBAHistory.length > 0,
+      adjustments: Object.entries(adjustments)
+        .filter(([, v]) => v.confidenceBoost !== 0 || v.impactBoost !== 0)
+        .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {}),
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

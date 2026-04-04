@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import {
   Brain, Target, BarChart3, Users, Package, Search, ArrowRight,
   Clock, Bell, ChevronRight, CheckCircle, XCircle, AlertCircle, Plus,
+  TrendingUp, TrendingDown, Minus, Lightbulb, AlertTriangle, Info,
 } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,43 @@ interface NBAItem {
   description: string | null;
   iceScore: number;
   status: string;
+}
+
+interface LearningInsight {
+  type: "pattern" | "recommendation" | "warning";
+  title: string;
+  description: string;
+  confidence: number;
+}
+
+interface FeedbackAnalytics {
+  overview: {
+    totalItems: number;
+    itemsWithFeedback: number;
+    accepted: number;
+    declined: number;
+    pending: number;
+    overallAcceptanceRate: string;
+  };
+  recommendationTypeStats: {
+    type: string;
+    accepted: number;
+    declined: number;
+    total: number;
+    acceptanceRate: number;
+  }[];
+  declinePatterns: {
+    pattern: string;
+    count: number;
+    examples: string[];
+  }[];
+  trends: {
+    sevenDayAcceptanceRate: string;
+    thirtyDayAcceptanceRate: string;
+    avgAcceptedIceScore: string;
+    avgDeclinedIceScore: string;
+  };
+  insights: LearningInsight[];
 }
 
 const moduleStatus = [
@@ -37,6 +75,8 @@ export default function Dashboard() {
   const [nbaItems, setNbaItems] = useState<NBAItem[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [showClientSelect, setShowClientSelect] = useState(false);
+  const [analytics, setAnalytics] = useState<FeedbackAnalytics | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     industry: "",
@@ -80,6 +120,11 @@ export default function Dashboard() {
       fetch(`/api/nba?companyId=${company.id}`)
         .then(res => res.json())
         .then(data => setNbaItems(data.slice(0, 3)))
+        .catch(console.error);
+      
+      fetch(`/api/feedback/analytics?companyId=${company.id}`)
+        .then(res => res.json())
+        .then(data => setAnalytics(data))
         .catch(console.error);
     }
   }, [company]);
@@ -291,6 +336,158 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Learning Insights */}
+      {analytics && analytics.overview.totalItems > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-yellow-500" />
+              Learning Insights
+            </h2>
+            <button 
+              onClick={() => setShowAnalytics(!showAnalytics)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              {showAnalytics ? "Hide Details" : "View Analytics"}
+            </button>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="bg-card border border-border rounded-lg p-3">
+              <div className="text-xs text-muted-foreground">Acceptance Rate</div>
+              <div className="text-xl font-bold text-foreground">{analytics.overview.overallAcceptanceRate}%</div>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-3">
+              <div className="text-xs text-muted-foreground">7-Day Trend</div>
+              <div className="text-xl font-bold text-foreground flex items-center gap-1">
+                {analytics.trends.sevenDayAcceptanceRate}%
+                {parseFloat(analytics.trends.sevenDayAcceptanceRate) > parseFloat(analytics.trends.thirtyDayAcceptanceRate) ? (
+                  <TrendingUp className="w-4 h-4 text-green-500" />
+                ) : parseFloat(analytics.trends.sevenDayAcceptanceRate) < parseFloat(analytics.trends.thirtyDayAcceptanceRate) ? (
+                  <TrendingDown className="w-4 h-4 text-red-500" />
+                ) : (
+                  <Minus className="w-4 h-4 text-muted-foreground" />
+                )}
+              </div>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-3">
+              <div className="text-xs text-muted-foreground">Accepted</div>
+              <div className="text-xl font-bold text-green-600">{analytics.overview.accepted}</div>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-3">
+              <div className="text-xs text-muted-foreground">Declined</div>
+              <div className="text-xl font-bold text-red-600">{analytics.overview.declined}</div>
+            </div>
+          </div>
+
+          {/* Insights */}
+          {analytics.insights.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {analytics.insights.map((insight, i) => (
+                <motion.div 
+                  key={i} 
+                  initial={{ opacity: 0, x: -8 }} 
+                  animate={{ opacity: 1, x: 0 }} 
+                  transition={{ delay: i * 0.05 }}
+                  className={`bg-card border rounded-lg p-3 flex items-start gap-3 ${
+                    insight.type === "warning" ? "border-red-200 bg-red-50/50" :
+                    insight.type === "recommendation" ? "border-green-200 bg-green-50/50" :
+                    "border-blue-200 bg-blue-50/50"
+                  }`}
+                >
+                  {insight.type === "warning" ? (
+                    <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  ) : insight.type === "recommendation" ? (
+                    <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  ) : (
+                    <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground">{insight.title}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{insight.description}</div>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] flex-shrink-0">{insight.confidence}% confident</Badge>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* Detailed Analytics (expandable) */}
+          {showAnalytics && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }} 
+              animate={{ opacity: 1, height: "auto" }}
+              className="bg-card border border-border rounded-lg shadow-sm p-4 space-y-4"
+            >
+              {/* Recommendation Type Performance */}
+              {analytics.recommendationTypeStats.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-2">Recommendation Type Performance</h3>
+                  <div className="space-y-2">
+                    {analytics.recommendationTypeStats.map((stat, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <span className="text-foreground flex-1 truncate">{stat.type}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-muted-foreground">{stat.accepted}/{stat.total}</span>
+                          <div className="w-20 bg-muted rounded-full h-1.5">
+                            <div 
+                              className={`h-1.5 rounded-full ${
+                                stat.acceptanceRate >= 75 ? "bg-green-500" :
+                                stat.acceptanceRate >= 50 ? "bg-yellow-500" :
+                                "bg-red-500"
+                              }`}
+                              style={{ width: `${stat.acceptanceRate}%` }}
+                            />
+                          </div>
+                          <span className="text-foreground font-medium w-12 text-right">{stat.acceptanceRate.toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Decline Patterns */}
+              {analytics.declinePatterns.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-2">Common Decline Reasons</h3>
+                  <div className="space-y-2">
+                    {analytics.declinePatterns.map((pattern, i) => (
+                      <div key={i} className="text-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-foreground font-medium">{pattern.pattern}</span>
+                          <span className="text-muted-foreground">{pattern.count} items</span>
+                        </div>
+                        {pattern.examples.length > 0 && (
+                          <div className="text-xs text-muted-foreground pl-3 border-l-2 border-muted">
+                            {pattern.examples.slice(0, 2).map((ex, j) => (
+                              <div key={j} className="italic">"{ex}"</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ICE Score Comparison */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <div className="text-xs text-muted-foreground">Avg ICE (Accepted)</div>
+                  <div className="text-lg font-bold text-green-600">{analytics.trends.avgAcceptedIceScore}</div>
+                </div>
+                <div className="text-center p-3 bg-red-50 rounded-lg">
+                  <div className="text-xs text-muted-foreground">Avg ICE (Declined)</div>
+                  <div className="text-lg font-bold text-red-600">{analytics.trends.avgDeclinedIceScore}</div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </div>
+      )}
 
       {/* Platform Modules */}
       <div>

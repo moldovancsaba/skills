@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ClientNav } from "./client-nav";
 
 export const metadata: Metadata = {
   title: "Checklist Marketing OS",
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ClientNav />
+        {children}
+      </body>
     </html>
   );
 }

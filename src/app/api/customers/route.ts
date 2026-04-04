@@ -35,3 +35,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get("id");
+  const data = await request.json();
+  
+  try {
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const customer = await prisma.customer.update({
+      where: { id },
+      data: {
+        name: data.name,
+        email: data.email,
+        segments: data.segments,
+        painPoints: data.painPoints,
+        channels: data.channels,
+        lifetimeValue: data.lifetimeValue,
+        notes: data.notes,
+      },
+    });
+    return NextResponse.json(customer);
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get("id");
+  
+  try {
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    await prisma.customer.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}

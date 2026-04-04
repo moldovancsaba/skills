@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Package, Users, Search, Plus, CheckCircle } from "lucide-react";
+import { Package, Users, Search, Plus, CheckCircle, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 type DataType = "product" | "customer" | "competitor";
@@ -28,6 +28,8 @@ export default function CompanyDataPage() {
   const [saved, setSaved] = useState(false);
   const [items, setItems] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
 
   useEffect(() => {
     if (companyId) {
@@ -119,6 +121,46 @@ export default function CompanyDataPage() {
     }
   };
 
+  const startEdit = (item: DataItem) => {
+    setEditingId(item.id);
+    setEditName(item.name);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+  };
+
+  const saveEdit = async (item: DataItem) => {
+    const endpoint = item.type === "product" ? "/api/products" 
+      : item.type === "customer" ? "/api/customers" 
+      : "/api/competitors";
+
+    await fetch(`${endpoint}?id=${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: editName }),
+    });
+
+cancelEdit();
+    if (company) loadAllData(company.id);
+  };
+
+  const deleteItem = async (item: DataItem) => {
+    if (!confirm(`Delete "${item.name}"?`)) return;
+    if (!company) return;
+    
+    const endpoint = item.type === "product" ? "/api/products" 
+      : item.type === "customer" ? "/api/customers" 
+      : "/api/competitors";
+
+    await fetch(`${endpoint}?id=${item.id}`, {
+      method: "DELETE",
+    });
+
+    loadAllData(company.id);
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
   }
@@ -198,8 +240,28 @@ export default function CompanyDataPage() {
               return (
                 <div key={item.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg">
                   <Icon className="w-4 h-4 text-muted-foreground" />
-                  <span className="flex-1 text-sm text-foreground">{item.name}</span>
+                  {editingId === item.id ? (
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="flex-1 px-2 py-1 text-sm border rounded"
+                      onKeyDown={(e) => e.key === "Enter" && saveEdit(item)}
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="flex-1 text-sm text-foreground">{item.name}</span>
+                  )}
                   <Badge variant="outline" className="text-xs capitalize">{item.type}</Badge>
+                  {editingId === item.id ? (
+                    <button onClick={() => saveEdit(item)} className="text-green-600 text-xs">Save</button>
+                  ) : (
+                    <button onClick={() => startEdit(item)} className="text-muted-foreground hover:text-foreground">
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button onClick={() => deleteItem(item)} className="text-red-600 hover:text-red-700">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
               );
             })}

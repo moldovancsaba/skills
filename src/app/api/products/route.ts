@@ -45,3 +45,25 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get("id");
+  const data = await request.json();
+  
+  try {
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const product = await prisma.product.update({
+      where: { id },
+      data: {
+        name: data.name,
+        description: data.description,
+        pricing: data.pricing,
+        features: data.features,
+        urls: data.urls,
+      },
+    });
+    return NextResponse.json(product);
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}

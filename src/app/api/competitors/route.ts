@@ -35,3 +35,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get("id");
+  const data = await request.json();
+  
+  try {
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const competitor = await prisma.competitor.update({
+      where: { id },
+      data: {
+        name: data.name,
+        urls: data.urls,
+        pricing: data.pricing,
+        strengths: data.strengths,
+        weaknesses: data.weaknesses,
+        positioning: data.positioning,
+        watchedContent: data.watchedContent,
+      },
+    });
+    return NextResponse.json(competitor);
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get("id");
+  
+  try {
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    await prisma.competitor.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}

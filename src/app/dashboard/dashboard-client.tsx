@@ -17,7 +17,9 @@ export default function DashboardClient() {
 
   useEffect(() => {
     if (!companyId && !company) {
-      router.push("/");
+      // No company - show the form to create one
+      setShowForm(true);
+      setLoading(false);
       return;
     }
 
@@ -30,7 +32,8 @@ export default function DashboardClient() {
             setCompany(found);
             loadData(found.id);
           } else {
-            router.push("/");
+            setShowForm(true);
+            setLoading(false);
           }
         });
     } else if (company) {

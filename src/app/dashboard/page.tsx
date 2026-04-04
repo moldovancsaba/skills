@@ -153,6 +153,7 @@ export default function Dashboard() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    console.log("Creating company:", formData);
     
     try {
       const res = await fetch("/api/companies", {
@@ -161,13 +162,16 @@ export default function Dashboard() {
         body: JSON.stringify(formData),
       });
       
+      console.log("Response status:", res.status);
+      const data = await res.json();
+      console.log("Response data:", data);
+      
       if (res.ok) {
-        const newCompany = await res.json();
-        setCompany(newCompany);
+        setCompany(data);
         setShowForm(false);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error:", error);
     } finally {
       setLoading(false);
     }
@@ -214,7 +218,9 @@ export default function Dashboard() {
               <label className="text-sm font-medium">Target Market</label>
               <input className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formData.targetMarket} onChange={e => setFormData({ ...formData, targetMarket: e.target.value })} />
             </div>
-            <button type="submit" className="bg-primary text-primary-foreground px-4 py-2 rounded-md">Save Company</button>
+            <button type="submit" disabled={isLoading} className="bg-primary text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50">
+              {isLoading ? "Saving..." : "Save Company"}
+            </button>
           </form>
         </div>
       </div>

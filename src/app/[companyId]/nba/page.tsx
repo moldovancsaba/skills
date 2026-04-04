@@ -29,7 +29,9 @@ export default function CompanyNBAPage() {
   const [items, setItems] = useState<NBAItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeclineForm, setShowDeclineForm] = useState<string | null>(null);
-  const [declineAnnotation, setDeclineAnnotation] = useState("");
+  const [showAcceptForm, setShowAcceptForm] = useState<string | null>(null);
+  const [annotation, setAnnotation] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     if (companyId) {
@@ -61,12 +63,29 @@ export default function CompanyNBAPage() {
   const loadNBA = async (cid: string) => {
     const res = await fetch(`/api/nba?companyId=${cid}`);
     const data = await res.json();
+    const pending = data.filter((item: NBAItem) => item.status === "PENDING");
+    setItems(pending);
+    setLoading(false);
+  };
+
+  const loadAllNBA = async (cid: string) => {
+    const res = await fetch(`/api/nba?companyId=${cid}`);
+    const data = await res.json();
     setItems(data);
     setLoading(false);
   };
 
   const refreshNBA = () => {
     if (company) loadNBA(company.id);
+  };
+
+  const toggleArchived = () => {
+    if (showArchived) {
+      if (company) loadNBA(company.id);
+    } else {
+      if (company) loadAllNBA(company.id);
+    }
+    setShowArchived(!showArchived);
   };
 
   const handleFeedback = async (itemId: string, action: "ACCEPT" | "DECLINE", annotation?: string) => {
@@ -77,7 +96,8 @@ export default function CompanyNBAPage() {
     });
     
     setShowDeclineForm(null);
-    setDeclineAnnotation("");
+    setShowAcceptForm(null);
+    setAnnotation("");
     loadNBA(company!.id);
   };
 
@@ -91,16 +111,24 @@ export default function CompanyNBAPage() {
         <div className="flex items-center justify-between">
           <div>
             <a href={`/${companyId}`} className="text-sm text-primary hover:underline">← Back</a>
-            <h1 className="text-2xl font-bold text-foreground mt-2">Recommendations</h1>
-            <p className="text-sm text-muted-foreground mt-1">AI-powered Next Best Actions</p>
+            <h1 className="text-2xl font-bold text-foreground mt-2">My Tasks</h1>
+            <p className="text-sm text-muted-foreground mt-1">{items.length} pending tasks</p>
           </div>
-          <button
+          <div className="flex gap-2">
+            <button
               onClick={refreshNBA}
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             >
               <Loader2 className="w-4 h-4" />
               Refresh
             </button>
+            <button
+              onClick={toggleArchived}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              {showArchived ? "Hide Archived" : "Show Archived"}
+            </button>
+          </div>
         </div>
       </motion.div>
 
@@ -152,7 +180,7 @@ export default function CompanyNBAPage() {
                 {item.status === "PENDING" && (
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleFeedback(item.id, "ACCEPT")}
+                      onClick={() => setShowAcceptForm(item.id)}
                       className="p-2 text-green-600 hover:bg-green-50 rounded"
                     >
                       <Check className="w-5 h-5" />
@@ -165,26 +193,51 @@ export default function CompanyNBAPage() {
                     </button>
                   </div>
                 )}
+
+                {showAcceptForm === item.id && (
+                  <div className="mt-3 pt-3 border-t">
+                    <textarea
+                      value={annotation}
+                      onChange={(e) => setAnnotation(e.target.value)}
+                      placeholder="Add note (optional)"
+                      className="w-full h-20 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleFeedback(item.id, "ACCEPT", annotation)}
+                        className="px-3 py-1 bg-green-600 text-white rounded text-sm"
+                      >
+                        Confirm Done
+                      </button>
+                      <button
+                        onClick={() => { setShowAcceptForm(null); setAnnotation(""); }}
+                        className="px-3 py-1 text-muted-foreground text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {showDeclineForm === item.id && (
                 <div className="mt-3 pt-3 border-t">
                   <textarea
-                    value={declineAnnotation}
-                    onChange={(e) => setDeclineAnnotation(e.target.value)}
+                    value={annotation}
+                    onChange={(e) => setAnnotation(e.target.value)}
                     placeholder="Why are you declining? (required)"
                     className="w-full h-20 rounded-md border border-input bg-background px-3 py-2 text-sm"
                   />
                   <div className="flex gap-2 mt-2">
                     <button
-                      onClick={() => handleFeedback(item.id, "DECLINE", declineAnnotation)}
-                      disabled={!declineAnnotation.trim()}
+                      onClick={() => handleFeedback(item.id, "DECLINE", annotation)}
+                      disabled={!annotation.trim()}
                       className="px-3 py-1 bg-red-600 text-white rounded text-sm disabled:opacity-50"
                     >
                       Confirm Decline
                     </button>
                     <button
-                      onClick={() => setShowDeclineForm(null)}
+                      onClick={() => { setShowDeclineForm(null); setAnnotation(""); }}
                       className="px-3 py-1 text-muted-foreground text-sm"
                     >
                       Cancel

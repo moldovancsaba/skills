@@ -174,15 +174,46 @@ export default function Dashboard() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Next Best Actions</h2>
-          <span className="text-xs text-muted-foreground">Ranked by ICE score</span>
+          <button 
+            onClick={async () => {
+              if (!company) return;
+              await fetch("/api/brain", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ companyId: company.id }),
+              });
+              const res = await fetch(`/api/nba?companyId=${company.id}`);
+              setNbaItems((await res.json()).slice(0, 3));
+            }}
+            className="flex items-center gap-2 text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-md hover:bg-primary/90"
+          >
+            <Brain className="w-3 h-3" />
+            Generate
+          </button>
         </div>
         
         {nbaItems.length === 0 ? (
           <div className="bg-card border border-border rounded-lg shadow-sm p-6">
             <div className="text-center text-muted-foreground">
-              <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <Brain className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="font-medium">No recommendations yet</p>
-              <p className="text-sm mt-1">Add products, customers, and competitors to get AI-powered suggestions.</p>
+              <p className="text-sm mt-1 mb-4">Add data, then click Generate to get AI suggestions.</p>
+              <button 
+                onClick={async () => {
+                  if (!company) return;
+                  await fetch("/api/brain", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ companyId: company.id }),
+                  });
+                  const res = await fetch(`/api/nba?companyId=${company.id}`);
+                  setNbaItems((await res.json()).slice(0, 3));
+                }}
+                disabled={!company || (products.length === 0 && customers.length === 0)}
+                className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 disabled:opacity-50"
+              >
+                Generate Recommendations
+              </button>
             </div>
           </div>
         ) : (

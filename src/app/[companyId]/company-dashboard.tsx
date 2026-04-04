@@ -2,22 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Brain, Package, Plus, Users, Search } from "lucide-react";
 
-export default function CompanyDashboard({ params }: { params: Promise<{ companyId: string }> }) {
+export default function CompanyDashboard() {
   const router = useRouter();
-  const [companyId, setCompanyId] = useState<string>("");
+  const params = useParams();
+  const companyId = params.companyId as string;
   
   const { company, setCompany, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    params.then(p => {
-      setCompanyId(p.companyId);
-      loadCompany(p.companyId);
-    });
-  }, [params]);
+    if (companyId) {
+      loadCompany(companyId);
+    }
+  }, [companyId]);
 
   const loadCompany = (cid: string) => {
     fetch(`/api/companies`)

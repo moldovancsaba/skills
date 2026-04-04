@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import ollama from "ollama";
 
 const SYSTEM_PROMPT = `You are a world-class marketing strategist AI. Your job is to analyze company data and generate actionable Next Best Actions (NBA).
 
@@ -14,6 +13,17 @@ Generate 2-4 marketing recommendations based on the data provided. Output as JSO
 Output ONLY valid JSON array, no markdown, no explanation.`;
 
 export async function POST(request: NextRequest) {
+  const isLocalDev = process.env.VERCEL === undefined;
+  
+  if (!isLocalDev) {
+    return NextResponse.json({ 
+      error: "Local AI onlyavailable in local development. Use Brain button for production.",
+      fallback: "Run locally: npm run dev"
+    }, { status: 503 });
+  }
+
+  const ollama = (await import("ollama")).default;
+
   try {
     const { companyId } = await request.json();
     

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import Link from "next/link";
+import { FormInput } from "@/components/ui/form-fields";
+import { Button } from "@/components/ui/button";
 
 export default function CustomersPage() {
   const { company, customers, setCustomers } = useStore();
@@ -54,9 +56,9 @@ export default function CustomersPage() {
     <div className="container">
       <header style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between" }}>
         <Link href="/dashboard">← Back to Dashboard</Link>
-        <button className="button button-primary" onClick={() => setShowForm(!showForm)}>
+        <Button onClick={() => setShowForm(!showForm)}>
           {showForm ? "Cancel" : "Add Customer Data"}
-        </button>
+        </Button>
       </header>
 
       <h1>Customers</h1>
@@ -64,31 +66,49 @@ export default function CustomersPage() {
       {showForm && (
         <div className="card" style={{ marginBottom: "2rem" }}>
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="label">Name</label>
-              <input className="input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <label className="label">Email</label>
-              <input className="input" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label className="label">Segments (comma separated)</label>
-              <input className="input" value={formData.segments} onChange={e => setFormData({ ...formData, segments: e.target.value })} placeholder="enterprise, smb, startup" />
-            </div>
-            <div className="form-group">
-              <label className="label">Pain Points (comma separated)</label>
-              <input className="input" value={formData.painPoints} onChange={e => setFormData({ ...formData, painPoints: e.target.value })} placeholder="cost, time, complexity" />
-            </div>
-            <div className="form-group">
-              <label className="label">Channels (comma separated)</label>
-              <input className="input" value={formData.channels} onChange={e => setFormData({ ...formData, channels: e.target.value })} placeholder="email, social, referral" />
-            </div>
-            <div className="form-group">
-              <label className="label">Lifetime Value ($)</label>
-              <input className="input" type="number" value={formData.lifetimeValue} onChange={e => setFormData({ ...formData, lifetimeValue: e.target.value })} />
-            </div>
-            <button type="submit" className="button button-primary">Save Customer</button>
+            <FormInput
+              name="name"
+              label="Name"
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+            <FormInput
+              name="email"
+              label="Email"
+              type="email"
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
+            />
+            <FormInput
+              name="segments"
+              label="Segments (comma separated)"
+              value={formData.segments}
+              onChange={e => setFormData({ ...formData, segments: e.target.value })}
+              placeholder="enterprise, smb, startup"
+            />
+            <FormInput
+              name="painPoints"
+              label="Pain Points (comma separated)"
+              value={formData.painPoints}
+              onChange={e => setFormData({ ...formData, painPoints: e.target.value })}
+              placeholder="cost, time, complexity"
+            />
+            <FormInput
+              name="channels"
+              label="Channels (comma separated)"
+              value={formData.channels}
+              onChange={e => setFormData({ ...formData, channels: e.target.value })}
+              placeholder="email, social, referral"
+            />
+            <FormInput
+              name="lifetimeValue"
+              label="Lifetime Value ($)"
+              type="number"
+              value={formData.lifetimeValue}
+              onChange={e => setFormData({ ...formData, lifetimeValue: e.target.value })}
+            />
+            <Button type="submit">Save Customer</Button>
           </form>
         </div>
       )}

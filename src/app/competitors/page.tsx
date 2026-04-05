@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import Link from "next/link";
+import { FormInput, FormTextarea } from "@/components/ui/form-fields";
+import { Button } from "@/components/ui/button";
 
 export default function CompetitorsPage() {
   const { company, competitors, setCompetitors } = useStore();
@@ -54,9 +56,9 @@ export default function CompetitorsPage() {
     <div className="container">
       <header style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between" }}>
         <Link href="/dashboard">← Back to Dashboard</Link>
-        <button className="button button-primary" onClick={() => setShowForm(!showForm)}>
+        <Button onClick={() => setShowForm(!showForm)}>
           {showForm ? "Cancel" : "Add Competitor"}
-        </button>
+        </Button>
       </header>
 
       <h1>Competitors</h1>
@@ -64,31 +66,47 @@ export default function CompetitorsPage() {
       {showForm && (
         <div className="card" style={{ marginBottom: "2rem" }}>
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="label">Name</label>
-              <input className="input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <label className="label">URLs (comma separated)</label>
-              <input className="input" value={formData.urls} onChange={e => setFormData({ ...formData, urls: e.target.value })} placeholder="https://..." />
-            </div>
-            <div className="form-group">
-              <label className="label">Pricing</label>
-              <input className="input" value={formData.pricing} onChange={e => setFormData({ ...formData, pricing: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label className="label">Strengths (comma separated)</label>
-              <input className="input" value={formData.strengths} onChange={e => setFormData({ ...formData, strengths: e.target.value })} placeholder="feature 1, feature 2" />
-            </div>
-            <div className="form-group">
-              <label className="label">Weaknesses (comma separated)</label>
-              <input className="input" value={formData.weaknesses} onChange={e => setFormData({ ...formData, weaknesses: e.target.value })} placeholder="limitation 1, limitation 2" />
-            </div>
-            <div className="form-group">
-              <label className="label">Positioning</label>
-              <textarea className="input" value={formData.positioning} onChange={e => setFormData({ ...formData, positioning: e.target.value })} />
-            </div>
-            <button type="submit" className="button button-primary">Save Competitor</button>
+            <FormInput
+              name="name"
+              label="Name"
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+            <FormInput
+              name="urls"
+              label="URLs (comma separated)"
+              value={formData.urls}
+              onChange={e => setFormData({ ...formData, urls: e.target.value })}
+              placeholder="https://..."
+            />
+            <FormInput
+              name="pricing"
+              label="Pricing"
+              value={formData.pricing}
+              onChange={e => setFormData({ ...formData, pricing: e.target.value })}
+            />
+            <FormInput
+              name="strengths"
+              label="Strengths (comma separated)"
+              value={formData.strengths}
+              onChange={e => setFormData({ ...formData, strengths: e.target.value })}
+              placeholder="feature 1, feature 2"
+            />
+            <FormInput
+              name="weaknesses"
+              label="Weaknesses (comma separated)"
+              value={formData.weaknesses}
+              onChange={e => setFormData({ ...formData, weaknesses: e.target.value })}
+              placeholder="limitation 1, limitation 2"
+            />
+            <FormTextarea
+              name="positioning"
+              label="Positioning"
+              value={formData.positioning}
+              onChange={e => setFormData({ ...formData, positioning: e.target.value })}
+            />
+            <Button type="submit">Save Competitor</Button>
           </form>
         </div>
       )}

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import Link from "next/link";
+import { FormInput, FormTextarea } from "@/components/ui/form-fields";
+import { Button } from "@/components/ui/button";
 
 export default function ProductsPage() {
   const { company, products, setProducts } = useStore();
@@ -48,9 +50,9 @@ export default function ProductsPage() {
     <div className="container">
       <header style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between" }}>
         <Link href="/dashboard">← Back to Dashboard</Link>
-        <button className="button button-primary" onClick={() => setShowForm(!showForm)}>
+        <Button onClick={() => setShowForm(!showForm)}>
           {showForm ? "Cancel" : "Add Product"}
-        </button>
+        </Button>
       </header>
 
       <h1>Products & Services</h1>
@@ -58,23 +60,33 @@ export default function ProductsPage() {
       {showForm && (
         <div className="card" style={{ marginBottom: "2rem" }}>
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="label">Name</label>
-              <input className="input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <label className="label">Description</label>
-              <textarea className="input" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label className="label">Pricing</label>
-              <input className="input" value={formData.pricing} onChange={e => setFormData({ ...formData, pricing: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label className="label">Features (comma separated)</label>
-              <input className="input" value={formData.features} onChange={e => setFormData({ ...formData, features: e.target.value })} placeholder="feature 1, feature 2" />
-            </div>
-            <button type="submit" className="button button-primary">Save Product</button>
+            <FormInput
+              name="name"
+              label="Name"
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+            <FormTextarea
+              name="description"
+              label="Description"
+              value={formData.description}
+              onChange={e => setFormData({ ...formData, description: e.target.value })}
+            />
+            <FormInput
+              name="pricing"
+              label="Pricing"
+              value={formData.pricing}
+              onChange={e => setFormData({ ...formData, pricing: e.target.value })}
+            />
+            <FormInput
+              name="features"
+              label="Features (comma separated)"
+              value={formData.features}
+              onChange={e => setFormData({ ...formData, features: e.target.value })}
+              placeholder="feature 1, feature 2"
+            />
+            <Button type="submit">Save Product</Button>
           </form>
         </div>
       )}

@@ -6,6 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Package, Users, Search, Plus, CheckCircle, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { FormInput, FormSelect, FormTextarea } from "@/components/ui/form-fields";
 
 type DataType = "product" | "customer" | "competitor";
 
@@ -176,22 +177,23 @@ cancelEdit();
       </motion.div>
 
       <form onSubmit={handleSubmit} className="flex gap-2">
-        <select
+        <FormSelect
           value={type}
           onChange={(e) => setType(e.target.value as DataType)}
-          className="flex h-12 rounded-md border border-input bg-background px-3 py-2 text-sm"
-        >
-          <option value="product">Product</option>
-          <option value="customer">Customer</option>
-          <option value="competitor">Competitor</option>
-        </select>
+          options={[
+            { value: "product", label: "Product" },
+            { value: "customer", label: "Customer" },
+            { value: "competitor", label: "Competitor" },
+          ]}
+          className="w-36"
+        />
         
-        <input
+        <FormInput
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={`Add a ${type}...`}
-          className="flex-1 h-12 rounded-md border border-input bg-background px-4 py-2 text-sm"
+          className="flex-1"
         />
         
         <button
@@ -241,10 +243,10 @@ cancelEdit();
                 <div key={item.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg">
                   <Icon className="w-4 h-4 text-muted-foreground" />
                   {editingId === item.id ? (
-                    <input
+                    <FormInput
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="flex-1 px-2 py-1 text-sm border rounded"
+                      className="flex-1"
                       onKeyDown={(e) => e.key === "Enter" && saveEdit(item)}
                       autoFocus
                     />

@@ -11,6 +11,7 @@ interface Company {
 
 interface Product {
   id: string;
+  publicId: number | null;
   name: string;
   description: string | null;
   pricing: string | null;
@@ -19,6 +20,7 @@ interface Product {
 
 interface Customer {
   id: string;
+  publicId: number | null;
   name: string;
   email: string | null;
   segments: string[];
@@ -28,6 +30,7 @@ interface Customer {
 
 interface Competitor {
   id: string;
+  publicId: number | null;
   name: string;
   urls: string[];
   pricing: string | null;

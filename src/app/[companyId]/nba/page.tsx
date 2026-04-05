@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Brain, Check, X, MessageSquare, Loader2, Share2, Copy, CheckCircle } from "lucide-react";
+import { Brain, Check, X, MessageSquare, Loader2, Share2, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { FormTextarea } from "@/components/ui/form-fields";
 
@@ -117,14 +117,33 @@ export default function CompanyNBAPage() {
     setShowArchived(!showArchived);
   };
 
-  const handleFeedback = async (itemId: string, action: "ACCEPT" | "DECLINE", annotation?: string) => {
+  const handleShare = useCallback(async (item: NBAItem) => {
+    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidence}% | Ease: ${item.ease}\nICE Score: ${Math.round(item.iceScore)}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(item.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy", err);
+    }
+  }, []);
+
+  const handleFeedback = useCallback(async (
+    itemId: string,
+    action: "ACCEPT" | "DECLINE",
+    feedbackAnnotation?: string,
+  ) => {
     setLoading(true);
     await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nbaItemId: itemId, action, annotation }),
+      body: JSON.stringify({
+        nbaItemId: itemId,
+        action,
+        annotation: feedbackAnnotation,
+      }),
     });
-    
+
     setShowDeclineForm(null);
     setAnnotation("");
     await triggerLocalAI();
@@ -133,7 +152,30 @@ export default function CompanyNBAPage() {
     } else {
       setLoading(false);
     }
-  };
+  }, [company, loadNBA, triggerLocalAI]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.key === "r" || e.key === "R") {
+        void handleRefresh();
+      } else if (e.key === "a" || e.key === "A") {
+        const pending = items.find((item) => item.status === "PENDING");
+        if (pending) {
+          void handleFeedback(pending.id, "ACCEPT");
+        }
+      } else if (e.key === "Escape") {
+        setShowDeclineForm(null);
+        setAnnotation("");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleFeedback, handleRefresh, items]);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
@@ -235,6 +277,16 @@ export default function CompanyNBAPage() {
                       <X className="w-5 h-5" />
                     </button>
                   </div>
+                )}
+                
+                {item.status !== "PENDING" && (
+                  <button
+                    onClick={() => handleShare(item)}
+                    className="p-2 text-muted-foreground hover:text-foreground rounded transition-colors"
+                    title="Share"
+                  >
+                    {copiedId === item.id ? <CheckCircle className="w-5 h-5 text-green-600" /> : <Share2 className="w-5 h-5" />}
+                  </button>
                 )}
               </div>
               

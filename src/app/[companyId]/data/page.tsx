@@ -12,10 +12,24 @@ type DataType = "product" | "customer" | "competitor";
 
 interface DataItem {
   id: string;
+  publicId: number | null;
   name: string;
   type: DataType;
   description?: string;
   createdAt: string;
+}
+
+function sortDataItems(items: DataItem[]) {
+  return [...items].sort((left, right) => {
+    const leftPublicId = left.publicId ?? Number.MAX_SAFE_INTEGER;
+    const rightPublicId = right.publicId ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftPublicId !== rightPublicId) {
+      return leftPublicId - rightPublicId;
+    }
+
+    return left.createdAt.localeCompare(right.createdAt);
+  });
 }
 
 export default function CompanyDataPage() {
@@ -42,11 +56,11 @@ export default function CompanyDataPage() {
     setCustomers(c);
     setCompetitors(r);
     
-    const all: DataItem[] = [
+    const all = sortDataItems([
       ...p.map((x: any) => ({ ...x, type: "product" as DataType })),
       ...c.map((x: any) => ({ ...x, type: "customer" as DataType })),
       ...r.map((x: any) => ({ ...x, type: "competitor" as DataType })),
-    ];
+    ]);
     setItems(all);
     setLoading(false);
   }, [setProducts, setCustomers, setCompetitors]);
@@ -253,8 +267,16 @@ cancelEdit();
                       autoFocus
                     />
                   ) : (
-                    <span className="flex-1 text-sm text-foreground">{item.name}</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-foreground">{item.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {item.publicId ? `Source #${item.publicId}` : item.id}
+                      </p>
+                    </div>
                   )}
+                  <Badge variant="secondary" className="text-xs font-mono">
+                    {item.publicId ? `#${item.publicId}` : "pending"}
+                  </Badge>
                   <Badge variant="outline" className="text-xs capitalize">{item.type}</Badge>
                   {editingId === item.id ? (
                     <button onClick={() => saveEdit(item)} className="text-green-600 text-xs">Save</button>

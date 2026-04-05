@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
-import { Brain, Package, Plus, Users, Search, Zap } from "lucide-react";
+import { Brain, Package, Plus, Users, Search, Sparkles, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function CompanyDashboard() {
@@ -83,7 +83,7 @@ export default function CompanyDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <a href={`/${companyId}/data`} className="p-6 border border-border rounded-lg hover:bg-muted transition-colors group">
           <Plus className="w-6 h-6 mb-2 text-muted-foreground group-hover:text-foreground" />
           <p className="font-medium">Data Collection</p>
@@ -93,6 +93,11 @@ export default function CompanyDashboard() {
           <Brain className="w-6 h-6 mb-2 text-muted-foreground group-hover:text-foreground" />
           <p className="font-medium">Recommendations</p>
           <p className="text-sm text-muted-foreground">View NBA suggestions</p>
+        </a>
+        <a href={`/${companyId}/knowmore`} className="p-6 border border-border rounded-lg hover:bg-muted transition-colors group">
+          <Sparkles className="w-6 h-6 mb-2 text-muted-foreground group-hover:text-foreground" />
+          <p className="font-medium">Knowmore</p>
+          <p className="text-sm text-muted-foreground">Track the knowledge layer behind your AI</p>
         </a>
       </div>
 

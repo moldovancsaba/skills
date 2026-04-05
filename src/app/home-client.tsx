@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { motion } from "framer-motion";
+import { FormInput, FormSelect } from "@/components/ui/form-fields";
 
 export default function Home() {
   const router = useRouter();
@@ -115,25 +116,32 @@ export default function Home() {
 
       {(companies.length === 0 || showForm) ? (
         <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Company Name</label>
-            <input 
-              required 
-              className="flex h-10 w-full border rounded-md px-3 py-2 text-sm" 
-              value={formData.name} 
-              onChange={e => setFormData({...formData, name: e.target.value})} 
-              placeholder="Enter company name"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Industry</label>
-            <input 
-              className="flex h-10 w-full border rounded-md px-3 py-2 text-sm" 
-              value={formData.industry} 
-              onChange={e => setFormData({...formData, industry: e.target.value})} 
-              placeholder="e.g., SaaS, E-commerce"
-            />
-          </div>
+          <FormInput
+            name="name"
+            label="Company Name"
+            value={formData.name}
+            onChange={e => setFormData({...formData, name: e.target.value})}
+            placeholder="Enter company name"
+            required
+          />
+          <FormSelect
+            name="industry"
+            label="Industry"
+            value={formData.industry}
+            onChange={e => setFormData({...formData, industry: e.target.value})}
+            options={[
+              { value: "", label: "Select industry" },
+              { value: "SaaS", label: "SaaS" },
+              { value: "E-commerce", label: "E-commerce" },
+              { value: "Healthcare", label: "Healthcare" },
+              { value: "Finance", label: "Finance" },
+              { value: "Education", label: "Education" },
+              { value: "Retail", label: "Retail" },
+              { value: "Technology", label: "Technology" },
+              { value: "Manufacturing", label: "Manufacturing" },
+              { value: "Other", label: "Other" },
+            ]}
+          />
           <div className="flex gap-2">
             <button type="submit" className="bg-primary text-primary-foreground px-4 py-2 rounded-md">
               {editingId ? "Update" : "Create"} Company

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Brain, Check, X, MessageSquare, Loader2 } from "lucide-react";
+import { Brain, Check, X, MessageSquare, Loader2, Share2, Copy, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { FormTextarea } from "@/components/ui/form-fields";
 
@@ -30,10 +30,10 @@ export default function CompanyNBAPage() {
   const [items, setItems] = useState<NBAItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeclineForm, setShowDeclineForm] = useState<string | null>(null);
-  const [showAcceptForm, setShowAcceptForm] = useState<string | null>(null);
   const [annotation, setAnnotation] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadNBA = useCallback(async (cid: string) => {
     setLoading(true);
@@ -126,7 +126,6 @@ export default function CompanyNBAPage() {
     });
     
     setShowDeclineForm(null);
-    setShowAcceptForm(null);
     setAnnotation("");
     await triggerLocalAI();
     if (company) {
@@ -143,6 +142,12 @@ export default function CompanyNBAPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        {isGenerating && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-md">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>AI is generating recommendations...</span>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <a href={`/${companyId}`} className="text-sm text-primary hover:underline">← Back</a>
@@ -214,54 +219,32 @@ export default function CompanyNBAPage() {
                 </div>
                 
                 {item.status === "PENDING" && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => setShowAcceptForm(item.id)}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded"
+                      onClick={() => handleFeedback(item.id, "ACCEPT")}
+                      className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
+                      title="Accept (one-tap)"
                     >
                       <Check className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => setShowDeclineForm(item.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded"
+                      className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Decline"
                     >
                       <X className="w-5 h-5" />
                     </button>
                   </div>
                 )}
-
-                {showAcceptForm === item.id && (
-                  <div className="mt-3 pt-3 border-t">
-                    <FormTextarea
-                      value={annotation}
-                      onChange={(e) => setAnnotation(e.target.value)}
-                      placeholder="Add note (optional)"
-                    />
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        onClick={() => handleFeedback(item.id, "ACCEPT", annotation)}
-                        className="px-3 py-1 bg-green-600 text-white rounded text-sm"
-                      >
-                        Confirm Done
-                      </button>
-                      <button
-                        onClick={() => { setShowAcceptForm(null); setAnnotation(""); }}
-                        className="px-3 py-1 text-muted-foreground text-sm"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
               
-{showDeclineForm === item.id && (
-                  <div className="mt-3 pt-3 border-t">
-                    <FormTextarea
-                      value={annotation}
-                      onChange={(e) => setAnnotation(e.target.value)}
-                      placeholder="Why are you declining? (required)"
-                    />
+              {showDeclineForm === item.id && (
+                <div className="mt-3 pt-3 border-t">
+                  <FormTextarea
+                    value={annotation}
+                    onChange={(e) => setAnnotation(e.target.value)}
+                    placeholder="Why are you declining? (required)"
+                  />
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => handleFeedback(item.id, "DECLINE", annotation)}

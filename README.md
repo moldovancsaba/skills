@@ -34,7 +34,7 @@ AI-powered marketing checklist and Next Best Actions (NBA) system.
 
 ## Features
 
-- **Dark Mode** - System preference + manual toggle (roadmap #40)
+- **Dark Mode** - System preference + manual toggle (issue #40)
 - **Full CRUD** for companies on home page
 - **Data Collection**: Products, customers, competitors
 - **AI-Powered Tasks**: Local Ollama generates NBA recommendations
@@ -42,6 +42,10 @@ AI-powered marketing checklist and Next Best Actions (NBA) system.
 - **Feedback Loop**: Accept/decline with optional comments
 - **Auto-Refresh**: Tasks refresh every 10 minutes
 - **Archive**: View completed/declined tasks
+- **Footer Version** - Display app version (issue #43)
+- **Legal**: Terms & Conditions, Privacy Policy (issues #44-45)
+- **Cookie Consent**: Banner with marketing preferences (issue #47)
+- **SSO Login**: Google + Facebook via sso.doneisbetter.com (issue #46)
 
 ## Tech Stack
 

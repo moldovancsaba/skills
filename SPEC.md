@@ -40,6 +40,12 @@ Online (Vercel)              Local (mvp-factory-control)
 | #37 | Export Tasks to CSV |
 | #38 | Email Notifications |
 | #39 | Multi-User Support |
+| #40 | Dark Mode |
+| #43 | Footer Version |
+| #44 | Privacy Policy |
+| #45 | Terms & Conditions |
+| #46 | SSO Login (doneisbetter.com) |
+| #47 | Cookie Consent & Marketing |
 
 ---
 

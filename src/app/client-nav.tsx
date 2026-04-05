@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { ChevronDown, Plus, Users, Target, CheckSquare } from "lucide-react";
+import { useTheme } from "@/lib/theme-provider";
+import { ChevronDown, Sun, Moon } from "lucide-react";
 
 export function ClientNav() {
   const router = useRouter();
   const { company, setCompany } = useStore();
   const [showMenu, setShowMenu] = useState(false);
+  const { isDark, toggle } = useTheme();
 
   const handleSwitchCompany = () => {
     setShowMenu(false);
@@ -36,6 +38,14 @@ export function ClientNav() {
             <Link href={`/${company.id}/nba`} className="px-3 py-1.5 text-sm hover:bg-muted rounded-md">
               Tasks
             </Link>
+
+            <button
+              onClick={toggle}
+              className="p-2 text-sm hover:bg-muted rounded-md"
+              title={isDark ? "Light mode" : "Dark mode"}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
           </div>
 
           <button onClick={handleSwitchCompany} className="flex items-center gap-2 px-3 py-1.5 text-sm bg-muted rounded-md">

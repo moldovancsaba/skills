@@ -107,6 +107,12 @@ export default function Home() {
         <h1 className="text-2xl font-bold">Select Company</h1>
       </motion.div>
 
+      <div className="flex justify-end">
+        <Link href="/auth" className="text-sm text-muted-foreground hover:text-foreground">
+          Sign in with SSO
+        </Link>
+      </div>
+
       {(companies.length === 0 || showForm) ? (
         <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany} className="space-y-4">
           <div>

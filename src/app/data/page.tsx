@@ -8,6 +8,7 @@ import { Package, Users, Search, Plus, X, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormInput, FormSelect } from "@/components/ui/form-fields";
+import { normalizeQuickAddInput } from "@/lib/url-enrichment";
 
 type DataType = "product" | "customer" | "competitor";
 
@@ -79,15 +80,28 @@ export default function DataCollectionPage() {
     e.preventDefault();
     if (!input.trim() || !company) return;
 
+    const normalized = normalizeQuickAddInput(input);
+
     const endpoint = type === "product" ? "/api/products" 
       : type === "customer" ? "/api/customers" 
       : "/api/competitors";
 
     const payload = type === "product" 
-      ? { companyId: company.id, name: input, features: [] }
+      ? {
+          companyId: company.id,
+          name: normalized.name,
+          urls: normalized.urls,
+          features: [],
+        }
       : type === "customer"
       ? { companyId: company.id, name: input, segments: [], painPoints: [], channels: [] }
-      : { companyId: company.id, name: input, urls: [], strengths: [], weaknesses: [] };
+      : {
+          companyId: company.id,
+          name: normalized.name,
+          urls: normalized.urls,
+          strengths: [],
+          weaknesses: [],
+        };
 
     try {
       await fetch(endpoint, {
@@ -146,7 +160,7 @@ export default function DataCollectionPage() {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={`Add a ${type}...`}
+          placeholder={`Add a ${type} name or URL...`}
           className="flex-1"
         />
         

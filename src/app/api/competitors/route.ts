@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ensureSourcePublicIds, nextSourcePublicId } from "@/lib/source-public-ids";
+import {
+  enrichCompetitorSeed,
+  normalizeQuickAddInput,
+} from "@/lib/url-enrichment";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -21,6 +26,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    const normalized = normalizeQuickAddInput(data.name ?? "");
+    const urls = Array.from(
+      new Set([...(data.urls || []), ...normalized.urls].filter(Boolean)),
+    );
+    const enriched = await enrichCompetitorSeed({
+      name: normalized.inputWasUrl ? normalized.name : data.name,
+      urls,
+      pricing: data.pricing,
+      strengths: data.strengths || [],
+      weaknesses: data.weaknesses || [],
+      positioning: data.positioning,
+      watchedContent: data.watchedContent,
+    });
     
     const competitor = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
@@ -29,13 +47,16 @@ export async function POST(request: NextRequest) {
         data: {
           publicId,
           companyId: data.companyId,
-          name: data.name,
-          urls: data.urls || [],
-          pricing: data.pricing,
-          strengths: data.strengths || [],
-          weaknesses: data.weaknesses || [],
-          positioning: data.positioning,
-          watchedContent: data.watchedContent,
+          name: enriched.name || normalized.name || data.name,
+          urls: enriched.urls,
+          pricing: enriched.pricing,
+          strengths: enriched.strengths,
+          weaknesses: enriched.weaknesses,
+          positioning: enriched.positioning,
+          watchedContent:
+            enriched.watchedContent === null
+              ? Prisma.JsonNull
+              : (enriched.watchedContent as Prisma.InputJsonValue),
         },
       });
     });
@@ -52,16 +73,33 @@ export async function PATCH(request: NextRequest) {
   
   try {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const normalized = normalizeQuickAddInput(data.name ?? "");
+    const urls = Array.from(
+      new Set([...(data.urls || []), ...normalized.urls].filter(Boolean)),
+    );
+    const enriched = await enrichCompetitorSeed({
+      name: normalized.inputWasUrl ? normalized.name : data.name,
+      urls,
+      pricing: data.pricing,
+      strengths: data.strengths || [],
+      weaknesses: data.weaknesses || [],
+      positioning: data.positioning,
+      watchedContent: data.watchedContent,
+    });
+
     const competitor = await prisma.competitor.update({
       where: { id },
       data: {
-        name: data.name,
-        urls: data.urls,
-        pricing: data.pricing,
-        strengths: data.strengths,
-        weaknesses: data.weaknesses,
-        positioning: data.positioning,
-        watchedContent: data.watchedContent,
+        name: enriched.name || normalized.name || data.name,
+        urls: enriched.urls,
+        pricing: enriched.pricing,
+        strengths: enriched.strengths,
+        weaknesses: enriched.weaknesses,
+        positioning: enriched.positioning,
+        watchedContent:
+          enriched.watchedContent === null
+            ? Prisma.JsonNull
+            : (enriched.watchedContent as Prisma.InputJsonValue),
       },
     });
     return NextResponse.json(competitor);

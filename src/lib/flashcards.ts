@@ -13,6 +13,12 @@ import {
   TransactionClient,
   withSerializableRetry,
 } from "@/lib/source-public-ids";
+import {
+  enrichCompetitorSeed,
+  enrichProductSeed,
+  shouldEnrichCompetitor,
+  shouldEnrichProduct,
+} from "@/lib/url-enrichment";
 
 type FlashcardSourceKind =
   | "PRODUCT"
@@ -118,6 +124,10 @@ function normalizeText(value: string | null | undefined) {
   return trimmed ? trimmed : null;
 }
 
+function displaySourceName(value: string) {
+  return value.replace(/[{}[\]]/g, "").trim();
+}
+
 function nonEmptyCount(values: Array<string | number | null | undefined | string[]>) {
   return values.reduce((count: number, value) => {
     if (Array.isArray(value)) {
@@ -159,10 +169,10 @@ function buildProductFlashcard(source: ProductSource): FlashcardDraft {
   ]);
 
   return {
-    title: `Product knowledge: ${source.name}`,
+    title: `Product knowledge: ${displaySourceName(source.name)}`,
     body:
       bodyParts.join(" ") ||
-      "This product has been added as a source and is ready for deeper enrichment.",
+      "No structured product summary is available yet. Add product details or a product URL for automatic enrichment.",
     confidence: clamp(56 + completeness * 7, 55, 88),
     impact: clamp(68 + completeness * 6, 65, 92),
     weight: clamp(60 + completeness * 5, 58, 85),
@@ -190,10 +200,10 @@ function buildCustomerFlashcard(source: CustomerSource): FlashcardDraft {
   ]);
 
   return {
-    title: `Customer knowledge: ${source.name}`,
+    title: `Customer knowledge: ${displaySourceName(source.name)}`,
     body:
       bodyParts.join(" ") ||
-      "This customer record has been added as a source and is ready for deeper enrichment.",
+      "No structured customer insight is available yet. Add notes, segments, pain points, or channels to improve this card.",
     confidence: clamp(58 + completeness * 6, 58, 90),
     impact: clamp(72 + completeness * 5, 70, 94),
     weight: clamp(70 + completeness * 4, 68, 92),
@@ -217,14 +227,104 @@ function buildCompetitorFlashcard(source: CompetitorSource): FlashcardDraft {
   ]);
 
   return {
-    title: `Competitor knowledge: ${source.name}`,
+    title: `Competitor knowledge: ${displaySourceName(source.name)}`,
     body:
       bodyParts.join(" ") ||
-      "This competitor record has been added as a source and is ready for deeper enrichment.",
+      "No structured competitor summary is available yet. Add competitor URLs or market notes for automatic enrichment.",
     confidence: clamp(54 + completeness * 6, 54, 86),
     impact: clamp(66 + completeness * 5, 64, 90),
     weight: clamp(64 + completeness * 5, 62, 89),
   };
+}
+
+async function refreshCompanySourceEnrichment(companyId: string) {
+  const [products, competitors] = await Promise.all([
+    prisma.product.findMany({ where: { companyId } }),
+    prisma.competitor.findMany({ where: { companyId } }),
+  ]);
+
+  await Promise.all(
+    products.map(async (product) => {
+      if (!shouldEnrichProduct(product)) {
+        return;
+      }
+
+      const enriched = await enrichProductSeed(product);
+      const nextName = normalizeText(enriched.name) ?? product.name;
+      const nextDescription = normalizeText(enriched.description);
+      const nextPricing = normalizeText(enriched.pricing);
+      const nextFeatures = enriched.features;
+      const nextUrls = enriched.urls;
+
+      const changed =
+        product.name !== nextName ||
+        normalizeText(product.description) !== nextDescription ||
+        normalizeText(product.pricing) !== nextPricing ||
+        JSON.stringify(product.features) !== JSON.stringify(nextFeatures) ||
+        JSON.stringify(product.urls) !== JSON.stringify(nextUrls);
+
+      if (!changed) {
+        return;
+      }
+
+      await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          name: nextName,
+          description: nextDescription,
+          pricing: nextPricing,
+          features: nextFeatures,
+          urls: nextUrls,
+        },
+      });
+    }),
+  );
+
+  await Promise.all(
+    competitors.map(async (competitor) => {
+      if (!shouldEnrichCompetitor(competitor)) {
+        return;
+      }
+
+      const enriched = await enrichCompetitorSeed(competitor);
+      const nextName = normalizeText(enriched.name) ?? competitor.name;
+      const nextPricing = normalizeText(enriched.pricing);
+      const nextPositioning = normalizeText(enriched.positioning);
+      const nextStrengths = enriched.strengths;
+      const nextWeaknesses = enriched.weaknesses;
+      const nextUrls = enriched.urls;
+      const nextWatchedContent = enriched.watchedContent as Prisma.JsonValue | null;
+
+      const changed =
+        competitor.name !== nextName ||
+        normalizeText(competitor.pricing) !== nextPricing ||
+        normalizeText(competitor.positioning) !== nextPositioning ||
+        JSON.stringify(competitor.urls) !== JSON.stringify(nextUrls) ||
+        JSON.stringify(competitor.strengths) !== JSON.stringify(nextStrengths) ||
+        JSON.stringify(competitor.weaknesses) !== JSON.stringify(nextWeaknesses) ||
+        JSON.stringify(competitor.watchedContent) !== JSON.stringify(nextWatchedContent);
+
+      if (!changed) {
+        return;
+      }
+
+      await prisma.competitor.update({
+        where: { id: competitor.id },
+        data: {
+          name: nextName,
+          urls: nextUrls,
+          pricing: nextPricing,
+          positioning: nextPositioning,
+          strengths: nextStrengths,
+          weaknesses: nextWeaknesses,
+          watchedContent:
+            nextWatchedContent === null
+              ? Prisma.JsonNull
+              : (nextWatchedContent as Prisma.InputJsonValue),
+        },
+      });
+    }),
+  );
 }
 
 function buildFlashcardDraft(source: SourceRecord) {
@@ -595,6 +695,7 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
 }
 
 export async function listCompanyFlashcards(companyId: string) {
+  await refreshCompanySourceEnrichment(companyId);
   await syncBootstrapFlashcards(companyId);
 
   return prisma.flashcard.findMany({

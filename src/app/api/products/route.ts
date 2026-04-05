@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { ensureSourcePublicIds, nextSourcePublicId } from "@/lib/source-public-ids";
+import {
+  enrichProductSeed,
+  normalizeQuickAddInput,
+} from "@/lib/url-enrichment";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -21,6 +25,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    const normalized = normalizeQuickAddInput(data.name ?? "");
+    const urls = Array.from(
+      new Set([...(data.urls || []), ...normalized.urls].filter(Boolean)),
+    );
+    const enriched = await enrichProductSeed({
+      name: normalized.inputWasUrl ? normalized.name : data.name,
+      description: data.description,
+      pricing: data.pricing,
+      features: data.features || [],
+      urls,
+    });
     
     const product = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
@@ -29,11 +44,11 @@ export async function POST(request: NextRequest) {
         data: {
           publicId,
           companyId: data.companyId,
-          name: data.name,
-          description: data.description,
-          pricing: data.pricing,
-          features: data.features || [],
-          urls: data.urls || [],
+          name: enriched.name || normalized.name || data.name,
+          description: enriched.description,
+          pricing: enriched.pricing,
+          features: enriched.features,
+          urls: enriched.urls,
         },
       });
     });
@@ -62,14 +77,26 @@ export async function PATCH(request: NextRequest) {
   
   try {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const normalized = normalizeQuickAddInput(data.name ?? "");
+    const urls = Array.from(
+      new Set([...(data.urls || []), ...normalized.urls].filter(Boolean)),
+    );
+    const enriched = await enrichProductSeed({
+      name: normalized.inputWasUrl ? normalized.name : data.name,
+      description: data.description,
+      pricing: data.pricing,
+      features: data.features || [],
+      urls,
+    });
+
     const product = await prisma.product.update({
       where: { id },
       data: {
-        name: data.name,
-        description: data.description,
-        pricing: data.pricing,
-        features: data.features,
-        urls: data.urls,
+        name: enriched.name || normalized.name || data.name,
+        description: enriched.description,
+        pricing: enriched.pricing,
+        features: enriched.features,
+        urls: enriched.urls,
       },
     });
     return NextResponse.json(product);

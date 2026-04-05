@@ -33,8 +33,10 @@ export default function CompanyNBAPage() {
   const [showAcceptForm, setShowAcceptForm] = useState<string | null>(null);
   const [annotation, setAnnotation] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const loadNBA = useCallback(async (cid: string) => {
+    setLoading(true);
     const res = await fetch(`/api/nba?companyId=${cid}`);
     const data = await res.json();
     const pending = data.filter((item: NBAItem) => item.status === "PENDING");
@@ -43,15 +45,39 @@ export default function CompanyNBAPage() {
   }, []);
 
   const loadAllNBA = useCallback(async (cid: string) => {
+    setLoading(true);
     const res = await fetch(`/api/nba?companyId=${cid}`);
     const data = await res.json();
     setItems(data);
     setLoading(false);
   }, []);
 
-  const refreshNBA = useCallback(() => {
+  const reloadPending = useCallback(() => {
     if (company) loadNBA(company.id);
   }, [company, loadNBA]);
+
+  const triggerLocalAI = useCallback(async () => {
+    if (!company) return;
+    setIsGenerating(true);
+    try {
+      await fetch("/api/agent/local", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId: company.id }),
+      });
+    } catch (error) {
+      console.error("Failed to trigger local AI", error);
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [company]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!company) return;
+    setLoading(true);
+    await triggerLocalAI();
+    await loadNBA(company.id);
+  }, [company, loadNBA, triggerLocalAI]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -77,10 +103,10 @@ export default function CompanyNBAPage() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      refreshNBA();
+      reloadPending();
     }, 600000);
     return () => clearInterval(interval);
-  }, [refreshNBA]);
+  }, [reloadPending]);
 
   const toggleArchived = () => {
     if (showArchived) {
@@ -92,6 +118,7 @@ export default function CompanyNBAPage() {
   };
 
   const handleFeedback = async (itemId: string, action: "ACCEPT" | "DECLINE", annotation?: string) => {
+    setLoading(true);
     await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -101,7 +128,12 @@ export default function CompanyNBAPage() {
     setShowDeclineForm(null);
     setShowAcceptForm(null);
     setAnnotation("");
-    loadNBA(company!.id);
+    await triggerLocalAI();
+    if (company) {
+      await loadNBA(company.id);
+    } else {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -119,11 +151,12 @@ export default function CompanyNBAPage() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={refreshNBA}
+              onClick={handleRefresh}
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              disabled={isGenerating}
             >
-              <Loader2 className="w-4 h-4" />
-              Refresh
+              <Loader2 className={`w-4 h-4 ${isGenerating ? "animate-spin" : ""}`} />
+              {isGenerating ? "Generating…" : "Refresh"}
             </button>
             <button
               onClick={toggleArchived}

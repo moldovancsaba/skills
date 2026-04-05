@@ -70,8 +70,23 @@
   .input {
     @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
-  
-  .dark .input {
+}
+
+@layer base {
+  /* Force text colors for ALL form elements - CRITICAL for dark mode */
+  input,
+  textarea,
+  select {
     @apply text-foreground;
+  }
+  
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-muted-foreground;
+  }
+  
+  /* Ensure select options are visible in dark mode */
+  select option {
+    @apply text-foreground bg-background;
   }
 }

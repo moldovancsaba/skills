@@ -6,6 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Brain, Check, X, MessageSquare, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { FormTextarea } from "@/components/ui/form-fields";
 
 interface NBAItem {
   id: string;
@@ -196,11 +197,10 @@ export default function CompanyNBAPage() {
 
                 {showAcceptForm === item.id && (
                   <div className="mt-3 pt-3 border-t">
-                    <textarea
+                    <FormTextarea
                       value={annotation}
                       onChange={(e) => setAnnotation(e.target.value)}
                       placeholder="Add note (optional)"
-                      className="w-full h-20 rounded-md border border-input bg-background px-3 py-2 text-sm"
                     />
                     <div className="flex gap-2 mt-2">
                       <button
@@ -220,14 +220,13 @@ export default function CompanyNBAPage() {
                 )}
               </div>
               
-              {showDeclineForm === item.id && (
-                <div className="mt-3 pt-3 border-t">
-                  <textarea
-                    value={annotation}
-                    onChange={(e) => setAnnotation(e.target.value)}
-                    placeholder="Why are you declining? (required)"
-                    className="w-full h-20 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
+{showDeclineForm === item.id && (
+                  <div className="mt-3 pt-3 border-t">
+                    <FormTextarea
+                      value={annotation}
+                      onChange={(e) => setAnnotation(e.target.value)}
+                      placeholder="Why are you declining? (required)"
+                    />
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => handleFeedback(item.id, "DECLINE", annotation)}

@@ -2,7 +2,13 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 const SOURCE_PUBLIC_ID_SCOPE = "source";
+const FLASHCARD_PUBLIC_ID_SCOPE = "flashcard";
 const MAX_RETRIES = 3;
+
+export const PUBLIC_ID_SCOPES = {
+  source: SOURCE_PUBLIC_ID_SCOPE,
+  flashcard: FLASHCARD_PUBLIC_ID_SCOPE,
+} as const;
 
 type SourceKind = "product" | "customer" | "competitor";
 
@@ -12,7 +18,7 @@ type MissingSource = {
   kind: SourceKind;
 };
 
-type TransactionClient = Omit<
+export type TransactionClient = Omit<
   PrismaClient,
   "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
 >;
@@ -29,7 +35,7 @@ function isRetryableTransactionError(error: unknown) {
   );
 }
 
-async function withSerializableRetry<T>(
+export async function withSerializableRetry<T>(
   operation: () => Promise<T>,
   attempt = 0,
 ): Promise<T> {
@@ -44,8 +50,9 @@ async function withSerializableRetry<T>(
   }
 }
 
-async function reserveSourcePublicIds(
+async function reservePublicIds(
   tx: TransactionClient,
+  scope: string,
   count: number,
 ): Promise<number[]> {
   if (count <= 0) {
@@ -53,16 +60,16 @@ async function reserveSourcePublicIds(
   }
 
   await tx.publicIdCounter.upsert({
-    where: { scope: SOURCE_PUBLIC_ID_SCOPE },
+    where: { scope },
     update: {},
     create: {
-      scope: SOURCE_PUBLIC_ID_SCOPE,
+      scope,
       value: 0,
     },
   });
 
   const counter = await tx.publicIdCounter.update({
-    where: { scope: SOURCE_PUBLIC_ID_SCOPE },
+    where: { scope },
     data: {
       value: {
         increment: count,
@@ -170,8 +177,9 @@ export async function ensureSourcePublicIds(companyId?: string) {
           return 0;
         }
 
-        const reservedPublicIds = await reserveSourcePublicIds(
+        const reservedPublicIds = await reservePublicIds(
           tx,
+          SOURCE_PUBLIC_ID_SCOPE,
           missingSources.length,
         );
 
@@ -196,6 +204,14 @@ export async function ensureSourcePublicIds(companyId?: string) {
 }
 
 export async function nextSourcePublicId(tx: TransactionClient) {
-  const [publicId] = await reserveSourcePublicIds(tx, 1);
+  const [publicId] = await reservePublicIds(tx, SOURCE_PUBLIC_ID_SCOPE, 1);
+  return publicId;
+}
+
+export async function nextPublicId(
+  tx: TransactionClient,
+  scope: string,
+) {
+  const [publicId] = await reservePublicIds(tx, scope, 1);
   return publicId;
 }

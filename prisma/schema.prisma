@@ -39,6 +39,7 @@ model Company {
   products    Product[]
   customers   Customer[]
   competitors Competitor[]
+  flashcards  Flashcard[]
   nbaItems    NBAItem[]
 }
 
@@ -97,6 +98,60 @@ model Competitor {
   updatedAt   DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id])
+}
+
+model Flashcard {
+  id          String          @id @default(uuid())
+  publicId    Int?            @unique
+  companyId   String
+  title       String
+  body        String
+  confidence  Int             @default(50)
+  impact      Int             @default(5)
+  weight      Int             @default(5)
+  status      FlashcardStatus @default(ACTIVE)
+  createdBy   String?         @default("bootstrap-source")
+  refreshedAt DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  company Company           @relation(fields: [companyId], references: [id])
+  sources FlashcardSource[]
+}
+
+model FlashcardSource {
+  id             String              @id @default(uuid())
+  flashcardId    String
+  sourceType     FlashcardSourceType
+  sourceId       String
+  sourcePublicId Int?
+  sourceName     String
+  relationRole   FlashcardSourceRole @default(PRIMARY)
+  createdAt      DateTime            @default(now())
+
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  @@unique([flashcardId, sourceType, sourceId])
+  @@index([sourceType, sourceId])
+}
+
+enum FlashcardStatus {
+  ACTIVE
+  STALE
+  ARCHIVED
+}
+
+enum FlashcardSourceType {
+  PRODUCT
+  CUSTOMER
+  COMPETITOR
+  AGENT_FOUND
+}
+
+enum FlashcardSourceRole {
+  PRIMARY
+  SUPPORTING
+  MERGED_FROM
 }
 
 model NBAItem {

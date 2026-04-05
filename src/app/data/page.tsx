@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -27,26 +27,11 @@ export default function DataCollectionPage() {
   const [saved, setSaved] = useState(false);
   const [items, setItems] = useState<DataItem[]>([]);
 
-  useEffect(() => {
-    if (!company) {
-      fetch("/api/companies")
-        .then(res => res.json())
-        .then(data => {
-          if (data.length > 0) {
-            const co = data[0];
-            loadAllData(co.id);
-          }
-        });
-    } else {
-      loadAllData(company.id);
-    }
-  }, [company]);
-
-  const loadAllData = async (companyId: string) => {
+  const loadAllData = useCallback(async (companyId: string) => {
     const [p, c, r] = await Promise.all([
-      fetch(`/api/products?companyId=${companyId}`).then(res => res.json()),
-      fetch(`/api/customers?companyId=${companyId}`).then(res => res.json()),
-      fetch(`/api/competitors?companyId=${companyId}`).then(res => res.json()),
+      fetch(`/api/products?companyId=${companyId}`).then((res) => res.json()),
+      fetch(`/api/customers?companyId=${companyId}`).then((res) => res.json()),
+      fetch(`/api/competitors?companyId=${companyId}`).then((res) => res.json()),
     ]);
     setProducts(p);
     setCustomers(c);
@@ -58,7 +43,22 @@ export default function DataCollectionPage() {
       ...r.map((x: any) => ({ ...x, type: "competitor" as DataType })),
     ];
     setItems(all);
-  };
+  }, [setProducts, setCustomers, setCompetitors]);
+
+  useEffect(() => {
+    if (!company) {
+      fetch("/api/companies")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.length > 0) {
+            const co = data[0];
+            loadAllData(co.id);
+          }
+        });
+    } else {
+      loadAllData(company.id);
+    }
+  }, [company, loadAllData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

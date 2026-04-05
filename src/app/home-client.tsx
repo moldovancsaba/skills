@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
@@ -21,8 +21,8 @@ export default function Home() {
 
   useEffect(() => {
     fetch("/api/companies")
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         setCompanies(data);
         setLoading(false);
         
@@ -34,15 +34,15 @@ export default function Home() {
         }
       })
       .catch(console.error);
-  }, [companyParam]);
+  }, [companyParam, selectCompany]);
 
-  const selectCompany = (company: any) => {
+  const selectCompany = useCallback((company: any) => {
     setCompany(company);
     setProducts([]);
     setCustomers([]);
     setCompetitors([]);
     router.push(`/${company.id}`);
-  };
+  }, [router, setCompany, setProducts, setCustomers, setCompetitors]);
 
   const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();

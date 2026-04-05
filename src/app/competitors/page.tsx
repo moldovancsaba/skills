@@ -21,11 +21,11 @@ export default function CompetitorsPage() {
   useEffect(() => {
     if (company) {
       fetch(`/api/competitors?companyId=${company.id}`)
-        .then(res => res.json())
+        .then((res) => res.json())
         .then(setCompetitors)
         .catch(console.error);
     }
-  }, [company]);
+  }, [company, setCompetitors]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

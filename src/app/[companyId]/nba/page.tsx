@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -34,51 +34,53 @@ export default function CompanyNBAPage() {
   const [annotation, setAnnotation] = useState("");
   const [showArchived, setShowArchived] = useState(false);
 
+  const loadNBA = useCallback(async (cid: string) => {
+    const res = await fetch(`/api/nba?companyId=${cid}`);
+    const data = await res.json();
+    const pending = data.filter((item: NBAItem) => item.status === "PENDING");
+    setItems(pending);
+    setLoading(false);
+  }, []);
+
+  const loadAllNBA = useCallback(async (cid: string) => {
+    const res = await fetch(`/api/nba?companyId=${cid}`);
+    const data = await res.json();
+    setItems(data);
+    setLoading(false);
+  }, []);
+
+  const refreshNBA = useCallback(() => {
+    if (company) loadNBA(company.id);
+  }, [company, loadNBA]);
+
   useEffect(() => {
-    if (companyId) {
-      loadCompany(companyId);
-    }
-  }, [companyId]);
+    if (!companyId) return;
+
+    const fetchCompany = async (cid: string) => {
+      try {
+        const companies = await fetch(`/api/companies`).then((res) => res.json());
+        const found = companies.find((c: any) => c.id === cid);
+        if (!found) {
+          router.push("/");
+          return;
+        }
+
+        setCompany(found);
+        await loadNBA(found.id);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchCompany(companyId);
+  }, [companyId, router, setCompany, loadNBA]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       refreshNBA();
     }, 600000);
     return () => clearInterval(interval);
-  }, [company]);
-
-  const loadCompany = (cid: string) => {
-    fetch(`/api/companies`)
-      .then(res => res.json())
-      .then(data => {
-        const found = data.find((c: any) => c.id === cid);
-        if (found) {
-          setCompany(found);
-          loadNBA(found.id);
-        } else {
-          router.push("/");
-        }
-      });
-  };
-
-  const loadNBA = async (cid: string) => {
-    const res = await fetch(`/api/nba?companyId=${cid}`);
-    const data = await res.json();
-    const pending = data.filter((item: NBAItem) => item.status === "PENDING");
-    setItems(pending);
-    setLoading(false);
-  };
-
-  const loadAllNBA = async (cid: string) => {
-    const res = await fetch(`/api/nba?companyId=${cid}`);
-    const data = await res.json();
-    setItems(data);
-    setLoading(false);
-  };
-
-  const refreshNBA = () => {
-    if (company) loadNBA(company.id);
-  };
+  }, [refreshNBA]);
 
   const toggleArchived = () => {
     if (showArchived) {

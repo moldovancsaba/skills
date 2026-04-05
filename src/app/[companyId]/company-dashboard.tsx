@@ -14,37 +14,36 @@ export default function CompanyDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (companyId) {
-      loadCompany(companyId);
-    }
-  }, [companyId]);
+    if (!companyId) return;
 
-  const loadCompany = (cid: string) => {
-    fetch(`/api/companies`)
-      .then(res => res.json())
-      .then(data => {
-        const found = data.find((c: any) => c.id === cid);
-        if (found) {
-          setCompany(found);
-          loadData(found.id);
-        } else {
+    const fetchCompany = async (cid: string) => {
+      try {
+        const companies = await fetch(`/api/companies`).then((res) => res.json());
+        const found = companies.find((c: any) => c.id === cid);
+        if (!found) {
           router.push("/");
+          return;
         }
-      });
-  };
 
-  const loadData = (cid: string) => {
-    Promise.all([
-      fetch(`/api/products?companyId=${cid}`).then(r => r.json()),
-      fetch(`/api/customers?companyId=${cid}`).then(r => r.json()),
-      fetch(`/api/competitors?companyId=${cid}`).then(r => r.json()),
-    ]).then(([p, c, r]) => {
-      setProducts(p);
-      setCustomers(c);
-      setCompetitors(r);
-      setLoading(false);
-    });
-  };
+        setCompany(found);
+
+        const [p, c, r] = await Promise.all([
+          fetch(`/api/products?companyId=${found.id}`).then((res) => res.json()),
+          fetch(`/api/customers?companyId=${found.id}`).then((res) => res.json()),
+          fetch(`/api/competitors?companyId=${found.id}`).then((res) => res.json()),
+        ]);
+
+        setProducts(p);
+        setCustomers(c);
+        setCompetitors(r);
+        setLoading(false);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchCompany(companyId);
+  }, [companyId, router, setCompany, setProducts, setCustomers, setCompetitors]);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;

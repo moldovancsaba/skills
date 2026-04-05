@@ -21,11 +21,11 @@ export default function CustomersPage() {
   useEffect(() => {
     if (company) {
       fetch(`/api/customers?companyId=${company.id}`)
-        .then(res => res.json())
+        .then((res) => res.json())
         .then(setCustomers)
         .catch(console.error);
     }
-  }, [company]);
+  }, [company, setCustomers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

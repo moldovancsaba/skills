@@ -19,11 +19,11 @@ export default function ProductsPage() {
   useEffect(() => {
     if (company) {
       fetch(`/api/products?companyId=${company.id}`)
-        .then(res => res.json())
+        .then((res) => res.json())
         .then(setProducts)
         .catch(console.error);
     }
-  }, [company]);
+  }, [company, setProducts]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -32,31 +32,11 @@ export default function CompanyDataPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
-  useEffect(() => {
-    if (companyId) {
-      loadCompany(companyId);
-    }
-  }, [companyId]);
-
-  const loadCompany = (cid: string) => {
-    fetch(`/api/companies`)
-      .then(res => res.json())
-      .then(data => {
-        const found = data.find((c: any) => c.id === cid);
-        if (found) {
-          setCompany(found);
-          loadAllData(found.id);
-        } else {
-          router.push("/");
-        }
-      });
-  };
-
-  const loadAllData = async (cid: string) => {
+  const loadAllData = useCallback(async (cid: string) => {
     const [p, c, r] = await Promise.all([
-      fetch(`/api/products?companyId=${cid}`).then(res => res.json()),
-      fetch(`/api/customers?companyId=${cid}`).then(res => res.json()),
-      fetch(`/api/competitors?companyId=${cid}`).then(res => res.json()),
+      fetch(`/api/products?companyId=${cid}`).then((res) => res.json()),
+      fetch(`/api/customers?companyId=${cid}`).then((res) => res.json()),
+      fetch(`/api/competitors?companyId=${cid}`).then((res) => res.json()),
     ]);
     setProducts(p);
     setCustomers(c);
@@ -69,7 +49,29 @@ export default function CompanyDataPage() {
     ];
     setItems(all);
     setLoading(false);
-  };
+  }, [setProducts, setCustomers, setCompetitors]);
+
+  useEffect(() => {
+    if (!companyId) return;
+
+    const loadCompany = async (cid: string) => {
+      try {
+        const companies = await fetch(`/api/companies`).then((res) => res.json());
+        const found = companies.find((c: any) => c.id === cid);
+        if (!found) {
+          router.push("/");
+          return;
+        }
+
+        setCompany(found);
+        await loadAllData(found.id);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadCompany(companyId);
+  }, [companyId, router, setCompany, loadAllData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

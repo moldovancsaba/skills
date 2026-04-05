@@ -17,15 +17,15 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("theme") === "dark";
+  });
 
   useEffect(() => {
-    const stored = localStorage.getItem("theme");
-    if (stored === "dark") {
-      setIsDark(true);
-      document.documentElement.classList.add("dark");
-    }
-  }, []);
+    if (typeof document === "undefined") return;
+    document.documentElement.classList.toggle("dark", isDark);
+  }, [isDark]);
 
   const toggle = () => {
     const newValue = !isDark;

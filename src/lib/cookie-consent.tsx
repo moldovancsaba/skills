@@ -18,17 +18,15 @@ const DEFAULT_CONSENT: ConsentSettings = {
 const STORAGE_KEY = "cookie_consent";
 
 export function useCookieConsent() {
-  const [showBanner, setShowBanner] = useState(false);
-  const [settings, setSettings] = useState<ConsentSettings>(DEFAULT_CONSENT);
-
-  useEffect(() => {
+  const [showBanner, setShowBanner] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem(STORAGE_KEY);
+  });
+  const [settings, setSettings] = useState<ConsentSettings>(() => {
+    if (typeof window === "undefined") return DEFAULT_CONSENT;
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      setShowBanner(true);
-    } else {
-      setSettings(JSON.parse(stored));
-    }
-  }, []);
+    return stored ? JSON.parse(stored) : DEFAULT_CONSENT;
+  });
 
   const acceptAll = () => {
     const fullConsent = { essential: true, analytics: true, marketing: true };

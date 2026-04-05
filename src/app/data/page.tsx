@@ -46,18 +46,19 @@ export default function DataCollectionPage() {
   }, [setProducts, setCustomers, setCompetitors]);
 
   useEffect(() => {
-    if (!company) {
-      fetch("/api/companies")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.length > 0) {
-            const co = data[0];
-            loadAllData(co.id);
-          }
-        });
-    } else {
-      loadAllData(company.id);
-    }
+    const loadForCompany = async () => {
+      if (!company) {
+        const res = await fetch("/api/companies");
+        const data = await res.json();
+        if (data.length > 0) {
+          await loadAllData(data[0].id);
+        }
+        return;
+      }
+      await loadAllData(company.id);
+    };
+
+    void loadForCompany();
   }, [company, loadAllData]);
 
   const handleSubmit = async (e: React.FormEvent) => {

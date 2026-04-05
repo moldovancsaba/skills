@@ -8,16 +8,11 @@ import { Loader2 } from "lucide-react";
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const authError = searchParams.get("authError");
+  const [loading, setLoading] = useState(!authError);
 
   useEffect(() => {
-    const authError = searchParams.get("authError");
-    if (authError) {
-      setError(authError);
-      setLoading(false);
-      return;
-    }
+    if (authError) return;
 
     fetch("/api/auth/session")
       .then(res => res.json())
@@ -29,7 +24,7 @@ function AuthContent() {
         }
       })
       .catch(() => setLoading(false));
-  }, [searchParams, router]);
+  }, [authError, router]);
 
   const handleLogin = () => {
     const returnTo = encodeURIComponent("/");
@@ -52,11 +47,11 @@ function AuthContent() {
           <p className="text-muted-foreground">Sign in to continue</p>
         </div>
 
-        {error && (
+        {authError && (
           <div className="bg-destructive/10 border border-destructive rounded-md p-4 mb-6 text-sm text-destructive">
-            {error === "sso_not_configured" 
+            {authError === "sso_not_configured" 
               ? "SSO is not configured. Please contact admin."
-              : `Login error: ${error}`}
+              : `Login error: ${authError}`}
           </div>
         )}
 

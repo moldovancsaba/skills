@@ -19,6 +19,14 @@ export default function Home() {
 
   const companyParam = searchParams.get("company");
 
+  const selectCompany = useCallback((company: any) => {
+    setCompany(company);
+    setProducts([]);
+    setCustomers([]);
+    setCompetitors([]);
+    router.push(`/${company.id}`);
+  }, [router, setCompany, setProducts, setCustomers, setCompetitors]);
+
   useEffect(() => {
     fetch("/api/companies")
       .then((res) => res.json())
@@ -35,14 +43,6 @@ export default function Home() {
       })
       .catch(console.error);
   }, [companyParam, selectCompany]);
-
-  const selectCompany = useCallback((company: any) => {
-    setCompany(company);
-    setProducts([]);
-    setCustomers([]);
-    setCompetitors([]);
-    router.push(`/${company.id}`);
-  }, [router, setCompany, setProducts, setCustomers, setCompetitors]);
 
   const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();

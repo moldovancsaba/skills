@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { ensureSourcePublicIds, nextSourcePublicId } from "@/lib/source-public-ids";
+import {
+  ensureSourcePublicIds,
+  nextSourcePublicId,
+  TRANSACTION_SETTINGS,
+} from "@/lib/source-public-ids";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -38,7 +42,7 @@ export async function POST(request: NextRequest) {
           notes: data.notes,
         },
       });
-    });
+    }, TRANSACTION_SETTINGS);
     
     return NextResponse.json(customer);
   } catch (error) {

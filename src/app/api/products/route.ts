@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { ensureSourcePublicIds, nextSourcePublicId } from "@/lib/source-public-ids";
+import {
+  ensureSourcePublicIds,
+  nextSourcePublicId,
+  TRANSACTION_SETTINGS,
+} from "@/lib/source-public-ids";
 import {
   enrichProductSeed,
   normalizeQuickAddInput,
@@ -51,7 +55,7 @@ export async function POST(request: NextRequest) {
           urls: enriched.urls,
         },
       });
-    });
+    }, TRANSACTION_SETTINGS);
     
     return NextResponse.json(product);
   } catch (error) {

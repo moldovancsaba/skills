@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { ensureSourcePublicIds, nextSourcePublicId } from "@/lib/source-public-ids";
+import {
+  ensureSourcePublicIds,
+  nextSourcePublicId,
+  TRANSACTION_SETTINGS,
+} from "@/lib/source-public-ids";
 import {
   enrichCompetitorSeed,
   normalizeQuickAddInput,
@@ -59,7 +63,7 @@ export async function POST(request: NextRequest) {
               : (enriched.watchedContent as Prisma.InputJsonValue),
         },
       });
-    });
+    }, TRANSACTION_SETTINGS);
     
     return NextResponse.json(competitor);
   } catch (error) {

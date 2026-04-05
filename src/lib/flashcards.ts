@@ -10,6 +10,7 @@ import {
   ensureSourcePublicIds,
   nextPublicId,
   PUBLIC_ID_SCOPES,
+  TRANSACTION_SETTINGS,
   TransactionClient,
   withSerializableRetry,
 } from "@/lib/source-public-ids";
@@ -603,6 +604,7 @@ export async function syncBootstrapFlashcards(companyId: string) {
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        ...TRANSACTION_SETTINGS,
       },
     ),
   );
@@ -690,6 +692,7 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
       };
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      ...TRANSACTION_SETTINGS,
     }),
   );
 }

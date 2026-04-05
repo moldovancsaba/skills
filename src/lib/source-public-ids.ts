@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 const SOURCE_PUBLIC_ID_SCOPE = "source";
 const FLASHCARD_PUBLIC_ID_SCOPE = "flashcard";
 const MAX_RETRIES = 3;
+const TRANSACTION_MAX_WAIT_MS = 10_000;
+const TRANSACTION_TIMEOUT_MS = 30_000;
 
 export const PUBLIC_ID_SCOPES = {
   source: SOURCE_PUBLIC_ID_SCOPE,
@@ -198,6 +200,8 @@ export async function ensureSourcePublicIds(companyId?: string) {
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        maxWait: TRANSACTION_MAX_WAIT_MS,
+        timeout: TRANSACTION_TIMEOUT_MS,
       },
     ),
   );
@@ -215,3 +219,8 @@ export async function nextPublicId(
   const [publicId] = await reservePublicIds(tx, scope, 1);
   return publicId;
 }
+
+export const TRANSACTION_SETTINGS = {
+  maxWait: TRANSACTION_MAX_WAIT_MS,
+  timeout: TRANSACTION_TIMEOUT_MS,
+} as const;

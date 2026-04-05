@@ -38,6 +38,9 @@ export function ClientNav() {
             <Link href={`/${company.id}/nba`} className="px-3 py-1.5 text-sm hover:bg-muted rounded-md">
               Tasks
             </Link>
+            <Link href={`/${company.id}/knowmore`} className="px-3 py-1.5 text-sm hover:bg-muted rounded-md">
+              Knowmore
+            </Link>
 
             <button
               onClick={toggle}

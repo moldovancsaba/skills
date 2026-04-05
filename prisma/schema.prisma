@@ -101,22 +101,30 @@ model Competitor {
 }
 
 model Flashcard {
-  id          String          @id @default(uuid())
-  publicId    Int?            @unique
-  companyId   String
-  title       String
-  body        String
-  confidence  Int             @default(50)
-  impact      Int             @default(5)
-  weight      Int             @default(5)
-  status      FlashcardStatus @default(ACTIVE)
-  createdBy   String?         @default("bootstrap-source")
-  refreshedAt DateTime        @default(now())
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id              String                @id @default(uuid())
+  publicId        Int?                  @unique
+  companyId       String
+  title           String
+  body            String
+  generatedTitle  String?
+  generatedBody   String?
+  manualTitle     String?
+  manualBody      String?
+  confidence      Int                   @default(50)
+  impact          Int                   @default(5)
+  weight          Int                   @default(5)
+  status          FlashcardStatus       @default(ACTIVE)
+  reviewStatus    FlashcardReviewStatus @default(PENDING)
+  userAnnotation  String?
+  lastActionAt    DateTime?
+  createdBy       String?               @default("bootstrap-source")
+  refreshedAt     DateTime              @default(now())
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
 
   company Company           @relation(fields: [companyId], references: [id])
   sources FlashcardSource[]
+  actions FlashcardAction[]
 }
 
 model FlashcardSource {
@@ -132,13 +140,20 @@ model FlashcardSource {
   flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
 
   @@unique([flashcardId, sourceType, sourceId])
-  @@index([sourceType, sourceId])
+  @@unique([sourceType, sourceId])
 }
 
 enum FlashcardStatus {
   ACTIVE
   STALE
   ARCHIVED
+}
+
+enum FlashcardReviewStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  MODIFIED_ACCEPTED
 }
 
 enum FlashcardSourceType {
@@ -152,6 +167,29 @@ enum FlashcardSourceRole {
   PRIMARY
   SUPPORTING
   MERGED_FROM
+}
+
+model FlashcardAction {
+  id            String              @id @default(uuid())
+  flashcardId    String
+  action         FlashcardActionType
+  annotation     String?
+  previousTitle  String?
+  previousBody   String?
+  modifiedTitle  String?
+  modifiedBody   String?
+  actedBy        String?             @default("webapp-user")
+  createdAt      DateTime            @default(now())
+
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  @@index([flashcardId, createdAt])
+}
+
+enum FlashcardActionType {
+  ACCEPT
+  DECLINE
+  MODIFY_ACCEPT
 }
 
 model NBAItem {

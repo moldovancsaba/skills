@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "postinstall": "prisma generate",
-    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "lint": "eslint src eslint.config.js --ext .ts,.tsx,.js,.jsx",
     "db:push": "prisma db push",
     "db:generate": "prisma generate"
   },

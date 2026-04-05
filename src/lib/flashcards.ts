@@ -1,6 +1,9 @@
 import {
+  FlashcardActionType,
+  FlashcardReviewStatus,
   FlashcardSourceRole,
   FlashcardStatus,
+  Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
@@ -61,7 +64,38 @@ type CompetitorSource = {
 
 type SourceRecord = ProductSource | CustomerSource | CompetitorSource;
 
+type FlashcardDraft = {
+  title: string;
+  body: string;
+  confidence: number;
+  impact: number;
+  weight: number;
+};
+
+type FlashcardActionInput = {
+  flashcardId: string;
+  action: FlashcardActionType;
+  annotation?: string;
+  modifiedTitle?: string;
+  modifiedBody?: string;
+};
+
 const BOOTSTRAP_CREATED_BY = "bootstrap-source";
+const FLASHCARD_INCLUDES = {
+  sources: {
+    orderBy: [{ sourcePublicId: "asc" as const }, { createdAt: "asc" as const }],
+  },
+  actions: {
+    orderBy: { createdAt: "desc" as const },
+    take: 5,
+  },
+} satisfies Prisma.FlashcardInclude;
+
+const REVIEW_STATUS_BY_ACTION: Record<FlashcardActionType, FlashcardReviewStatus> = {
+  ACCEPT: FlashcardReviewStatus.ACCEPTED,
+  DECLINE: FlashcardReviewStatus.DECLINED,
+  MODIFY_ACCEPT: FlashcardReviewStatus.MODIFIED_ACCEPTED,
+};
 
 function sourceKey(sourceType: FlashcardSourceKind, sourceId: string) {
   return `${sourceType}:${sourceId}`;
@@ -77,6 +111,11 @@ function buildSentence(label: string, values: string[]) {
   }
 
   return `${label}: ${values.join(", ")}.`;
+}
+
+function normalizeText(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }
 
 function nonEmptyCount(values: Array<string | number | null | undefined | string[]>) {
@@ -105,7 +144,7 @@ function sameDate(left: Date, right: Date) {
   return left.getTime() === right.getTime();
 }
 
-function buildProductFlashcard(source: ProductSource) {
+function buildProductFlashcard(source: ProductSource): FlashcardDraft {
   const bodyParts = [
     source.description?.trim() || null,
     source.pricing ? `Pricing: ${source.pricing}.` : null,
@@ -130,7 +169,7 @@ function buildProductFlashcard(source: ProductSource) {
   };
 }
 
-function buildCustomerFlashcard(source: CustomerSource) {
+function buildCustomerFlashcard(source: CustomerSource): FlashcardDraft {
   const bodyParts = [
     source.notes?.trim() || null,
     buildSentence("Segments", takeFirst(source.segments)),
@@ -161,7 +200,7 @@ function buildCustomerFlashcard(source: CustomerSource) {
   };
 }
 
-function buildCompetitorFlashcard(source: CompetitorSource) {
+function buildCompetitorFlashcard(source: CompetitorSource): FlashcardDraft {
   const bodyParts = [
     source.positioning?.trim() || null,
     source.pricing ? `Pricing: ${source.pricing}.` : null,
@@ -201,28 +240,53 @@ function buildFlashcardDraft(source: SourceRecord) {
   }
 }
 
+function resolveDisplayContent(
+  existing: {
+    manualTitle: string | null;
+    manualBody: string | null;
+  },
+  draft: FlashcardDraft,
+) {
+  // User-approved edits stay visible while the generated baseline keeps refreshing underneath.
+  const manualTitle = normalizeText(existing.manualTitle);
+  const manualBody = normalizeText(existing.manualBody);
+
+  return {
+    generatedTitle: draft.title,
+    generatedBody: draft.body,
+    manualTitle,
+    manualBody,
+    title: manualTitle ?? draft.title,
+    body: manualBody ?? draft.body,
+  };
+}
+
 function needsFlashcardUpdate(
   existing: {
     title: string;
     body: string;
+    generatedTitle: string | null;
+    generatedBody: string | null;
+    manualTitle: string | null;
+    manualBody: string | null;
     confidence: number;
     impact: number;
     weight: number;
     status: FlashcardStatus;
     refreshedAt: Date;
   },
-  draft: {
-    title: string;
-    body: string;
-    confidence: number;
-    impact: number;
-    weight: number;
-  },
+  draft: FlashcardDraft,
   refreshedAt: Date,
 ) {
+  const resolved = resolveDisplayContent(existing, draft);
+
   return (
-    existing.title !== draft.title ||
-    existing.body !== draft.body ||
+    existing.title !== resolved.title ||
+    existing.body !== resolved.body ||
+    existing.generatedTitle !== resolved.generatedTitle ||
+    existing.generatedBody !== resolved.generatedBody ||
+    existing.manualTitle !== resolved.manualTitle ||
+    existing.manualBody !== resolved.manualBody ||
     existing.confidence !== draft.confidence ||
     existing.impact !== draft.impact ||
     existing.weight !== draft.weight ||
@@ -297,136 +361,235 @@ export async function syncBootstrapFlashcards(companyId: string) {
   await ensureSourcePublicIds(companyId);
 
   return withSerializableRetry(() =>
-    prisma.$transaction(async (tx) => {
-      const [sources, flashcards] = await Promise.all([
-        loadCompanySources(tx, companyId),
-        tx.flashcard.findMany({
-          where: {
-            companyId,
-            createdBy: BOOTSTRAP_CREATED_BY,
-          },
-          include: {
-            sources: true,
-          },
-        }),
-      ]);
+    prisma.$transaction(
+      async (tx) => {
+        const [sources, flashcards] = await Promise.all([
+          loadCompanySources(tx, companyId),
+          tx.flashcard.findMany({
+            where: {
+              companyId,
+              createdBy: BOOTSTRAP_CREATED_BY,
+            },
+            include: {
+              sources: true,
+            },
+          }),
+        ]);
 
-      const flashcardBySourceKey = new Map<
-        string,
-        (typeof flashcards)[number]
-      >();
+        const flashcardBySourceKey = new Map<
+          string,
+          (typeof flashcards)[number]
+        >();
 
-      for (const flashcard of flashcards) {
-        for (const source of flashcard.sources) {
-          flashcardBySourceKey.set(
-            sourceKey(source.sourceType, source.sourceId),
-            flashcard,
-          );
-        }
-      }
-
-      const activeSourceKeys = new Set<string>();
-
-      for (const source of sources) {
-        const key = sourceKey(source.type, source.id);
-        activeSourceKeys.add(key);
-        const draft = buildFlashcardDraft(source);
-        const refreshedAt = source.updatedAt;
-        const existing = flashcardBySourceKey.get(key);
-
-        if (existing) {
-          if (needsFlashcardUpdate(existing, draft, refreshedAt)) {
-            await tx.flashcard.update({
-              where: { id: existing.id },
-              data: {
-                title: draft.title,
-                body: draft.body,
-                confidence: draft.confidence,
-                impact: draft.impact,
-                weight: draft.weight,
-                status: FlashcardStatus.ACTIVE,
-                refreshedAt,
-              },
-            });
+        for (const flashcard of flashcards) {
+          for (const source of flashcard.sources) {
+            flashcardBySourceKey.set(
+              sourceKey(source.sourceType, source.sourceId),
+              flashcard,
+            );
           }
+        }
 
-          const existingSource = existing.sources.find(
-            (item) =>
-              item.sourceType === source.type && item.sourceId === source.id,
-          );
+        const activeSourceKeys = new Set<string>();
 
-          if (existingSource) {
-            if (needsSourceSnapshotUpdate(existingSource, source)) {
-              await tx.flashcardSource.update({
-                where: {
-                  flashcardId_sourceType_sourceId: {
-                    flashcardId: existing.id,
-                    sourceType: source.type,
-                    sourceId: source.id,
-                  },
-                },
+        for (const source of sources) {
+          const key = sourceKey(source.type, source.id);
+          activeSourceKeys.add(key);
+          const draft = buildFlashcardDraft(source);
+          const refreshedAt = source.updatedAt;
+          const existing = flashcardBySourceKey.get(key);
+
+          if (existing) {
+            const resolved = resolveDisplayContent(existing, draft);
+
+            if (needsFlashcardUpdate(existing, draft, refreshedAt)) {
+              await tx.flashcard.update({
+                where: { id: existing.id },
                 data: {
+                  title: resolved.title,
+                  body: resolved.body,
+                  generatedTitle: resolved.generatedTitle,
+                  generatedBody: resolved.generatedBody,
+                  manualTitle: resolved.manualTitle,
+                  manualBody: resolved.manualBody,
+                  confidence: draft.confidence,
+                  impact: draft.impact,
+                  weight: draft.weight,
+                  status: FlashcardStatus.ACTIVE,
+                  refreshedAt,
+                },
+              });
+            }
+
+            const existingSource = existing.sources.find(
+              (item) =>
+                item.sourceType === source.type && item.sourceId === source.id,
+            );
+
+            if (existingSource) {
+              if (needsSourceSnapshotUpdate(existingSource, source)) {
+                await tx.flashcardSource.update({
+                  where: {
+                    flashcardId_sourceType_sourceId: {
+                      flashcardId: existing.id,
+                      sourceType: source.type,
+                      sourceId: source.id,
+                    },
+                  },
+                  data: {
+                    sourcePublicId: source.publicId,
+                    sourceName: source.name,
+                    relationRole: FlashcardSourceRole.PRIMARY,
+                  },
+                });
+              }
+            } else {
+              await tx.flashcardSource.create({
+                data: {
+                  flashcardId: existing.id,
+                  sourceType: source.type,
+                  sourceId: source.id,
                   sourcePublicId: source.publicId,
                   sourceName: source.name,
                   relationRole: FlashcardSourceRole.PRIMARY,
                 },
               });
             }
-          } else {
-            await tx.flashcardSource.create({
-              data: {
-                flashcardId: existing.id,
-                sourceType: source.type,
-                sourceId: source.id,
-                sourcePublicId: source.publicId,
-                sourceName: source.name,
-                relationRole: FlashcardSourceRole.PRIMARY,
-              },
-            });
+
+            continue;
           }
 
-          continue;
-        }
+          const publicId = await nextPublicId(tx, PUBLIC_ID_SCOPES.flashcard);
 
-        const publicId = await nextPublicId(tx, PUBLIC_ID_SCOPES.flashcard);
-
-        await tx.flashcard.create({
-          data: {
-            publicId,
-            companyId,
-            title: draft.title,
-            body: draft.body,
-            confidence: draft.confidence,
-            impact: draft.impact,
-            weight: draft.weight,
-            status: FlashcardStatus.ACTIVE,
-            createdBy: BOOTSTRAP_CREATED_BY,
-            refreshedAt,
-            sources: {
-              create: {
-                sourceType: source.type,
-                sourceId: source.id,
-                sourcePublicId: source.publicId,
-                sourceName: source.name,
-                relationRole: FlashcardSourceRole.PRIMARY,
+          await tx.flashcard.create({
+            data: {
+              publicId,
+              companyId,
+              title: draft.title,
+              body: draft.body,
+              generatedTitle: draft.title,
+              generatedBody: draft.body,
+              confidence: draft.confidence,
+              impact: draft.impact,
+              weight: draft.weight,
+              status: FlashcardStatus.ACTIVE,
+              createdBy: BOOTSTRAP_CREATED_BY,
+              refreshedAt,
+              sources: {
+                create: {
+                  sourceType: source.type,
+                  sourceId: source.id,
+                  sourcePublicId: source.publicId,
+                  sourceName: source.name,
+                  relationRole: FlashcardSourceRole.PRIMARY,
+                },
               },
             },
-          },
-        });
-      }
-
-      for (const flashcard of flashcards) {
-        const hasAnyLiveSource = flashcard.sources.some((source) =>
-          activeSourceKeys.has(sourceKey(source.sourceType, source.sourceId)),
-        );
-
-        if (!hasAnyLiveSource && flashcard.status !== FlashcardStatus.ARCHIVED) {
-          await tx.flashcard.update({
-            where: { id: flashcard.id },
-            data: { status: FlashcardStatus.ARCHIVED },
           });
         }
+
+        for (const flashcard of flashcards) {
+          const hasAnyLiveSource = flashcard.sources.some((source) =>
+            activeSourceKeys.has(sourceKey(source.sourceType, source.sourceId)),
+          );
+
+          if (!hasAnyLiveSource && flashcard.status !== FlashcardStatus.ARCHIVED) {
+            await tx.flashcard.update({
+              where: { id: flashcard.id },
+              data: { status: FlashcardStatus.ARCHIVED },
+            });
+          }
+        }
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    ),
+  );
+}
+
+export async function recordFlashcardAction(input: FlashcardActionInput) {
+  const annotation = normalizeText(input.annotation);
+
+  return withSerializableRetry(() =>
+    prisma.$transaction(async (tx) => {
+      const flashcard = await tx.flashcard.findUnique({
+        where: { id: input.flashcardId },
+        include: FLASHCARD_INCLUDES,
+      });
+
+      if (!flashcard) {
+        throw new Error("Flashcard not found");
       }
+
+      if (flashcard.status !== FlashcardStatus.ACTIVE) {
+        throw new Error("Only active flashcards can be reviewed");
+      }
+
+      if (input.action === FlashcardActionType.DECLINE && !annotation) {
+        throw new Error("Decline requires a comment");
+      }
+
+      const generatedTitle = flashcard.generatedTitle ?? flashcard.title;
+      const generatedBody = flashcard.generatedBody ?? flashcard.body;
+      let manualTitle = normalizeText(flashcard.manualTitle);
+      let manualBody = normalizeText(flashcard.manualBody);
+      let effectiveTitle = flashcard.title;
+      let effectiveBody = flashcard.body;
+      let modifiedTitle: string | null = null;
+      let modifiedBody: string | null = null;
+
+      if (input.action === FlashcardActionType.MODIFY_ACCEPT) {
+        modifiedTitle = normalizeText(input.modifiedTitle);
+        modifiedBody = normalizeText(input.modifiedBody);
+
+        if (!modifiedTitle || !modifiedBody) {
+          throw new Error("Modify and accept requires both title and body");
+        }
+
+        manualTitle = modifiedTitle === generatedTitle ? null : modifiedTitle;
+        manualBody = modifiedBody === generatedBody ? null : modifiedBody;
+        effectiveTitle = manualTitle ?? generatedTitle;
+        effectiveBody = manualBody ?? generatedBody;
+      } else {
+        effectiveTitle = manualTitle ?? generatedTitle;
+        effectiveBody = manualBody ?? generatedBody;
+      }
+
+      const lastActionAt = new Date();
+
+      await tx.flashcardAction.create({
+        data: {
+          flashcardId: flashcard.id,
+          action: input.action,
+          annotation,
+          previousTitle: flashcard.title,
+          previousBody: flashcard.body,
+          modifiedTitle,
+          modifiedBody,
+        },
+      });
+
+      const updatedFlashcard = await tx.flashcard.update({
+        where: { id: flashcard.id },
+        data: {
+          title: effectiveTitle,
+          body: effectiveBody,
+          manualTitle,
+          manualBody,
+          reviewStatus: REVIEW_STATUS_BY_ACTION[input.action],
+          userAnnotation: annotation,
+          lastActionAt,
+        },
+        include: FLASHCARD_INCLUDES,
+      });
+
+      return {
+        companyId: flashcard.companyId,
+        flashcard: updatedFlashcard,
+      };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     }),
   );
 }
@@ -439,11 +602,7 @@ export async function listCompanyFlashcards(companyId: string) {
       companyId,
       status: FlashcardStatus.ACTIVE,
     },
-    include: {
-      sources: {
-        orderBy: [{ sourcePublicId: "asc" }, { createdAt: "asc" }],
-      },
-    },
+    include: FLASHCARD_INCLUDES,
     orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
   });
 }

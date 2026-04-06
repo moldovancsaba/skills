@@ -50,6 +50,8 @@ const MAX_NEWS_ITEMS = 4;
 const PRICE_PATTERN =
   /(?:\$|EUR|USD|GBP)\s?\d[\d,.]*(?:\s*\/\s*(?:mo|month|yr|year|user))?|free\b|trial\b|pricing\b/i;
 const TICKER_PATTERN = /\b(?:NASDAQ|NYSE|AMEX|LSE|TSX)[:\s]+([A-Z.\-]{1,6})\b/;
+const VALID_HOSTNAME_PATTERN =
+  /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
 const GENERIC_NAV_LABELS = new Set([
   "about",
   "about us",
@@ -60,9 +62,17 @@ const GENERIC_NAV_LABELS = new Set([
   "services",
   "membership",
   "memberships",
+  "membership and services",
   "our methodology",
   "methodology",
   "where are we",
+  "why spl",
+  "quick links",
+  "programs",
+  "the movement",
+  "our services",
+  "about isds",
+  "private training 1on1",
   "pricing",
   "login",
   "log in",
@@ -170,7 +180,7 @@ function canonicalizeUrl(value: string) {
     if (!["http:", "https:"].includes(url.protocol)) {
       return null;
     }
-    if (!url.hostname.includes(".")) {
+    if (!VALID_HOSTNAME_PATTERN.test(url.hostname)) {
       return null;
     }
 

@@ -257,6 +257,35 @@ function buildFlashcardDraft(source: SourceRecord) {
   }
 }
 
+function isPublishableSource(source: SourceRecord) {
+  switch (source.type) {
+    case "PRODUCT":
+      return Boolean(
+        normalizeText(source.description) ||
+          normalizeText(source.pricing) ||
+          source.features.length > 0,
+      );
+    case "CUSTOMER":
+      return nonEmptyCount([
+        source.notes,
+        source.segments,
+        source.painPoints,
+        source.channels,
+        source.lifetimeValue,
+        source.email,
+      ]) > 0;
+    case "COMPETITOR":
+      return Boolean(
+        normalizeText(source.positioning) ||
+          normalizeText(source.pricing) ||
+          source.strengths.length > 0 ||
+          source.weaknesses.length > 0,
+      );
+    default:
+      return assertNever(source);
+  }
+}
+
 function resolveDisplayContent(
   existing: {
     manualTitle: string | null;
@@ -442,10 +471,21 @@ export async function syncBootstrapFlashcards(companyId: string) {
 
         for (const source of sources) {
           const key = sourceKey(source.type, source.id);
+          const existing = flashcardBySourceKey.get(key);
+
+          if (!isPublishableSource(source)) {
+            if (existing && existing.status !== FlashcardStatus.ARCHIVED) {
+              await tx.flashcard.update({
+                where: { id: existing.id },
+                data: { status: FlashcardStatus.ARCHIVED },
+              });
+            }
+            continue;
+          }
+
           activeSourceKeys.add(key);
           const draft = buildFlashcardDraft(source);
           const refreshedAt = source.updatedAt;
-          const existing = flashcardBySourceKey.get(key);
 
           if (existing) {
             const resolved = resolveDisplayContent(existing, draft);

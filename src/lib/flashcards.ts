@@ -849,9 +849,77 @@ function applyFeedbackDeltas(draft: FlashcardDraft, existing?: { feedbackWeightD
   };
 }
 
+function effectiveConfidence(value: { confidence: number; feedbackConfidenceDelta?: number | null }) {
+  return clamp(value.confidence + (value.feedbackConfidenceDelta ?? 0), 1, 100);
+}
+
+function effectiveWeight(value: { weight: number; feedbackWeightDelta?: number | null }) {
+  return clamp(value.weight + (value.feedbackWeightDelta ?? 0), 1, 100);
+}
+
 function shouldPublishDraft(draft: FlashcardDraft, existing?: { feedbackConfidenceDelta: number }) {
   const confidenceDelta = existing?.feedbackConfidenceDelta ?? 0;
   return draft.confidence + confidenceDelta > 50;
+}
+
+async function reconcilePendingTasksForFlashcards(tx: Prisma.TransactionClient, flashcardIds: string[]) {
+  if (flashcardIds.length === 0) {
+    return;
+  }
+
+  const affected = await tx.nBAItem.findMany({
+    where: {
+      status: "PENDING",
+      sourceFlashcardIds: { hasSome: flashcardIds },
+    },
+  });
+
+  if (affected.length === 0) {
+    return;
+  }
+
+  const relatedIds = Array.from(new Set(affected.flatMap((item) => item.sourceFlashcardIds)));
+  const flashcards = await tx.flashcard.findMany({
+    where: { id: { in: relatedIds } },
+    select: {
+      id: true,
+      status: true,
+      reviewStatus: true,
+      confidence: true,
+      feedbackConfidenceDelta: true,
+    },
+  });
+  const flashcardById = new Map(flashcards.map((flashcard) => [flashcard.id, flashcard]));
+
+  for (const item of affected) {
+    const eligibleSources = item.sourceFlashcardIds.filter((id) => {
+      const flashcard = flashcardById.get(id);
+      if (!flashcard) return false;
+      return (
+        flashcard.status === FlashcardStatus.ACTIVE &&
+        flashcard.reviewStatus !== FlashcardReviewStatus.DECLINED &&
+        effectiveConfidence(flashcard) > 50
+      );
+    });
+
+    if (eligibleSources.length === 0) {
+      await tx.nBAItem.update({
+        where: { id: item.id },
+        data: {
+          status: "DECLINED",
+          userAnnotation: "Auto-declined because supporting flashcards fell below quality threshold.",
+        },
+      });
+      continue;
+    }
+
+    if (eligibleSources.length !== item.sourceFlashcardIds.length) {
+      await tx.nBAItem.update({
+        where: { id: item.id },
+        data: { sourceFlashcardIds: eligibleSources },
+      });
+    }
+  }
 }
 
 function needsFlashcardUpdate(
@@ -1124,6 +1192,11 @@ export async function syncBootstrapFlashcards(companyId: string) {
           await tx.flashcard.update({ where: { id: flashcard.id }, data: { status: FlashcardStatus.ARCHIVED } });
         }
       }
+
+      await reconcilePendingTasksForFlashcards(tx, [
+        ...flashcards.map((flashcard) => flashcard.id),
+        ...flashcardsToCreate.map((flashcard) => flashcard.id),
+      ]);
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       ...TRANSACTION_SETTINGS,
@@ -1221,9 +1294,19 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
           feedbackWeightDelta: clamp(flashcard.feedbackWeightDelta + delta.weight, -40, 40),
           confidence: clamp(flashcard.confidence + delta.confidence, 1, 100),
           weight: clamp(flashcard.weight + delta.weight, 1, 100),
+          status:
+            input.action === FlashcardActionType.DECLINE ||
+            effectiveConfidence({
+              confidence: flashcard.confidence + delta.confidence,
+              feedbackConfidenceDelta: flashcard.feedbackConfidenceDelta + delta.confidence,
+            }) <= 50
+              ? FlashcardStatus.ARCHIVED
+              : FlashcardStatus.ACTIVE,
         },
         include: FLASHCARD_INCLUDES,
       });
+
+      await reconcilePendingTasksForFlashcards(tx, [flashcard.id]);
 
       return {
         companyId: flashcard.companyId,
@@ -1237,27 +1320,58 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
 }
 
 export async function applyTaskFeedbackToFlashcards(nbaItemId: string, action: "ACCEPT" | "DECLINE", annotation?: string | null) {
-  const item = await prisma.nBAItem.findUnique({
-    where: { id: nbaItemId },
-    select: { sourceFlashcardIds: true },
-  });
+  return withSerializableRetry(() =>
+    prisma.$transaction(async (tx) => {
+      const item = await tx.nBAItem.findUnique({
+        where: { id: nbaItemId },
+        select: { sourceFlashcardIds: true },
+      });
 
-  if (!item || item.sourceFlashcardIds.length === 0) {
-    return;
-  }
+      if (!item || item.sourceFlashcardIds.length === 0) {
+        return;
+      }
 
-  const delta = action === "ACCEPT"
-    ? { confidence: 4, weight: 5 }
-    : { confidence: -10, weight: -8 };
+      const flashcards = await tx.flashcard.findMany({
+        where: { id: { in: item.sourceFlashcardIds } },
+      });
 
-  await prisma.flashcard.updateMany({
-    where: { id: { in: item.sourceFlashcardIds } },
-    data: {
-      feedbackConfidenceDelta: { increment: delta.confidence },
-      feedbackWeightDelta: { increment: delta.weight },
-      userAnnotation: normalizeText(annotation) ?? undefined,
-    },
-  });
+      const delta = action === "ACCEPT"
+        ? { confidence: 8, weight: 10 }
+        : { confidence: -22, weight: -18 };
+
+      for (const flashcard of flashcards) {
+        const nextFeedbackConfidenceDelta = clamp(flashcard.feedbackConfidenceDelta + delta.confidence, -50, 50);
+        const nextFeedbackWeightDelta = clamp(flashcard.feedbackWeightDelta + delta.weight, -50, 50);
+        const nextConfidence = clamp(flashcard.confidence + delta.confidence, 1, 100);
+        const nextWeight = clamp(flashcard.weight + delta.weight, 1, 100);
+        const nextStatus =
+          action === "DECLINE" ||
+          effectiveConfidence({
+            confidence: nextConfidence,
+            feedbackConfidenceDelta: nextFeedbackConfidenceDelta,
+          }) <= 50
+            ? FlashcardStatus.ARCHIVED
+            : flashcard.status;
+
+        await tx.flashcard.update({
+          where: { id: flashcard.id },
+          data: {
+            feedbackConfidenceDelta: nextFeedbackConfidenceDelta,
+            feedbackWeightDelta: nextFeedbackWeightDelta,
+            confidence: nextConfidence,
+            weight: nextWeight,
+            userAnnotation: normalizeText(annotation) ?? flashcard.userAnnotation,
+            status: nextStatus,
+          },
+        });
+      }
+
+      await reconcilePendingTasksForFlashcards(tx, item.sourceFlashcardIds);
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      ...TRANSACTION_SETTINGS,
+    }),
+  );
 }
 
 export async function listCompanyFlashcards(companyId: string) {
@@ -1267,6 +1381,9 @@ export async function listCompanyFlashcards(companyId: string) {
       status: FlashcardStatus.ACTIVE,
       reviewStatus: {
         not: FlashcardReviewStatus.DECLINED,
+      },
+      confidence: {
+        gt: 50,
       },
     },
     include: FLASHCARD_INCLUDES,

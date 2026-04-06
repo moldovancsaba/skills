@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { applyTaskFeedbackToFlashcards } from "@/lib/flashcards";
+import { applyTaskFeedbackToFlashcards, syncCompanyKnowledge } from "@/lib/flashcards";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 
 export async function GET(request: NextRequest) {
@@ -74,6 +74,8 @@ export async function POST(request: NextRequest) {
           data.action === "DECLINE" ? "DECLINE" : "ACCEPT",
           data.annotation,
         );
+
+        await syncCompanyKnowledge(item.companyId);
       }
     }
     

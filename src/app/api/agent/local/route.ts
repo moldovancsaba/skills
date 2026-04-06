@@ -139,16 +139,21 @@ export async function POST(request: NextRequest) {
       prisma.customer.findMany({ where: { companyId } }),
       prisma.competitor.findMany({ where: { companyId } }),
       prisma.flashcard.findMany({
-        where: { companyId, status: "ACTIVE" },
+        where: {
+          companyId,
+          status: "ACTIVE",
+          reviewStatus: { not: "DECLINED" },
+          confidence: { gt: 50 },
+        },
         include: {
           sources: {
             orderBy: [{ sourcePublicId: "asc" }, { createdAt: "asc" }],
           },
         },
         orderBy: [
-          { reviewStatus: "asc" },
           { weight: "desc" },
           { confidence: "desc" },
+          { lastActionAt: "desc" },
           { publicId: "asc" },
         ],
         take: 24,

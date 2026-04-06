@@ -1,6 +1,6 @@
 import { FlashcardActionType } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { recordFlashcardAction } from "@/lib/flashcards";
+import { recordFlashcardAction, syncCompanyKnowledge } from "@/lib/flashcards";
 
 const VALID_ACTIONS = new Set<FlashcardActionType>([
   FlashcardActionType.ACCEPT,
@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
       modifiedTitle: data.modifiedTitle,
       modifiedBody: data.modifiedBody,
     });
+
+    await syncCompanyKnowledge(result.companyId);
 
     return NextResponse.json(result);
   } catch (error) {

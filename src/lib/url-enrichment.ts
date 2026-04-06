@@ -936,6 +936,10 @@ export function looksLikeLowValueAnalysis(value: string | null | undefined) {
       "create an account or log in to instagram",
       "tiktok - make your day",
       "loading...",
+      "benchmark our offer against the competitor's visible promise around",
+      "if this positioning keeps landing, expect the competitor to keep investing around",
+      "the competitor appears to lead with",
+      "the competitor's clearest visible positioning signal is",
     ]) ||
     normalized.includes("home |") ||
     normalized.includes("conclusions: about us")

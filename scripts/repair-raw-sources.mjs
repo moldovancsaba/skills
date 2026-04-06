@@ -71,7 +71,11 @@ function looksLikeGeneratedAnalysis(value) {
     normalized.includes("create an account or log in to instagram") ||
     normalized.includes("tiktok - make your day") ||
     normalized.includes("about us why spl") ||
-    normalized.includes("loading...")
+    normalized.includes("loading...") ||
+    normalized.includes("benchmark our offer against the competitor's visible promise around") ||
+    normalized.includes("if this positioning keeps landing, expect the competitor to keep investing around") ||
+    normalized.includes("the competitor appears to lead with") ||
+    normalized.includes("the competitor's clearest visible positioning signal is")
   );
 }
 

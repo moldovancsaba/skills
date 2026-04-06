@@ -1,331 +1,170 @@
-# Checklist Integration - Exact Technical Details
+# Checklist Onboarding
 
-## DEPLOYMENT URL
-```
-https://checklist.messmass.com
-```
+This file documents the current, real integration surface of the Checklist system.
 
-## URL STRUCTURE (Company-based)
-Each company has their own URL with UUID:
-- `https://checklist.messmass.com/?company=UUID` - Select company
-- `https://checklist.messmass.com/dashboard?company=UUID` - Dashboard for company
+Do not place production credentials in this file.
 
----
+## Production URL
 
-## LOCAL DATABASE (PostgreSQL)
-```
-HOST: ep-patient-fire-alygo1nb-pooler.c-3.eu-central-1.aws.neon.tech
-PORT: 5432
-DATABASE: neondb
-USER: neondb_owner
-PASSWORD: npg_cT45qFYrdiSl
-SSL: require
-```
+- `https://checklist.messmass.com`
 
-**Full Connection String:**
-```
-postgresql://neondb_owner:npg_cT45qFYrdiSl@ep-patient-fire-alygo1nb-pooler.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-```
+## Current route structure
 
----
+- `https://checklist.messmass.com/`
+- `https://checklist.messmass.com/[companyId]`
+- `https://checklist.messmass.com/[companyId]/data`
+- `https://checklist.messmass.com/[companyId]/knowmore`
+- `https://checklist.messmass.com/[companyId]/nba`
 
-## API ENDPOINTS (Exact URLs)
+The app is company-route based. It is not using the old `?company=UUID` query-string routing model as the primary navigation contract.
 
-### 1. READ - Companies
-```
-GET https://checklist.messmass.com/api/companies
-```
-Returns: Array of all companies with their products, customers, competitors, pending NBA
+## Data model summary
 
----
+- `Company`
+- `Product`
+- `Customer`
+- `Competitor`
+- `Flashcard`
+- `FlashcardSource`
+- `FlashcardAction`
+- `NBAItem`
+- `Feedback`
+- `PublicIdCounter`
 
-### 2. READ - Products
-```
-GET https://checklist.messmass.com/api/products?companyId=UUID-HERE
-```
-Parameter: `companyId` (query string)
-Returns: Array of products for that company
+All user-facing entities use:
+- internal `UUID`
+- stable readable `publicId` where implemented
 
----
+## Flashcards vs tasks
 
-### 3. READ - Customers
-```
-GET https://checklist.messmass.com/api/customers?companyId=UUID-HERE
-```
-Parameter: `companyId` (query string)
-Returns: Array of customers for that company
+This distinction is critical:
 
----
+- `Data page`
+  - raw ingested source records
+- `Knowmore`
+  - processed flashcards
+  - uses `confidence`, `impact`, `weight`
+- `NBA / My Tasks`
+  - actionable checklist items
+  - uses `impact`, `confidence`, `ease`, `ICE`
 
-### 4. READ - Competitors
-```
-GET https://checklist.messmass.com/api/competitors?companyId=UUID-HERE
-```
-Parameter: `companyId` (query string)
-Returns: Array of competitors for that company
+## Current API endpoints
 
----
+### Companies
 
-### 5. READ - NBA (Existing Recommendations)
-```
-GET https://checklist.messmass.com/api/nba?companyId=UUID-HERE
-```
-Parameter: `companyId` (query string)
-Returns: Array of NBA items sorted by ICE score (highest first)
-
----
-
-### 6. READ - Feedback (Annotations from Webapp)
-```
-GET https://checklist.messmass.com/api/feedback?nbaItemId=UUID-HERE
-```
-Parameter: `nbaItemId` (query string)
-Returns: Array of feedback/annotations for that NBA item
-
-**OR get ALL feedback:**
-```
-GET https://checklist.messmass.com/api/feedback
+```text
+GET    /api/companies
+POST   /api/companies
+PATCH  /api/companies?id=<company-id>
+DELETE /api/companies?id=<company-id>
 ```
 
-**Feedback Response Format:**
-```json
-[
-  {
-    "id": "fb-uuid-001",
-    "nbaItemId": "nba-uuid-001",
-    "action": "ACCEPT",
-    "annotation": null,
-    "iceImpact": 10,
-    "createdAt": "2024-03-15T14:30:00Z"
-  },
-  {
-    "id": "fb-uuid-002",
-    "nbaItemId": "nba-uuid-002", 
-    "action": "DECLINE",
-    "annotation": "Already have email marketing in place",
-    "iceImpact": -50,
-    "createdAt": "2024-03-16T09:15:00Z"
-  }
-]
+### Raw source records
+
+```text
+GET    /api/products?companyId=<company-id>
+POST   /api/products
+PATCH  /api/products?id=<product-id>
+DELETE /api/products?id=<product-id>
+
+GET    /api/customers?companyId=<company-id>
+POST   /api/customers
+PATCH  /api/customers?id=<customer-id>
+DELETE /api/customers?id=<customer-id>
+
+GET    /api/competitors?companyId=<company-id>
+POST   /api/competitors
+PATCH  /api/competitors?id=<competitor-id>
+DELETE /api/competitors?id=<competitor-id>
 ```
 
-**Feedback Table Fields:**
-| Field | Type | Description |
-|-------|------|-----------|
-| id | UUID | Feedback ID |
-| nbaItemId | UUID | The NBA item this feedback is for |
-| action | string | "ACCEPT" or "DECLINE" |
-| annotation | string or null | User's reason/comment |
-| iceImpact | integer | +10 (accept) or -50 (decline) |
-| createdAt | timestamp | When feedback was given |
+### Knowmore
 
----
-
-### 7. READ - NBA with User Annotations (Decline Reasons)
-```
-GET https://checklist.messmass.com/api/nba?companyId=UUID-HERE
+```text
+GET  /api/knowmore?companyId=<company-id>
+POST /api/knowmore/sync
+POST /api/knowmore/actions
 ```
 
-**NBA Response includes userAnnotation (optional for both):**
-```json
-[
-  {
-    "id": "nba-001",
-    "title": "Launch email campaign",
-    "description": "...",
-    "iceScore": 420,
-    "status": "DECLINED",
-    "userAnnotation": "Already have email marketing in place",
-    "impact": 8,
-    "confidence": 75,
-    "ease": 7,
-    "createdAt": "2024-03-01T12:00:00Z"
-  },
-  {
-    "id": "nba-002",
-    "title": "Create referral program", 
-    "description": "...",
-    "iceScore": 350,
-    "status": "ACCEPTED",
-    "userAnnotation": "Great idea, doing this now!",
-    "impact": 7,
-    "confidence": 70,
-    "ease": 7,
-    "createdAt": "2024-03-10T08:00:00Z"
-  },
-  {
-    "id": "nba-003",
-    "title": "Launch paid ads",
-    "status": "ACCEPTED",
-    "userAnnotation": null,
-    "impact": 7,
-    "confidence": 70,
-    "ease": 7
-  }
-]
+`/api/knowmore/actions` supports:
+- `ACCEPT`
+- `DECLINE`
+- `MODIFY_ACCEPT`
+
+Declined flashcards are hidden from the webapp feed.
+
+### NBA / tasks
+
+```text
+GET  /api/nba?companyId=<company-id>
+POST /api/nba
+
+GET  /api/feedback
+POST /api/feedback
 ```
 
-**NBA Status Values:**
-| Status | Meaning |
-|--------|--------|
-| PENDING | Not yet responded |
-| ACCEPTED | User clicked ✓ (annotation optional) |
-| DECLINED | User clicked ✗ (annotation **mandatory**) |
+`/api/feedback` now supports task actions:
+- `ACCEPT`
+- `DECLINE`
+- `MODIFY_ACCEPT`
 
----
+## ICE scoring contract
 
-### 8. WRITE - Create NBA
-```
-POST https://checklist.messmass.com/api/nba
-Content-Type: application/json
-```
+Checklist task scoring is:
 
-**Request Body (exact JSON):**
-```json
-{
-  "companyId": "550e8400-e29b-41d4-a716-446655440000",
-  "title": "Launch summer camp promotion",
-  "description": "Create limited-time offer for existing customers",
-  "impact": 8,
-  "confidence": 70,
-  "ease": 8
-}
+```text
+Impact: 0-10
+Confidence: 0-100, but multiplied as confidence/10
+Ease: 0-10
+ICE = impact * (confidence / 10) * ease
+Range: 0-1000
 ```
 
-**Required Fields:**
-| Field | Type | Range |
-|-------|------|-------|
-| companyId | string (UUID) | Valid company UUID |
-| title | string | Recommendation title |
-| description | string | Optional description |
-| impact | integer | 1-10 |
-| confidence | integer | 1-100 |
-| ease | integer | 1-10 |
+Examples:
 
----
+- `Impact 8, Confidence 75%, Ease 6.5` -> `390`
+- `Impact 8, Confidence 85%, Ease 5` -> `340`
+- `Impact 10, Confidence 100%, Ease 10` -> `1000`
 
-### 9. WRITE - Feedback (Optional)
-```
-POST https://checklist.messmass.com/api/feedback
-Content-Type: application/json
-```
+## Local AI responsibilities
 
-**Request Body - Accept:**
-```json
-{
-  "nbaItemId": "NBA-UUID-HERE",
-  "action": "ACCEPT"
-}
-```
+The local system is responsible for:
 
-**Request Body - Decline (annotation mandatory):**
-```json
-{
-  "nbaItemId": "NBA-UUID-HERE", 
-  "action": "DECLINE",
-  "annotation": "Reason for declining (required)"
-}
-```
+- source enrichment
+- page fetching
+- public signal collection
+- flashcard generation
+- supporting NBA generation
 
----
+The online app is responsible for:
 
-## DATABASE TABLES
+- source CRUD
+- displaying flashcards
+- displaying NBA tasks
+- collecting user feedback
 
-| Table | Description |
-|-------|-----------|
-| Company | Your company profile |
-| Product | Your products/services |
-| Customer | Customer data |
-| Competitor | Competitor info |
-| NBAItem | AI recommendations |
-| Feedback | Accept/decline feedback + annotations |
+## Environment handling
 
----
+Secrets are intentionally not documented here.
 
-## EXECUTION (Copy-Paste)
+Use:
+- local `.env`
+- Vercel project env management
+- local control-plane env injection for the local AI stack
 
-### Python Example
-```python
-import requests
-import json
+Minimum categories of required env:
 
-BASE = "https://checklist.messmass.com/api"
+- database
+- session/auth
+- local model access
+- local sync bridge
 
-# 1. READ companies
-companies = requests.get(f"{BASE}/companies").json()
+## Documentation rule
 
-# 2. READ data for each company
-for co in companies:
-    company_id = co["id"]
-    products = requests.get(f"{BASE}/products?companyId={company_id}").json()
-    customers = requests.get(f"{BASE}/customers?companyId={company_id}").json()
-    competitors = requests.get(f"{BASE}/competitors?companyId={company_id}").json()
-    
-    # 3. READ feedback/annotations (THIS IS THE LEARNING DATA!)
-    all_feedback = requests.get(f"{BASE}/feedback").json()
-    nba_items = requests.get(f"{BASE}/nba?companyId={company_id}").json()
-    
-    # Filter accepted recommendations
-    accepted = [n for n in nba_items if n["status"] == "ACCEPTED"]
-    
-    # Filter declined with reasons
-    declined = [n for n in nba_items if n["status"] == "DECLINED"]
-    decline_reasons = [n["userAnnotation"] for n in declined if n["userAnnotation"]]
-    
-    # 4. ENRICH - do your research here using feedback!
-    # ...
-    
-    # 5. WRITE NBA
-    nba = {
-        "companyId": company_id,
-        "title": "Your recommendation",
-        "description": "Why this matters",
-        "impact": 8,
-        "confidence": 75,
-        "ease": 7
-    }
-    result = requests.post(f"{BASE}/nba", json=nba).json()
-```
+If this file drifts again, update it together with:
 
-### cURL Examples
-```bash
-# Read products
-curl "https://checklist.messmass.com/api/products?companyId=550e8400-e29b-41d4-a716-446655440000"
-
-# Read all feedback/annotations
-curl "https://checklist.messmass.com/api/feedback"
-
-# Read NBA for company (includes ACCEPTED/DECLINED status)
-curl "https://checklist.messmass.com/api/nba?companyId=550e8400-e29b-41d4-a716-446655440000"
-
-# Create NBA
-curl -X POST "https://checklist.messmass.com/api/nba" \
-  -H "Content-Type: application/json" \
-  -d '{"companyId":"550e8400-e29b-41d4-a716-446655440000","title":"Test","impact":8,"confidence":75,"ease":7}'
-```
-
----
-
-## THE LOOP - CRITICAL
-
-**THIS IS HOW YOU LEARN FROM OUR WEBAPP:**
-
-1. User sees NBA recommendation on dashboard
-2. User clicks ✓ (ACCEPT) → stored as ACCEPTED status
-3. User clicks ✗ (DECLINED) → enters reason → stored as DECLINED + annotation
-4. **YOU read the feedback to learn!**
-
-**READ feedback endpoint gives you:**
-- All ACCEPTED items → do more of these
-- All DECLINED items + reasons → don't do these / change approach
-- Patterns in userAnnotation → real business intelligence
-
----
-
-## ICE SCORE CALCULATION
-```
-ICE = Impact × (Confidence / 100) × Ease × 10
-```
-
-Example: Impact=8, Confidence=75, Ease=7
-ICE = 8 × 0.75 × 7 × 10 = **420**
+- `README.md`
+- `docs/LOCAL_AI_PIPELINE.md`
+- Prisma schema changes
+- API behavior changes
+- routing changes

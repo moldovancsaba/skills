@@ -1,5 +1,12 @@
 # Knowmore Delivery Plan
 
+Status note:
+- this document is a delivery plan, not a full description of what is already shipped
+- for the current implemented contract, see:
+  - `README.md`
+  - `docs/ONBOARDING.md`
+  - `docs/LOCAL_AI_PIPELINE.md`
+
 ## Objective
 
 Deliver a new `knowmore` experience in the online Checklist webapp that exposes AI-maintained flashcards built from:

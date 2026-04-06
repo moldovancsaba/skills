@@ -1,140 +1,180 @@
-# Checklist - Marketing OS
+# Checklist
 
-AI-powered marketing checklist and Next Best Actions (NBA) system.
+Checklist is a split-system product:
 
-## Architecture
+- the `online webapp` runs on Vercel and is the user-facing surface
+- the `local AI layer` enriches source evidence, generates flashcards, and helps drive NBA task generation
+- Neon Postgres is the shared system of record
 
+Current app version:
+- `v0.1.0`
+
+## Current architecture
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│ Online webapp (Vercel)                                    │
+│ https://checklist.messmass.com                            │
+│ - Next.js 16 app router                                   │
+│ - user-facing data entry                                  │
+│ - Knowmore flashcards                                     │
+│ - NBA checklist tasks                                     │
+│ - feedback capture                                        │
+└──────────────────────────────┬─────────────────────────────┘
+                               │
+                               │ writes / reads
+                               ▼
+┌────────────────────────────────────────────────────────────┐
+│ Shared database (Neon Postgres via Prisma)                │
+│ - companies, products, customers, competitors             │
+│ - flashcards + flashcard actions                          │
+│ - NBA items + feedback                                    │
+│ - public ID counters                                      │
+└──────────────────────────────┬─────────────────────────────┘
+                               │
+                               │ sync / enrichment
+                               ▼
+┌────────────────────────────────────────────────────────────┐
+│ Local AI system                                            │
+│ - mvp-factory-control managed sync service                 │
+│ - local URL fetch + public signal collection               │
+│ - local model reasoning                                    │
+│ - flashcard generation / refresh                           │
+│ - NBA generation support                                   │
+└────────────────────────────────────────────────────────────┘
 ```
-┌─────────────────────────────────────────────┐
-│            ONLINE (Vercel)                  │
-│   https://checklist.messmass.com            │
-│   - Neon PostgreSQL                         │
-│   - Next.js 14                             │
-│   - User interface                         │
-└─────────────────────┬───────────────────────┘
-                       │
-                       │ Sync (poll every 5 min)
-                       ▼
-┌─────────────────────────────────────────────┐
-│         LOCAL (mvp-factory-control)         │
-│   - Ollama (llama3.2:1b → fallbacks)        │
-│   - AI processing                          │
-│   - URL scraping & enrichment              │
-│   - Smart deduplication (Jaccard ≥ 0.5)   │
-│   - Knowledge catalog                     │
-└─────────────────────────────────────────────┘
-```
 
-## URLs
+## Product model
 
-| URL | Description |
-|-----|-------------|
-| `/` | Company selector (create/edit/delete) |
-| `/[companyId]` | Company dashboard |
-| `/[companyId]/data` | Add data (products, customers, competitors) |
-| `/[companyId]/nba` | My Tasks (pending actions) |
-| `/auth` | SSO Login page |
-| `/privacy` | Privacy Policy |
-| `/terms` | Terms & Conditions |
+Checklist now follows a 3-layer model:
 
-## Features
+1. `DATA`
+   - raw user-ingested records
+   - products, customers, competitors
+   - raw means the source record should remain user-entered, not rewritten into derived knowledge
 
-- **SSO Login**: Google OAuth via sso.doneisbetter.com (#46)
-- **Dark Mode**: System preference + manual toggle (#40)
-- **Cookie Consent**: Banner with marketing preferences (#47)
-- **Legal**: Privacy Policy (#44), Terms & Conditions (#45)
-- **Footer Version**: Display app version (#43)
-- **Full CRUD** for companies on home page
-- **Data Collection**: Products, customers, competitors
-- **AI-Powered Tasks**: Local Ollama generates NBA recommendations
-- **Smart Deduplication**: Jaccard similarity (0.5 threshold)
-- **Enrichment**: URL scraping + knowledge catalog (#48-49, #51)
-- **First-Run Sync**: Full sync on initial startup
-- **Force Trigger**: `/force` endpoint for manual sync
-- **Feedback Loop**: Accept/decline with optional comments
-- **Auto-Refresh**: Tasks refresh every 10 minutes
-- **Archive**: View completed/declined tasks
+2. `FLASHCARDS`
+   - processed knowledge atoms shown on `/:companyId/knowmore`
+   - derived from source evidence and public signals
+   - carry `confidence`, `impact`, `weight`, provenance, and review state
 
-## Tech Stack
+3. `TASKS`
+   - NBA checklist items shown on `/:companyId/nba`
+   - generated from flashcards and company context
+   - carry `impact`, `confidence`, `ease`, and `ICE`
 
-- **Frontend**: Next.js 14, Tailwind, shadcn-ui
-- **Database**: PostgreSQL (Neon)
-- **AI**: Ollama (llama3.2:1b → gemma3:1b → qwen2.5:3b → deepseek-r1:1.5b)
+## Current user-facing routes
 
-## Setup
+| Route | Purpose |
+|---|---|
+| `/` | company selection / create company |
+| `/[companyId]` | company dashboard |
+| `/[companyId]/data` | raw source data entry |
+| `/[companyId]/knowmore` | flashcards / knowledge layer |
+| `/[companyId]/nba` | checklist tasks / next best actions |
+| `/auth` | auth page |
+| `/privacy` | privacy policy |
+| `/terms` | terms |
 
-1. Install dependencies:
+## Current core behaviors
+
+- `public IDs`
+  - user-facing records have readable integer IDs in addition to UUIDs
+- `Knowmore flashcards`
+  - kinds include `CONCLUSION`, `EVALUATION`, `JUDGMENT`, `RECOMMENDATION`, `COMPARISON`, `NEWS`, `FORECAST`, `PRICE`, `EXPLANATION`, `RESEARCH`, `GOSSIP`, `STOCK`
+- `flashcard review actions`
+  - `Accept`
+  - `Decline`
+  - `Modify + accept`
+- `NBA task review actions`
+  - `Accept`
+  - `Decline`
+  - `Modify + accept`
+- `feedback loop`
+  - flashcard feedback changes flashcard scoring
+  - task feedback changes the source flashcards tied to that task
+- `ICE scoring`
+  - `Impact: 0-10`
+  - `Confidence: 0-100`
+  - `Ease: 0-10`
+  - formula: `impact * (confidence / 10) * ease`
+  - output range: `0-1000`
+
+## Tech stack
+
+- `Next.js 16.2.2`
+- `React 18`
+- `Prisma + Neon Postgres`
+- `Tailwind + shadcn-ui`
+- `Ollama` for local model execution
+
+## Development
+
+Install:
+
 ```bash
 npm install
 ```
 
-2. Set environment variables in `.env`:
-```
-DATABASE_URL=postgresql://neondb_owner:...@neon.tech/neondb
-APP_SESSION_SECRET=<generate with: openssl rand -base64 32>
-SSO_CLIENT_ID=<from doneisbetter.com>
-SSO_CLIENT_SECRET=<from doneisbetter.com>
-SSO_AUTH_URL=https://sso.doneisbetter.com/api/oauth/authorize
-SSO_TOKEN_URL=https://sso.doneisbetter.com/api/oauth/token
-```
+Run dev server:
 
-3. Run locally:
 ```bash
 npm run dev
 ```
 
-4. Run local sync (via mvp-factory-control):
+Useful commands:
+
 ```bash
-# Start ChecklistSync service in mvp-factory-control
-# Port 3001, uses NEON_DB environment variable
+npm run lint
+npm run build
+npm run db:generate
+npm run db:push
+npm run repair:raw-sources
 ```
 
-## API Endpoints
+## Environment
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/companies` | GET, POST | List/create companies |
-| `/api/companies?id=` | PATCH, DELETE | Update/delete company |
-| `/api/products` | GET, POST | Products CRUD |
-| `/api/customers` | GET, POST | Customers CRUD |
-| `/api/competitors` | GET, POST | Competitors CRUD |
-| `/api/nba` | GET | Get NBA items |
-| `/api/feedback` | POST | Accept/decline feedback |
-| `/api/auth/login` | GET | SSO login redirect |
-| `/api/auth/callback` | GET | OAuth callback |
-| `/api/auth/session` | GET | Get session |
-| `/api/auth/logout` | GET | Logout |
-| `/api/webhook/trigger` | POST | Trigger sync (internal) |
+Required environment variables are local-only secrets and must not be committed to docs or source control.
 
-## Sync Engine (mvp-factory-control)
+At minimum, this app expects:
 
-The sync engine runs on port 3001 in mvp-factory-control:
+- `DATABASE_URL`
+- `APP_SESSION_SECRET`
+- `SSO_CLIENT_ID`
+- `SSO_CLIENT_SECRET`
+- `SSO_AUTH_URL`
+- `SSO_TOKEN_URL`
+- local AI / sync envs where applicable:
+  - `OLLAMA_URL`
+  - `OLLAMA_MODEL`
+  - `LOCAL_SYNC_URL`
+  - `LOCAL_SYNC_SECRET`
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `http://localhost:3001/health` | GET | Health check |
-| `http://localhost:3001/sync` | POST | Trigger sync |
-| `http://localhost:3001/force` | POST | Force full sync |
+Use local `.env` / Vercel project env management. Do not place real credentials in documentation.
 
-Features:
-- Polls every 5 minutes for new data
-- First-run does full sync (all data, not just new)
-- Deduplication threshold: 0.5
-- URL scraping for enrichment
-- Knowledge catalog per company
+## Main APIs
 
-## Flow
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/companies` | `GET, POST, PATCH, DELETE` | company CRUD |
+| `/api/products` | `GET, POST, PATCH, DELETE` | product source CRUD |
+| `/api/customers` | `GET, POST, PATCH, DELETE` | customer source CRUD |
+| `/api/competitors` | `GET, POST, PATCH, DELETE` | competitor source CRUD |
+| `/api/knowmore` | `GET` | read visible flashcards |
+| `/api/knowmore/actions` | `POST` | flashcard accept / decline / modify+accept |
+| `/api/knowmore/sync` | `POST` | force flashcard regeneration for a company |
+| `/api/nba` | `GET, POST` | read/create NBA items |
+| `/api/feedback` | `GET, POST` | task feedback + task review updates |
+| `/api/agent/local` | `POST` | trigger local NBA generation |
+| `/api/webhook/trigger` | `POST` | bridge to local sync when reachable |
 
-1. User adds data (product, customer, competitor)
-2. Webhook fires (if local sync reachable)
-3. Local sync polls every 5 min for new data
-4. URL enrichment (scrape linked content)
-5. AI analyzes data + feedback history
-6. Generates 3 NBA recommendations
-7. Deduplicates (threshold 0.5)
-8. Pushes to Neon DB
-9. User sees new tasks on refresh
+## Important current limitations
 
-## License
+- direct Vercel-to-local delivery only works if `LOCAL_SYNC_URL` is publicly reachable
+- some public-search collection is opportunistic and less reliable than direct page fetch + news signals
+- `NEWS` flashcards are being tightened aggressively; evidence-only publishing is still evolving
+- `v0.1.0` means behavior is still changing and provenance/version tagging is not yet fully implemented on every generated artifact
 
-MIT
+## Source of truth
+
+If docs conflict with code, treat the code and Prisma schema as authoritative until the docs are corrected.

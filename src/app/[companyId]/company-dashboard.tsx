@@ -40,6 +40,7 @@ export default function CompanyDashboard() {
   const [topTasks, setTopTasks] = useState<NBAItem[]>([]);
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [flashcardCount, setFlashcardCount] = useState(0);
+  const [fileCount, setFileCount] = useState(0);
 
   useEffect(() => {
     if (!companyId) return;
@@ -55,10 +56,11 @@ export default function CompanyDashboard() {
 
         setCompany(found);
 
-        const [p, c, r, nba, knowmore] = await Promise.all([
+        const [p, c, r, f, nba, knowmore] = await Promise.all([
           fetch(`/api/products?companyId=${found.id}`).then((res) => res.json()),
           fetch(`/api/customers?companyId=${found.id}`).then((res) => res.json()),
           fetch(`/api/competitors?companyId=${found.id}`).then((res) => res.json()),
+          fetch(`/api/data-files?companyId=${found.id}`).then((res) => res.json()),
           fetch(`/api/nba?companyId=${found.id}`).then((res) => res.json()),
           fetch(`/api/knowmore?companyId=${found.id}`).then((res) => res.json()),
         ]);
@@ -66,6 +68,7 @@ export default function CompanyDashboard() {
         setProducts(p);
         setCustomers(c);
         setCompetitors(r);
+        setFileCount(Array.isArray(f) ? f.length : 0);
         const pendingTasks = nba.filter((item: NBAItem) => item.status === "PENDING");
         setPendingTaskCount(pendingTasks.length);
         setTopTasks(
@@ -103,7 +106,7 @@ export default function CompanyDashboard() {
           <LinkCard
             href={`/${companyId}/data`}
             icon={Plus}
-            title={`Data Collection (${products.length + customers.length + competitors.length})`}
+            title={`Data Collection (${products.length + customers.length + competitors.length + fileCount})`}
             description="Add products, customers, competitors"
           />
         </motion.div>

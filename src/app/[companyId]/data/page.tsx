@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Hash, Package, Users, Search, Plus, CheckCircle, Pencil, Trash2 } from "lucide-react";
+import { FileUp, Hash, Package, Users, Search, Plus, CheckCircle, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FormInput, FormSelect } from "@/components/ui/form-fields";
+import { FormInput } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import {
@@ -17,7 +17,7 @@ import {
   sourceTypeFromHashtags,
 } from "@/lib/hashtags";
 
-type DataType = "product" | "customer" | "competitor";
+type DataType = "product" | "customer" | "competitor" | "file";
 
 interface DataItem {
   id: string;
@@ -50,6 +50,7 @@ export default function CompanyDataPage() {
   const { company, setCompany, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [input, setInput] = useState("");
   const [hashtags, setHashtags] = useState<string[]>(defaultTypeHashtags("product"));
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [saved, setSaved] = useState(false);
   const [items, setItems] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,10 +58,11 @@ export default function CompanyDataPage() {
   const [editName, setEditName] = useState("");
 
   const loadAllData = useCallback(async (cid: string) => {
-    const [p, c, r] = await Promise.all([
+    const [p, c, r, f] = await Promise.all([
       fetch(`/api/products?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/customers?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/competitors?companyId=${cid}`).then((res) => res.json()),
+      fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
     ]);
     setProducts(p);
     setCustomers(c);
@@ -70,6 +72,7 @@ export default function CompanyDataPage() {
       ...p.map((x: any) => ({ ...x, type: "product" as DataType })),
       ...c.map((x: any) => ({ ...x, type: "customer" as DataType })),
       ...r.map((x: any) => ({ ...x, type: "competitor" as DataType })),
+      ...f.map((x: any) => ({ ...x, type: "file" as DataType })),
     ]);
     setItems(all);
     setLoading(false);
@@ -99,11 +102,13 @@ export default function CompanyDataPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !company) return;
+    if ((!input.trim() && selectedFiles.length === 0) || !company) return;
 
     const type = sourceTypeFromHashtags(hashtags);
     const normalizedHashtags = normalizeSourceHashtags(hashtags, type);
-    const endpoint = type === "product" ? "/api/products" 
+    const endpoint = selectedFiles.length > 0
+      ? "/api/data-files"
+      : type === "product" ? "/api/products" 
       : type === "customer" ? "/api/customers" 
       : "/api/competitors";
 
@@ -127,11 +132,24 @@ export default function CompanyDataPage() {
         };
 
     try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = selectedFiles.length > 0
+        ? await (async () => {
+            const formData = new FormData();
+            formData.append("companyId", company.id);
+            formData.append("hashtags", JSON.stringify(normalizedHashtags));
+            for (const file of selectedFiles) {
+              formData.append("files", file);
+            }
+            return fetch(endpoint, {
+              method: "POST",
+              body: formData,
+            });
+          })()
+        : await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
       
       if (res.ok) {
         fetch("/api/webhook/trigger", {
@@ -147,6 +165,7 @@ export default function CompanyDataPage() {
       
       setInput("");
       setHashtags(defaultTypeHashtags("product"));
+      setSelectedFiles([]);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
       
@@ -161,6 +180,7 @@ export default function CompanyDataPage() {
       case "product": return Package;
       case "customer": return Users;
       case "competitor": return Search;
+      case "file": return FileUp;
     }
   };
 
@@ -191,6 +211,8 @@ export default function CompanyDataPage() {
   };
 
   const saveEdit = async (item: DataItem) => {
+    if (item.type === "file") return;
+
     const endpoint = item.type === "product" ? "/api/products" 
       : item.type === "customer" ? "/api/customers" 
       : "/api/competitors";
@@ -209,7 +231,9 @@ export default function CompanyDataPage() {
     if (!confirm(`Delete "${item.name}"?`)) return;
     if (!company) return;
     
-    const endpoint = item.type === "product" ? "/api/products" 
+    const endpoint = item.type === "file"
+      ? "/api/data-files"
+      : item.type === "product" ? "/api/products" 
       : item.type === "customer" ? "/api/customers" 
       : "/api/competitors";
 
@@ -242,9 +266,47 @@ export default function CompanyDataPage() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Paste a URL or describe the source you want to ingest..."
+              placeholder="Paste a URL, type a source name, or pair files with hashtags..."
               className="h-14 text-base"
             />
+
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground">Files</label>
+              <input
+                type="file"
+                multiple
+                onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
+                className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+              />
+              {selectedFiles.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedFiles.map((file) => (
+                    <Badge key={`${file.name}-${file.size}`} variant="secondary" className="rounded-full">
+                      {file.name}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground">Files</label>
+              <input
+                type="file"
+                multiple
+                onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
+                className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+              />
+              {selectedFiles.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedFiles.map((file) => (
+                    <Badge key={`${file.name}-${file.size}`} variant="secondary" className="rounded-full">
+                      {file.name}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+            </div>
 
             <HashtagInput
               value={hashtags}
@@ -258,7 +320,7 @@ export default function CompanyDataPage() {
               <p className="text-sm text-muted-foreground">
                 Use one of <span className="font-medium text-foreground">#product</span>, <span className="font-medium text-foreground">#customer</span>, or <span className="font-medium text-foreground">#competitor</span> to classify the source.
               </p>
-              <Button type="submit" disabled={!input.trim() || !company}>
+              <Button type="submit" disabled={(!input.trim() && selectedFiles.length === 0) || !company}>
                 <Plus className="w-4 h-4" />
                 Add data
               </Button>
@@ -279,6 +341,7 @@ export default function CompanyDataPage() {
         <MetricCard icon={Package} label="Products" value={products.length} />
         <MetricCard icon={Users} label="Customers" value={customers.length} />
         <MetricCard icon={Search} label="Competitors" value={competitors.length} />
+        <MetricCard icon={FileUp} label="Files" value={items.filter((item) => item.type === "file").length} />
       </MetricGrid>
 
       <div>
@@ -319,13 +382,13 @@ export default function CompanyDataPage() {
                   <Badge variant="secondary" className="text-xs font-mono">
                     {item.publicId ? `#${item.publicId}` : "pending"}
                   </Badge>
-                  {editingId === item.id ? (
+                  {editingId === item.id && item.type !== "file" ? (
                     <Button onClick={() => saveEdit(item)} variant="outline" size="sm">Save</Button>
-                  ) : (
+                  ) : item.type !== "file" ? (
                     <Button onClick={() => startEdit(item)} variant="ghost" size="icon">
                       <Pencil className="w-3 h-3" />
                     </Button>
-                  )}
+                  ) : null}
                   <Button onClick={() => deleteItem(item)} variant="ghost" size="icon">
                     <Trash2 className="w-3 h-3" />
                   </Button>

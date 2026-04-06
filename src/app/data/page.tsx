@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Hash, Package, Users, Search, Plus, CheckCircle } from "lucide-react";
+import { FileUp, Hash, Package, Users, Search, Plus, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +16,7 @@ import {
   sourceTypeFromHashtags,
 } from "@/lib/hashtags";
 
-type DataType = "product" | "customer" | "competitor";
+type DataType = "product" | "customer" | "competitor" | "file";
 
 interface DataItem {
   id: string;
@@ -43,18 +42,19 @@ function sortDataItems(items: DataItem[]) {
 }
 
 export default function DataCollectionPage() {
-  const router = useRouter();
   const { company, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [input, setInput] = useState("");
   const [hashtags, setHashtags] = useState<string[]>(defaultTypeHashtags("product"));
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [saved, setSaved] = useState(false);
   const [items, setItems] = useState<DataItem[]>([]);
 
   const loadAllData = useCallback(async (companyId: string) => {
-    const [p, c, r] = await Promise.all([
+    const [p, c, r, f] = await Promise.all([
       fetch(`/api/products?companyId=${companyId}`).then((res) => res.json()),
       fetch(`/api/customers?companyId=${companyId}`).then((res) => res.json()),
       fetch(`/api/competitors?companyId=${companyId}`).then((res) => res.json()),
+      fetch(`/api/data-files?companyId=${companyId}`).then((res) => res.json()),
     ]);
     setProducts(p);
     setCustomers(c);
@@ -64,6 +64,7 @@ export default function DataCollectionPage() {
       ...p.map((x: any) => ({ ...x, type: "product" as DataType })),
       ...c.map((x: any) => ({ ...x, type: "customer" as DataType })),
       ...r.map((x: any) => ({ ...x, type: "competitor" as DataType })),
+      ...f.map((x: any) => ({ ...x, type: "file" as DataType })),
     ]);
     setItems(all);
   }, [setProducts, setCustomers, setCompetitors]);
@@ -86,11 +87,13 @@ export default function DataCollectionPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !company) return;
+    if ((!input.trim() && selectedFiles.length === 0) || !company) return;
 
     const type = sourceTypeFromHashtags(hashtags);
     const normalizedHashtags = normalizeSourceHashtags(hashtags, type);
-    const endpoint = type === "product" ? "/api/products" 
+    const endpoint = selectedFiles.length > 0
+      ? "/api/data-files"
+      : type === "product" ? "/api/products" 
       : type === "customer" ? "/api/customers" 
       : "/api/competitors";
 
@@ -114,14 +117,28 @@ export default function DataCollectionPage() {
         };
 
     try {
-      await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      if (selectedFiles.length > 0) {
+        const formData = new FormData();
+        formData.append("companyId", company.id);
+        formData.append("hashtags", JSON.stringify(normalizedHashtags));
+        for (const file of selectedFiles) {
+          formData.append("files", file);
+        }
+        await fetch(endpoint, {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
       
       setInput("");
       setHashtags(defaultTypeHashtags("product"));
+      setSelectedFiles([]);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
       await loadAllData(company.id);
@@ -135,6 +152,7 @@ export default function DataCollectionPage() {
       case "product": return Package;
       case "customer": return Users;
       case "competitor": return Search;
+      case "file": return FileUp;
     }
   };
 
@@ -170,9 +188,28 @@ export default function DataCollectionPage() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Paste a URL or describe the source you want to ingest..."
+              placeholder="Paste a URL, type a source name, or pair files with hashtags..."
               className="h-14 text-base"
             />
+
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground">Files</label>
+              <input
+                type="file"
+                multiple
+                onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
+                className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+              />
+              {selectedFiles.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedFiles.map((file) => (
+                    <Badge key={`${file.name}-${file.size}`} variant="secondary" className="rounded-full">
+                      {file.name}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+            </div>
 
             <HashtagInput
               value={hashtags}
@@ -186,7 +223,7 @@ export default function DataCollectionPage() {
               <p className="text-sm text-muted-foreground">
                 Use one of <span className="font-medium text-foreground">#product</span>, <span className="font-medium text-foreground">#customer</span>, or <span className="font-medium text-foreground">#competitor</span> to classify the source.
               </p>
-              <Button type="submit" disabled={!input.trim() || !company}>
+              <Button type="submit" disabled={(!input.trim() && selectedFiles.length === 0) || !company}>
                 <Plus className="w-4 h-4" />
                 Add data
               </Button>
@@ -207,6 +244,7 @@ export default function DataCollectionPage() {
         <MetricCard icon={Package} label="Products" value={products.length} />
         <MetricCard icon={Users} label="Customers" value={customers.length} />
         <MetricCard icon={Search} label="Competitors" value={competitors.length} />
+        <MetricCard icon={FileUp} label="Files" value={items.filter((item) => item.type === "file").length} />
       </MetricGrid>
 
       <div>

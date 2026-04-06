@@ -39,6 +39,7 @@ model Company {
   products    Product[]
   customers   Customer[]
   competitors Competitor[]
+  uploadedFiles UploadedSourceFile[]
   flashcards  Flashcard[]
   nbaItems    NBAItem[]
 }
@@ -101,6 +102,21 @@ model Competitor {
   updatedAt   DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id])
+}
+
+model UploadedSourceFile {
+  id          String   @id @default(uuid())
+  publicId    Int?     @unique
+  companyId   String
+  name        String
+  hashtags    String[] @default([])
+  mimeType    String
+  sizeBytes   Int
+  content     Bytes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model Flashcard {

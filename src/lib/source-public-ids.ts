@@ -12,7 +12,7 @@ export const PUBLIC_ID_SCOPES = {
   flashcard: FLASHCARD_PUBLIC_ID_SCOPE,
 } as const;
 
-type SourceKind = "product" | "customer" | "competitor";
+type SourceKind = "product" | "customer" | "competitor" | "file";
 
 type MissingSource = {
   id: string;
@@ -29,6 +29,7 @@ const KIND_ORDER: Record<SourceKind, number> = {
   product: 0,
   customer: 1,
   competitor: 2,
+  file: 3,
 };
 
 function isRetryableTransactionError(error: unknown) {
@@ -111,8 +112,11 @@ async function readMissingSources(
   const competitorWhere = companyId
     ? { companyId, publicId: null }
     : { publicId: null };
+  const fileWhere = companyId
+    ? { companyId, publicId: null }
+    : { publicId: null };
 
-  const [products, customers, competitors] = await Promise.all([
+  const [products, customers, competitors, uploadedFiles] = await Promise.all([
     tx.product.findMany({
       where: productWhere,
       select: { id: true, createdAt: true },
@@ -128,12 +132,18 @@ async function readMissingSources(
       select: { id: true, createdAt: true },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     }),
+    tx.uploadedSourceFile.findMany({
+      where: fileWhere,
+      select: { id: true, createdAt: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
   ]);
 
   return [
     ...products.map((item) => ({ ...item, kind: "product" as const })),
     ...customers.map((item) => ({ ...item, kind: "customer" as const })),
     ...competitors.map((item) => ({ ...item, kind: "competitor" as const })),
+    ...uploadedFiles.map((item) => ({ ...item, kind: "file" as const })),
   ].sort(sortMissingSources);
 }
 
@@ -161,6 +171,14 @@ async function assignSourcePublicId(
       });
     case "competitor":
       return tx.competitor.updateMany({
+        where: {
+          id: source.id,
+          publicId: null,
+        },
+        data: { publicId },
+      });
+    case "file":
+      return tx.uploadedSourceFile.updateMany({
         where: {
           id: source.id,
           publicId: null,

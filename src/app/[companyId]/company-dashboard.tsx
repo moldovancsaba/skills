@@ -163,7 +163,7 @@ export default function CompanyDashboard() {
   }
 
   return (
-    <PageShell width="7xl">
+    <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <PageHeader
           title={company?.name ?? "Company"}

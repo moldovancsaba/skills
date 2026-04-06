@@ -241,7 +241,7 @@ export default function CompanyDataPage() {
   }
 
   return (
-    <PageShell width="md">
+    <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <PageHeader
           backHref={`/${companyId}`}

@@ -239,7 +239,31 @@ function isWeakEvidenceLine(value: string | null | undefined) {
     normalized.includes("goalkeeper training") ||
     normalized.includes("junior academy") ||
     normalized.includes("soccer birthday parties") ||
-    normalized.includes("contact ")
+    normalized.includes("contact ") ||
+    normalized.includes(" - ") ||
+    normalized.includes(" | ")
+  );
+}
+
+function isLowValueNewsLine(sourceName: string, value: string | null | undefined) {
+  const normalized = normalizeClause(value)?.toLowerCase();
+  const normalizedSource = normalizeClause(sourceName)?.toLowerCase();
+  if (!normalized || !normalizedSource) {
+    return true;
+  }
+
+  const compactSource = normalizedSource.replace(/[^a-z0-9]+/g, "");
+  const compactValue = normalized.replace(/[^a-z0-9]+/g, "");
+
+  return (
+    isWeakEvidenceLine(normalized) ||
+    normalized.startsWith("home ") ||
+    normalized.includes("privacy policy") ||
+    normalized.includes(" - " + normalizedSource) ||
+    normalized.includes(" | " + normalizedSource) ||
+    normalized === normalizedSource ||
+    compactValue === compactSource ||
+    compactValue === `${compactSource}${compactSource}`
   );
 }
 
@@ -467,6 +491,9 @@ function buildProductDrafts(source: ProductSource, context: SourceRecord[]) {
   }
 
   getNewsTitles(source.watchedContent).forEach((value, index) => {
+    if (isLowValueNewsLine(sourceName, value)) {
+      return;
+    }
     drafts.push(
       makeDraft(
         source,
@@ -678,6 +705,9 @@ function buildCompetitorDrafts(source: CompetitorSource, context: SourceRecord[]
   }
 
   getNewsTitles(source.watchedContent).forEach((value, index) => {
+    if (isLowValueNewsLine(sourceName, value)) {
+      return;
+    }
     drafts.push(
       makeDraft(
         source,

@@ -719,6 +719,28 @@ function containsAny(haystack: string, needles: string[]) {
   return needles.some((needle) => haystack.includes(needle));
 }
 
+function hasInvalidStoredUrls(urls: string[] | undefined) {
+  return (urls ?? []).some((url) => canonicalizeUrl(url) === null);
+}
+
+function looksLikeLowValueAnalysis(value: string | null | undefined) {
+  const normalized = collapseWhitespace(decodeHtml(value ?? "")).toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return (
+    containsAny(normalized, [
+      "about us why spl",
+      "create an account or log in to instagram",
+      "tiktok - make your day",
+      "loading...",
+    ]) ||
+    normalized.includes("home |") ||
+    normalized.includes("conclusions: about us")
+  );
+}
+
 function inferPricing(insights: UrlInsight[]) {
   for (const insight of insights) {
     const haystacks = [insight.description, insight.textSnippet, ...insight.bullets, ...insight.headings];
@@ -1051,10 +1073,15 @@ export function shouldEnrichProduct(seed: ProductSeed & { updatedAt?: Date }) {
   }
 
   const missingAnalyticalStructure = !collapseWhitespace(seed.description ?? "").includes("Conclusions:");
+  const lowValueDescription = looksLikeLowValueAnalysis(seed.description);
+  const lowValueFeatures = filterBusinessSignals(seed.features ?? []).length === 0;
 
   return (
     looksLikeUrl(seed.name) ||
     missingAnalyticalStructure ||
+    lowValueDescription ||
+    lowValueFeatures ||
+    hasInvalidStoredUrls(seed.urls) ||
     !collapseWhitespace(seed.description ?? "") ||
     (seed.features ?? []).length === 0
   );
@@ -1067,10 +1094,17 @@ export function shouldEnrichCompetitor(seed: CompetitorSeed & { updatedAt?: Date
   }
 
   const missingAnalyticalStructure = !collapseWhitespace(seed.positioning ?? "").includes("Conclusions:");
+  const lowValuePositioning = looksLikeLowValueAnalysis(seed.positioning);
+  const qualityGatePassed = typeof seed.watchedContent === "object" &&
+    seed.watchedContent !== null &&
+    "qualityGate" in seed.watchedContent;
 
   return (
     looksLikeUrl(seed.name) ||
     missingAnalyticalStructure ||
+    lowValuePositioning ||
+    hasInvalidStoredUrls(seed.urls) ||
+    !qualityGatePassed ||
     !collapseWhitespace(seed.positioning ?? "") ||
     (seed.strengths ?? []).length === 0
   );

@@ -142,6 +142,10 @@ model Flashcard {
   userAnnotation  String?
   lastActionAt    DateTime?
   createdBy       String?               @default("bootstrap-source")
+  appVersion      String?               @default("0.6.0")
+  brainVersion    String?               @default("local-brain@0.6.0")
+  promptVersion   String?               @default("flashcard-policy@0.6.0")
+  generatedAt     DateTime?
   refreshedAt     DateTime              @default(now())
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
@@ -249,6 +253,10 @@ model NBAItem {
   iceScore       Float       @default(0)
   status         NBAStatus  @default(PENDING)
   userAnnotation String?
+  appVersion     String?    @default("0.6.0")
+  brainVersion   String?    @default("local-brain@0.6.0")
+  promptVersion  String?    @default("nba-policy@0.6.0")
+  generatedAt    DateTime?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   scheduledDate DateTime?

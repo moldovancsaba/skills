@@ -3,6 +3,7 @@ import { FlashcardKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 import { nextChecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
+import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
 
 const OLLAMA_URL = "http://127.0.0.1:11434";
 const MODEL = "deepseek-r1:1.5b";
@@ -240,6 +241,10 @@ Generate 2-4 marketing NBA recommendations as JSON array.`;
             iceScore,
             status: "PENDING",
             createdBy: "local-ai",
+            appVersion: APP_VERSION,
+            brainVersion: BRAIN_VERSION,
+            promptVersion: NBA_PROMPT_VERSION,
+            generatedAt: new Date(),
           },
         });
       }, TRANSACTION_SETTINGS);

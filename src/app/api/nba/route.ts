@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 import { ensureChecklistPublicIds, nextChecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
+import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -40,6 +41,10 @@ export async function POST(request: NextRequest) {
           iceScore,
           scheduledDate: data.scheduledDate,
           createdBy: data.createdBy,
+          appVersion: APP_VERSION,
+          brainVersion: BRAIN_VERSION,
+          promptVersion: NBA_PROMPT_VERSION,
+          generatedAt: new Date(),
         },
       });
     }, TRANSACTION_SETTINGS);

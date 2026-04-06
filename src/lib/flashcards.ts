@@ -15,6 +15,11 @@ import {
   TRANSACTION_SETTINGS,
   withSerializableRetry,
 } from "@/lib/source-public-ids";
+import {
+  APP_VERSION,
+  BRAIN_VERSION,
+  FLASHCARD_PROMPT_VERSION,
+} from "@/lib/release";
 import { enrichUploadedFile } from "@/lib/file-enrichment";
 import {
   enrichCompetitorSeed,
@@ -171,7 +176,10 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function sameDate(left: Date, right: Date) {
+function sameDate(left: Date | null, right: Date | null) {
+  if (!left || !right) {
+    return left === right;
+  }
   return left.getTime() === right.getTime();
 }
 
@@ -1027,6 +1035,10 @@ function needsFlashcardUpdate(
     feedbackWeightDelta: number;
     feedbackConfidenceDelta: number;
     status: FlashcardStatus;
+    appVersion: string | null;
+    brainVersion: string | null;
+    promptVersion: string | null;
+    generatedAt: Date | null;
     refreshedAt: Date;
     fingerprint: string | null;
   },
@@ -1050,6 +1062,10 @@ function needsFlashcardUpdate(
     existing.weight !== adjusted.weight ||
     JSON.stringify(existing.evidence) !== JSON.stringify(draft.evidence) ||
     existing.status !== FlashcardStatus.ACTIVE ||
+    existing.appVersion !== APP_VERSION ||
+    existing.brainVersion !== BRAIN_VERSION ||
+    existing.promptVersion !== FLASHCARD_PROMPT_VERSION ||
+    !sameDate(existing.generatedAt, refreshedAt) ||
     !sameDate(existing.refreshedAt, refreshedAt)
   );
 }
@@ -1221,11 +1237,15 @@ export async function syncBootstrapFlashcards(companyId: string) {
                 confidence: adjusted.confidence,
                 impact: draft.impact,
                 weight: adjusted.weight,
-                evidence: draft.evidence === null ? Prisma.JsonNull : draft.evidence,
-                status: FlashcardStatus.ACTIVE,
-                refreshedAt: draft.refreshedAt,
-              },
-            });
+              evidence: draft.evidence === null ? Prisma.JsonNull : draft.evidence,
+              status: FlashcardStatus.ACTIVE,
+              appVersion: APP_VERSION,
+              brainVersion: BRAIN_VERSION,
+              promptVersion: FLASHCARD_PROMPT_VERSION,
+              generatedAt: draft.refreshedAt,
+              refreshedAt: draft.refreshedAt,
+            },
+          });
           }
 
           const existingSource = existing.sources.find((item) => item.sourceType === draft.source.type && item.sourceId === draft.source.id);
@@ -1283,6 +1303,10 @@ export async function syncBootstrapFlashcards(companyId: string) {
           evidence: draft.evidence === null ? Prisma.JsonNull : draft.evidence,
           status: FlashcardStatus.ACTIVE,
           createdBy: BOOTSTRAP_CREATED_BY,
+          appVersion: APP_VERSION,
+          brainVersion: BRAIN_VERSION,
+          promptVersion: FLASHCARD_PROMPT_VERSION,
+          generatedAt: draft.refreshedAt,
           refreshedAt: draft.refreshedAt,
         });
         flashcardSourcesToCreate.push({

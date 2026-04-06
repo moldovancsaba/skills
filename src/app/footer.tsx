@@ -1,8 +1,5 @@
-'use client';
-
 import Link from "next/link";
-
-const VERSION = "0.1.0";
+import { APP_VERSION } from "@/lib/release";
 
 export function Footer() {
   return (
@@ -17,7 +14,7 @@ export function Footer() {
           </Link>
         </div>
         <div className="rounded-full border border-border/80 bg-card px-3 py-1 text-xs shadow-card">
-          v{VERSION}
+          v{APP_VERSION}
         </div>
       </div>
     </footer>

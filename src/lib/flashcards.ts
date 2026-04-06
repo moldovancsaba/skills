@@ -15,6 +15,7 @@ import {
   TRANSACTION_SETTINGS,
   withSerializableRetry,
 } from "@/lib/source-public-ids";
+import { enrichUploadedFile } from "@/lib/file-enrichment";
 import {
   enrichCompetitorSeed,
   enrichProductSeed,
@@ -22,7 +23,7 @@ import {
   shouldEnrichProduct,
 } from "@/lib/url-enrichment";
 
-type FlashcardSourceKind = "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "AGENT_FOUND";
+type FlashcardSourceKind = "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "FILE" | "AGENT_FOUND";
 
 type BaseSourceRecord = {
   id: string;
@@ -62,7 +63,16 @@ type CompetitorSource = BaseSourceRecord & {
   watchedContent: Prisma.JsonValue | null;
 };
 
-type SourceRecord = ProductSource | CustomerSource | CompetitorSource;
+type FileSource = BaseSourceRecord & {
+  type: "FILE";
+  mimeType: string;
+  sizeBytes: number;
+  hashtags: string[];
+  extractedText: string | null;
+  watchedContent: Prisma.JsonValue | null;
+};
+
+type SourceRecord = ProductSource | CustomerSource | CompetitorSource | FileSource;
 
 type FlashcardDraft = {
   kind: FlashcardKind;
@@ -342,6 +352,11 @@ function getWatchedObject(record: Record<string, Prisma.JsonValue> | null, key: 
   return value as Record<string, Prisma.JsonValue>;
 }
 
+function getWatchedString(record: Record<string, Prisma.JsonValue> | null, key: string) {
+  const value = record?.[key];
+  return typeof value === "string" ? value : null;
+}
+
 function getAnalysisItems(
   watchedContent: Prisma.JsonValue | null | undefined,
   key: string,
@@ -397,6 +412,12 @@ function getSearchSnippets(watchedContent: Prisma.JsonValue | null | undefined) 
     }),
     5,
   ).filter((item) => !isWeakEvidenceLine(item));
+}
+
+function getFileSummary(watchedContent: Prisma.JsonValue | null | undefined) {
+  const record = getWatchedContentRecord(watchedContent);
+  const analysis = getWatchedObject(record, "analysis");
+  return normalizeText(getWatchedString(analysis, "summary"));
 }
 
 function comparisonText(leftName: string, leftSignals: string[], rightName: string, rightSignals: string[]) {
@@ -799,6 +820,70 @@ function buildCompetitorDrafts(source: CompetitorSource, context: SourceRecord[]
   return drafts;
 }
 
+function buildFileDrafts(source: FileSource) {
+  const drafts: FlashcardDraft[] = [];
+  const sourceName = displaySourceName(source.knowledgeName);
+  const evidenceBase = {
+    mimeType: source.mimeType,
+    sizeBytes: source.sizeBytes,
+    hashtags: source.hashtags,
+    extractedText: source.extractedText,
+    watchedContent: source.watchedContent,
+  } satisfies Prisma.InputJsonObject;
+  const watchedRecord = getWatchedContentRecord(source.watchedContent);
+  const analysis = getWatchedObject(watchedRecord, "analysis");
+  const summary = getFileSummary(source.watchedContent);
+  const analysisByKind: Array<[FlashcardKind, string, string[]]> = [
+    [FlashcardKind.EXPLANATION, "explanations", getAnalysisItems(source.watchedContent, "explanations")],
+    [FlashcardKind.CONCLUSION, "conclusions", getAnalysisItems(source.watchedContent, "conclusions")],
+    [FlashcardKind.EVALUATION, "evaluations", getAnalysisItems(source.watchedContent, "evaluations")],
+    [FlashcardKind.JUDGMENT, "judgments", getAnalysisItems(source.watchedContent, "judgments")],
+    [FlashcardKind.RECOMMENDATION, "recommendations", getAnalysisItems(source.watchedContent, "recommendations")],
+    [FlashcardKind.COMPARISON, "comparisons", getAnalysisItems(source.watchedContent, "comparisons")],
+    [FlashcardKind.NEWS, "industryNews", getAnalysisItems(source.watchedContent, "industryNews")],
+    [FlashcardKind.RESEARCH, "researchPlans", getAnalysisItems(source.watchedContent, "researchPlans")],
+    [FlashcardKind.FORECAST, "forecasts", getAnalysisItems(source.watchedContent, "forecasts")],
+    [FlashcardKind.PRICE, "prices", getAnalysisItems(source.watchedContent, "prices")],
+    [FlashcardKind.GOSSIP, "marketChatter", getAnalysisItems(source.watchedContent, "marketChatter")],
+  ];
+
+  if (summary && !isLowValueCardText(summary)) {
+    drafts.push(
+      makeDraft(
+        source,
+        FlashcardKind.EXPLANATION,
+        `File insight: ${sourceName}`,
+        summary,
+        72,
+        76,
+        76,
+        evidenceBase,
+        `file-summary-${summary}`,
+      ),
+    );
+  }
+
+  for (const [kind, label, values] of analysisByKind) {
+    values.forEach((value, index) => {
+      drafts.push(
+        makeDraft(
+          source,
+          kind,
+          `${KIND_LABELS[kind]}: ${sourceName}`,
+          value,
+          kind === FlashcardKind.GOSSIP ? 54 : 68 + Math.min(index, 2) * 2,
+          kind === FlashcardKind.RECOMMENDATION ? 84 : 76,
+          kind === FlashcardKind.RECOMMENDATION ? 82 : 76,
+          { ...evidenceBase, section: label, analysis },
+          `file-${label}-${index}-${value}`,
+        ),
+      );
+    });
+  }
+
+  return drafts;
+}
+
 function isPublishableSource(source: SourceRecord) {
   switch (source.type) {
     case "PRODUCT":
@@ -807,6 +892,8 @@ function isPublishableSource(source: SourceRecord) {
       return Boolean(normalizeText(source.notes) || source.segments.length > 0 || source.painPoints.length > 0 || source.channels.length > 0 || source.lifetimeValue || source.email);
     case "COMPETITOR":
       return Boolean(normalizeText(source.positioning) || normalizeText(source.pricing) || source.strengths.length > 0 || source.weaknesses.length > 0);
+    case "FILE":
+      return Boolean(source.extractedText || getFileSummary(source.watchedContent) || getAnalysisItems(source.watchedContent, "conclusions").length > 0);
     default:
       return assertNever(source);
   }
@@ -820,6 +907,8 @@ function buildFlashcardDrafts(source: SourceRecord, context: SourceRecord[]) {
       return buildCustomerDrafts(source);
     case "COMPETITOR":
       return buildCompetitorDrafts(source, context);
+    case "FILE":
+      return buildFileDrafts(source);
     default:
       return assertNever(source);
   }
@@ -982,13 +1071,14 @@ async function mapSeries<T, R>(items: T[], mapper: (item: T) => Promise<R>) {
 }
 
 async function loadCompanySources(companyId: string) {
-  const [products, customers, competitors] = await Promise.all([
+  const [products, customers, competitors, uploadedFiles] = await Promise.all([
     prisma.product.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
     prisma.customer.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
     prisma.competitor.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
+    prisma.uploadedSourceFile.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
   ]);
 
-  const [derivedProducts, derivedCompetitors] = await Promise.all([
+  const [derivedProducts, derivedCompetitors, derivedFiles] = await Promise.all([
     mapSeries(products, async (product) => {
       const enriched = shouldEnrichProduct(product) ? await enrichProductSeed(product) : null;
       return {
@@ -1024,6 +1114,30 @@ async function loadCompanySources(companyId: string) {
         updatedAt: competitor.updatedAt,
       } satisfies CompetitorSource;
     }),
+    mapSeries(uploadedFiles, async (file) => {
+      const enriched = await enrichUploadedFile({
+        name: file.name,
+        mimeType: file.mimeType,
+        sizeBytes: file.sizeBytes,
+        hashtags: file.hashtags,
+        content: Buffer.from(file.content),
+      });
+
+      return {
+        type: "FILE",
+        id: file.id,
+        publicId: file.publicId,
+        sourceName: file.name,
+        knowledgeName: file.name,
+        mimeType: file.mimeType,
+        sizeBytes: file.sizeBytes,
+        hashtags: file.hashtags,
+        extractedText: enriched.extractedText,
+        watchedContent: (enriched.watchedContent as Prisma.JsonValue | undefined) ?? null,
+        createdAt: file.createdAt,
+        updatedAt: file.updatedAt,
+      } satisfies FileSource;
+    }),
   ]);
 
   return [
@@ -1035,6 +1149,7 @@ async function loadCompanySources(companyId: string) {
       knowledgeName: item.name,
     }) satisfies CustomerSource),
     ...derivedCompetitors,
+    ...derivedFiles,
   ] satisfies SourceRecord[];
 }
 

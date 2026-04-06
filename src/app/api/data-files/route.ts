@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { syncCompanyKnowledge } from "@/lib/flashcards";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
 import {
   ensureSourcePublicIds,
@@ -113,6 +114,7 @@ export async function POST(request: NextRequest) {
       return results;
     }, TRANSACTION_SETTINGS);
 
+    await syncCompanyKnowledge(companyId);
     return NextResponse.json(created);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -129,7 +131,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
+    const existing = await prisma.uploadedSourceFile.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+
     await prisma.uploadedSourceFile.delete({ where: { id } });
+    await syncCompanyKnowledge(existing.companyId);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

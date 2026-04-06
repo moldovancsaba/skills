@@ -42,7 +42,7 @@ type Company = {
 
 type FlashcardSource = {
   id: string;
-  sourceType: "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "AGENT_FOUND";
+  sourceType: "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "FILE" | "AGENT_FOUND";
   sourceId: string;
   sourcePublicId: number | null;
   sourceName: string;
@@ -120,6 +120,8 @@ function sourceLabel(sourceType: FlashcardSource["sourceType"]) {
       return "Customer";
     case "COMPETITOR":
       return "Competitor";
+    case "FILE":
+      return "File";
     case "AGENT_FOUND":
       return "Agent";
   }

@@ -22,7 +22,7 @@ npm install
 ### 3. Set Up Environment Variables
 Create a `.env` file in the project root:
 ```env
-# Neon PostgreSQL (get from https://neon.tech)
+# Checklist Neon PostgreSQL database used by both the web app and any local sync worker
 DATABASE_URL="postgresql://..."
 
 # Optional: Paperclip credentials (for Phase 5 agents)
@@ -32,6 +32,7 @@ PAPERCLIP_COMPANY_ID=""
 
 ### 4. Push Database Schema
 ```bash
+npx prisma generate
 npx prisma db push
 ```
 
@@ -56,7 +57,7 @@ checklist/
 │   │   └── api/          # API routes
 │   └── lib/              # Utilities (db.ts, store.ts)
 ├── prisma/
-│   └── schema.prisma     # Database schema
+│   └── schema.prisma     # The only Checklist Prisma schema
 ├── agents/
 │   ├── prompts/          # Paperclip agent prompts
 │   ├── scripts/          # Agent creation scripts
@@ -67,6 +68,28 @@ checklist/
 │   └── sync.js           # Sync layer (Phase 6)
 └── .env                  # Environment (DO NOT COMMIT)
 ```
+
+## Important Setup Clarification
+
+Checklist does not have a second local Prisma schema hidden in `apps/mvp-factory-control`.
+
+What is true:
+
+- this repo's `prisma/schema.prisma` is the Checklist schema
+- `DATABASE_URL` is the Checklist database connection string
+- any local sync worker or control-plane wrapper must use that same Checklist `DATABASE_URL`
+
+What is not true:
+
+- there is no separate Checklist schema to discover in another app
+- setup failures on a new machine are not fixed by changing the schema path to `apps/mvp-factory-control`
+
+If setup fails, verify:
+
+1. `.env` contains a valid Checklist `DATABASE_URL`
+2. `npx prisma generate` succeeds
+3. `npx prisma db push` succeeds against that database
+4. the local worker, if used, receives the same `DATABASE_URL`
 
 ---
 

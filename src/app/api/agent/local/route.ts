@@ -5,8 +5,8 @@ import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 import { nextChecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
 
-const OLLAMA_URL = "http://127.0.0.1:11434";
-const MODEL = "deepseek-r1:1.5b";
+const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://127.0.0.1:11434";
+const MODEL = process.env.OLLAMA_MODEL ?? "gemma4:e4b";
 
 const SYSTEM_PROMPT = `You are a marketing strategist.
 Generate 2-4 NBA recommendations as a JSON array.

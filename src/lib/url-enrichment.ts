@@ -53,7 +53,7 @@ type RawSourceInput = {
 };
 
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://127.0.0.1:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "deepseek-r1:1.5b";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "gemma4:e4b";
 const FETCH_TIMEOUT_MS = 5000;
 const OLLAMA_TIMEOUT_MS = 4000;
 const MAX_HTML_BYTES = 500_000;

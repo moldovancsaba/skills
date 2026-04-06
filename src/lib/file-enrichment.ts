@@ -1,7 +1,7 @@
 import { extname } from "node:path";
 
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://127.0.0.1:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "deepseek-r1:1.5b";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "gemma4:e4b";
 const OLLAMA_TIMEOUT_MS = 7000;
 const MAX_EXTRACTED_TEXT = 12000;
 const MAX_PREVIEW_LINES = 20;

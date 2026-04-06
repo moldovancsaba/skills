@@ -159,6 +159,28 @@ Minimum categories of required env:
 - local model access
 - local sync bridge
 
+## Database setup on a new machine
+
+Checklist owns its Prisma schema in this repo:
+
+- `prisma/schema.prisma`
+
+The app and any local sync worker both use:
+
+- `DATABASE_URL`
+
+Checklist does not depend on a separate Prisma schema hidden inside `apps/mvp-factory-control`.
+
+If you are bringing the project up on another machine:
+
+1. add the Checklist `DATABASE_URL` to local `.env`
+2. run `npm install`
+3. run `npx prisma generate`
+4. run `npx prisma db push`
+5. start the app with `npm run dev`
+
+If a local worker or control-plane process is involved, give that process the same Checklist `DATABASE_URL`. The failure mode is usually "missing Checklist database source" rather than "wrong schema path".
+
 ## Documentation rule
 
 If this file drifts again, update it together with:

@@ -36,7 +36,7 @@ Current app version:
                                ▼
 ┌────────────────────────────────────────────────────────────┐
 │ Local AI system                                            │
-│ - mvp-factory-control managed sync service                 │
+│ - optional local sync worker / control-plane wrapper       │
 │ - local URL fetch + public signal collection               │
 │ - local model reasoning                                    │
 │ - flashcard generation / refresh                           │
@@ -151,6 +151,21 @@ At minimum, this app expects:
   - `LOCAL_SYNC_SECRET`
 
 Use local `.env` / Vercel project env management. Do not place real credentials in documentation.
+
+## Database contract
+
+There is a single Checklist database schema for this product:
+
+- Prisma schema path: `prisma/schema.prisma`
+- Prisma datasource env: `DATABASE_URL`
+
+If you run a local sync process, wrapper, or control-plane integration on another machine, it must connect to the same Checklist database by using the same Checklist `DATABASE_URL`.
+
+Important:
+
+- there is no second Checklist Prisma schema inside `apps/mvp-factory-control`
+- `mvp-factory-control` may host or trigger a local worker, but it is not the source of Checklist schema truth
+- if setup fails on a new machine, treat it as a missing Checklist database connection or missing `prisma db push`, not as a bad path to another app's schema
 
 ## Main APIs
 

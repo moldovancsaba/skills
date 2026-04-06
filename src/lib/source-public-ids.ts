@@ -5,7 +5,7 @@ const SOURCE_PUBLIC_ID_SCOPE = "source";
 const FLASHCARD_PUBLIC_ID_SCOPE = "flashcard";
 const MAX_RETRIES = 3;
 const TRANSACTION_MAX_WAIT_MS = 10_000;
-const TRANSACTION_TIMEOUT_MS = 30_000;
+const TRANSACTION_TIMEOUT_MS = 120_000;
 
 export const PUBLIC_ID_SCOPES = {
   source: SOURCE_PUBLIC_ID_SCOPE,
@@ -52,7 +52,7 @@ export async function withSerializableRetry<T>(
   }
 }
 
-async function reservePublicIds(
+export async function reservePublicIds(
   tx: TransactionClient,
   scope: string,
   count: number,

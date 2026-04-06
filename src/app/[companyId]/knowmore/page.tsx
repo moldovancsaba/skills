@@ -52,6 +52,21 @@ type FlashcardAction = {
 type Flashcard = {
   id: string;
   publicId: number | null;
+  kind:
+    | "SUMMARY"
+    | "EXPLANATION"
+    | "COMPARISON"
+    | "NEWS"
+    | "CONCLUSION"
+    | "EVALUATION"
+    | "OPINION"
+    | "JUDGMENT"
+    | "RECOMMENDATION"
+    | "RESEARCH"
+    | "FORECAST"
+    | "STOCK"
+    | "GOSSIP"
+    | "PRICE";
   title: string;
   body: string;
   confidence: number;
@@ -136,6 +151,10 @@ function reviewStatusClasses(reviewStatus: Flashcard["reviewStatus"]) {
     case "PENDING":
       return "border-input bg-background text-foreground";
   }
+}
+
+function kindLabel(kind: Flashcard["kind"]) {
+  return kind.toLowerCase().replace(/_/g, " ");
 }
 
 export default function CompanyKnowMorePage() {
@@ -444,6 +463,7 @@ export default function CompanyKnowMorePage() {
                         {reviewStatusLabel(flashcard.reviewStatus)}
                       </Badge>
                       <Badge variant="outline">Confidence {flashcard.confidence}%</Badge>
+                      <Badge variant="outline" className="capitalize">{kindLabel(flashcard.kind)}</Badge>
                       <Badge variant="outline">Impact {flashcard.impact}</Badge>
                       <Badge variant="outline">Weight {flashcard.weight}</Badge>
                     </div>

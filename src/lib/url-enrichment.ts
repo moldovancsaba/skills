@@ -14,6 +14,7 @@ type ProductSeed = {
   pricing?: string | null;
   features?: string[];
   urls?: string[];
+  watchedContent?: unknown;
 };
 
 type CompetitorSeed = {
@@ -30,6 +31,12 @@ type NewsSignal = {
   title: string;
   source: string | null;
   publishedAt: string | null;
+  link: string | null;
+};
+
+type SearchSignal = {
+  title: string;
+  snippet: string | null;
   link: string | null;
 };
 
@@ -52,6 +59,7 @@ const OLLAMA_TIMEOUT_MS = 4000;
 const MAX_HTML_BYTES = 500_000;
 const MAX_TEXT_LENGTH = 4000;
 const MAX_NEWS_ITEMS = 4;
+const MAX_SEARCH_ITEMS = 5;
 const PRICE_PATTERN =
   /(?:\$|EUR|USD|GBP)\s?\d[\d,.]*(?:\s*\/\s*(?:mo|month|yr|year|user))?|free\b|trial\b|pricing\b/i;
 const TICKER_PATTERN = /\b(?:NASDAQ|NYSE|AMEX|LSE|TSX)[:\s]+([A-Z.\-]{1,6})\b/;
@@ -86,6 +94,13 @@ const GENERIC_NAV_LABELS = new Set([
   "privacy policy",
   "terms",
 ]);
+const LOW_VALUE_FLASHCARD_PHRASES = [
+  "compare this competitor's headline claims against our product's proof points",
+  "expect messaging and packaging to keep shifting",
+  "the competitor is competing in an automation-heavy category",
+  "feature velocity matters",
+  "pressure-test whether the headline capabilities are differentiated enough",
+];
 const PLATFORM_HOST_RULES: Array<{
   hostPattern: RegExp;
   platformName: string;
@@ -364,6 +379,28 @@ function stripHtmlForXml(value: string | null) {
   );
 }
 
+function extractDuckDuckGoLink(rawHref: string | null) {
+  if (!rawHref) {
+    return null;
+  }
+
+  const decoded = decodeHtml(rawHref);
+  if (decoded.startsWith("//")) {
+    return `https:${decoded}`;
+  }
+  if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
+    return decoded;
+  }
+
+  try {
+    const url = new URL(decoded, "https://html.duckduckgo.com");
+    const uddg = url.searchParams.get("uddg");
+    return uddg ? decodeURIComponent(uddg) : url.toString();
+  } catch {
+    return null;
+  }
+}
+
 async function fetchNewsSignals(query: string, siteUrl?: string | null) {
   const queryParts = [query];
   if (siteUrl) {
@@ -397,6 +434,50 @@ async function fetchNewsSignals(query: string, siteUrl?: string | null) {
     }));
   } catch {
     return [] as NewsSignal[];
+  }
+}
+
+async function fetchWebSearchSignals(query: string, siteUrl?: string | null) {
+  const searchTerms = [query];
+  if (siteUrl) {
+    try {
+      searchTerms.push(new URL(siteUrl).hostname.replace(/^www\./, ""));
+    } catch {
+      // Ignore malformed URLs.
+    }
+  }
+
+  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(searchTerms.join(" "))}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "user-agent":
+          "ChecklistLocalAI/1.0 (+https://checklist.messmass.com; source enrichment crawler)",
+        accept: "text/html,application/xhtml+xml",
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return [] as SearchSignal[];
+    }
+
+    const html = await response.text();
+    const matches = Array.from(
+      html.matchAll(
+        /<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:<a[^>]+class="[^"]*result__snippet[^"]*"[^>]*>|<div[^>]+class="[^"]*result__snippet[^"]*"[^>]*>)([\s\S]*?)(?:<\/a>|<\/div>)/gi,
+      ),
+    );
+
+    return matches.slice(0, MAX_SEARCH_ITEMS).map((match) => ({
+      title: collapseWhitespace(decodeHtml(stripTags(match[2] ?? ""))) || "Untitled",
+      snippet: collapseWhitespace(decodeHtml(stripTags(match[3] ?? ""))) || null,
+      link: extractDuckDuckGoLink(match[1] ?? null),
+    }));
+  } catch {
+    return [] as SearchSignal[];
   }
 }
 
@@ -482,6 +563,24 @@ function buildNewsText(newsSignals: NewsSignal[]) {
     .join("\n");
 }
 
+function buildSearchText(searchSignals: SearchSignal[]) {
+  if (searchSignals.length === 0) {
+    return "none";
+  }
+
+  return searchSignals
+    .map((item, index) => {
+      return [
+        `Search ${index + 1}: ${item.title}`,
+        item.snippet ? `Snippet: ${item.snippet}` : null,
+        item.link ? `Link: ${item.link}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+    })
+    .join("\n");
+}
+
 function buildStockText(stockSignal: StockSignal | null) {
   if (!stockSignal) {
     return "none";
@@ -501,6 +600,7 @@ async function callLocalSummarizer(
   kind: "product" | "competitor",
   insights: UrlInsight[],
   newsSignals: NewsSignal[],
+  searchSignals: SearchSignal[],
   stockSignal: StockSignal | null,
 ) {
   const evidence = buildEvidenceText(insights);
@@ -524,7 +624,7 @@ async function callLocalSummarizer(
           { role: "system", content: system },
           {
             role: "user",
-            content: `Build decision-grade business intelligence from this source evidence.\n\nWebsite evidence:\n${evidence}\n\nPublic news signals:\n${buildNewsText(newsSignals)}\n\nStock signal:\n${buildStockText(stockSignal)}`,
+            content: `Build decision-grade business intelligence from this source evidence.\n\nWebsite evidence:\n${evidence}\n\nPublic news signals:\n${buildNewsText(newsSignals)}\n\nPublic web search signals:\n${buildSearchText(searchSignals)}\n\nStock signal:\n${buildStockText(stockSignal)}`,
           },
         ],
       }),
@@ -725,6 +825,51 @@ function filterRelevantNewsSignals(newsSignals: NewsSignal[], entityName: string
 
   return newsSignals.filter((item) => {
     const haystack = `${item.title} ${item.source ?? ""}`.toLowerCase();
+    if (!Array.from(tokens).some((token) => haystack.includes(token))) {
+      return false;
+    }
+
+    if (
+      [
+        "privacy policy",
+        "contact ",
+        "training schedule",
+        "private lessons",
+        "goalkeeper training",
+        "junior academy",
+        "game analysis",
+        "birthday parties",
+      ].some((phrase) => haystack.includes(phrase))
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function filterRelevantSearchSignals(searchSignals: SearchSignal[], entityName: string | null, urls: string[]) {
+  const tokens = new Set<string>();
+  const addTokens = (value: string | null | undefined) => {
+    for (const token of (value ?? "").toLowerCase().split(/[^a-z0-9]+/)) {
+      if (token.length >= 4) {
+        tokens.add(token);
+      }
+    }
+  };
+
+  addTokens(entityName);
+  for (const url of urls) {
+    addTokens(prettifyHandle(getUrlHandle(url)));
+    try {
+      addTokens(new URL(url).hostname.replace(/^www\./, "").split(".")[0]);
+    } catch {
+      // Ignore malformed URLs.
+    }
+  }
+
+  return searchSignals.filter((item) => {
+    const haystack = `${item.title} ${item.snippet ?? ""}`.toLowerCase();
     return Array.from(tokens).some((token) => haystack.includes(token));
   });
 }
@@ -747,6 +892,28 @@ function buildDecisionBody(sections: Array<[string, Array<string | null | undefi
     })
     .filter(Boolean)
     .join("\n\n");
+}
+
+function filterLowValueConclusions(values: Array<string | null | undefined>) {
+  return sentenceize(
+    values.filter((value) => {
+      const normalized = collapseWhitespace(decodeHtml(value ?? "")).toLowerCase();
+      if (!normalized) {
+        return false;
+      }
+
+      if (LOW_VALUE_FLASHCARD_PHRASES.some((phrase) => normalized.includes(phrase))) {
+        return false;
+      }
+
+      if (normalized.split(/\s+/).length < 5) {
+        return false;
+      }
+
+      return !isGenericNavLabel(normalized);
+    }),
+    4,
+  );
 }
 
 function combinedInsightText(insights: UrlInsight[]) {
@@ -982,12 +1149,17 @@ export async function enrichProductSeed(seed: ProductSeed) {
     insights.length > 0
       ? await fetchNewsSignals(sanitizeEntityName(preferredExistingName) ?? deriveNameFromUrl(urls[0] ?? ""), urls[0])
       : [];
+  const searchSignals =
+    insights.length > 0
+      ? await fetchWebSearchSignals(sanitizeEntityName(preferredExistingName) ?? deriveNameFromUrl(urls[0] ?? ""), urls[0])
+      : [];
   const stockSignal = insights.length > 0 ? await fetchStockSignal(inferTicker(insights)) : null;
   const aiSummary =
-    insights.length > 0 ? await callLocalSummarizer("product", insights, newsSignals, stockSignal) : null;
+    insights.length > 0 ? await callLocalSummarizer("product", insights, newsSignals, searchSignals, stockSignal) : null;
   const fallback = insights.length > 0 ? fallbackProductSummary(insights) : null;
   const chosenName = chooseEntityName(seed.name, urls, typeof aiSummary?.name === "string" ? aiSummary.name : null, fallback?.name);
   const relevantNewsSignals = filterRelevantNewsSignals(newsSignals, chosenName, urls);
+  const relevantSearchSignals = filterRelevantSearchSignals(searchSignals, chosenName, urls);
   const filteredFeatures = filterBusinessSignals([
     ...(seed.features ?? []),
     ...((Array.isArray(aiSummary?.features) ? aiSummary.features : []) as string[]),
@@ -1005,11 +1177,11 @@ export async function enrichProductSeed(seed: ProductSeed) {
   ]);
   const passedQualityGate = hasMinimumBusinessEvidence(insights, primarySignals, secondarySignals);
   const decisionBody = buildDecisionBody([
-    ["Conclusions", passedQualityGate ? ((aiSummary?.conclusions as string[]) ?? fallback?.conclusions ?? []) : []],
-    ["Evaluation", passedQualityGate ? ((aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []) : []],
-    ["Judgment", passedQualityGate ? ((aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []) : []],
-    ["Recommendation", passedQualityGate ? ((aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []) : []],
-    ["Industry news", passedQualityGate ? ((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title)) : []],
+    ["Conclusions", passedQualityGate ? filterLowValueConclusions((aiSummary?.conclusions as string[]) ?? fallback?.conclusions ?? []) : []],
+    ["Evaluation", passedQualityGate ? filterLowValueConclusions((aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []) : []],
+    ["Judgment", passedQualityGate ? filterLowValueConclusions((aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []) : []],
+    ["Recommendation", passedQualityGate ? filterLowValueConclusions((aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []) : []],
+    ["Industry news", passedQualityGate ? filterLowValueConclusions((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title)) : []],
     ["R&D / roadmap", passedQualityGate ? ((aiSummary?.researchPlans as string[]) ?? fallback?.researchPlans ?? []) : []],
     ["Forecast", passedQualityGate ? ((aiSummary?.forecasts as string[]) ?? fallback?.forecasts ?? []) : []],
     [
@@ -1041,6 +1213,23 @@ export async function enrichProductSeed(seed: ProductSeed) {
       fallback?.pricing,
     ),
     features: passedQualityGate ? filteredFeatures : [],
+    watchedContent:
+      insights.length > 0
+        ? {
+            fetchedAt: new Date().toISOString(),
+            pages: insights,
+            newsSignals: relevantNewsSignals,
+            searchSignals: relevantSearchSignals,
+            stockSignal,
+            analysis: aiSummary,
+            qualityGate: {
+              passed: passedQualityGate,
+              reason: passedQualityGate
+                ? "sufficient-business-evidence"
+                : "generic-platform-or-navigation-content",
+            },
+          }
+        : (seed.watchedContent ?? null),
   };
 }
 
@@ -1073,12 +1262,17 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
     insights.length > 0
       ? await fetchNewsSignals(sanitizeEntityName(preferredExistingName) ?? deriveNameFromUrl(urls[0] ?? ""), urls[0])
       : [];
+  const searchSignals =
+    insights.length > 0
+      ? await fetchWebSearchSignals(sanitizeEntityName(preferredExistingName) ?? deriveNameFromUrl(urls[0] ?? ""), urls[0])
+      : [];
   const stockSignal = insights.length > 0 ? await fetchStockSignal(inferTicker(insights)) : null;
   const aiSummary =
-    insights.length > 0 ? await callLocalSummarizer("competitor", insights, newsSignals, stockSignal) : null;
+    insights.length > 0 ? await callLocalSummarizer("competitor", insights, newsSignals, searchSignals, stockSignal) : null;
   const fallback = insights.length > 0 ? fallbackCompetitorSummary(insights) : null;
   const chosenName = chooseEntityName(seed.name, urls, typeof aiSummary?.name === "string" ? aiSummary.name : null, fallback?.name);
   const relevantNewsSignals = filterRelevantNewsSignals(newsSignals, chosenName, urls);
+  const relevantSearchSignals = filterRelevantSearchSignals(searchSignals, chosenName, urls);
   const filteredStrengths = filterBusinessSignals([
     ...(seed.strengths ?? []),
     ...((Array.isArray(aiSummary?.strengths) ? aiSummary.strengths : []) as string[]),
@@ -1101,11 +1295,11 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
   ]);
   const passedQualityGate = hasMinimumBusinessEvidence(insights, primarySignals, secondarySignals);
   const decisionBody = buildDecisionBody([
-    ["Conclusions", passedQualityGate ? ((aiSummary?.conclusions as string[]) ?? fallback?.conclusions ?? []) : []],
-    ["Evaluation", passedQualityGate ? ((aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []) : []],
-    ["Judgment", passedQualityGate ? ((aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []) : []],
-    ["Recommendation", passedQualityGate ? ((aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []) : []],
-    ["Industry news", passedQualityGate ? ((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title)) : []],
+    ["Conclusions", passedQualityGate ? filterLowValueConclusions((aiSummary?.conclusions as string[]) ?? fallback?.conclusions ?? []) : []],
+    ["Evaluation", passedQualityGate ? filterLowValueConclusions((aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []) : []],
+    ["Judgment", passedQualityGate ? filterLowValueConclusions((aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []) : []],
+    ["Recommendation", passedQualityGate ? filterLowValueConclusions((aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []) : []],
+    ["Industry news", passedQualityGate ? filterLowValueConclusions((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title)) : []],
     ["R&D / roadmap", passedQualityGate ? ((aiSummary?.researchPlans as string[]) ?? fallback?.researchPlans ?? []) : []],
     ["Forecast", passedQualityGate ? ((aiSummary?.forecasts as string[]) ?? fallback?.forecasts ?? []) : []],
     [
@@ -1142,6 +1336,7 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
             fetchedAt: new Date().toISOString(),
             pages: insights,
             newsSignals: relevantNewsSignals,
+            searchSignals: relevantSearchSignals,
             stockSignal,
             analysis: aiSummary,
             qualityGate: {

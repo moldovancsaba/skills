@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FlashcardKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 const OLLAMA_URL = "http://127.0.0.1:11434";
 const MODEL = "deepseek-r1:1.5b";
 
-const SYSTEM_PROMPT = `You are a marketing strategist. Generate 2-4 NBA recommendations as JSON array with: title, description, impact (1-10), confidence (1-100), ease (1-10). Output ONLY JSON array.`;
+const SYSTEM_PROMPT = `You are a marketing strategist.
+Generate 2-4 NBA recommendations as a JSON array.
+Each object must contain: title, description, impact (1-10), confidence (1-100), ease (1-10), sourceFlashcardPublicIds (number[]).
+Only reference flashcards that actually support the recommendation.
+Prefer recommendations backed by accepted or modified flashcards.
+Avoid recommendations based mainly on gossip cards unless no stronger evidence exists.
+Output ONLY JSON array.`;
 
 function summarizeFlashcards(
   flashcards: Array<{
     publicId: number | null;
+    kind: FlashcardKind;
     title: string;
     body: string;
     confidence: number;
@@ -37,7 +45,7 @@ function summarizeFlashcards(
         .join(", ");
 
       return [
-        `#${flashcard.publicId ?? "pending"} ${flashcard.title}`,
+        `#${flashcard.publicId ?? "pending"} [${flashcard.kind}] ${flashcard.title}`,
         `[review=${flashcard.reviewStatus} confidence=${flashcard.confidence} impact=${flashcard.impact} weight=${flashcard.weight}]`,
         flashcard.body,
         flashcard.userAnnotation ? `user note: ${flashcard.userAnnotation}` : null,
@@ -59,6 +67,7 @@ function summarizeFlashcardActions(
     flashcard: {
       publicId: number | null;
       title: string;
+      kind: FlashcardKind;
     };
   }>,
 ) {
@@ -70,7 +79,7 @@ function summarizeFlashcardActions(
     .map((action) => {
       return [
         `${action.createdAt.toISOString()} flashcard #${action.flashcard.publicId ?? "pending"}`,
-        `${action.action} on "${action.flashcard.title}"`,
+        `[${action.flashcard.kind}] ${action.action} on "${action.flashcard.title}"`,
         action.annotation ? `comment: ${action.annotation}` : null,
         action.modifiedTitle ? `new title: ${action.modifiedTitle}` : null,
         action.modifiedBody ? `new body: ${action.modifiedBody}` : null,
@@ -97,7 +106,7 @@ async function callLocalAI(prompt: string): Promise<any[]> {
 
   const data = await res.json();
   const content = data.message?.content || "";
-  
+
   try {
     return JSON.parse(content);
   } catch {
@@ -110,7 +119,7 @@ async function callLocalAI(prompt: string): Promise<any[]> {
 export async function POST(request: NextRequest) {
   try {
     const { companyId } = await request.json();
-    
+
     if (!companyId) {
       return NextResponse.json({ error: "companyId required" }, { status: 400 });
     }
@@ -123,6 +132,7 @@ export async function POST(request: NextRequest) {
       flashcardActions,
       existingNBA,
       feedback,
+      company,
     ] = await Promise.all([
       prisma.product.findMany({ where: { companyId } }),
       prisma.customer.findMany({ where: { companyId } }),
@@ -134,8 +144,13 @@ export async function POST(request: NextRequest) {
             orderBy: [{ sourcePublicId: "asc" }, { createdAt: "asc" }],
           },
         },
-        orderBy: [{ weight: "desc" }, { publicId: "asc" }],
-        take: 15,
+        orderBy: [
+          { reviewStatus: "asc" },
+          { weight: "desc" },
+          { confidence: "desc" },
+          { publicId: "asc" },
+        ],
+        take: 24,
       }),
       prisma.flashcardAction.findMany({
         where: { flashcard: { companyId } },
@@ -144,11 +159,12 @@ export async function POST(request: NextRequest) {
             select: {
               publicId: true,
               title: true,
+              kind: true,
             },
           },
         },
         orderBy: { createdAt: "desc" },
-        take: 20,
+        take: 30,
       }),
       prisma.nBAItem.findMany({ where: { companyId, status: "PENDING" } }),
       prisma.feedback.findMany({
@@ -156,39 +172,59 @@ export async function POST(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: 20,
       }),
+      prisma.company.findUnique({ where: { id: companyId } }),
     ]);
 
-    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    const flashcardByPublicId = new Map(
+      activeFlashcards
+        .filter((flashcard) => flashcard.publicId !== null)
+        .map((flashcard) => [flashcard.publicId as number, flashcard]),
+    );
 
-    const context = `# Company: ${company?.name} (${company?.industry || 'N/A'})
-## Products: ${products.map(p => p.name).join(', ') || 'none'}
-## Customers: ${customers.map(c => c.name).join(', ') || 'none'}  
-## Competitors: ${competitors.map(c => c.name).join(', ') || 'none'}
+    const context = `# Company: ${company?.name} (${company?.industry || "N/A"})
+## Products: ${products.map((p) => p.name).join(", ") || "none"}
+## Customers: ${customers.map((c) => c.name).join(", ") || "none"}
+## Competitors: ${competitors.map((c) => c.name).join(", ") || "none"}
 ## Flashcards:
 ${summarizeFlashcards(activeFlashcards)}
 ## Flashcard Actions:
 ${summarizeFlashcardActions(flashcardActions)}
-## Feedback: ${feedback.map(f => `${f.action}: ${f.annotation || ''}`).join('; ') || 'none'}
+## Task Feedback: ${feedback.map((f) => `${f.action}: ${f.annotation || ""}`).join("; ") || "none"}
 
-Generate 2-4 marketing NBA recommendations as JSON array:`;
+Generate 2-4 marketing NBA recommendations as JSON array.`;
 
     const recommendations = await callLocalAI(context);
 
     const created = [];
     for (const rec of recommendations || []) {
       if (!rec.title) continue;
-      if (existingNBA.some(n => n.title === rec.title)) continue;
+      if (existingNBA.some((n) => n.title === rec.title)) continue;
 
-      const iceScore = (rec.impact * (rec.confidence / 100) * rec.ease * 10);
+      const referencedPublicIds = Array.isArray(rec.sourceFlashcardPublicIds)
+        ? rec.sourceFlashcardPublicIds.filter((value: unknown) => typeof value === "number")
+        : [];
+      const sourceFlashcardIds = referencedPublicIds
+        .map((publicId: number) => flashcardByPublicId.get(publicId)?.id)
+        .filter((value: string | undefined): value is string => Boolean(value));
+
+      const fallbackFlashcardIds = sourceFlashcardIds.length > 0
+        ? sourceFlashcardIds
+        : activeFlashcards.slice(0, 3).map((flashcard) => flashcard.id);
+
+      const impact = Math.max(1, Math.min(10, Number(rec.impact) || 5));
+      const confidence = Math.max(1, Math.min(100, Number(rec.confidence) || 50));
+      const ease = Math.max(1, Math.min(10, Number(rec.ease) || 5));
+      const iceScore = impact * (confidence / 100) * ease * 10;
 
       const item = await prisma.nBAItem.create({
         data: {
           companyId,
           title: rec.title,
           description: rec.description || "",
-          impact: rec.impact || 5,
-          confidence: rec.confidence || 50,
-          ease: rec.ease || 5,
+          sourceFlashcardIds: fallbackFlashcardIds,
+          impact,
+          confidence,
+          ease,
           iceScore,
           status: "PENDING",
           createdBy: "local-ai",

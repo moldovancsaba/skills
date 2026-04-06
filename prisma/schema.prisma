@@ -104,15 +104,20 @@ model Flashcard {
   id              String                @id @default(uuid())
   publicId        Int?                  @unique
   companyId       String
+  kind            FlashcardKind         @default(SUMMARY)
+  fingerprint     String?
   title           String
   body            String
   generatedTitle  String?
   generatedBody   String?
   manualTitle     String?
   manualBody      String?
+  evidence        Json?
   confidence      Int                   @default(50)
   impact          Int                   @default(5)
   weight          Int                   @default(5)
+  feedbackWeightDelta Int               @default(0)
+  feedbackConfidenceDelta Int           @default(0)
   status          FlashcardStatus       @default(ACTIVE)
   reviewStatus    FlashcardReviewStatus @default(PENDING)
   userAnnotation  String?
@@ -125,6 +130,8 @@ model Flashcard {
   company Company           @relation(fields: [companyId], references: [id])
   sources FlashcardSource[]
   actions FlashcardAction[]
+
+  @@unique([companyId, fingerprint])
 }
 
 model FlashcardSource {
@@ -140,7 +147,24 @@ model FlashcardSource {
   flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
 
   @@unique([flashcardId, sourceType, sourceId])
-  @@unique([sourceType, sourceId])
+  @@index([sourceType, sourceId])
+}
+
+enum FlashcardKind {
+  SUMMARY
+  EXPLANATION
+  COMPARISON
+  NEWS
+  CONCLUSION
+  EVALUATION
+  OPINION
+  JUDGMENT
+  RECOMMENDATION
+  RESEARCH
+  FORECAST
+  STOCK
+  GOSSIP
+  PRICE
 }
 
 enum FlashcardStatus {
@@ -197,6 +221,7 @@ model NBAItem {
   companyId      String
   title          String
   description    String?
+  sourceFlashcardIds String[] @default([])
   impact         Int         @default(5)
   confidence     Int         @default(50)
   ease           Int         @default(5)

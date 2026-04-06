@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { applyTaskFeedbackToFlashcards } from "@/lib/flashcards";
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,6 +53,12 @@ export async function POST(request: NextRequest) {
             userAnnotation: data.annotation,
           },
         });
+
+        await applyTaskFeedbackToFlashcards(
+          data.nbaItemId,
+          data.action,
+          data.annotation,
+        );
       }
     }
     

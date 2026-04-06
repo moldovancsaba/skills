@@ -916,21 +916,6 @@ function filterLowValueConclusions(values: Array<string | null | undefined>) {
   );
 }
 
-function combinedInsightText(insights: UrlInsight[]) {
-  return collapseWhitespace(
-    insights
-      .flatMap((insight) => [
-        insight.title,
-        insight.description,
-        insight.textSnippet,
-        ...insight.headings,
-        ...insight.bullets,
-      ])
-      .filter(Boolean)
-      .join(" "),
-  ).toLowerCase();
-}
-
 function containsAny(haystack: string, needles: string[]) {
   return needles.some((needle) => haystack.includes(needle));
 }
@@ -972,7 +957,6 @@ function inferPricing(insights: UrlInsight[]) {
 }
 
 function fallbackProductSummary(insights: UrlInsight[]) {
-  const insightText = combinedInsightText(insights);
   const summary = firstNonEmpty(
     insights[0]?.description,
     insights[0]?.textSnippet,
@@ -982,36 +966,16 @@ function fallbackProductSummary(insights: UrlInsight[]) {
     insights.flatMap((insight) => [...insight.headings, ...insight.bullets]),
   );
   const pricing = inferPricing(insights);
-  const judgments: string[] = [];
-  const recommendations: string[] = [];
-  const forecasts: string[] = [];
-
-  if (containsAny(insightText, ["privacy", "regulated", "compliance", "local-first", "local first"])) {
-    judgments.push("The offer is positioned around privacy-sensitive and regulated-data use cases.");
-    forecasts.push("Near-term traction is most likely in teams that cannot move sensitive data into generic hosted AI tools.");
-  }
-
-  if (containsAny(insightText, ["enterprise", "teams", "platform"])) {
-    judgments.push("The messaging suggests a B2B platform sale rather than a consumer motion.");
-  }
-
-  if (pricing && /free|trial/i.test(pricing)) {
-    recommendations.push("Track whether the free entry point converts into a paid or services-backed revenue path.");
-  }
-
-  if (features.length > 0) {
-    recommendations.push("Pressure-test whether the headline capabilities are differentiated enough against standard AI copilots.");
-  }
 
   return {
     name: cleanCandidateText(insights[0]?.title) ?? deriveNameFromUrl(insights[0]?.finalUrl ?? ""),
     conclusions: summary ? [summary] : [],
     evaluations: filterBusinessSignals(insights[0]?.headings ?? [], 2),
-    judgments,
-    recommendations,
+    judgments: [],
+    recommendations: [],
     industryNews: [],
     researchPlans: [],
-    forecasts,
+    forecasts: [],
     stockSignal: [],
     marketChatter: [],
     pricing,
@@ -1029,41 +993,16 @@ function fallbackCompetitorSummary(insights: UrlInsight[]) {
     insights.flatMap((insight) => [...insight.headings, ...insight.bullets]),
     6,
   );
-  const judgments: string[] = [];
-  const recommendations: string[] = [];
-  const forecasts: string[] = [];
-  const primarySignal = signals[0] ?? null;
-  const secondarySignal = signals[1] ?? null;
-
-  if (primarySignal && secondarySignal) {
-    judgments.push(
-      `The competitor appears to lead with ${primarySignal} and reinforces it with ${secondarySignal}.`,
-    );
-  } else if (primarySignal) {
-    judgments.push(`The competitor's clearest visible positioning signal is ${primarySignal}.`);
-  }
-
-  if (primarySignal) {
-    recommendations.push(
-      `Benchmark our offer against the competitor's visible promise around ${primarySignal}.`,
-    );
-  }
-
-  if (positioning && primarySignal) {
-    forecasts.push(
-      `If this positioning keeps landing, expect the competitor to keep investing around ${primarySignal}.`,
-    );
-  }
 
   return {
     name: cleanCandidateText(insights[0]?.title) ?? deriveNameFromUrl(insights[0]?.finalUrl ?? ""),
     conclusions: positioning ? [positioning] : [],
     evaluations: signals.slice(0, 2),
-    judgments,
-    recommendations,
+    judgments: [],
+    recommendations: [],
     industryNews: [],
     researchPlans: [],
-    forecasts,
+    forecasts: [],
     stockSignal: [],
     marketChatter: [],
     pricing: inferPricing(insights),

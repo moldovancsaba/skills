@@ -259,6 +259,8 @@ function isLowValueNewsLine(sourceName: string, value: string | null | undefined
     isWeakEvidenceLine(normalized) ||
     normalized.startsWith("home ") ||
     normalized.includes("privacy policy") ||
+    normalized.includes(" - ") ||
+    normalized.includes(" | ") ||
     normalized.includes(" - " + normalizedSource) ||
     normalized.includes(" | " + normalizedSource) ||
     normalized === normalizedSource ||

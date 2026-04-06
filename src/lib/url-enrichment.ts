@@ -619,6 +619,9 @@ function chooseEntityName(
   aiName: string | null | undefined,
   fallbackName: string | null | undefined,
 ) {
+  const isSuspiciousName = (value: string | null | undefined) =>
+    !!value &&
+    (/^ww\d+$/i.test(value) || value.length <= 3 || /^[a-z0-9]+$/i.test(value));
   const cleanedCurrent = cleanCandidateText(currentName);
   const cleanedAi = cleanCandidateText(aiName);
   const cleanedFallback = cleanCandidateText(fallbackName);
@@ -626,11 +629,7 @@ function chooseEntityName(
   const handleName = prettifyHandle(primaryUrl ? getUrlHandle(primaryUrl) : null);
   const hostRule = primaryUrl ? getHostRule(primaryUrl) : null;
   const hostDerivedName = sanitizeEntityName(deriveNameFromUrl(primaryUrl ?? cleanedCurrent ?? ""));
-  const currentLooksSuspicious =
-    !!cleanedCurrent &&
-    (/^ww\d+$/i.test(cleanedCurrent) ||
-      cleanedCurrent.length <= 3 ||
-      /^[a-z0-9]+$/i.test(cleanedCurrent));
+  const currentLooksSuspicious = isSuspiciousName(cleanedCurrent);
 
   const currentLooksGenericPlatform =
     !!hostRule &&
@@ -650,11 +649,19 @@ function chooseEntityName(
     return handleName;
   }
 
-  if (cleanedAi && (!hostRule || !cleanedAi.toLowerCase().includes(hostRule.platformName.toLowerCase()))) {
+  if (
+    cleanedAi &&
+    !isSuspiciousName(cleanedAi) &&
+    (!hostRule || !cleanedAi.toLowerCase().includes(hostRule.platformName.toLowerCase()))
+  ) {
     return cleanedAi;
   }
 
-  if (cleanedFallback && (!hostRule || !cleanedFallback.toLowerCase().includes(hostRule.platformName.toLowerCase()))) {
+  if (
+    cleanedFallback &&
+    !isSuspiciousName(cleanedFallback) &&
+    (!hostRule || !cleanedFallback.toLowerCase().includes(hostRule.platformName.toLowerCase()))
+  ) {
     return cleanedFallback;
   }
 

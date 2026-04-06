@@ -11,8 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   LinkCard,
-  MetricCard,
-  MetricGrid,
   PageHeader,
   PageShell,
 } from "@/components/ui/app-shell";
@@ -28,6 +26,10 @@ type NBAItem = {
   status: string;
 };
 
+type Flashcard = {
+  id: string;
+};
+
 export default function CompanyDashboard() {
   const router = useRouter();
   const params = useParams();
@@ -36,6 +38,8 @@ export default function CompanyDashboard() {
   const { company, setCompany, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [loading, setLoading] = useState(true);
   const [topTasks, setTopTasks] = useState<NBAItem[]>([]);
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
+  const [flashcardCount, setFlashcardCount] = useState(0);
 
   useEffect(() => {
     if (!companyId) return;
@@ -51,22 +55,25 @@ export default function CompanyDashboard() {
 
         setCompany(found);
 
-        const [p, c, r, nba] = await Promise.all([
+        const [p, c, r, nba, knowmore] = await Promise.all([
           fetch(`/api/products?companyId=${found.id}`).then((res) => res.json()),
           fetch(`/api/customers?companyId=${found.id}`).then((res) => res.json()),
           fetch(`/api/competitors?companyId=${found.id}`).then((res) => res.json()),
           fetch(`/api/nba?companyId=${found.id}`).then((res) => res.json()),
+          fetch(`/api/knowmore?companyId=${found.id}`).then((res) => res.json()),
         ]);
 
         setProducts(p);
         setCustomers(c);
         setCompetitors(r);
+        const pendingTasks = nba.filter((item: NBAItem) => item.status === "PENDING");
+        setPendingTaskCount(pendingTasks.length);
         setTopTasks(
-          nba
-            .filter((item: NBAItem) => item.status === "PENDING")
+          pendingTasks
             .sort((left: NBAItem, right: NBAItem) => right.iceScore - left.iceScore)
             .slice(0, 3),
         );
+        setFlashcardCount((knowmore as Flashcard[]).length);
         setLoading(false);
       } catch (error) {
         console.error(error);
@@ -75,12 +82,6 @@ export default function CompanyDashboard() {
 
     fetchCompany(companyId);
   }, [companyId, router, setCompany, setProducts, setCustomers, setCompetitors]);
-
-  const stats = [
-    { label: "Products", value: products.length, icon: Package, color: "text-blue-500" },
-    { label: "Customers", value: customers.length, icon: Users, color: "text-green-500" },
-    { label: "Competitors", value: competitors.length, icon: Search, color: "text-purple-500" },
-  ];
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
@@ -97,43 +98,31 @@ export default function CompanyDashboard() {
         />
       </motion.div>
 
-      <MetricGrid>
-        {stats.map((stat, i) => (
-          <motion.div 
-            key={stat.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-          >
-            <MetricCard
-              icon={stat.icon}
-              iconClassName={stat.color}
-              label={stat.label}
-              value={stat.value}
-            />
-          </motion.div>
-        ))}
-      </MetricGrid>
-
       <div className="grid gap-4 md:grid-cols-3">
-        <LinkCard
-          href={`/${companyId}/data`}
-          icon={Plus}
-          title="Data Collection"
-          description="Add raw products, customers, and competitors without processing the source itself."
-        />
-        <LinkCard
-          href={`/${companyId}/nba`}
-          icon={Brain}
-          title="Recommendations"
-          description="Review tasks generated from the current flashcard layer."
-        />
-        <LinkCard
-          href={`/${companyId}/knowmore`}
-          icon={Sparkles}
-          title="Knowmore"
-          description="Inspect the processed knowledge layer behind the AI outputs."
-        />
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+          <LinkCard
+            href={`/${companyId}/data`}
+            icon={Plus}
+            title={`Data Collection (${products.length + customers.length + competitors.length})`}
+            description="Add products, customers, competitors"
+          />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <LinkCard
+            href={`/${companyId}/nba`}
+            icon={Brain}
+            title={`Recommendations (${pendingTaskCount})`}
+            description="View NBA suggestions"
+          />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <LinkCard
+            href={`/${companyId}/knowmore`}
+            icon={Sparkles}
+            title={`Knowmore (${flashcardCount})`}
+            description="Track the knowledge layer behind your AI"
+          />
+        </motion.div>
       </div>
 
       <Card>

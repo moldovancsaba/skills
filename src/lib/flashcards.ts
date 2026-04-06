@@ -1195,7 +1195,9 @@ export async function syncBootstrapFlashcards(companyId: string) {
 
       await reconcilePendingTasksForFlashcards(tx, [
         ...flashcards.map((flashcard) => flashcard.id),
-        ...flashcardsToCreate.map((flashcard) => flashcard.id),
+        ...flashcardsToCreate
+          .map((flashcard) => flashcard.id)
+          .filter((flashcardId): flashcardId is string => Boolean(flashcardId)),
       ]);
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,

@@ -9,6 +9,7 @@ import {
   enrichProductSeed,
   normalizeQuickAddInput,
 } from "@/lib/url-enrichment";
+import { syncCompanyKnowledge } from "@/lib/flashcards";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -56,6 +57,8 @@ export async function POST(request: NextRequest) {
         },
       });
     }, TRANSACTION_SETTINGS);
+
+    await syncCompanyKnowledge(product.companyId);
     
     return NextResponse.json(product);
   } catch (error) {
@@ -68,7 +71,14 @@ export async function DELETE(request: NextRequest) {
   
   try {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const existing = await prisma.product.findUnique({
+      where: { id },
+      select: { companyId: true },
+    });
     await prisma.product.delete({ where: { id } });
+    if (existing?.companyId) {
+      await syncCompanyKnowledge(existing.companyId);
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -103,6 +113,7 @@ export async function PATCH(request: NextRequest) {
         urls: enriched.urls,
       },
     });
+    await syncCompanyKnowledge(product.companyId);
     return NextResponse.json(product);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

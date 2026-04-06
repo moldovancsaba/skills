@@ -328,6 +328,11 @@ async function refreshCompanySourceEnrichment(companyId: string) {
   );
 }
 
+export async function syncCompanyKnowledge(companyId: string) {
+  await refreshCompanySourceEnrichment(companyId);
+  await syncBootstrapFlashcards(companyId);
+}
+
 function buildFlashcardDraft(source: SourceRecord) {
   switch (source.type) {
     case "PRODUCT":
@@ -698,9 +703,6 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
 }
 
 export async function listCompanyFlashcards(companyId: string) {
-  await refreshCompanySourceEnrichment(companyId);
-  await syncBootstrapFlashcards(companyId);
-
   return prisma.flashcard.findMany({
     where: {
       companyId,

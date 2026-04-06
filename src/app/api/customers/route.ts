@@ -5,6 +5,7 @@ import {
   nextSourcePublicId,
   TRANSACTION_SETTINGS,
 } from "@/lib/source-public-ids";
+import { syncCompanyKnowledge } from "@/lib/flashcards";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
         },
       });
     }, TRANSACTION_SETTINGS);
+
+    await syncCompanyKnowledge(customer.companyId);
     
     return NextResponse.json(customer);
   } catch (error) {
@@ -68,6 +71,7 @@ export async function PATCH(request: NextRequest) {
         notes: data.notes,
       },
     });
+    await syncCompanyKnowledge(customer.companyId);
     return NextResponse.json(customer);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -79,7 +83,14 @@ export async function DELETE(request: NextRequest) {
   
   try {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const existing = await prisma.customer.findUnique({
+      where: { id },
+      select: { companyId: true },
+    });
     await prisma.customer.delete({ where: { id } });
+    if (existing?.companyId) {
+      await syncCompanyKnowledge(existing.companyId);
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

@@ -10,6 +10,7 @@ import {
   enrichCompetitorSeed,
   normalizeQuickAddInput,
 } from "@/lib/url-enrichment";
+import { syncCompanyKnowledge } from "@/lib/flashcards";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -64,6 +65,8 @@ export async function POST(request: NextRequest) {
         },
       });
     }, TRANSACTION_SETTINGS);
+
+    await syncCompanyKnowledge(competitor.companyId);
     
     return NextResponse.json(competitor);
   } catch (error) {
@@ -106,6 +109,7 @@ export async function PATCH(request: NextRequest) {
             : (enriched.watchedContent as Prisma.InputJsonValue),
       },
     });
+    await syncCompanyKnowledge(competitor.companyId);
     return NextResponse.json(competitor);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -117,7 +121,14 @@ export async function DELETE(request: NextRequest) {
   
   try {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const existing = await prisma.competitor.findUnique({
+      where: { id },
+      select: { companyId: true },
+    });
     await prisma.competitor.delete({ where: { id } });
+    if (existing?.companyId) {
+      await syncCompanyKnowledge(existing.companyId);
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

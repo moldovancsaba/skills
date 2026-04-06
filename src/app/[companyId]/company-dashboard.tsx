@@ -5,6 +5,14 @@ import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { Brain, Package, Plus, Users, Search, Sparkles, Zap } from "lucide-react";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import {
+  LinkCard,
+  MetricCard,
+  MetricGrid,
+  PageHeader,
+  PageShell,
+} from "@/components/ui/app-shell";
 
 export default function CompanyDashboard() {
   const router = useRouter();
@@ -57,59 +65,65 @@ export default function CompanyDashboard() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-8">
+    <PageShell width="7xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-end justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{company?.name}</h1>
-            <a href="/" className="text-sm text-primary hover:underline">Switch company</a>
-          </div>
-        </div>
+        <PageHeader
+          title={company?.name ?? "Company"}
+          description="Use raw data, knowledge flashcards, and tasks as separate system layers."
+          backHref="/"
+          backLabel="Switch company"
+        />
       </motion.div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <MetricGrid>
         {stats.map((stat, i) => (
           <motion.div 
             key={stat.label}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="p-4 bg-card border border-border rounded-lg"
           >
-            <stat.icon className={`w-5 h-5 mb-2 ${stat.color}`} />
-            <p className="text-2xl font-bold">{stat.value}</p>
-            <p className="text-xs text-muted-foreground">{stat.label}</p>
+            <MetricCard
+              icon={stat.icon}
+              iconClassName={stat.color}
+              label={stat.label}
+              value={stat.value}
+            />
           </motion.div>
         ))}
-      </div>
+      </MetricGrid>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <a href={`/${companyId}/data`} className="p-6 border border-border rounded-lg hover:bg-muted transition-colors group">
-          <Plus className="w-6 h-6 mb-2 text-muted-foreground group-hover:text-foreground" />
-          <p className="font-medium">Data Collection</p>
-          <p className="text-sm text-muted-foreground">Add products, customers, competitors</p>
-        </a>
-        <a href={`/${companyId}/nba`} className="p-6 border border-border rounded-lg hover:bg-muted transition-colors group">
-          <Brain className="w-6 h-6 mb-2 text-muted-foreground group-hover:text-foreground" />
-          <p className="font-medium">Recommendations</p>
-          <p className="text-sm text-muted-foreground">View NBA suggestions</p>
-        </a>
-        <a href={`/${companyId}/knowmore`} className="p-6 border border-border rounded-lg hover:bg-muted transition-colors group">
-          <Sparkles className="w-6 h-6 mb-2 text-muted-foreground group-hover:text-foreground" />
-          <p className="font-medium">Knowmore</p>
-          <p className="text-sm text-muted-foreground">Track the knowledge layer behind your AI</p>
-        </a>
+        <LinkCard
+          href={`/${companyId}/data`}
+          icon={Plus}
+          title="Data Collection"
+          description="Add raw products, customers, and competitors without processing the source itself."
+        />
+        <LinkCard
+          href={`/${companyId}/nba`}
+          icon={Brain}
+          title="Recommendations"
+          description="Review tasks generated from the current flashcard layer."
+        />
+        <LinkCard
+          href={`/${companyId}/knowmore`}
+          icon={Sparkles}
+          title="Knowmore"
+          description="Inspect the processed knowledge layer behind the AI outputs."
+        />
       </div>
 
       <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8">
-        <button
+        <Button
           onClick={() => router.push(`/${companyId}/data`)}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
+          size="lg"
+          className="rounded-full shadow-lg"
         >
           <Zap className="w-5 h-5" />
           <span className="font-medium">Quick Add</span>
-        </button>
+        </Button>
       </div>
-    </div>
+    </PageShell>
   );
 }

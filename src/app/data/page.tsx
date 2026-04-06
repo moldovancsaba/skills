@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Package, Users, Search, Plus, X, CheckCircle } from "lucide-react";
+import { Package, Users, Search, Plus, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormInput, FormSelect } from "@/components/ui/form-fields";
+import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 
 type DataType = "product" | "customer" | "competitor";
 
@@ -134,13 +135,14 @@ export default function DataCollectionPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <PageShell width="md">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold text-foreground">Add Data</h1>
-        <p className="text-sm text-muted-foreground mt-1">Quickly add products, customers, or competitors.</p>
+        <PageHeader
+          title="Add Data"
+          description="Quickly add raw products, customers, or competitors."
+        />
       </motion.div>
 
-      {/* Simple Input Form */}
       <form onSubmit={handleSubmit} className="flex gap-2">
         <FormSelect
           value={type}
@@ -168,32 +170,19 @@ export default function DataCollectionPage() {
       </form>
 
       {saved && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-green-600">
-          <CheckCircle className="w-4 h-4" />
-          <span className="text-sm">Saved!</span>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <Notice icon={CheckCircle} title="Saved">
+            The raw source was stored. Processing happens later in the local pipeline.
+          </Notice>
         </motion.div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-lg p-4 text-center">
-          <Package className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-          <p className="text-2xl font-bold text-foreground">{products.length}</p>
-          <p className="text-xs text-muted-foreground">Products</p>
-        </div>
-        <div className="bg-card border border-border rounded-lg p-4 text-center">
-          <Users className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-          <p className="text-2xl font-bold text-foreground">{customers.length}</p>
-          <p className="text-xs text-muted-foreground">Customers</p>
-        </div>
-        <div className="bg-card border border-border rounded-lg p-4 text-center">
-          <Search className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-          <p className="text-2xl font-bold text-foreground">{competitors.length}</p>
-          <p className="text-xs text-muted-foreground">Competitors</p>
-        </div>
-      </div>
+      <MetricGrid>
+        <MetricCard icon={Package} label="Products" value={products.length} />
+        <MetricCard icon={Users} label="Customers" value={customers.length} />
+        <MetricCard icon={Search} label="Competitors" value={competitors.length} />
+      </MetricGrid>
 
-      {/* List */}
       <div>
         <h2 className="text-lg font-semibold text-foreground mb-3">All Data ({items.length})</h2>
         {items.length === 0 ? (
@@ -221,6 +210,6 @@ export default function DataCollectionPage() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

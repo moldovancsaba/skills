@@ -6,7 +6,9 @@ import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Package, Users, Search, Plus, CheckCircle, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { FormInput, FormSelect, FormTextarea } from "@/components/ui/form-fields";
+import { Button } from "@/components/ui/button";
+import { FormInput, FormSelect } from "@/components/ui/form-fields";
+import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 
 type DataType = "product" | "customer" | "competitor";
 
@@ -170,7 +172,7 @@ export default function CompanyDataPage() {
       body: JSON.stringify({ name: editName }),
     });
 
-cancelEdit();
+    cancelEdit();
     if (company) loadAllData(company.id);
   };
 
@@ -194,13 +196,14 @@ cancelEdit();
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <PageShell width="md">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-2">
-          <a href={`/${companyId}`} className="text-sm text-primary hover:underline">← Back</a>
-        </div>
-        <h1 className="text-2xl font-bold text-foreground mt-2">Add Data</h1>
-        <p className="text-sm text-muted-foreground mt-1">Quickly add products, customers, or competitors.</p>
+        <PageHeader
+          backHref={`/${companyId}`}
+          backLabel="Back"
+          title="Add Data"
+          description="Quickly add products, customers, or competitors."
+        />
       </motion.div>
 
       <form onSubmit={handleSubmit} className="flex gap-2">
@@ -223,40 +226,28 @@ cancelEdit();
           className="flex-1"
         />
         
-        <button
+        <Button
           type="submit"
           disabled={!input.trim() || !company}
-          className="flex items-center gap-2 h-12 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           <Plus className="w-4 h-4" />
           Add
-        </button>
+        </Button>
       </form>
 
       {saved && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-green-600">
-          <CheckCircle className="w-4 h-4" />
-          <span className="text-sm">Saved!</span>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <Notice icon={CheckCircle} title="Saved">
+            The raw source was stored. Any enrichment happens separately in the local pipeline.
+          </Notice>
         </motion.div>
       )}
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-lg p-4 text-center">
-          <Package className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-          <p className="text-2xl font-bold text-foreground">{products.length}</p>
-          <p className="text-xs text-muted-foreground">Products</p>
-        </div>
-        <div className="bg-card border border-border rounded-lg p-4 text-center">
-          <Users className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-          <p className="text-2xl font-bold text-foreground">{customers.length}</p>
-          <p className="text-xs text-muted-foreground">Customers</p>
-        </div>
-        <div className="bg-card border border-border rounded-lg p-4 text-center">
-          <Search className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-          <p className="text-2xl font-bold text-foreground">{competitors.length}</p>
-          <p className="text-xs text-muted-foreground">Competitors</p>
-        </div>
-      </div>
+      <MetricGrid>
+        <MetricCard icon={Package} label="Products" value={products.length} />
+        <MetricCard icon={Users} label="Customers" value={customers.length} />
+        <MetricCard icon={Search} label="Competitors" value={competitors.length} />
+      </MetricGrid>
 
       <div>
         <h2 className="text-lg font-semibold text-foreground mb-3">All Data ({items.length})</h2>
@@ -290,21 +281,21 @@ cancelEdit();
                   </Badge>
                   <Badge variant="outline" className="text-xs capitalize">{item.type}</Badge>
                   {editingId === item.id ? (
-                    <button onClick={() => saveEdit(item)} className="text-green-600 text-xs">Save</button>
+                    <Button onClick={() => saveEdit(item)} variant="outline" size="sm">Save</Button>
                   ) : (
-                    <button onClick={() => startEdit(item)} className="text-muted-foreground hover:text-foreground">
+                    <Button onClick={() => startEdit(item)} variant="ghost" size="icon">
                       <Pencil className="w-3 h-3" />
-                    </button>
+                    </Button>
                   )}
-                  <button onClick={() => deleteItem(item)} className="text-red-600 hover:text-red-700">
+                  <Button onClick={() => deleteItem(item)} variant="ghost" size="icon">
                     <Trash2 className="w-3 h-3" />
-                  </button>
+                  </Button>
                 </div>
               );
             })}
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

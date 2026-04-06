@@ -4,7 +4,7 @@ Unified component patterns for consistent, maintainable UI.
 
 ## Core Principle
 
-**Always use unified form components** - Never use hardcoded classNames for form elements.
+**Always use unified design-system components** - Never hardcode page chrome, actions, or form styling directly in route files.
 
 ## Form Components
 
@@ -86,6 +86,61 @@ Use for: All checkbox fields
 <textarea className="w-full h-20..." />
 ```
 
+❌ DO NOT hand-roll page shells, notice banners, metric tiles, or action links:
+```tsx
+// BAD
+<div className="max-w-5xl mx-auto space-y-8 p-4 md:p-8" />
+<div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700" />
+<a className="rounded-md bg-primary px-4 py-2 text-sm font-medium" />
+<div className="bg-card border border-border rounded-lg p-4" />
+```
+
+## Layout and Surface Components
+
+Import from `@/components/ui/app-shell`:
+
+```tsx
+import {
+  EmptyState,
+  LinkCard,
+  MetricCard,
+  MetricGrid,
+  Notice,
+  PageHeader,
+  PageShell,
+} from "@/components/ui/app-shell";
+```
+
+### `PageShell`
+
+Use for every route-level page container.
+
+### `PageHeader`
+
+Use for title, description, back links, and header actions.
+
+### `Notice`
+
+Use for inline status, success, warning, and error banners.
+
+### `MetricGrid` + `MetricCard`
+
+Use for numeric dashboard tiles and summary cards.
+
+### `LinkCard`
+
+Use for dashboard navigation surfaces.
+
+### `EmptyState`
+
+Use for zero-data states and first-run prompts.
+
+## Action Components
+
+Use `Button` from `@/components/ui/button` for all primary, secondary, ghost, and destructive actions.
+
+Use `Card` from `@/components/ui/card` for container surfaces instead of repeating border/background/radius/shadow classes.
+
 ## CSS Variables
 
 Always use these for colors (defined in `globals.css`):
@@ -120,12 +175,16 @@ The unified components automatically handle dark mode via CSS variables. If you 
 
 | Page | File | Status |
 |------|------|--------|
+| Companies | `home-client.tsx` | ✅ Updated |
+| Global Nav | `client-nav.tsx` | ✅ Updated |
+| Company Dashboard | `[companyId]/company-dashboard.tsx` | ✅ Updated |
+| Data | `data/page.tsx` | ✅ Updated |
+| Company Data | `[companyId]/data/page.tsx` | ✅ Updated |
 | NBA Tasks | `[companyId]/nba/page.tsx` | ✅ Updated |
+| Knowmore | `[companyId]/knowmore/page.tsx` | ✅ Updated |
 | Products | `products/page.tsx` | 🔄 Pending |
 | Customers | `customers/page.tsx` | 🔄 Pending |
 | Competitors | `competitors/page.tsx` | 🔄 Pending |
-| Data | `data/page.tsx` | 🔄 Pending |
-| Companies | `home-client.tsx` | 🔄 Pending |
 
 ## Migration Guide
 

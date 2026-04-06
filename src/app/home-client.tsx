@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { PageHeader, PageShell } from "@/components/ui/app-shell";
+import { Card, CardContent } from "@/components/ui/card";
 import { FormInput, FormSelect } from "@/components/ui/form-fields";
 
 export default function Home() {
@@ -103,9 +106,9 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 p-8">
+    <PageShell width="md">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold">Select Company</h1>
+        <PageHeader title="Select Company" />
       </motion.div>
 
       <div className="flex justify-end">
@@ -115,76 +118,87 @@ export default function Home() {
       </div>
 
       {(companies.length === 0 || showForm) ? (
-        <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany} className="space-y-4">
-          <FormInput
-            name="name"
-            label="Company Name"
-            value={formData.name}
-            onChange={e => setFormData({...formData, name: e.target.value})}
-            placeholder="Enter company name"
-            required
-          />
-          <FormSelect
-            name="industry"
-            label="Industry"
-            value={formData.industry}
-            onChange={e => setFormData({...formData, industry: e.target.value})}
-            options={[
-              { value: "", label: "Select industry" },
-              { value: "SaaS", label: "SaaS" },
-              { value: "E-commerce", label: "E-commerce" },
-              { value: "Healthcare", label: "Healthcare" },
-              { value: "Finance", label: "Finance" },
-              { value: "Education", label: "Education" },
-              { value: "Retail", label: "Retail" },
-              { value: "Technology", label: "Technology" },
-              { value: "Manufacturing", label: "Manufacturing" },
-              { value: "Other", label: "Other" },
-            ]}
-          />
-          <div className="flex gap-2">
-            <button type="submit" className="bg-primary text-primary-foreground px-4 py-2 rounded-md">
-              {editingId ? "Update" : "Create"} Company
-            </button>
-            {editingId && (
-              <button type="button" onClick={() => { setEditingId(null); setFormData({ name: "", industry: "" }); setShowForm(false); }} className="px-4 py-2 text-muted-foreground">
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
+        <Card>
+          <CardContent className="p-6">
+            <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany} className="space-y-4">
+              <FormInput
+                name="name"
+                label="Company Name"
+                value={formData.name}
+                onChange={e => setFormData({...formData, name: e.target.value})}
+                placeholder="Enter company name"
+                required
+              />
+              <FormSelect
+                name="industry"
+                label="Industry"
+                value={formData.industry}
+                onChange={e => setFormData({...formData, industry: e.target.value})}
+                options={[
+                  { value: "", label: "Select industry" },
+                  { value: "SaaS", label: "SaaS" },
+                  { value: "E-commerce", label: "E-commerce" },
+                  { value: "Healthcare", label: "Healthcare" },
+                  { value: "Finance", label: "Finance" },
+                  { value: "Education", label: "Education" },
+                  { value: "Retail", label: "Retail" },
+                  { value: "Technology", label: "Technology" },
+                  { value: "Manufacturing", label: "Manufacturing" },
+                  { value: "Other", label: "Other" },
+                ]}
+              />
+              <div className="flex gap-2">
+                <Button type="submit">
+                  {editingId ? "Update" : "Create"} Company
+                </Button>
+                {editingId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => { setEditingId(null); setFormData({ name: "", industry: "" }); setShowForm(false); }}
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-2">
           {companies.map((c: any) => (
-            <div key={c.id} className="flex items-center gap-2">
-              <button
-                onClick={() => selectCompany(c)}
-                className="flex-1 flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted transition-colors text-left"
-              >
-                <div>
-                  <p className="font-medium">{c.name}</p>
-                  <p className="text-xs text-muted-foreground">{c.industry}</p>
-                </div>
-                <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
-                  {c.id.slice(0,8)}
-                </span>
-              </button>
-              <button onClick={() => startEdit(c)} className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground border rounded">
-                Edit
-              </button>
-              <button onClick={() => handleDeleteCompany(c.id)} className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 border border-red-200 rounded">
-                Delete
-              </button>
-            </div>
+            <Card key={c.id}>
+              <CardContent className="flex items-center gap-2 p-4">
+                <Button
+                  onClick={() => selectCompany(c)}
+                  variant="ghost"
+                  className="h-auto flex-1 justify-between px-0 py-0 text-left hover:bg-transparent"
+                >
+                  <div>
+                    <p className="font-medium">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">{c.industry}</p>
+                  </div>
+                  <span className="rounded bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
+                    {c.id.slice(0,8)}
+                  </span>
+                </Button>
+                <Button onClick={() => startEdit(c)} variant="outline" size="sm">
+                  Edit
+                </Button>
+                <Button onClick={() => handleDeleteCompany(c.id)} variant="destructive" size="sm">
+                  Delete
+                </Button>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
 
       <div className="pt-4 border-t">
-        <button onClick={() => setShowForm(true)} className="text-primary hover:underline">
+        <Button onClick={() => setShowForm(true)} variant="link" className="px-0">
           + Create new company
-        </button>
+        </Button>
       </div>
-    </div>
+    </PageShell>
   );
 }

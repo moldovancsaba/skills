@@ -23,6 +23,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  EmptyState,
+  MetricCard,
+  MetricGrid,
+  Notice,
+  PageHeader,
+  PageShell,
+} from "@/components/ui/app-shell";
 import { FormInput, FormTextarea } from "@/components/ui/form-fields";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -333,7 +341,7 @@ export default function CompanyKnowMorePage() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto space-y-6 p-4 md:p-8">
+      <PageShell width="5xl" className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-80" />
         <div className="grid gap-4 md:grid-cols-4">
@@ -344,98 +352,81 @@ export default function CompanyKnowMorePage() {
         </div>
         <Skeleton className="h-56" />
         <Skeleton className="h-56" />
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 p-4 md:p-8">
+    <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         {isGenerating && (
-          <div className="mb-4 flex items-center gap-2 rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>The local AI is re-reading flashcard actions for the next NBA pass.</span>
-          </div>
+          <Notice icon={Loader2} title="Refreshing flashcard influence" className="mb-4">
+            The local AI is re-reading flashcard actions for the next NBA pass.
+          </Notice>
         )}
 
         {errorMessage && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <Notice variant="destructive" className="mb-4">
             {errorMessage}
-          </div>
+          </Notice>
         )}
 
-        <a href={`/${companyId}`} className="text-sm text-primary hover:underline">
-          ← Back
-        </a>
-        <h1 className="mt-2 text-2xl font-bold text-foreground">Knowmore</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Flashcards and knowledge slices for {company?.name ?? "this company"}.
-        </p>
+        <PageHeader
+          backHref={`/${companyId}`}
+          backLabel="Back"
+          title="Knowmore"
+          description={`Flashcards and knowledge slices for ${company?.name ?? "this company"}.`}
+        />
       </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-lg border border-border bg-card p-5">
-          <Database className="mb-3 h-5 w-5 text-blue-500" />
-          <p className="font-medium text-foreground">Knowledge cards</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {summary.total} flashcards are currently derived from your structured
-            source data.
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-5">
-          <Sparkles className="mb-3 h-5 w-5 text-amber-500" />
-          <p className="font-medium text-foreground">Reviewed cards</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {summary.reviewed} flashcards already carry user feedback back into the
-            system.
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-5">
-          <Brain className="mb-3 h-5 w-5 text-violet-500" />
-          <p className="font-medium text-foreground">Average confidence</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {summary.avgConfidence}% confidence across the current flashcards.
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-5">
-          <Layers3 className="mb-3 h-5 w-5 text-emerald-500" />
-          <p className="font-medium text-foreground">Average impact / weight</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Impact {summary.avgImpact} and weight {summary.avgWeight} based on
-            current source completeness.
-          </p>
-        </div>
-      </div>
+      <MetricGrid>
+        <MetricCard
+          icon={Database}
+          iconClassName="text-blue-500"
+          label="Knowledge cards"
+          value={summary.total}
+          detail="Derived from your structured source data."
+        />
+        <MetricCard
+          icon={Sparkles}
+          iconClassName="text-amber-500"
+          label="Reviewed cards"
+          value={summary.reviewed}
+          detail="Cards that already carry user feedback back into the system."
+        />
+        <MetricCard
+          icon={Brain}
+          iconClassName="text-violet-500"
+          label="Average confidence"
+          value={`${summary.avgConfidence}%`}
+          detail="Confidence across the current flashcards."
+        />
+        <MetricCard
+          icon={Layers3}
+          iconClassName="text-emerald-500"
+          label="Average impact / weight"
+          value={`${summary.avgImpact} / ${summary.avgWeight}`}
+          detail="Current impact and weight across the active card set."
+        />
+      </MetricGrid>
 
       {flashcards.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border border-dashed border-border bg-card/60 p-8 text-center"
-        >
-          <Sparkles className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
-          <h2 className="text-xl font-semibold text-foreground">
-            Add source data to seed the knowledge layer
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-            Knowmore now reads from durable flashcard storage. As soon as source
-            data exists, bootstrap flashcards will appear here and later be
-            refined by the local AI pipeline.
-          </p>
-          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a
-              href={`/${companyId}/data`}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Open Data
-            </a>
-            <a
-              href={`/${companyId}/nba`}
-              className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
-            >
-              Open Recommendations
-            </a>
-          </div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <EmptyState
+            icon={Sparkles}
+            title="Add source data to seed the knowledge layer"
+            description="Knowmore reads from durable flashcard storage. As soon as source data exists, bootstrap flashcards appear here and later get refined by the local AI pipeline."
+            primaryAction={
+              <Button asChild>
+                <a href={`/${companyId}/data`}>Open Data</a>
+              </Button>
+            }
+            secondaryAction={
+              <Button asChild variant="outline">
+                <a href={`/${companyId}/nba`}>Open Recommendations</a>
+              </Button>
+            }
+          />
         </motion.div>
       ) : (
         <div className="grid gap-4">
@@ -635,6 +626,6 @@ export default function CompanyKnowMorePage() {
           })}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

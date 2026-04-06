@@ -6,7 +6,14 @@ import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Brain, Check, X, MessageSquare, Loader2, Share2, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { FormTextarea } from "@/components/ui/form-fields";
+import { Button } from "@/components/ui/button";
+import { FormInput, FormTextarea } from "@/components/ui/form-fields";
+import {
+  EmptyState,
+  Notice,
+  PageHeader,
+  PageShell,
+} from "@/components/ui/app-shell";
 
 interface NBAItem {
   id: string;
@@ -205,45 +212,38 @@ export default function CompanyNBAPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
+    <PageShell width="md">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         {isGenerating && (
-          <div className="mb-4 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-md">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>AI is generating recommendations...</span>
-          </div>
+          <Notice icon={Loader2} title="Generating tasks" className="mb-4">
+            AI is generating recommendations.
+          </Notice>
         )}
-        <div className="flex items-center justify-between">
-          <div>
-            <a href={`/${companyId}`} className="text-sm text-primary hover:underline">← Back</a>
-            <h1 className="text-2xl font-bold text-foreground mt-2">My Tasks</h1>
-            <p className="text-sm text-muted-foreground mt-1">{items.length} pending tasks</p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleRefresh}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-              disabled={isGenerating}
-            >
-              <Loader2 className={`w-4 h-4 ${isGenerating ? "animate-spin" : ""}`} />
-              {isGenerating ? "Generating…" : "Refresh"}
-            </button>
-            <button
-              onClick={toggleArchived}
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              {showArchived ? "Hide Archived" : "Show Archived"}
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          backHref={`/${companyId}`}
+          backLabel="Back"
+          title="My Tasks"
+          description={`${items.length} pending tasks`}
+          actions={
+            <>
+              <Button onClick={handleRefresh} variant="ghost" size="sm" disabled={isGenerating}>
+                <Loader2 className={`w-4 h-4 ${isGenerating ? "animate-spin" : ""}`} />
+                {isGenerating ? "Generating..." : "Refresh"}
+              </Button>
+              <Button onClick={toggleArchived} variant="ghost" size="sm">
+                {showArchived ? "Hide Archived" : "Show Archived"}
+              </Button>
+            </>
+          }
+        />
       </motion.div>
 
       {items.length === 0 ? (
-        <div className="text-center py-12 border border-dashed rounded-lg">
-          <Brain className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground mb-4">No recommendations yet.</p>
-          <p className="text-sm text-muted-foreground">Add data to get AI-powered suggestions.</p>
-        </div>
+        <EmptyState
+          icon={Brain}
+          title="No recommendations yet"
+          description="Add data to get AI-powered suggestions."
+        />
       ) : (
         <div className="space-y-4">
           {items.map((item) => (
@@ -285,38 +285,42 @@ export default function CompanyNBAPage() {
                 
                 {item.status === "PENDING" && (
                   <div className="flex items-center gap-1">
-                    <button
+                    <Button
                       onClick={() => openActionForm(item, "ACCEPT")}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
+                      variant="ghost"
+                      size="icon"
                       title="Accept"
                     >
                       <Check className="w-5 h-5" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => openActionForm(item, "DECLINE")}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      variant="ghost"
+                      size="icon"
                       title="Decline"
                     >
                       <X className="w-5 h-5" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => openActionForm(item, "MODIFY_ACCEPT")}
-                      className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      variant="outline"
+                      size="sm"
                       title="Modify + accept"
                     >
                       Modify + accept
-                    </button>
+                    </Button>
                   </div>
                 )}
                 
                 {item.status !== "PENDING" && (
-                  <button
+                  <Button
                     onClick={() => handleShare(item)}
-                    className="p-2 text-muted-foreground hover:text-foreground rounded transition-colors"
+                    variant="ghost"
+                    size="icon"
                     title="Share"
                   >
                     {copiedId === item.id ? <CheckCircle className="w-5 h-5 text-green-600" /> : <Share2 className="w-5 h-5" />}
-                  </button>
+                  </Button>
                 )}
               </div>
               
@@ -324,11 +328,11 @@ export default function CompanyNBAPage() {
                 <div className="mt-3 pt-3 border-t">
                   {actionMode === "MODIFY_ACCEPT" && (
                     <div className="space-y-2">
-                      <input
+                      <FormInput
+                        label="Adjusted task title"
                         value={draftTitle}
                         onChange={(e) => setDraftTitle(e.target.value)}
                         placeholder="Adjusted task title"
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       />
                       <FormTextarea
                         value={draftDescription}
@@ -349,7 +353,7 @@ export default function CompanyNBAPage() {
                     }
                   />
                   <div className="flex gap-2 mt-2">
-                    <button
+                    <Button
                       onClick={() =>
                         handleFeedback(
                           item.id,
@@ -363,22 +367,18 @@ export default function CompanyNBAPage() {
                         (actionMode === "DECLINE" && !annotation.trim()) ||
                         (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))
                       }
-                      className={`px-3 py-1 text-white rounded text-sm disabled:opacity-50 ${
-                        actionMode === "DECLINE" ? "bg-red-600" : "bg-green-600"
-                      }`}
+                      variant={actionMode === "DECLINE" ? "destructive" : "default"}
+                      size="sm"
                     >
                       {actionMode === "DECLINE"
                         ? "Confirm Decline"
                         : actionMode === "MODIFY_ACCEPT"
                           ? "Save and Accept"
                           : "Confirm Accept"}
-                    </button>
-                    <button
-                      onClick={resetActionForm}
-                      className="px-3 py-1 text-muted-foreground text-sm"
-                    >
+                    </Button>
+                    <Button onClick={resetActionForm} variant="ghost" size="sm">
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -386,6 +386,6 @@ export default function CompanyNBAPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

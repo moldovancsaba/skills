@@ -1,60 +1,60 @@
 'use client';
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ChevronDown, Sun, Moon } from "lucide-react";
 
 export function ClientNav() {
   const router = useRouter();
-  const { company, setCompany } = useStore();
-  const [showMenu, setShowMenu] = useState(false);
+  const { company } = useStore();
   const { isDark, toggle } = useTheme();
 
   const handleSwitchCompany = () => {
-    setShowMenu(false);
     router.push("/");
   };
 
   if (!company) return null;
 
   return (
-    <nav className="bg-card border-b border-border">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-12">
-          <Link href={`/${company.id}`} className="font-bold">
+    <nav className="border-b border-border bg-card">
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="flex min-h-14 items-center justify-between gap-3">
+          <Link href={`/${company.id}`} className="font-bold text-foreground">
             Checklist
           </Link>
 
-          <div className="flex items-center gap-1">
-            <Link href={`/${company.id}`} className="px-3 py-1.5 text-sm hover:bg-muted rounded-md">
+          <div className="flex flex-wrap items-center gap-1">
+            <Link href={`/${company.id}`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
               Dashboard
             </Link>
-            <Link href={`/${company.id}/data`} className="px-3 py-1.5 text-sm hover:bg-muted rounded-md">
+            <Link href={`/${company.id}/data`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
               Data
             </Link>
-            <Link href={`/${company.id}/nba`} className="px-3 py-1.5 text-sm hover:bg-muted rounded-md">
+            <Link href={`/${company.id}/nba`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
               Tasks
             </Link>
-            <Link href={`/${company.id}/knowmore`} className="px-3 py-1.5 text-sm hover:bg-muted rounded-md">
+            <Link href={`/${company.id}/knowmore`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
               Knowmore
             </Link>
 
-            <button
+            <Button
               onClick={toggle}
-              className="p-2 text-sm hover:bg-muted rounded-md"
+              variant="ghost"
+              size="icon"
               title={isDark ? "Light mode" : "Dark mode"}
             >
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+            </Button>
           </div>
 
-          <button onClick={handleSwitchCompany} className="flex items-center gap-2 px-3 py-1.5 text-sm bg-muted rounded-md">
+          <Button onClick={handleSwitchCompany} variant="secondary" size="sm">
             <span>{company.name}</span>
             <ChevronDown className="w-3 h-3" />
-          </button>
+          </Button>
         </div>
       </div>
     </nav>

@@ -803,7 +803,12 @@ function hasMinimumBusinessEvidence(
   return primarySignals.length + secondarySignals.length >= 2;
 }
 
-function filterRelevantNewsSignals(newsSignals: NewsSignal[], entityName: string | null, urls: string[]) {
+function filterRelevantNewsSignals(
+  newsSignals: NewsSignal[],
+  entityName: string | null,
+  urls: string[],
+  pageTitles: string[] = [],
+) {
   const tokens = new Set<string>();
   const addTokens = (value: string | null | undefined) => {
     for (const token of (value ?? "").toLowerCase().split(/[^a-z0-9]+/)) {
@@ -823,9 +828,27 @@ function filterRelevantNewsSignals(newsSignals: NewsSignal[], entityName: string
     }
   }
 
+  const normalizedPageTitles = pageTitles
+    .map((value) => collapseWhitespace(decodeHtml(value)).toLowerCase())
+    .filter(Boolean);
+  const normalizedEntity = collapseWhitespace(entityName ?? "").toLowerCase();
+
   return newsSignals.filter((item) => {
-    const haystack = `${item.title} ${item.source ?? ""}`.toLowerCase();
+    const normalizedTitle = collapseWhitespace(decodeHtml(item.title ?? "")).toLowerCase();
+    const haystack = `${normalizedTitle} ${decodeHtml(item.source ?? "").toLowerCase()}`;
     if (!Array.from(tokens).some((token) => haystack.includes(token))) {
+      return false;
+    }
+
+    if (!normalizedTitle) {
+      return false;
+    }
+
+    if (normalizedPageTitles.includes(normalizedTitle)) {
+      return false;
+    }
+
+    if (normalizedEntity && (normalizedTitle === normalizedEntity || normalizedTitle === `${normalizedEntity} - ${normalizedEntity}`)) {
       return false;
     }
 
@@ -910,10 +933,42 @@ function filterLowValueConclusions(values: Array<string | null | undefined>) {
         return false;
       }
 
+      if (/^[^|]+ \| [^|]+$/.test(normalized) || /^[^-]+ - [^-]+$/.test(normalized)) {
+        return false;
+      }
+
       return !isGenericNavLabel(normalized);
     }),
     4,
   );
+}
+
+function sanitizeIndustryNews(
+  values: Array<string | null | undefined>,
+  entityName: string | null,
+  pageTitles: string[],
+) {
+  const normalizedPageTitles = pageTitles
+    .map((value) => collapseWhitespace(decodeHtml(value)).toLowerCase())
+    .filter(Boolean);
+  const normalizedEntity = collapseWhitespace(entityName ?? "").toLowerCase();
+
+  return filterLowValueConclusions(values).filter((value) => {
+    const normalized = collapseWhitespace(decodeHtml(value)).toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+
+    if (normalizedPageTitles.includes(normalized)) {
+      return false;
+    }
+
+    if (normalizedEntity && (normalized === normalizedEntity || normalized === `${normalizedEntity} - ${normalizedEntity}`)) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 function containsAny(haystack: string, needles: string[]) {
@@ -1108,7 +1163,10 @@ export async function enrichProductSeed(seed: ProductSeed) {
     insights.length > 0 ? await callLocalSummarizer("product", insights, newsSignals, searchSignals, stockSignal) : null;
   const fallback = insights.length > 0 ? fallbackProductSummary(insights) : null;
   const chosenName = chooseEntityName(seed.name, urls, typeof aiSummary?.name === "string" ? aiSummary.name : null, fallback?.name);
-  const relevantNewsSignals = filterRelevantNewsSignals(newsSignals, chosenName, urls);
+  const pageTitles = insights
+    .map((item) => item.title)
+    .filter((value): value is string => Boolean(value));
+  const relevantNewsSignals = filterRelevantNewsSignals(newsSignals, chosenName, urls, pageTitles);
   const relevantSearchSignals = filterRelevantSearchSignals(searchSignals, chosenName, urls);
   const filteredFeatures = filterBusinessSignals([
     ...(seed.features ?? []),
@@ -1131,7 +1189,7 @@ export async function enrichProductSeed(seed: ProductSeed) {
     ["Evaluation", passedQualityGate ? filterLowValueConclusions((aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []) : []],
     ["Judgment", passedQualityGate ? filterLowValueConclusions((aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []) : []],
     ["Recommendation", passedQualityGate ? filterLowValueConclusions((aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []) : []],
-    ["Industry news", passedQualityGate ? filterLowValueConclusions((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title)) : []],
+    ["Industry news", passedQualityGate ? sanitizeIndustryNews((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title), chosenName, pageTitles) : []],
     ["R&D / roadmap", passedQualityGate ? ((aiSummary?.researchPlans as string[]) ?? fallback?.researchPlans ?? []) : []],
     ["Forecast", passedQualityGate ? ((aiSummary?.forecasts as string[]) ?? fallback?.forecasts ?? []) : []],
     [
@@ -1221,7 +1279,10 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
     insights.length > 0 ? await callLocalSummarizer("competitor", insights, newsSignals, searchSignals, stockSignal) : null;
   const fallback = insights.length > 0 ? fallbackCompetitorSummary(insights) : null;
   const chosenName = chooseEntityName(seed.name, urls, typeof aiSummary?.name === "string" ? aiSummary.name : null, fallback?.name);
-  const relevantNewsSignals = filterRelevantNewsSignals(newsSignals, chosenName, urls);
+  const pageTitles = insights
+    .map((item) => item.title)
+    .filter((value): value is string => Boolean(value));
+  const relevantNewsSignals = filterRelevantNewsSignals(newsSignals, chosenName, urls, pageTitles);
   const relevantSearchSignals = filterRelevantSearchSignals(searchSignals, chosenName, urls);
   const filteredStrengths = filterBusinessSignals([
     ...(seed.strengths ?? []),
@@ -1249,7 +1310,7 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
     ["Evaluation", passedQualityGate ? filterLowValueConclusions((aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []) : []],
     ["Judgment", passedQualityGate ? filterLowValueConclusions((aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []) : []],
     ["Recommendation", passedQualityGate ? filterLowValueConclusions((aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []) : []],
-    ["Industry news", passedQualityGate ? filterLowValueConclusions((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title)) : []],
+    ["Industry news", passedQualityGate ? sanitizeIndustryNews((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title), chosenName, pageTitles) : []],
     ["R&D / roadmap", passedQualityGate ? ((aiSummary?.researchPlans as string[]) ?? fallback?.researchPlans ?? []) : []],
     ["Forecast", passedQualityGate ? ((aiSummary?.forecasts as string[]) ?? fallback?.forecasts ?? []) : []],
     [

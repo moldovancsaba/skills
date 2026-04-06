@@ -3,9 +3,12 @@
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
-import { Brain, Package, Plus, Users, Search, Sparkles, Zap } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Brain, Package, Plus, Search, Sparkles, Users, Zap } from "lucide-react";
 import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   LinkCard,
   MetricCard,
@@ -14,6 +17,17 @@ import {
   PageShell,
 } from "@/components/ui/app-shell";
 
+type NBAItem = {
+  id: string;
+  title: string;
+  description: string;
+  impact: number;
+  confidence: number;
+  ease: number;
+  iceScore: number;
+  status: string;
+};
+
 export default function CompanyDashboard() {
   const router = useRouter();
   const params = useParams();
@@ -21,6 +35,7 @@ export default function CompanyDashboard() {
   
   const { company, setCompany, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [loading, setLoading] = useState(true);
+  const [topTasks, setTopTasks] = useState<NBAItem[]>([]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -36,15 +51,22 @@ export default function CompanyDashboard() {
 
         setCompany(found);
 
-        const [p, c, r] = await Promise.all([
+        const [p, c, r, nba] = await Promise.all([
           fetch(`/api/products?companyId=${found.id}`).then((res) => res.json()),
           fetch(`/api/customers?companyId=${found.id}`).then((res) => res.json()),
           fetch(`/api/competitors?companyId=${found.id}`).then((res) => res.json()),
+          fetch(`/api/nba?companyId=${found.id}`).then((res) => res.json()),
         ]);
 
         setProducts(p);
         setCustomers(c);
         setCompetitors(r);
+        setTopTasks(
+          nba
+            .filter((item: NBAItem) => item.status === "PENDING")
+            .sort((left: NBAItem, right: NBAItem) => right.iceScore - left.iceScore)
+            .slice(0, 3),
+        );
         setLoading(false);
       } catch (error) {
         console.error(error);
@@ -113,6 +135,50 @@ export default function CompanyDashboard() {
           description="Inspect the processed knowledge layer behind the AI outputs."
         />
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-lg">Top checklist items</CardTitle>
+            <CardDescription>
+              The top 3 pending tasks, ranked by current ICE score.
+            </CardDescription>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/${companyId}/nba`}>
+              Open all tasks
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {topTasks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No pending checklist items yet. Open Tasks to generate recommendations.
+            </p>
+          ) : (
+            topTasks.map((task) => (
+              <div
+                key={task.id}
+                className="rounded-lg border border-border bg-background p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <p className="font-medium text-foreground">{task.title}</p>
+                    <p className="text-sm text-muted-foreground">{task.description}</p>
+                  </div>
+                  <Badge variant="secondary">ICE {Math.round(task.iceScore)}</Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span>Impact {task.impact}</span>
+                  <span>Confidence {task.confidence}%</span>
+                  <span>Ease {task.ease}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8">
         <Button

@@ -9,6 +9,7 @@ import {
 import {
   prepareRawSourceInput,
 } from "@/lib/url-enrichment";
+import { normalizeSourceHashtags } from "@/lib/hashtags";
 import { syncCompanyKnowledge } from "@/lib/flashcards";
 
 export async function GET(request: NextRequest) {
@@ -21,7 +22,12 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
     });
-    return NextResponse.json(competitors);
+    return NextResponse.json(
+      competitors.map((competitor) => ({
+        ...competitor,
+        hashtags: normalizeSourceHashtags(competitor.hashtags, "competitor"),
+      })),
+    );
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -40,6 +46,7 @@ export async function POST(request: NextRequest) {
           publicId,
           companyId: data.companyId,
           name: raw.name,
+          hashtags: normalizeSourceHashtags(data.hashtags, "competitor"),
           urls: raw.urls,
           pricing: data.pricing ?? null,
           strengths: data.strengths || [],
@@ -77,6 +84,7 @@ export async function PATCH(request: NextRequest) {
       where: { id },
       data: {
         name: raw.name,
+        hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags, "competitor"),
         urls: raw.urls,
         pricing: data.pricing ?? existing.pricing,
         strengths: data.strengths ?? existing.strengths,

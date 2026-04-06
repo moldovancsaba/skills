@@ -5,6 +5,7 @@ import {
   nextSourcePublicId,
   TRANSACTION_SETTINGS,
 } from "@/lib/source-public-ids";
+import { normalizeSourceHashtags } from "@/lib/hashtags";
 import { syncCompanyKnowledge } from "@/lib/flashcards";
 
 export async function GET(request: NextRequest) {
@@ -17,7 +18,12 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
     });
-    return NextResponse.json(customers);
+    return NextResponse.json(
+      customers.map((customer) => ({
+        ...customer,
+        hashtags: normalizeSourceHashtags(customer.hashtags, "customer"),
+      })),
+    );
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -35,6 +41,7 @@ export async function POST(request: NextRequest) {
           publicId,
           companyId: data.companyId,
           name: data.name,
+          hashtags: normalizeSourceHashtags(data.hashtags, "customer"),
           email: data.email,
           segments: data.segments || [],
           painPoints: data.painPoints || [],
@@ -65,6 +72,7 @@ export async function PATCH(request: NextRequest) {
       where: { id },
       data: {
         name: data.name ?? existing.name,
+        hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags, "customer"),
         email: data.email ?? existing.email,
         segments: data.segments ?? existing.segments,
         painPoints: data.painPoints ?? existing.painPoints,

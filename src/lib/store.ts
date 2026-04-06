@@ -13,6 +13,7 @@ interface Product {
   id: string;
   publicId: number | null;
   name: string;
+  hashtags: string[];
   description: string | null;
   pricing: string | null;
   features: string[];
@@ -22,6 +23,7 @@ interface Customer {
   id: string;
   publicId: number | null;
   name: string;
+  hashtags: string[];
   email: string | null;
   segments: string[];
   painPoints: string[];
@@ -32,6 +34,7 @@ interface Competitor {
   id: string;
   publicId: number | null;
   name: string;
+  hashtags: string[];
   urls: string[];
   pricing: string | null;
   strengths: string[];

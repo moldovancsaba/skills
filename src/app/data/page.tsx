@@ -4,11 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Package, Users, Search, Plus, CheckCircle } from "lucide-react";
+import { Hash, Package, Users, Search, Plus, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FormInput, FormSelect } from "@/components/ui/form-fields";
+import { Card, CardContent } from "@/components/ui/card";
+import { FormInput } from "@/components/ui/form-fields";
+import { HashtagInput } from "@/components/ui/hashtag-input";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
+import {
+  defaultTypeHashtags,
+  normalizeSourceHashtags,
+  sourceTypeFromHashtags,
+} from "@/lib/hashtags";
 
 type DataType = "product" | "customer" | "competitor";
 
@@ -17,6 +24,7 @@ interface DataItem {
   publicId: number | null;
   name: string;
   type: DataType;
+  hashtags: string[];
   description?: string;
   createdAt: string;
 }
@@ -38,7 +46,7 @@ export default function DataCollectionPage() {
   const router = useRouter();
   const { company, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [input, setInput] = useState("");
-  const [type, setType] = useState<DataType>("product");
+  const [hashtags, setHashtags] = useState<string[]>(defaultTypeHashtags("product"));
   const [saved, setSaved] = useState(false);
   const [items, setItems] = useState<DataItem[]>([]);
 
@@ -80,6 +88,8 @@ export default function DataCollectionPage() {
     e.preventDefault();
     if (!input.trim() || !company) return;
 
+    const type = sourceTypeFromHashtags(hashtags);
+    const normalizedHashtags = normalizeSourceHashtags(hashtags, type);
     const endpoint = type === "product" ? "/api/products" 
       : type === "customer" ? "/api/customers" 
       : "/api/competitors";
@@ -88,14 +98,16 @@ export default function DataCollectionPage() {
       ? {
           companyId: company.id,
           name: input,
+          hashtags: normalizedHashtags,
           urls: [],
           features: [],
         }
       : type === "customer"
-      ? { companyId: company.id, name: input, segments: [], painPoints: [], channels: [] }
+      ? { companyId: company.id, name: input, hashtags: normalizedHashtags, segments: [], painPoints: [], channels: [] }
       : {
           companyId: company.id,
           name: input,
+          hashtags: normalizedHashtags,
           urls: [],
           strengths: [],
           weaknesses: [],
@@ -109,18 +121,10 @@ export default function DataCollectionPage() {
       });
       
       setInput("");
+      setHashtags(defaultTypeHashtags("product"));
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
-      
-      // Reload data
-      const res = await fetch(`/api/${type}s?companyId=${company.id}`);
-      const data = await res.json();
-      
-      if (type === "product") setProducts(data);
-      else if (type === "customer") setCustomers(data);
-      else setCompetitors(data);
-      
-      loadAllData(company.id);
+      await loadAllData(company.id);
     } catch (error) {
       console.error(error);
     }
@@ -134,6 +138,22 @@ export default function DataCollectionPage() {
     }
   };
 
+  const hashtagSuggestions = Array.from(
+    new Set(
+      [
+        ...defaultTypeHashtags("product"),
+        "#customer",
+        "#competitor",
+        "#website",
+        "#social",
+        "#pricing",
+        "#market",
+        "#research",
+        ...items.flatMap((item) => item.hashtags ?? []),
+      ],
+    ),
+  );
+
   return (
     <PageShell width="md">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
@@ -143,31 +163,37 @@ export default function DataCollectionPage() {
         />
       </motion.div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <FormSelect
-          value={type}
-          onChange={(e) => setType(e.target.value as DataType)}
-          options={[
-            { value: "product", label: "Product" },
-            { value: "customer", label: "Customer" },
-            { value: "competitor", label: "Competitor" },
-          ]}
-          className="w-36"
-        />
-        
-        <FormInput
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={`Add a ${type} name or URL...`}
-          className="flex-1"
-        />
-        
-        <Button type="submit" disabled={!input.trim() || !company}>
-          <Plus className="w-4 h-4" />
-          Add
-        </Button>
-      </form>
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <FormInput
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Paste a URL or describe the source you want to ingest..."
+              className="h-14 text-base"
+            />
+
+            <HashtagInput
+              value={hashtags}
+              onChange={setHashtags}
+              suggestions={hashtagSuggestions}
+              label="Hashtags"
+              placeholder="Add hashtags like #product, #customer, #competitor, #pricing"
+            />
+
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                Use one of <span className="font-medium text-foreground">#product</span>, <span className="font-medium text-foreground">#customer</span>, or <span className="font-medium text-foreground">#competitor</span> to classify the source.
+              </p>
+              <Button type="submit" disabled={!input.trim() || !company}>
+                <Plus className="w-4 h-4" />
+                Add data
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       {saved && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -199,11 +225,18 @@ export default function DataCollectionPage() {
                     <p className="text-xs text-muted-foreground font-mono">
                       {item.publicId ? `Source #${item.publicId}` : item.id}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(item.hashtags ?? []).map((tag) => (
+                        <Badge key={tag} variant="outline" className="gap-1 rounded-full">
+                          <Hash className="h-3 w-3" />
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                   <Badge variant="secondary" className="text-xs font-mono">
                     {item.publicId ? `#${item.publicId}` : "pending"}
                   </Badge>
-                  <Badge variant="outline" className="text-xs capitalize">{item.type}</Badge>
                 </div>
               );
             })}

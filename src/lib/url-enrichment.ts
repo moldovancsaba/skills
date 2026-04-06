@@ -50,6 +50,48 @@ const MAX_NEWS_ITEMS = 4;
 const PRICE_PATTERN =
   /(?:\$|EUR|USD|GBP)\s?\d[\d,.]*(?:\s*\/\s*(?:mo|month|yr|year|user))?|free\b|trial\b|pricing\b/i;
 const TICKER_PATTERN = /\b(?:NASDAQ|NYSE|AMEX|LSE|TSX)[:\s]+([A-Z.\-]{1,6})\b/;
+const GENERIC_NAV_LABELS = new Set([
+  "about",
+  "about us",
+  "home",
+  "faq",
+  "contact",
+  "contact us",
+  "services",
+  "membership",
+  "memberships",
+  "our methodology",
+  "methodology",
+  "where are we",
+  "pricing",
+  "login",
+  "log in",
+  "sign up",
+  "sign in",
+  "privacy policy",
+  "terms",
+]);
+const PLATFORM_HOST_RULES: Array<{
+  hostPattern: RegExp;
+  platformName: string;
+  shellPhrases: string[];
+}> = [
+  {
+    hostPattern: /(^|\.)instagram\.com$/i,
+    platformName: "Instagram",
+    shellPhrases: ["create an account", "log in to instagram", "share what you're into"],
+  },
+  {
+    hostPattern: /(^|\.)tiktok\.com$/i,
+    platformName: "TikTok",
+    shellPhrases: ["make your day", "watch, follow, and discover"],
+  },
+  {
+    hostPattern: /(^|\.)facebook\.com$/i,
+    platformName: "Facebook",
+    shellPhrases: ["log into facebook", "connect with friends"],
+  },
+];
 
 function collapseWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
@@ -128,11 +170,15 @@ function canonicalizeUrl(value: string) {
     if (!["http:", "https:"].includes(url.protocol)) {
       return null;
     }
+    if (!url.hostname.includes(".")) {
+      return null;
+    }
 
     url.hash = "";
     if (url.pathname === "/") {
       url.pathname = "";
     }
+    url.hostname = url.hostname.toLowerCase();
 
     return url.toString();
   } catch {
@@ -158,6 +204,40 @@ function looksLikeUrl(value: string | null | undefined) {
   }
 
   return Boolean(canonicalizeUrl(value));
+}
+
+function getHostRule(url: string) {
+  try {
+    const hostname = new URL(url).hostname;
+    return PLATFORM_HOST_RULES.find((rule) => rule.hostPattern.test(hostname)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function getUrlHandle(url: string) {
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    const handle = parts[0];
+    if (!handle || ["p", "reel", "share", "explore", "accounts"].includes(handle.toLowerCase())) {
+      return null;
+    }
+
+    return handle.replace(/^@/, "");
+  } catch {
+    return null;
+  }
+}
+
+function prettifyHandle(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  return value
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 async function fetchUrlInsight(url: string): Promise<UrlInsight | null> {
@@ -473,6 +553,133 @@ function sanitizeEntityName(value: string | null | undefined) {
   return normalized || null;
 }
 
+function decodeEntities(value: string | null | undefined) {
+  return sanitizeEntityName(decodeHtml(value ?? ""));
+}
+
+function cleanCandidateText(value: string | null | undefined) {
+  const cleaned = decodeEntities(value)
+    ?.replace(/\s+[|•·]\s+/g, " | ")
+    .replace(/^home\s+[|:-]\s+/i, "")
+    .replace(/^welcome to\s+/i, "")
+    .trim();
+  return cleaned ?? null;
+}
+
+function isGenericNavLabel(value: string | null | undefined) {
+  const normalized = cleanCandidateText(value)?.toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+
+  return GENERIC_NAV_LABELS.has(normalized);
+}
+
+function filterBusinessSignals(values: Array<string | null | undefined>, maxItems = 5) {
+  return uniqueShortStrings(values.map(cleanCandidateText), maxItems).filter(
+    (value) => !isGenericNavLabel(value),
+  );
+}
+
+function isPlatformShellInsight(insight: UrlInsight) {
+  const rule = getHostRule(insight.finalUrl);
+  if (!rule) {
+    return false;
+  }
+
+  const haystack = [
+    insight.title,
+    insight.description,
+    insight.textSnippet,
+    ...insight.headings,
+    ...insight.bullets,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return rule.shellPhrases.some((phrase) => haystack.includes(phrase));
+}
+
+function chooseEntityName(
+  currentName: string | null | undefined,
+  urls: string[],
+  aiName: string | null | undefined,
+  fallbackName: string | null | undefined,
+) {
+  const cleanedCurrent = cleanCandidateText(currentName);
+  const cleanedAi = cleanCandidateText(aiName);
+  const cleanedFallback = cleanCandidateText(fallbackName);
+  const primaryUrl = urls[0] ?? null;
+  const handleName = prettifyHandle(primaryUrl ? getUrlHandle(primaryUrl) : null);
+  const hostRule = primaryUrl ? getHostRule(primaryUrl) : null;
+
+  const currentLooksGenericPlatform =
+    !!hostRule &&
+    !!cleanedCurrent &&
+    cleanedCurrent.toLowerCase().includes(hostRule.platformName.toLowerCase());
+
+  if (cleanedCurrent && !looksLikeUrl(cleanedCurrent) && !currentLooksGenericPlatform) {
+    return cleanedCurrent;
+  }
+
+  if (handleName) {
+    return handleName;
+  }
+
+  if (cleanedAi && (!hostRule || !cleanedAi.toLowerCase().includes(hostRule.platformName.toLowerCase()))) {
+    return cleanedAi;
+  }
+
+  if (cleanedFallback && (!hostRule || !cleanedFallback.toLowerCase().includes(hostRule.platformName.toLowerCase()))) {
+    return cleanedFallback;
+  }
+
+  return sanitizeEntityName(deriveNameFromUrl(primaryUrl ?? cleanedCurrent ?? ""));
+}
+
+function hasMinimumBusinessEvidence(
+  insights: UrlInsight[],
+  primarySignals: string[],
+  secondarySignals: string[],
+) {
+  if (insights.length === 0) {
+    return false;
+  }
+
+  if (insights.every(isPlatformShellInsight)) {
+    return false;
+  }
+
+  return primarySignals.length + secondarySignals.length >= 2;
+}
+
+function filterRelevantNewsSignals(newsSignals: NewsSignal[], entityName: string | null, urls: string[]) {
+  const tokens = new Set<string>();
+  const addTokens = (value: string | null | undefined) => {
+    for (const token of (value ?? "").toLowerCase().split(/[^a-z0-9]+/)) {
+      if (token.length >= 4) {
+        tokens.add(token);
+      }
+    }
+  };
+
+  addTokens(entityName);
+  for (const url of urls) {
+    addTokens(prettifyHandle(getUrlHandle(url)));
+    try {
+      addTokens(new URL(url).hostname.replace(/^www\./, "").split(".")[0]);
+    } catch {
+      // ignore
+    }
+  }
+
+  return newsSignals.filter((item) => {
+    const haystack = `${item.title} ${item.source ?? ""}`.toLowerCase();
+    return Array.from(tokens).some((token) => haystack.includes(token));
+  });
+}
+
 function sentenceize(values: Array<string | null | undefined>, maxItems = 3) {
   return uniqueShortStrings(values, maxItems).map((value) =>
     /[.!?]$/.test(value) ? value : `${value}.`,
@@ -533,7 +740,7 @@ function fallbackProductSummary(insights: UrlInsight[]) {
     insights[0]?.textSnippet,
     insights[0]?.headings.join(". "),
   );
-  const features = uniqueShortStrings(
+  const features = filterBusinessSignals(
     insights.flatMap((insight) => [...insight.headings, ...insight.bullets]),
   );
   const pricing = inferPricing(insights);
@@ -559,9 +766,9 @@ function fallbackProductSummary(insights: UrlInsight[]) {
   }
 
   return {
-    name: firstNonEmpty(insights[0]?.title) ?? deriveNameFromUrl(insights[0]?.finalUrl ?? ""),
+    name: cleanCandidateText(insights[0]?.title) ?? deriveNameFromUrl(insights[0]?.finalUrl ?? ""),
     conclusions: summary ? [summary] : [],
-    evaluations: uniqueShortStrings(insights[0]?.headings ?? [], 2),
+    evaluations: filterBusinessSignals(insights[0]?.headings ?? [], 2),
     judgments,
     recommendations,
     industryNews: [],
@@ -581,7 +788,7 @@ function fallbackCompetitorSummary(insights: UrlInsight[]) {
     insights[0]?.textSnippet,
     insights[0]?.headings.join(". "),
   );
-  const signals = uniqueShortStrings(
+  const signals = filterBusinessSignals(
     insights.flatMap((insight) => [...insight.headings, ...insight.bullets]),
     6,
   );
@@ -604,7 +811,7 @@ function fallbackCompetitorSummary(insights: UrlInsight[]) {
   forecasts.push("Expect messaging and packaging to keep shifting as the category matures and buyer education improves.");
 
   return {
-    name: firstNonEmpty(insights[0]?.title) ?? deriveNameFromUrl(insights[0]?.finalUrl ?? ""),
+    name: cleanCandidateText(insights[0]?.title) ?? deriveNameFromUrl(insights[0]?.finalUrl ?? ""),
     conclusions: positioning ? [positioning] : [],
     evaluations: signals.slice(0, 2),
     judgments,
@@ -668,55 +875,61 @@ export async function enrichProductSeed(seed: ProductSeed) {
   const aiSummary =
     insights.length > 0 ? await callLocalSummarizer("product", insights, newsSignals, stockSignal) : null;
   const fallback = insights.length > 0 ? fallbackProductSummary(insights) : null;
+  const chosenName = chooseEntityName(seed.name, urls, typeof aiSummary?.name === "string" ? aiSummary.name : null, fallback?.name);
+  const relevantNewsSignals = filterRelevantNewsSignals(newsSignals, chosenName, urls);
+  const filteredFeatures = filterBusinessSignals([
+    ...(seed.features ?? []),
+    ...((Array.isArray(aiSummary?.features) ? aiSummary.features : []) as string[]),
+    ...(fallback?.features ?? []),
+  ]);
+  const primarySignals = filterBusinessSignals([
+    typeof aiSummary?.pricing === "string" ? aiSummary.pricing : null,
+    fallback?.pricing,
+    typeof aiSummary?.conclusions?.[0] === "string" ? aiSummary.conclusions[0] : null,
+    ...filteredFeatures,
+  ]);
+  const secondarySignals = filterBusinessSignals([
+    ...(Array.isArray(aiSummary?.evaluations) ? aiSummary.evaluations : []),
+    ...(fallback?.evaluations ?? []),
+  ]);
+  const passedQualityGate = hasMinimumBusinessEvidence(insights, primarySignals, secondarySignals);
   const decisionBody = buildDecisionBody([
-    ["Conclusions", (aiSummary?.conclusions as string[]) ?? fallback?.conclusions ?? []],
-    ["Evaluation", (aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []],
-    ["Judgment", (aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []],
-    ["Recommendation", (aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []],
-    ["Industry news", (aiSummary?.industryNews as string[]) ?? newsSignals.map((item) => item.title)],
-    ["R&D / roadmap", (aiSummary?.researchPlans as string[]) ?? fallback?.researchPlans ?? []],
-    ["Forecast", (aiSummary?.forecasts as string[]) ?? fallback?.forecasts ?? []],
+    ["Conclusions", passedQualityGate ? ((aiSummary?.conclusions as string[]) ?? fallback?.conclusions ?? []) : []],
+    ["Evaluation", passedQualityGate ? ((aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []) : []],
+    ["Judgment", passedQualityGate ? ((aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []) : []],
+    ["Recommendation", passedQualityGate ? ((aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []) : []],
+    ["Industry news", passedQualityGate ? ((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title)) : []],
+    ["R&D / roadmap", passedQualityGate ? ((aiSummary?.researchPlans as string[]) ?? fallback?.researchPlans ?? []) : []],
+    ["Forecast", passedQualityGate ? ((aiSummary?.forecasts as string[]) ?? fallback?.forecasts ?? []) : []],
     [
       "Stock signal",
-      (aiSummary?.stockSignal as string[]) ??
+      passedQualityGate ? ((aiSummary?.stockSignal as string[]) ??
         (stockSignal
           ? [
               `${stockSignal.ticker} at ${stockSignal.price ?? "n/a"} ${stockSignal.currency ?? ""} ${
                 stockSignal.changePercent !== null ? `(${stockSignal.changePercent}% daily change)` : ""
               }`.trim(),
             ]
-          : []),
+          : [])) : [],
     ],
     [
       "Market chatter (low confidence)",
-      (aiSummary?.marketChatter as string[]) ?? fallback?.marketChatter ?? [],
+      passedQualityGate ? ((aiSummary?.marketChatter as string[]) ?? fallback?.marketChatter ?? []) : [],
     ],
   ]);
 
   return {
     urls,
-    name:
-      sanitizeEntityName(
-        firstNonEmpty(
-          typeof aiSummary?.name === "string" ? aiSummary.name : null,
-          preferredExistingName,
-          fallback?.name,
-        ),
-      ) ?? sanitizeEntityName(fallbackName),
-    description: firstNonEmpty(
-      decisionBody,
-      seed.description,
-    ),
+    name: chosenName ?? sanitizeEntityName(fallbackName),
+    description: passedQualityGate
+      ? firstNonEmpty(decisionBody, seed.description)
+      : null,
     pricing: firstNonEmpty(
       seed.pricing,
       typeof aiSummary?.pricing === "string" ? aiSummary.pricing : null,
       fallback?.pricing,
     ),
-    features: uniqueShortStrings([
-      ...(seed.features ?? []),
-      ...((Array.isArray(aiSummary?.features) ? aiSummary.features : []) as string[]),
-      ...(fallback?.features ?? []),
-    ]),
+    features: passedQualityGate ? filteredFeatures : [],
   };
 }
 
@@ -753,68 +966,79 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
   const aiSummary =
     insights.length > 0 ? await callLocalSummarizer("competitor", insights, newsSignals, stockSignal) : null;
   const fallback = insights.length > 0 ? fallbackCompetitorSummary(insights) : null;
+  const chosenName = chooseEntityName(seed.name, urls, typeof aiSummary?.name === "string" ? aiSummary.name : null, fallback?.name);
+  const relevantNewsSignals = filterRelevantNewsSignals(newsSignals, chosenName, urls);
+  const filteredStrengths = filterBusinessSignals([
+    ...(seed.strengths ?? []),
+    ...((Array.isArray(aiSummary?.strengths) ? aiSummary.strengths : []) as string[]),
+    ...(fallback?.strengths ?? []),
+  ]);
+  const filteredWeaknesses = filterBusinessSignals([
+    ...(seed.weaknesses ?? []),
+    ...((Array.isArray(aiSummary?.weaknesses) ? aiSummary.weaknesses : []) as string[]),
+    ...(fallback?.weaknesses ?? []),
+  ]);
+  const primarySignals = filterBusinessSignals([
+    typeof aiSummary?.pricing === "string" ? aiSummary.pricing : null,
+    fallback?.pricing,
+    ...filteredStrengths,
+    ...filteredWeaknesses,
+  ]);
+  const secondarySignals = filterBusinessSignals([
+    ...(Array.isArray(aiSummary?.evaluations) ? aiSummary.evaluations : []),
+    ...(fallback?.evaluations ?? []),
+  ]);
+  const passedQualityGate = hasMinimumBusinessEvidence(insights, primarySignals, secondarySignals);
   const decisionBody = buildDecisionBody([
-    ["Conclusions", (aiSummary?.conclusions as string[]) ?? fallback?.conclusions ?? []],
-    ["Evaluation", (aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []],
-    ["Judgment", (aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []],
-    ["Recommendation", (aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []],
-    ["Industry news", (aiSummary?.industryNews as string[]) ?? newsSignals.map((item) => item.title)],
-    ["R&D / roadmap", (aiSummary?.researchPlans as string[]) ?? fallback?.researchPlans ?? []],
-    ["Forecast", (aiSummary?.forecasts as string[]) ?? fallback?.forecasts ?? []],
+    ["Conclusions", passedQualityGate ? ((aiSummary?.conclusions as string[]) ?? fallback?.conclusions ?? []) : []],
+    ["Evaluation", passedQualityGate ? ((aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []) : []],
+    ["Judgment", passedQualityGate ? ((aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []) : []],
+    ["Recommendation", passedQualityGate ? ((aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []) : []],
+    ["Industry news", passedQualityGate ? ((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title)) : []],
+    ["R&D / roadmap", passedQualityGate ? ((aiSummary?.researchPlans as string[]) ?? fallback?.researchPlans ?? []) : []],
+    ["Forecast", passedQualityGate ? ((aiSummary?.forecasts as string[]) ?? fallback?.forecasts ?? []) : []],
     [
       "Stock signal",
-      (aiSummary?.stockSignal as string[]) ??
+      passedQualityGate ? ((aiSummary?.stockSignal as string[]) ??
         (stockSignal
           ? [
               `${stockSignal.ticker} at ${stockSignal.price ?? "n/a"} ${stockSignal.currency ?? ""} ${
                 stockSignal.changePercent !== null ? `(${stockSignal.changePercent}% daily change)` : ""
               }`.trim(),
             ]
-          : []),
+          : [])) : [],
     ],
     [
       "Market chatter (low confidence)",
-      (aiSummary?.marketChatter as string[]) ?? fallback?.marketChatter ?? [],
+      passedQualityGate ? ((aiSummary?.marketChatter as string[]) ?? fallback?.marketChatter ?? []) : [],
     ],
   ]);
 
   return {
     urls,
-    name:
-      sanitizeEntityName(
-        firstNonEmpty(
-          typeof aiSummary?.name === "string" ? aiSummary.name : null,
-          preferredExistingName,
-          fallback?.name,
-        ),
-      ) ?? sanitizeEntityName(fallbackName),
+    name: chosenName ?? sanitizeEntityName(fallbackName),
     pricing: firstNonEmpty(
       seed.pricing,
       typeof aiSummary?.pricing === "string" ? aiSummary.pricing : null,
       fallback?.pricing,
     ),
-    positioning: firstNonEmpty(
-      decisionBody,
-      seed.positioning,
-    ),
-    strengths: uniqueShortStrings([
-      ...(seed.strengths ?? []),
-      ...((Array.isArray(aiSummary?.strengths) ? aiSummary.strengths : []) as string[]),
-      ...(fallback?.strengths ?? []),
-    ]),
-    weaknesses: uniqueShortStrings([
-      ...(seed.weaknesses ?? []),
-      ...((Array.isArray(aiSummary?.weaknesses) ? aiSummary.weaknesses : []) as string[]),
-      ...(fallback?.weaknesses ?? []),
-    ]),
+    positioning: passedQualityGate ? firstNonEmpty(decisionBody, seed.positioning) : null,
+    strengths: passedQualityGate ? filteredStrengths : [],
+    weaknesses: passedQualityGate ? filteredWeaknesses : [],
     watchedContent:
       insights.length > 0
         ? {
             fetchedAt: new Date().toISOString(),
             pages: insights,
-            newsSignals,
+            newsSignals: relevantNewsSignals,
             stockSignal,
             analysis: aiSummary,
+            qualityGate: {
+              passed: passedQualityGate,
+              reason: passedQualityGate
+                ? "sufficient-business-evidence"
+                : "generic-platform-or-navigation-content",
+            },
           }
         : (seed.watchedContent ?? null),
   };

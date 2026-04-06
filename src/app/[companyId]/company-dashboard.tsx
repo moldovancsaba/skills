@@ -16,6 +16,7 @@ import { TaskReviewCard } from "@/components/task-review-card";
 
 type NBAItem = {
   id: string;
+  publicId: number | null;
   title: string;
   description: string;
   impact: number;

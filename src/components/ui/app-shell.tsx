@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { UnifiedCard, UnifiedCardHeader } from "@/components/ui/unified-card";
+import { StructuredActionRow, StructuredCard, StructuredChipRow } from "@/components/ui/structured-card";
 
 type PageShellProps = {
   children: ReactNode;
@@ -188,17 +189,23 @@ export function LinkCard({
 }: LinkCardProps) {
   return (
     <Link href={href} className={cn("group block", className)}>
-      <UnifiedCard className="h-full transition-colors group-hover:bg-muted/40">
-        <UnifiedCardHeader
-          badges={
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 transition-colors group-hover:bg-accent/15">
+      <StructuredCard
+        className="h-full transition-colors group-hover:bg-muted/40"
+        chips={
+          <StructuredChipRow>
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 transition-colors group-hover:bg-accent/15">
               <Icon className="h-5 w-5 text-accent transition-colors" />
-            </div>
-          }
-          title={<span className="text-base">{title}</span>}
-          description={description}
-        />
-      </UnifiedCard>
+            </span>
+          </StructuredChipRow>
+        }
+        title={<span className="text-base">{title}</span>}
+        body={description}
+        actions={
+          <StructuredActionRow>
+            <span className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Open</span>
+          </StructuredActionRow>
+        }
+      />
     </Link>
   );
 }

@@ -238,6 +238,7 @@ enum FlashcardActionType {
 
 model NBAItem {
   id             String     @id @default(uuid())
+  publicId       Int?       @unique
   companyId      String
   title          String
   description    String?

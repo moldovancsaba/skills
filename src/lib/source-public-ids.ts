@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 
 const SOURCE_PUBLIC_ID_SCOPE = "source";
 const FLASHCARD_PUBLIC_ID_SCOPE = "flashcard";
+const CHECKLIST_PUBLIC_ID_SCOPE = "checklist";
 const MAX_RETRIES = 3;
 const TRANSACTION_MAX_WAIT_MS = 10_000;
 const TRANSACTION_TIMEOUT_MS = 120_000;
@@ -10,6 +11,7 @@ const TRANSACTION_TIMEOUT_MS = 120_000;
 export const PUBLIC_ID_SCOPES = {
   source: SOURCE_PUBLIC_ID_SCOPE,
   flashcard: FLASHCARD_PUBLIC_ID_SCOPE,
+  checklist: CHECKLIST_PUBLIC_ID_SCOPE,
 } as const;
 
 type SourceKind = "product" | "customer" | "competitor" | "file";
@@ -18,6 +20,11 @@ type MissingSource = {
   id: string;
   createdAt: Date;
   kind: SourceKind;
+};
+
+type MissingChecklistItem = {
+  id: string;
+  createdAt: Date;
 };
 
 export type TransactionClient = Omit<
@@ -227,6 +234,63 @@ export async function ensureSourcePublicIds(companyId?: string) {
 
 export async function nextSourcePublicId(tx: TransactionClient) {
   const [publicId] = await reservePublicIds(tx, SOURCE_PUBLIC_ID_SCOPE, 1);
+  return publicId;
+}
+
+async function readMissingChecklistItems(
+  tx: TransactionClient,
+  companyId?: string,
+): Promise<MissingChecklistItem[]> {
+  const where = companyId ? { companyId, publicId: null } : { publicId: null };
+
+  return tx.nBAItem.findMany({
+    where,
+    select: { id: true, createdAt: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+}
+
+export async function ensureChecklistPublicIds(companyId?: string) {
+  return withSerializableRetry(() =>
+    prisma.$transaction(
+      async (tx) => {
+        const missingItems = await readMissingChecklistItems(tx, companyId);
+        if (missingItems.length === 0) {
+          return 0;
+        }
+
+        const reservedPublicIds = await reservePublicIds(
+          tx,
+          CHECKLIST_PUBLIC_ID_SCOPE,
+          missingItems.length,
+        );
+
+        let assignedCount = 0;
+
+        for (const [index, item] of missingItems.entries()) {
+          const result = await tx.nBAItem.updateMany({
+            where: {
+              id: item.id,
+              publicId: null,
+            },
+            data: { publicId: reservedPublicIds[index] },
+          });
+          assignedCount += result.count;
+        }
+
+        return assignedCount;
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        maxWait: TRANSACTION_MAX_WAIT_MS,
+        timeout: TRANSACTION_TIMEOUT_MS,
+      },
+    ),
+  );
+}
+
+export async function nextChecklistPublicId(tx: TransactionClient) {
+  const [publicId] = await reservePublicIds(tx, CHECKLIST_PUBLIC_ID_SCOPE, 1);
   return publicId;
 }
 

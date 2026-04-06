@@ -4,19 +4,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { FileUp, Hash, Package, Users, Search, Plus, CheckCircle, Pencil, Trash2 } from "lucide-react";
+import { FileUp, Package, Users, Search, Plus, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
-import {
-  UnifiedCard,
-  UnifiedCardActions,
-  UnifiedCardBody,
-  UnifiedCardHeader,
-} from "@/components/ui/unified-card";
+import { SourceDataCard } from "@/components/source-data-card";
 import {
   defaultTypeHashtags,
   normalizeSourceHashtags,
@@ -181,15 +176,6 @@ export default function CompanyDataPage() {
     }
   };
 
-  const getIcon = (t: DataType) => {
-    switch (t) {
-      case "product": return Package;
-      case "customer": return Users;
-      case "competitor": return Search;
-      case "file": return FileUp;
-    }
-  };
-
   const hashtagSuggestions = Array.from(
     new Set(
       [
@@ -338,63 +324,21 @@ export default function CompanyDataPage() {
         ) : (
           <div className="grid gap-4">
             {items.map((item) => {
-              const Icon = getIcon(item.type);
               return (
-                <UnifiedCard key={item.id}>
-                  <UnifiedCardHeader
-                    badges={
-                      <>
-                        <Badge variant="secondary" className="font-mono">
-                          {item.publicId ? `#${item.publicId}` : "pending"}
-                        </Badge>
-                        <Badge variant="outline" className="gap-1 capitalize">
-                          <Icon className="h-3.5 w-3.5" />
-                          {item.type}
-                        </Badge>
-                      </>
-                    }
-                    title={
-                      editingId === item.id ? (
-                        <FormInput
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="max-w-xl"
-                          onKeyDown={(e) => e.key === "Enter" && saveEdit(item)}
-                          autoFocus
-                        />
-                      ) : (
-                        item.name
-                      )
-                    }
-                    description={item.publicId ? `Source #${item.publicId}` : item.id}
-                    aside={
-                      <UnifiedCardActions className="justify-end">
-                        {editingId === item.id && item.type !== "file" ? (
-                          <Button onClick={() => saveEdit(item)} variant="outline" size="sm">Save</Button>
-                        ) : item.type !== "file" ? (
-                          <Button onClick={() => startEdit(item)} variant="outline" size="sm">
-                            <Pencil className="h-4 w-4" />
-                            Edit
-                          </Button>
-                        ) : null}
-                        <Button onClick={() => deleteItem(item)} variant="ghost" size="sm">
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </Button>
-                      </UnifiedCardActions>
-                    }
-                  />
-                  <UnifiedCardBody>
-                    <div className="flex flex-wrap gap-2">
-                      {(item.hashtags ?? []).map((tag) => (
-                        <Badge key={tag} variant="outline" className="gap-1 rounded-full">
-                          <Hash className="h-3 w-3" />
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </UnifiedCardBody>
-                </UnifiedCard>
+                <SourceDataCard
+                  key={item.id}
+                  id={item.id}
+                  publicId={item.publicId}
+                  name={item.name}
+                  type={item.type}
+                  hashtags={item.hashtags ?? []}
+                  isEditing={editingId === item.id}
+                  editName={editName}
+                  onEditNameChange={setEditName}
+                  onStartEdit={() => startEdit(item)}
+                  onSave={() => saveEdit(item)}
+                  onDelete={() => deleteItem(item)}
+                />
               );
             })}
           </div>

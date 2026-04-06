@@ -13,6 +13,7 @@ import { TaskReviewCard } from "@/components/task-review-card";
 
 interface NBAItem {
   id: string;
+  publicId: number | null;
   title: string;
   description: string;
   impact: number;

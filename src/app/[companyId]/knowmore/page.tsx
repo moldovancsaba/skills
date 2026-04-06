@@ -5,25 +5,12 @@ import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Brain,
-  Check,
   Database,
   Layers3,
   Loader2,
-  MessageSquare,
-  PencilLine,
   Sparkles,
-  X,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  UnifiedCard,
-  UnifiedCardActions,
-  UnifiedCardBody,
-  UnifiedCardHeader,
-  UnifiedCardSection,
-  UnifiedCardText,
-} from "@/components/ui/unified-card";
 import {
   EmptyState,
   MetricCard,
@@ -32,8 +19,8 @@ import {
   PageHeader,
   PageShell,
 } from "@/components/ui/app-shell";
-import { FormInput, FormTextarea } from "@/components/ui/form-fields";
 import { Skeleton } from "@/components/ui/skeleton";
+import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
 
 type Company = {
   id: string;
@@ -444,187 +431,27 @@ export default function CompanyKnowMorePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.04 }}
               >
-                <UnifiedCard>
-                  <UnifiedCardHeader
-                    badges={
-                      <>
-                        <Badge variant="secondary" className="font-mono">
-                          {flashcard.publicId ? `#${flashcard.publicId}` : "pending"}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className={reviewStatusClasses(flashcard.reviewStatus)}
-                        >
-                          {reviewStatusLabel(flashcard.reviewStatus)}
-                        </Badge>
-                        <Badge variant="outline">Confidence {flashcard.confidence}%</Badge>
-                        <Badge variant="outline" className="capitalize">{kindLabel(flashcard.kind)}</Badge>
-                        <Badge variant="outline">Impact {flashcard.impact}</Badge>
-                        <Badge variant="outline">Weight {flashcard.weight}</Badge>
-                      </>
-                    }
-                    title={flashcard.title}
-                    description={`Refreshed ${new Date(flashcard.refreshedAt).toLocaleDateString()}${
-                      flashcard.lastActionAt
-                        ? ` • Last reviewed ${new Date(flashcard.lastActionAt).toLocaleDateString()}`
-                        : ""
-                    }`}
-                  />
-
-                  <UnifiedCardBody>
-                    <UnifiedCardText>{flashcard.body}</UnifiedCardText>
-
-                    {flashcard.userAnnotation && (
-                      <UnifiedCardSection className="bg-muted/60">
-                        <UnifiedCardText className="leading-5">
-                          <MessageSquare className="mr-2 inline h-4 w-4 align-text-bottom text-muted-foreground" />
-                          {flashcard.userAnnotation}
-                        </UnifiedCardText>
-                      </UnifiedCardSection>
-                    )}
-
-                    <div className="flex flex-wrap gap-2">
-                      {flashcard.sources.map((source) => (
-                        <Badge
-                          key={source.id}
-                          variant="secondary"
-                          className="gap-1 font-normal"
-                        >
-                          {source.sourcePublicId ? `#${source.sourcePublicId}` : "pending"}{" "}
-                          {sourceLabel(source.sourceType)}: {source.sourceName}
-                        </Badge>
-                      ))}
-                    </div>
-
-                    <UnifiedCardActions>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => openActionForm(flashcard, "ACCEPT")}
-                        disabled={isBusy || isGenerating}
-                      >
-                        {isBusy && actionMode === "ACCEPT" && activeFlashcardId === flashcard.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Check className="h-4 w-4" />
-                        )}
-                        Accept
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openActionForm(flashcard, "DECLINE")}
-                        disabled={isBusy || isGenerating}
-                      >
-                        <X className="h-4 w-4" />
-                        Decline
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openActionForm(flashcard, "MODIFY_ACCEPT")}
-                        disabled={isBusy || isGenerating}
-                      >
-                        <PencilLine className="h-4 w-4" />
-                        Modify + accept
-                      </Button>
-                    </UnifiedCardActions>
-
-                    {isActionOpen && (
-                      <UnifiedCardSection className="space-y-3 bg-muted/20">
-                        <p className="text-sm font-medium text-foreground">
-                          {actionLabel(actionMode)} this flashcard
-                        </p>
-
-                        {actionMode === "MODIFY_ACCEPT" && (
-                          <>
-                            <FormInput
-                              label="Edited title"
-                              value={editedTitle}
-                              onChange={(event) => setEditedTitle(event.target.value)}
-                              placeholder="Correct the flashcard title"
-                            />
-                            <FormTextarea
-                              label="Edited body"
-                              value={editedBody}
-                              onChange={(event) => setEditedBody(event.target.value)}
-                              placeholder="Correct or refine the flashcard body"
-                              className="min-h-[120px]"
-                            />
-                          </>
-                        )}
-
-                        <FormTextarea
-                          label={actionMode === "DECLINE" ? "Comment" : "Comment (optional)"}
-                          value={actionComment}
-                          onChange={(event) => setActionComment(event.target.value)}
-                          placeholder={
-                            actionMode === "DECLINE"
-                              ? "Explain what is wrong, misleading, or not useful"
-                              : actionMode === "MODIFY_ACCEPT"
-                                ? "Explain why the edit matters"
-                                : "Add extra context for the local AI"
-                          }
-                        />
-
-                        <UnifiedCardActions>
-                          <Button
-                            size="sm"
-                            onClick={() => void handleActionSubmit(flashcard.id)}
-                            disabled={isBusy}
-                          >
-                            {isBusy ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : actionMode === "DECLINE" ? (
-                              <X className="h-4 w-4" />
-                            ) : actionMode === "MODIFY_ACCEPT" ? (
-                              <PencilLine className="h-4 w-4" />
-                            ) : (
-                              <Check className="h-4 w-4" />
-                            )}
-                            Confirm {actionLabel(actionMode).toLowerCase()}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={closeActionForm}
-                            disabled={isBusy}
-                          >
-                            Cancel
-                          </Button>
-                        </UnifiedCardActions>
-                      </UnifiedCardSection>
-                    )}
-
-                    {flashcard.actions.length > 0 && (
-                      <UnifiedCardSection>
-                        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Recent flashcard actions
-                        </p>
-                        <div className="space-y-3">
-                          {flashcard.actions.map((action) => (
-                            <div key={action.id} className="text-sm text-foreground">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant="outline">{actionLabel(action.action)}</Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(action.createdAt).toLocaleString()}
-                                </span>
-                              </div>
-                              {action.annotation && (
-                                <p className="mt-1 text-muted-foreground">{action.annotation}</p>
-                              )}
-                              {action.modifiedTitle && (
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  Edited title: {action.modifiedTitle}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </UnifiedCardSection>
-                    )}
-                  </UnifiedCardBody>
-                </UnifiedCard>
+                <KnowledgeReviewCard
+                  flashcard={flashcard}
+                  isActionOpen={isActionOpen}
+                  actionMode={actionMode}
+                  isBusy={isBusy}
+                  isGenerating={isGenerating}
+                  actionComment={actionComment}
+                  editedTitle={editedTitle}
+                  editedBody={editedBody}
+                  reviewStatusClasses={reviewStatusClasses}
+                  reviewStatusLabel={reviewStatusLabel}
+                  kindLabel={kindLabel}
+                  sourceLabel={sourceLabel}
+                  actionLabel={actionLabel}
+                  onOpenAction={openActionForm}
+                  onCloseAction={closeActionForm}
+                  onActionCommentChange={setActionComment}
+                  onEditedTitleChange={setEditedTitle}
+                  onEditedBodyChange={setEditedBody}
+                  onSubmit={(flashcardId) => void handleActionSubmit(flashcardId)}
+                />
               </motion.div>
             );
           })}

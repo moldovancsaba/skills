@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FlashcardKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
+import { nextChecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 
 const OLLAMA_URL = "http://127.0.0.1:11434";
 const MODEL = "deepseek-r1:1.5b";
@@ -224,20 +225,24 @@ Generate 2-4 marketing NBA recommendations as JSON array.`;
       });
       const iceScore = calculateICEScore({ impact, confidence, ease });
 
-      const item = await prisma.nBAItem.create({
-        data: {
-          companyId,
-          title: rec.title,
-          description: rec.description || "",
-          sourceFlashcardIds: fallbackFlashcardIds,
-          impact,
-          confidence,
-          ease,
-          iceScore,
-          status: "PENDING",
-          createdBy: "local-ai",
-        },
-      });
+      const item = await prisma.$transaction(async (tx) => {
+        const publicId = await nextChecklistPublicId(tx);
+        return tx.nBAItem.create({
+          data: {
+            publicId,
+            companyId,
+            title: rec.title,
+            description: rec.description || "",
+            sourceFlashcardIds: fallbackFlashcardIds,
+            impact,
+            confidence,
+            ease,
+            iceScore,
+            status: "PENDING",
+            createdBy: "local-ai",
+          },
+        });
+      }, TRANSACTION_SETTINGS);
       created.push(item);
     }
 

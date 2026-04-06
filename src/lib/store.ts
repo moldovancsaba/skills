@@ -43,6 +43,7 @@ interface Competitor {
 
 interface NBAItem {
   id: string;
+  publicId?: number | null;
   title: string;
   description: string | null;
   iceScore: number;

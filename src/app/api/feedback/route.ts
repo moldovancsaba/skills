@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { applyTaskFeedbackToFlashcards } from "@/lib/flashcards";
+import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +26,8 @@ export async function POST(request: NextRequest) {
     let iceImpact = 0;
     if (data.action === "ACCEPT") {
       iceImpact = 10;
+    } else if (data.action === "MODIFY_ACCEPT") {
+      iceImpact = 15;
     } else if (data.action === "DECLINE") {
       iceImpact = -50;
     }
@@ -34,29 +37,41 @@ export async function POST(request: NextRequest) {
         nbaItemId: data.nbaItemId,
         action: data.action,
         annotation: data.annotation,
+        modifiedTitle: data.modifiedTitle,
+        modifiedDescription: data.modifiedDescription,
         iceImpact,
       },
     });
     
-    if (data.action === "ACCEPT" || data.action === "DECLINE") {
+    if (data.action === "ACCEPT" || data.action === "DECLINE" || data.action === "MODIFY_ACCEPT") {
       const item = await prisma.nBAItem.findUnique({
         where: { id: data.nbaItemId },
       });
       
       if (item) {
-        const newScore = item.iceScore * (1 + iceImpact / 100);
+        const metrics = normalizeNBAMetrics(item);
+        const baseScore = calculateICEScore(metrics);
+        const newScore = baseScore * (1 + iceImpact / 100);
         await prisma.nBAItem.update({
           where: { id: data.nbaItemId },
           data: {
-            status: data.action === "ACCEPT" ? "ACCEPTED" : "DECLINED",
-            iceScore: Math.max(10, newScore),
+            status: data.action === "DECLINE" ? "DECLINED" : "ACCEPTED",
+            title: data.action === "MODIFY_ACCEPT" && data.modifiedTitle?.trim() ? data.modifiedTitle.trim() : item.title,
+            description:
+              data.action === "MODIFY_ACCEPT" && typeof data.modifiedDescription === "string"
+                ? data.modifiedDescription.trim()
+                : item.description,
+            impact: metrics.impact,
+            confidence: metrics.confidence,
+            ease: metrics.ease,
+            iceScore: Math.max(0, Math.min(1000, newScore)),
             userAnnotation: data.annotation,
           },
         });
 
         await applyTaskFeedbackToFlashcards(
           data.nbaItemId,
-          data.action,
+          data.action === "DECLINE" ? "DECLINE" : "ACCEPT",
           data.annotation,
         );
       }

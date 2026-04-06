@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FlashcardKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 
 const OLLAMA_URL = "http://127.0.0.1:11434";
 const MODEL = "deepseek-r1:1.5b";
@@ -211,10 +212,12 @@ Generate 2-4 marketing NBA recommendations as JSON array.`;
         ? sourceFlashcardIds
         : activeFlashcards.slice(0, 3).map((flashcard) => flashcard.id);
 
-      const impact = Math.max(1, Math.min(10, Number(rec.impact) || 5));
-      const confidence = Math.max(1, Math.min(100, Number(rec.confidence) || 50));
-      const ease = Math.max(1, Math.min(10, Number(rec.ease) || 5));
-      const iceScore = impact * (confidence / 100) * ease * 10;
+      const { impact, confidence, ease } = normalizeNBAMetrics({
+        impact: Number(rec.impact) || 5,
+        confidence: Number(rec.confidence) || 50,
+        ease: Number(rec.ease) || 5,
+      });
+      const iceScore = calculateICEScore({ impact, confidence, ease });
 
       const item = await prisma.nBAItem.create({
         data: {

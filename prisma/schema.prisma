@@ -249,6 +249,8 @@ model Feedback {
   nbaItemId  String
   action     ActionType
   annotation String?
+  modifiedTitle String?
+  modifiedDescription String?
   iceImpact  Float?
   createdAt  DateTime    @default(now())
 
@@ -264,4 +266,5 @@ model PublicIdCounter {
 enum ActionType {
   ACCEPT
   DECLINE
+  MODIFY_ACCEPT
 }

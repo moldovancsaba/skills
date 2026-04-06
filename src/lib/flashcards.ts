@@ -330,7 +330,7 @@ function getAnalysisItems(
   return dedupeStrings(
     value.filter((item): item is string => typeof item === "string"),
     4,
-  ).filter((item) => !isLowValueCardText(item));
+  ).filter((item) => !isLowValueCardText(item) && !isWeakEvidenceLine(item));
 }
 
 function getNewsTitles(watchedContent: Prisma.JsonValue | null | undefined) {

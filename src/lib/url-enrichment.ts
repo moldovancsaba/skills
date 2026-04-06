@@ -1020,7 +1020,6 @@ function fallbackProductSummary(insights: UrlInsight[]) {
 }
 
 function fallbackCompetitorSummary(insights: UrlInsight[]) {
-  const insightText = combinedInsightText(insights);
   const positioning = firstNonEmpty(
     insights[0]?.description,
     insights[0]?.textSnippet,
@@ -1033,20 +1032,28 @@ function fallbackCompetitorSummary(insights: UrlInsight[]) {
   const judgments: string[] = [];
   const recommendations: string[] = [];
   const forecasts: string[] = [];
+  const primarySignal = signals[0] ?? null;
+  const secondarySignal = signals[1] ?? null;
 
-  if (containsAny(insightText, ["ai", "automation", "agent"])) {
-    judgments.push("The competitor is competing in an automation-heavy category where feature velocity matters.");
+  if (primarySignal && secondarySignal) {
+    judgments.push(
+      `The competitor appears to lead with ${primarySignal} and reinforces it with ${secondarySignal}.`,
+    );
+  } else if (primarySignal) {
+    judgments.push(`The competitor's clearest visible positioning signal is ${primarySignal}.`);
   }
 
-  if (containsAny(insightText, ["enterprise", "security", "privacy", "regulated"])) {
-    judgments.push("The positioning points toward higher-trust enterprise buyers rather than low-friction SMB acquisition.");
+  if (primarySignal) {
+    recommendations.push(
+      `Benchmark our offer against the competitor's visible promise around ${primarySignal}.`,
+    );
   }
 
-  if (signals.length > 0) {
-    recommendations.push("Compare this competitor's headline claims against our product's proof points, not just feature names.");
+  if (positioning && primarySignal) {
+    forecasts.push(
+      `If this positioning keeps landing, expect the competitor to keep investing around ${primarySignal}.`,
+    );
   }
-
-  forecasts.push("Expect messaging and packaging to keep shifting as the category matures and buyer education improves.");
 
   return {
     name: cleanCandidateText(insights[0]?.title) ?? deriveNameFromUrl(insights[0]?.finalUrl ?? ""),

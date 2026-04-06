@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -20,16 +21,17 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     
-    const iceScore = (data.impact * (data.confidence / 100) * data.ease * 10);
+    const { impact, confidence, ease } = normalizeNBAMetrics(data);
+    const iceScore = calculateICEScore({ impact, confidence, ease });
     
     const item = await prisma.nBAItem.create({
       data: {
         companyId: data.companyId,
         title: data.title,
         description: data.description,
-        impact: data.impact || 5,
-        confidence: data.confidence || 50,
-        ease: data.ease || 5,
+        impact,
+        confidence,
+        ease,
         iceScore,
         scheduledDate: data.scheduledDate,
         createdBy: data.createdBy,

@@ -21,6 +21,8 @@ interface NBAItem {
   createdBy?: string;
 }
 
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
+
 export default function CompanyNBAPage() {
   const router = useRouter();
   const params = useParams();
@@ -29,8 +31,11 @@ export default function CompanyNBAPage() {
   const { company, setCompany } = useStore();
   const [items, setItems] = useState<NBAItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showDeclineForm, setShowDeclineForm] = useState<string | null>(null);
+  const [actionMode, setActionMode] = useState<ActionMode | null>(null);
+  const [actionItemId, setActionItemId] = useState<string | null>(null);
   const [annotation, setAnnotation] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -128,10 +133,28 @@ export default function CompanyNBAPage() {
     }
   }, []);
 
+  const resetActionForm = useCallback(() => {
+    setActionMode(null);
+    setActionItemId(null);
+    setAnnotation("");
+    setDraftTitle("");
+    setDraftDescription("");
+  }, []);
+
+  const openActionForm = useCallback((item: NBAItem, mode: ActionMode) => {
+    setActionMode(mode);
+    setActionItemId(item.id);
+    setAnnotation(item.userAnnotation ?? "");
+    setDraftTitle(item.title);
+    setDraftDescription(item.description);
+  }, []);
+
   const handleFeedback = useCallback(async (
     itemId: string,
-    action: "ACCEPT" | "DECLINE",
+    action: ActionMode,
     feedbackAnnotation?: string,
+    modifiedTitle?: string,
+    modifiedDescription?: string,
   ) => {
     setLoading(true);
     await fetch("/api/feedback", {
@@ -141,18 +164,19 @@ export default function CompanyNBAPage() {
         nbaItemId: itemId,
         action,
         annotation: feedbackAnnotation,
+        modifiedTitle,
+        modifiedDescription,
       }),
     });
 
-    setShowDeclineForm(null);
-    setAnnotation("");
+    resetActionForm();
     await triggerLocalAI();
     if (company) {
       await loadNBA(company.id);
     } else {
       setLoading(false);
     }
-  }, [company, loadNBA, triggerLocalAI]);
+  }, [company, loadNBA, resetActionForm, triggerLocalAI]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -168,14 +192,13 @@ export default function CompanyNBAPage() {
           void handleFeedback(pending.id, "ACCEPT");
         }
       } else if (e.key === "Escape") {
-        setShowDeclineForm(null);
-        setAnnotation("");
+        resetActionForm();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleFeedback, handleRefresh, items]);
+  }, [handleFeedback, handleRefresh, items, resetActionForm]);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
@@ -263,18 +286,25 @@ export default function CompanyNBAPage() {
                 {item.status === "PENDING" && (
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => handleFeedback(item.id, "ACCEPT")}
+                      onClick={() => openActionForm(item, "ACCEPT")}
                       className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
-                      title="Accept (one-tap)"
+                      title="Accept"
                     >
                       <Check className="w-5 h-5" />
                     </button>
                     <button
-                      onClick={() => setShowDeclineForm(item.id)}
+                      onClick={() => openActionForm(item, "DECLINE")}
                       className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                       title="Decline"
                     >
                       <X className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => openActionForm(item, "MODIFY_ACCEPT")}
+                      className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Modify + accept"
+                    >
+                      Modify + accept
                     </button>
                   </div>
                 )}
@@ -290,23 +320,61 @@ export default function CompanyNBAPage() {
                 )}
               </div>
               
-              {showDeclineForm === item.id && (
+              {actionItemId === item.id && actionMode && (
                 <div className="mt-3 pt-3 border-t">
+                  {actionMode === "MODIFY_ACCEPT" && (
+                    <div className="space-y-2">
+                      <input
+                        value={draftTitle}
+                        onChange={(e) => setDraftTitle(e.target.value)}
+                        placeholder="Adjusted task title"
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      />
+                      <FormTextarea
+                        value={draftDescription}
+                        onChange={(e) => setDraftDescription(e.target.value)}
+                        placeholder="Adjusted task description"
+                      />
+                    </div>
+                  )}
                   <FormTextarea
                     value={annotation}
                     onChange={(e) => setAnnotation(e.target.value)}
-                    placeholder="Why are you declining? (required)"
+                    placeholder={
+                      actionMode === "DECLINE"
+                        ? "Why are you declining? (required)"
+                        : actionMode === "MODIFY_ACCEPT"
+                          ? "Why did you adjust this task? (recommended)"
+                          : "Why are you accepting this task? (optional)"
+                    }
                   />
                   <div className="flex gap-2 mt-2">
                     <button
-                      onClick={() => handleFeedback(item.id, "DECLINE", annotation)}
-                      disabled={!annotation.trim()}
-                      className="px-3 py-1 bg-red-600 text-white rounded text-sm disabled:opacity-50"
+                      onClick={() =>
+                        handleFeedback(
+                          item.id,
+                          actionMode,
+                          annotation,
+                          actionMode === "MODIFY_ACCEPT" ? draftTitle : undefined,
+                          actionMode === "MODIFY_ACCEPT" ? draftDescription : undefined,
+                        )
+                      }
+                      disabled={
+                        (actionMode === "DECLINE" && !annotation.trim()) ||
+                        (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))
+                      }
+                      className={`px-3 py-1 text-white rounded text-sm disabled:opacity-50 ${
+                        actionMode === "DECLINE" ? "bg-red-600" : "bg-green-600"
+                      }`}
                     >
-                      Confirm Decline
+                      {actionMode === "DECLINE"
+                        ? "Confirm Decline"
+                        : actionMode === "MODIFY_ACCEPT"
+                          ? "Save and Accept"
+                          : "Confirm Accept"}
                     </button>
                     <button
-                      onClick={() => { setShowDeclineForm(null); setAnnotation(""); }}
+                      onClick={resetActionForm}
                       className="px-3 py-1 text-muted-foreground text-sm"
                     >
                       Cancel

@@ -1265,6 +1265,9 @@ export async function listCompanyFlashcards(companyId: string) {
     where: {
       companyId,
       status: FlashcardStatus.ACTIVE,
+      reviewStatus: {
+        not: FlashcardReviewStatus.DECLINED,
+      },
     },
     include: FLASHCARD_INCLUDES,
     orderBy: [{ weight: "desc" }, { confidence: "desc" }, { publicId: "asc" }, { createdAt: "asc" }],

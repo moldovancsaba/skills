@@ -124,6 +124,8 @@ function decodeHtml(value: string) {
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
+    .replace(/&#8211;/gi, "–")
+    .replace(/&#8212;/gi, "—")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">");
 }
@@ -623,13 +625,24 @@ function chooseEntityName(
   const primaryUrl = urls[0] ?? null;
   const handleName = prettifyHandle(primaryUrl ? getUrlHandle(primaryUrl) : null);
   const hostRule = primaryUrl ? getHostRule(primaryUrl) : null;
+  const hostDerivedName = sanitizeEntityName(deriveNameFromUrl(primaryUrl ?? cleanedCurrent ?? ""));
+  const currentLooksSuspicious =
+    !!cleanedCurrent &&
+    (/^ww\d+$/i.test(cleanedCurrent) ||
+      cleanedCurrent.length <= 3 ||
+      /^[a-z0-9]+$/i.test(cleanedCurrent));
 
   const currentLooksGenericPlatform =
     !!hostRule &&
     !!cleanedCurrent &&
     cleanedCurrent.toLowerCase().includes(hostRule.platformName.toLowerCase());
 
-  if (cleanedCurrent && !looksLikeUrl(cleanedCurrent) && !currentLooksGenericPlatform) {
+  if (
+    cleanedCurrent &&
+    !looksLikeUrl(cleanedCurrent) &&
+    !currentLooksGenericPlatform &&
+    !currentLooksSuspicious
+  ) {
     return cleanedCurrent;
   }
 
@@ -645,7 +658,7 @@ function chooseEntityName(
     return cleanedFallback;
   }
 
-  return sanitizeEntityName(deriveNameFromUrl(primaryUrl ?? cleanedCurrent ?? ""));
+  return hostDerivedName;
 }
 
 function hasMinimumBusinessEvidence(

@@ -135,6 +135,29 @@ Use for dashboard navigation surfaces.
 
 Use for zero-data states and first-run prompts.
 
+## Unified Cards
+
+Import from `@/components/ui/unified-card`:
+
+```tsx
+import {
+  UnifiedCard,
+  UnifiedCardActions,
+  UnifiedCardBody,
+  UnifiedCardHeader,
+  UnifiedCardSection,
+  UnifiedCardText,
+} from "@/components/ui/unified-card";
+```
+
+Use this family for all first-class object cards:
+- `Knowmore` flashcards
+- `Checklist` task cards
+- `Data` source cards
+- dashboard card surfaces that represent live system objects
+
+`Knowmore` is the canonical template. New object cards should match its metadata badges, title area, body spacing, action row, and inline review/edit sections.
+
 ## Action Components
 
 Use `Button` from `@/components/ui/button` for all primary, secondary, ghost, and destructive actions.

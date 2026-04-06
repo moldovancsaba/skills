@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { UnifiedCard, UnifiedCardHeader } from "@/components/ui/unified-card";
 
 type PageShellProps = {
   children: ReactNode;
@@ -185,13 +186,13 @@ export function LinkCard({
 }: LinkCardProps) {
   return (
     <Link href={href} className={cn("group block", className)}>
-      <Card className="h-full transition-colors group-hover:bg-muted/50">
-        <CardHeader className="p-6">
-          <Icon className="mb-2 h-6 w-6 text-muted-foreground transition-colors group-hover:text-foreground" />
-          <CardTitle className="text-base">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-      </Card>
+      <UnifiedCard className="h-full transition-colors group-hover:bg-muted/40">
+        <UnifiedCardHeader
+          badges={<Icon className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />}
+          title={<span className="text-base">{title}</span>}
+          description={description}
+        />
+      </UnifiedCard>
     </Link>
   );
 }

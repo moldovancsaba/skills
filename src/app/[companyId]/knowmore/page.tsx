@@ -17,12 +17,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  UnifiedCard,
+  UnifiedCardActions,
+  UnifiedCardBody,
+  UnifiedCardHeader,
+  UnifiedCardSection,
+  UnifiedCardText,
+} from "@/components/ui/unified-card";
 import {
   EmptyState,
   MetricCard,
@@ -423,7 +424,7 @@ export default function CompanyKnowMorePage() {
             }
             secondaryAction={
               <Button asChild variant="outline">
-                <a href={`/${companyId}/nba`}>Open Recommendations</a>
+                <a href={`/${companyId}/nba`}>Open Checklist</a>
               </Button>
             }
           />
@@ -441,42 +442,43 @@ export default function CompanyKnowMorePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.04 }}
               >
-                <Card>
-                  <CardHeader className="gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary" className="font-mono">
-                        {flashcard.publicId ? `#${flashcard.publicId}` : "pending"}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className={reviewStatusClasses(flashcard.reviewStatus)}
-                      >
-                        {reviewStatusLabel(flashcard.reviewStatus)}
-                      </Badge>
-                      <Badge variant="outline">Confidence {flashcard.confidence}%</Badge>
-                      <Badge variant="outline" className="capitalize">{kindLabel(flashcard.kind)}</Badge>
-                      <Badge variant="outline">Impact {flashcard.impact}</Badge>
-                      <Badge variant="outline">Weight {flashcard.weight}</Badge>
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl">{flashcard.title}</CardTitle>
-                      <CardDescription className="mt-2">
-                        Refreshed {new Date(flashcard.refreshedAt).toLocaleDateString()}
-                        {flashcard.lastActionAt
-                          ? ` • Last reviewed ${new Date(flashcard.lastActionAt).toLocaleDateString()}`
-                          : ""}
-                      </CardDescription>
-                    </div>
-                  </CardHeader>
+                <UnifiedCard>
+                  <UnifiedCardHeader
+                    badges={
+                      <>
+                        <Badge variant="secondary" className="font-mono">
+                          {flashcard.publicId ? `#${flashcard.publicId}` : "pending"}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={reviewStatusClasses(flashcard.reviewStatus)}
+                        >
+                          {reviewStatusLabel(flashcard.reviewStatus)}
+                        </Badge>
+                        <Badge variant="outline">Confidence {flashcard.confidence}%</Badge>
+                        <Badge variant="outline" className="capitalize">{kindLabel(flashcard.kind)}</Badge>
+                        <Badge variant="outline">Impact {flashcard.impact}</Badge>
+                        <Badge variant="outline">Weight {flashcard.weight}</Badge>
+                      </>
+                    }
+                    title={flashcard.title}
+                    description={`Refreshed ${new Date(flashcard.refreshedAt).toLocaleDateString()}${
+                      flashcard.lastActionAt
+                        ? ` • Last reviewed ${new Date(flashcard.lastActionAt).toLocaleDateString()}`
+                        : ""
+                    }`}
+                  />
 
-                  <CardContent className="space-y-4">
-                    <p className="text-sm leading-6 text-foreground">{flashcard.body}</p>
+                  <UnifiedCardBody>
+                    <UnifiedCardText>{flashcard.body}</UnifiedCardText>
 
                     {flashcard.userAnnotation && (
-                      <div className="rounded-md bg-muted/60 p-3 text-sm text-foreground">
-                        <MessageSquare className="mr-2 inline h-4 w-4 align-text-bottom text-muted-foreground" />
-                        {flashcard.userAnnotation}
-                      </div>
+                      <UnifiedCardSection className="bg-muted/60">
+                        <UnifiedCardText className="leading-5">
+                          <MessageSquare className="mr-2 inline h-4 w-4 align-text-bottom text-muted-foreground" />
+                          {flashcard.userAnnotation}
+                        </UnifiedCardText>
+                      </UnifiedCardSection>
                     )}
 
                     <div className="flex flex-wrap gap-2">
@@ -492,7 +494,7 @@ export default function CompanyKnowMorePage() {
                       ))}
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <UnifiedCardActions>
                       <Button
                         size="sm"
                         variant="secondary"
@@ -524,10 +526,10 @@ export default function CompanyKnowMorePage() {
                         <PencilLine className="h-4 w-4" />
                         Modify + accept
                       </Button>
-                    </div>
+                    </UnifiedCardActions>
 
                     {isActionOpen && (
-                      <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+                      <UnifiedCardSection className="space-y-3 bg-muted/20">
                         <p className="text-sm font-medium text-foreground">
                           {actionLabel(actionMode)} this flashcard
                         </p>
@@ -563,7 +565,7 @@ export default function CompanyKnowMorePage() {
                           }
                         />
 
-                        <div className="flex flex-wrap gap-2">
+                        <UnifiedCardActions>
                           <Button
                             size="sm"
                             onClick={() => void handleActionSubmit(flashcard.id)}
@@ -588,12 +590,12 @@ export default function CompanyKnowMorePage() {
                           >
                             Cancel
                           </Button>
-                        </div>
-                      </div>
+                        </UnifiedCardActions>
+                      </UnifiedCardSection>
                     )}
 
                     {flashcard.actions.length > 0 && (
-                      <div className="rounded-lg border border-border bg-muted/10 p-4">
+                      <UnifiedCardSection>
                         <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           Recent flashcard actions
                         </p>
@@ -617,10 +619,10 @@ export default function CompanyKnowMorePage() {
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </UnifiedCardSection>
                     )}
-                  </CardContent>
-                </Card>
+                  </UnifiedCardBody>
+                </UnifiedCard>
               </motion.div>
             );
           })}

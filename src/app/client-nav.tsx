@@ -35,7 +35,7 @@ export function ClientNav() {
               Data
             </Link>
             <Link href={`/${company.id}/nba`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-              Tasks
+              Checklist
             </Link>
             <Link href={`/${company.id}/knowmore`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
               Knowmore

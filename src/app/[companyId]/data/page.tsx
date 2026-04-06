@@ -12,6 +12,12 @@ import { FormInput } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import {
+  UnifiedCard,
+  UnifiedCardActions,
+  UnifiedCardBody,
+  UnifiedCardHeader,
+} from "@/components/ui/unified-card";
+import {
   defaultTypeHashtags,
   normalizeSourceHashtags,
   sourceTypeFromHashtags,
@@ -255,7 +261,7 @@ export default function CompanyDataPage() {
           backHref={`/${companyId}`}
           backLabel="Back"
           title="Add Data"
-          description="Quickly add products, customers, or competitors."
+          description="Store raw URLs, notes, and files with hashtags. Processing happens later."
         />
       </motion.div>
 
@@ -269,25 +275,6 @@ export default function CompanyDataPage() {
               placeholder="Paste a URL, type a source name, or pair files with hashtags..."
               className="h-14 text-base"
             />
-
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-foreground">Files</label>
-              <input
-                type="file"
-                multiple
-                onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
-                className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
-              />
-              {selectedFiles.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {selectedFiles.map((file) => (
-                    <Badge key={`${file.name}-${file.size}`} variant="secondary" className="rounded-full">
-                      {file.name}
-                    </Badge>
-                  ))}
-                </div>
-              ) : null}
-            </div>
 
             <div className="space-y-3">
               <label className="text-sm font-medium text-foreground">Files</label>
@@ -349,50 +336,65 @@ export default function CompanyDataPage() {
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data yet. Add your first item above.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="grid gap-4">
             {items.map((item) => {
               const Icon = getIcon(item.type);
               return (
-                <div key={item.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg">
-                  <Icon className="w-4 h-4 text-muted-foreground" />
-                  {editingId === item.id ? (
-                    <FormInput
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="flex-1"
-                      onKeyDown={(e) => e.key === "Enter" && saveEdit(item)}
-                      autoFocus
-                    />
-                  ) : (
-                    <div className="flex-1">
-                      <p className="text-sm text-foreground">{item.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        {item.publicId ? `Source #${item.publicId}` : item.id}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {(item.hashtags ?? []).map((tag) => (
-                          <Badge key={tag} variant="outline" className="gap-1 rounded-full">
-                            <Hash className="h-3 w-3" />
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
+                <UnifiedCard key={item.id}>
+                  <UnifiedCardHeader
+                    badges={
+                      <>
+                        <Badge variant="secondary" className="font-mono">
+                          {item.publicId ? `#${item.publicId}` : "pending"}
+                        </Badge>
+                        <Badge variant="outline" className="gap-1 capitalize">
+                          <Icon className="h-3.5 w-3.5" />
+                          {item.type}
+                        </Badge>
+                      </>
+                    }
+                    title={
+                      editingId === item.id ? (
+                        <FormInput
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="max-w-xl"
+                          onKeyDown={(e) => e.key === "Enter" && saveEdit(item)}
+                          autoFocus
+                        />
+                      ) : (
+                        item.name
+                      )
+                    }
+                    description={item.publicId ? `Source #${item.publicId}` : item.id}
+                    aside={
+                      <UnifiedCardActions className="justify-end">
+                        {editingId === item.id && item.type !== "file" ? (
+                          <Button onClick={() => saveEdit(item)} variant="outline" size="sm">Save</Button>
+                        ) : item.type !== "file" ? (
+                          <Button onClick={() => startEdit(item)} variant="outline" size="sm">
+                            <Pencil className="h-4 w-4" />
+                            Edit
+                          </Button>
+                        ) : null}
+                        <Button onClick={() => deleteItem(item)} variant="ghost" size="sm">
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </Button>
+                      </UnifiedCardActions>
+                    }
+                  />
+                  <UnifiedCardBody>
+                    <div className="flex flex-wrap gap-2">
+                      {(item.hashtags ?? []).map((tag) => (
+                        <Badge key={tag} variant="outline" className="gap-1 rounded-full">
+                          <Hash className="h-3 w-3" />
+                          {tag}
+                        </Badge>
+                      ))}
                     </div>
-                  )}
-                  <Badge variant="secondary" className="text-xs font-mono">
-                    {item.publicId ? `#${item.publicId}` : "pending"}
-                  </Badge>
-                  {editingId === item.id && item.type !== "file" ? (
-                    <Button onClick={() => saveEdit(item)} variant="outline" size="sm">Save</Button>
-                  ) : item.type !== "file" ? (
-                    <Button onClick={() => startEdit(item)} variant="ghost" size="icon">
-                      <Pencil className="w-3 h-3" />
-                    </Button>
-                  ) : null}
-                  <Button onClick={() => deleteItem(item)} variant="ghost" size="icon">
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
+                  </UnifiedCardBody>
+                </UnifiedCard>
               );
             })}
           </div>

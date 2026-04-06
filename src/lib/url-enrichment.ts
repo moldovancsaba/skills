@@ -40,6 +40,11 @@ type StockSignal = {
   changePercent: number | null;
 };
 
+type RawSourceInput = {
+  name: string;
+  urls: string[];
+};
+
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://127.0.0.1:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "deepseek-r1:1.5b";
 const FETCH_TIMEOUT_MS = 5000;
@@ -198,6 +203,10 @@ function canonicalizeUrl(value: string) {
   }
 }
 
+function normalizeUrlList(values: string[]) {
+  return uniqueShortStrings(values.map(canonicalizeUrl), 5);
+}
+
 function deriveNameFromUrl(value: string) {
   try {
     const hostname = new URL(value).hostname.replace(/^www\./, "");
@@ -216,6 +225,16 @@ function looksLikeUrl(value: string | null | undefined) {
   }
 
   return Boolean(canonicalizeUrl(value));
+}
+
+export function looksSuspiciousSourceName(value: string | null | undefined) {
+  const cleaned = cleanCandidateText(value);
+  return (
+    !!cleaned &&
+    (/^ww\d+$/i.test(cleaned) ||
+      cleaned.length <= 3 ||
+      /^[a-z0-9]+$/i.test(cleaned))
+  );
 }
 
 function getHostRule(url: string) {
@@ -753,7 +772,7 @@ function hasInvalidStoredUrls(urls: string[] | undefined) {
   return (urls ?? []).some((url) => canonicalizeUrl(url) === null);
 }
 
-function looksLikeLowValueAnalysis(value: string | null | undefined) {
+export function looksLikeLowValueAnalysis(value: string | null | undefined) {
   const normalized = collapseWhitespace(decodeHtml(value ?? "")).toLowerCase();
   if (!normalized) {
     return false;
@@ -894,6 +913,46 @@ export function normalizeQuickAddInput(input: string) {
     urls: [normalizedUrl],
     inputWasUrl: true,
   };
+}
+
+export function prepareRawSourceInput(name: string, urls: string[] = []): RawSourceInput {
+  const trimmedName = name.trim();
+  const inferredUrl = canonicalizeUrl(trimmedName);
+  const normalizedUrls = normalizeUrlList([
+    ...urls,
+    ...(inferredUrl ? [inferredUrl] : []),
+  ]);
+
+  return {
+    name: trimmedName,
+    urls: normalizedUrls,
+  };
+}
+
+export function presentRawSourceName(name: string, urls: string[] = []) {
+  const cleanedName = cleanCandidateText(name);
+  if (looksLikeUrl(cleanedName)) {
+    return cleanedName!;
+  }
+
+  const firstUrl = normalizeUrlList(urls)[0] ?? null;
+  const hostRule = firstUrl ? getHostRule(firstUrl) : null;
+  const cleanedUrlHandle = firstUrl ? prettifyHandle(getUrlHandle(firstUrl)) : null;
+
+  if (
+    firstUrl &&
+    (
+      !cleanedName ||
+      looksSuspiciousSourceName(cleanedName) ||
+      (hostRule && cleanedName.toLowerCase().includes(hostRule.platformName.toLowerCase())) ||
+      cleanedName === cleanedUrlHandle ||
+      cleanedName?.replace(/\s+/g, "").toLowerCase() === cleanedUrlHandle?.replace(/\s+/g, "").toLowerCase()
+    )
+  ) {
+    return firstUrl;
+  }
+
+  return cleanedName ?? firstUrl ?? name;
 }
 
 export async function enrichProductSeed(seed: ProductSeed) {

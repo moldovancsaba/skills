@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "lint": "eslint src eslint.config.js --ext .ts,.tsx,.js,.jsx",
     "db:push": "prisma db push",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "repair:raw-sources": "node scripts/repair-raw-sources.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

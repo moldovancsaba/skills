@@ -6,8 +6,7 @@ import {
   TRANSACTION_SETTINGS,
 } from "@/lib/source-public-ids";
 import {
-  enrichProductSeed,
-  normalizeQuickAddInput,
+  prepareRawSourceInput,
 } from "@/lib/url-enrichment";
 import { syncCompanyKnowledge } from "@/lib/flashcards";
 
@@ -30,17 +29,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    const normalized = normalizeQuickAddInput(data.name ?? "");
-    const urls = Array.from(
-      new Set([...(data.urls || []), ...normalized.urls].filter(Boolean)),
-    );
-    const enriched = await enrichProductSeed({
-      name: normalized.inputWasUrl ? normalized.name : data.name,
-      description: data.description,
-      pricing: data.pricing,
-      features: data.features || [],
-      urls,
-    });
+    const raw = prepareRawSourceInput(data.name ?? "", data.urls || []);
     
     const product = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
@@ -49,11 +38,11 @@ export async function POST(request: NextRequest) {
         data: {
           publicId,
           companyId: data.companyId,
-          name: enriched.name || normalized.name || data.name,
-          description: enriched.description,
-          pricing: enriched.pricing,
-          features: enriched.features,
-          urls: enriched.urls,
+          name: raw.name,
+          description: data.description ?? null,
+          pricing: data.pricing ?? null,
+          features: data.features || [],
+          urls: raw.urls,
         },
       });
     }, TRANSACTION_SETTINGS);
@@ -91,26 +80,21 @@ export async function PATCH(request: NextRequest) {
   
   try {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-    const normalized = normalizeQuickAddInput(data.name ?? "");
-    const urls = Array.from(
-      new Set([...(data.urls || []), ...normalized.urls].filter(Boolean)),
+    const existing = await prisma.product.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const raw = prepareRawSourceInput(
+      data.name ?? existing.name,
+      data.urls ?? existing.urls,
     );
-    const enriched = await enrichProductSeed({
-      name: normalized.inputWasUrl ? normalized.name : data.name,
-      description: data.description,
-      pricing: data.pricing,
-      features: data.features || [],
-      urls,
-    });
 
     const product = await prisma.product.update({
       where: { id },
       data: {
-        name: enriched.name || normalized.name || data.name,
-        description: enriched.description,
-        pricing: enriched.pricing,
-        features: enriched.features,
-        urls: enriched.urls,
+        name: raw.name,
+        description: data.description ?? existing.description,
+        pricing: data.pricing ?? existing.pricing,
+        features: data.features ?? existing.features,
+        urls: raw.urls,
       },
     });
     await syncCompanyKnowledge(product.companyId);

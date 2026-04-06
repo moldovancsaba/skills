@@ -11,7 +11,6 @@ import {
   nextPublicId,
   PUBLIC_ID_SCOPES,
   TRANSACTION_SETTINGS,
-  TransactionClient,
   withSerializableRetry,
 } from "@/lib/source-public-ids";
 import {
@@ -31,7 +30,8 @@ type ProductSource = {
   type: "PRODUCT";
   id: string;
   publicId: number | null;
-  name: string;
+  sourceName: string;
+  knowledgeName: string;
   description: string | null;
   pricing: string | null;
   features: string[];
@@ -44,7 +44,8 @@ type CustomerSource = {
   type: "CUSTOMER";
   id: string;
   publicId: number | null;
-  name: string;
+  sourceName: string;
+  knowledgeName: string;
   email: string | null;
   segments: string[];
   painPoints: string[];
@@ -59,7 +60,8 @@ type CompetitorSource = {
   type: "COMPETITOR";
   id: string;
   publicId: number | null;
-  name: string;
+  sourceName: string;
+  knowledgeName: string;
   urls: string[];
   pricing: string | null;
   strengths: string[];
@@ -170,7 +172,7 @@ function buildProductFlashcard(source: ProductSource): FlashcardDraft {
   ]);
 
   return {
-    title: `Product knowledge: ${displaySourceName(source.name)}`,
+    title: `Product knowledge: ${displaySourceName(source.knowledgeName)}`,
     body:
       bodyParts.join(" ") ||
       "No structured product summary is available yet. Add product details or a product URL for automatic enrichment.",
@@ -201,7 +203,7 @@ function buildCustomerFlashcard(source: CustomerSource): FlashcardDraft {
   ]);
 
   return {
-    title: `Customer knowledge: ${displaySourceName(source.name)}`,
+    title: `Customer knowledge: ${displaySourceName(source.knowledgeName)}`,
     body:
       bodyParts.join(" ") ||
       "No structured customer insight is available yet. Add notes, segments, pain points, or channels to improve this card.",
@@ -228,7 +230,7 @@ function buildCompetitorFlashcard(source: CompetitorSource): FlashcardDraft {
   ]);
 
   return {
-    title: `Competitor knowledge: ${displaySourceName(source.name)}`,
+    title: `Competitor knowledge: ${displaySourceName(source.knowledgeName)}`,
     body:
       bodyParts.join(" ") ||
       "No structured competitor summary is available yet. Add competitor URLs or market notes for automatic enrichment.",
@@ -238,98 +240,7 @@ function buildCompetitorFlashcard(source: CompetitorSource): FlashcardDraft {
   };
 }
 
-async function refreshCompanySourceEnrichment(companyId: string) {
-  const [products, competitors] = await Promise.all([
-    prisma.product.findMany({ where: { companyId } }),
-    prisma.competitor.findMany({ where: { companyId } }),
-  ]);
-
-  await Promise.all(
-    products.map(async (product) => {
-      if (!shouldEnrichProduct(product)) {
-        return;
-      }
-
-      const enriched = await enrichProductSeed(product);
-      const nextName = normalizeText(enriched.name) ?? product.name;
-      const nextDescription = normalizeText(enriched.description);
-      const nextPricing = normalizeText(enriched.pricing);
-      const nextFeatures = enriched.features;
-      const nextUrls = enriched.urls;
-
-      const changed =
-        product.name !== nextName ||
-        normalizeText(product.description) !== nextDescription ||
-        normalizeText(product.pricing) !== nextPricing ||
-        JSON.stringify(product.features) !== JSON.stringify(nextFeatures) ||
-        JSON.stringify(product.urls) !== JSON.stringify(nextUrls);
-
-      if (!changed) {
-        return;
-      }
-
-      await prisma.product.update({
-        where: { id: product.id },
-        data: {
-          name: nextName,
-          description: nextDescription,
-          pricing: nextPricing,
-          features: nextFeatures,
-          urls: nextUrls,
-        },
-      });
-    }),
-  );
-
-  await Promise.all(
-    competitors.map(async (competitor) => {
-      if (!shouldEnrichCompetitor(competitor)) {
-        return;
-      }
-
-      const enriched = await enrichCompetitorSeed(competitor);
-      const nextName = normalizeText(enriched.name) ?? competitor.name;
-      const nextPricing = normalizeText(enriched.pricing);
-      const nextPositioning = normalizeText(enriched.positioning);
-      const nextStrengths = enriched.strengths;
-      const nextWeaknesses = enriched.weaknesses;
-      const nextUrls = enriched.urls;
-      const nextWatchedContent = enriched.watchedContent as Prisma.JsonValue | null;
-
-      const changed =
-        competitor.name !== nextName ||
-        normalizeText(competitor.pricing) !== nextPricing ||
-        normalizeText(competitor.positioning) !== nextPositioning ||
-        JSON.stringify(competitor.urls) !== JSON.stringify(nextUrls) ||
-        JSON.stringify(competitor.strengths) !== JSON.stringify(nextStrengths) ||
-        JSON.stringify(competitor.weaknesses) !== JSON.stringify(nextWeaknesses) ||
-        JSON.stringify(competitor.watchedContent) !== JSON.stringify(nextWatchedContent);
-
-      if (!changed) {
-        return;
-      }
-
-      await prisma.competitor.update({
-        where: { id: competitor.id },
-        data: {
-          name: nextName,
-          urls: nextUrls,
-          pricing: nextPricing,
-          positioning: nextPositioning,
-          strengths: nextStrengths,
-          weaknesses: nextWeaknesses,
-          watchedContent:
-            nextWatchedContent === null
-              ? Prisma.JsonNull
-              : (nextWatchedContent as Prisma.InputJsonValue),
-        },
-      });
-    }),
-  );
-}
-
 export async function syncCompanyKnowledge(companyId: string) {
-  await refreshCompanySourceEnrichment(companyId);
   await syncBootstrapFlashcards(companyId);
 }
 
@@ -409,78 +320,109 @@ function needsSourceSnapshotUpdate(
   },
   source: {
     publicId: number | null;
-    name: string;
+    sourceName: string;
   },
 ) {
   return (
     existing.sourcePublicId !== source.publicId ||
-    existing.sourceName !== source.name ||
+    existing.sourceName !== source.sourceName ||
     existing.relationRole !== FlashcardSourceRole.PRIMARY
   );
 }
 
-async function loadCompanySources(
-  tx: TransactionClient,
-  companyId: string,
-) {
+async function loadCompanySources(companyId: string) {
   const [products, customers, competitors] = await Promise.all([
-    tx.product.findMany({
+    prisma.product.findMany({
       where: { companyId },
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
     }),
-    tx.customer.findMany({
+    prisma.customer.findMany({
       where: { companyId },
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
     }),
-    tx.competitor.findMany({
+    prisma.competitor.findMany({
       where: { companyId },
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
     }),
   ]);
 
-  return [
-    ...products.map(
-      (item) =>
-        ({
-          ...item,
+  const [derivedProducts, derivedCompetitors] = await Promise.all([
+    Promise.all(
+      products.map(async (product) => {
+        const enriched = shouldEnrichProduct(product)
+          ? await enrichProductSeed(product)
+          : null;
+
+        return {
           type: "PRODUCT",
-        }) satisfies ProductSource,
+          id: product.id,
+          publicId: product.publicId,
+          sourceName: product.name,
+          knowledgeName: normalizeText(enriched?.name) ?? product.name,
+          description: normalizeText(enriched?.description) ?? normalizeText(product.description),
+          pricing: normalizeText(enriched?.pricing) ?? normalizeText(product.pricing),
+          features: enriched?.features ?? product.features,
+          urls: enriched?.urls ?? product.urls,
+          createdAt: product.createdAt,
+          updatedAt: product.updatedAt,
+        } satisfies ProductSource;
+      }),
     ),
+    Promise.all(
+      competitors.map(async (competitor) => {
+        const enriched = shouldEnrichCompetitor(competitor)
+          ? await enrichCompetitorSeed(competitor)
+          : null;
+
+        return {
+          type: "COMPETITOR",
+          id: competitor.id,
+          publicId: competitor.publicId,
+          sourceName: competitor.name,
+          knowledgeName: normalizeText(enriched?.name) ?? competitor.name,
+          urls: enriched?.urls ?? competitor.urls,
+          pricing: normalizeText(enriched?.pricing) ?? normalizeText(competitor.pricing),
+          strengths: enriched?.strengths ?? competitor.strengths,
+          weaknesses: enriched?.weaknesses ?? competitor.weaknesses,
+          positioning: normalizeText(enriched?.positioning) ?? normalizeText(competitor.positioning),
+          createdAt: competitor.createdAt,
+          updatedAt: competitor.updatedAt,
+        } satisfies CompetitorSource;
+      }),
+    ),
+  ]);
+
+  return [
+    ...derivedProducts,
     ...customers.map(
       (item) =>
         ({
           ...item,
           type: "CUSTOMER",
+          sourceName: item.name,
+          knowledgeName: item.name,
         }) satisfies CustomerSource,
     ),
-    ...competitors.map(
-      (item) =>
-        ({
-          ...item,
-          type: "COMPETITOR",
-        }) satisfies CompetitorSource,
-    ),
+    ...derivedCompetitors,
   ] satisfies SourceRecord[];
 }
 
 export async function syncBootstrapFlashcards(companyId: string) {
   await ensureSourcePublicIds(companyId);
+  const sources = await loadCompanySources(companyId);
 
   return withSerializableRetry(() =>
     prisma.$transaction(
       async (tx) => {
-        const [sources, flashcards] = await Promise.all([
-          loadCompanySources(tx, companyId),
-          tx.flashcard.findMany({
-            where: {
-              companyId,
-              createdBy: BOOTSTRAP_CREATED_BY,
-            },
-            include: {
-              sources: true,
-            },
-          }),
-        ]);
+        const flashcards = await tx.flashcard.findMany({
+          where: {
+            companyId,
+            createdBy: BOOTSTRAP_CREATED_BY,
+          },
+          include: {
+            sources: true,
+          },
+        });
 
         const flashcardBySourceKey = new Map<
           string,
@@ -544,7 +486,7 @@ export async function syncBootstrapFlashcards(companyId: string) {
                   },
                   data: {
                     sourcePublicId: source.publicId,
-                    sourceName: source.name,
+                    sourceName: source.sourceName,
                     relationRole: FlashcardSourceRole.PRIMARY,
                   },
                 });
@@ -556,7 +498,7 @@ export async function syncBootstrapFlashcards(companyId: string) {
                   sourceType: source.type,
                   sourceId: source.id,
                   sourcePublicId: source.publicId,
-                  sourceName: source.name,
+                  sourceName: source.sourceName,
                   relationRole: FlashcardSourceRole.PRIMARY,
                 },
               });
@@ -586,7 +528,7 @@ export async function syncBootstrapFlashcards(companyId: string) {
                   sourceType: source.type,
                   sourceId: source.id,
                   sourcePublicId: source.publicId,
-                  sourceName: source.name,
+                  sourceName: source.sourceName,
                   relationRole: FlashcardSourceRole.PRIMARY,
                 },
               },

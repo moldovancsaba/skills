@@ -59,16 +59,18 @@ export async function PATCH(request: NextRequest) {
   
   try {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const existing = await prisma.customer.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const customer = await prisma.customer.update({
       where: { id },
       data: {
-        name: data.name,
-        email: data.email,
-        segments: data.segments,
-        painPoints: data.painPoints,
-        channels: data.channels,
-        lifetimeValue: data.lifetimeValue,
-        notes: data.notes,
+        name: data.name ?? existing.name,
+        email: data.email ?? existing.email,
+        segments: data.segments ?? existing.segments,
+        painPoints: data.painPoints ?? existing.painPoints,
+        channels: data.channels ?? existing.channels,
+        lifetimeValue: data.lifetimeValue ?? existing.lifetimeValue,
+        notes: data.notes ?? existing.notes,
       },
     });
     await syncCompanyKnowledge(customer.companyId);

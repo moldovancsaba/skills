@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 import { Package, Users, Search, Plus, CheckCircle, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { FormInput, FormSelect, FormTextarea } from "@/components/ui/form-fields";
-import { normalizeQuickAddInput } from "@/lib/url-enrichment";
 
 type DataType = "product" | "customer" | "competitor";
 
@@ -92,8 +91,6 @@ export default function CompanyDataPage() {
     e.preventDefault();
     if (!input.trim() || !company) return;
 
-    const normalized = normalizeQuickAddInput(input);
-
     const endpoint = type === "product" ? "/api/products" 
       : type === "customer" ? "/api/customers" 
       : "/api/competitors";
@@ -101,16 +98,16 @@ export default function CompanyDataPage() {
     const payload = type === "product" 
       ? {
           companyId: company.id,
-          name: normalized.name,
-          urls: normalized.urls,
+          name: input,
+          urls: [],
           features: [],
         }
       : type === "customer"
       ? { companyId: company.id, name: input, segments: [], painPoints: [], channels: [] }
       : {
           companyId: company.id,
-          name: normalized.name,
-          urls: normalized.urls,
+          name: input,
+          urls: [],
           strengths: [],
           weaknesses: [],
         };

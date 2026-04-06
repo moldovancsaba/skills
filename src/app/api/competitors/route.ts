@@ -7,8 +7,7 @@ import {
   TRANSACTION_SETTINGS,
 } from "@/lib/source-public-ids";
 import {
-  enrichCompetitorSeed,
-  normalizeQuickAddInput,
+  prepareRawSourceInput,
 } from "@/lib/url-enrichment";
 import { syncCompanyKnowledge } from "@/lib/flashcards";
 
@@ -31,19 +30,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    const normalized = normalizeQuickAddInput(data.name ?? "");
-    const urls = Array.from(
-      new Set([...(data.urls || []), ...normalized.urls].filter(Boolean)),
-    );
-    const enriched = await enrichCompetitorSeed({
-      name: normalized.inputWasUrl ? normalized.name : data.name,
-      urls,
-      pricing: data.pricing,
-      strengths: data.strengths || [],
-      weaknesses: data.weaknesses || [],
-      positioning: data.positioning,
-      watchedContent: data.watchedContent,
-    });
+    const raw = prepareRawSourceInput(data.name ?? "", data.urls || []);
     
     const competitor = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
@@ -52,16 +39,15 @@ export async function POST(request: NextRequest) {
         data: {
           publicId,
           companyId: data.companyId,
-          name: enriched.name || normalized.name || data.name,
-          urls: enriched.urls,
-          pricing: enriched.pricing,
-          strengths: enriched.strengths,
-          weaknesses: enriched.weaknesses,
-          positioning: enriched.positioning,
-          watchedContent:
-            enriched.watchedContent === null
-              ? Prisma.JsonNull
-              : (enriched.watchedContent as Prisma.InputJsonValue),
+          name: raw.name,
+          urls: raw.urls,
+          pricing: data.pricing ?? null,
+          strengths: data.strengths || [],
+          weaknesses: data.weaknesses || [],
+          positioning: data.positioning ?? null,
+          watchedContent: data.watchedContent
+            ? (data.watchedContent as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
         },
       });
     }, TRANSACTION_SETTINGS);
@@ -80,33 +66,29 @@ export async function PATCH(request: NextRequest) {
   
   try {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-    const normalized = normalizeQuickAddInput(data.name ?? "");
-    const urls = Array.from(
-      new Set([...(data.urls || []), ...normalized.urls].filter(Boolean)),
+    const existing = await prisma.competitor.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const raw = prepareRawSourceInput(
+      data.name ?? existing.name,
+      data.urls ?? existing.urls,
     );
-    const enriched = await enrichCompetitorSeed({
-      name: normalized.inputWasUrl ? normalized.name : data.name,
-      urls,
-      pricing: data.pricing,
-      strengths: data.strengths || [],
-      weaknesses: data.weaknesses || [],
-      positioning: data.positioning,
-      watchedContent: data.watchedContent,
-    });
 
     const competitor = await prisma.competitor.update({
       where: { id },
       data: {
-        name: enriched.name || normalized.name || data.name,
-        urls: enriched.urls,
-        pricing: enriched.pricing,
-        strengths: enriched.strengths,
-        weaknesses: enriched.weaknesses,
-        positioning: enriched.positioning,
-        watchedContent:
-          enriched.watchedContent === null
+        name: raw.name,
+        urls: raw.urls,
+        pricing: data.pricing ?? existing.pricing,
+        strengths: data.strengths ?? existing.strengths,
+        weaknesses: data.weaknesses ?? existing.weaknesses,
+        positioning: data.positioning ?? existing.positioning,
+        watchedContent: data.watchedContent !== undefined
+          ? (data.watchedContent
+            ? (data.watchedContent as Prisma.InputJsonValue)
+            : Prisma.JsonNull)
+          : existing.watchedContent === null
             ? Prisma.JsonNull
-            : (enriched.watchedContent as Prisma.InputJsonValue),
+            : (existing.watchedContent as Prisma.InputJsonValue),
       },
     });
     await syncCompanyKnowledge(competitor.companyId);

@@ -15,7 +15,11 @@ type UnifiedCardProps = {
 };
 
 export function UnifiedCard({ children, className }: UnifiedCardProps) {
-  return <Card className={cn("overflow-hidden border-border/80 shadow-sm", className)}>{children}</Card>;
+  return (
+    <Card className={cn("overflow-hidden border-border/80 bg-card/95 shadow-card transition-[transform,box-shadow,border-color] duration-200 hover:border-accent/20 hover:shadow-card-hover", className)}>
+      {children}
+    </Card>
+  );
 }
 
 type UnifiedCardHeaderProps = {
@@ -38,8 +42,8 @@ export function UnifiedCardHeader({
       {badges ? <div className="flex flex-wrap items-center gap-2">{badges}</div> : null}
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0 flex-1">
-          <CardTitle className="text-xl leading-tight">{title}</CardTitle>
-          {description ? <CardDescription className="mt-2">{description}</CardDescription> : null}
+          <CardTitle className="text-xl leading-tight md:text-[1.35rem]">{title}</CardTitle>
+          {description ? <CardDescription className="mt-2 text-[0.95rem]">{description}</CardDescription> : null}
         </div>
         {aside ? <div className="shrink-0">{aside}</div> : null}
       </div>
@@ -56,7 +60,7 @@ export function UnifiedCardText({ children, className }: UnifiedCardProps) {
 }
 
 export function UnifiedCardSection({ children, className }: UnifiedCardProps) {
-  return <div className={cn("rounded-lg border border-border bg-muted/10 p-4", className)}>{children}</div>;
+  return <div className={cn("rounded-lg border border-border/80 bg-muted/40 p-4 shadow-card", className)}>{children}</div>;
 }
 
 export function UnifiedCardActions({ children, className }: UnifiedCardProps) {

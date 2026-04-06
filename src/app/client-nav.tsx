@@ -20,14 +20,14 @@ export function ClientNav() {
   if (!company) return null;
 
   return (
-    <nav className="border-b border-border bg-card">
-      <div className="mx-auto max-w-7xl px-4">
-        <div className="flex min-h-14 items-center justify-between gap-3">
-          <Link href={`/${company.id}`} className="font-bold text-foreground">
+    <nav className="sticky top-0 z-40 border-b border-border/80 bg-background/85 backdrop-blur">
+      <div className="mx-auto max-w-7xl px-4 md:px-6">
+        <div className="flex min-h-16 items-center justify-between gap-3">
+          <Link href={`/${company.id}`} className="font-display text-lg font-bold text-foreground">
             Checklist
           </Link>
 
-          <div className="flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border/80 bg-card/80 p-1 shadow-card">
             <Link href={`/${company.id}`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
               Dashboard
             </Link>
@@ -51,7 +51,7 @@ export function ClientNav() {
             </Button>
           </div>
 
-          <Button onClick={handleSwitchCompany} variant="secondary" size="sm">
+          <Button onClick={handleSwitchCompany} variant="secondary" size="sm" className="min-w-[10rem] justify-between">
             <span>{company.name}</span>
             <ChevronDown className="w-3 h-3" />
           </Button>

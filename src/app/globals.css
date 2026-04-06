@@ -4,89 +4,150 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.3%;
+    --background: 210 40% 98%;
+    --foreground: 215 28% 17%;
+
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.3%;
+    --card-foreground: 215 28% 17%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.3%;
-    --primary: 221.2 83.2% 53.3%;
+    --popover-foreground: 215 28% 17%;
+
+    --primary: 222 47% 11%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 98%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 98%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --success: 142.1 76.2% 36.3%;
+
+    --secondary: 215 20% 95%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 263 70% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 160 60% 45%;
     --success-foreground: 0 0% 100%;
+
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 263 70% 58%;
+
+    --radius: 0.75rem;
+
+    --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+    --shadow-card-hover: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+    --shadow-elevated: 0 10px 30px -10px rgba(124, 58, 237, 0.12);
   }
 
   .dark {
-    --background: 222.2 84% 4.3%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.3%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.3%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --success: 142.1 76.2% 36.3%;
+    --background: 222 47% 11%;
+    --foreground: 213 31% 91%;
+
+    --card: 222 40% 13%;
+    --card-foreground: 213 31% 91%;
+
+    --popover: 222 40% 13%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 222 35% 18%;
+    --secondary-foreground: 213 31% 91%;
+
+    --muted: 222 32% 17%;
+    --muted-foreground: 215 14% 65%;
+
+    --accent: 263 70% 62%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 160 60% 45%;
     --success-foreground: 0 0% 100%;
+
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-  }
-}
 
-@layer base {
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 30% 22%;
+    --input: 222 30% 22%;
+    --ring: 263 70% 62%;
+
+    --shadow-card: 0 1px 3px 0 rgba(2, 6, 23, 0.35), 0 1px 2px -1px rgba(2, 6, 23, 0.3);
+    --shadow-card-hover: 0 10px 24px -12px rgba(2, 6, 23, 0.5), 0 4px 8px -4px rgba(2, 6, 23, 0.35);
+    --shadow-elevated: 0 12px 36px -16px rgba(124, 58, 237, 0.35);
+  }
+
   * {
     @apply border-border;
   }
+
+  html {
+    @apply scroll-smooth;
+  }
+
   body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+    background-image:
+      radial-gradient(circle at top, hsl(var(--accent) / 0.08), transparent 32%),
+      linear-gradient(to bottom, hsl(var(--background)), hsl(var(--background)));
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+  }
+
+  input,
+  textarea,
+  select {
+    @apply text-foreground;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-muted-foreground;
+  }
+
+  select option {
     @apply bg-background text-foreground;
   }
 }
 
 @layer utilities {
   .input {
-    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex h-11 w-full rounded-lg border border-input bg-background/95 px-4 py-2 text-sm text-foreground shadow-card placeholder:text-muted-foreground transition-[border-color,box-shadow,background-color] focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50;
   }
-}
 
-@layer base {
-  /* Force text colors for ALL form elements - CRITICAL for dark mode */
-  input,
-  textarea,
-  select {
-    @apply text-foreground;
+  .font-display {
+    font-family: var(--font-display);
   }
-  
-  input::placeholder,
-  textarea::placeholder {
-    @apply text-muted-foreground;
+
+  .font-body {
+    font-family: var(--font-body);
   }
-  
-  /* Ensure select options are visible in dark mode */
-  select option {
-    @apply text-foreground bg-background;
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-card-hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
   }
 }

@@ -6,8 +6,8 @@ const VERSION = "0.1.0";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border mt-auto py-4">
-      <div className="max-w-7xl mx-auto px-4 flex items-center justify-between text-sm text-muted-foreground">
+    <footer className="mt-auto border-t border-border/80 bg-background/80 py-5 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 text-sm text-muted-foreground md:px-6">
         <div className="flex items-center gap-4">
           <Link href="/privacy" className="hover:text-foreground transition-colors">
             Privacy
@@ -16,7 +16,7 @@ export function Footer() {
             Terms
           </Link>
         </div>
-        <div>
+        <div className="rounded-full border border-border/80 bg-card px-3 py-1 text-xs shadow-card">
           v{VERSION}
         </div>
       </div>

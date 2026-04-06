@@ -16,6 +16,10 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+        display: ["var(--font-display)", "sans-serif"],
+        body: ["var(--font-body)", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -55,9 +59,14 @@ module.exports = {
           foreground: "hsl(0 0% 100%)",
         },
         warning: {
-          DEFAULT: "hsl(38 92% 50%)",
-          foreground: "hsl(0 0% 100%)",
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
         },
+      },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        "card-hover": "var(--shadow-card-hover)",
+        elevated: "var(--shadow-elevated)",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

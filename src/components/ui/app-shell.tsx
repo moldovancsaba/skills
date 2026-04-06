@@ -37,7 +37,7 @@ export function PageShell({
   className,
 }: PageShellProps) {
   return (
-    <div className={cn("mx-auto w-full space-y-8 p-4 md:p-8", widthClasses[width], className)}>
+    <div className={cn("mx-auto w-full space-y-8 px-4 py-6 md:px-8 md:py-10", widthClasses[width], className)}>
       {children}
     </div>
   );
@@ -62,14 +62,14 @@ export function PageHeader({
     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="space-y-2">
         {backHref ? (
-          <Link href={backHref} className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto px-0")}>
+          <Link href={backHref} className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto px-0 text-muted-foreground hover:text-foreground")}>
             {backLabel}
           </Link>
         ) : null}
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+          <h1 className="font-display text-3xl font-bold text-foreground md:text-4xl">{title}</h1>
           {description ? (
-            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground md:text-[0.95rem]">{description}</p>
           ) : null}
         </div>
       </div>
@@ -124,12 +124,14 @@ export function MetricCard({
   iconClassName,
 }: MetricCardProps) {
   return (
-    <Card>
+    <Card className="bg-card/95">
       <CardHeader className="space-y-3 p-5">
-        <Icon className={cn("h-5 w-5 text-muted-foreground", iconClassName)} />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+          <Icon className={cn("h-5 w-5 text-accent", iconClassName)} />
+        </div>
         <div>
           <CardDescription>{label}</CardDescription>
-          <CardTitle className="mt-1 text-2xl">{value}</CardTitle>
+          <CardTitle className="mt-1 text-2xl md:text-[1.75rem]">{value}</CardTitle>
         </div>
       </CardHeader>
       {detail ? <CardContent className="p-5 pt-0 text-xs text-muted-foreground">{detail}</CardContent> : null}
@@ -188,7 +190,11 @@ export function LinkCard({
     <Link href={href} className={cn("group block", className)}>
       <UnifiedCard className="h-full transition-colors group-hover:bg-muted/40">
         <UnifiedCardHeader
-          badges={<Icon className="h-5 w-5 text-muted-foreground transition-colors group-hover:text-foreground" />}
+          badges={
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 transition-colors group-hover:bg-accent/15">
+              <Icon className="h-5 w-5 text-accent transition-colors" />
+            </div>
+          }
           title={<span className="text-base">{title}</span>}
           description={description}
         />

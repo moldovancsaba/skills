@@ -6,6 +6,13 @@ Unified component patterns for consistent, maintainable UI.
 
 **Always use unified design-system components** - Never hardcode page chrome, actions, or form styling directly in route files.
 
+## Visual Language
+
+- Typography uses `Inter` for body copy and `Plus Jakarta Sans` for titles, key metrics, and major object labels.
+- Primary action emphasis uses `accent`, while neutral surfaces rely on `card`, `muted`, and `border`.
+- Core surfaces should feel light but structured: `rounded-lg`, `border-border/80`, and `shadow-card`.
+- Interactive object cards should use subtle elevation and border accentuation on hover rather than raw color fills.
+
 ## Form Components
 
 Import from `@/components/ui/form-fields`:

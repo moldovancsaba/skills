@@ -1,15 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { verifyMembership } from "@/lib/permissions";
 import { applyTaskFeedbackToFlashcards, syncCompanyKnowledge } from "@/lib/flashcards";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 
 export async function GET(request: NextRequest) {
   try {
     const nbaItemId = request.nextUrl.searchParams.get("nbaItemId");
-    
-    const where = nbaItemId ? { nbaItemId } : {};
+    if (!nbaItemId) {
+      return NextResponse.json({ error: "nbaItemId required" }, { status: 400 });
+    }
+
+    const item = await prisma.nBAItem.findUnique({
+      where: { id: nbaItemId },
+      select: { companyId: true }
+    });
+
+    if (!item) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const auth = await verifyMembership(request, item.companyId);
+    if (auth.error) return auth.error;
+
     const feedbacks = await prisma.feedback.findMany({
-      where,
+      where: { nbaItemId },
       orderBy: { createdAt: "desc" },
     });
     
@@ -22,6 +37,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    if (!data.nbaItemId) {
+      return NextResponse.json({ error: "nbaItemId required" }, { status: 400 });
+    }
+
+    const item = await prisma.nBAItem.findUnique({
+      where: { id: data.nbaItemId },
+    });
+
+    if (!item) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const auth = await verifyMembership(request, item.companyId);
+    if (auth.error) return auth.error;
     
     let iceImpact = 0;
     if (data.action === "ACCEPT") {
@@ -44,39 +73,33 @@ export async function POST(request: NextRequest) {
     });
     
     if (data.action === "ACCEPT" || data.action === "DECLINE" || data.action === "MODIFY_ACCEPT") {
-      const item = await prisma.nBAItem.findUnique({
+      const metrics = normalizeNBAMetrics(item);
+      const baseScore = calculateICEScore(metrics);
+      const newScore = baseScore * (1 + iceImpact / 100);
+      await prisma.nBAItem.update({
         where: { id: data.nbaItemId },
+        data: {
+          status: data.action === "DECLINE" ? "DECLINED" : "ACCEPTED",
+          title: data.action === "MODIFY_ACCEPT" && data.modifiedTitle?.trim() ? data.modifiedTitle.trim() : item.title,
+          description:
+            data.action === "MODIFY_ACCEPT" && typeof data.modifiedDescription === "string"
+              ? data.modifiedDescription.trim()
+              : item.description,
+          impact: metrics.impact,
+          confidence: metrics.confidence,
+          ease: metrics.ease,
+          iceScore: Math.max(0, Math.min(1000, newScore)),
+          userAnnotation: data.annotation,
+        },
       });
-      
-      if (item) {
-        const metrics = normalizeNBAMetrics(item);
-        const baseScore = calculateICEScore(metrics);
-        const newScore = baseScore * (1 + iceImpact / 100);
-        await prisma.nBAItem.update({
-          where: { id: data.nbaItemId },
-          data: {
-            status: data.action === "DECLINE" ? "DECLINED" : "ACCEPTED",
-            title: data.action === "MODIFY_ACCEPT" && data.modifiedTitle?.trim() ? data.modifiedTitle.trim() : item.title,
-            description:
-              data.action === "MODIFY_ACCEPT" && typeof data.modifiedDescription === "string"
-                ? data.modifiedDescription.trim()
-                : item.description,
-            impact: metrics.impact,
-            confidence: metrics.confidence,
-            ease: metrics.ease,
-            iceScore: Math.max(0, Math.min(1000, newScore)),
-            userAnnotation: data.annotation,
-          },
-        });
 
-        await applyTaskFeedbackToFlashcards(
-          data.nbaItemId,
-          data.action === "DECLINE" ? "DECLINE" : "ACCEPT",
-          data.annotation,
-        );
+      await applyTaskFeedbackToFlashcards(
+        data.nbaItemId,
+        data.action === "DECLINE" ? "DECLINE" : "ACCEPT",
+        data.annotation,
+      );
 
-        await syncCompanyKnowledge(item.companyId);
-      }
+      await syncCompanyKnowledge(item.companyId);
     }
     
     return NextResponse.json(feedback);

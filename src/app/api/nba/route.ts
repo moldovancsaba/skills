@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { verifyMembership } from "@/lib/permissions";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 import { ensureChecklistPublicIds, nextChecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
+  const auth = await verifyMembership(request, companyId);
+  if (auth.error) return auth.error;
   
   try {
     await ensureChecklistPublicIds(companyId ?? undefined);
-    const where = companyId ? { companyId } : {};
     const items = await prisma.nBAItem.findMany({
-      where,
+      where: { companyId: companyId as string },
       orderBy: [{ iceScore: "desc" }, { publicId: "asc" }, { createdAt: "asc" }],
     });
     return NextResponse.json(items);
@@ -23,7 +25,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    
+    const auth = await verifyMembership(request, data.companyId);
+    if (auth.error) return auth.error;
+
     const { impact, confidence, ease } = normalizeNBAMetrics(data);
     const iceScore = calculateICEScore({ impact, confidence, ease });
     

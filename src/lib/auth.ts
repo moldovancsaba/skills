@@ -220,6 +220,18 @@ export async function handleOAuthCallback(req: NextRequest) {
     const tokens = await exchangeCodeForTokens(code, oauthState.codeVerifier);
     const userInfo = decodeIdToken(tokens.id_token);
 
+    // Sync Google Profile to our membership records
+    try {
+      const { prisma } = await import("@/lib/db");
+      await prisma.user.updateMany({
+        where: { email: userInfo.email },
+        data: { name: userInfo.name || userInfo.email }
+      });
+    } catch (dbError) {
+      console.error("Failed to sync user profile to DB:", dbError);
+      // We continue anyway so the user isn't blocked by a secondary sync failure
+    }
+
     const session = createAppSession({
       sub: userInfo.sub,
       email: userInfo.email,

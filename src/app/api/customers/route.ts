@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { verifyMembership } from "@/lib/permissions";
 import {
   ensureSourcePublicIds,
   nextSourcePublicId,
@@ -10,12 +11,13 @@ import { syncCompanyKnowledge } from "@/lib/flashcards";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
+  const auth = await verifyMembership(request, companyId);
+  if (auth.error) return auth.error;
   
   try {
     await ensureSourcePublicIds(companyId ?? undefined);
-    const where = companyId ? { companyId } : {};
     const customers = await prisma.customer.findMany({
-      where,
+      where: { companyId: companyId as string },
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
     });
     return NextResponse.json(
@@ -32,6 +34,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    const auth = await verifyMembership(request, data.companyId);
+    if (auth.error) return auth.error;
     
     const customer = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
@@ -63,12 +67,16 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
-  const data = await request.json();
-  
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
   try {
-    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const data = await request.json();
     const existing = await prisma.customer.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const auth = await verifyMembership(request, existing.companyId);
+    if (auth.error) return auth.error;
+
     const customer = await prisma.customer.update({
       where: { id },
       data: {
@@ -91,17 +99,21 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
   
   try {
-    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
     const existing = await prisma.customer.findUnique({
       where: { id },
       select: { companyId: true },
     });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const auth = await verifyMembership(request, existing.companyId);
+    if (auth.error) return auth.error;
+
     await prisma.customer.delete({ where: { id } });
-    if (existing?.companyId) {
-      await syncCompanyKnowledge(existing.companyId);
-    }
+    await syncCompanyKnowledge(existing.companyId);
+    
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FlashcardKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { verifyMembership } from "@/lib/permissions";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 import { nextChecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
@@ -122,10 +123,8 @@ async function callLocalAI(prompt: string): Promise<any[]> {
 export async function POST(request: NextRequest) {
   try {
     const { companyId } = await request.json();
-
-    if (!companyId) {
-      return NextResponse.json({ error: "companyId required" }, { status: 400 });
-    }
+    const auth = await verifyMembership(request, companyId);
+    if (auth.error) return auth.error;
 
     const [
       products,

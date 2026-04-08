@@ -227,13 +227,15 @@ model UploadedSourceFile {
 
 model User {
   id        String   @id @default(uuid()) @map("_id")
-  email     String   @unique
+  email     String 
   name      String?
   companyId String
   role      Role     @default(MEMBER)
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
   company   Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([email, companyId])
 }
 
 enum ActionType {

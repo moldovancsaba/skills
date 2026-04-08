@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { verifyMembership } from "@/lib/permissions";
 import {
   ensureSourcePublicIds,
   nextSourcePublicId,
@@ -14,6 +14,8 @@ import { syncCompanyKnowledge } from "@/lib/flashcards";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
+  const auth = await verifyMembership(request, companyId ?? undefined);
+  if (auth.error) return auth.error;
   
   try {
     await ensureSourcePublicIds(companyId ?? undefined);
@@ -36,6 +38,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    const auth = await verifyMembership(request, data.companyId);
+    if (auth.error) return auth.error;
+
     const raw = prepareRawSourceInput(data.name ?? "", data.urls || []);
     
     const competitor = await prisma.$transaction(async (tx) => {
@@ -68,12 +73,16 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
-  const data = await request.json();
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
   
   try {
-    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    const data = await request.json();
     const existing = await prisma.competitor.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const auth = await verifyMembership(request, existing.companyId);
+    if (auth.error) return auth.error;
+
     const raw = prepareRawSourceInput(
       data.name ?? existing.name,
       data.urls ?? existing.urls,
@@ -110,6 +119,11 @@ export async function DELETE(request: NextRequest) {
       where: { id },
       select: { companyId: true },
     });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const auth = await verifyMembership(request, existing.companyId);
+    if (auth.error) return auth.error;
+
     await prisma.competitor.delete({ where: { id } });
     if (existing?.companyId) {
       await syncCompanyKnowledge(existing.companyId);

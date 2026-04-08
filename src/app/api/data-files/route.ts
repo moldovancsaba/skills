@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { verifyMembership } from "@/lib/permissions";
 import { syncCompanyKnowledge } from "@/lib/flashcards";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
 import {
@@ -29,12 +30,13 @@ function parseHashtags(value: FormDataEntryValue | null) {
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
+  const auth = await verifyMembership(request, companyId);
+  if (auth.error) return auth.error;
 
   try {
-    await ensureSourcePublicIds(companyId ?? undefined);
-    const where = companyId ? { companyId } : {};
+    await ensureSourcePublicIds(companyId as string);
     const files = await prisma.uploadedSourceFile.findMany({
-      where,
+      where: { companyId: companyId as string },
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
       select: {
         id: true,
@@ -59,15 +61,19 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const companyId = formData.get("companyId");
+
+    if (typeof companyId !== "string" || !companyId) {
+      return NextResponse.json({ error: "companyId required" }, { status: 400 });
+    }
+
+    const auth = await verifyMembership(request, companyId);
+    if (auth.error) return auth.error;
+
     const hashtags = normalizeSourceHashtags(
       parseHashtags(formData.get("hashtags")),
       "product",
     );
     const entries = formData.getAll("files");
-
-    if (typeof companyId !== "string" || !companyId) {
-      return NextResponse.json({ error: "companyId required" }, { status: 400 });
-    }
 
     const files = entries.filter((entry): entry is File => entry instanceof File);
     if (files.length === 0) {
@@ -135,6 +141,9 @@ export async function DELETE(request: NextRequest) {
     if (!existing) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
+
+    const auth = await verifyMembership(request, existing.companyId);
+    if (auth.error) return auth.error;
 
     await prisma.uploadedSourceFile.delete({ where: { id } });
     await syncCompanyKnowledge(existing.companyId);

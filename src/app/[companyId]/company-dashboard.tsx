@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
 
+import { MemberList } from "@/components/member-list";
+
 type NBAItem = {
   id: string;
   publicId: number | null;
@@ -42,6 +44,7 @@ export default function CompanyDashboard() {
 
   const { company, setCompany, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [loading, setLoading] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
   const [topTasks, setTopTasks] = useState<NBAItem[]>([]);
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [flashcardCount, setFlashcardCount] = useState(0);
@@ -54,19 +57,28 @@ export default function CompanyDashboard() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async (cid: string) => {
-    const [p, c, r, f, nba, knowmore] = await Promise.all([
+    const [p, c, r, f, nba, knowmore, members] = await Promise.all([
       fetch(`/api/products?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/customers?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/competitors?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/nba?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/knowmore?companyId=${cid}`).then((res) => res.json()),
+      fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
     ]);
 
     setProducts(p);
     setCustomers(c);
     setCompetitors(r);
     setFileCount(Array.isArray(f) ? f.length : 0);
+
+    // Get current user session to determine role
+    const sessionRes = await fetch("/api/auth/session");
+    if (sessionRes.ok) {
+      const session = await sessionRes.json();
+      const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
+      setIsOwner(myMembership?.role === "OWNER");
+    }
 
     const pendingTasks = (nba as NBAItem[]).filter((item) => item.status === "PENDING");
     setPendingTaskCount(pendingTasks.length);
@@ -189,33 +201,46 @@ export default function CompanyDashboard() {
         />
       </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <LinkCard
-            href={`/${companyId}/data`}
-            icon={Plus}
-            title={`Data Collection (${products.length + customers.length + competitors.length + fileCount})`}
-            description="Add products, customers, competitors"
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <LinkCard
-            href={`/${companyId}/nba`}
-            icon={Zap}
-            title={`Checklist (${pendingTaskCount})`}
-            description="View checklist suggestions"
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <ExpertTipCard tip={tip} />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <LinkCard
-            href={`/${companyId}/knowmore`}
-            icon={Sparkles}
-            title={`Knowmore (${flashcardCount})`}
-            description="Track the knowledge layer behind your AI"
-          />
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3 mb-8">
+        <div className="md:col-span-2 xl:col-span-2">
+          <div className="grid gap-4 md:grid-cols-2">
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+              <LinkCard
+                href={`/${companyId}/data`}
+                icon={Plus}
+                title={`Data Collection (${products.length + customers.length + competitors.length + fileCount})`}
+                description="Add products, customers, competitors"
+              />
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <LinkCard
+                href={`/${companyId}/nba`}
+                icon={Zap}
+                title={`Checklist (${pendingTaskCount})`}
+                description="View checklist suggestions"
+              />
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <ExpertTipCard tip={tip} />
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <LinkCard
+                href={`/${companyId}/knowmore`}
+                icon={Sparkles}
+                title={`Knowmore (${flashcardCount})`}
+                description="Track the knowledge layer behind your AI"
+              />
+            </motion.div>
+          </div>
+        </div>
+        
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }} 
+          animate={{ opacity: 1, x: 0 }} 
+          transition={{ delay: 0.25 }}
+          className="xl:col-span-1"
+        >
+          <MemberList companyId={companyId} isOwner={isOwner} />
         </motion.div>
       </div>
 

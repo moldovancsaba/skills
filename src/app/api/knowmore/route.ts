@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listCompanyFlashcards } from "@/lib/flashcards";
+import { verifyMembership } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
-
-  if (!companyId) {
-    return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
-  }
+  const auth = await verifyMembership(request, companyId);
+  if (auth.error) return auth.error;
 
   try {
-    const flashcards = await listCompanyFlashcards(companyId);
+    const flashcards = await listCompanyFlashcards(companyId as string);
     return NextResponse.json(flashcards, {
       headers: {
         "Cache-Control": "no-store, max-age=0",

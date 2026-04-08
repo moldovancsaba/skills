@@ -1,159 +1,100 @@
-# Checklist Database - Technical Guide for Paperclip
+# Checklist Integration Guide
 
-## DEPLOYMENT URL
-```
-https://checklist.messmass.com
-```
+This document describes the current Checklist integration surface for external agents or automation.
 
----
+Canonical production URL:
 
-## Or Use API (Recommended)
-```
-DATABASE_URL=postgresql://user:pass@host.neon.tech/checklist?sslmode=require
-```
+- `https://checklist.sovereignsquad.com`
 
-**Get your connection string from:**
-1. Go to https://console.neon.tech
-2. Select your project
-3. Copy connection string from Dashboard
+API base:
 
----
+- `https://checklist.sovereignsquad.com/api`
 
-## Or Use API (Recommended)
+## Integration Model
 
-Base URL: `https://checklist-[app-name].vercel.app/api`
+Checklist exposes HTTP endpoints for:
 
-### 2a. READ Input - What Paperclip Pulls
+- reading company and source context
+- reading Knowmore flashcards
+- reading and creating NBA items
+- submitting review feedback
 
-#### All Companies
+The database connection string is an internal deployment concern and should not be the default integration path for external tools.
+
+## Read Inputs
+
+### All companies
+
 ```http
 GET /api/companies
 ```
-**Response:**
-```json
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "Your Company",
-    "industry": "Youth Sports",
-    "description": "Soccer training academy",
-    "targetMarket": "Ages 6-14, NY Metro",
-    "mainGoal": "GROW_REVENUE",
-    "createdAt": "2024-01-01T00:00:00Z"
-  }
-]
-```
 
-#### Products by Company
+### Products by company
+
 ```http
-GET /api/products?companyId=550e8400-e29b-41d4-a716-446655440000
-```
-**Response:**
-```json
-[
-  {
-    "id": "prod-001",
-    "name": "Elite Training Program",
-    "description": "Premium soccer training",
-    "pricing": "$150/month",
-    "features": ["Weekly sessions", "Video analysis"],
-    "urls": ["https://..."],
-    "createdAt": "2024-01-15T00:00:00Z"
-  }
-]
+GET /api/products?companyId=<company-id>
 ```
 
-#### Customers by Company  
+### Customers by company
+
 ```http
-GET /api/customers?companyId=550e8400-e29b-41d4-a716-446655440000
-```
-**Response:**
-```json
-[
-  {
-    "id": "cust-001",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "segments": ["Elite", "U12"],
-    "painPoints": ["Time constraints"],
-    "channels": ["Referral"],
-    "lifetimeValue": 1800.00,
-    "createdAt": "2024-02-01T00:00:00Z"
-  }
-]
+GET /api/customers?companyId=<company-id>
 ```
 
-#### Competitors by Company
+### Competitors by company
+
 ```http
-GET /api/competitors?companyId=550e8400-e29b-41d4-a716-446655440000
-```
-**Response:**
-```json
-[
-  {
-    "id": "comp-001",
-    "name": "Chronis Elite",
-    "urls": ["https://chroniselite.com"],
-    "pricing": "$200/month",
-    "strengths": ["MLS connections"],
-    "weaknesses": ["Expensive"],
-    "positioning": "High-end academy"
-  }
-]
+GET /api/competitors?companyId=<company-id>
 ```
 
-#### Existing NBA (to avoid duplicates)
+### Uploaded files by company
+
 ```http
-GET /api/nba?companyId=550e8400-e29b-41d4-a716-446655440000
-```
-**Response:**
-```json
-[
-  {
-    "id": "nba-001",
-    "title": "Launch email campaign",
-    "description": "Send targeted emails to warm leads",
-    "iceScore": 56.0,
-    "status": "PENDING",
-    "impact": 8,
-    "confidence": 75,
-    "ease": 7
-  }
-]
+GET /api/data-files?companyId=<company-id>
 ```
 
----
+### Flashcards by company
 
-### 3a. LEARN - How to Score NBA
-
-**ICE Formula:**
-```
-ICE = Impact × (Confidence / 100) × Ease × 10
+```http
+GET /api/knowmore?companyId=<company-id>
 ```
 
-| Factor | Range | Description |
-|--------|-------|------------|
-| Impact | 1-10 | Revenue/growth potential |
-| Confidence | 1-100 | % sure it'll work |
-| Ease | 1-10 | How easy to implement |
+### Existing NBA items
 
-**Example:**
-- Impact: 8 (high revenue potential)
-- Confidence: 75% (pretty sure)
-- Ease: 7 (moderate effort)
-- ICE = 8 × 0.75 × 7 × 10 = **420**
+```http
+GET /api/nba?companyId=<company-id>
+```
 
----
+## Scoring Contract
 
-### 4a. WRITE - Output Format Paperclip Writes
+ICE is defined as:
 
-#### Create NBA Recommendation
+```text
+Impact: 0-10
+Confidence: 0-100
+Ease: 0-10
+ICE = impact * (confidence / 10) * ease
+Range: 0-1000
+```
+
+Example:
+
+- Impact: `8`
+- Confidence: `75`
+- Ease: `7`
+- ICE: `420`
+
+## Write Outputs
+
+### Create NBA recommendation
+
 ```http
 POST /api/nba
 Content-Type: application/json
 ```
 
-**Request Body:**
+Request body:
+
 ```json
 {
   "companyId": "550e8400-e29b-41d4-a716-446655440000",
@@ -165,32 +106,15 @@ Content-Type: application/json
 }
 ```
 
-**Response (created):**
-```json
-{
-  "id": "nba-new-001",
-  "companyId": "550e8400-e29b-41d4-a716-446655440000",
-  "title": "Launch summer camp promotion",
-  "description": "Create urgency with limited-time offer for existing customer database",
-  "impact": 8,
-  "confidence": 70,
-  "ease": 8,
-  "iceScore": 448.0,
-  "status": "PENDING",
-  "createdAt": "2024-03-01T12:00:00Z"
-}
-```
-
----
-
-### Optional: Write Feedback
+### Submit task feedback
 
 ```http
 POST /api/feedback
 Content-Type: application/json
 ```
 
-**Request Body (Accept):**
+Accept:
+
 ```json
 {
   "nbaItemId": "nba-001",
@@ -198,36 +122,57 @@ Content-Type: application/json
 }
 ```
 
-**Request Body (Decline with reason):**
+Decline:
+
 ```json
 {
-  "nbaItemId": "nba-001", 
+  "nbaItemId": "nba-001",
   "action": "DECLINE",
   "annotation": "Already have email marketing in place"
 }
 ```
 
----
+Modify and accept:
 
-## Summary
-
-| Action | Endpoint | Method | Body |
-|--------|---------|--------|-----|
-| Read company | /api/companies | GET | - |
-| Read products | /api/products?companyId={id} | GET | - |
-| Read customers | /api/customers?companyId={id} | GET | - |
-| Read competitors | /api/competitors?companyId={id} | GET | - |
-| Read NBA | /api/nba?companyId={id} | GET | - |
-| Write NBA | /api/nba | POST | {companyId, title, description, impact, confidence, ease} |
-| Write feedback | /api/feedback | POST | {nbaItemId, action, annotation?} |
-
----
-
-## Environment
+```json
+{
+  "nbaItemId": "nba-001",
+  "action": "MODIFY_ACCEPT",
+  "modifiedTitle": "Launch segmented summer camp promotion",
+  "modifiedDescription": "Focus on high-intent parent segments first",
+  "annotation": "Adjusted to fit current campaign plan"
+}
 ```
-# For Vercel deployment:
-DATABASE_URL=postgresql://... (neon.tech)
 
-# For local development:
-DATABASE_URL=postgresql://localhost:5432/checklist
+### Submit flashcard review feedback
+
+```http
+POST /api/knowmore/actions
+Content-Type: application/json
 ```
+
+Supported actions:
+
+- `ACCEPT`
+- `DECLINE`
+- `MODIFY_ACCEPT`
+
+### Trigger flashcard refresh
+
+```http
+POST /api/knowmore/sync
+Content-Type: application/json
+```
+
+### Trigger local NBA generation
+
+```http
+POST /api/agent/local
+Content-Type: application/json
+```
+
+## Notes
+
+- `companyId` is the primary routing and filtering key for company-scoped data
+- user-facing records may also expose `publicId` for readable references
+- if integration docs drift, align this file with `README.md`, `SPEC.md`, and the actual route handlers under `src/app/api`

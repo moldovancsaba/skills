@@ -1,29 +1,44 @@
 # Checklist Onboarding
 
-This file documents the current, real integration surface of the Checklist system.
+This file documents the current operating surface of the Checklist system.
 
 Do not place production credentials in this file.
 
-## Production URL
+## Canonical Environments
 
-- `https://checklist.messmass.com`
+- production: `https://checklist.sovereignsquad.com`
+- local development: `http://localhost:3000`
 
-## Current route structure
+If another preview domain exists, treat it as non-canonical unless explicitly documented in deployment notes.
 
-- `https://checklist.messmass.com/`
-- `https://checklist.messmass.com/[companyId]`
-- `https://checklist.messmass.com/[companyId]/data`
-- `https://checklist.messmass.com/[companyId]/knowmore`
-- `https://checklist.messmass.com/[companyId]/nba`
+## Current Route Structure
 
-The app is company-route based. It is not using the old `?company=UUID` query-string routing model as the primary navigation contract.
+### Core product flow
 
-## Data model summary
+- `/`
+- `/[companyId]`
+- `/[companyId]/data`
+- `/[companyId]/knowmore`
+- `/[companyId]/nba`
+- `/[companyId]/nba_archived`
+
+### Supporting routes
+
+- `/auth`
+- `/manual`
+- `/faq`
+- `/privacy`
+- `/terms`
+
+The app is company-route based. It does not use the old `?company=UUID` query-string model as the primary navigation contract.
+
+## Data Model Summary
 
 - `Company`
 - `Product`
 - `Customer`
 - `Competitor`
+- `UploadedSourceFile`
 - `Flashcard`
 - `FlashcardSource`
 - `FlashcardAction`
@@ -32,10 +47,11 @@ The app is company-route based. It is not using the old `?company=UUID` query-st
 - `PublicIdCounter`
 
 All user-facing entities use:
+
 - internal `UUID`
 - stable readable `publicId` where implemented
 
-## Flashcards vs tasks
+## Flashcards vs Tasks
 
 This distinction is critical:
 
@@ -48,7 +64,16 @@ This distinction is critical:
   - actionable checklist items
   - uses `impact`, `confidence`, `ease`, `ICE`
 
-## Current API endpoints
+## Current API Endpoints
+
+### Auth
+
+```text
+GET /api/auth/login
+GET /api/auth/callback
+GET /api/auth/logout
+GET /api/auth/session
+```
 
 ### Companies
 
@@ -76,6 +101,10 @@ GET    /api/competitors?companyId=<company-id>
 POST   /api/competitors
 PATCH  /api/competitors?id=<competitor-id>
 DELETE /api/competitors?id=<competitor-id>
+
+GET    /api/data-files?companyId=<company-id>
+POST   /api/data-files
+DELETE /api/data-files?id=<file-id>
 ```
 
 ### Knowmore
@@ -84,14 +113,25 @@ DELETE /api/competitors?id=<competitor-id>
 GET  /api/knowmore?companyId=<company-id>
 POST /api/knowmore/sync
 POST /api/knowmore/actions
+GET  /api/knowmore/corrections?companyId=<company-id>
+POST /api/knowmore/corrections
 ```
 
 `/api/knowmore/actions` supports:
+
 - `ACCEPT`
 - `DECLINE`
 - `MODIFY_ACCEPT`
 
-Declined flashcards are hidden from the webapp feed.
+Declined flashcards are hidden from the main Knowmore feed.
+
+`/api/knowmore/corrections` supports direct correction events such as:
+
+- `HIDE`
+- `MARK_WRONG`
+- `PIN`
+- `REQUEST_REFRESH`
+- `SUPPRESS_SOURCE`
 
 ### NBA / tasks
 
@@ -101,20 +141,31 @@ POST /api/nba
 
 GET  /api/feedback
 POST /api/feedback
+
+GET  /api/feedback/analytics?companyId=<company-id>
 ```
 
-`/api/feedback` now supports task actions:
+`/api/feedback` supports task actions:
+
 - `ACCEPT`
 - `DECLINE`
 - `MODIFY_ACCEPT`
 
-## ICE scoring contract
+### Local AI bridge
+
+```text
+POST /api/agent/local
+GET  /api/webhook/trigger
+POST /api/webhook/trigger
+```
+
+## ICE Scoring Contract
 
 Checklist task scoring is:
 
 ```text
 Impact: 0-10
-Confidence: 0-100, but multiplied as confidence/10
+Confidence: 0-100, multiplied as confidence/10
 Ease: 0-10
 ICE = impact * (confidence / 10) * ease
 Range: 0-1000
@@ -122,11 +173,28 @@ Range: 0-1000
 
 Examples:
 
-- `Impact 8, Confidence 75%, Ease 6.5` -> `390`
-- `Impact 8, Confidence 85%, Ease 5` -> `340`
-- `Impact 10, Confidence 100%, Ease 10` -> `1000`
+- `Impact 8, Confidence 75, Ease 6.5` -> `390`
+- `Impact 8, Confidence 85, Ease 5` -> `340`
+- `Impact 10, Confidence 100, Ease 10` -> `1000`
 
-## Local AI responsibilities
+## Auth Setup
+
+Authentication is environment-configured SSO with a PKCE-style flow.
+
+Minimum auth/session variables:
+
+- `APP_SESSION_SECRET`
+- `SSO_CLIENT_ID`
+- `SSO_CLIENT_SECRET`
+- `SSO_AUTH_URL`
+- `SSO_TOKEN_URL`
+- `SSO_REDIRECT_URI`
+- `SSO_SCOPES`
+- `NEXT_PUBLIC_BASE_URL`
+
+Do not hardcode provider-specific setup notes here unless the deployed system is intentionally locked to one provider and the callback URLs have been verified.
+
+## Local AI Responsibilities
 
 The local system is responsible for:
 
@@ -142,24 +210,9 @@ The online app is responsible for:
 - displaying flashcards
 - displaying NBA tasks
 - collecting user feedback
+- exposing release and session metadata
 
-## Environment handling
-
-Secrets are intentionally not documented here.
-
-Use:
-- local `.env`
-- Vercel project env management
-- local control-plane env injection for the local AI stack
-
-Minimum categories of required env:
-
-- database
-- session/auth
-- local model access
-- local sync bridge
-
-## Database setup on a new machine
+## Database Setup On A New Machine
 
 Checklist owns its Prisma schema in this repo:
 
@@ -169,24 +222,24 @@ The app and any local sync worker both use:
 
 - `DATABASE_URL`
 
-Checklist does not depend on a separate Prisma schema hidden inside `apps/mvp-factory-control`.
-
 If you are bringing the project up on another machine:
 
-1. add the Checklist `DATABASE_URL` to local `.env`
+1. add the Checklist `DATABASE_URL` and auth envs to local `.env`
 2. run `npm install`
 3. run `npx prisma generate`
 4. run `npx prisma db push`
 5. start the app with `npm run dev`
 
-If a local worker or control-plane process is involved, give that process the same Checklist `DATABASE_URL`. The failure mode is usually "missing Checklist database source" rather than "wrong schema path".
+If a local worker or control-plane process is involved, give that process the same Checklist `DATABASE_URL`.
 
-## Documentation rule
+## Documentation Rule
 
 If this file drifts again, update it together with:
 
 - `README.md`
+- `SPEC.md`
 - `docs/LOCAL_AI_PIPELINE.md`
+- route changes
+- API changes
+- auth changes
 - Prisma schema changes
-- API behavior changes
-- routing changes

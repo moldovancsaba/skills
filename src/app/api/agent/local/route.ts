@@ -245,6 +245,7 @@ Generate 2-4 marketing NBA recommendations as JSON array.`;
             brainVersion: BRAIN_VERSION,
             promptVersion: NBA_PROMPT_VERSION,
             generatedAt: new Date(),
+            updatedAt: new Date(),
           },
         });
       }, TRANSACTION_SETTINGS);

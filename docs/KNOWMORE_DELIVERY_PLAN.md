@@ -17,6 +17,12 @@ Deliver a new `knowmore` experience in the online Checklist webapp that exposes 
 
 The system must stay reliable when the online app and the local AI stack are temporarily disconnected. The local AI remains the source of enrichment and synthesis. The webapp remains the source of user interaction, visibility, and feedback capture.
 
+This delivery plan is now complemented by:
+
+- `docs/CONTINUOUS_IMPROVEMENT_PLAN.md`
+
+That document defines how already-generated flashcards and downstream tasks should be revisited and improved over time using oldest-modified-first selection, business-value ranking, and bounded research.
+
 ## Product Definition
 
 ### User-visible behavior

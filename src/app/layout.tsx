@@ -11,8 +11,6 @@ export const metadata: Metadata = {
   description: "AI-powered marketing operating system",
 };
 
-const VERSION = "0.1.0";
-
 const fontBody = Inter({
   subsets: ["latin"],
   variable: "--font-body",

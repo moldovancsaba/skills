@@ -124,6 +124,15 @@ export function TaskReviewCard({
             {actionMode === "DECLINE" ? "Decline this checklist item" : actionMode === "MODIFY_ACCEPT" ? "Modify and accept this checklist item" : "Accept this checklist item"}
           </p>
 
+          {actionMode === "DECLINE" ? (
+            <div className="rounded-lg border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+              <p className="font-medium">Useful decline language</p>
+              <p className="mt-1">
+                Say whether this is wrong, already happening, not relevant, too early, or blocked by a dependency. If the idea is good but mistimed, use phrases like after summer, after launch, after hiring, or revisit in Q4.
+              </p>
+            </div>
+          ) : null}
+
           {actionMode === "MODIFY_ACCEPT" ? (
             <div className="space-y-3">
               <FormInput label="Adjusted task title" value={draftTitle} onChange={(event) => onDraftTitleChange(event.target.value)} placeholder="Adjusted task title" />
@@ -135,7 +144,7 @@ export function TaskReviewCard({
             label={actionMode === "DECLINE" ? "Comment" : "Comment (optional)"}
             value={annotation}
             onChange={(event) => onAnnotationChange(event.target.value)}
-            placeholder={actionMode === "DECLINE" ? "Why are you declining? (required)" : actionMode === "MODIFY_ACCEPT" ? "Why did you adjust this task?" : "Why are you accepting this task?"}
+            placeholder={actionMode === "DECLINE" ? "Explain whether this is wrong, already covered, too early, blocked, or ready after a specific milestone" : actionMode === "MODIFY_ACCEPT" ? "Why did you adjust this task?" : "Why are you accepting this task?"}
           />
 
           <StructuredActionRow>

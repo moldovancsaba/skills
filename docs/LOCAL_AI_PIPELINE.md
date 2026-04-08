@@ -128,6 +128,28 @@ These actions update:
 
 Task feedback is also applied back onto the linked source flashcards.
 
+## Continuous improvement loop
+
+Checklist is evolving from a generation pipeline into an improvement pipeline.
+
+The next contract is:
+
+1. the worker scans eligible flashcards and NBA tasks
+2. it selects the next item by oldest meaningful modification timestamp
+3. it prioritizes items with stronger business value
+4. it runs bounded research to improve evidence quality
+5. it updates the item only when the new result is materially better
+6. it stores evidence deltas, timestamps, and improvement history
+
+Important:
+
+- `oldest` means oldest modified
+- `oldest` does not mean oldest created
+
+The detailed program and issue breakdown live in:
+
+- `docs/CONTINUOUS_IMPROVEMENT_PLAN.md`
+
 ## ICE scoring
 
 The current task scoring contract is:
@@ -167,3 +189,4 @@ Whenever code changes the online/local contract, update:
 - `README.md`
 - `docs/ONBOARDING.md`
 - this file
+- `docs/CONTINUOUS_IMPROVEMENT_PLAN.md` when the continuous improvement contract changes

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       return tx.competitor.create({
         data: {
           publicId,
-          companyId: data.companyId,
+          company: { connect: { id: data.companyId } },
           name: raw.name,
           hashtags: normalizeSourceHashtags(data.hashtags, "competitor"),
           urls: raw.urls,
@@ -52,9 +52,8 @@ export async function POST(request: NextRequest) {
           strengths: data.strengths || [],
           weaknesses: data.weaknesses || [],
           positioning: data.positioning ?? null,
-          watchedContent: data.watchedContent
-            ? (data.watchedContent as Prisma.InputJsonValue)
-            : Prisma.JsonNull,
+          watchedContent: data.watchedContent || null,
+          updatedAt: new Date(),
         },
       });
     }, TRANSACTION_SETTINGS);
@@ -91,12 +90,8 @@ export async function PATCH(request: NextRequest) {
         weaknesses: data.weaknesses ?? existing.weaknesses,
         positioning: data.positioning ?? existing.positioning,
         watchedContent: data.watchedContent !== undefined
-          ? (data.watchedContent
-            ? (data.watchedContent as Prisma.InputJsonValue)
-            : Prisma.JsonNull)
-          : existing.watchedContent === null
-            ? Prisma.JsonNull
-            : (existing.watchedContent as Prisma.InputJsonValue),
+          ? (data.watchedContent || null)
+          : existing.watchedContent,
       },
     });
     await syncCompanyKnowledge(competitor.companyId);

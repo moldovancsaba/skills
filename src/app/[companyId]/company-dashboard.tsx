@@ -6,6 +6,8 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Plus, Sparkles, Zap } from "lucide-react";
 import { motion } from "framer-motion";
+import { getDashboardExpertTip } from "@/content/help";
+import { ExpertTipCard } from "@/components/expert-tip-card";
 import { Button } from "@/components/ui/button";
 import {
   LinkCard,
@@ -82,6 +84,10 @@ export default function CompanyDashboard() {
     const fetchCompany = async (cid: string) => {
       try {
         const companies = await fetch(`/api/companies`).then((res) => res.json());
+        if (!Array.isArray(companies)) {
+          console.error("Invalid companies response:", companies);
+          return;
+        }
         const found = companies.find((c: any) => c.id === cid);
         if (!found) {
           router.push("/");
@@ -162,6 +168,16 @@ export default function CompanyDashboard() {
     return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
   }
 
+  const tip = getDashboardExpertTip({
+    companyId,
+    productCount: products.length,
+    customerCount: customers.length,
+    competitorCount: competitors.length,
+    fileCount,
+    flashcardCount,
+    pendingTaskCount,
+  });
+
   return (
     <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
@@ -173,7 +189,7 @@ export default function CompanyDashboard() {
         />
       </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <LinkCard
             href={`/${companyId}/data`}
@@ -191,6 +207,9 @@ export default function CompanyDashboard() {
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <ExpertTipCard tip={tip} />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
           <LinkCard
             href={`/${companyId}/knowmore`}
             icon={Sparkles}

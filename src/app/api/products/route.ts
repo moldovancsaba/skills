@@ -43,13 +43,14 @@ export async function POST(request: NextRequest) {
       return tx.product.create({
         data: {
           publicId,
-          companyId: data.companyId,
+          company: { connect: { id: data.companyId } },
           name: raw.name,
           hashtags: normalizeSourceHashtags(data.hashtags, "product"),
           description: data.description ?? null,
           pricing: data.pricing ?? null,
           features: data.features || [],
           urls: raw.urls,
+          updatedAt: new Date(),
         },
       });
     }, TRANSACTION_SETTINGS);

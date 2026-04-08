@@ -48,11 +48,16 @@ export function useCookieConsent() {
 }
 
 export function CookieBanner() {
+  const [mounted, setMounted] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [marketing, setMarketing] = useState(false);
   const { showBanner, acceptAll, acceptSelected, close } = useCookieConsent();
 
-  if (!showBanner) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !showBanner) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 shadow-lg z-50">

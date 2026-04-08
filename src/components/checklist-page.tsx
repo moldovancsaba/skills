@@ -84,6 +84,10 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     const fetchCompany = async (cid: string) => {
       try {
         const companies = await fetch(`/api/companies`).then((res) => res.json());
+        if (!Array.isArray(companies)) {
+          console.error("Invalid companies response:", companies);
+          return;
+        }
         const found = companies.find((entry: any) => entry.id === cid);
         if (!found) {
           router.push("/");

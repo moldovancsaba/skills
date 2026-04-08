@@ -33,13 +33,13 @@ export async function GET(request: NextRequest) {
     // Get all NBA items with feedback for this company
     const nbaItems = await prisma.nBAItem.findMany({
       where: { companyId },
-      include: { feedbacks: true },
+      include: { feedback: true },
       orderBy: { createdAt: "desc" },
     });
 
     // Overall statistics
     const totalItems = nbaItems.length;
-    const itemsWithFeedback = nbaItems.filter(item => item.feedbacks.length > 0);
+    const itemsWithFeedback = nbaItems.filter(item => item.feedback.length > 0);
     const acceptedItems = nbaItems.filter(item => item.status === "ACCEPTED");
     const declinedItems = nbaItems.filter(item => item.status === "DECLINED");
     const pendingItems = nbaItems.filter(item => item.status === "PENDING");

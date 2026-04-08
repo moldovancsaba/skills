@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       return tx.customer.create({
         data: {
           publicId,
-          companyId: data.companyId,
+          company: { connect: { id: data.companyId } },
           name: data.name,
           hashtags: normalizeSourceHashtags(data.hashtags, "customer"),
           email: data.email,
@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
           channels: data.channels || [],
           lifetimeValue: data.lifetimeValue ?? 0,
           notes: data.notes,
+          updatedAt: new Date(),
         },
       });
     }, TRANSACTION_SETTINGS);

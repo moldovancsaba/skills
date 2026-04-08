@@ -3,162 +3,154 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  companyId String
-  role      Role     @default(MEMBER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  company Company @relation(fields: [companyId], references: [id])
-}
-
-enum Role {
-  OWNER
-  ADMIN
-  MEMBER
-}
-
 model Company {
-  id           String   @id @default(uuid())
-  name         String
-  industry    String?
-  description String?
-  targetMarket String?
-  mainGoal    GoalType?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  users        User[]
-  products    Product[]
-  customers   Customer[]
-  competitors Competitor[]
-  uploadedFiles UploadedSourceFile[]
-  flashcards  Flashcard[]
-  nbaItems    NBAItem[]
-}
-
-enum GoalType {
-  GROW_REVENUE
-  LAUNCH_PRODUCT
-  ENTER_NEW_MARKET
-  BUILD_AWARENESS
-  GENERATE_LEADS
-}
-
-model Product {
-  id          String   @id @default(uuid())
-  publicId    Int?     @unique
-  companyId   String
-  name        String
-  hashtags    String[] @default([])
-  description String?
-  pricing    String?
-  features   String[]
-  urls       String[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  company Company @relation(fields: [companyId], references: [id])
-}
-
-model Customer {
-  id            String   @id @default(uuid())
-  publicId      Int?     @unique
-  companyId     String
-  name          String
-  hashtags      String[] @default([])
-  email        String?
-  segments     String[]
-  painPoints   String[]
-  channels    String[]
-  lifetimeValue Float?
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  company Company @relation(fields: [companyId], references: [id])
+  id                  String                @id @default(uuid()) @map("_id")
+  name                String
+  industry            String?
+  description         String?
+  targetMarket        String?
+  mainGoal            GoalType?
+  createdAt           DateTime              @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  competitors         Competitor[]
+  customers           Customer[]
+  flashcards          Flashcard[]
+  flashcardCorrections FlashcardCorrection[]
+  nbaItems            NBAItem[]
+  products            Product[]
+  uploadedSourceFiles UploadedSourceFile[]
+  users               User[]
 }
 
 model Competitor {
-  id           String   @id @default(uuid())
-  publicId     Int?     @unique
-  companyId   String
-  name        String
-  hashtags    String[] @default([])
-  urls        String[]
-  pricing    String?
-  strengths  String[]
-  weaknesses String[]
-  positioning String?
+  id             String   @id @default(uuid()) @map("_id")
+  companyId      String
+  name           String
+  urls           String[]
+  pricing        String?
+  strengths      String[]
+  weaknesses     String[]
+  positioning    String?
   watchedContent Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  company Company @relation(fields: [companyId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  publicId       Int?     @unique
+  hashtags       String[] @default([])
+  company        Company  @relation(fields: [companyId], references: [id])
 }
 
-model UploadedSourceFile {
-  id          String   @id @default(uuid())
-  publicId    Int?     @unique
-  companyId   String
-  name        String
-  hashtags    String[] @default([])
-  mimeType    String
-  sizeBytes   Int
-  content     Bytes
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Customer {
+  id            String   @id @default(uuid()) @map("_id")
+  companyId     String
+  name          String
+  email         String?
+  segments      String[]
+  painPoints    String[]
+  channels      String[]
+  lifetimeValue Float?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  publicId      Int?     @unique
+  hashtags      String[] @default([])
+  company       Company  @relation(fields: [companyId], references: [id])
+}
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+model Feedback {
+  id                  String     @id @default(uuid()) @map("_id")
+  nbaItemId           String
+  action              ActionType
+  annotation          String?
+  iceImpact           Float?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @default(now()) @updatedAt
+  modifiedDescription String?
+  modifiedTitle       String?
+  nbaItem             NBAItem    @relation(fields: [nbaItemId], references: [id])
 }
 
 model Flashcard {
-  id              String                @id @default(uuid())
-  publicId        Int?                  @unique
-  companyId       String
-  kind            FlashcardKind         @default(SUMMARY)
-  fingerprint     String?
-  title           String
-  body            String
-  generatedTitle  String?
-  generatedBody   String?
-  manualTitle     String?
-  manualBody      String?
-  evidence        Json?
-  confidence      Int                   @default(50)
-  impact          Int                   @default(5)
-  weight          Int                   @default(5)
-  feedbackWeightDelta Int               @default(0)
-  feedbackConfidenceDelta Int           @default(0)
-  status          FlashcardStatus       @default(ACTIVE)
-  reviewStatus    FlashcardReviewStatus @default(PENDING)
-  userAnnotation  String?
-  lastActionAt    DateTime?
-  createdBy       String?               @default("bootstrap-source")
-  appVersion      String?               @default("0.6.0")
-  brainVersion    String?               @default("local-brain@0.6.0")
-  promptVersion   String?               @default("flashcard-policy@0.6.0")
-  generatedAt     DateTime?
-  refreshedAt     DateTime              @default(now())
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-
-  company Company           @relation(fields: [companyId], references: [id])
-  sources FlashcardSource[]
-  actions FlashcardAction[]
+  id                      String                @id @default(uuid()) @map("_id")
+  publicId                Int?                  @unique
+  companyId               String
+  title                   String
+  body                    String
+  confidence              Int                   @default(50)
+  impact                  Int                   @default(5)
+  weight                  Int                   @default(5)
+  status                  FlashcardStatus       @default(ACTIVE)
+  createdBy               String?               @default("bootstrap-source")
+  refreshedAt             DateTime              @default(now())
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @default(now()) @updatedAt
+  generatedBody           String?
+  generatedTitle          String?
+  lastActionAt            DateTime?
+  manualBody              String?
+  manualTitle             String?
+  reviewStatus            FlashcardReviewStatus @default(PENDING)
+  userAnnotation          String?
+  evidence                Json?
+  feedbackConfidenceDelta Int                   @default(0)
+  feedbackWeightDelta     Int                   @default(0)
+  fingerprint             String?
+  kind                    FlashcardKind         @default(SUMMARY)
+  appVersion              String?               @default("0.6.0")
+  brainVersion            String?               @default("local-brain@0.6.0")
+  generatedAt             DateTime?
+  promptVersion           String?               @default("flashcard-policy@0.6.0")
+  company                 Company               @relation(fields: [companyId], references: [id])
+  actions                 FlashcardAction[]
+  corrections             FlashcardCorrection[]
+  sources                 FlashcardSource[]
 
   @@unique([companyId, fingerprint])
 }
 
+model FlashcardAction {
+  id            String              @id @default(uuid()) @map("_id")
+  flashcardId   String
+  action        FlashcardActionType
+  annotation    String?
+  previousTitle String?
+  previousBody  String?
+  modifiedTitle String?
+  modifiedBody  String?
+  actedBy       String?             @default("webapp-user")
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @default(now()) @updatedAt
+  flashcard     Flashcard           @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  @@index([flashcardId, createdAt])
+}
+
+model FlashcardCorrection {
+  id             String                  @id @default(uuid()) @map("_id")
+  companyId      String
+  flashcardId    String?
+  sourceType     FlashcardSourceType?
+  sourceId       String?
+  sourcePublicId Int?
+  sourceName     String?
+  correctionType FlashcardCorrectionType
+  note           String?
+  actedBy        String?                 @default("webapp-user")
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @default(now()) @updatedAt
+  company        Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  flashcard      Flashcard?              @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([flashcardId, createdAt])
+  @@index([sourceType, sourceId])
+}
+
 model FlashcardSource {
-  id             String              @id @default(uuid())
+  id             String              @id @default(uuid()) @map("_id")
   flashcardId    String
   sourceType     FlashcardSourceType
   sourceId       String
@@ -166,11 +158,102 @@ model FlashcardSource {
   sourceName     String
   relationRole   FlashcardSourceRole @default(PRIMARY)
   createdAt      DateTime            @default(now())
-
-  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+  updatedAt      DateTime            @default(now()) @updatedAt
+  flashcard     Flashcard           @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
 
   @@unique([flashcardId, sourceType, sourceId])
   @@index([sourceType, sourceId])
+}
+
+model NBAItem {
+  id                 String     @id @default(uuid()) @map("_id")
+  companyId          String
+  title              String
+  description        String?
+  impact             Int        @default(5)
+  confidence         Int        @default(50)
+  ease               Int        @default(5)
+  iceScore           Float      @default(0)
+  status             NBAStatus  @default(PENDING)
+  userAnnotation     String?
+  createdAt          DateTime   @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  scheduledDate      DateTime?
+  createdBy          String?
+  sourceFlashcardIds String[]   @default([])
+  publicId           Int?       @unique
+  appVersion         String?    @default("0.6.0")
+  brainVersion       String?    @default("local-brain@0.6.0")
+  generatedAt        DateTime?
+  promptVersion      String?    @default("nba-policy@0.6.0")
+  feedback           Feedback[]
+  company            Company    @relation(fields: [companyId], references: [id])
+}
+
+model Product {
+  id          String   @id @default(uuid()) @map("_id")
+  companyId   String
+  name        String
+  description String?
+  pricing     String?
+  features    String[]
+  urls        String[]
+  createdAt   DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  publicId    Int?     @unique
+  hashtags    String[] @default([])
+  company     Company  @relation(fields: [companyId], references: [id])
+}
+
+model PublicIdCounter {
+  scope     String   @id @map("_id")
+  value     Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model UploadedSourceFile {
+  id        String   @id @default(uuid()) @map("_id")
+  publicId  Int?     @unique
+  companyId String
+  name      String
+  hashtags  String[] @default([])
+  mimeType  String
+  sizeBytes Int
+  content   Bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id        String   @id @default(uuid()) @map("_id")
+  email     String   @unique
+  name      String?
+  companyId String
+  role      Role     @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id])
+}
+
+enum ActionType {
+  ACCEPT
+  DECLINE
+  MODIFY_ACCEPT
+}
+
+enum FlashcardActionType {
+  ACCEPT
+  DECLINE
+  MODIFY_ACCEPT
+}
+
+enum FlashcardCorrectionType {
+  HIDE
+  MARK_WRONG
+  PIN
+  REQUEST_REFRESH
+  SUPPRESS_SOURCE
 }
 
 enum FlashcardKind {
@@ -190,25 +273,11 @@ enum FlashcardKind {
   PRICE
 }
 
-enum FlashcardStatus {
-  ACTIVE
-  STALE
-  ARCHIVED
-}
-
 enum FlashcardReviewStatus {
   PENDING
   ACCEPTED
   DECLINED
   MODIFIED_ACCEPTED
-}
-
-enum FlashcardSourceType {
-  PRODUCT
-  CUSTOMER
-  COMPETITOR
-  FILE
-  AGENT_FOUND
 }
 
 enum FlashcardSourceRole {
@@ -217,53 +286,26 @@ enum FlashcardSourceRole {
   MERGED_FROM
 }
 
-model FlashcardAction {
-  id            String              @id @default(uuid())
-  flashcardId    String
-  action         FlashcardActionType
-  annotation     String?
-  previousTitle  String?
-  previousBody   String?
-  modifiedTitle  String?
-  modifiedBody   String?
-  actedBy        String?             @default("webapp-user")
-  createdAt      DateTime            @default(now())
-
-  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
-
-  @@index([flashcardId, createdAt])
+enum FlashcardSourceType {
+  PRODUCT
+  CUSTOMER
+  COMPETITOR
+  AGENT_FOUND
+  FILE
 }
 
-enum FlashcardActionType {
-  ACCEPT
-  DECLINE
-  MODIFY_ACCEPT
+enum FlashcardStatus {
+  ACTIVE
+  STALE
+  ARCHIVED
 }
 
-model NBAItem {
-  id             String     @id @default(uuid())
-  publicId       Int?       @unique
-  companyId      String
-  title          String
-  description    String?
-  sourceFlashcardIds String[] @default([])
-  impact         Int         @default(5)
-  confidence     Int         @default(50)
-  ease           Int         @default(5)
-  iceScore       Float       @default(0)
-  status         NBAStatus  @default(PENDING)
-  userAnnotation String?
-  appVersion     String?    @default("0.6.0")
-  brainVersion   String?    @default("local-brain@0.6.0")
-  promptVersion  String?    @default("nba-policy@0.6.0")
-  generatedAt    DateTime?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  scheduledDate DateTime?
-  createdBy     String?
-
-  company  Company  @relation(fields: [companyId], references: [id])
-  feedbacks Feedback[]
+enum GoalType {
+  GROW_REVENUE
+  LAUNCH_PRODUCT
+  ENTER_NEW_MARKET
+  BUILD_AWARENESS
+  GENERATE_LEADS
 }
 
 enum NBAStatus {
@@ -273,27 +315,8 @@ enum NBAStatus {
   COMPLETED
 }
 
-model Feedback {
-  id         String      @id @default(uuid())
-  nbaItemId  String
-  action     ActionType
-  annotation String?
-  modifiedTitle String?
-  modifiedDescription String?
-  iceImpact  Float?
-  createdAt  DateTime    @default(now())
-
-  nbaItem NBAItem @relation(fields: [nbaItemId], references: [id])
-}
-
-model PublicIdCounter {
-  scope     String   @id
-  value     Int      @default(0)
-  updatedAt DateTime @updatedAt
-}
-
-enum ActionType {
-  ACCEPT
-  DECLINE
-  MODIFY_ACCEPT
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
 }

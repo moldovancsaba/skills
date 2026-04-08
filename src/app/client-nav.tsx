@@ -40,6 +40,12 @@ export function ClientNav() {
             <Link href={`/${company.id}/knowmore`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
               Knowmore
             </Link>
+            <Link href="/manual" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+              Manual
+            </Link>
+            <Link href="/faq" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+              FAQ
+            </Link>
 
             <Button
               onClick={toggle}

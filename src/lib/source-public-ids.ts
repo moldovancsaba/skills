@@ -75,6 +75,7 @@ export async function reservePublicIds(
     create: {
       scope,
       value: 0,
+      updatedAt: new Date(),
     },
   });
 
@@ -224,7 +225,6 @@ export async function ensureSourcePublicIds(companyId?: string) {
         return assignedCount;
       },
       {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         maxWait: TRANSACTION_MAX_WAIT_MS,
         timeout: TRANSACTION_TIMEOUT_MS,
       },
@@ -273,7 +273,7 @@ export async function ensureChecklistPublicIds(companyId?: string) {
               id: item.id,
               publicId: null,
             },
-            data: { publicId: reservedPublicIds[index] },
+            data: { publicId: reservedPublicIds[index], updatedAt: new Date() },
           });
           assignedCount += result.count;
         }
@@ -281,7 +281,6 @@ export async function ensureChecklistPublicIds(companyId?: string) {
         return assignedCount;
       },
       {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         maxWait: TRANSACTION_MAX_WAIT_MS,
         timeout: TRANSACTION_TIMEOUT_MS,
       },

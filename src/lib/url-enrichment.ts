@@ -291,7 +291,7 @@ async function fetchUrlInsight(url: string): Promise<UrlInsight | null> {
     const response = await fetch(url, {
       headers: {
         "user-agent":
-          "ChecklistLocalAI/1.0 (+https://checklist.messmass.com; source enrichment crawler)",
+          "ChecklistLocalAI/1.0 (+https://checklist.sovereignsquad.com; source enrichment crawler)",
         accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.1",
       },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -453,7 +453,7 @@ async function fetchWebSearchSignals(query: string, siteUrl?: string | null) {
     const response = await fetch(url, {
       headers: {
         "user-agent":
-          "ChecklistLocalAI/1.0 (+https://checklist.messmass.com; source enrichment crawler)",
+          "ChecklistLocalAI/1.0 (+https://checklist.sovereignsquad.com; source enrichment crawler)",
         accept: "text/html,application/xhtml+xml",
       },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),

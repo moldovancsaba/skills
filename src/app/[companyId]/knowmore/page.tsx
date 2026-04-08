@@ -8,8 +8,11 @@ import {
   Database,
   Layers3,
   Loader2,
+  Search,
   Sparkles,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   EmptyState,
@@ -45,6 +48,17 @@ type FlashcardAction = {
   createdAt: string;
 };
 
+type FlashcardCorrection = {
+  id: string;
+  correctionType: "HIDE" | "MARK_WRONG" | "PIN" | "REQUEST_REFRESH" | "SUPPRESS_SOURCE";
+  note: string | null;
+  sourceType: FlashcardSource["sourceType"] | null;
+  sourceId: string | null;
+  sourcePublicId: number | null;
+  sourceName: string | null;
+  createdAt: string;
+};
+
 type Flashcard = {
   id: string;
   publicId: number | null;
@@ -74,6 +88,7 @@ type Flashcard = {
   refreshedAt: string;
   sources: FlashcardSource[];
   actions: FlashcardAction[];
+  corrections: FlashcardCorrection[];
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
@@ -170,6 +185,8 @@ export default function CompanyKnowMorePage() {
   const [editedBody, setEditedBody] = useState("");
   const [actingId, setActingId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterKind, setFilterKind] = useState<Flashcard["kind"] | "ALL">("ALL");
 
   const loadFlashcards = useCallback(async (cid: string) => {
     const cards = await fetchJson<Flashcard[]>(
@@ -240,6 +257,16 @@ export default function CompanyKnowMorePage() {
 
     void loadPage(companyId);
   }, [companyId, loadPage]);
+
+  const filteredFlashcards = useMemo(() => {
+    return flashcards.filter((card) => {
+      const matchesSearch =
+        card.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        card.body.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesKind = filterKind === "ALL" || card.kind === filterKind;
+      return matchesSearch && matchesKind;
+    });
+  }, [flashcards, searchQuery, filterKind]);
 
   const summary = useMemo(() => {
     if (flashcards.length === 0) {
@@ -329,6 +356,47 @@ export default function CompanyKnowMorePage() {
     triggerLocalAI,
   ]);
 
+  const handleCorrection = useCallback(async (input: {
+    flashcardId: string;
+    correctionType: FlashcardCorrection["correctionType"];
+    sourceType?: FlashcardSource["sourceType"];
+    sourceId?: string;
+    sourcePublicId?: number | null;
+    sourceName?: string;
+  }) => {
+    if (!company) {
+      return;
+    }
+
+    setActingId(input.flashcardId);
+    setErrorMessage(null);
+
+    try {
+      await fetchJson("/api/knowmore/corrections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId: company.id,
+          flashcardId: input.flashcardId,
+          correctionType: input.correctionType,
+          sourceType: input.sourceType,
+          sourceId: input.sourceId,
+          sourcePublicId: input.sourcePublicId,
+          sourceName: input.sourceName,
+        }),
+      });
+
+      closeActionForm();
+      await loadFlashcards(company.id);
+      await triggerLocalAI(company.id);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setActingId(null);
+    }
+  }, [closeActionForm, company, loadFlashcards, triggerLocalAI]);
+
   if (loading) {
     return (
       <PageShell width="5xl" className="space-y-6">
@@ -400,27 +468,50 @@ export default function CompanyKnowMorePage() {
         />
       </MetricGrid>
 
-      {flashcards.length === 0 ? (
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search knowledge..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
+            <Badge
+              key={kind}
+              variant={filterKind === kind ? "default" : "outline"}
+              className="cursor-pointer px-3 py-1 text-xs transition-colors hover:bg-accent"
+              onClick={() => setFilterKind(kind)}
+            >
+              {kind === "ALL" ? "All types" : kindLabel(kind as Flashcard["kind"])}
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      {filteredFlashcards.length === 0 ? (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           <EmptyState
             icon={Sparkles}
-            title="Add source data to seed the knowledge layer"
-            description="Knowmore reads from durable flashcard storage. As soon as source data exists, bootstrap flashcards appear here and later get refined by the local AI pipeline."
+            title={searchQuery || filterKind !== "ALL" ? "No matching knowledge cards" : "Add source data to seed the knowledge layer"}
+            description={searchQuery || filterKind !== "ALL" ? "Try adjusting your search or filter to find what you're looking for." : "Knowmore reads from durable flashcard storage. As soon as source data exists, bootstrap flashcards appear here."}
             primaryAction={
-              <Button asChild>
-                <a href={`/${companyId}/data`}>Open Data</a>
-              </Button>
-            }
-            secondaryAction={
-              <Button asChild variant="outline">
-                <a href={`/${companyId}/nba`}>Open Checklist</a>
-              </Button>
+              searchQuery || filterKind !== "ALL" ? (
+                <Button onClick={() => { setSearchQuery(""); setFilterKind("ALL"); }}>Clear filters</Button>
+              ) : (
+                <Button asChild>
+                  <a href={`/${companyId}/data`}>Open Data</a>
+                </Button>
+              )
             }
           />
         </motion.div>
       ) : (
-        <div className="grid gap-4">
-          {flashcards.map((flashcard, index) => {
+        <div className="grid gap-6 md:grid-cols-2">
+          {filteredFlashcards.map((flashcard, index) => {
             const isActionOpen = activeFlashcardId === flashcard.id && actionMode !== null;
             const isBusy = actingId === flashcard.id;
 
@@ -451,6 +542,7 @@ export default function CompanyKnowMorePage() {
                   onEditedTitleChange={setEditedTitle}
                   onEditedBodyChange={setEditedBody}
                   onSubmit={(flashcardId) => void handleActionSubmit(flashcardId)}
+                  onCorrection={(input) => void handleCorrection(input)}
                 />
               </motion.div>
             );

@@ -85,6 +85,10 @@ export default function CompanyDataPage() {
     const loadCompany = async (cid: string) => {
       try {
         const companies = await fetch(`/api/companies`).then((res) => res.json());
+        if (!Array.isArray(companies)) {
+          console.error("Invalid companies response:", companies);
+          return;
+        }
         const found = companies.find((c: any) => c.id === cid);
         if (!found) {
           router.push("/");

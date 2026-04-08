@@ -16,6 +16,7 @@ export default function Home() {
   const { setCompany, setProducts, setCustomers, setCompetitors } = useStore();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,26 +33,43 @@ export default function Home() {
   }, [router, setCompany, setProducts, setCustomers, setCompetitors]);
 
   useEffect(() => {
+    setError(null);
     fetch("/api/companies")
-      .then((res) => res.json())
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to fetch companies");
+        }
+        return data;
+      })
       .then((data) => {
-        setCompanies(data);
+        if (Array.isArray(data)) {
+          setCompanies(data);
+        } else {
+          setCompanies([]);
+          console.error("Received non-array data:", data);
+        }
         setLoading(false);
         
-        if (companyParam) {
+        if (companyParam && Array.isArray(data)) {
           const found = data.find((c: any) => c.id === companyParam);
           if (found) {
             selectCompany(found);
           }
         }
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.error(err);
+        setError(err.message);
+        setLoading(false);
+      });
   }, [companyParam, selectCompany]);
 
   const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
     
+    setError(null);
     const res = await fetch("/api/companies", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -63,6 +81,9 @@ export default function Home() {
       setFormData({ name: "", industry: "" });
       setShowForm(false);
       selectCompany(newCompany);
+    } else {
+      const data = await res.json();
+      setError(data.error || "Failed to create company");
     }
   };
 
@@ -70,6 +91,7 @@ export default function Home() {
     e.preventDefault();
     if (!formData.name.trim() || !editingId) return;
     
+    setError(null);
     const res = await fetch(`/api/companies?id=${editingId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -79,19 +101,34 @@ export default function Home() {
     if (res.ok) {
       setFormData({ name: "", industry: "" });
       setEditingId(null);
-      fetch("/api/companies").then(r => r.json()).then(setCompanies);
+      fetch("/api/companies")
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data)) setCompanies(data);
+        });
+    } else {
+      const data = await res.json();
+      setError(data.error || "Failed to update company");
     }
   };
 
   const handleDeleteCompany = async (id: string) => {
     if (!confirm("Delete this company?")) return;
     
+    setError(null);
     const res = await fetch(`/api/companies?id=${id}`, {
       method: "DELETE",
     });
     
     if (res.ok) {
-      fetch("/api/companies").then(r => r.json()).then(setCompanies);
+      fetch("/api/companies")
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data)) setCompanies(data);
+        });
+    } else {
+      const data = await res.json();
+      setError(data.error || "Failed to delete company");
     }
   };
 
@@ -111,10 +148,25 @@ export default function Home() {
         <PageHeader title="Select Company" />
       </motion.div>
 
+      {error && (
+        <div className="mb-4 p-4 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20">
+          <p className="font-semibold">Error</p>
+          <p>{error}</p>
+        </div>
+      )}
+
       <div className="flex justify-end">
-        <Link href="/auth" className="text-sm text-muted-foreground hover:text-foreground">
-          Sign in with SSO
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/manual" className="text-sm text-muted-foreground hover:text-foreground">
+            Manual
+          </Link>
+          <Link href="/faq" className="text-sm text-muted-foreground hover:text-foreground">
+            FAQ
+          </Link>
+          <Link href="/auth" className="text-sm text-muted-foreground hover:text-foreground">
+            Sign in with SSO
+          </Link>
+        </div>
       </div>
 
       {(companies.length === 0 || showForm) ? (
@@ -166,7 +218,7 @@ export default function Home() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {companies.map((c: any) => (
+          {Array.isArray(companies) && companies.map((c: any) => (
             <Card key={c.id}>
               <CardContent className="flex items-center gap-2 p-4">
                 <Button

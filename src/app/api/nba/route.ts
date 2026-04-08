@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
           brainVersion: BRAIN_VERSION,
           promptVersion: NBA_PROMPT_VERSION,
           generatedAt: new Date(),
+          updatedAt: new Date(),
         },
       });
     }, TRANSACTION_SETTINGS);

@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomBytes } from "crypto";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 const OAUTH_MAX_AGE = 60 * 15;
@@ -13,6 +13,14 @@ export type AppSession = {
   name: string;
   picture?: string;
   provider: "google";
+};
+
+export type OAuthTokenResponse = {
+  access_token: string;
+  id_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  token_type?: string;
 };
 
 function base64Url(buffer: Buffer) {
@@ -50,7 +58,7 @@ function createToken(payload: object, maxAge: number): string {
   return `${header}.${body}.${base64Url(Buffer.from(sig))}`;
 }
 
-function parseToken(token: string): AppSession | null {
+function parseSignedPayload(token: string): Record<string, unknown> | null {
   try {
     const parts = token.split(".");
     if (parts.length < 3) return null;
@@ -60,8 +68,7 @@ function parseToken(token: string): AppSession | null {
     const data = JSON.parse(Buffer.from(parts[1], "base64").toString());
     const now = Math.floor(Date.now() / 1000);
     if (data.exp && data.exp < now) return null;
-    if (!data.sub || !data.email || !data.name) return null;
-    return { sub: data.sub, email: data.email, name: data.name, picture: data.picture, provider: "google" };
+    return data;
   } catch {
     return null;
   }
@@ -89,7 +96,17 @@ export function createOAuthState(returnTo: string): { token: string; payload: OA
 }
 
 export function readOAuthState(token: string): OAuthState | null {
-  return parseToken(token) as OAuthState | null;
+  const data = parseSignedPayload(token);
+  if (!data || typeof data.state !== "string" || typeof data.nonce !== "string" || typeof data.codeVerifier !== "string") {
+    return null;
+  }
+
+  return {
+    state: data.state,
+    nonce: data.nonce,
+    codeVerifier: data.codeVerifier,
+    returnTo: typeof data.returnTo === "string" ? data.returnTo : "/",
+  };
 }
 
 export function createAppSession(session: AppSession): string {
@@ -99,16 +116,32 @@ export function createAppSession(session: AppSession): string {
 export async function readAppSession(req: NextRequest): Promise<AppSession | null> {
   const token = req.cookies.get(APP_SESSION_COOKIE)?.value;
   if (!token) return null;
-  return parseToken(token);
+  const data = parseSignedPayload(token);
+  if (!data || typeof data.sub !== "string" || typeof data.email !== "string" || typeof data.name !== "string") {
+    return null;
+  }
+
+  return {
+    sub: data.sub,
+    email: data.email,
+    name: data.name,
+    picture: typeof data.picture === "string" ? data.picture : undefined,
+    provider: "google",
+  };
 }
 
 export function getSsoRedirectUri() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://checklist.messmass.com";
-  return `${baseUrl}/api/auth/callback`;
+  if (process.env.SSO_REDIRECT_URI) {
+    return process.env.SSO_REDIRECT_URI;
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://checklist.sovereignsquad.com";
+  const redirectPath = process.env.SSO_REDIRECT_PATH || "/auth/callback";
+  return `${baseUrl}${redirectPath}`;
 }
 
 export function getSsoScopes() {
-  return "openid profile email";
+  return process.env.SSO_SCOPES || "openid profile email offline_access";
 }
 
 export function buildAuthorizeUrl(oauthState: OAuthState): string {
@@ -125,14 +158,6 @@ export function buildAuthorizeUrl(oauthState: OAuthState): string {
   return authUrl.toString();
 }
 
-type TokenResponse = {
-  access_token: string;
-  id_token: string;
-  refresh_token?: string;
-  expires_in?: number;
-  token_type?: string;
-};
-
 export async function exchangeCodeForTokens(code: string, codeVerifier: string) {
   const res = await fetch(process.env.SSO_TOKEN_URL!, {
     method: "POST",
@@ -147,14 +172,76 @@ export async function exchangeCodeForTokens(code: string, codeVerifier: string) 
     }),
   });
   if (!res.ok) throw new Error("Token exchange failed");
-  return res.json() as Promise<TokenResponse>;
+  return res.json() as Promise<OAuthTokenResponse>;
 }
 
-export async function getUserInfo(accessToken: string) {
-  const userInfoUrl = process.env.SSO_AUTH_URL!.replace("/authorize", "/userinfo");
-  const res = await fetch(userInfoUrl, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) throw new Error("User info failed");
-  return res.json();
+export function decodeIdToken(idToken: string) {
+  const parts = idToken.split(".");
+  if (parts.length < 2) {
+    throw new Error("Invalid id_token");
+  }
+
+  const padded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+  const json = Buffer.from(padded, "base64").toString("utf8");
+  return JSON.parse(json) as {
+    sub: string;
+    email: string;
+    name?: string;
+    email_verified?: boolean;
+    picture?: string;
+  };
+}
+
+export async function handleOAuthCallback(req: NextRequest) {
+  const searchParams = req.nextUrl.searchParams;
+  const code = searchParams.get("code");
+  const error = searchParams.get("error");
+  const state = searchParams.get("state");
+
+  if (error) {
+    return NextResponse.redirect(new URL(`/?authError=${error}`, req.url));
+  }
+
+  if (!code) {
+    return NextResponse.redirect(new URL("/?authError=no_code", req.url));
+  }
+
+  try {
+    const stateCookie = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
+    if (!stateCookie) {
+      return NextResponse.redirect(new URL("/?authError=no_state", req.url));
+    }
+
+    const oauthState = readOAuthState(stateCookie);
+    if (!oauthState || oauthState.state !== state) {
+      return NextResponse.redirect(new URL("/?authError=invalid_state", req.url));
+    }
+
+    const tokens = await exchangeCodeForTokens(code, oauthState.codeVerifier);
+    const userInfo = decodeIdToken(tokens.id_token);
+
+    const session = createAppSession({
+      sub: userInfo.sub,
+      email: userInfo.email,
+      name: userInfo.name || userInfo.email,
+      picture: userInfo.picture,
+      provider: "google",
+    });
+
+    const returnTo = oauthState.returnTo || "/";
+    const response = NextResponse.redirect(new URL(returnTo, req.url));
+
+    response.cookies.set(APP_SESSION_COOKIE, session, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    response.cookies.delete(OAUTH_STATE_COOKIE);
+    return response;
+  } catch {
+    return NextResponse.redirect(new URL("/?authError=callback_failed", req.url));
+  }
 }

@@ -1,5 +1,6 @@
 import {
   FlashcardActionType,
+  FlashcardCorrectionType,
   FlashcardKind,
   FlashcardReviewStatus,
   FlashcardSourceRole,
@@ -105,12 +106,27 @@ type FlashcardActionInput = {
   modifiedBody?: string;
 };
 
+type FlashcardCorrectionInput = {
+  companyId?: string;
+  flashcardId?: string;
+  sourceType?: FlashcardSourceKind;
+  sourceId?: string;
+  sourcePublicId?: number | null;
+  sourceName?: string | null;
+  correctionType: FlashcardCorrectionType;
+  note?: string;
+};
+
 const BOOTSTRAP_CREATED_BY = "bootstrap-source";
 const FLASHCARD_INCLUDES = {
   sources: {
     orderBy: [{ sourcePublicId: "asc" as const }, { createdAt: "asc" as const }],
   },
   actions: {
+    orderBy: { createdAt: "desc" as const },
+    take: 5,
+  },
+  corrections: {
     orderBy: { createdAt: "desc" as const },
     take: 5,
   },
@@ -153,6 +169,14 @@ const SECTION_KIND_MAP: Record<string, FlashcardKind> = {
 
 function sourceKey(sourceType: FlashcardSourceKind, sourceId: string) {
   return `${sourceType}:${sourceId}`;
+}
+
+function sourceKeyFromCorrection(sourceType: FlashcardSourceKind | null | undefined, sourceId: string | null | undefined) {
+  if (!sourceType || !sourceId) {
+    return null;
+  }
+
+  return sourceKey(sourceType, sourceId);
 }
 
 function normalizeText(value: string | null | undefined) {
@@ -1087,6 +1111,22 @@ async function mapSeries<T, R>(items: T[], mapper: (item: T) => Promise<R>) {
 }
 
 async function loadCompanySources(companyId: string) {
+  const suppressedSourceCorrections = await prisma.flashcardCorrection.findMany({
+    where: {
+      companyId,
+      correctionType: FlashcardCorrectionType.SUPPRESS_SOURCE,
+      sourceId: { not: null },
+    },
+    select: {
+      sourceType: true,
+      sourceId: true,
+    },
+  });
+  const suppressedSourceKeys = new Set(
+    suppressedSourceCorrections
+      .map((correction) => sourceKeyFromCorrection(correction.sourceType as FlashcardSourceKind | null, correction.sourceId))
+      .filter((value): value is string => Boolean(value)),
+  );
   const [products, customers, competitors, uploadedFiles] = await Promise.all([
     prisma.product.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
     prisma.customer.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
@@ -1166,7 +1206,7 @@ async function loadCompanySources(companyId: string) {
     }) satisfies CustomerSource),
     ...derivedCompetitors,
     ...derivedFiles,
-  ] satisfies SourceRecord[];
+  ].filter((source) => !suppressedSourceKeys.has(sourceKey(source.type, source.id))) satisfies SourceRecord[];
 }
 
 export async function syncCompanyKnowledge(companyId: string) {
@@ -1237,15 +1277,15 @@ export async function syncBootstrapFlashcards(companyId: string) {
                 confidence: adjusted.confidence,
                 impact: draft.impact,
                 weight: adjusted.weight,
-              evidence: draft.evidence === null ? Prisma.JsonNull : draft.evidence,
-              status: FlashcardStatus.ACTIVE,
-              appVersion: APP_VERSION,
-              brainVersion: BRAIN_VERSION,
-              promptVersion: FLASHCARD_PROMPT_VERSION,
-              generatedAt: draft.refreshedAt,
-              refreshedAt: draft.refreshedAt,
-            },
-          });
+                evidence: draft.evidence ?? undefined,
+                status: FlashcardStatus.ACTIVE,
+                appVersion: APP_VERSION,
+                brainVersion: BRAIN_VERSION,
+                promptVersion: FLASHCARD_PROMPT_VERSION,
+                generatedAt: draft.refreshedAt,
+                refreshedAt: draft.refreshedAt,
+              },
+            });
           }
 
           const existingSource = existing.sources.find((item) => item.sourceType === draft.source.type && item.sourceId === draft.source.id);
@@ -1263,6 +1303,7 @@ export async function syncBootstrapFlashcards(companyId: string) {
                   sourcePublicId: draft.source.publicId,
                   sourceName: draft.source.sourceName,
                   relationRole: FlashcardSourceRole.PRIMARY,
+                  updatedAt: new Date(),
                 },
               });
             }
@@ -1300,7 +1341,7 @@ export async function syncBootstrapFlashcards(companyId: string) {
           confidence: adjusted.confidence,
           impact: draft.impact,
           weight: adjusted.weight,
-          evidence: draft.evidence === null ? Prisma.JsonNull : draft.evidence,
+          evidence: draft.evidence ?? undefined,
           status: FlashcardStatus.ACTIVE,
           createdBy: BOOTSTRAP_CREATED_BY,
           appVersion: APP_VERSION,
@@ -1308,6 +1349,8 @@ export async function syncBootstrapFlashcards(companyId: string) {
           promptVersion: FLASHCARD_PROMPT_VERSION,
           generatedAt: draft.refreshedAt,
           refreshedAt: draft.refreshedAt,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
         flashcardSourcesToCreate.push({
           id: randomUUID(),
@@ -1317,6 +1360,8 @@ export async function syncBootstrapFlashcards(companyId: string) {
           sourcePublicId: draft.source.publicId,
           sourceName: draft.source.sourceName,
           relationRole: FlashcardSourceRole.PRIMARY,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
       }
 
@@ -1328,7 +1373,7 @@ export async function syncBootstrapFlashcards(companyId: string) {
       for (const flashcard of flashcards) {
         const fingerprint = flashcard.fingerprint ?? "";
         if (!activeFingerprints.has(fingerprint) && flashcard.status !== FlashcardStatus.ARCHIVED) {
-          await tx.flashcard.update({ where: { id: flashcard.id }, data: { status: FlashcardStatus.ARCHIVED } });
+          await tx.flashcard.update({ where: { id: flashcard.id }, data: { status: FlashcardStatus.ARCHIVED, updatedAt: new Date() } });
         }
       }
 
@@ -1339,7 +1384,6 @@ export async function syncBootstrapFlashcards(companyId: string) {
           .filter((flashcardId): flashcardId is string => Boolean(flashcardId)),
       ]);
     }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       ...TRANSACTION_SETTINGS,
     }),
   );
@@ -1411,6 +1455,7 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
 
       await tx.flashcardAction.create({
         data: {
+          id: randomUUID(),
           flashcardId: flashcard.id,
           action: input.action,
           annotation,
@@ -1418,6 +1463,7 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
           previousBody: flashcard.body,
           modifiedTitle,
           modifiedBody,
+          createdAt: new Date(),
         },
       });
 
@@ -1454,7 +1500,6 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
         flashcard: updatedFlashcard,
       };
     }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       ...TRANSACTION_SETTINGS,
     }),
   );
@@ -1509,7 +1554,6 @@ export async function applyTaskFeedbackToFlashcards(nbaItemId: string, action: "
 
       await reconcilePendingTasksForFlashcards(tx, item.sourceFlashcardIds);
     }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       ...TRANSACTION_SETTINGS,
     }),
   );
@@ -1530,4 +1574,123 @@ export async function listCompanyFlashcards(companyId: string) {
     include: FLASHCARD_INCLUDES,
     orderBy: [{ weight: "desc" }, { confidence: "desc" }, { publicId: "asc" }, { createdAt: "asc" }],
   });
+}
+
+function correctionNote(note: string | undefined) {
+  return normalizeText(note);
+}
+
+export async function listCompanyFlashcardCorrections(companyId: string) {
+  return prisma.flashcardCorrection.findMany({
+    where: { companyId },
+    orderBy: [{ createdAt: "desc" }],
+    take: 100,
+  });
+}
+
+export async function recordFlashcardCorrection(input: FlashcardCorrectionInput) {
+  const note = correctionNote(input.note);
+
+  return withSerializableRetry(() =>
+    prisma.$transaction(async (tx) => {
+      let companyId = input.companyId ?? null;
+      let flashcard = null as Awaited<ReturnType<typeof tx.flashcard.findUnique>> | null;
+
+      if (input.flashcardId) {
+        flashcard = await tx.flashcard.findUnique({
+          where: { id: input.flashcardId },
+          include: { sources: true },
+        });
+
+        if (!flashcard) {
+          throw new Error("Flashcard not found");
+        }
+
+        companyId = flashcard.companyId;
+      }
+
+      if (!companyId) {
+        throw new Error("companyId required");
+      }
+
+      if (input.correctionType === FlashcardCorrectionType.SUPPRESS_SOURCE && (!input.sourceType || !input.sourceId)) {
+        throw new Error("Suppress source requires sourceType and sourceId");
+      }
+
+      const created = await tx.flashcardCorrection.create({
+        data: {
+          id: randomUUID(),
+          companyId,
+          flashcardId: input.flashcardId,
+          sourceType: input.sourceType,
+          sourceId: input.sourceId,
+          sourcePublicId: input.sourcePublicId,
+          sourceName: normalizeText(input.sourceName),
+          correctionType: input.correctionType,
+          note,
+        },
+      });
+
+      if (flashcard) {
+        if (input.correctionType === FlashcardCorrectionType.HIDE || input.correctionType === FlashcardCorrectionType.MARK_WRONG) {
+          await tx.flashcard.update({
+            where: { id: flashcard.id },
+            data: {
+              status: FlashcardStatus.ARCHIVED,
+              reviewStatus: FlashcardReviewStatus.DECLINED,
+              userAnnotation: note ?? flashcard.userAnnotation,
+              lastActionAt: new Date(),
+            },
+          });
+          await reconcilePendingTasksForFlashcards(tx, [flashcard.id]);
+        }
+
+        if (input.correctionType === FlashcardCorrectionType.PIN) {
+          await tx.flashcard.update({
+            where: { id: flashcard.id },
+            data: {
+              status: FlashcardStatus.ACTIVE,
+              confidence: clamp(flashcard.confidence + 10, 1, 100),
+              weight: clamp(flashcard.weight + 18, 1, 100),
+              feedbackConfidenceDelta: clamp(flashcard.feedbackConfidenceDelta + 10, -50, 50),
+              feedbackWeightDelta: clamp(flashcard.feedbackWeightDelta + 18, -50, 50),
+              userAnnotation: note ?? flashcard.userAnnotation,
+              lastActionAt: new Date(),
+            },
+          });
+        }
+      }
+
+      if (input.correctionType === FlashcardCorrectionType.SUPPRESS_SOURCE && input.sourceType && input.sourceId) {
+        const impacted = await tx.flashcard.findMany({
+          where: {
+            companyId,
+            sources: {
+              some: {
+                sourceType: input.sourceType,
+                sourceId: input.sourceId,
+              },
+            },
+          },
+          select: { id: true },
+        });
+
+        if (impacted.length > 0) {
+          await tx.flashcard.updateMany({
+            where: { id: { in: impacted.map((item) => item.id) } },
+            data: {
+              status: FlashcardStatus.ARCHIVED,
+              userAnnotation: note ?? `Suppressed source ${input.sourceName ?? input.sourceId}`,
+              lastActionAt: new Date(),
+            },
+          });
+          await reconcilePendingTasksForFlashcards(tx, impacted.map((item) => item.id));
+        }
+      }
+
+      return { companyId, correction: created };
+    }, {
+      ...TRANSACTION_SETTINGS,
+    }),
+  );
 }

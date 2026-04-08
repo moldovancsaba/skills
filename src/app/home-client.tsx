@@ -8,7 +8,9 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
-import { FormInput, FormSelect } from "@/components/ui/form-fields";
+import { FormInput } from "@/components/ui/form-fields";
+import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
+import { Badge } from "@/components/ui/badge";
 
 export default function Home() {
   const router = useRouter();
@@ -20,7 +22,9 @@ export default function Home() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: "", industry: "" });
+  const [formData, setFormData] = useState({ name: "", industry: "", industries: [] as string[] });
+  const [suggestedIndustries, setSuggestedIndustries] = useState<string[]>([]);
+  const [session, setSession] = useState<any>(null);
 
   const companyParam = searchParams.get("company");
 
@@ -63,6 +67,18 @@ export default function Home() {
         setError(err.message);
         setLoading(false);
       });
+
+    // Fetch industry suggestions
+    fetch("/api/industries")
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setSuggestedIndustries(data))
+      .catch(console.error);
+
+    // Fetch session profile
+    fetch("/api/auth/session")
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setSession(data))
+      .catch(console.error);
   }, [companyParam, selectCompany]);
 
   const handleCreateCompany = async (e: React.FormEvent) => {
@@ -78,7 +94,7 @@ export default function Home() {
     
     if (res.ok) {
       const newCompany = await res.json();
-      setFormData({ name: "", industry: "" });
+      setFormData({ name: "", industry: "", industries: [] });
       setShowForm(false);
       selectCompany(newCompany);
     } else {
@@ -99,7 +115,7 @@ export default function Home() {
     });
     
     if (res.ok) {
-      setFormData({ name: "", industry: "" });
+      setFormData({ name: "", industry: "", industries: [] });
       setEditingId(null);
       fetch("/api/companies")
         .then(r => r.json())
@@ -133,7 +149,11 @@ export default function Home() {
   };
 
   const startEdit = (c: any) => {
-    setFormData({ name: c.name, industry: c.industry || "" });
+    setFormData({ 
+      name: c.name, 
+      industry: c.industry || "", 
+      industries: c.industries || (c.industry ? [c.industry] : []) 
+    });
     setEditingId(c.id);
     setShowForm(true);
   };
@@ -145,7 +165,15 @@ export default function Home() {
   return (
     <PageShell width="md">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <PageHeader title="Select Company" />
+        <div className="flex items-center justify-between mb-2">
+          <PageHeader title="Select Company" />
+          {session && (
+            <Badge variant="outline" className="px-3 py-1 bg-primary/5 text-primary border-primary/20 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-[11px] font-medium lowercase">Logged in as {session.email}</span>
+            </Badge>
+          )}
+        </div>
       </motion.div>
 
       {error && (
@@ -181,23 +209,13 @@ export default function Home() {
                 placeholder="Enter company name"
                 required
               />
-              <FormSelect
-                name="industry"
-                label="Industry"
-                value={formData.industry}
-                onChange={e => setFormData({...formData, industry: e.target.value})}
-                options={[
-                  { value: "", label: "Select industry" },
-                  { value: "SaaS", label: "SaaS" },
-                  { value: "E-commerce", label: "E-commerce" },
-                  { value: "Healthcare", label: "Healthcare" },
-                  { value: "Finance", label: "Finance" },
-                  { value: "Education", label: "Education" },
-                  { value: "Retail", label: "Retail" },
-                  { value: "Technology", label: "Technology" },
-                  { value: "Manufacturing", label: "Manufacturing" },
-                  { value: "Other", label: "Other" },
-                ]}
+              <HashtagMultiSelect
+                label="Industries"
+                placeholder="Search or add industry tags (e.g. #saas, #ai)"
+                selected={formData.industries}
+                onChange={industries => setFormData({...formData, industries})}
+                suggestions={suggestedIndustries}
+                error={undefined}
               />
               <div className="flex gap-2">
                 <Button type="submit">
@@ -207,7 +225,7 @@ export default function Home() {
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => { setEditingId(null); setFormData({ name: "", industry: "" }); setShowForm(false); }}
+                    onClick={() => { setEditingId(null); setFormData({ name: "", industry: "", industries: [] }); setShowForm(false); }}
                   >
                     Cancel
                   </Button>
@@ -227,8 +245,18 @@ export default function Home() {
                   className="h-auto flex-1 justify-between px-0 py-0 text-left hover:bg-transparent"
                 >
                   <div>
-                    <p className="font-medium">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">{c.industry}</p>
+                    <p className="font-medium text-lg">{c.name}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {c.industries?.length > 0 ? (
+                        c.industries.map((tag: string) => (
+                          <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[10px] bg-primary/5 text-primary border-primary/10">
+                            {tag}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">No industries set</span>
+                      )}
+                    </div>
                   </div>
                   <span className="rounded bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
                     {c.id.slice(0,8)}

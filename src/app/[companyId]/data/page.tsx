@@ -8,8 +8,9 @@ import { FileUp, Package, Users, Search, Plus, CheckCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FormInput } from "@/components/ui/form-fields";
+import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
+import { EntityTagSelector } from "@/components/ui/entity-tag-selector";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { SourceDataCard } from "@/components/source-data-card";
 import {
@@ -52,11 +53,15 @@ export default function CompanyDataPage() {
   const [input, setInput] = useState("");
   const [hashtags, setHashtags] = useState<string[]>(defaultTypeHashtags("product"));
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [entityTag, setEntityTag] = useState<string | null>(null);
+  const [entitySuggestions, setEntitySuggestions] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [items, setItems] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editHashtags, setEditHashtags] = useState<string[]>([]);
+  const [editEntityTag, setEditEntityTag] = useState<string | null>(null);
 
   const loadAllData = useCallback(async (cid: string) => {
     const [p, c, r, f] = await Promise.all([
@@ -97,6 +102,11 @@ export default function CompanyDataPage() {
 
         setCompany(found);
         await loadAllData(found.id);
+        // Fetch entity suggestions
+        fetch(`/api/entities?companyId=${found.id}`)
+          .then(r => r.ok ? r.json() : [])
+          .then(data => setEntitySuggestions(data))
+          .catch(console.error);
       } catch (error) {
         console.error(error);
       }
@@ -122,15 +132,17 @@ export default function CompanyDataPage() {
           companyId: company.id,
           name: input,
           hashtags: normalizedHashtags,
+          entityTag: entityTag ?? undefined,
           urls: [],
           features: [],
         }
       : type === "customer"
-      ? { companyId: company.id, name: input, hashtags: normalizedHashtags, segments: [], painPoints: [], channels: [] }
+      ? { companyId: company.id, name: input, hashtags: normalizedHashtags, entityTag: entityTag ?? undefined, segments: [], painPoints: [], channels: [] }
       : {
           companyId: company.id,
           name: input,
           hashtags: normalizedHashtags,
+          entityTag: entityTag ?? undefined,
           urls: [],
           strengths: [],
           weaknesses: [],
@@ -142,6 +154,7 @@ export default function CompanyDataPage() {
             const formData = new FormData();
             formData.append("companyId", company.id);
             formData.append("hashtags", JSON.stringify(normalizedHashtags));
+            if (entityTag) formData.append("entityTag", entityTag);
             for (const file of selectedFiles) {
               formData.append("files", file);
             }
@@ -171,6 +184,7 @@ export default function CompanyDataPage() {
       setInput("");
       setHashtags(defaultTypeHashtags("product"));
       setSelectedFiles([]);
+      setEntityTag(null);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
       
@@ -199,11 +213,15 @@ export default function CompanyDataPage() {
   const startEdit = (item: DataItem) => {
     setEditingId(item.id);
     setEditName(item.name);
+    setEditHashtags(item.hashtags ?? []);
+    setEditEntityTag((item as any).entityTag ?? null);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditName("");
+    setEditHashtags([]);
+    setEditEntityTag(null);
   };
 
   const saveEdit = async (item: DataItem) => {
@@ -216,7 +234,11 @@ export default function CompanyDataPage() {
     await fetch(`${endpoint}?id=${item.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editName }),
+      body: JSON.stringify({ 
+        name: editName,
+        hashtags: editHashtags,
+        entityTag: editEntityTag,
+      }),
     });
 
     cancelEdit();
@@ -258,12 +280,12 @@ export default function CompanyDataPage() {
       <Card>
         <CardContent className="space-y-4 p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <FormInput
-              type="text"
+            <FormTextarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Paste a URL, type a source name, or pair files with hashtags..."
-              className="h-14 text-base"
+              placeholder="Paste a URL, type a source name, or write notes (one per line)..."
+              className="min-h-[120px] text-base resize-y"
+              rows={5}
             />
 
             <div className="space-y-3">
@@ -289,14 +311,19 @@ export default function CompanyDataPage() {
               value={hashtags}
               onChange={setHashtags}
               suggestions={hashtagSuggestions}
-              label="Hashtags"
-              placeholder="Add hashtags like #product, #customer, #competitor, #pricing"
+              label="Hashtags (Attribute)"
+              placeholder="Add hashtags like #product, #customer, #competitor, #address"
             />
 
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">
-                Use one of <span className="font-medium text-foreground">#product</span>, <span className="font-medium text-foreground">#customer</span>, or <span className="font-medium text-foreground">#competitor</span> to classify the source.
-              </p>
+            <EntityTagSelector
+              value={entityTag}
+              onChange={setEntityTag}
+              suggestions={entitySuggestions}
+              label="About (Entity)"
+              placeholder="Which entity is this about? e.g. #nike or #soccer_performance_lab..."
+            />
+
+            <div className="flex justify-end">
               <Button type="submit" disabled={(!input.trim() && selectedFiles.length === 0) || !company}>
                 <Plus className="w-4 h-4" />
                 Add data
@@ -336,9 +363,14 @@ export default function CompanyDataPage() {
                   name={item.name}
                   type={item.type}
                   hashtags={item.hashtags ?? []}
+                  entityTag={(item as any).entityTag ?? null}
                   isEditing={editingId === item.id}
                   editName={editName}
+                  editHashtags={editHashtags}
+                  editEntityTag={editEntityTag}
                   onEditNameChange={setEditName}
+                  onEditHashtagsChange={setEditHashtags}
+                  onEditEntityTagChange={setEditEntityTag}
                   onStartEdit={() => startEdit(item)}
                   onSave={() => saveEdit(item)}
                   onDelete={() => deleteItem(item)}

@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
           company: { connect: { id: data.companyId } },
           name: raw.name,
           hashtags: normalizeSourceHashtags(data.hashtags, "competitor"),
+          entityTag: data.entityTag ?? null,
           urls: raw.urls,
           pricing: data.pricing ?? null,
           strengths: data.strengths || [],
@@ -93,6 +94,7 @@ export async function PATCH(request: NextRequest) {
       data: {
         name: raw.name,
         hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags, "competitor"),
+        entityTag: data.entityTag !== undefined ? data.entityTag : existing.entityTag,
         urls: raw.urls,
         pricing: data.pricing ?? existing.pricing,
         strengths: data.strengths ?? existing.strengths,

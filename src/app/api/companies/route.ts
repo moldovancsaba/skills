@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { readAppSession } from "@/lib/auth";
 import { verifyMembership } from "@/lib/permissions";
+import { normalizeIndustryHashtags } from "@/lib/hashtags";
 
 export const dynamic = 'force-dynamic';
 
@@ -46,9 +47,12 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json();
     
+    const industries = normalizeIndustryHashtags(data.industries || (data.industry ? [data.industry] : []));
+    
     const createData: any = {
       name: data.name,
-      industry: data.industry || null,
+      industry: industries[0] || null,
+      industries,
       description: data.description || null,
       targetMarket: data.targetMarket || null,
       users: {
@@ -86,11 +90,14 @@ export async function PATCH(request: NextRequest) {
 
     const data = await request.json();
     
+    const industries = data.industries ? normalizeIndustryHashtags(data.industries) : undefined;
+    
     const company = await prisma.company.update({
       where: { id },
       data: {
         name: data.name,
-        industry: data.industry || null,
+        industry: industries ? industries[0] : (data.industry || undefined),
+        industries: industries || undefined,
         description: data.description || null,
         targetMarket: data.targetMarket || null,
       },

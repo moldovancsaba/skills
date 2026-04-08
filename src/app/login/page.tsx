@@ -13,7 +13,7 @@ export default function LoginPage() {
   };
 
   return (
-    <PageShell width="sm" className="flex items-center justify-center min-h-[80vh]">
+    <PageShell width="md" className="flex items-center justify-center min-h-[80vh]">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

@@ -1,13 +1,5 @@
 'use client';
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useStore } from "@/lib/store";
-import { useTheme } from "@/lib/theme-provider";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { ChevronDown, Sun, Moon } from "lucide-react";
-
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -90,7 +82,7 @@ export function ClientNav() {
 
             {session && (
               <div className="flex items-center gap-2 pl-3 border-l border-border/50">
-                <div className="hidden lg:block text-right">
+                <div className="text-right">
                   <p className="text-xs font-semibold leading-none">{session.name}</p>
                   <p className="text-[10px] text-muted-foreground mt-1 lowercase">{session.email}</p>
                 </div>

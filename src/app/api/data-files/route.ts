@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
         companyId: true,
         name: true,
         hashtags: true,
+        entityTag: true,
         mimeType: true,
         sizeBytes: true,
         createdAt: true,
@@ -73,6 +74,8 @@ export async function POST(request: NextRequest) {
       parseHashtags(formData.get("hashtags")),
       "product",
     );
+    const entityTagRaw = formData.get("entityTag");
+    const entityTag = typeof entityTagRaw === "string" && entityTagRaw.trim() ? entityTagRaw.trim() : null;
     const entries = formData.getAll("files");
 
     const files = entries.filter((entry): entry is File => entry instanceof File);
@@ -97,6 +100,7 @@ export async function POST(request: NextRequest) {
             companyId,
             name: file.name,
             hashtags,
+            entityTag,
             mimeType: file.type || "application/octet-stream",
             sizeBytes: file.size,
             content: Buffer.from(arrayBuffer),
@@ -107,6 +111,7 @@ export async function POST(request: NextRequest) {
             companyId: true,
             name: true,
             hashtags: true,
+            entityTag: true,
             mimeType: true,
             sizeBytes: true,
             createdAt: true,

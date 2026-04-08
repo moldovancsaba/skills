@@ -1,9 +1,10 @@
-export type LegacySourceType = "product" | "customer" | "competitor";
+export type LegacySourceType = "product" | "customer" | "competitor" | "industry";
 
 const CATEGORY_TAGS: Record<LegacySourceType, string> = {
   product: "#product",
   customer: "#customer",
   competitor: "#competitor",
+  industry: "#industry",
 };
 
 export function normalizeHashtag(value: string) {
@@ -26,6 +27,10 @@ export function normalizeSourceHashtags(
   return normalized.includes(categoryTag)
     ? normalized
     : [categoryTag, ...normalized];
+}
+
+export function normalizeIndustryHashtags(values: string[] | null | undefined) {
+  return normalizeSourceHashtags(values, "industry");
 }
 
 export function sourceTypeFromHashtags(values: string[] | null | undefined): LegacySourceType {

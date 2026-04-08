@@ -4,13 +4,13 @@ import { readAppSession } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { companyId: string } }
+  context: { params: Promise<{ companyId: string }> }
 ) {
   try {
     const session = await readAppSession(request);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { companyId } = params;
+    const { companyId } = await context.params;
 
     // Check if requester is member of this company
     const requester = await prisma.user.findFirst({
@@ -32,13 +32,13 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { companyId: string } }
+  context: { params: Promise<{ companyId: string }> }
 ) {
   try {
     const session = await readAppSession(request);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { companyId } = params;
+    const { companyId } = await context.params;
     const { email, name, role } = await request.json();
 
     if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
@@ -77,13 +77,13 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { companyId: string } }
+  context: { params: Promise<{ companyId: string }> }
 ) {
   try {
     const session = await readAppSession(request);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { companyId } = params;
+    const { companyId } = await context.params;
     const userId = request.nextUrl.searchParams.get("id");
 
     if (!userId) return NextResponse.json({ error: "User ID required" }, { status: 400 });

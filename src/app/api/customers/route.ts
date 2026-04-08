@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
           company: { connect: { id: data.companyId } },
           name: data.name,
           hashtags: normalizeSourceHashtags(data.hashtags, "customer"),
+          entityTag: data.entityTag ?? null,
           email: data.email,
           segments: data.segments || [],
           painPoints: data.painPoints || [],
@@ -82,6 +83,7 @@ export async function PATCH(request: NextRequest) {
       data: {
         name: data.name ?? existing.name,
         hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags, "customer"),
+        entityTag: data.entityTag !== undefined ? data.entityTag : existing.entityTag,
         email: data.email ?? existing.email,
         segments: data.segments ?? existing.segments,
         painPoints: data.painPoints ?? existing.painPoints,

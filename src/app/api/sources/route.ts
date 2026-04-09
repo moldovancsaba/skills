@@ -41,39 +41,28 @@ export async function POST(request: NextRequest) {
     const companyId = typeof data.companyId === "string" ? data.companyId : "";
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
-    const content = typeof data.content === "string" ? data.content : "";
-    const contentEntries = Array.isArray(data.contents)
-      ? data.contents.filter((value: unknown): value is string => typeof value === "string")
-      : content.split(/\r?\n/);
-    const normalizedEntries = contentEntries
-      .map((entry: string) => entry.trim())
-      .filter((entry: string) => entry.length > 0);
+    const content = typeof data.content === "string" ? data.content.trim() : "";
 
-    if (!companyId || normalizedEntries.length === 0) {
-      return NextResponse.json({ error: "companyId and at least one content entry required" }, { status: 400 });
+    if (!companyId || !content) {
+      return NextResponse.json({ error: "companyId and content required" }, { status: 400 });
     }
 
     const created = await prisma.$transaction(async (tx) => {
-      const createdEntries = [];
-      for (const entry of normalizedEntries) {
-        const publicId = await nextSourcePublicId(tx);
-        const source = await tx.source.create({
-          data: {
-            companyId,
-            publicId,
-            content: entry,
-            hashtags: normalizeHashtagList(data.hashtags),
-            entityTag: typeof data.entityTag === "string" && data.entityTag.trim() ? data.entityTag.trim() : null,
-            aiClusters: normalizeHashtagList(data.aiClusters),
-            metadata: data.metadata ?? null,
-          },
-        });
-        createdEntries.push(source);
-      }
-      return createdEntries;
+      const publicId = await nextSourcePublicId(tx);
+      return tx.source.create({
+        data: {
+          companyId,
+          publicId,
+          content,
+          hashtags: normalizeHashtagList(data.hashtags),
+          entityTag: typeof data.entityTag === "string" && data.entityTag.trim() ? data.entityTag.trim() : null,
+          aiClusters: normalizeHashtagList(data.aiClusters),
+          metadata: data.metadata ?? null,
+        },
+      });
     }, TRANSACTION_SETTINGS);
 
-    return NextResponse.json(created.length === 1 ? created[0] : created);
+    return NextResponse.json(created);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

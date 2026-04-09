@@ -325,7 +325,7 @@ export default function CompanyDataPage() {
             <FormTextarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Paste a URL, type a source name, or write notes (one per line)..."
+              placeholder="Paste a URL, type a source name, or write notes..."
               className="min-h-[120px] text-base resize-y"
               rows={5}
             />

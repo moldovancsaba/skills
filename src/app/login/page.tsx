@@ -11,16 +11,16 @@ export default function LoginPage() {
   };
 
   return (
-    <PageShell width="7xl" className="flex min-h-[calc(100vh-5rem)] items-center justify-center py-10">
+    <PageShell width="5xl" className="flex min-h-[calc(100vh-5rem)] items-center justify-center py-10">
       <motion.section
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
-        className="relative w-full overflow-hidden rounded-[2rem] border border-border/70 bg-card/80 shadow-elevated"
+        className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-[2rem] border border-border/70 bg-card/80 shadow-elevated"
       >
         <div className="absolute inset-0 bg-gradient-to-tr from-sky-500/15 via-orange-400/10 to-violet-500/15" />
-        <div className="relative flex min-h-[38rem] w-full items-center justify-center px-4 py-8">
-          <div className="w-full rounded-[1.75rem] border border-white/20 bg-slate-950/60 px-6 py-6 text-center text-white shadow-2xl backdrop-blur-md md:w-[70%] md:px-8 xl:w-1/2">
+        <div className="relative flex w-full items-center justify-center px-4 py-6 md:px-6 md:py-8">
+          <div className="w-full max-w-3xl rounded-[1.75rem] border border-white/20 bg-slate-950/60 px-6 py-6 text-center text-white shadow-2xl backdrop-blur-md md:px-8">
             <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[1.25rem] border border-white/10 bg-slate-950/30">
               <Image
                 src="/images/hero.png"

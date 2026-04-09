@@ -209,3 +209,55 @@ export function LinkCard({
     </Link>
   );
 }
+
+type PipelineAccentHeaderProps = {
+  title: string;
+  icon: string;
+  toneClassName: string;
+  borderClassName: string;
+  backgroundClassName: string;
+};
+
+export function PipelineAccentHeader({
+  title,
+  icon,
+  toneClassName,
+  borderClassName,
+  backgroundClassName,
+}: PipelineAccentHeaderProps) {
+  return (
+    <>
+      <div
+        className={cn(
+          "mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium md:hidden",
+          toneClassName,
+          borderClassName,
+          backgroundClassName,
+        )}
+      >
+        <span className="material-symbols-outlined text-[18px]">{icon}</span>
+        {title}
+      </div>
+
+      <div className="mb-4 hidden items-center gap-4 md:flex">
+        <div
+          className={cn(
+            "inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium",
+            toneClassName,
+            borderClassName,
+            backgroundClassName,
+          )}
+        >
+          <span className="material-symbols-outlined text-[18px]">{icon}</span>
+          <span>{title}</span>
+        </div>
+        <div className="flex h-2 flex-1 overflow-hidden rounded-full">
+          <div className="pipeline-accent-data h-full w-1/4" />
+          <div className="pipeline-accent-topics h-full w-1/4" />
+          <div className="pipeline-accent-knowmore h-full w-1/4" />
+          <div className="pipeline-accent-checklist h-full w-1/4" />
+        </div>
+      </div>
+    </>
+  );
+}

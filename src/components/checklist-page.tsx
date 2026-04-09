@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Archive, Brain, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { EmptyState, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { EmptyState, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
 
@@ -229,11 +229,13 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   return (
     <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="pipeline-accent-checklist mb-4 h-1.5 rounded-full" />
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-sm font-medium text-violet-600">
-          <span className="material-symbols-outlined text-[18px]">looks_4</span>
-          Checklist
-        </div>
+        <PipelineAccentHeader
+          title="Checklist"
+          icon="looks_4"
+          toneClassName="text-violet-600"
+          borderClassName="border-violet-500/20"
+          backgroundClassName="bg-violet-500/10"
+        />
         <PageHeader
           backHref={`/${companyId}`}
           backLabel="Back"

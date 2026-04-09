@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormInput } from "@/components/ui/form-fields";
-import { Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { Notice, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 
 type Topic = {
   id: string;
@@ -147,11 +147,13 @@ export default function CompanyTopicsPage() {
 
   return (
     <PageShell width="5xl">
-      <div className="pipeline-accent-topics h-1.5 rounded-full" />
-      <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-sm font-medium text-orange-600">
-        <span className="material-symbols-outlined text-[18px]">looks_two</span>
-        Topics
-      </div>
+      <PipelineAccentHeader
+        title="Topics"
+        icon="looks_two"
+        toneClassName="text-orange-600"
+        borderClassName="border-orange-500/20"
+        backgroundClassName="bg-orange-500/10"
+      />
       <PageHeader
         backHref={`/${companyId}`}
         backLabel="Back"

@@ -21,6 +21,7 @@ import {
   Notice,
   PageHeader,
   PageShell,
+  PipelineAccentHeader,
 } from "@/components/ui/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
@@ -482,11 +483,13 @@ export default function CompanyKnowMorePage() {
           </Notice>
         )}
 
-        <div className="pipeline-accent-knowmore mb-4 h-1.5 rounded-full" />
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-sm font-medium text-green-600">
-          <span className="material-symbols-outlined text-[18px]">looks_3</span>
-          Knowmore
-        </div>
+        <PipelineAccentHeader
+          title="Knowmore"
+          icon="looks_3"
+          toneClassName="text-green-600"
+          borderClassName="border-green-500/20"
+          backgroundClassName="bg-green-500/10"
+        />
         <PageHeader
           backHref={`/${companyId}`}
           backLabel="Back"

@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { EntityTagSelector } from "@/components/ui/entity-tag-selector";
-import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { SourceDataCard } from "@/components/source-data-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
@@ -282,12 +282,14 @@ export default function CompanyDataPage() {
 
   return (
     <PageShell width="5xl">
-      <div className="pipeline-accent-data h-1.5 rounded-full" />
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-sm font-medium text-blue-600">
-          <span className="material-symbols-outlined text-[18px]">looks_one</span>
-          Data
-        </div>
+        <PipelineAccentHeader
+          title="Data"
+          icon="looks_one"
+          toneClassName="text-blue-600"
+          borderClassName="border-blue-500/20"
+          backgroundClassName="bg-blue-500/10"
+        />
         <PageHeader
           backHref={`/${companyId}`}
           backLabel="Back"

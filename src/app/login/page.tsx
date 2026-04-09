@@ -19,27 +19,19 @@ export default function LoginPage() {
         className="relative w-full overflow-hidden rounded-[2rem] border border-border/70 bg-card/80 shadow-elevated"
       >
         <div className="absolute inset-0 bg-gradient-to-tr from-sky-500/15 via-orange-400/10 to-violet-500/15" />
-        <div className="relative h-[72vh] min-h-[38rem] w-full">
-          <Image
-            src="/images/hero.png"
-            alt="Checklist hero"
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/35 to-slate-950/10" />
-          <div className="absolute inset-0 flex items-center justify-center px-4">
-            <div className="w-full rounded-[1.75rem] border border-white/20 bg-slate-950/60 px-6 py-8 text-center text-white shadow-2xl backdrop-blur-md md:w-[70%] md:px-10 xl:w-1/2">
-              <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-200">Checklist OS</p>
-              <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl md:text-6xl">
-                AI-Powered
-                <br />
-                Marketing Intelligence
-              </h1>
-              <p className="mx-auto mt-4 max-w-2xl text-sm text-slate-200/90 sm:text-base">
-                Sign in to continue from raw data ingestion to topic-guided research, Knowmore synthesis, and Checklist execution.
-              </p>
+        <div className="relative flex min-h-[38rem] w-full items-center justify-center px-4 py-8">
+          <div className="w-full rounded-[1.75rem] border border-white/20 bg-slate-950/60 px-6 py-6 text-center text-white shadow-2xl backdrop-blur-md md:w-[70%] md:px-8 xl:w-1/2">
+            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[1.25rem] border border-white/10 bg-slate-950/30">
+              <Image
+                src="/images/hero.png"
+                alt="Checklist hero"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
 
+            <div className="mx-auto mt-6 max-w-2xl">
               <Button
                 onClick={handleLogin}
                 className="mt-8 h-14 w-full text-lg font-semibold shadow-lg shadow-violet-950/30 transition-all duration-300 hover:shadow-violet-900/40"

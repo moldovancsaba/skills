@@ -201,25 +201,16 @@ export default function Home() {
           className="relative overflow-hidden rounded-[2rem] border border-border/70 bg-card/80 shadow-elevated"
         >
           <div className="absolute inset-0 bg-gradient-to-tr from-sky-500/15 via-orange-400/10 to-violet-500/15" />
-          <div className="relative">
-            <div className="relative h-[18rem] w-full overflow-hidden md:h-[24rem]">
-              <Image
-                src="/images/hero.png"
-                alt="Checklist hero"
-                fill
-                className="object-cover"
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent" />
-              <div className="absolute inset-0 flex items-center justify-center px-4">
-                <div className="w-full rounded-[1.75rem] border border-white/20 bg-slate-950/55 px-6 py-8 text-center text-white shadow-2xl backdrop-blur-md md:w-[70%] md:px-10 xl:w-1/2">
-                  <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-200">Checklist OS</p>
-                  <h2 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl md:text-6xl">
-                    AI-Powered
-                    <br />
-                    Marketing Intelligence
-                  </h2>
-                </div>
+          <div className="relative flex min-h-[20rem] items-center justify-center px-4 py-8 md:min-h-[26rem]">
+            <div className="w-full rounded-[1.75rem] border border-white/20 bg-slate-950/55 px-4 py-4 text-white shadow-2xl backdrop-blur-md md:w-[70%] md:px-6 xl:w-1/2">
+              <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[1.25rem] border border-white/10 bg-slate-950/30">
+                <Image
+                  src="/images/hero.png"
+                  alt="Checklist hero"
+                  fill
+                  className="object-contain"
+                  priority
+                />
               </div>
             </div>
           </div>

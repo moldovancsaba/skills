@@ -28,7 +28,7 @@ function envFlag(value, fallback = false) {
 }
 
 const PORT = Number(process.env.PORT || "10005");
-const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
+const OLLAMA_HOST = process.env.OLLAMA_HOST || process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:latest";
 const POLL_INTERVAL = Math.max(Number(process.env.POLL_INTERVAL || "300000"), 30_000);
 const ENRICHMENT_INTERVAL = 15 * 60 * 1000; // 15 minutes
@@ -78,7 +78,7 @@ const FACTCHECK_CAPS = {
 
 let currentDbUrl = process.env.NEON_DB || process.env.DATABASE_URL || "";
 let dbReady = false;
-let dbBlocker = currentDbUrl ? null : "DATABASE_URL or NEON_DB environment variable required";
+let dbBlocker = currentDbUrl ? null : "DATABASE_URL environment variable required (check .env)";
 let modelReady = false;
 let modelBlocker = null;
 let lastPollError = null;
@@ -88,6 +88,51 @@ let prisma = null;
 
 if (!fs.existsSync(KNOWLEDGE_DIR)) {
   fs.mkdirSync(KNOWLEDGE_DIR, { recursive: true });
+}
+
+async function refreshDbConfig() {
+  currentDbUrl = process.env.NEON_DB || process.env.DATABASE_URL || "";
+  if (!currentDbUrl) {
+    dbReady = false;
+    dbBlocker = "DATABASE_URL environment variable required (check .env)";
+    prisma = null;
+    return false;
+  }
+  if (!prisma) {
+    try {
+      prisma = new PrismaClient({
+        datasources: {
+          db: {
+            url: currentDbUrl,
+          },
+        },
+      });
+      dbReady = true;
+      dbBlocker = null;
+    } catch (e) {
+      dbReady = false;
+      dbBlocker = `Prisma initialization failed: ${e.message}`;
+      return false;
+    }
+  }
+  return true;
+}
+
+async function connectDB() {
+  if (!(await refreshDbConfig())) {
+    throw new Error(dbBlocker);
+  }
+  try {
+    await prisma.$connect();
+    dbReady = true;
+    dbBlocker = null;
+    lastPollError = null;
+    console.log("\x1b[32m%s\x1b[0m", "✓ Connected to Checklist database via Prisma");
+  } catch (error) {
+    dbReady = false;
+    dbBlocker = `Database connection failed: ${error.message}`;
+    throw error;
+  }
 }
 
 function normalizeText(value) {
@@ -668,36 +713,7 @@ function buildFlashcardEvidence(source, generated, research) {
   };
 }
 
-async function refreshDbConfig() {
-  currentDbUrl = process.env.DATABASE_URL || "";
-  if (!currentDbUrl) {
-    dbReady = false;
-    dbBlocker = "DATABASE_URL environment variable required";
-    prisma = null;
-    return false;
-  }
-  if (!prisma) {
-    prisma = new PrismaClient({
-      datasources: {
-        db: {
-          url: currentDbUrl,
-        },
-      },
-    });
-  }
-  return true;
-}
-
-async function connectDB() {
-  if (!(await refreshDbConfig())) {
-    throw new Error(dbBlocker);
-  }
-  await prisma.$connect();
-  dbReady = true;
-  dbBlocker = null;
-  lastPollError = null;
-  console.log("Connected to Checklist MongoDB via Prisma");
-}
+// Logic removed as it was refactored above into startup block
 
 async function ensureDbReady() {
   if (dbReady && prisma) return true;
@@ -1433,31 +1449,30 @@ async function handleForce(req, res) {
 async function handleHealth(_req, res) {
   await ensureDbReady();
   await ensureModelReady();
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(
-    JSON.stringify({
-      status: dbReady && modelReady ? "ok" : "degraded",
-      model: OLLAMA_MODEL,
-      ollamaHost: OLLAMA_HOST,
-      lastSync,
-      dbConfigured: Boolean(currentDbUrl),
-      dbReady,
-      dbBlocker,
-      modelReady,
-      modelBlocker,
-      researchEnabled: RESEARCH_ENABLED,
-      researchProvider: RESEARCH_ENABLED ? RESEARCH_PROVIDER : null,
-      researchRefreshHours: RESEARCH_REFRESH_HOURS,
-      factCheckRules: {
-        minCitations: FACTCHECK_MIN_CITATIONS,
-        minDomains: FACTCHECK_MIN_DOMAINS,
-      },
-      lastPollError,
-      appVersion: APP_VERSION,
-      brainVersion: BRAIN_VERSION,
-      promptVersion: PROMPT_VERSION,
-    })
-  );
+  
+  const health = {
+    status: dbReady && modelReady ? "ok" : "degraded",
+    ready: dbReady && modelReady,
+    model: OLLAMA_MODEL,
+    ollamaHost: OLLAMA_HOST,
+    lastSync,
+    db: {
+      configured: Boolean(currentDbUrl),
+      ready: dbReady,
+      blocker: dbBlocker,
+    },
+    ai: {
+      ready: modelReady,
+      blocker: modelBlocker,
+    },
+    researchEnabled: RESEARCH_ENABLED,
+    appVersion: APP_VERSION,
+    brainVersion: BRAIN_VERSION,
+    lastPollError,
+  };
+
+  res.writeHead(health.ready ? 200 : 503, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(health));
 }
 
 const server = http.createServer(async (req, res) => {
@@ -1492,12 +1507,27 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, async () => {
-  console.log(`Checklist worker running on port ${PORT}`);
-  console.log(`Using model: ${OLLAMA_MODEL}`);
-  console.log(`Polling interval: ${POLL_INTERVAL / 1000}s`);
-  console.log(`Research enabled: ${RESEARCH_ENABLED ? "yes" : "no"}`);
-  await ensureDbReady();
-  await ensureModelReady();
+  console.log("--------------------------------------------------");
+  console.log(`Checklist worker starting on port ${PORT}`);
+  console.log(`AI Configuration: ${OLLAMA_MODEL} @ ${OLLAMA_HOST}`);
+  console.log("--------------------------------------------------");
+  
+  if (!(await ensureDbReady())) {
+    console.warn("\x1b[31m%s\x1b[0m", "⚠ DATABASE BLOCKER:");
+    console.warn("\x1b[31m%s\x1b[0m", `  ${dbBlocker}`);
+  }
+  
+  if (!(await ensureModelReady())) {
+    console.warn("\x1b[31m%s\x1b[0m", "⚠ AI MODEL BLOCKER:");
+    console.warn("\x1b[31m%s\x1b[0m", `  ${modelBlocker}`);
+  }
+
+  if (dbReady && modelReady) {
+    console.log("\x1b[32m%s\x1b[0m", "✓ WORKER IS READY AND POLLING");
+  } else {
+    console.log("\x1b[33m%s\x1b[0m", "⚠ WORKER IS DEGRADED - check health endpoint for details");
+  }
+  console.log("--------------------------------------------------");
 });
 
 setInterval(async () => {

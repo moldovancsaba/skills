@@ -13,6 +13,10 @@ import { HashtagInput } from "@/components/ui/hashtag-input";
 import { EntityTagSelector } from "@/components/ui/entity-tag-selector";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { SourceDataCard } from "@/components/source-data-card";
+import { MemberList } from "@/components/member-list";
+import { ExpertTipCard } from "@/components/expert-tip-card";
+import { getDashboardExpertTip } from "@/content/help";
+import React from "react";
 import {
   defaultTypeHashtags,
   normalizeSourceHashtags,
@@ -62,6 +66,9 @@ export default function CompanyDataPage() {
   const [editName, setEditName] = useState("");
   const [editHashtags, setEditHashtags] = useState<string[]>([]);
   const [editEntityTag, setEditEntityTag] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [fileCount, setFileCount] = useState(0);
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
 
   const loadAllData = useCallback(async (cid: string) => {
     const [p, c, r, f] = await Promise.all([
@@ -102,6 +109,24 @@ export default function CompanyDataPage() {
 
         setCompany(found);
         await loadAllData(found.id);
+
+        // Fetch additional context for the Expert Tip and Member List
+        const [f, nba, members, sessionRes] = await Promise.all([
+          fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
+          fetch(`/api/nba?companyId=${cid}`).then((res) => res.json()),
+          fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
+          fetch("/api/auth/session")
+        ]);
+
+        setFileCount(Array.isArray(f) ? f.length : 0);
+        setPendingTaskCount(Array.isArray(nba) ? nba.filter((t: any) => t.status === "PENDING").length : 0);
+
+        if (sessionRes.ok) {
+          const session = await sessionRes.json();
+          const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
+          setIsOwner(myMembership?.role === "OWNER");
+        }
+
         // Fetch entity suggestions
         fetch(`/api/entities?companyId=${found.id}`)
           .then(r => r.ok ? r.json() : [])
@@ -169,18 +194,6 @@ export default function CompanyDataPage() {
             body: JSON.stringify(payload),
           });
       
-      if (res.ok) {
-        fetch("/api/webhook/trigger", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            companyId: company.id, 
-            dataType: type, 
-            action: "create" 
-          }),
-        }).catch(() => {});
-      }
-      
       setInput("");
       setHashtags(defaultTypeHashtags("product"));
       setSelectedFiles([]);
@@ -225,10 +238,9 @@ export default function CompanyDataPage() {
   };
 
   const saveEdit = async (item: DataItem) => {
-    if (item.type === "file") return;
-
     const endpoint = item.type === "product" ? "/api/products" 
       : item.type === "customer" ? "/api/customers" 
+      : item.type === "file" ? "/api/data-files"
       : "/api/competitors";
 
     await fetch(`${endpoint}?id=${item.id}`, {
@@ -354,27 +366,53 @@ export default function CompanyDataPage() {
           <p className="text-sm text-muted-foreground">No data yet. Add your first item above.</p>
         ) : (
           <div className="grid gap-4">
-            {items.map((item) => {
+            {items.map((item, index) => {
+              const tip = getDashboardExpertTip({
+                companyId,
+                productCount: products.length,
+                customerCount: customers.length,
+                competitorCount: competitors.length,
+                fileCount,
+                flashcardCount: 0, // Not loaded on this page specifically, or can be fetched
+                pendingTaskCount,
+              });
+
               return (
-                <SourceDataCard
-                  key={item.id}
-                  id={item.id}
-                  publicId={item.publicId}
-                  name={item.name}
-                  type={item.type}
-                  hashtags={item.hashtags ?? []}
-                  entityTag={(item as any).entityTag ?? null}
-                  isEditing={editingId === item.id}
-                  editName={editName}
-                  editHashtags={editHashtags}
-                  editEntityTag={editEntityTag}
-                  onEditNameChange={setEditName}
-                  onEditHashtagsChange={setEditHashtags}
-                  onEditEntityTagChange={setEditEntityTag}
-                  onStartEdit={() => startEdit(item)}
-                  onSave={() => saveEdit(item)}
-                  onDelete={() => deleteItem(item)}
-                />
+                <React.Fragment key={item.id}>
+                  <SourceDataCard
+                    id={item.id}
+                    publicId={item.publicId}
+                    name={item.name}
+                    type={item.type}
+                    hashtags={item.hashtags ?? []}
+                    entityTag={(item as any).entityTag ?? null}
+                    isEditing={editingId === item.id}
+                    editName={editName}
+                    editHashtags={editHashtags}
+                    editEntityTag={editEntityTag}
+                    onEditNameChange={setEditName}
+                    onEditHashtagsChange={setEditHashtags}
+                    onEditEntityTagChange={setEditEntityTag}
+                    onStartEdit={() => startEdit(item)}
+                    onSave={() => saveEdit(item)}
+                    onCancel={cancelEdit}
+                    onDelete={() => deleteItem(item)}
+                    hashtagSuggestions={hashtagSuggestions}
+                    entitySuggestions={entitySuggestions}
+                  />
+
+                  {/* Inject Expert Tip and Team Members at 3rd place (index 1 is after 2nd item) */}
+                  {index === 1 && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="grid gap-4 md:grid-cols-2"
+                    >
+                      <ExpertTipCard tip={tip} />
+                      <MemberList companyId={companyId} isOwner={isOwner} />
+                    </motion.div>
+                  )}
+                </React.Fragment>
               );
             })}
           </div>

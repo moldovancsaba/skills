@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   listCompanyFlashcardCorrections,
   recordFlashcardCorrection,
-  syncCompanyKnowledge,
 } from "@/lib/flashcards";
 
 const VALID_CORRECTIONS = new Set<FlashcardCorrectionType>([
@@ -62,8 +61,6 @@ export async function POST(request: NextRequest) {
       correctionType,
       note: data.note,
     });
-
-    await syncCompanyKnowledge(result.companyId);
 
     return NextResponse.json(result);
   } catch (error) {

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -88,7 +89,14 @@ export function ClientNav() {
                 </div>
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                   {session.picture ? (
-                    <img src={session.picture} alt={session.name} className="w-full h-full rounded-full" />
+                    <Image
+                      src={session.picture}
+                      alt={session.name}
+                      width={32}
+                      height={32}
+                      className="w-full h-full rounded-full"
+                      unoptimized
+                    />
                   ) : (
                     <User className="w-4 h-4 text-primary" />
                   )}

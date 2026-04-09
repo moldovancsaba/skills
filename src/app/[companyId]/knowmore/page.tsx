@@ -24,6 +24,11 @@ import {
 } from "@/components/ui/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
+import { MemberList } from "@/components/member-list";
+import { ExpertTipCard } from "@/components/expert-tip-card";
+import { getDashboardExpertTip } from "@/content/help";
+import { useStore } from "@/lib/store";
+import React from "react";
 
 type Company = {
   id: string;
@@ -184,9 +189,12 @@ export default function CompanyKnowMorePage() {
   const [editedTitle, setEditedTitle] = useState("");
   const [editedBody, setEditedBody] = useState("");
   const [actingId, setActingId] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterKind, setFilterKind] = useState<Flashcard["kind"] | "ALL">("ALL");
+  const { products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
+  const [isOwner, setIsOwner] = useState(false);
+  const [fileCount, setFileCount] = useState(0);
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
 
   const loadFlashcards = useCallback(async (cid: string) => {
     const cards = await fetchJson<Flashcard[]>(
@@ -209,29 +217,37 @@ export default function CompanyKnowMorePage() {
 
       setCompany(found);
       await loadFlashcards(found.id);
+
+      // Fetch additional context for the Expert Tip and Member List
+      const [p, c, r, f, nba, members, sessionRes] = await Promise.all([
+        fetch(`/api/products?companyId=${cid}`).then((res) => res.json()),
+        fetch(`/api/customers?companyId=${cid}`).then((res) => res.json()),
+        fetch(`/api/competitors?companyId=${cid}`).then((res) => res.json()),
+        fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
+        fetch(`/api/nba?companyId=${cid}`).then((res) => res.json()),
+        fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
+        fetch("/api/auth/session")
+      ]);
+
+      setProducts(p);
+      setCustomers(c);
+      setCompetitors(r);
+      setFileCount(Array.isArray(f) ? f.length : 0);
+      setPendingTaskCount(Array.isArray(nba) ? nba.filter((t: any) => t.status === "PENDING").length : 0);
+
+      if (sessionRes.ok) {
+        const session = await sessionRes.json();
+        const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
+        setIsOwner(myMembership?.role === "OWNER");
+      }
+
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
     }
-  }, [loadFlashcards, router]);
-
-  const triggerLocalAI = useCallback(async (cid: string) => {
-    setIsGenerating(true);
-
-    try {
-      await fetchJson("/api/agent/local", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId: cid }),
-      });
-    } catch (error) {
-      console.error("Failed to trigger local AI from Knowmore", error);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, []);
+  }, [loadFlashcards, router, setCompetitors, setCustomers, setProducts]);
 
   const closeActionForm = useCallback(() => {
     setActiveFlashcardId(null);
@@ -338,7 +354,6 @@ export default function CompanyKnowMorePage() {
 
       closeActionForm();
       await loadFlashcards(company.id);
-      await triggerLocalAI(company.id);
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -353,7 +368,6 @@ export default function CompanyKnowMorePage() {
     editedBody,
     editedTitle,
     loadFlashcards,
-    triggerLocalAI,
   ]);
 
   const handleCorrection = useCallback(async (input: {
@@ -388,14 +402,13 @@ export default function CompanyKnowMorePage() {
 
       closeActionForm();
       await loadFlashcards(company.id);
-      await triggerLocalAI(company.id);
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setActingId(null);
     }
-  }, [closeActionForm, company, loadFlashcards, triggerLocalAI]);
+  }, [closeActionForm, company, loadFlashcards]);
 
   if (loading) {
     return (
@@ -417,12 +430,6 @@ export default function CompanyKnowMorePage() {
   return (
     <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        {isGenerating && (
-          <Notice icon={Loader2} title="Refreshing flashcard influence" className="mb-4">
-            The local AI is re-reading flashcard actions for the next NBA pass.
-          </Notice>
-        )}
-
         {errorMessage && (
           <Notice variant="destructive" className="mb-4">
             {errorMessage}
@@ -515,36 +522,65 @@ export default function CompanyKnowMorePage() {
             const isActionOpen = activeFlashcardId === flashcard.id && actionMode !== null;
             const isBusy = actingId === flashcard.id;
 
+            const tip = getDashboardExpertTip({
+              companyId,
+              productCount: products.length,
+              customerCount: customers.length,
+              competitorCount: competitors.length,
+              fileCount,
+              flashcardCount: flashcards.length,
+              pendingTaskCount,
+            });
+
             return (
-              <motion.div
-                key={flashcard.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.04 }}
-              >
-                <KnowledgeReviewCard
-                  flashcard={flashcard}
-                  isActionOpen={isActionOpen}
-                  actionMode={actionMode}
-                  isBusy={isBusy}
-                  isGenerating={isGenerating}
-                  actionComment={actionComment}
-                  editedTitle={editedTitle}
-                  editedBody={editedBody}
-                  reviewStatusClasses={reviewStatusClasses}
-                  reviewStatusLabel={reviewStatusLabel}
-                  kindLabel={kindLabel}
-                  sourceLabel={sourceLabel}
-                  actionLabel={actionLabel}
-                  onOpenAction={openActionForm}
-                  onCloseAction={closeActionForm}
-                  onActionCommentChange={setActionComment}
-                  onEditedTitleChange={setEditedTitle}
-                  onEditedBodyChange={setEditedBody}
-                  onSubmit={(flashcardId) => void handleActionSubmit(flashcardId)}
-                  onCorrection={(input) => void handleCorrection(input)}
-                />
-              </motion.div>
+              <React.Fragment key={flashcard.id}>
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.04 }}
+                >
+                  <KnowledgeReviewCard
+                    flashcard={flashcard}
+                    isActionOpen={isActionOpen}
+                    actionMode={actionMode}
+                    isBusy={isBusy}
+                    isGenerating={false}
+                    actionComment={actionComment}
+                    editedTitle={editedTitle}
+                    editedBody={editedBody}
+                    reviewStatusClasses={reviewStatusClasses}
+                    reviewStatusLabel={reviewStatusLabel}
+                    kindLabel={kindLabel}
+                    sourceLabel={sourceLabel}
+                    actionLabel={actionLabel}
+                    onOpenAction={openActionForm}
+                    onCloseAction={closeActionForm}
+                    onActionCommentChange={setActionComment}
+                    onEditedTitleChange={setEditedTitle}
+                    onEditedBodyChange={setEditedBody}
+                    onSubmit={(flashcardId) => void handleActionSubmit(flashcardId)}
+                    onCorrection={(input) => void handleCorrection(input)}
+                  />
+                </motion.div>
+
+                {/* Inject Expert Tip and Team Members at 3rd place (index 1 is after 2nd item) */}
+                {index === 1 && (
+                  <React.Fragment>
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                    >
+                      <ExpertTipCard tip={tip} />
+                    </motion.div>
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                    >
+                      <MemberList companyId={companyId} isOwner={isOwner} />
+                    </motion.div>
+                  </React.Fragment>
+                )}
+              </React.Fragment>
             );
           })}
         </div>

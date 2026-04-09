@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
-import { syncCompanyKnowledge } from "@/lib/flashcards";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
 import {
   ensureSourcePublicIds,
@@ -125,12 +124,47 @@ export async function POST(request: NextRequest) {
       return results;
     }, TRANSACTION_SETTINGS);
 
-    await syncCompanyKnowledge(companyId);
     return NextResponse.json(created);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const status = message.startsWith("File too large") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+  try {
+    const data = await request.json();
+    const existing = await prisma.uploadedSourceFile.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const auth = await verifyMembership(request, existing.companyId);
+    if (auth.error) return auth.error;
+
+    const file = await prisma.uploadedSourceFile.update({
+      where: { id },
+      data: {
+        name: data.name ?? existing.name,
+        hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags, "product"),
+        entityTag: data.entityTag !== undefined ? data.entityTag : existing.entityTag,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        companyId: true,
+        name: true,
+        hashtags: true,
+        entityTag: true,
+        updatedAt: true,
+      },
+    });
+
+    return NextResponse.json(file);
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
 
@@ -151,7 +185,6 @@ export async function DELETE(request: NextRequest) {
     if (auth.error) return auth.error;
 
     await prisma.uploadedSourceFile.delete({ where: { id } });
-    await syncCompanyKnowledge(existing.companyId);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

@@ -37,7 +37,6 @@ export default function Home() {
   }, [router, setCompany, setProducts, setCustomers, setCompetitors]);
 
   useEffect(() => {
-    setError(null);
     fetch("/api/companies")
       .then(async (res) => {
         const data = await res.json();

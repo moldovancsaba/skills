@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { syncCompanyKnowledge } from "@/lib/flashcards";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,9 +8,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "companyId required" }, { status: 400 });
     }
 
-    await syncCompanyKnowledge(companyId);
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      queued: true,
+      message: "The hosted webapp does not run local AI. The local worker must poll the shared database.",
+    }, { status: 202 });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

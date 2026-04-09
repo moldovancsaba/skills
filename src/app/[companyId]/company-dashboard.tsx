@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -167,11 +167,6 @@ export default function CompanyDashboard() {
     });
 
     resetActionForm();
-    await fetch("/api/agent/local", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ companyId: company.id }),
-    });
     await loadDashboard(company.id);
     setLoading(false);
   }, [company, loadDashboard, resetActionForm]);
@@ -201,46 +196,30 @@ export default function CompanyDashboard() {
         />
       </motion.div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3 mb-8">
-        <div className="md:col-span-2 xl:col-span-2">
-          <div className="grid gap-4 md:grid-cols-2">
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <LinkCard
-                href={`/${companyId}/data`}
-                icon={Plus}
-                title={`Data Collection (${products.length + customers.length + competitors.length + fileCount})`}
-                description="Add products, customers, competitors"
-              />
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <LinkCard
-                href={`/${companyId}/nba`}
-                icon={Zap}
-                title={`Checklist (${pendingTaskCount})`}
-                description="View checklist suggestions"
-              />
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-              <ExpertTipCard tip={tip} />
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <LinkCard
-                href={`/${companyId}/knowmore`}
-                icon={Sparkles}
-                title={`Knowmore (${flashcardCount})`}
-                description="Track the knowledge layer behind your AI"
-              />
-            </motion.div>
-          </div>
-        </div>
-        
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }} 
-          animate={{ opacity: 1, x: 0 }} 
-          transition={{ delay: 0.25 }}
-          className="xl:col-span-1"
-        >
-          <MemberList companyId={companyId} isOwner={isOwner} />
+      <div className="grid gap-4 md:grid-cols-3 mb-8">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+          <LinkCard
+            href={`/${companyId}/data`}
+            icon={Plus}
+            title={`Data Collection (${products.length + customers.length + competitors.length + fileCount})`}
+            description="Add products, customers, competitors"
+          />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <LinkCard
+            href={`/${companyId}/nba`}
+            icon={Zap}
+            title={`Checklist (${pendingTaskCount})`}
+            description="View checklist suggestions"
+          />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <LinkCard
+            href={`/${companyId}/knowmore`}
+            icon={Sparkles}
+            title={`Knowmore (${flashcardCount})`}
+            description="Track the knowledge layer behind your AI"
+          />
         </motion.div>
       </div>
 
@@ -265,30 +244,43 @@ export default function CompanyDashboard() {
         ) : (
           <div className="grid gap-4">
             {topTasks.map((task, index) => (
-              <motion.div
-                key={task.id}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
-              >
-                <TaskReviewCard
-                  item={task}
-                  isActionOpen={actionItemId === task.id && actionMode !== null}
-                  actionMode={actionMode}
-                  isBusy={loading}
-                  copied={copiedId === task.id}
-                  annotation={annotation}
-                  draftTitle={draftTitle}
-                  draftDescription={draftDescription}
-                  onOpenAction={openActionForm}
-                  onCloseAction={resetActionForm}
-                  onAnnotationChange={setAnnotation}
-                  onDraftTitleChange={setDraftTitle}
-                  onDraftDescriptionChange={setDraftDescription}
-                  onSubmit={handleFeedback}
-                  onShare={handleShare}
-                />
-              </motion.div>
+              <React.Fragment key={task.id}>
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                >
+                  <TaskReviewCard
+                    item={task}
+                    isActionOpen={actionItemId === task.id && actionMode !== null}
+                    actionMode={actionMode}
+                    isBusy={loading}
+                    copied={copiedId === task.id}
+                    annotation={annotation}
+                    draftTitle={draftTitle}
+                    draftDescription={draftDescription}
+                    onOpenAction={openActionForm}
+                    onCloseAction={resetActionForm}
+                    onAnnotationChange={setAnnotation}
+                    onDraftTitleChange={setDraftTitle}
+                    onDraftDescriptionChange={setDraftDescription}
+                    onSubmit={handleFeedback}
+                    onShare={handleShare}
+                  />
+                </motion.div>
+
+                {/* Inject Expert Tip and Team Members at 3rd place (index 1 is after 2nd item) */}
+                {index === 1 && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="grid gap-4 md:grid-cols-2"
+                  >
+                    <ExpertTipCard tip={tip} />
+                    <MemberList companyId={companyId} isOwner={isOwner} />
+                  </motion.div>
+                )}
+              </React.Fragment>
             ))}
           </div>
         )}

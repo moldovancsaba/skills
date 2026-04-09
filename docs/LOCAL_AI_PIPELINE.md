@@ -164,24 +164,19 @@ Range: 0-1000
 
 ## Delivery modes
 
-There are two valid online -> local execution modes:
+There is one supported hosted execution mode:
 
-1. `direct trigger`
-   - the online app calls a reachable `LOCAL_SYNC_URL`
-   - immediate local processing is possible
-
-2. `indirect catch-up`
-   - the online app writes to Neon
-   - the local sync daemon catches changes later
-
-If Vercel cannot reach the local machine directly, the second mode is the fallback.
+1. `indirect catch-up`
+   - the online app only writes to and reads from Neon
+   - the local AI worker polls the shared database
+   - the worker writes flashcards and downstream updates back into the same database
 
 ## Current limitations
 
 - public search collection is opportunistic and not fully deterministic
 - evidence-only publication is still being tightened for `NEWS`
 - provenance/version tagging is not yet attached to every generated artifact version
-- direct Vercel-to-local delivery still requires a publicly reachable local sync endpoint
+- the webapp does not contact the local AI worker directly; if results are missing, check the local worker process, database connectivity, and Ollama connectivity
 
 ## Operational rule
 

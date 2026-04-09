@@ -104,6 +104,7 @@ DELETE /api/competitors?id=<competitor-id>
 
 GET    /api/data-files?companyId=<company-id>
 POST   /api/data-files
+PATCH  /api/data-files?id=<file-id>
 DELETE /api/data-files?id=<file-id>
 ```
 
@@ -158,6 +159,8 @@ POST /api/agent/local
 GET  /api/webhook/trigger
 POST /api/webhook/trigger
 ```
+
+These endpoints are passive in the hosted app. They do not contact your local AI worker. The local worker must poll the shared Checklist database on its own.
 
 ## ICE Scoring Contract
 
@@ -218,7 +221,7 @@ Checklist owns its Prisma schema in this repo:
 
 - `prisma/schema.prisma`
 
-The app and any local sync worker both use:
+The app and any local AI worker both use:
 
 - `DATABASE_URL`
 
@@ -230,7 +233,7 @@ If you are bringing the project up on another machine:
 4. run `npx prisma db push`
 5. start the app with `npm run dev`
 
-If a local worker or control-plane process is involved, give that process the same Checklist `DATABASE_URL`.
+If a local AI worker is involved, give that process the same Checklist `DATABASE_URL`, `OLLAMA_MODEL`, and either `OLLAMA_HOST` or `OLLAMA_URL`. The worker defaults to port `10005` for its own local HTTP status/process surface, but the hosted webapp should not call it directly.
 
 ## Documentation Rule
 

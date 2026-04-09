@@ -177,9 +177,8 @@ At minimum, this app expects:
 - `NEXT_PUBLIC_BASE_URL`
 - local AI / sync envs where applicable:
   - `OLLAMA_URL`
+  - `OLLAMA_HOST` (preferred worker alias; falls back to `OLLAMA_URL`)
   - `OLLAMA_MODEL`
-  - `LOCAL_SYNC_URL`
-  - `LOCAL_SYNC_SECRET`
 
 Use local `.env` and Vercel project env management. Do not place real credentials in documentation.
 
@@ -190,7 +189,7 @@ There is a single Checklist database schema for this product:
 - Prisma schema path: `prisma/schema.prisma`
 - Prisma datasource env: `DATABASE_URL`
 
-If you run a local sync process, wrapper, or control-plane integration on another machine, it must connect to the same Checklist database by using the same Checklist `DATABASE_URL`.
+If you run a local AI worker on another machine, it must connect to the same Checklist database by using the same Checklist `DATABASE_URL`.
 
 Important:
 
@@ -216,7 +215,7 @@ Important:
 | `/api/products` | `GET, POST, PATCH, DELETE` | product source CRUD |
 | `/api/customers` | `GET, POST, PATCH, DELETE` | customer source CRUD |
 | `/api/competitors` | `GET, POST, PATCH, DELETE` | competitor source CRUD |
-| `/api/data-files` | `GET, POST, DELETE` | uploaded source files |
+| `/api/data-files` | `GET, POST, PATCH, DELETE` | uploaded source files |
 | `/api/knowmore` | `GET` | visible flashcards |
 | `/api/knowmore/actions` | `POST` | flashcard review actions |
 | `/api/knowmore/corrections` | `GET, POST` | flashcard/source correction events |
@@ -230,12 +229,12 @@ Important:
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/api/agent/local` | `POST` | trigger local NBA generation |
-| `/api/webhook/trigger` | `GET, POST` | bridge to local sync when reachable |
+| `/api/agent/local` | `POST` | returns queued/no-op; hosted webapp does not call local AI directly |
+| `/api/webhook/trigger` | `GET, POST` | returns queued/no-op; local AI must poll the shared database |
 
 ## Important current limitations
 
-- direct Vercel-to-local delivery only works if `LOCAL_SYNC_URL` is publicly reachable
+- the hosted webapp only reads and writes the shared database; local AI processing must be done by a separate worker that polls the database
 - some public-search collection is opportunistic and less reliable than direct page fetch plus explicit evidence
 - `NEWS` flashcards are being tightened aggressively and evidence-only publishing is still evolving
 - provenance and version metadata are present but not yet surfaced uniformly in every user-facing place

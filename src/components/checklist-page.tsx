@@ -41,7 +41,6 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const [annotation, setAnnotation] = useState("");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadChecklist = useCallback(async (cid: string) => {
@@ -55,28 +54,11 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     setLoading(false);
   }, [archived]);
 
-  const triggerLocalAI = useCallback(async () => {
-    if (!company || archived) return;
-    setIsGenerating(true);
-    try {
-      await fetch("/api/agent/local", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId: company.id }),
-      });
-    } catch (error) {
-      console.error("Failed to trigger local AI", error);
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [archived, company]);
-
   const handleRefresh = useCallback(async () => {
     if (!company || archived) return;
     setLoading(true);
-    await triggerLocalAI();
     await loadChecklist(company.id);
-  }, [archived, company, loadChecklist, triggerLocalAI]);
+  }, [archived, company, loadChecklist]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -161,15 +143,12 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     });
 
     resetActionForm();
-    if (!archived) {
-      await triggerLocalAI();
-    }
     if (company) {
       await loadChecklist(company.id);
     } else {
       setLoading(false);
     }
-  }, [archived, company, loadChecklist, resetActionForm, triggerLocalAI]);
+  }, [company, loadChecklist, resetActionForm]);
 
   useEffect(() => {
     if (archived) return;

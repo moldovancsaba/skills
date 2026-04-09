@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FormInput } from "@/components/ui/form-fields";
@@ -14,7 +14,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       const res = await fetch(`/api/companies/${companyId}/members`);
       if (res.ok) {
@@ -26,11 +26,11 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
     } finally {
       setLoading(false);
     }
-  };
+  }, [companyId]);
 
   useEffect(() => {
-    fetchMembers();
-  }, [companyId]);
+    void fetchMembers();
+  }, [fetchMembers]);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();

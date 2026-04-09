@@ -10,7 +10,6 @@ import {
   prepareRawSourceInput,
 } from "@/lib/url-enrichment";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
-import { syncCompanyKnowledge } from "@/lib/flashcards";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -64,8 +63,6 @@ export async function POST(request: NextRequest) {
       });
     }, TRANSACTION_SETTINGS);
 
-    await syncCompanyKnowledge(competitor.companyId);
-    
     return NextResponse.json(competitor);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -105,7 +102,6 @@ export async function PATCH(request: NextRequest) {
           : existing.watchedContent,
       },
     });
-    await syncCompanyKnowledge(competitor.companyId);
     return NextResponse.json(competitor);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -127,9 +123,6 @@ export async function DELETE(request: NextRequest) {
     if (auth.error) return auth.error;
 
     await prisma.competitor.delete({ where: { id } });
-    if (existing?.companyId) {
-      await syncCompanyKnowledge(existing.companyId);
-    }
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

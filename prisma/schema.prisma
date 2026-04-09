@@ -395,6 +395,7 @@ enum NBAStatus {
 }
 
 enum Role {
+  SUPERADMIN
   OWNER
   ADMIN
   MEMBER

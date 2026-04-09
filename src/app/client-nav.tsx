@@ -15,11 +15,17 @@ export function ClientNav() {
   const { company } = useStore();
   const { isDark, toggle } = useTheme();
   const [session, setSession] = useState<any>(null);
+  const [companyCount, setCompanyCount] = useState(0);
 
   useEffect(() => {
     fetch("/api/auth/session")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setSession(data));
+
+    fetch("/api/companies")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setCompanyCount(Array.isArray(data) ? data.length : 0))
+      .catch(() => setCompanyCount(0));
   }, []);
 
   const handleSwitchCompany = () => {
@@ -77,7 +83,7 @@ export function ClientNav() {
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
 
-            {company && (
+            {company && companyCount > 1 && (
               <Button onClick={handleSwitchCompany} variant="secondary" size="sm" className="hidden md:flex min-w-[10rem] justify-between">
                 <span>{company.name}</span>
                 <ChevronDown className="w-3 h-3" />

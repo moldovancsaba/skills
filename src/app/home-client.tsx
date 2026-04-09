@@ -26,6 +26,8 @@ export default function Home() {
   const [suggestedIndustries, setSuggestedIndustries] = useState<string[]>([]);
   const [session, setSession] = useState<any>(null);
 
+  const canManageCompanies = Boolean(session?.isSuperAdmin);
+
   const companyParam = searchParams.get("company");
 
   const selectCompany = useCallback((company: any) => {
@@ -194,7 +196,7 @@ export default function Home() {
         </div>
       </div>
 
-      {(companies.length === 0 || showForm) ? (
+      {(companies.length === 0 || (showForm && canManageCompanies)) ? (
         <Card>
           <CardContent className="p-6">
             <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany} className="space-y-4">
@@ -259,23 +261,29 @@ export default function Home() {
                     {c.id.slice(0,8)}
                   </span>
                 </Button>
-                <Button onClick={() => startEdit(c)} variant="outline" size="sm">
-                  Edit
-                </Button>
-                <Button onClick={() => handleDeleteCompany(c.id)} variant="destructive" size="sm">
-                  Delete
-                </Button>
+                {canManageCompanies && (
+                  <>
+                    <Button onClick={() => startEdit(c)} variant="outline" size="sm">
+                      Edit
+                    </Button>
+                    <Button onClick={() => handleDeleteCompany(c.id)} variant="destructive" size="sm">
+                      Delete
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
-      <div className="pt-4 border-t">
-        <Button onClick={() => setShowForm(true)} variant="link" className="px-0">
-          + Create new company
-        </Button>
-      </div>
+      {canManageCompanies && (
+        <div className="pt-4 border-t">
+          <Button onClick={() => setShowForm(true)} variant="link" className="px-0">
+            + Create new company
+          </Button>
+        </div>
+      )}
     </PageShell>
   );
 }

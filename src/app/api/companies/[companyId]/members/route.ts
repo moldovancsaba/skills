@@ -53,7 +53,7 @@ export async function POST(
 
     // Check if requester is OWNER
     const requester = await prisma.user.findFirst({
-      where: { companyId, email: normalizeEmail(session.email), role: "OWNER" }
+      where: { companyId, email: normalizeEmail(session.email), role: { in: ["OWNER", "SUPERADMIN"] } }
     });
 
     if (!requester) return NextResponse.json({ error: "Only owners can invite" }, { status: 403 });
@@ -106,7 +106,7 @@ export async function DELETE(
 
     // Check if requester is OWNER
     const requester = await prisma.user.findFirst({
-      where: { companyId, email: normalizeEmail(session.email), role: "OWNER" }
+      where: { companyId, email: normalizeEmail(session.email), role: { in: ["OWNER", "SUPERADMIN"] } }
     });
 
     if (!requester) return NextResponse.json({ error: "Only owners can remove members" }, { status: 403 });

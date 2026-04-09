@@ -50,6 +50,7 @@ export default function CompanyDashboard() {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [flashcardCount, setFlashcardCount] = useState(0);
   const [fileCount, setFileCount] = useState(0);
+  const [companyCount, setCompanyCount] = useState(0);
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
   const [actionItemId, setActionItemId] = useState<string | null>(null);
   const [annotation, setAnnotation] = useState("");
@@ -74,7 +75,7 @@ export default function CompanyDashboard() {
     if (sessionRes.ok) {
       const session = await sessionRes.json();
       const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
-      setIsOwner(myMembership?.role === "OWNER");
+      setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
     }
 
     const pendingTasks = (nba as NBAItem[]).filter((item) => item.status === "PENDING");
@@ -103,6 +104,7 @@ export default function CompanyDashboard() {
           return;
         }
 
+        setCompanyCount(companies.length);
         setCompany(found);
         await loadDashboard(found.id);
         setLoading(false);
@@ -188,7 +190,7 @@ export default function CompanyDashboard() {
         <PageHeader
           title={company?.name ?? "Company"}
           description="Use raw data, knowledge flashcards, and checklist items as separate system layers."
-          backHref="/"
+          backHref={companyCount > 1 ? "/" : undefined}
           backLabel="Switch company"
         />
       </motion.div>

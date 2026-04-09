@@ -237,7 +237,7 @@ export default function CompanyKnowMorePage() {
       if (sessionRes.ok) {
         const session = await sessionRes.json();
         const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
-        setIsOwner(myMembership?.role === "OWNER");
+        setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
       }
 
     } catch (error) {

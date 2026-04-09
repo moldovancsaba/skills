@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { readAppSession } from "@/lib/auth";
-import { verifyMembership } from "@/lib/permissions";
+import { verifyMembership, verifySuperAdmin } from "@/lib/permissions";
 import { normalizeIndustryHashtags } from "@/lib/hashtags";
 
 export const dynamic = 'force-dynamic';
@@ -38,10 +38,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await readAppSession(request);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await verifySuperAdmin(request);
+    if (auth.error) return auth.error;
+    const { session } = auth;
 
     const data = await request.json();
     
@@ -83,7 +82,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Company ID required" }, { status: 400 });
     }
 
-    const auth = await verifyMembership(request, id, "OWNER");
+    const auth = await verifySuperAdmin(request);
     if (auth.error) return auth.error;
 
     const data = await request.json();
@@ -114,7 +113,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Company ID required" }, { status: 400 });
     }
     
-    const auth = await verifyMembership(request, id, "OWNER");
+    const auth = await verifySuperAdmin(request);
     if (auth.error) return auth.error;
 
     // Delete related data first

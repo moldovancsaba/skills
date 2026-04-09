@@ -65,6 +65,7 @@ export default function CompanyDataPage() {
   const [entitySuggestions, setEntitySuggestions] = useState<string[]>([]);
   const [hashtagSuggestions, setHashtagSuggestions] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [items, setItems] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -174,6 +175,7 @@ export default function CompanyDataPage() {
     const normalizedHashtags = normalizeSourceHashtags(hashtags, "industry");
 
     try {
+      setErrorMessage(null);
       if (editingId) {
         const currentItem = items.find((item) => item.id === editingId);
         if (!currentItem) {
@@ -181,7 +183,7 @@ export default function CompanyDataPage() {
         }
         const editEndpoint = currentItem.type === "file" ? "/api/data-files" : "/api/sources";
 
-        await fetch(`${editEndpoint}?id=${editingId}`, {
+        const response = await fetch(`${editEndpoint}?id=${editingId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -191,6 +193,10 @@ export default function CompanyDataPage() {
             entityTag,
           }),
         });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to update source");
+        }
       } else if (selectedFiles.length > 0) {
         const formData = new FormData();
         formData.append("companyId", company.id);
@@ -199,12 +205,16 @@ export default function CompanyDataPage() {
         for (const file of selectedFiles) {
           formData.append("files", file);
         }
-        await fetch("/api/data-files", {
+        const response = await fetch("/api/data-files", {
           method: "POST",
           body: formData,
         });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to upload files");
+        }
       } else {
-        await fetch("/api/sources", {
+        const response = await fetch("/api/sources", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -214,6 +224,10 @@ export default function CompanyDataPage() {
             entityTag: entityTag ?? undefined,
           }),
         });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to save source");
+        }
       }
       
       setInput("");
@@ -224,9 +238,10 @@ export default function CompanyDataPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
       
-      loadAllData(company.id);
+      await loadAllData(company.id);
     } catch (error) {
       console.error(error);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to save data");
     }
   };
 
@@ -374,6 +389,14 @@ export default function CompanyDataPage() {
           </Notice>
         </motion.div>
       )}
+
+      {errorMessage ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <Notice variant="destructive" title="Save failed">
+            {errorMessage}
+          </Notice>
+        </motion.div>
+      ) : null}
 
       <MetricGrid>
         <MetricCard icon={ScrollText} label="Sources" value={sources.length} />

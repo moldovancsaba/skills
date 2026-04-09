@@ -9,12 +9,13 @@ Checklist has two cooperating parts:
 1. `online webapp`
    - user-facing
    - runs on Vercel
-   - captures raw data and feedback
+   - captures raw data, topics, hashtags, and feedback
 
 2. `local AI layer`
    - fetches / enriches source evidence
+   - researches around active topics
    - generates flashcards
-   - supports NBA generation
+   - supports checklist generation
 
 The database is the shared persistence layer between them.
 
@@ -26,12 +27,14 @@ Users add data on:
 - `/:companyId/data`
 
 The webapp stores raw rows in:
-- `Product`
-- `Customer`
-- `Competitor`
+- `Source`
+- `UploadedSourceFile`
+- `Topic`
+- `HashtagFeedback`
 
 Important:
 - raw source records are treated as `DATA`
+- topics are a separate operator-prioritized focus layer
 - processed knowledge belongs in `FLASHCARDS`
 - actionable recommendations belong in `TASKS`
 
@@ -42,6 +45,8 @@ The local layer can enrich a source using:
 - page text extraction
 - public signal collection
 - local model reasoning
+- topic priority context
+- hashtag context and feedback
 
 Current enrichment outputs may include:
 - conclusions
@@ -89,8 +94,10 @@ Each flashcard carries:
 
 The NBA generator reads:
 - company context
-- products/customers/competitors
+- unified sources and uploaded files
+- active topics
 - active flashcards
+- flashcard hashtags
 - flashcard feedback
 - task feedback
 
@@ -167,7 +174,7 @@ Range: 0-1000
 There is one supported hosted execution mode:
 
 1. `indirect catch-up`
-   - the online app only writes to and reads from Neon
+   - the online app only writes to and reads from MongoDB Atlas
    - the local AI worker polls the shared database
    - the worker writes flashcards and downstream updates back into the same database
 

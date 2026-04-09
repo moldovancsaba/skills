@@ -5,7 +5,7 @@ type PackageJson = {
   version?: string;
 };
 
-const DEFAULT_APP_VERSION = "0.6.0";
+const DEFAULT_APP_VERSION = "0.8.0";
 
 function readPackageVersion() {
   try {

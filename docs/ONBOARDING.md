@@ -4,6 +4,10 @@ This file documents the current operating surface of the Checklist system.
 
 Do not place production credentials in this file.
 
+Current release:
+
+- `v0.8.0`
+
 ## Canonical Environments
 
 - production: `https://checklist.sovereignsquad.com`
@@ -18,6 +22,7 @@ If another preview domain exists, treat it as non-canonical unless explicitly do
 - `/`
 - `/[companyId]`
 - `/[companyId]/data`
+- `/[companyId]/topics`
 - `/[companyId]/knowmore`
 - `/[companyId]/nba`
 - `/[companyId]/nba_archived`
@@ -25,6 +30,7 @@ If another preview domain exists, treat it as non-canonical unless explicitly do
 ### Supporting routes
 
 - `/auth`
+- `/login`
 - `/manual`
 - `/faq`
 - `/privacy`
@@ -35,13 +41,13 @@ The app is company-route based. It does not use the old `?company=UUID` query-st
 ## Data Model Summary
 
 - `Company`
-- `Product`
-- `Customer`
-- `Competitor`
+- `Source`
 - `UploadedSourceFile`
+- `Topic`
 - `Flashcard`
 - `FlashcardSource`
 - `FlashcardAction`
+- `HashtagFeedback`
 - `NBAItem`
 - `Feedback`
 - `PublicIdCounter`
@@ -87,25 +93,27 @@ DELETE /api/companies?id=<company-id>
 ### Raw source records
 
 ```text
-GET    /api/products?companyId=<company-id>
-POST   /api/products
-PATCH  /api/products?id=<product-id>
-DELETE /api/products?id=<product-id>
-
-GET    /api/customers?companyId=<company-id>
-POST   /api/customers
-PATCH  /api/customers?id=<customer-id>
-DELETE /api/customers?id=<customer-id>
-
-GET    /api/competitors?companyId=<company-id>
-POST   /api/competitors
-PATCH  /api/competitors?id=<competitor-id>
-DELETE /api/competitors?id=<competitor-id>
+GET    /api/sources?companyId=<company-id>
+POST   /api/sources
+PATCH  /api/sources?id=<source-id>
+DELETE /api/sources?id=<source-id>
 
 GET    /api/data-files?companyId=<company-id>
 POST   /api/data-files
 PATCH  /api/data-files?id=<file-id>
 DELETE /api/data-files?id=<file-id>
+```
+
+### Topics and hashtags
+
+```text
+GET    /api/topics?companyId=<company-id>
+POST   /api/topics
+PATCH  /api/topics?id=<topic-id>
+DELETE /api/topics?id=<topic-id>
+
+GET    /api/hashtags/recommendations?companyId=<company-id>
+POST   /api/hashtags/feedback
 ```
 
 ### Knowmore
@@ -202,10 +210,11 @@ Do not hardcode provider-specific setup notes here unless the deployed system is
 The local system is responsible for:
 
 - source enrichment
+- topic-guided research focus
 - page fetching
 - public signal collection
 - flashcard generation
-- supporting NBA generation
+- supporting checklist generation
 
 The online app is responsible for:
 
@@ -233,7 +242,7 @@ If you are bringing the project up on another machine:
 4. run `npx prisma db push`
 5. start the app with `npm run dev`
 
-If a local AI worker is involved, give that process the same Checklist `DATABASE_URL`, `OLLAMA_MODEL`, and either `OLLAMA_HOST` or `OLLAMA_URL`. The worker defaults to port `10005` for its own local HTTP status/process surface, but the hosted webapp should not call it directly.
+If a local AI worker is involved, give that process the same Checklist `DATABASE_URL`, `OLLAMA_MODEL`, and either `OLLAMA_HOST` or `OLLAMA_URL`. The worker defaults to port `10005` for its own local HTTP status/process surface, but the hosted webapp must not call it directly.
 
 ## Documentation Rule
 

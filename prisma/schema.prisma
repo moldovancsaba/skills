@@ -106,10 +106,10 @@ model Flashcard {
   feedbackWeightDelta     Int                   @default(0)
   fingerprint             String?
   kind                    FlashcardKind         @default(SUMMARY)
-  appVersion              String?               @default("0.6.0")
-  brainVersion            String?               @default("local-brain@0.6.0")
+  appVersion              String?               @default("0.8.0")
+  brainVersion            String?               @default("local-brain@0.8.0")
   generatedAt             DateTime?
-  promptVersion           String?               @default("flashcard-policy@0.6.0")
+  promptVersion           String?               @default("flashcard-policy@0.8.0")
   company                 Company               @relation(fields: [companyId], references: [id])
   actions                 FlashcardAction[]
   corrections             FlashcardCorrection[]
@@ -189,11 +189,11 @@ model NBAItem {
   createdBy          String?
   sourceFlashcardIds String[]   @default([])
   publicId           Int?       @unique
-  appVersion         String?    @default("0.6.0")
-  brainVersion       String?    @default("local-brain@0.6.0")
+  appVersion         String?    @default("0.8.0")
+  brainVersion       String?    @default("local-brain@0.8.0")
   generatedAt        DateTime?
   hashtags           String[]   @default([])
-  promptVersion      String?    @default("nba-policy@0.6.0")
+  promptVersion      String?    @default("nba-policy@0.8.0")
   feedback           Feedback[]
   company            Company    @relation(fields: [companyId], references: [id])
 }

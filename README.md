@@ -3,11 +3,11 @@
 Checklist is a split-system marketing operating system:
 
 - the `online webapp` runs on Vercel and is the user-facing product
-- the `local AI layer` enriches source evidence, generates flashcards, and supports NBA generation
-- Neon Postgres is the shared system of record
+- the `local AI layer` enriches source evidence, generates flashcards, researches active topics, and supports checklist generation
+- MongoDB Atlas via Prisma is the shared system of record
 
 Current app version:
-- `v0.6.0`
+- `v0.8.0`
 
 Canonical production URL:
 - `https://checklist.sovereignsquad.com`
@@ -28,11 +28,12 @@ Canonical production URL:
                                │ writes / reads
                                ▼
 ┌────────────────────────────────────────────────────────────┐
-│ Shared database (Neon Postgres via Prisma)                │
-│ - companies, products, customers, competitors             │
-│ - uploaded source files                                   │
+│ Shared database (MongoDB Atlas via Prisma)                │
+│ - companies + memberships                                 │
+│ - unified sources + uploaded source files                 │
+│ - topics + hashtag feedback                               │
 │ - flashcards + flashcard actions                          │
-│ - NBA items + feedback                                    │
+│ - checklist items + feedback                              │
 │ - public ID counters                                      │
 └──────────────────────────────┬─────────────────────────────┘
                                │
@@ -50,18 +51,22 @@ Canonical production URL:
 
 ## Product model
 
-Checklist follows a 3-layer model:
+Checklist follows a 4-step operator pipeline:
 
 1. `DATA`
-   - raw user-ingested records
-   - products, customers, competitors, uploaded files
-   - raw means the source record stays user-entered rather than being rewritten into derived knowledge
-2. `FLASHCARDS`
+   - raw user-ingested `Source` rows and uploaded files
+   - hashtagged and entity-tagged evidence
+   - the hosted app writes these rows directly to the shared database
+2. `TOPICS`
+   - manually prioritized research focus areas
+   - active/inactive and user-ordered
+   - used by the local AI worker to decide what to research and emphasize
+3. `FLASHCARDS`
    - processed knowledge atoms shown on `/:companyId/knowmore`
    - derived from source evidence and public signals
    - carry `confidence`, `impact`, `weight`, provenance, and review state
-3. `TASKS`
-   - NBA checklist items shown on `/:companyId/nba`
+4. `TASKS`
+   - checklist items shown on `/:companyId/nba`
    - generated from flashcards and company context
    - carry `impact`, `confidence`, `ease`, and `ICE`
 
@@ -73,6 +78,7 @@ Checklist follows a 3-layer model:
 |---|---|
 | `/[companyId]` | company dashboard |
 | `/[companyId]/data` | raw source data entry |
+| `/[companyId]/topics` | topic prioritization for local AI research |
 | `/[companyId]/knowmore` | flashcards / knowledge layer |
 | `/[companyId]/nba` | checklist tasks / next best actions |
 | `/[companyId]/nba_archived` | archived checklist items |
@@ -82,8 +88,9 @@ Checklist follows a 3-layer model:
 | Route | Purpose |
 |---|---|
 | `/` | company selection / company CRUD |
+| `/login` | login page |
 | `/auth` | auth landing page |
-| `/manual` | operator manual |
+| `/manual` | redirects to FAQ |
 | `/faq` | frequently asked questions |
 | `/privacy` | privacy policy |
 | `/terms` | terms |
@@ -132,7 +139,7 @@ Checklist follows a 3-layer model:
 
 - `Next.js 16.2.2`
 - `React 18`
-- `Prisma + Neon Postgres`
+- `Prisma + MongoDB Atlas`
 - `Tailwind + shadcn-ui`
 - `Ollama` for local model execution
 
@@ -189,7 +196,7 @@ There is a single Checklist database schema for this product:
 - Prisma schema path: `prisma/schema.prisma`
 - Prisma datasource env: `DATABASE_URL`
 
-If you run a local AI worker on another machine, it must connect to the same Checklist database by using the same Checklist `DATABASE_URL`.
+If you run a local AI worker on another machine, it must connect to the same Checklist MongoDB database by using the same Checklist `DATABASE_URL`.
 
 Important:
 
@@ -212,10 +219,11 @@ Important:
 | Endpoint | Method | Purpose |
 |---|---|---|
 | `/api/companies` | `GET, POST, PATCH, DELETE` | company CRUD |
-| `/api/products` | `GET, POST, PATCH, DELETE` | product source CRUD |
-| `/api/customers` | `GET, POST, PATCH, DELETE` | customer source CRUD |
-| `/api/competitors` | `GET, POST, PATCH, DELETE` | competitor source CRUD |
+| `/api/sources` | `GET, POST, PATCH, DELETE` | unified raw source CRUD |
 | `/api/data-files` | `GET, POST, PATCH, DELETE` | uploaded source files |
+| `/api/topics` | `GET, POST, PATCH, DELETE` | topic CRUD and ordering |
+| `/api/hashtags/recommendations` | `GET` | hashtag recommendations |
+| `/api/hashtags/feedback` | `POST` | hashtag feedback actions |
 | `/api/knowmore` | `GET` | visible flashcards |
 | `/api/knowmore/actions` | `POST` | flashcard review actions |
 | `/api/knowmore/corrections` | `GET, POST` | flashcard/source correction events |
@@ -238,6 +246,14 @@ Important:
 - some public-search collection is opportunistic and less reliable than direct page fetch plus explicit evidence
 - `NEWS` flashcards are being tightened aggressively and evidence-only publishing is still evolving
 - provenance and version metadata are present but not yet surfaced uniformly in every user-facing place
+
+## Recent shipped changes in `v0.8.0`
+
+- unified `Source` records are now the primary raw-ingestion model in the active UI and API
+- `Topics` is a first-class page and model that the local worker uses as research focus
+- hashtags are part of the system annotation layer across data, Knowmore, and Checklist
+- the hosted webapp only reads and writes the shared database; it does not call the local worker directly
+- login, company selection, navigation, and pipeline page accents were refreshed to match the 4-step workflow
 
 ## Documentation ownership
 

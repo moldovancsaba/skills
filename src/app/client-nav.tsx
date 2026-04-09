@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -43,6 +43,7 @@ const pipelineItems = [
 
 export function ClientNav() {
   const router = useRouter();
+  const pathname = usePathname();
   const { company } = useStore();
   const { isDark, toggle } = useTheme();
   const [session, setSession] = useState<any>(null);
@@ -66,6 +67,10 @@ export function ClientNav() {
   const handleLogout = () => {
     window.location.href = "/api/auth/logout?returnTo=/login";
   };
+
+  if (pathname === "/login" || pathname === "/auth" || pathname?.startsWith("/auth/")) {
+    return null;
+  }
 
   return (
     <nav className="sticky top-0 z-40 border-b border-border/80 bg-background/85 backdrop-blur">
@@ -95,12 +100,6 @@ export function ClientNav() {
                 ))}
               </div>
             )}
-            
-            <div className="flex items-center gap-1 ml-4">
-              <Link href="/manual" className={cn(buttonVariants({ variant: "ghost", size: "sm" })) + " transition-colors"}>
-                Manual
-              </Link>
-            </div>
           </div>
 
           <div className="flex items-center gap-3">

@@ -57,9 +57,6 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
             </Link>
           </Button>
           <Button asChild variant="ghost" size="sm">
-            <Link href="/manual">Manual</Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
             <Link href="/faq">FAQ</Link>
           </Button>
         </div>

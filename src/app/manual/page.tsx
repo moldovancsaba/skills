@@ -1,5 +1,5 @@
-import { ManualPageContent } from "@/components/help-content";
+import { redirect } from "next/navigation";
 
 export default function ManualPage() {
-  return <ManualPageContent />;
+  redirect("/faq");
 }

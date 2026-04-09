@@ -97,13 +97,6 @@ export function FaqPageContent() {
       <PageHeader
         title="FAQ"
         description="Short answers to the workflow questions that come up most often."
-        actions={
-          <>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/manual">Open Manual</Link>
-            </Button>
-          </>
-        }
       />
 
       <Notice icon={BookOpen} title="Before you refresh again">

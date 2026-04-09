@@ -185,9 +185,6 @@ export default function Home() {
 
       <div className="flex justify-end">
         <div className="flex items-center gap-4">
-          <Link href="/manual" className="text-sm text-muted-foreground hover:text-foreground">
-            Manual
-          </Link>
           <Link href="/faq" className="text-sm text-muted-foreground hover:text-foreground">
             FAQ
           </Link>

@@ -188,13 +188,13 @@ const expertTips = {
   help: (): ExpertTip => ({
     id: "help",
     category: "Help center",
-    title: "Use the in-app manual when you want better output faster",
+    title: "Use the in-app FAQ when you want better output faster",
     body:
-      "The manual and FAQ explain what to add as data, how to review flashcards well, and how to use decline language that teaches timing and readiness.",
+      "The FAQ explains what to add as data, how to review flashcards well, and how to use decline language that teaches timing and readiness.",
     whyItMatters:
       "The fastest way to improve results is to match your inputs and feedback to how the system actually works.",
-    ctaLabel: "Open Manual",
-    ctaHref: "/manual",
+    ctaLabel: "Open FAQ",
+    ctaHref: "/faq",
   }),
 };
 

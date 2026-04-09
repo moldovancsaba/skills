@@ -48,6 +48,7 @@ interface NBAItem {
   description: string | null;
   iceScore: number;
   status: string;
+  hashtags: string[];
 }
 
 interface AppState {

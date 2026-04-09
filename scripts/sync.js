@@ -41,6 +41,7 @@ const KNOWLEDGE_DIR = process.env.KNOWLEDGE_DIR || path.join(__dirname, "knowled
 const RESEARCH_ENABLED = envFlag(process.env.CHECKLIST_RESEARCH_ENABLED, false);
 const RESEARCH_PROVIDER = process.env.CHECKLIST_RESEARCH_PROVIDER || "duckduckgo-html";
 const RESEARCH_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_RESEARCH_TIMEOUT_MS || "12000"), 3_000);
+const OLLAMA_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_OLLAMA_TIMEOUT_MS || "45000"), 5_000);
 const RESEARCH_MAX_QUERIES = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_QUERIES || "2"), 5), 0);
 const RESEARCH_MAX_RESULTS = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_RESULTS || "3"), 6), 0);
 const RESEARCH_MAX_FETCHES = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_FETCHES || "3"), 6), 0);
@@ -75,6 +76,16 @@ const FACTCHECK_CAPS = {
   UNVERIFIED: 45,
   NOT_RUN: 70,
 };
+const PUBLIC_ID_SCOPES = {
+  flashcard: "flashcard",
+  checklist: "checklist",
+};
+const SOURCE_TYPE_TAGS = new Set(["#product", "#customer", "#competitor", "#file"]);
+const HASHTAG_STOPWORDS = new Set([
+  "the", "and", "for", "with", "from", "that", "this", "your", "into", "about",
+  "after", "before", "under", "over", "their", "there", "have", "has", "are",
+  "was", "were", "will", "http", "https", "www", "com", "inc", "llc", "ltd",
+]);
 
 let currentDbUrl = process.env.NEON_DB || process.env.DATABASE_URL || "";
 let dbReady = false;
@@ -135,6 +146,73 @@ async function connectDB() {
   }
 }
 
+async function reservePublicIds(scope, count = 1) {
+  if (!count) return [];
+
+  await prisma.publicIdCounter.upsert({
+    where: { scope },
+    update: {},
+    create: {
+      scope,
+      value: 0,
+      updatedAt: new Date(),
+    },
+  });
+
+  const counter = await prisma.publicIdCounter.update({
+    where: { scope },
+    data: {
+      value: {
+        increment: count,
+      },
+      updatedAt: new Date(),
+    },
+  });
+
+  const firstPublicId = counter.value - count + 1;
+  return Array.from({ length: count }, (_, index) => firstPublicId + index);
+}
+
+async function nextPublicId(scope) {
+  const [publicId] = await reservePublicIds(scope, 1);
+  return publicId;
+}
+
+async function backfillMissingDerivedPublicIds(companyId) {
+  const [flashcards, checklistItems] = await Promise.all([
+    prisma.flashcard.findMany({
+      where: { companyId, publicId: null },
+      select: { id: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
+    prisma.nBAItem.findMany({
+      where: { companyId, publicId: null },
+      select: { id: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
+  ]);
+
+  if (flashcards.length > 0) {
+    const ids = await reservePublicIds(PUBLIC_ID_SCOPES.flashcard, flashcards.length);
+    for (const [index, flashcard] of flashcards.entries()) {
+      await prisma.flashcard.update({
+        where: { id: flashcard.id },
+        data: { publicId: ids[index], updatedAt: new Date() },
+      });
+    }
+  }
+
+  if (checklistItems.length > 0) {
+    const ids = await reservePublicIds(PUBLIC_ID_SCOPES.checklist, checklistItems.length);
+    for (const [index, item] of checklistItems.entries()) {
+      await prisma.nBAItem.update({
+        where: { id: item.id },
+        data: { publicId: ids[index], updatedAt: new Date() },
+      });
+    }
+  }
+}
+
 function normalizeText(value) {
   return String(value || "").replace(/\u0000/g, " ").trim();
 }
@@ -167,6 +245,36 @@ function toArray(value) {
 
 function unique(items) {
   return [...new Set(items.filter(Boolean))];
+}
+
+function normalizeHashtag(value) {
+  const trimmed = normalizeText(value).toLowerCase();
+  if (!trimmed) return null;
+  const bare = trimmed.replace(/^#+/, "").replace(/[^a-z0-9-_]/g, "");
+  if (!bare) return null;
+  return `#${bare}`;
+}
+
+function normalizeHashtags(values) {
+  return unique(toArray(values).map(normalizeHashtag).filter(Boolean)).filter((tag) => !SOURCE_TYPE_TAGS.has(tag));
+}
+
+function deriveKeywordHashtags(...values) {
+  const tags = [];
+  for (const value of values) {
+    const words = normalizeLoose(value)
+      .split(/\s+/)
+      .filter((word) => word.length > 2 && !HASHTAG_STOPWORDS.has(word))
+      .slice(0, 12);
+    for (const word of words) {
+      tags.push(normalizeHashtag(word));
+    }
+  }
+  return unique(tags.filter(Boolean));
+}
+
+function mergeHashtags(...groups) {
+  return unique(groups.flatMap((group) => normalizeHashtags(group)));
 }
 
 function extractJsonCandidate(raw) {
@@ -205,6 +313,7 @@ function buildSnapshot(data) {
     flashcards: fingerprint(data.flashcards, ["id", "updatedAt", "status", "reviewStatus", "fingerprint"]),
     flashcardActions: fingerprint(data.flashcardActions, ["id", "createdAt", "action", "flashcardId"]),
     feedback: fingerprint(data.feedback, ["id", "createdAt", "action", "nbaItemId"]),
+    hashtagFeedback: fingerprint(data.hashtagFeedback, ["id", "createdAt", "action", "entityId", "tag"]),
     pendingNBA: fingerprint(data.existingNBA, ["id", "updatedAt", "status", "title"]),
   };
 }
@@ -445,6 +554,7 @@ function buildSourceRecords(company, data) {
       sourceId: product.id,
       sourcePublicId: product.publicId ?? null,
       sourceName: product.name,
+      hashtags: normalizeHashtags(product.hashtags),
       relationRole: "PRIMARY",
       urls,
       queryHints: unique([
@@ -473,6 +583,7 @@ function buildSourceRecords(company, data) {
       sourceId: customer.id,
       sourcePublicId: customer.publicId ?? null,
       sourceName: customer.name,
+      hashtags: normalizeHashtags(customer.hashtags),
       relationRole: "PRIMARY",
       urls: [],
       queryHints: unique([
@@ -501,6 +612,7 @@ function buildSourceRecords(company, data) {
       sourceId: competitor.id,
       sourcePublicId: competitor.publicId ?? null,
       sourceName: competitor.name,
+      hashtags: normalizeHashtags(competitor.hashtags),
       relationRole: "PRIMARY",
       urls,
       queryHints: unique([
@@ -528,6 +640,7 @@ function buildSourceRecords(company, data) {
       sourceId: file.id,
       sourcePublicId: file.publicId ?? null,
       sourceName: file.name || `file-${file.publicId || file.id}`,
+      hashtags: normalizeHashtags(file.hashtags),
       relationRole: "PRIMARY",
       urls,
       queryHints: unique([
@@ -757,15 +870,29 @@ async function callOllama(messages) {
     throw new Error(modelBlocker || "Ollama model unavailable");
   }
 
-  const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      stream: false,
-      messages,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
+  let response;
+
+  try {
+    response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        stream: false,
+        messages,
+      }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`Ollama chat timed out after ${OLLAMA_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -808,6 +935,36 @@ async function callOllamaJson(systemPrompt, userPrompt) {
   }
 }
 
+function buildFallbackRecommendations(company, flashcards) {
+  return flashcards.slice(0, 3).map((card, index) => ({
+    title: `Act on: ${normalizeText(card.title) || `Priority ${index + 1}`}`,
+    description: truncate(
+      `Turn the flashcard "${normalizeText(card.title) || `Priority ${index + 1}`}" into a concrete next action for ${company.name}. Validate the claim, package it for customers, and assign an owner with a measurable outcome.`,
+      600,
+    ),
+    impact: clampInt(card.impact, 6, 1, 10),
+    confidence: clampInt(card.confidence, 65, 1, 100),
+    ease: clampInt(Math.max(3, Math.min(8, Math.round((card.weight + card.impact) / 2))), 5, 1, 10),
+    sourceFlashcardIds: [card.id],
+    hashtags: mergeHashtags(card.hashtags, deriveKeywordHashtags(card.title, card.body)).slice(0, 10),
+  }));
+}
+
+function deriveFlashcardHashtags(source, generated) {
+  return mergeHashtags(
+    source.hashtags,
+    deriveKeywordHashtags(source.sourceName, generated.title, generated.body),
+  ).slice(0, 10);
+}
+
+function deriveChecklistHashtags(recommendation, sourceFlashcards) {
+  return mergeHashtags(
+    recommendation.hashtags,
+    ...sourceFlashcards.map((card) => card.hashtags),
+    deriveKeywordHashtags(recommendation.title, recommendation.description),
+  ).slice(0, 10);
+}
+
 async function saveKnowledge(companyId, data) {
   const file = path.join(KNOWLEDGE_DIR, `${companyId}.json`);
   let existing = {};
@@ -842,6 +999,7 @@ function isResearchRefreshDue(knowledge) {
 }
 
 async function getAllData(companyId) {
+  await backfillMissingDerivedPublicIds(companyId);
   const [
     company,
     products,
@@ -851,6 +1009,7 @@ async function getAllData(companyId) {
     flashcards,
     flashcardActions,
     feedback,
+    hashtagFeedback,
     nba,
   ] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
@@ -869,7 +1028,12 @@ async function getAllData(companyId) {
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
-    prisma.nbaItem.findMany({ where: { companyId }, orderBy: { updatedAt: "desc" } }),
+    prisma.hashtagFeedback.findMany({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    }),
+    prisma.nBAItem.findMany({ where: { companyId }, orderBy: { updatedAt: "desc" } }),
   ]);
 
   return {
@@ -881,18 +1045,231 @@ async function getAllData(companyId) {
     flashcards,
     flashcardActions,
     feedback,
+    hashtagFeedback,
     existingNBA: nba,
   };
+}
+
+function buildHashtagFeedbackIndex(feedbackRows) {
+  const suppressedByEntity = new Map();
+  const suppressedGlobally = new Set();
+  const existingKeys = new Set();
+
+  for (const row of feedbackRows || []) {
+    const tag = normalizeHashtag(row.tag);
+    if (tag) {
+      existingKeys.add(`${row.entityType}:${row.entityId}:${row.action}:${tag}`);
+    }
+    if (!tag || row.action !== "USER_REMOVE") continue;
+    suppressedGlobally.add(tag);
+    const key = `${row.entityType}:${row.entityId}`;
+    if (!suppressedByEntity.has(key)) {
+      suppressedByEntity.set(key, new Set());
+    }
+    suppressedByEntity.get(key).add(tag);
+  }
+
+  return { suppressedByEntity, suppressedGlobally, existingKeys };
+}
+
+function fallbackHashtagEvaluation(company, source, existingTags, suppressedTags) {
+  const heuristic = deriveKeywordHashtags(
+    source.name,
+    source.entityTag,
+    company?.name,
+    source.description,
+    source.pricing,
+    source.notes,
+    source.positioning,
+    source.content,
+    ...(source.urls || []),
+  );
+  const addedHashtags = heuristic.filter((tag) => !existingTags.includes(tag) && !suppressedTags.has(tag)).slice(0, 6);
+  const acceptedHashtags = existingTags.filter((tag) => !suppressedTags.has(tag));
+  const finalHashtags = mergeHashtags(acceptedHashtags, addedHashtags).slice(0, 10);
+
+  return {
+    acceptedHashtags,
+    rejectedHashtags: existingTags.filter((tag) => suppressedTags.has(tag)),
+    addedHashtags,
+    finalHashtags,
+  };
+}
+
+async function evaluateSourceHashtags(company, source, feedbackIndex) {
+  const existingTags = normalizeHashtags(source.hashtags);
+  const entitySuppressed = feedbackIndex.suppressedByEntity.get(`SOURCE:${source.id}`) || new Set();
+  const suppressedTags = new Set([...feedbackIndex.suppressedGlobally, ...entitySuppressed]);
+  const fallback = fallbackHashtagEvaluation(company, source, existingTags, suppressedTags);
+
+  try {
+    const candidateTags = unique([
+      ...fallback.addedHashtags,
+      ...deriveKeywordHashtags(source.name, source.entityTag, company?.name, source.content || source.description || ""),
+    ]).slice(0, 12);
+
+    const raw = await callOllamaJson(
+      [
+        "You evaluate business hashtags for a source record.",
+        "Return strict JSON with acceptedHashtags, rejectedHashtags, addedHashtags, finalHashtags.",
+        "Keep only tags that are relevant to retrieval, clustering, and downstream task generation.",
+        "Do not output source type tags like #product, #customer, #competitor, or #file.",
+        "finalHashtags should be unique lowercase hashtags.",
+      ].join(" "),
+      [
+        `Company: ${company?.name || "Unknown company"}`,
+        `Source name: ${source.name}`,
+        `Existing hashtags: ${existingTags.join(", ") || "none"}`,
+        `Suppressed hashtags: ${[...suppressedTags].join(", ") || "none"}`,
+        `Candidate hashtags: ${candidateTags.join(", ") || "none"}`,
+        `Entity tag: ${normalizeText(source.entityTag) || "n/a"}`,
+        `Source content: ${truncate(source.content || source.description || source.notes || source.positioning || "", 1800) || "n/a"}`,
+      ].join("\n"),
+    );
+
+    return {
+      acceptedHashtags: normalizeHashtags(raw.acceptedHashtags),
+      rejectedHashtags: normalizeHashtags(raw.rejectedHashtags),
+      addedHashtags: normalizeHashtags(raw.addedHashtags).filter((tag) => !existingTags.includes(tag)),
+      finalHashtags: normalizeHashtags(raw.finalHashtags).filter((tag) => !suppressedTags.has(tag)).slice(0, 10),
+    };
+  } catch (error) {
+    console.warn(`Hashtag evaluation fallback for ${source.id}: ${error.message}`);
+    return fallback;
+  }
+}
+
+async function syncSourceHashtags(company, data) {
+  const feedbackIndex = buildHashtagFeedbackIndex(data.hashtagFeedback);
+  const updates = [];
+
+  for (const product of data.products) {
+    updates.push({
+      model: "product",
+      id: product.id,
+      current: normalizeHashtags(product.hashtags),
+      payload: await evaluateSourceHashtags(company, {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        pricing: product.pricing,
+        urls: product.urls,
+        entityTag: product.entityTag,
+        hashtags: product.hashtags,
+      }, feedbackIndex),
+    });
+  }
+
+  for (const customer of data.customers) {
+    updates.push({
+      model: "customer",
+      id: customer.id,
+      current: normalizeHashtags(customer.hashtags),
+      payload: await evaluateSourceHashtags(company, {
+        id: customer.id,
+        name: customer.name,
+        notes: customer.notes,
+        entityTag: customer.entityTag,
+        content: [customer.segments, customer.painPoints, customer.channels].flat().join(" "),
+        hashtags: customer.hashtags,
+      }, feedbackIndex),
+    });
+  }
+
+  for (const competitor of data.competitors) {
+    updates.push({
+      model: "competitor",
+      id: competitor.id,
+      current: normalizeHashtags(competitor.hashtags),
+      payload: await evaluateSourceHashtags(company, {
+        id: competitor.id,
+        name: competitor.name,
+        pricing: competitor.pricing,
+        positioning: competitor.positioning,
+        entityTag: competitor.entityTag,
+        content: [competitor.strengths, competitor.weaknesses].flat().join(" "),
+        urls: competitor.urls,
+        hashtags: competitor.hashtags,
+      }, feedbackIndex),
+    });
+  }
+
+  for (const file of data.uploadedFiles) {
+    updates.push({
+      model: "uploadedSourceFile",
+      id: file.id,
+      current: normalizeHashtags(file.hashtags),
+      payload: await evaluateSourceHashtags(company, {
+        id: file.id,
+        name: file.name,
+        entityTag: file.entityTag,
+        content: decodeUploadedFile(file),
+        hashtags: file.hashtags,
+      }, feedbackIndex),
+    });
+  }
+
+  let changed = 0;
+  for (const update of updates) {
+    const nextHashtags = update.payload.finalHashtags;
+    if (JSON.stringify(update.current) === JSON.stringify(nextHashtags)) {
+      continue;
+    }
+    await prisma[update.model].update({
+      where: { id: update.id },
+      data: {
+        hashtags: nextHashtags,
+        updatedAt: new Date(),
+      },
+    });
+
+    for (const tag of update.payload.addedHashtags) {
+      const key = `SOURCE:${update.id}:AI_ADD:${tag}`;
+      if (feedbackIndex.existingKeys.has(key)) continue;
+      await prisma.hashtagFeedback.create({
+        data: {
+          companyId: company.id,
+          entityType: "SOURCE",
+          entityId: update.id,
+          tag,
+          action: "AI_ADD",
+          createdBy: "local-ai",
+        },
+      });
+      feedbackIndex.existingKeys.add(key);
+    }
+
+    for (const tag of update.payload.rejectedHashtags) {
+      const key = `SOURCE:${update.id}:AI_REJECT:${tag}`;
+      if (feedbackIndex.existingKeys.has(key)) continue;
+      await prisma.hashtagFeedback.create({
+        data: {
+          companyId: company.id,
+          entityType: "SOURCE",
+          entityId: update.id,
+          tag,
+          action: "AI_REJECT",
+          createdBy: "local-ai",
+        },
+      });
+      feedbackIndex.existingKeys.add(key);
+    }
+
+    changed += 1;
+  }
+
+  return changed;
 }
 
 async function generateFlashcardCandidate(company, source, research) {
   const systemPrompt = [
     "You generate exactly one Checklist flashcard as strict JSON.",
-    "Return an object with keys: title, body, kind, confidence, impact, weight.",
+    "Return an object with keys: title, body, kind, confidence, impact, weight, hashtags.",
     "Allowed kinds: SUMMARY, EXPLANATION, COMPARISON, NEWS, CONCLUSION, EVALUATION, OPINION, JUDGMENT, RECOMMENDATION, RESEARCH, FORECAST, STOCK, GOSSIP, PRICE.",
     "Use concise business language.",
     "Ground the output in the provided first-party source and public evidence only.",
     "If public evidence is present, reflect that in the body without inventing claims.",
+    "hashtags must be relevant retrieval and grouping tags only.",
     "confidence, impact, and weight must be integers from 1 to 100.",
     "Do not include markdown fences or extra text.",
   ].join(" ");
@@ -919,6 +1296,7 @@ async function generateFlashcardCandidate(company, source, research) {
     `Main goal: ${normalizeText(company.mainGoal) || "n/a"}`,
     `Source type: ${source.sourceType}`,
     `Source name: ${source.sourceName}`,
+    `Source hashtags: ${normalizeHashtags(source.hashtags).join(", ") || "none"}`,
     "",
     JSON.stringify(evidencePayload, null, 2),
   ].join("\n");
@@ -935,6 +1313,7 @@ async function generateFlashcardCandidate(company, source, research) {
     confidence: Math.min(modelConfidence, research.factCheck.confidenceCap),
     impact: clampInt(raw.impact, 55),
     weight: clampInt(raw.weight, 55),
+    hashtags: mergeHashtags(source.hashtags, raw.hashtags, deriveKeywordHashtags(raw.title, raw.body)).slice(0, 10),
   };
 }
 
@@ -1012,6 +1391,7 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
     let generated;
     try {
       generated = await generateFlashcardCandidate(company, source, research);
+      generated.hashtags = deriveFlashcardHashtags(source, generated);
     } catch (error) {
       console.error(`Flashcard generation failed for ${companyId}/${source.sourceType}/${source.sourceId}: ${error.message}`);
       continue;
@@ -1032,6 +1412,7 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
           confidence: generated.confidence,
           impact: generated.impact,
           weight: generated.weight,
+          hashtags: generated.hashtags,
           status: "ACTIVE",
           refreshedAt: new Date(),
           updatedAt: new Date(),
@@ -1055,16 +1436,18 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
     }
 
     const flashcardId = crypto.randomUUID();
+    const flashcardPublicId = await nextPublicId(PUBLIC_ID_SCOPES.flashcard);
     await prisma.flashcard.create({
       data: {
         id: flashcardId,
-        publicId: null,
+        publicId: flashcardPublicId,
         companyId,
         title: generated.title,
         body: generated.body,
         confidence: generated.confidence,
         impact: generated.impact,
         weight: generated.weight,
+        hashtags: generated.hashtags,
         status: "ACTIVE",
         createdBy: "local-ai",
         refreshedAt: new Date(),
@@ -1110,36 +1493,7 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
 }
 
 async function evictProcessedSources(companyId, data) {
-  let evictedCount = 0;
-  
-  if (data.products.length > 0) {
-    const ids = data.products.map(p => p.id);
-    const deleted = await prisma.product.deleteMany({ where: { id: { in: ids } } });
-    evictedCount += deleted.count;
-  }
-  
-  if (data.customers.length > 0) {
-    const ids = data.customers.map(c => c.id);
-    const deleted = await prisma.customer.deleteMany({ where: { id: { in: ids } } });
-    evictedCount += deleted.count;
-  }
-  
-  if (data.competitors.length > 0) {
-    const ids = data.competitors.map(c => c.id);
-    const deleted = await prisma.competitor.deleteMany({ where: { id: { in: ids } } });
-    evictedCount += deleted.count;
-  }
-  
-  if (data.uploadedFiles.length > 0) {
-    const ids = data.uploadedFiles.map(f => f.id);
-    const deleted = await prisma.uploadedSourceFile.deleteMany({ where: { id: { in: ids } } });
-    evictedCount += deleted.count;
-  }
-  
-  if (evictedCount > 0) {
-    console.log(`Company ${companyId}: evicted ${evictedCount} source records from MongoDB.`);
-  }
-  return evictedCount;
+  return 0;
 }
 
 async function generateRecommendationCandidates(company, flashcards) {
@@ -1147,6 +1501,7 @@ async function generateRecommendationCandidates(company, flashcards) {
     id: card.id,
     title: card.title,
     body: truncate(card.body, 400),
+    hashtags: normalizeHashtags(card.hashtags),
     kind: card.kind,
     confidence: card.confidence,
     impact: card.impact,
@@ -1160,7 +1515,7 @@ async function generateRecommendationCandidates(company, flashcards) {
   const systemPrompt = [
     "You generate exactly three Checklist recommendations as strict JSON.",
     "Return a JSON array of objects.",
-    "Each object must contain: title, description, impact, confidence, ease, sourceFlashcardIds.",
+    "Each object must contain: title, description, impact, confidence, ease, sourceFlashcardIds, hashtags.",
     "impact and ease are integers from 1 to 10.",
     "confidence is an integer from 1 to 100.",
     "Prefer the strongest grounded flashcards first.",
@@ -1187,6 +1542,7 @@ async function generateRecommendationCandidates(company, flashcards) {
       confidence: clampInt(item.confidence, 60),
       ease: clampInt(item.ease, 5, 1, 10),
       sourceFlashcardIds: toArray(item.sourceFlashcardIds).filter((id) => allowedIds.has(id)),
+      hashtags: normalizeHashtags(item.hashtags),
     }))
     .filter((item) => item.title && item.description && item.sourceFlashcardIds.length > 0);
 }
@@ -1211,7 +1567,9 @@ async function syncRecommendations(companyId, company, existingNBA) {
     candidates = await generateRecommendationCandidates(company, activeFlashcards);
   } catch (error) {
     console.error(`Recommendation generation failed for ${companyId}: ${error.message}`);
-    return { created: 0, updated: 0, degraded: true };
+  }
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    candidates = buildFallbackRecommendations(company, activeFlashcards);
   }
   
   let created = 0;
@@ -1220,9 +1578,11 @@ async function syncRecommendations(companyId, company, existingNBA) {
   for (const rec of candidates) {
     const match = existingNBA.find((item) => similarity(item.title, rec.title) >= 0.7);
     const iceScore = rec.impact * (rec.confidence / 100) * rec.ease * 10;
+    const sourceCards = activeFlashcards.filter((card) => rec.sourceFlashcardIds.includes(card.id));
+    const resolvedHashtags = deriveChecklistHashtags(rec, sourceCards);
     
     if (match && normalizeText(match.createdBy) === "local-ai" && match.status === "PENDING") {
-      await prisma.nbaItem.update({
+      await prisma.nBAItem.update({
         where: { id: match.id },
         data: {
           title: rec.title,
@@ -1232,6 +1592,7 @@ async function syncRecommendations(companyId, company, existingNBA) {
           ease: rec.ease,
           iceScore: iceScore,
           sourceFlashcardIds: rec.sourceFlashcardIds,
+          hashtags: resolvedHashtags,
           updatedAt: new Date(),
           appVersion: APP_VERSION,
           brainVersion: BRAIN_VERSION,
@@ -1245,10 +1606,12 @@ async function syncRecommendations(companyId, company, existingNBA) {
 
     if (match) continue;
 
-    await prisma.nbaItem.create({
+    const checklistPublicId = await nextPublicId(PUBLIC_ID_SCOPES.checklist);
+    await prisma.nBAItem.create({
       data: {
         id: crypto.randomUUID(),
         companyId,
+        publicId: checklistPublicId,
         title: rec.title,
         description: rec.description,
         impact: rec.impact,
@@ -1260,6 +1623,7 @@ async function syncRecommendations(companyId, company, existingNBA) {
         createdAt: new Date(),
         updatedAt: new Date(),
         sourceFlashcardIds: rec.sourceFlashcardIds,
+        hashtags: resolvedHashtags,
         appVersion: APP_VERSION,
         brainVersion: BRAIN_VERSION,
         generatedAt: new Date(),
@@ -1274,9 +1638,14 @@ async function syncRecommendations(companyId, company, existingNBA) {
 
 async function processCompany(companyId, reason = {}) {
   const previousKnowledge = await loadKnowledge(companyId);
-  const data = await getAllData(companyId);
+  let data = await getAllData(companyId);
   if (!data?.company) {
     throw new Error(`Company ${companyId} not found`);
+  }
+
+  const hashtagUpdates = await syncSourceHashtags(data.company, data);
+  if (hashtagUpdates > 0) {
+    data = await getAllData(companyId);
   }
 
   const flashcards = await syncFlashcards(companyId, data.company, data, previousKnowledge);
@@ -1288,6 +1657,7 @@ async function processCompany(companyId, reason = {}) {
     lastRun: {
       flashcards,
       recommendations,
+      hashtagUpdates,
     },
     research: {
       enabled: RESEARCH_ENABLED,

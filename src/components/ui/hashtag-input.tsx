@@ -21,7 +21,7 @@ export function HashtagInput({
   onChange,
   suggestions = [],
   label = "Hashtags",
-  placeholder = "Add hashtags like #product, #priority, #saas",
+  placeholder = "Add hashtags like #academy, #pricing, #performance",
 }: HashtagInputProps) {
   const [draft, setDraft] = useState("");
 

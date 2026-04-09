@@ -21,6 +21,7 @@ model Company {
   customers           Customer[]
   flashcards          Flashcard[]
   flashcardCorrections FlashcardCorrection[]
+  hashtagFeedback     HashtagFeedback[]
   nbaItems            NBAItem[]
   products            Product[]
   uploadedSourceFiles UploadedSourceFile[]
@@ -97,6 +98,7 @@ model Flashcard {
   manualTitle             String?
   reviewStatus            FlashcardReviewStatus @default(PENDING)
   userAnnotation          String?
+  hashtags                String[]               @default([])
   evidence                Json?
   feedbackConfidenceDelta Int                   @default(0)
   feedbackWeightDelta     Int                   @default(0)
@@ -188,9 +190,27 @@ model NBAItem {
   appVersion         String?    @default("0.6.0")
   brainVersion       String?    @default("local-brain@0.6.0")
   generatedAt        DateTime?
+  hashtags           String[]   @default([])
   promptVersion      String?    @default("nba-policy@0.6.0")
   feedback           Feedback[]
   company            Company    @relation(fields: [companyId], references: [id])
+}
+
+model HashtagFeedback {
+  id         String                @id @default(uuid()) @map("_id")
+  companyId  String
+  entityType HashtagEntityType
+  entityId   String
+  tag        String
+  action     HashtagFeedbackAction
+  note       String?
+  createdBy  String?               @default("webapp-user")
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @default(now()) @updatedAt
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, entityType, entityId, createdAt])
+  @@index([companyId, tag, createdAt])
 }
 
 model Product {
@@ -261,6 +281,20 @@ enum FlashcardCorrectionType {
   PIN
   REQUEST_REFRESH
   SUPPRESS_SOURCE
+}
+
+enum HashtagEntityType {
+  SOURCE
+  FLASHCARD
+  CHECKLIST
+}
+
+enum HashtagFeedbackAction {
+  USER_REMOVE
+  USER_ADD
+  AI_ADD
+  AI_REJECT
+  AI_ACCEPT
 }
 
 enum FlashcardKind {

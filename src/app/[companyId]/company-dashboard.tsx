@@ -29,6 +29,7 @@ type NBAItem = {
   iceScore: number;
   status: string;
   userAnnotation?: string;
+  hashtags: string[];
 };
 
 type Flashcard = {
@@ -259,11 +260,14 @@ export default function CompanyDashboard() {
                     annotation={annotation}
                     draftTitle={draftTitle}
                     draftDescription={draftDescription}
+                    activeHashtags={[]}
                     onOpenAction={openActionForm}
                     onCloseAction={resetActionForm}
                     onAnnotationChange={setAnnotation}
                     onDraftTitleChange={setDraftTitle}
                     onDraftDescriptionChange={setDraftDescription}
+                    onToggleHashtag={() => {}}
+                    onRemoveHashtag={() => {}}
                     onSubmit={handleFeedback}
                     onShare={handleShare}
                   />

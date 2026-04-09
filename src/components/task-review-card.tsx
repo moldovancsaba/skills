@@ -3,6 +3,7 @@ import { Check, CheckCircle, Loader2, MessageSquare, PencilLine, Share2, X } fro
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormInput, FormTextarea } from "@/components/ui/form-fields";
+import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { StructuredActionRow, StructuredCard, StructuredChipRow } from "@/components/ui/structured-card";
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
@@ -18,6 +19,7 @@ type NBAItem = {
   iceScore: number;
   status: string;
   userAnnotation?: string;
+  hashtags: string[];
 };
 
 type TaskReviewCardProps = {
@@ -34,6 +36,9 @@ type TaskReviewCardProps = {
   onAnnotationChange: (value: string) => void;
   onDraftTitleChange: (value: string) => void;
   onDraftDescriptionChange: (value: string) => void;
+  activeHashtags: string[];
+  onToggleHashtag: (tag: string) => void;
+  onRemoveHashtag: (itemId: string, tag: string) => void;
   onSubmit: (
     itemId: string,
     action: ActionMode,
@@ -69,6 +74,9 @@ export function TaskReviewCard({
   onAnnotationChange,
   onDraftTitleChange,
   onDraftDescriptionChange,
+  activeHashtags,
+  onToggleHashtag,
+  onRemoveHashtag,
   onSubmit,
   onShare,
 }: TaskReviewCardProps) {
@@ -111,6 +119,13 @@ export function TaskReviewCard({
 
   const details = (
     <div className="space-y-4">
+      <HashtagChipList
+        hashtags={item.hashtags}
+        activeTags={activeHashtags}
+        onToggle={onToggleHashtag}
+        onRemove={(tag) => onRemoveHashtag(item.id, tag)}
+      />
+
       {item.userAnnotation ? (
         <div className="text-sm text-foreground">
           <MessageSquare className="mr-2 inline h-4 w-4 align-text-bottom text-muted-foreground" />

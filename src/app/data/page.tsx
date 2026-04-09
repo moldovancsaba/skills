@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { FileUp, Package, Users, Search, Plus, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +11,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { EntityTagSelector } from "@/components/ui/entity-tag-selector";
+import { SourceTypePicker, type SourceTypeOption } from "@/components/ui/source-type-picker";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { SourceDataCard } from "@/components/source-data-card";
 import {
-  defaultTypeHashtags,
+  matchesAllHashtags,
   normalizeSourceHashtags,
-  sourceTypeFromHashtags,
+  parseHashtagFilterParam,
+  stringifyHashtagFilterParam,
 } from "@/lib/hashtags";
 import React from "react";
 
@@ -45,19 +48,21 @@ function sortDataItems(items: DataItem[]) {
 }
 
 export default function GlobalDataCollectionPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const { company, setCompany, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [input, setInput] = useState("");
-  const [hashtags, setHashtags] = useState<string[]>(defaultTypeHashtags("product"));
+  const [sourceType, setSourceType] = useState<SourceTypeOption>("product");
+  const [hashtags, setHashtags] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [entityTag, setEntityTag] = useState<string | null>(null);
   const [entitySuggestions, setEntitySuggestions] = useState<string[]>([]);
+  const [hashtagSuggestions, setHashtagSuggestions] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [items, setItems] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editHashtags, setEditHashtags] = useState<string[]>([]);
-  const [editEntityTag, setEditEntityTag] = useState<string | null>(null);
+  const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
 
   const loadAllData = useCallback(async (companyId: string) => {
     const [p, c, r, f] = await Promise.all([
@@ -106,11 +111,41 @@ export default function GlobalDataCollectionPage() {
     void loadForCompany();
   }, [company, loadAllData, setCompany]);
 
+  useEffect(() => {
+    const syncFromLocation = () => {
+      setActiveHashtags(parseHashtagFilterParam(new URLSearchParams(window.location.search).get("tags")));
+    };
+    syncFromLocation();
+    window.addEventListener("popstate", syncFromLocation);
+    return () => window.removeEventListener("popstate", syncFromLocation);
+  }, []);
+
+  useEffect(() => {
+    if (!company) return;
+
+    const loadRecommendations = async () => {
+      try {
+        const query = new URLSearchParams({
+          companyId: company.id,
+          selected: stringifyHashtagFilterParam(hashtags),
+        });
+        const response = await fetch(`/api/hashtags/recommendations?${query.toString()}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        setHashtagSuggestions(Array.isArray(data.recommendations) ? data.recommendations : []);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    void loadRecommendations();
+  }, [company, hashtags]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!input.trim() && selectedFiles.length === 0) || !company) return;
 
-    const type = sourceTypeFromHashtags(hashtags);
+    const type = sourceType;
     const normalizedHashtags = normalizeSourceHashtags(hashtags, type);
     const endpoint = selectedFiles.length > 0
       ? "/api/data-files"
@@ -140,7 +175,25 @@ export default function GlobalDataCollectionPage() {
         };
 
     try {
-      if (selectedFiles.length > 0) {
+      if (editingId) {
+        const currentItem = items.find((item) => item.id === editingId);
+        if (!currentItem) {
+          throw new Error("Edited item not found");
+        }
+        const editEndpoint = currentItem.type === "product"
+          ? "/api/products"
+          : currentItem.type === "customer"
+            ? "/api/customers"
+            : currentItem.type === "file"
+              ? "/api/data-files"
+              : "/api/competitors";
+
+        await fetch(`${editEndpoint}?id=${editingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: input, hashtags: normalizedHashtags, entityTag }),
+        });
+      } else if (selectedFiles.length > 0) {
         const formData = new FormData();
         formData.append("companyId", company.id);
         formData.append("hashtags", JSON.stringify(normalizedHashtags));
@@ -158,9 +211,11 @@ export default function GlobalDataCollectionPage() {
       }
       
       setInput("");
-      setHashtags(defaultTypeHashtags("product"));
+      setSourceType("product");
+      setHashtags([]);
       setSelectedFiles([]);
       setEntityTag(null);
+      setEditingId(null);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
       await loadAllData(company.id);
@@ -171,33 +226,23 @@ export default function GlobalDataCollectionPage() {
 
   const startEdit = (item: DataItem) => {
     setEditingId(item.id);
-    setEditName(item.name);
-    setEditHashtags(item.hashtags ?? []);
-    setEditEntityTag((item as any).entityTag ?? null);
+    if (item.type !== "file") {
+      setSourceType(item.type);
+    }
+    setInput(item.name);
+    setHashtags(item.hashtags ?? []);
+    setEntityTag((item as any).entityTag ?? null);
+    setSelectedFiles([]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditName("");
-    setEditHashtags([]);
-    setEditEntityTag(null);
-  };
-
-  const saveEdit = async (item: DataItem) => {
-    if (!company) return;
-    const endpoint = item.type === "product" ? "/api/products" 
-      : item.type === "customer" ? "/api/customers" 
-      : item.type === "file" ? "/api/data-files"
-      : "/api/competitors";
-
-    await fetch(`${endpoint}?id=${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editName, hashtags: editHashtags, entityTag: editEntityTag }),
-    });
-
-    cancelEdit();
-    loadAllData(company.id);
+    setInput("");
+    setSourceType("product");
+    setHashtags([]);
+    setEntityTag(null);
+    setSelectedFiles([]);
   };
 
   const deleteItem = async (item: DataItem) => {
@@ -212,13 +257,21 @@ export default function GlobalDataCollectionPage() {
     loadAllData(company.id);
   };
 
-  const hashtagSuggestions = Array.from(
-    new Set([
-      ...defaultTypeHashtags("product"),
-      "#customer", "#competitor", "#pricing", "#research",
-      ...items.flatMap((item) => item.hashtags ?? []),
-    ])
-  );
+  const toggleHashtagFilter = (tag: string) => {
+    const next = activeHashtags.includes(tag)
+      ? activeHashtags.filter((item) => item !== tag)
+      : [...activeHashtags, tag];
+    const nextSearch = new URLSearchParams(window.location.search);
+    if (next.length > 0) {
+      nextSearch.set("tags", stringifyHashtagFilterParam(next));
+    } else {
+      nextSearch.delete("tags");
+    }
+    setActiveHashtags(next);
+    router.replace(`${pathname}${nextSearch.toString() ? `?${nextSearch.toString()}` : ""}`, { scroll: false });
+  };
+
+  const filteredItems = items.filter((item) => matchesAllHashtags(item.hashtags ?? [], activeHashtags));
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
@@ -228,14 +281,19 @@ export default function GlobalDataCollectionPage() {
     <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <PageHeader
-          title="Global Data Collection"
-          description={`Managing raw data for ${company?.name || "your company"}.`}
+          title={editingId ? "Edit Data" : "Global Data Collection"}
+          description={editingId ? `Editing a raw source for ${company?.name || "your company"}.` : `Managing raw data for ${company?.name || "your company"}.`}
         />
       </motion.div>
 
       <Card>
         <CardContent className="space-y-4 p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {editingId ? (
+              <Notice title="Editing Selected Source">
+                The selected source is now loaded into the top form. Save it here or cancel to return to add mode.
+              </Notice>
+            ) : null}
             <FormTextarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -244,21 +302,30 @@ export default function GlobalDataCollectionPage() {
               rows={4}
             />
 
-            <div className="space-y-3">
-              <label className="text-sm font-medium">Files</label>
-              <input
-                type="file" multiple
-                onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
-                className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
-              />
-            </div>
+            <SourceTypePicker
+              value={sourceType}
+              onChange={setSourceType}
+              disabled={editingId ? items.find((item) => item.id === editingId)?.type === "file" : false}
+              label={editingId ? "Source type" : "Add as"}
+            />
+
+            {!editingId ? (
+              <div className="space-y-3">
+                <label className="text-sm font-medium">Files</label>
+                <input
+                  type="file" multiple
+                  onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
+                  className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+                />
+              </div>
+            ) : null}
 
             <HashtagInput
               value={hashtags}
               onChange={setHashtags}
               suggestions={hashtagSuggestions}
               label="Hashtags"
-              placeholder="#product, #customer..."
+              placeholder="#soccer, #academy..."
             />
 
             <EntityTagSelector
@@ -269,10 +336,15 @@ export default function GlobalDataCollectionPage() {
               placeholder="Which entity is this about?"
             />
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end gap-2 pt-2">
+              {editingId ? (
+                <Button type="button" variant="ghost" onClick={cancelEdit}>
+                  Cancel
+                </Button>
+              ) : null}
               <Button type="submit" disabled={(!input.trim() && selectedFiles.length === 0) || !company}>
                 <Plus className="w-4 h-4" />
-                Add raw source
+                {editingId ? "Save changes" : "Add raw source"}
               </Button>
             </div>
           </form>
@@ -295,12 +367,14 @@ export default function GlobalDataCollectionPage() {
       </MetricGrid>
 
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">All Data ({items.length})</h2>
-        {items.length === 0 ? (
+        <h2 className="text-lg font-semibold text-foreground">
+          All Data ({filteredItems.length}{activeHashtags.length > 0 ? ` of ${items.length}` : ""})
+        </h2>
+        {filteredItems.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data yet.</p>
         ) : (
           <div className="grid gap-4">
-            {items.map((item, index) => (
+            {filteredItems.map((item, index) => (
               <React.Fragment key={item.id}>
                 <SourceDataCard
                   id={item.id}
@@ -309,19 +383,10 @@ export default function GlobalDataCollectionPage() {
                   type={item.type}
                   hashtags={item.hashtags ?? []}
                   entityTag={(item as any).entityTag ?? null}
-                  isEditing={editingId === item.id}
-                  editName={editName}
-                  editHashtags={editHashtags}
-                  editEntityTag={editEntityTag}
-                  onEditNameChange={setEditName}
-                  onEditHashtagsChange={setEditHashtags}
-                  onEditEntityTagChange={setEditEntityTag}
                   onStartEdit={() => startEdit(item)}
-                  onSave={() => saveEdit(item)}
-                  onCancel={cancelEdit}
                   onDelete={() => deleteItem(item)}
-                  hashtagSuggestions={hashtagSuggestions}
-                  entitySuggestions={entitySuggestions}
+                  activeHashtags={activeHashtags}
+                  onToggleHashtag={toggleHashtagFilter}
                 />
               </React.Fragment>
             ))}

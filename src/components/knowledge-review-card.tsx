@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormInput, FormTextarea } from "@/components/ui/form-fields";
+import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import {
   UnifiedCard,
   UnifiedCardActions,
@@ -67,6 +68,7 @@ type Flashcard = {
   weight: number;
   reviewStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "MODIFIED_ACCEPTED";
   userAnnotation: string | null;
+  hashtags: string[];
   sources: FlashcardSource[];
   actions: FlashcardAction[];
   corrections: FlashcardCorrection[];
@@ -96,6 +98,9 @@ type Props = {
   onEditedTitleChange: (value: string) => void;
   onEditedBodyChange: (value: string) => void;
   onSubmit: (flashcardId: string) => void;
+  activeHashtags: string[];
+  onToggleHashtag: (tag: string) => void;
+  onRemoveHashtag: (flashcardId: string, tag: string) => void;
   onCorrection: (input: {
     flashcardId: string;
     correctionType: FlashcardCorrection["correctionType"];
@@ -126,6 +131,9 @@ export function KnowledgeReviewCard({
   onEditedTitleChange,
   onEditedBodyChange,
   onSubmit,
+  activeHashtags,
+  onToggleHashtag,
+  onRemoveHashtag,
   onCorrection,
 }: Props) {
   return (
@@ -152,6 +160,13 @@ export function KnowledgeReviewCard({
         <UnifiedCardText className="text-[0.95rem] leading-relaxed text-foreground/90">
           {flashcard.body}
         </UnifiedCardText>
+
+        <HashtagChipList
+          hashtags={flashcard.hashtags}
+          activeTags={activeHashtags}
+          onToggle={onToggleHashtag}
+          onRemove={(tag) => onRemoveHashtag(flashcard.id, tag)}
+        />
 
         <div className="space-y-4 pt-2">
           {flashcard.userAnnotation && (

@@ -23,6 +23,10 @@ import {
 } from "@/lib/release";
 import { enrichUploadedFile } from "@/lib/file-enrichment";
 import {
+  normalizeSourceHashtags,
+  stripSourceTypeHashtags,
+} from "@/lib/hashtags";
+import {
   enrichCompetitorSeed,
   enrichProductSeed,
   shouldEnrichCompetitor,
@@ -36,6 +40,7 @@ type BaseSourceRecord = {
   publicId: number | null;
   sourceName: string;
   knowledgeName: string;
+  hashtags: string[];
   createdAt: Date;
   updatedAt: Date;
 };
@@ -89,6 +94,7 @@ type FlashcardDraft = {
   impact: number;
   weight: number;
   evidence: Prisma.InputJsonValue | null;
+  hashtags: string[];
   source: {
     type: FlashcardSourceKind;
     id: string;
@@ -496,6 +502,7 @@ function makeDraft(source: SourceRecord, kind: FlashcardKind, title: string, bod
     impact: clamp(Math.round(impact), 1, 100),
     weight: clamp(Math.round(weight), 1, 100),
     evidence,
+    hashtags: stripSourceTypeHashtags(source.hashtags),
     source: {
       type: source.type,
       id: source.id,
@@ -1143,6 +1150,7 @@ async function loadCompanySources(companyId: string) {
         publicId: product.publicId,
         sourceName: product.name,
         knowledgeName: normalizeText(enriched?.name) ?? product.name,
+        hashtags: normalizeSourceHashtags(product.hashtags, "product"),
         description: normalizeText(enriched?.description) ?? normalizeText(product.description),
         pricing: normalizeText(enriched?.pricing) ?? normalizeText(product.pricing),
         features: enriched?.features ?? product.features,
@@ -1160,6 +1168,7 @@ async function loadCompanySources(companyId: string) {
         publicId: competitor.publicId,
         sourceName: competitor.name,
         knowledgeName: normalizeText(enriched?.name) ?? competitor.name,
+        hashtags: normalizeSourceHashtags(competitor.hashtags, "competitor"),
         urls: enriched?.urls ?? competitor.urls,
         pricing: normalizeText(enriched?.pricing) ?? normalizeText(competitor.pricing),
         strengths: enriched?.strengths ?? competitor.strengths,
@@ -1187,7 +1196,7 @@ async function loadCompanySources(companyId: string) {
         knowledgeName: file.name,
         mimeType: file.mimeType,
         sizeBytes: file.sizeBytes,
-        hashtags: file.hashtags,
+        hashtags: normalizeSourceHashtags(file.hashtags, "product"),
         extractedText: enriched.extractedText,
         watchedContent: (enriched.watchedContent as Prisma.JsonValue | undefined) ?? null,
         createdAt: file.createdAt,
@@ -1203,6 +1212,7 @@ async function loadCompanySources(companyId: string) {
       type: "CUSTOMER",
       sourceName: item.name,
       knowledgeName: item.name,
+      hashtags: normalizeSourceHashtags(item.hashtags, "customer"),
     }) satisfies CustomerSource),
     ...derivedCompetitors,
     ...derivedFiles,
@@ -1277,6 +1287,7 @@ export async function syncBootstrapFlashcards(companyId: string) {
                 confidence: adjusted.confidence,
                 impact: draft.impact,
                 weight: adjusted.weight,
+                hashtags: draft.hashtags,
                 evidence: draft.evidence ?? undefined,
                 status: FlashcardStatus.ACTIVE,
                 appVersion: APP_VERSION,
@@ -1341,6 +1352,7 @@ export async function syncBootstrapFlashcards(companyId: string) {
           confidence: adjusted.confidence,
           impact: draft.impact,
           weight: adjusted.weight,
+          hashtags: draft.hashtags,
           evidence: draft.evidence ?? undefined,
           status: FlashcardStatus.ACTIVE,
           createdBy: BOOTSTRAP_CREATED_BY,

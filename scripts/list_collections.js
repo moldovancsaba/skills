@@ -13,7 +13,7 @@ async function list() {
     console.log("Collections:", JSON.stringify(result, null, 2));
     
     // Check counts for all models in schema
-    const models = ["product", "customer", "competitor", "uploadedSourceFile", "nbaItem", "flashcard", "company"];
+    const models = ["product", "customer", "competitor", "uploadedSourceFile", "nBAItem", "flashcard", "company"];
     for (const model of models) {
       const count = await prisma[model].count();
       if (count > 0) {

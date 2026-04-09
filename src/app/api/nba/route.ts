@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { normalizeSourceHashtags } from "@/lib/hashtags";
 import { verifyMembership } from "@/lib/permissions";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 import { ensureChecklistPublicIds, nextChecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
@@ -45,6 +46,8 @@ export async function POST(request: NextRequest) {
           iceScore,
           scheduledDate: data.scheduledDate,
           createdBy: data.createdBy,
+          sourceFlashcardIds: data.sourceFlashcardIds ?? [],
+          hashtags: normalizeSourceHashtags(data.hashtags, "product"),
           appVersion: APP_VERSION,
           brainVersion: BRAIN_VERSION,
           promptVersion: NBA_PROMPT_VERSION,

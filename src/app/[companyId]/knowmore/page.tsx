@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Brain,
@@ -27,6 +27,7 @@ import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
+import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { useStore } from "@/lib/store";
 import React from "react";
 
@@ -89,6 +90,7 @@ type Flashcard = {
   weight: number;
   reviewStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "MODIFIED_ACCEPTED";
   userAnnotation: string | null;
+  hashtags: string[];
   lastActionAt: string | null;
   refreshedAt: string;
   sources: FlashcardSource[];
@@ -178,6 +180,7 @@ function kindLabel(kind: Flashcard["kind"]) {
 export default function CompanyKnowMorePage() {
   const router = useRouter();
   const params = useParams();
+  const pathname = usePathname();
   const companyId = params.companyId as string;
   const [company, setCompany] = useState<Company | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -191,6 +194,7 @@ export default function CompanyKnowMorePage() {
   const [actingId, setActingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterKind, setFilterKind] = useState<Flashcard["kind"] | "ALL">("ALL");
+  const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
   const { products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
   const [isOwner, setIsOwner] = useState(false);
   const [fileCount, setFileCount] = useState(0);
@@ -274,15 +278,25 @@ export default function CompanyKnowMorePage() {
     void loadPage(companyId);
   }, [companyId, loadPage]);
 
+  useEffect(() => {
+    const syncFromLocation = () => {
+      setActiveHashtags(parseHashtagFilterParam(new URLSearchParams(window.location.search).get("tags")));
+    };
+    syncFromLocation();
+    window.addEventListener("popstate", syncFromLocation);
+    return () => window.removeEventListener("popstate", syncFromLocation);
+  }, []);
+
   const filteredFlashcards = useMemo(() => {
     return flashcards.filter((card) => {
       const matchesSearch =
         card.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         card.body.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesKind = filterKind === "ALL" || card.kind === filterKind;
-      return matchesSearch && matchesKind;
+      const matchesTags = matchesAllHashtags(card.hashtags, activeHashtags);
+      return matchesSearch && matchesKind && matchesTags;
     });
-  }, [flashcards, searchQuery, filterKind]);
+  }, [activeHashtags, flashcards, searchQuery, filterKind]);
 
   const summary = useMemo(() => {
     if (flashcards.length === 0) {
@@ -410,6 +424,43 @@ export default function CompanyKnowMorePage() {
     }
   }, [closeActionForm, company, loadFlashcards]);
 
+  const toggleHashtagFilter = useCallback((tag: string) => {
+    const next = activeHashtags.includes(tag)
+      ? activeHashtags.filter((item) => item !== tag)
+      : [...activeHashtags, tag];
+    const nextSearch = new URLSearchParams(window.location.search);
+    if (next.length > 0) {
+      nextSearch.set("tags", stringifyHashtagFilterParam(next));
+    } else {
+      nextSearch.delete("tags");
+    }
+    setActiveHashtags(next);
+    router.replace(`${pathname}${nextSearch.toString() ? `?${nextSearch.toString()}` : ""}`, { scroll: false });
+  }, [activeHashtags, pathname, router]);
+
+  const removeFlashcardHashtag = useCallback(async (flashcardId: string, tag: string) => {
+    if (!company) return;
+
+    setActingId(flashcardId);
+    try {
+      await fetchJson("/api/hashtags/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityType: "FLASHCARD",
+          entityId: flashcardId,
+          tag,
+        }),
+      });
+      await loadFlashcards(company.id);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setActingId(null);
+    }
+  }, [company, loadFlashcards]);
+
   if (loading) {
     return (
       <PageShell width="5xl" className="space-y-6">
@@ -503,11 +554,18 @@ export default function CompanyKnowMorePage() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           <EmptyState
             icon={Sparkles}
-            title={searchQuery || filterKind !== "ALL" ? "No matching knowledge cards" : "Add source data to seed the knowledge layer"}
-            description={searchQuery || filterKind !== "ALL" ? "Try adjusting your search or filter to find what you're looking for." : "Knowmore reads from durable flashcard storage. As soon as source data exists, bootstrap flashcards appear here."}
+            title={searchQuery || filterKind !== "ALL" || activeHashtags.length > 0 ? "No matching knowledge cards" : "Add source data to seed the knowledge layer"}
+            description={searchQuery || filterKind !== "ALL" || activeHashtags.length > 0 ? "Try adjusting your search or filter to find what you're looking for." : "Knowmore reads from durable flashcard storage. As soon as source data exists, bootstrap flashcards appear here."}
             primaryAction={
-              searchQuery || filterKind !== "ALL" ? (
-                <Button onClick={() => { setSearchQuery(""); setFilterKind("ALL"); }}>Clear filters</Button>
+              searchQuery || filterKind !== "ALL" || activeHashtags.length > 0 ? (
+                <Button onClick={() => {
+                  setSearchQuery("");
+                  setFilterKind("ALL");
+                  const nextSearch = new URLSearchParams(window.location.search);
+                  nextSearch.delete("tags");
+                  setActiveHashtags([]);
+                  router.replace(`${pathname}${nextSearch.toString() ? `?${nextSearch.toString()}` : ""}`, { scroll: false });
+                }}>Clear filters</Button>
               ) : (
                 <Button asChild>
                   <a href={`/${companyId}/data`}>Open Data</a>
@@ -559,6 +617,9 @@ export default function CompanyKnowMorePage() {
                     onEditedTitleChange={setEditedTitle}
                     onEditedBodyChange={setEditedBody}
                     onSubmit={(flashcardId) => void handleActionSubmit(flashcardId)}
+                    activeHashtags={activeHashtags}
+                    onToggleHashtag={toggleHashtagFilter}
+                    onRemoveHashtag={(flashcardId, tag) => void removeFlashcardHashtag(flashcardId, tag)}
                     onCorrection={(input) => void handleCorrection(input)}
                   />
                 </motion.div>

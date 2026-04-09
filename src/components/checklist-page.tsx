@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Archive, Brain, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
 
 interface NBAItem {
@@ -22,6 +23,7 @@ interface NBAItem {
   iceScore: number;
   status: string;
   userAnnotation?: string;
+  hashtags: string[];
 }
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
@@ -33,6 +35,7 @@ type ChecklistPageProps = {
 
 export function ChecklistPage({ companyId, archived = false }: ChecklistPageProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { company, setCompany } = useStore();
   const [items, setItems] = useState<NBAItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +45,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
 
   const loadChecklist = useCallback(async (cid: string) => {
     setLoading(true);
@@ -85,6 +89,15 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
 
     void fetchCompany(companyId);
   }, [companyId, loadChecklist, router, setCompany]);
+
+  useEffect(() => {
+    const syncFromLocation = () => {
+      setActiveHashtags(parseHashtagFilterParam(new URLSearchParams(window.location.search).get("tags")));
+    };
+    syncFromLocation();
+    window.addEventListener("popstate", syncFromLocation);
+    return () => window.removeEventListener("popstate", syncFromLocation);
+  }, []);
 
   useEffect(() => {
     if (archived) return;
@@ -150,6 +163,39 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     }
   }, [company, loadChecklist, resetActionForm]);
 
+  const toggleHashtagFilter = useCallback((tag: string) => {
+    const next = activeHashtags.includes(tag)
+      ? activeHashtags.filter((item) => item !== tag)
+      : [...activeHashtags, tag];
+    const nextSearch = new URLSearchParams(window.location.search);
+    if (next.length > 0) {
+      nextSearch.set("tags", stringifyHashtagFilterParam(next));
+    } else {
+      nextSearch.delete("tags");
+    }
+    setActiveHashtags(next);
+    router.replace(`${pathname}${nextSearch.toString() ? `?${nextSearch.toString()}` : ""}`, { scroll: false });
+  }, [activeHashtags, pathname, router]);
+
+  const removeTaskHashtag = useCallback(async (itemId: string, tag: string) => {
+    if (!company) return;
+    setLoading(true);
+    try {
+      await fetch("/api/hashtags/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entityType: "CHECKLIST",
+          entityId: itemId,
+          tag,
+        }),
+      });
+      await loadChecklist(company.id);
+    } finally {
+      setLoading(false);
+    }
+  }, [company, loadChecklist]);
+
   useEffect(() => {
     if (archived) return;
 
@@ -178,6 +224,8 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>;
   }
 
+  const filteredItems = items.filter((item) => matchesAllHashtags(item.hashtags, activeHashtags));
+
   return (
     <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
@@ -185,7 +233,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           backHref={`/${companyId}`}
           backLabel="Back"
           title={archived ? "Archived Checklist" : "Checklist"}
-          description={`${items.length} ${archived ? "archived" : "pending"} checklist items`}
+          description={`${filteredItems.length} ${archived ? "archived" : "pending"} checklist items`}
           actions={
             <>
               {archived ? (
@@ -211,15 +259,15 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         />
       </motion.div>
 
-      {items.length === 0 ? (
+      {filteredItems.length === 0 ? (
         <EmptyState
           icon={archived ? Archive : Brain}
           title={archived ? "No archived checklist items" : "No checklist items yet"}
-          description={archived ? "Accepted and declined items will appear here." : "Add data to get AI-powered suggestions."}
+          description={activeHashtags.length > 0 ? "Try clearing hashtag filters." : archived ? "Accepted and declined items will appear here." : "Add data to get AI-powered suggestions."}
         />
       ) : (
         <div className="grid gap-4">
-          {items.map((item, index) => (
+          {filteredItems.map((item, index) => (
             <motion.div
               key={item.id}
               initial={{ opacity: 0, y: 4 }}
@@ -235,11 +283,14 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                 annotation={annotation}
                 draftTitle={draftTitle}
                 draftDescription={draftDescription}
+                activeHashtags={activeHashtags}
                 onOpenAction={openActionForm}
                 onCloseAction={resetActionForm}
                 onAnnotationChange={setAnnotation}
                 onDraftTitleChange={setDraftTitle}
                 onDraftDescriptionChange={setDraftDescription}
+                onToggleHashtag={toggleHashtagFilter}
+                onRemoveHashtag={(itemId, tag) => void removeTaskHashtag(itemId, tag)}
                 onSubmit={handleFeedback}
                 onShare={handleShare}
               />

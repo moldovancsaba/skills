@@ -286,7 +286,7 @@ export default function CompanyDataPage() {
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-sm font-medium text-blue-600">
           <span className="material-symbols-outlined text-[18px]">looks_one</span>
-          1. Data
+          Data
         </div>
         <PageHeader
           backHref={`/${companyId}`}

@@ -485,7 +485,7 @@ export default function CompanyKnowMorePage() {
         <div className="pipeline-accent-knowmore mb-4 h-1.5 rounded-full" />
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-sm font-medium text-green-600">
           <span className="material-symbols-outlined text-[18px]">looks_3</span>
-          3. Knowmore
+          Knowmore
         </div>
         <PageHeader
           backHref={`/${companyId}`}

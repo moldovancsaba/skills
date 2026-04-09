@@ -150,7 +150,7 @@ export default function CompanyTopicsPage() {
       <div className="pipeline-accent-topics h-1.5 rounded-full" />
       <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-sm font-medium text-orange-600">
         <span className="material-symbols-outlined text-[18px]">looks_two</span>
-        2. Topics
+        Topics
       </div>
       <PageHeader
         backHref={`/${companyId}`}

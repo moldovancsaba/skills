@@ -232,7 +232,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         <div className="pipeline-accent-checklist mb-4 h-1.5 rounded-full" />
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-sm font-medium text-violet-600">
           <span className="material-symbols-outlined text-[18px]">looks_4</span>
-          4. Checklist
+          Checklist
         </div>
         <PageHeader
           backHref={`/${companyId}`}

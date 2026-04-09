@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Archive, Brain, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { EmptyState, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { EmptyState, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
 
 interface NBAItem {
@@ -181,11 +181,6 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   return (
     <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        {isGenerating ? (
-          <Notice icon={Loader2} title="Generating checklist items" className="mb-4">
-            AI is generating recommendations.
-          </Notice>
-        ) : null}
         <PageHeader
           backHref={`/${companyId}`}
           backLabel="Back"
@@ -199,9 +194,9 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                 </Button>
               ) : (
                 <>
-                  <Button onClick={handleRefresh} variant="ghost" size="sm" disabled={isGenerating}>
-                    <Loader2 className={`h-4 w-4 ${isGenerating ? "animate-spin" : ""}`} />
-                    {isGenerating ? "Generating..." : "Refresh"}
+                  <Button onClick={handleRefresh} variant="ghost" size="sm" disabled={loading}>
+                    <Loader2 className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                    {loading ? "Refreshing..." : "Refresh"}
                   </Button>
                   <Button asChild variant="ghost" size="sm">
                     <Link href={`/${companyId}/nba_archived`}>

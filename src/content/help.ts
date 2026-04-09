@@ -38,7 +38,7 @@ export const manualSections: HelpSection[] = [
     title: "Understand the three system layers",
     summary: "Checklist works best when you treat data, Knowmore, and tasks as separate jobs.",
     bullets: [
-      "Data is raw source input: products, customers, competitors, and uploaded files.",
+      "Data is raw source input: notes, URLs, research snippets, and uploaded files.",
       "Knowmore is the knowledge layer: flashcards generated from evidence and enrichment.",
       "Checklist is the action layer: next-best tasks generated from company context and flashcards.",
       "If the source data is weak, the flashcards and tasks will drift.",
@@ -49,10 +49,10 @@ export const manualSections: HelpSection[] = [
     title: "Add the highest-value sources first",
     summary: "The AI team gets the best results from sources that expose real market language and real constraints.",
     bullets: [
-      "Add product pages, pricing pages, onboarding pages, FAQs, sales decks, and customer notes before broad marketing copy.",
-      "Add competitor pricing, offer structure, positioning statements, and proof pages instead of just their homepage.",
+      "Add offer pages, pricing pages, onboarding pages, FAQs, sales decks, and audience notes before broad marketing copy.",
+      "Add alternative market positioning, competitor evidence, and proof pages instead of just a homepage snapshot.",
       "Upload files when they contain detail that the public web does not show, such as call notes, sales docs, and internal briefs.",
-      "Use clear names and useful hashtags so the system can classify the source correctly.",
+      "Use clear raw source text and useful hashtags so the system can cluster the source correctly.",
     ],
   },
   {
@@ -82,7 +82,7 @@ export const manualSections: HelpSection[] = [
     title: "Troubleshoot weak output systematically",
     summary: "When the system feels off, the fastest fix is usually better inputs and better feedback.",
     bullets: [
-      "If tasks are generic, add sharper product, pricing, and competitor evidence.",
+      "If tasks are generic, add sharper pricing, market, and audience evidence.",
       "If flashcards feel wrong, decline them with specific reasons instead of silently ignoring them.",
       "If tasks are good but mistimed, say what prerequisite is missing so the AI team can learn to postpone rather than discard.",
       "If a company has very little data, start on the Data page before judging the rest of the system.",
@@ -141,7 +141,7 @@ const expertTips = {
     category: "Data to add",
     title: "Build a stronger evidence base before judging the AI",
     body:
-      "Add at least a few real sources for products, customers, competitors, or files. The best early additions are pricing pages, offer pages, onboarding pages, FAQs, and customer notes.",
+      "Add at least a few real sources or files. The best early additions are pricing pages, offer pages, onboarding pages, FAQs, interview notes, and research snippets.",
     whyItMatters:
       "Weak source coverage creates weak flashcards and generic tasks. A small set of sharp sources beats a large set of vague marketing pages.",
     ctaLabel: "Open Data",
@@ -152,7 +152,7 @@ const expertTips = {
     category: "Source quality",
     title: "Upload the artifacts the public web cannot see",
     body:
-      "If you have no files yet, add one or two internal assets such as sales notes, briefs, positioning docs, or customer interview summaries.",
+      "If you have no files yet, add one or two internal assets such as sales notes, briefs, positioning docs, or interview summaries.",
     whyItMatters:
       "Uploaded files often contain the strongest language about objections, demand, timing, and priorities, which makes the generated knowledge much sharper.",
     ctaLabel: "Add files",

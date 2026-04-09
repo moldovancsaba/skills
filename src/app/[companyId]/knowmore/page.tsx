@@ -38,7 +38,7 @@ type Company = {
 
 type FlashcardSource = {
   id: string;
-  sourceType: "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "FILE" | "AGENT_FOUND";
+  sourceType: "SOURCE" | "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "FILE" | "AGENT_FOUND";
   sourceId: string;
   sourcePublicId: number | null;
   sourceName: string;
@@ -123,12 +123,11 @@ async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promi
 
 function sourceLabel(sourceType: FlashcardSource["sourceType"]) {
   switch (sourceType) {
+    case "SOURCE":
     case "PRODUCT":
-      return "Product";
     case "CUSTOMER":
-      return "Customer";
     case "COMPETITOR":
-      return "Competitor";
+      return "Source";
     case "FILE":
       return "File";
     case "AGENT_FOUND":
@@ -195,7 +194,7 @@ export default function CompanyKnowMorePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterKind, setFilterKind] = useState<Flashcard["kind"] | "ALL">("ALL");
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
-  const { products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
+  const { sources, setSources } = useStore();
   const [isOwner, setIsOwner] = useState(false);
   const [fileCount, setFileCount] = useState(0);
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
@@ -223,19 +222,15 @@ export default function CompanyKnowMorePage() {
       await loadFlashcards(found.id);
 
       // Fetch additional context for the Expert Tip and Member List
-      const [p, c, r, f, nba, members, sessionRes] = await Promise.all([
-        fetch(`/api/products?companyId=${cid}`).then((res) => res.json()),
-        fetch(`/api/customers?companyId=${cid}`).then((res) => res.json()),
-        fetch(`/api/competitors?companyId=${cid}`).then((res) => res.json()),
+      const [s, f, nba, members, sessionRes] = await Promise.all([
+        fetch(`/api/sources?companyId=${cid}`).then((res) => res.json()),
         fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
         fetch(`/api/nba?companyId=${cid}`).then((res) => res.json()),
         fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
         fetch("/api/auth/session")
       ]);
 
-      setProducts(p);
-      setCustomers(c);
-      setCompetitors(r);
+      setSources(s);
       setFileCount(Array.isArray(f) ? f.length : 0);
       setPendingTaskCount(Array.isArray(nba) ? nba.filter((t: any) => t.status === "PENDING").length : 0);
 
@@ -251,7 +246,7 @@ export default function CompanyKnowMorePage() {
     } finally {
       setLoading(false);
     }
-  }, [loadFlashcards, router, setCompetitors, setCustomers, setProducts]);
+  }, [loadFlashcards, router, setSources]);
 
   const closeActionForm = useCallback(() => {
     setActiveFlashcardId(null);
@@ -582,9 +577,9 @@ export default function CompanyKnowMorePage() {
 
             const tip = getDashboardExpertTip({
               companyId,
-              productCount: products.length,
-              customerCount: customers.length,
-              competitorCount: competitors.length,
+              productCount: sources.length,
+              customerCount: 0,
+              competitorCount: 0,
               fileCount,
               flashcardCount: flashcards.length,
               pendingTaskCount,

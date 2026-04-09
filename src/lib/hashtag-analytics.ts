@@ -7,16 +7,14 @@ type HashtagRecord = {
 };
 
 async function listCompanyHashtagRecords(companyId: string): Promise<HashtagRecord[]> {
-  const [products, customers, competitors, files, flashcards, checklist] = await Promise.all([
-    prisma.product.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
-    prisma.customer.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
-    prisma.competitor.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
+  const [sources, files, flashcards, checklist] = await Promise.all([
+    prisma.source.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
     prisma.uploadedSourceFile.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
     prisma.flashcard.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
     prisma.nBAItem.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
   ]);
 
-  return [...products, ...customers, ...competitors, ...files, ...flashcards, ...checklist].map((record) => ({
+  return [...sources, ...files, ...flashcards, ...checklist].map((record) => ({
     id: record.id,
     tags: normalizeHashtagList(record.hashtags),
   }));

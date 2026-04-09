@@ -24,6 +24,8 @@ model Company {
   hashtagFeedback     HashtagFeedback[]
   nbaItems            NBAItem[]
   products            Product[]
+  sources             Source[]
+  topics              Topic[]
   uploadedSourceFiles UploadedSourceFile[]
   users               User[]
 }
@@ -229,6 +231,38 @@ model Product {
   company     Company  @relation(fields: [companyId], references: [id])
 }
 
+model Source {
+  id              String   @id @default(uuid()) @map("_id")
+  companyId       String
+  publicId        Int?     @unique
+  content         String
+  hashtags        String[] @default([])
+  entityTag       String?
+  aiClusters      String[] @default([])
+  metadata        Json?
+  legacyOriginKey String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, publicId, createdAt])
+}
+
+model Topic {
+  id        String   @id @default(uuid()) @map("_id")
+  companyId String
+  label     String
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, active, sortOrder])
+  @@unique([companyId, label])
+}
+
 model PublicIdCounter {
   scope     String   @id @map("_id")
   value     Int      @default(0)
@@ -328,6 +362,7 @@ enum FlashcardSourceRole {
 }
 
 enum FlashcardSourceType {
+  SOURCE
   PRODUCT
   CUSTOMER
   COMPETITOR

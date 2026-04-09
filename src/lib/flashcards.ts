@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { ensureUnifiedSources } from "@/lib/sources";
 import {
   ensureSourcePublicIds,
   PUBLIC_ID_SCOPES,
@@ -33,7 +34,7 @@ import {
   shouldEnrichProduct,
 } from "@/lib/url-enrichment";
 
-type FlashcardSourceKind = "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "FILE" | "AGENT_FOUND";
+type FlashcardSourceKind = "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "SOURCE" | "FILE" | "AGENT_FOUND";
 
 type BaseSourceRecord = {
   id: string;
@@ -43,6 +44,14 @@ type BaseSourceRecord = {
   hashtags: string[];
   createdAt: Date;
   updatedAt: Date;
+};
+
+type UnifiedSource = BaseSourceRecord & {
+  type: "SOURCE";
+  content: string;
+  entityTag: string | null;
+  aiClusters: string[];
+  metadata: Prisma.JsonValue | null;
 };
 
 type ProductSource = BaseSourceRecord & {
@@ -83,7 +92,14 @@ type FileSource = BaseSourceRecord & {
   watchedContent: Prisma.JsonValue | null;
 };
 
-type SourceRecord = ProductSource | CustomerSource | CompetitorSource | FileSource;
+type SourceRecord = UnifiedSource | ProductSource | CustomerSource | CompetitorSource | FileSource;
+
+type FlashcardLinkedSource = {
+  type: FlashcardSourceKind;
+  id: string;
+  publicId: number | null;
+  sourceName: string;
+};
 
 type FlashcardDraft = {
   kind: FlashcardKind;
@@ -101,6 +117,7 @@ type FlashcardDraft = {
     publicId: number | null;
     sourceName: string;
   };
+  supportingSources?: FlashcardLinkedSource[];
   refreshedAt: Date;
 };
 
@@ -172,6 +189,8 @@ const SECTION_KIND_MAP: Record<string, FlashcardKind> = {
   "stock signal": FlashcardKind.STOCK,
   "market chatter (low confidence)": FlashcardKind.GOSSIP,
 };
+const PRICE_PATTERN =
+  /(?:\$|EUR|USD|GBP)\s?\d[\d,.]*(?:\s*\/\s*(?:mo|month|yr|year|user))?|free\b|trial\b|pricing\b/i;
 
 function sourceKey(sourceType: FlashcardSourceKind, sourceId: string) {
   return `${sourceType}:${sourceId}`;
@@ -468,6 +487,171 @@ function comparisonText(leftName: string, leftSignals: string[], rightName: stri
   return `${leftName} emphasizes ${left.join(" and ")}, while ${rightName} emphasizes ${right.join(" and ")}.`;
 }
 
+function sourceDisplayName(source: UnifiedSource) {
+  return (
+    normalizeText(source.entityTag) ??
+    normalizeText(source.content.split(/\n+/).find((line) => normalizeText(line))) ??
+    `Source #${source.publicId ?? source.id.slice(0, 8)}`
+  );
+}
+
+function sourceMetadataRecord(source: UnifiedSource) {
+  return getWatchedContentRecord(source.metadata);
+}
+
+function sourceMetadataStrings(source: UnifiedSource, key: string, maxItems = 4) {
+  return dedupeStrings(getWatchedStringArray(sourceMetadataRecord(source), key), maxItems);
+}
+
+function extractSourceInsights(source: UnifiedSource, maxItems = 6) {
+  const metadata = sourceMetadataRecord(source);
+  const paragraphs = source.content
+    .split(/\n{2,}/)
+    .flatMap((chunk) => chunk.split(/\n(?=[-*•]\s)|(?<=\.)\s*\n/))
+    .map((item) => normalizeText(item.replace(/^[-*•]\s*/, "")))
+    .filter((item): item is string => Boolean(item));
+  const metadataSignals = [
+    ...sourceMetadataStrings(source, "features", 4),
+    ...sourceMetadataStrings(source, "segments", 4),
+    ...sourceMetadataStrings(source, "painPoints", 4),
+    ...sourceMetadataStrings(source, "channels", 4),
+    ...sourceMetadataStrings(source, "strengths", 4),
+    ...sourceMetadataStrings(source, "weaknesses", 4),
+    normalizeText(getWatchedString(metadata, "description")),
+    normalizeText(getWatchedString(metadata, "pricing")),
+    normalizeText(getWatchedString(metadata, "positioning")),
+    normalizeText(getWatchedString(metadata, "notes")),
+  ];
+
+  return dedupeStrings(
+    [...paragraphs, ...metadataSignals],
+    maxItems,
+  ).filter((item) => !isLowValueCardText(item) && !isWeakEvidenceLine(item));
+}
+
+function extractSourceUrls(source: UnifiedSource) {
+  const metadataUrls = sourceMetadataStrings(source, "urls", 6);
+  const inlineUrls = Array.from(source.content.matchAll(/https?:\/\/[^\s)]+/gi)).map((match) => match[0]);
+  return dedupeStrings([...metadataUrls, ...inlineUrls], 6);
+}
+
+function estimateSourceConfidence(source: UnifiedSource, fact: string, index: number, relatedCount = 0) {
+  const metadata = sourceMetadataRecord(source);
+  const signalDensity =
+    Math.min(10, Math.floor(fact.length / 24)) +
+    Math.min(8, source.hashtags.length * 2) +
+    Math.min(6, source.aiClusters.length * 2) +
+    Math.min(4, extractSourceUrls(source).length * 2) +
+    Math.min(4, relatedCount * 2) +
+    (metadata ? 3 : 0);
+
+  return clamp(56 + signalDensity - Math.min(index, 4), 56, 92);
+}
+
+function sharedSourceContext(left: UnifiedSource, right: UnifiedSource) {
+  const sharedTags = left.hashtags.filter((tag) => right.hashtags.includes(tag));
+  const sharedClusters = left.aiClusters.filter((tag) => right.aiClusters.includes(tag));
+  return dedupeStrings([...sharedTags, ...sharedClusters], 5);
+}
+
+function buildSourceDrafts(source: UnifiedSource, context: SourceRecord[]) {
+  const drafts: FlashcardDraft[] = [];
+  const sourceName = displaySourceName(sourceDisplayName(source));
+  const evidenceBase = {
+    content: source.content,
+    entityTag: source.entityTag,
+    aiClusters: source.aiClusters,
+    metadata: source.metadata,
+    urls: extractSourceUrls(source),
+  } satisfies Prisma.InputJsonObject;
+  const insights = extractSourceInsights(source, 7);
+  const priceSignals = insights.filter((item) => PRICE_PATTERN.test(item));
+
+  insights.slice(0, 4).forEach((value, index) => {
+    const kind =
+      index === 0
+        ? FlashcardKind.SUMMARY
+        : PRICE_PATTERN.test(value)
+          ? FlashcardKind.PRICE
+          : index % 2 === 0
+            ? FlashcardKind.CONCLUSION
+            : FlashcardKind.EXPLANATION;
+    const confidence = estimateSourceConfidence(source, value, index);
+
+    drafts.push(
+      makeDraft(
+        source,
+        kind,
+        `${KIND_LABELS[kind]}: ${sourceName}`,
+        value,
+        confidence,
+        clamp(confidence + (kind === FlashcardKind.PRICE ? 10 : 6), 60, 92),
+        clamp(confidence + 4, 58, 90),
+        { ...evidenceBase, insightIndex: index },
+        `source-insight-${index}-${value}`,
+      ),
+    );
+  });
+
+  priceSignals.slice(0, 1).forEach((value) => {
+    drafts.push(
+      makeDraft(
+        source,
+        FlashcardKind.PRICE,
+        `Pricing signal: ${sourceName}`,
+        value,
+        estimateSourceConfidence(source, value, 0),
+        84,
+        82,
+        evidenceBase,
+        `source-price-${value}`,
+      ),
+    );
+  });
+
+  const related = context.find(
+    (item): item is UnifiedSource =>
+      item.type === "SOURCE" &&
+      item.id !== source.id &&
+      sharedSourceContext(source, item).length > 0,
+  );
+
+  if (related) {
+    const leftInsight = insights[0];
+    const rightInsights = extractSourceInsights(related, 3);
+    const rightInsight = rightInsights[0];
+    const sharedContext = sharedSourceContext(source, related);
+
+    if (leftInsight && rightInsight) {
+      const body = `${sourceName} and ${displaySourceName(sourceDisplayName(related))} reinforce ${sharedContext.join(", ")}. ${leftInsight} ${rightInsight}`;
+      const draft = makeDraft(
+        source,
+        FlashcardKind.COMPARISON,
+        `Synthesis: ${sourceName}`,
+        body,
+        estimateSourceConfidence(source, body, 0, 1),
+        88,
+        86,
+        {
+          ...evidenceBase,
+          supportingSourceIds: [related.id],
+          sharedContext,
+        },
+        `source-synthesis-${related.id}-${sharedContext.join("-")}`,
+      );
+      draft.supportingSources = [{
+        type: related.type,
+        id: related.id,
+        publicId: related.publicId,
+        sourceName: related.sourceName,
+      }];
+      drafts.push(draft);
+    }
+  }
+
+  return drafts;
+}
+
 function productEvidenceSignals(source: ProductSource) {
   return dedupeStrings(
     [
@@ -509,6 +693,7 @@ function makeDraft(source: SourceRecord, kind: FlashcardKind, title: string, bod
       publicId: source.publicId,
       sourceName: source.sourceName,
     },
+    supportingSources: [],
     refreshedAt: source.updatedAt,
   };
 }
@@ -925,6 +1110,8 @@ function buildFileDrafts(source: FileSource) {
 
 function isPublishableSource(source: SourceRecord) {
   switch (source.type) {
+    case "SOURCE":
+      return extractSourceInsights(source, 2).length > 0;
     case "PRODUCT":
       return Boolean(normalizeText(source.description) || normalizeText(source.pricing) || source.features.length > 0);
     case "CUSTOMER":
@@ -940,6 +1127,8 @@ function isPublishableSource(source: SourceRecord) {
 
 function buildFlashcardDrafts(source: SourceRecord, context: SourceRecord[]) {
   switch (source.type) {
+    case "SOURCE":
+      return buildSourceDrafts(source, context);
     case "PRODUCT":
       return buildProductDrafts(source, context);
     case "CUSTOMER":
@@ -1101,12 +1290,90 @@ function needsFlashcardUpdate(
   );
 }
 
-function needsSourceSnapshotUpdate(existing: { sourcePublicId: number | null; sourceName: string; relationRole: FlashcardSourceRole }, source: { publicId: number | null; sourceName: string }) {
-  return (
-    existing.sourcePublicId !== source.publicId ||
-    existing.sourceName !== source.sourceName ||
-    existing.relationRole !== FlashcardSourceRole.PRIMARY
-  );
+function draftSourceEntries(draft: FlashcardDraft) {
+  const desired = [
+    {
+      ...draft.source,
+      relationRole: FlashcardSourceRole.PRIMARY,
+    },
+    ...(draft.supportingSources ?? []).map((source) => ({
+      ...source,
+      relationRole: FlashcardSourceRole.SUPPORTING,
+    })),
+  ];
+
+  const seen = new Set<string>();
+  return desired.filter((entry) => {
+    const key = `${entry.type}:${entry.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function syncFlashcardSources(
+  tx: Prisma.TransactionClient,
+  flashcardId: string,
+  existingSources: Array<{
+    id: string;
+    sourceType: FlashcardSourceKind;
+    sourceId: string;
+    sourcePublicId: number | null;
+    sourceName: string;
+    relationRole: FlashcardSourceRole;
+  }>,
+  draft: FlashcardDraft,
+) {
+  const desired = draftSourceEntries(draft);
+  const desiredKeys = new Set(desired.map((entry) => `${entry.type}:${entry.id}`));
+
+  for (const entry of desired) {
+    const existing = existingSources.find(
+      (item) => item.sourceType === entry.type && item.sourceId === entry.id,
+    );
+
+    if (existing) {
+      if (
+        existing.sourcePublicId !== entry.publicId ||
+        existing.sourceName !== entry.sourceName ||
+        existing.relationRole !== entry.relationRole
+      ) {
+        await tx.flashcardSource.update({
+          where: {
+            flashcardId_sourceType_sourceId: {
+              flashcardId,
+              sourceType: entry.type,
+              sourceId: entry.id,
+            },
+          },
+          data: {
+            sourcePublicId: entry.publicId,
+            sourceName: entry.sourceName,
+            relationRole: entry.relationRole,
+            updatedAt: new Date(),
+          },
+        });
+      }
+      continue;
+    }
+
+    await tx.flashcardSource.create({
+      data: {
+        flashcardId,
+        sourceType: entry.type,
+        sourceId: entry.id,
+        sourcePublicId: entry.publicId,
+        sourceName: entry.sourceName,
+        relationRole: entry.relationRole,
+      },
+    });
+  }
+
+  for (const existing of existingSources) {
+    const key = `${existing.sourceType}:${existing.sourceId}`;
+    if (desiredKeys.has(key)) continue;
+    await tx.flashcardSource.delete({ where: { id: existing.id } });
+  }
 }
 
 async function mapSeries<T, R>(items: T[], mapper: (item: T) => Promise<R>) {
@@ -1118,6 +1385,7 @@ async function mapSeries<T, R>(items: T[], mapper: (item: T) => Promise<R>) {
 }
 
 async function loadCompanySources(companyId: string) {
+  await ensureUnifiedSources(companyId);
   const suppressedSourceCorrections = await prisma.flashcardCorrection.findMany({
     where: {
       companyId,
@@ -1134,51 +1402,54 @@ async function loadCompanySources(companyId: string) {
       .map((correction) => sourceKeyFromCorrection(correction.sourceType as FlashcardSourceKind | null, correction.sourceId))
       .filter((value): value is string => Boolean(value)),
   );
-  const [products, customers, competitors, uploadedFiles] = await Promise.all([
-    prisma.product.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
-    prisma.customer.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
-    prisma.competitor.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
+  const [sources, uploadedFiles] = await Promise.all([
+    prisma.source.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
     prisma.uploadedSourceFile.findMany({ where: { companyId }, orderBy: [{ publicId: "asc" }, { createdAt: "asc" }] }),
   ]);
 
-  const [derivedProducts, derivedCompetitors, derivedFiles] = await Promise.all([
-    mapSeries(products, async (product) => {
-      const enriched = shouldEnrichProduct(product) ? await enrichProductSeed(product) : null;
-      return {
-        type: "PRODUCT",
-        id: product.id,
-        publicId: product.publicId,
-        sourceName: product.name,
-        knowledgeName: normalizeText(enriched?.name) ?? product.name,
-        hashtags: normalizeSourceHashtags(product.hashtags, "product"),
-        description: normalizeText(enriched?.description) ?? normalizeText(product.description),
-        pricing: normalizeText(enriched?.pricing) ?? normalizeText(product.pricing),
-        features: enriched?.features ?? product.features,
-        urls: enriched?.urls ?? product.urls,
-        watchedContent: (enriched?.watchedContent as Prisma.JsonValue | undefined) ?? null,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
-      } satisfies ProductSource;
-    }),
-    mapSeries(competitors, async (competitor) => {
-      const enriched = shouldEnrichCompetitor(competitor) ? await enrichCompetitorSeed(competitor) : null;
-      return {
-        type: "COMPETITOR",
-        id: competitor.id,
-        publicId: competitor.publicId,
-        sourceName: competitor.name,
-        knowledgeName: normalizeText(enriched?.name) ?? competitor.name,
-        hashtags: normalizeSourceHashtags(competitor.hashtags, "competitor"),
-        urls: enriched?.urls ?? competitor.urls,
-        pricing: normalizeText(enriched?.pricing) ?? normalizeText(competitor.pricing),
-        strengths: enriched?.strengths ?? competitor.strengths,
-        weaknesses: enriched?.weaknesses ?? competitor.weaknesses,
-        positioning: normalizeText(enriched?.positioning) ?? normalizeText(competitor.positioning),
-        watchedContent: (enriched?.watchedContent as Prisma.JsonValue | undefined) ?? competitor.watchedContent,
-        createdAt: competitor.createdAt,
-        updatedAt: competitor.updatedAt,
-      } satisfies CompetitorSource;
-    }),
+  const [derivedSources, derivedFiles] = await Promise.all([
+    Promise.resolve(
+      sources.map((source) => ({
+        type: "SOURCE",
+        id: source.id,
+        publicId: source.publicId,
+        sourceName: sourceDisplayName({
+          type: "SOURCE",
+          id: source.id,
+          publicId: source.publicId,
+          sourceName: "",
+          knowledgeName: "",
+          hashtags: source.hashtags,
+          createdAt: source.createdAt,
+          updatedAt: source.updatedAt,
+          content: source.content,
+          entityTag: source.entityTag,
+          aiClusters: source.aiClusters,
+          metadata: source.metadata,
+        }),
+        knowledgeName: sourceDisplayName({
+          type: "SOURCE",
+          id: source.id,
+          publicId: source.publicId,
+          sourceName: "",
+          knowledgeName: "",
+          hashtags: source.hashtags,
+          createdAt: source.createdAt,
+          updatedAt: source.updatedAt,
+          content: source.content,
+          entityTag: source.entityTag,
+          aiClusters: source.aiClusters,
+          metadata: source.metadata,
+        }),
+        hashtags: normalizeSourceHashtags(source.hashtags),
+        content: source.content,
+        entityTag: normalizeText(source.entityTag),
+        aiClusters: normalizeSourceHashtags(source.aiClusters),
+        metadata: source.metadata,
+        createdAt: source.createdAt,
+        updatedAt: source.updatedAt,
+      }) satisfies UnifiedSource),
+    ),
     mapSeries(uploadedFiles, async (file) => {
       const enriched = await enrichUploadedFile({
         name: file.name,
@@ -1206,15 +1477,7 @@ async function loadCompanySources(companyId: string) {
   ]);
 
   return [
-    ...derivedProducts,
-    ...customers.map((item) => ({
-      ...item,
-      type: "CUSTOMER",
-      sourceName: item.name,
-      knowledgeName: item.name,
-      hashtags: normalizeSourceHashtags(item.hashtags, "customer"),
-    }) satisfies CustomerSource),
-    ...derivedCompetitors,
+    ...derivedSources,
     ...derivedFiles,
   ].filter((source) => !suppressedSourceKeys.has(sourceKey(source.type, source.id))) satisfies SourceRecord[];
 }
@@ -1299,37 +1562,14 @@ export async function syncBootstrapFlashcards(companyId: string) {
             });
           }
 
-          const existingSource = existing.sources.find((item) => item.sourceType === draft.source.type && item.sourceId === draft.source.id);
-          if (existingSource) {
-            if (needsSourceSnapshotUpdate(existingSource, draft.source)) {
-              await tx.flashcardSource.update({
-                where: {
-                  flashcardId_sourceType_sourceId: {
-                    flashcardId: existing.id,
-                    sourceType: draft.source.type,
-                    sourceId: draft.source.id,
-                  },
-                },
-                data: {
-                  sourcePublicId: draft.source.publicId,
-                  sourceName: draft.source.sourceName,
-                  relationRole: FlashcardSourceRole.PRIMARY,
-                  updatedAt: new Date(),
-                },
-              });
-            }
-          } else {
-            await tx.flashcardSource.create({
-              data: {
-                flashcardId: existing.id,
-                sourceType: draft.source.type,
-                sourceId: draft.source.id,
-                sourcePublicId: draft.source.publicId,
-                sourceName: draft.source.sourceName,
-                relationRole: FlashcardSourceRole.PRIMARY,
-              },
-            });
-          }
+          await syncFlashcardSources(tx, existing.id, existing.sources as Array<{
+            id: string;
+            sourceType: FlashcardSourceKind;
+            sourceId: string;
+            sourcePublicId: number | null;
+            sourceName: string;
+            relationRole: FlashcardSourceRole;
+          }>, draft);
 
           continue;
         }
@@ -1364,17 +1604,19 @@ export async function syncBootstrapFlashcards(companyId: string) {
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-        flashcardSourcesToCreate.push({
-          id: randomUUID(),
-          flashcardId,
-          sourceType: draft.source.type,
-          sourceId: draft.source.id,
-          sourcePublicId: draft.source.publicId,
-          sourceName: draft.source.sourceName,
-          relationRole: FlashcardSourceRole.PRIMARY,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+        for (const sourceEntry of draftSourceEntries(draft)) {
+          flashcardSourcesToCreate.push({
+            id: randomUUID(),
+            flashcardId,
+            sourceType: sourceEntry.type,
+            sourceId: sourceEntry.id,
+            sourcePublicId: sourceEntry.publicId,
+            sourceName: sourceEntry.sourceName,
+            relationRole: sourceEntry.relationRole,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
       }
 
       if (flashcardsToCreate.length > 0) {

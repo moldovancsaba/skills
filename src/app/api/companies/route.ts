@@ -22,9 +22,7 @@ export async function GET(request: NextRequest) {
         }
       },
       include: {
-        products: true,
-        customers: true,
-        competitors: true,
+        sources: true,
         nbaItems: {
           where: { status: "PENDING" },
           orderBy: { iceScore: "desc" },

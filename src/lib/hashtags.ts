@@ -1,13 +1,4 @@
-export type LegacySourceType = "product" | "customer" | "competitor" | "industry";
-
-const CATEGORY_TAGS: Record<LegacySourceType, string> = {
-  product: "#product",
-  customer: "#customer",
-  competitor: "#competitor",
-  industry: "#industry",
-};
-
-export const SOURCE_TYPE_TAGS = new Set(["#product", "#customer", "#competitor", "#file"]);
+export const SOURCE_TYPE_TAGS = new Set(["#product", "#customer", "#competitor", "#file", "#industry"]);
 
 export function normalizeHashtag(value: string) {
   const trimmed = value.trim().toLowerCase();
@@ -47,29 +38,10 @@ export function stringifyHashtagFilterParam(values: string[] | null | undefined)
   return normalized.join(",");
 }
 
-export function normalizeSourceHashtags(
-  values: string[] | null | undefined,
-  type: LegacySourceType,
-) {
-  const normalized = normalizeHashtagList(values);
-  if (type === "industry") {
-    const categoryTag = CATEGORY_TAGS[type];
-    return normalized.includes(categoryTag) ? normalized : [categoryTag, ...normalized];
-  }
-  return normalized.filter((tag) => !SOURCE_TYPE_TAGS.has(tag));
+export function normalizeSourceHashtags(values: string[] | null | undefined, _type?: string) {
+  return normalizeHashtagList(values).filter((tag) => !SOURCE_TYPE_TAGS.has(tag));
 }
 
 export function normalizeIndustryHashtags(values: string[] | null | undefined) {
-  return normalizeSourceHashtags(values, "industry");
-}
-
-export function sourceTypeFromHashtags(values: string[] | null | undefined): LegacySourceType {
-  const normalized = normalizeHashtagList(values);
-  if (normalized.includes("#customer")) return "customer";
-  if (normalized.includes("#competitor")) return "competitor";
-  return "product";
-}
-
-export function defaultTypeHashtags(type: LegacySourceType) {
-  return type === "industry" ? [CATEGORY_TAGS[type]] : [];
+  return normalizeSourceHashtags(values);
 }

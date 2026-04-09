@@ -16,7 +16,7 @@ import {
 
 type FlashcardSource = {
   id: string;
-  sourceType: "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "FILE" | "AGENT_FOUND";
+  sourceType: "SOURCE" | "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "FILE" | "AGENT_FOUND";
   sourceId: string;
   sourcePublicId: number | null;
   sourceName: string;

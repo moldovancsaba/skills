@@ -14,7 +14,7 @@ export const PUBLIC_ID_SCOPES = {
   checklist: CHECKLIST_PUBLIC_ID_SCOPE,
 } as const;
 
-type SourceKind = "product" | "customer" | "competitor" | "file";
+type SourceKind = "source" | "file";
 
 type MissingSource = {
   id: string;
@@ -33,10 +33,8 @@ export type TransactionClient = Omit<
 >;
 
 const KIND_ORDER: Record<SourceKind, number> = {
-  product: 0,
-  customer: 1,
-  competitor: 2,
-  file: 3,
+  source: 0,
+  file: 1,
 };
 
 function isRetryableTransactionError(error: unknown) {
@@ -111,32 +109,13 @@ async function readMissingSources(
   tx: TransactionClient,
   companyId?: string,
 ): Promise<MissingSource[]> {
-  const productWhere = companyId
-    ? { companyId, publicId: null }
-    : { publicId: null };
-  const customerWhere = companyId
-    ? { companyId, publicId: null }
-    : { publicId: null };
-  const competitorWhere = companyId
-    ? { companyId, publicId: null }
-    : { publicId: null };
   const fileWhere = companyId
     ? { companyId, publicId: null }
     : { publicId: null };
 
-  const [products, customers, competitors, uploadedFiles] = await Promise.all([
-    tx.product.findMany({
-      where: productWhere,
-      select: { id: true, createdAt: true },
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    }),
-    tx.customer.findMany({
-      where: customerWhere,
-      select: { id: true, createdAt: true },
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    }),
-    tx.competitor.findMany({
-      where: competitorWhere,
+  const [sources, uploadedFiles] = await Promise.all([
+    tx.source.findMany({
+      where: companyId ? { companyId, publicId: null } : { publicId: null },
       select: { id: true, createdAt: true },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     }),
@@ -148,9 +127,7 @@ async function readMissingSources(
   ]);
 
   return [
-    ...products.map((item) => ({ ...item, kind: "product" as const })),
-    ...customers.map((item) => ({ ...item, kind: "customer" as const })),
-    ...competitors.map((item) => ({ ...item, kind: "competitor" as const })),
+    ...sources.map((item) => ({ ...item, kind: "source" as const })),
     ...uploadedFiles.map((item) => ({ ...item, kind: "file" as const })),
   ].sort(sortMissingSources);
 }
@@ -161,24 +138,8 @@ async function assignSourcePublicId(
   publicId: number,
 ) {
   switch (source.kind) {
-    case "product":
-      return tx.product.updateMany({
-        where: {
-          id: source.id,
-          publicId: null,
-        },
-        data: { publicId },
-      });
-    case "customer":
-      return tx.customer.updateMany({
-        where: {
-          id: source.id,
-          publicId: null,
-        },
-        data: { publicId },
-      });
-    case "competitor":
-      return tx.competitor.updateMany({
+    case "source":
+      return tx.source.updateMany({
         where: {
           id: source.id,
           publicId: null,

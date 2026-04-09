@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setCompany, setProducts, setCustomers, setCompetitors } = useStore();
+  const { setCompany, setSources } = useStore();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +30,9 @@ export default function Home() {
 
   const selectCompany = useCallback((company: any) => {
     setCompany(company);
-    setProducts([]);
-    setCustomers([]);
-    setCompetitors([]);
+    setSources([]);
     router.push(`/${company.id}`);
-  }, [router, setCompany, setProducts, setCustomers, setCompetitors]);
+  }, [router, setCompany, setSources]);
 
   useEffect(() => {
     fetch("/api/companies")

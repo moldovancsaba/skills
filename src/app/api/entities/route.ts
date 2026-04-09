@@ -17,18 +17,16 @@ export async function GET(request: NextRequest) {
     const member = await prisma.user.findFirst({ where: { companyId, email: session.email } });
     if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    // Fetch all entity names from all data types
-    const [products, customers, competitors] = await Promise.all([
-      prisma.product.findMany({ where: { companyId }, select: { name: true, entityTag: true } }),
-      prisma.customer.findMany({ where: { companyId }, select: { name: true, entityTag: true } }),
-      prisma.competitor.findMany({ where: { companyId }, select: { name: true, entityTag: true } }),
+    const [sources, files] = await Promise.all([
+      prisma.source.findMany({ where: { companyId }, select: { content: true, entityTag: true } }),
+      prisma.uploadedSourceFile.findMany({ where: { companyId }, select: { name: true, entityTag: true } }),
     ]);
 
     const entitySet = new Set<string>();
 
     // Add normalized names as suggested entity tags
-    [...products, ...customers, ...competitors].forEach(({ name, entityTag }) => {
-      const normalized = normalizeHashtag(name);
+    [...sources.map(({ content, entityTag }) => ({ name: content, entityTag })), ...files].forEach(({ name, entityTag }) => {
+      const normalized = normalizeHashtag(name.split("\n")[0] || name);
       if (normalized) entitySet.add(normalized);
       if (entityTag) entitySet.add(entityTag);
     });

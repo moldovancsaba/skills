@@ -29,9 +29,7 @@ export async function POST(request: NextRequest) {
         ? await prisma.flashcard.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
         : entityType === HashtagEntityType.CHECKLIST
           ? await prisma.nBAItem.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
-          : await prisma.product.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
-            ?? await prisma.customer.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
-            ?? await prisma.competitor.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
+          : await prisma.source.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
             ?? await prisma.uploadedSourceFile.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } });
 
     if (!lookup) {
@@ -55,9 +53,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       const updates = { hashtags: nextHashtags, updatedAt: new Date() };
-      await prisma.product.updateMany({ where: { id: entityId }, data: updates });
-      await prisma.customer.updateMany({ where: { id: entityId }, data: updates });
-      await prisma.competitor.updateMany({ where: { id: entityId }, data: updates });
+      await prisma.source.updateMany({ where: { id: entityId }, data: updates });
       await prisma.uploadedSourceFile.updateMany({ where: { id: entityId }, data: updates });
     }
 

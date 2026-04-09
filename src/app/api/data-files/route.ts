@@ -69,10 +69,7 @@ export async function POST(request: NextRequest) {
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
 
-    const hashtags = normalizeSourceHashtags(
-      parseHashtags(formData.get("hashtags")),
-      "product",
-    );
+    const hashtags = normalizeSourceHashtags(parseHashtags(formData.get("hashtags")));
     const entityTagRaw = formData.get("entityTag");
     const entityTag = typeof entityTagRaw === "string" && entityTagRaw.trim() ? entityTagRaw.trim() : null;
     const entries = formData.getAll("files");
@@ -148,7 +145,7 @@ export async function PATCH(request: NextRequest) {
       where: { id },
       data: {
         name: data.name ?? existing.name,
-        hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags, "product"),
+        hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags),
         entityTag: data.entityTag !== undefined ? data.entityTag : existing.entityTag,
         updatedAt: new Date(),
       },

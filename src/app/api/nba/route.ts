@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
           scheduledDate: data.scheduledDate,
           createdBy: data.createdBy,
           sourceFlashcardIds: data.sourceFlashcardIds ?? [],
-          hashtags: normalizeSourceHashtags(data.hashtags, "product"),
+          hashtags: normalizeSourceHashtags(data.hashtags),
           appVersion: APP_VERSION,
           brainVersion: BRAIN_VERSION,
           promptVersion: NBA_PROMPT_VERSION,

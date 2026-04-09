@@ -1,11 +1,11 @@
-import { FileUp, Link2, Package, Pencil, Search, Trash2, Users } from "lucide-react";
+import { FileUp, Link2, Pencil, ScrollText, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StructuredActionRow, StructuredCard, StructuredChipRow } from "@/components/ui/structured-card";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 
-type DataType = "product" | "customer" | "competitor" | "file";
+type DataType = "source" | "file";
 
 type SourceDataCardProps = {
   id: string;
@@ -21,11 +21,9 @@ type SourceDataCardProps = {
 };
 
 const typeIcon = {
-  product: Package,
-  customer: Users,
-  competitor: Search,
+  source: ScrollText,
   file: FileUp,
-} satisfies Record<DataType, typeof Package>;
+} satisfies Record<DataType, typeof ScrollText>;
 
 /** Render raw source content while preserving line breaks exactly as entered. */
 function RichContent({ content }: { content: string }) {

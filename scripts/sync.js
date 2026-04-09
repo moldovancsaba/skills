@@ -72,11 +72,12 @@ const FACTCHECK_CAPS = {
   VERIFIED: 92,
   CORROBORATED: 82,
   SINGLE_SOURCE: 72,
-  SOURCE_GROUNDED: 68,
-  UNVERIFIED: 45,
-  NOT_RUN: 70,
+  SOURCE_GROUNDED: 78,
+  UNVERIFIED: 52,
+  NOT_RUN: 74,
 };
 const PUBLIC_ID_SCOPES = {
+  source: "source",
   flashcard: "flashcard",
   checklist: "checklist",
 };
@@ -213,6 +214,117 @@ async function backfillMissingDerivedPublicIds(companyId) {
   }
 }
 
+function buildLegacySourceContent(record) {
+  const metadata = record.metadata || {};
+  const lines = [normalizeText(record.name || record.content || "")];
+  if (typeof metadata.description === "string" && metadata.description.trim()) lines.push(`Description: ${metadata.description.trim()}`);
+  if (typeof metadata.pricing === "string" && metadata.pricing.trim()) lines.push(`Pricing: ${metadata.pricing.trim()}`);
+  if (typeof metadata.positioning === "string" && metadata.positioning.trim()) lines.push(`Positioning: ${metadata.positioning.trim()}`);
+  for (const [label, values] of [
+    ["Signals", metadata.features],
+    ["Signals", metadata.segments],
+    ["Signals", metadata.painPoints],
+    ["Signals", metadata.channels],
+    ["Signals", metadata.strengths],
+    ["Signals", metadata.weaknesses],
+    ["URLs", metadata.urls],
+  ]) {
+    const list = toArray(values).map((value) => normalizeText(value)).filter(Boolean);
+    if (list.length > 0) lines.push(`${label}: ${list.join(", ")}`);
+  }
+  if (typeof metadata.notes === "string" && metadata.notes.trim()) lines.push(`Notes: ${metadata.notes.trim()}`);
+  return lines.filter(Boolean).join("\n");
+}
+
+async function backfillUnifiedSources(companyId) {
+  const [products, customers, competitors] = await Promise.all([
+    prisma.product.findMany({ where: { companyId } }),
+    prisma.customer.findMany({ where: { companyId } }),
+    prisma.competitor.findMany({ where: { companyId } }),
+  ]);
+
+  const legacy = [
+    ...products.map((item) => ({
+      originKey: `legacy:product:${item.id}`,
+      publicId: item.publicId ?? null,
+      companyId: item.companyId,
+      name: item.name,
+      hashtags: item.hashtags,
+      entityTag: item.entityTag ?? null,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      metadata: {
+        description: item.description,
+        pricing: item.pricing,
+        features: item.features,
+        urls: item.urls,
+      },
+    })),
+    ...customers.map((item) => ({
+      originKey: `legacy:customer:${item.id}`,
+      publicId: item.publicId ?? null,
+      companyId: item.companyId,
+      name: item.name,
+      hashtags: item.hashtags,
+      entityTag: item.entityTag ?? null,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      metadata: {
+        segments: item.segments,
+        painPoints: item.painPoints,
+        channels: item.channels,
+        notes: item.notes,
+      },
+    })),
+    ...competitors.map((item) => ({
+      originKey: `legacy:competitor:${item.id}`,
+      publicId: item.publicId ?? null,
+      companyId: item.companyId,
+      name: item.name,
+      hashtags: item.hashtags,
+      entityTag: item.entityTag ?? null,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      metadata: {
+        pricing: item.pricing,
+        positioning: item.positioning,
+        strengths: item.strengths,
+        weaknesses: item.weaknesses,
+        urls: item.urls,
+      },
+    })),
+  ];
+
+  if (legacy.length === 0) return 0;
+
+  const existing = await prisma.source.findMany({
+    where: { companyId, legacyOriginKey: { in: legacy.map((item) => item.originKey) } },
+    select: { legacyOriginKey: true },
+  });
+  const existingKeys = new Set(existing.map((item) => item.legacyOriginKey).filter(Boolean));
+  let created = 0;
+
+  for (const record of legacy) {
+    if (existingKeys.has(record.originKey)) continue;
+    await prisma.source.create({
+      data: {
+        companyId,
+        publicId: record.publicId ?? await nextPublicId(PUBLIC_ID_SCOPES.source),
+        content: buildLegacySourceContent(record),
+        hashtags: normalizeHashtags(record.hashtags),
+        entityTag: record.entityTag,
+        metadata: record.metadata,
+        legacyOriginKey: record.originKey,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      },
+    });
+    created += 1;
+  }
+
+  return created;
+}
+
 function normalizeText(value) {
   return String(value || "").replace(/\u0000/g, " ").trim();
 }
@@ -294,6 +406,10 @@ function clampInt(value, fallback, min = 1, max = 100) {
   return Math.min(Math.max(Math.round(parsed), min), max);
 }
 
+function isUniqueConstraintError(error) {
+  return Boolean(error && typeof error === "object" && error.code === "P2002");
+}
+
 function isoTimestamp(value = new Date()) {
   return new Date(value).toISOString().replace(/\.\d{3}Z$/, "Z");
 }
@@ -306,9 +422,8 @@ function buildSnapshot(data) {
       .join("|");
 
   return {
-    products: fingerprint(data.products, ["id", "updatedAt", "name"]),
-    customers: fingerprint(data.customers, ["id", "updatedAt", "name"]),
-    competitors: fingerprint(data.competitors, ["id", "updatedAt", "name"]),
+    sources: fingerprint(data.sources, ["id", "updatedAt", "content"]),
+    topics: fingerprint(data.topics, ["id", "updatedAt", "label", "active", "sortOrder"]),
     uploadedFiles: fingerprint(data.uploadedFiles, ["id", "updatedAt", "name", "sizeBytes"]),
     flashcards: fingerprint(data.flashcards, ["id", "updatedAt", "status", "reviewStatus", "fingerprint"]),
     flashcardActions: fingerprint(data.flashcardActions, ["id", "createdAt", "action", "flashcardId"]),
@@ -538,90 +653,33 @@ function decodeUploadedFile(file) {
 function buildSourceRecords(company, data) {
   const sources = [];
 
-  for (const product of data.products) {
-    const urls = unique(toArray(product.urls).map((url) => safeUrl(url)).filter(Boolean));
-    const searchLabel = buildSearchLabel(product.name);
+  for (const source of data.sources) {
+    const content = normalizeText(source.content);
+    const urls = unique(extractUrlsFromText(content).map((url) => safeUrl(url)).filter(Boolean));
+    const firstLine = content.split("\n").find(Boolean) || `source-${source.publicId || source.id}`;
+    const searchLabel = buildSearchLabel(firstLine);
     const promptBody = [
-      `Product name: ${product.name}`,
-      `Description: ${normalizeText(product.description) || "n/a"}`,
-      `Pricing: ${normalizeText(product.pricing) || "n/a"}`,
-      `Features: ${toArray(product.features).join(", ") || "n/a"}`,
+      `Source content: ${content}`,
+      `Entity: ${normalizeText(source.entityTag) || "n/a"}`,
+      `Hashtags: ${toArray(source.hashtags).join(", ") || "n/a"}`,
+      `AI clusters: ${toArray(source.aiClusters).join(", ") || "n/a"}`,
       `URLs: ${urls.join(", ") || "n/a"}`,
-      `Hashtags: ${toArray(product.hashtags).join(", ") || "n/a"}`,
     ].join("\n");
     sources.push({
-      sourceType: "PRODUCT",
-      sourceId: product.id,
-      sourcePublicId: product.publicId ?? null,
-      sourceName: product.name,
-      hashtags: normalizeHashtags(product.hashtags),
+      sourceType: "SOURCE",
+      sourceId: source.id,
+      sourcePublicId: source.publicId ?? null,
+      sourceName: truncate(firstLine, 160),
+      hashtags: normalizeHashtags(source.hashtags),
       relationRole: "PRIMARY",
       urls,
       queryHints: unique([
         `${normalizeText(company.name)} ${searchLabel}`,
-        `${searchLabel} pricing`,
-        `${searchLabel} reviews`,
+        searchLabel,
+        normalizeText(source.entityTag),
       ]),
       promptBody,
-      fingerprint: hashValue(`PRODUCT:${product.id}:${product.updatedAt}:${promptBody}`),
-    });
-  }
-
-  for (const customer of data.customers) {
-    const searchLabel = buildSearchLabel(customer.name);
-    const promptBody = [
-      `Customer name: ${customer.name}`,
-      `Segments: ${toArray(customer.segments).join(", ") || "n/a"}`,
-      `Pain points: ${toArray(customer.painPoints).join(", ") || "n/a"}`,
-      `Channels: ${toArray(customer.channels).join(", ") || "n/a"}`,
-      `Lifetime value: ${customer.lifetimeValue ?? "n/a"}`,
-      `Notes: ${normalizeText(customer.notes) || "n/a"}`,
-      `Hashtags: ${toArray(customer.hashtags).join(", ") || "n/a"}`,
-    ].join("\n");
-    sources.push({
-      sourceType: "CUSTOMER",
-      sourceId: customer.id,
-      sourcePublicId: customer.publicId ?? null,
-      sourceName: customer.name,
-      hashtags: normalizeHashtags(customer.hashtags),
-      relationRole: "PRIMARY",
-      urls: [],
-      queryHints: unique([
-        `${normalizeText(company.name)} ${searchLabel}`,
-        `${searchLabel} industry`,
-      ]),
-      promptBody,
-      fingerprint: hashValue(`CUSTOMER:${customer.id}:${customer.updatedAt}:${promptBody}`),
-    });
-  }
-
-  for (const competitor of data.competitors) {
-    const urls = unique(toArray(competitor.urls).map((url) => safeUrl(url)).filter(Boolean));
-    const searchLabel = buildSearchLabel(competitor.name);
-    const promptBody = [
-      `Competitor name: ${competitor.name}`,
-      `Pricing: ${normalizeText(competitor.pricing) || "n/a"}`,
-      `Positioning: ${normalizeText(competitor.positioning) || "n/a"}`,
-      `Strengths: ${toArray(competitor.strengths).join(", ") || "n/a"}`,
-      `Weaknesses: ${toArray(competitor.weaknesses).join(", ") || "n/a"}`,
-      `URLs: ${urls.join(", ") || "n/a"}`,
-      `Hashtags: ${toArray(competitor.hashtags).join(", ") || "n/a"}`,
-    ].join("\n");
-    sources.push({
-      sourceType: "COMPETITOR",
-      sourceId: competitor.id,
-      sourcePublicId: competitor.publicId ?? null,
-      sourceName: competitor.name,
-      hashtags: normalizeHashtags(competitor.hashtags),
-      relationRole: "PRIMARY",
-      urls,
-      queryHints: unique([
-        `${searchLabel} pricing`,
-        `${searchLabel} company`,
-        `${searchLabel} product`,
-      ]),
-      promptBody,
-      fingerprint: hashValue(`COMPETITOR:${competitor.id}:${competitor.updatedAt}:${promptBody}`),
+      fingerprint: hashValue(`SOURCE:${source.id}:${source.updatedAt}:${promptBody}`),
     });
   }
 
@@ -697,7 +755,7 @@ function buildCitationFooter(factCheck, citations) {
   ].join("\n");
 }
 
-async function discoverResearch(company, source) {
+async function discoverResearch(company, source, focusTopics = []) {
   if (!RESEARCH_ENABLED) {
     return {
       enabled: false,
@@ -709,8 +767,18 @@ async function discoverResearch(company, source) {
     };
   }
 
+  const topicQueries = focusTopics.flatMap((topic) => {
+    const label = normalizeText(topic.label);
+    if (!label) return [];
+    return [
+      `${normalizeText(company.name)} ${label}`,
+      `${normalizeText(company.name)} ${normalizeText(source.sourceName)} ${label}`,
+    ];
+  });
+
   const queries = unique(
     toArray(source.queryHints)
+      .concat(topicQueries)
       .map((entry) => normalizeText(entry))
       .filter(Boolean)
       .slice(0, RESEARCH_MAX_QUERIES)
@@ -939,7 +1007,7 @@ function buildFallbackRecommendations(company, flashcards) {
   return flashcards.slice(0, 3).map((card, index) => ({
     title: `Act on: ${normalizeText(card.title) || `Priority ${index + 1}`}`,
     description: truncate(
-      `Turn the flashcard "${normalizeText(card.title) || `Priority ${index + 1}`}" into a concrete next action for ${company.name}. Validate the claim, package it for customers, and assign an owner with a measurable outcome.`,
+      `Turn the flashcard "${normalizeText(card.title) || `Priority ${index + 1}`}" into a concrete next action for ${company.name}. Validate the claim, package it for the right audience, and assign an owner with a measurable outcome.`,
       600,
     ),
     impact: clampInt(card.impact, 6, 1, 10),
@@ -963,6 +1031,19 @@ function deriveChecklistHashtags(recommendation, sourceFlashcards) {
     ...sourceFlashcards.map((card) => card.hashtags),
     deriveKeywordHashtags(recommendation.title, recommendation.description),
   ).slice(0, 10);
+}
+
+function computeFlashcardConfidence(source, research, rawConfidence, synthesisWeight = 1) {
+  const sourceHashtags = normalizeHashtags(source.hashtags);
+  const citationCount = Number(research?.factCheck?.citationCount || 0);
+  const distinctDomains = Number(research?.factCheck?.distinctDomainCount || 0);
+  const bodySignal = Math.min(10, Math.round(normalizeText(source.promptBody).length / 500));
+  const tagSignal = Math.min(8, sourceHashtags.length * 2);
+  const researchSignal = citationCount * 4 + distinctDomains * 3;
+  const synthesisSignal = Math.max(0, (synthesisWeight - 1) * 4);
+  const adjusted = rawConfidence + bodySignal + tagSignal + researchSignal + synthesisSignal;
+  const cap = Number(research?.factCheck?.confidenceCap || 78);
+  return Math.min(clampInt(adjusted, rawConfidence, 1, 100), cap);
 }
 
 async function saveKnowledge(companyId, data) {
@@ -1000,11 +1081,11 @@ function isResearchRefreshDue(knowledge) {
 
 async function getAllData(companyId) {
   await backfillMissingDerivedPublicIds(companyId);
+  await backfillUnifiedSources(companyId);
   const [
     company,
-    products,
-    customers,
-    competitors,
+    sources,
+    topics,
     uploadedFiles,
     flashcards,
     flashcardActions,
@@ -1013,9 +1094,8 @@ async function getAllData(companyId) {
     nba,
   ] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
-    prisma.product.findMany({ where: { companyId }, orderBy: { updatedAt: "desc" } }),
-    prisma.customer.findMany({ where: { companyId }, orderBy: { updatedAt: "desc" } }),
-    prisma.competitor.findMany({ where: { companyId }, orderBy: { updatedAt: "desc" } }),
+    prisma.source.findMany({ where: { companyId }, orderBy: { updatedAt: "desc" } }),
+    prisma.topic.findMany({ where: { companyId }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
     prisma.uploadedSourceFile.findMany({ where: { companyId }, orderBy: { updatedAt: "desc" } }),
     prisma.flashcard.findMany({ where: { companyId }, orderBy: { updatedAt: "desc" } }),
     prisma.flashcardAction.findMany({
@@ -1038,9 +1118,8 @@ async function getAllData(companyId) {
 
   return {
     company,
-    products,
-    customers,
-    competitors,
+    sources,
+    topics,
     uploadedFiles,
     flashcards,
     flashcardActions,
@@ -1096,6 +1175,80 @@ function fallbackHashtagEvaluation(company, source, existingTags, suppressedTags
   };
 }
 
+function normalizeTopicLabel(value) {
+  return normalizeText(value).toLowerCase();
+}
+
+function topicMatchesSource(topic, source) {
+  const label = normalizeTopicLabel(topic.label);
+  if (!label) return false;
+  const haystack = normalizeLoose([
+    source.sourceName,
+    source.promptBody,
+    ...(source.hashtags || []),
+  ].join(" "));
+  return haystack.includes(label) || label.split(/\s+/).every((token) => token.length > 2 && haystack.includes(token));
+}
+
+function scoreTopicCoverage(topic, flashcards, checklistItems) {
+  const label = normalizeTopicLabel(topic.label);
+  const flashcardMatches = flashcards.filter((card) => {
+    const haystack = normalizeLoose([card.title, card.body, ...(card.hashtags || [])].join(" "));
+    return haystack.includes(label);
+  }).length;
+  const pendingMatches = checklistItems.filter((item) => {
+    if (item.status !== "PENDING") return false;
+    const haystack = normalizeLoose([item.title, item.description, ...(item.hashtags || [])].join(" "));
+    return haystack.includes(label);
+  }).length;
+  return {
+    flashcardMatches,
+    pendingMatches,
+    pressure: Math.max(0, 3 - flashcardMatches) + Math.max(0, 2 - pendingMatches),
+  };
+}
+
+function selectResearchTopics(data, limit = 5) {
+  const activeTopics = (data.topics || []).filter((topic) => topic.active);
+  const explicitTopics = activeTopics
+    .map((topic) => ({
+      ...topic,
+      coverage: scoreTopicCoverage(topic, data.flashcards || [], data.existingNBA || []),
+    }))
+    .sort((left, right) =>
+      right.coverage.pressure - left.coverage.pressure ||
+      left.sortOrder - right.sortOrder ||
+      left.label.localeCompare(right.label),
+    )
+    .slice(0, limit);
+
+  if (explicitTopics.length > 0) {
+    return explicitTopics;
+  }
+
+  const hashtagCounts = new Map();
+  for (const source of [
+    ...(data.sources || []),
+    ...(data.uploadedFiles || []),
+  ]) {
+    for (const tag of normalizeHashtags(source.hashtags)) {
+      hashtagCounts.set(tag, (hashtagCounts.get(tag) || 0) + 1);
+    }
+  }
+
+  return [...hashtagCounts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, limit)
+    .map(([tag], index) => ({
+      id: `derived-${tag}`,
+      companyId: data.company?.id,
+      label: tag.replace(/^#/, "").replace(/-/g, " "),
+      active: true,
+      sortOrder: index,
+      coverage: { flashcardMatches: 0, pendingMatches: 0, pressure: 1 },
+    }));
+}
+
 async function evaluateSourceHashtags(company, source, feedbackIndex) {
   const existingTags = normalizeHashtags(source.hashtags);
   const entitySuppressed = feedbackIndex.suppressedByEntity.get(`SOURCE:${source.id}`) || new Set();
@@ -1143,53 +1296,17 @@ async function syncSourceHashtags(company, data) {
   const feedbackIndex = buildHashtagFeedbackIndex(data.hashtagFeedback);
   const updates = [];
 
-  for (const product of data.products) {
+  for (const source of data.sources) {
     updates.push({
-      model: "product",
-      id: product.id,
-      current: normalizeHashtags(product.hashtags),
+      model: "source",
+      id: source.id,
+      current: normalizeHashtags(source.hashtags),
       payload: await evaluateSourceHashtags(company, {
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        pricing: product.pricing,
-        urls: product.urls,
-        entityTag: product.entityTag,
-        hashtags: product.hashtags,
-      }, feedbackIndex),
-    });
-  }
-
-  for (const customer of data.customers) {
-    updates.push({
-      model: "customer",
-      id: customer.id,
-      current: normalizeHashtags(customer.hashtags),
-      payload: await evaluateSourceHashtags(company, {
-        id: customer.id,
-        name: customer.name,
-        notes: customer.notes,
-        entityTag: customer.entityTag,
-        content: [customer.segments, customer.painPoints, customer.channels].flat().join(" "),
-        hashtags: customer.hashtags,
-      }, feedbackIndex),
-    });
-  }
-
-  for (const competitor of data.competitors) {
-    updates.push({
-      model: "competitor",
-      id: competitor.id,
-      current: normalizeHashtags(competitor.hashtags),
-      payload: await evaluateSourceHashtags(company, {
-        id: competitor.id,
-        name: competitor.name,
-        pricing: competitor.pricing,
-        positioning: competitor.positioning,
-        entityTag: competitor.entityTag,
-        content: [competitor.strengths, competitor.weaknesses].flat().join(" "),
-        urls: competitor.urls,
-        hashtags: competitor.hashtags,
+        id: source.id,
+        name: source.entityTag || source.content.split("\n").find(Boolean) || `source-${source.publicId || source.id}`,
+        entityTag: source.entityTag,
+        content: source.content,
+        hashtags: source.hashtags,
       }, feedbackIndex),
     });
   }
@@ -1310,10 +1427,51 @@ async function generateFlashcardCandidate(company, source, research) {
     title: truncate(raw.title || `${source.sourceType}: ${source.sourceName}`, 160),
     body,
     kind: FLASHCARD_KINDS.has(kind) ? kind : "SUMMARY",
-    confidence: Math.min(modelConfidence, research.factCheck.confidenceCap),
+    confidence: computeFlashcardConfidence(source, research, modelConfidence),
     impact: clampInt(raw.impact, 55),
     weight: clampInt(raw.weight, 55),
     hashtags: mergeHashtags(source.hashtags, raw.hashtags, deriveKeywordHashtags(raw.title, raw.body)).slice(0, 10),
+  };
+}
+
+async function generateSynthesisFlashcard(company, topic, sources) {
+  const evidenceSources = sources.slice(0, 4).map((source) => ({
+    sourceType: source.sourceType,
+    sourceName: source.sourceName,
+    hashtags: normalizeHashtags(source.hashtags),
+    excerpt: truncate(source.promptBody, 700),
+  }));
+
+  const raw = await callOllamaJson(
+    [
+      "You generate exactly one synthesis flashcard as strict JSON.",
+      "Return an object with keys: title, body, kind, confidence, impact, weight, hashtags.",
+      "This flashcard must combine evidence across multiple sources, not paraphrase only one source.",
+      "Prefer COMPARISON, EVALUATION, CONCLUSION, RECOMMENDATION, or RESEARCH kinds when appropriate.",
+      "hashtags must reflect the topic and the combined evidence.",
+    ].join(" "),
+    [
+      `Company: ${company.name}`,
+      `Focus topic: ${topic.label}`,
+      "Sources:",
+      JSON.stringify(evidenceSources, null, 2),
+    ].join("\n"),
+  );
+
+  const syntheticSource = {
+    sourceName: topic.label,
+    hashtags: mergeHashtags(topic.label.split(/\s+/).map((word) => `#${word}`), ...sources.map((source) => source.hashtags)),
+    promptBody: evidenceSources.map((item) => item.excerpt).join("\n\n"),
+  };
+
+  return {
+    title: truncate(raw.title || `${topic.label}: cross-source synthesis`, 160),
+    body: truncate(raw.body || `Synthesis for ${topic.label}`, 1200),
+    kind: FLASHCARD_KINDS.has(normalizeText(raw.kind).toUpperCase()) ? normalizeText(raw.kind).toUpperCase() : "RESEARCH",
+    confidence: computeFlashcardConfidence(syntheticSource, { factCheck: { confidenceCap: 86, citationCount: 0, distinctDomainCount: 0 } }, clampInt(raw.confidence, 64), sources.length),
+    impact: clampInt(raw.impact, 74),
+    weight: clampInt(raw.weight, 76),
+    hashtags: mergeHashtags(raw.hashtags, [normalizeHashtag(topic.label)], ...sources.map((source) => source.hashtags)).slice(0, 10),
   };
 }
 
@@ -1365,19 +1523,155 @@ async function syncSupportingSources(flashcardId, citations) {
   }
 }
 
+async function findFlashcardByFingerprint(companyId, fingerprint) {
+  if (!companyId || !fingerprint) return null;
+  return prisma.flashcard.findFirst({
+    where: { companyId, fingerprint },
+  });
+}
+
+async function syncTopicSynthesisFlashcards(companyId, company, data, sources, existingByFingerprint) {
+  const selectedTopics = selectResearchTopics(data, 5);
+  let created = 0;
+  let updated = 0;
+
+  for (const topic of selectedTopics) {
+    const relevantSources = sources
+      .filter((source) => topicMatchesSource(topic, source))
+      .slice(0, 4);
+
+    if (relevantSources.length < 2) {
+      continue;
+    }
+
+    const fingerprint = hashValue(`TOPIC:${companyId}:${topic.id}:${relevantSources.map((source) => source.sourceId).join(":")}`);
+    const existing = existingByFingerprint.get(fingerprint) || await findFlashcardByFingerprint(companyId, fingerprint);
+    let generated;
+
+    try {
+      generated = await generateSynthesisFlashcard(company, topic, relevantSources);
+    } catch (error) {
+      console.error(`Synthesis flashcard generation failed for ${companyId}/${topic.label}: ${error.message}`);
+      continue;
+    }
+
+    const primary = relevantSources[0];
+    const evidence = {
+      synthesisTopic: topic.label,
+      sourceCount: relevantSources.length,
+      sourceIds: relevantSources.map((source) => source.sourceId),
+      excerpts: relevantSources.map((source) => ({
+        sourceType: source.sourceType,
+        sourceId: source.sourceId,
+        sourceName: source.sourceName,
+        excerpt: truncate(source.promptBody, 500),
+      })),
+    };
+
+    if (existing) {
+      await prisma.flashcard.update({
+        where: { id: existing.id },
+        data: {
+          title: existing.manualTitle || generated.title,
+          body: existing.manualBody || generated.body,
+          generatedTitle: generated.title,
+          generatedBody: generated.body,
+          confidence: generated.confidence,
+          impact: generated.impact,
+          weight: generated.weight,
+          hashtags: generated.hashtags,
+          evidence,
+          kind: generated.kind,
+          fingerprint,
+          status: "ACTIVE",
+          refreshedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      await prisma.flashcardSource.deleteMany({
+        where: { flashcardId: existing.id, relationRole: { in: ["PRIMARY", "MERGED_FROM"] } },
+      });
+      updated += 1;
+    } else {
+      const flashcardId = crypto.randomUUID();
+      const publicId = await nextPublicId(PUBLIC_ID_SCOPES.flashcard);
+      try {
+        await prisma.flashcard.create({
+          data: {
+            id: flashcardId,
+            publicId,
+            companyId,
+            title: generated.title,
+            body: generated.body,
+            generatedTitle: generated.title,
+            generatedBody: generated.body,
+            confidence: generated.confidence,
+            impact: generated.impact,
+            weight: generated.weight,
+            hashtags: generated.hashtags,
+            evidence,
+            kind: generated.kind,
+            fingerprint,
+            status: "ACTIVE",
+            createdBy: "local-ai",
+            reviewStatus: "PENDING",
+            refreshedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        existingByFingerprint.set(fingerprint, { id: flashcardId });
+        created += 1;
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) throw error;
+        const concurrent = await findFlashcardByFingerprint(companyId, fingerprint);
+        if (!concurrent) throw error;
+        await prisma.flashcard.update({
+          where: { id: concurrent.id },
+          data: {
+            title: concurrent.manualTitle || generated.title,
+            body: concurrent.manualBody || generated.body,
+            generatedTitle: generated.title,
+            generatedBody: generated.body,
+            confidence: generated.confidence,
+            impact: generated.impact,
+            weight: generated.weight,
+            hashtags: generated.hashtags,
+            evidence,
+            kind: generated.kind,
+            status: "ACTIVE",
+            refreshedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        existingByFingerprint.set(fingerprint, concurrent);
+        updated += 1;
+      }
+    }
+
+    const targetId = existing?.id || existingByFingerprint.get(fingerprint)?.id;
+    if (targetId) {
+      for (const [index, source] of relevantSources.entries()) {
+        await upsertFlashcardSource(targetId, {
+          sourceType: source.sourceType,
+          sourceId: source.sourceId,
+          sourcePublicId: source.sourcePublicId,
+          sourceName: source.sourceName,
+          relationRole: index === 0 ? "PRIMARY" : "MERGED_FROM",
+        });
+      }
+    }
+  }
+
+  return { created, updated };
+}
+
 async function syncFlashcards(companyId, company, data, previousKnowledge = {}) {
   const sources = buildSourceRecords(company, data);
+  const focusTopics = selectResearchTopics(data, 5);
   const localFlashcards = (data.flashcards || []).filter((card) => normalizeText(card.createdBy) === "local-ai");
   const existingByFingerprint = new Map(localFlashcards.map((card) => [card.fingerprint, card]));
   const seenFingerprints = new Set();
-  
-  // Strategy 2: If we have an existing ACTIVE local flashcard, its fingerprint is "seen" 
-  // unless we definitely have new data on Neon for it.
-  localFlashcards.forEach(card => {
-    if (card.status === 'ACTIVE' && card.fingerprint) {
-      seenFingerprints.add(card.fingerprint);
-    }
-  });
 
   let created = 0;
   let updated = 0;
@@ -1385,7 +1679,8 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
 
   for (const source of sources) {
     seenFingerprints.add(source.fingerprint);
-    const research = await discoverResearch(company, source);
+    const sourceTopics = focusTopics.filter((topic) => topicMatchesSource(topic, source));
+    const research = await discoverResearch(company, source, sourceTopics);
     if (research.enabled) researched += 1;
 
     let generated;
@@ -1398,7 +1693,7 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
     }
 
     const evidence = buildFlashcardEvidence(source, generated, research);
-    const existing = existingByFingerprint.get(source.fingerprint);
+    const existing = existingByFingerprint.get(source.fingerprint) || await findFlashcardByFingerprint(companyId, source.fingerprint);
     
     if (existing) {
       const title = existing.manualTitle || existing.title || generated.title;
@@ -1437,41 +1732,77 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
 
     const flashcardId = crypto.randomUUID();
     const flashcardPublicId = await nextPublicId(PUBLIC_ID_SCOPES.flashcard);
-    await prisma.flashcard.create({
-      data: {
-        id: flashcardId,
-        publicId: flashcardPublicId,
-        companyId,
-        title: generated.title,
-        body: generated.body,
-        confidence: generated.confidence,
-        impact: generated.impact,
-        weight: generated.weight,
-        hashtags: generated.hashtags,
-        status: "ACTIVE",
-        createdBy: "local-ai",
-        refreshedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        generatedBody: generated.body,
-        generatedTitle: generated.title,
-        reviewStatus: "PENDING",
-        evidence: evidence,
-        fingerprint: source.fingerprint,
-        kind: generated.kind,
-        appVersion: APP_VERSION,
-        brainVersion: BRAIN_VERSION,
-        generatedAt: new Date(),
-        promptVersion: PROMPT_VERSION,
-      },
-    });
-    
-    await upsertFlashcardSource(flashcardId, source);
-    if (RESEARCH_ENABLED) {
-      await syncSupportingSources(flashcardId, research.citations);
+    try {
+      await prisma.flashcard.create({
+        data: {
+          id: flashcardId,
+          publicId: flashcardPublicId,
+          companyId,
+          title: generated.title,
+          body: generated.body,
+          confidence: generated.confidence,
+          impact: generated.impact,
+          weight: generated.weight,
+          hashtags: generated.hashtags,
+          status: "ACTIVE",
+          createdBy: "local-ai",
+          refreshedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          generatedBody: generated.body,
+          generatedTitle: generated.title,
+          reviewStatus: "PENDING",
+          evidence: evidence,
+          fingerprint: source.fingerprint,
+          kind: generated.kind,
+          appVersion: APP_VERSION,
+          brainVersion: BRAIN_VERSION,
+          generatedAt: new Date(),
+          promptVersion: PROMPT_VERSION,
+        },
+      });
+      existingByFingerprint.set(source.fingerprint, { id: flashcardId });
+      await upsertFlashcardSource(flashcardId, source);
+      if (RESEARCH_ENABLED) {
+        await syncSupportingSources(flashcardId, research.citations);
+      }
+      created += 1;
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      const concurrent = await findFlashcardByFingerprint(companyId, source.fingerprint);
+      if (!concurrent) throw error;
+      await prisma.flashcard.update({
+        where: { id: concurrent.id },
+        data: {
+          title: concurrent.manualTitle || concurrent.title || generated.title,
+          body: concurrent.manualBody || generated.body,
+          confidence: generated.confidence,
+          impact: generated.impact,
+          weight: generated.weight,
+          hashtags: generated.hashtags,
+          status: "ACTIVE",
+          refreshedAt: new Date(),
+          updatedAt: new Date(),
+          generatedBody: generated.body,
+          generatedTitle: generated.title,
+          evidence: evidence,
+          kind: generated.kind,
+          appVersion: APP_VERSION,
+          brainVersion: BRAIN_VERSION,
+          generatedAt: new Date(),
+          promptVersion: PROMPT_VERSION,
+        },
+      });
+      existingByFingerprint.set(source.fingerprint, concurrent);
+      await upsertFlashcardSource(concurrent.id, source);
+      if (RESEARCH_ENABLED) {
+        await syncSupportingSources(concurrent.id, research.citations);
+      }
+      updated += 1;
     }
-    created += 1;
   }
+
+  const synthesis = await syncTopicSynthesisFlashcards(companyId, company, data, sources, existingByFingerprint);
 
   const staleCandidates = localFlashcards
     .filter((card) => card.status === "ACTIVE")
@@ -1489,14 +1820,14 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
     });
   }
 
-  return { created, updated, stale: staleCandidates.length, researched };
+  return { created: created + synthesis.created, updated: updated + synthesis.updated, stale: staleCandidates.length, researched };
 }
 
 async function evictProcessedSources(companyId, data) {
   return 0;
 }
 
-async function generateRecommendationCandidates(company, flashcards) {
+async function generateRecommendationCandidates(company, flashcards, focusTopics = []) {
   const cards = flashcards.slice(0, 25).map((card) => ({
     id: card.id,
     title: card.title,
@@ -1526,6 +1857,7 @@ async function generateRecommendationCandidates(company, flashcards) {
   const userPrompt = [
     `Company: ${company.name}`,
     `Main goal: ${normalizeText(company.mainGoal) || "n/a"}`,
+    `Active topics: ${focusTopics.map((topic) => topic.label).join(", ") || "none"}`,
     "Flashcards:",
     JSON.stringify(cards, null, 2),
   ].join("\n");
@@ -1547,7 +1879,7 @@ async function generateRecommendationCandidates(company, flashcards) {
     .filter((item) => item.title && item.description && item.sourceFlashcardIds.length > 0);
 }
 
-async function syncRecommendations(companyId, company, existingNBA) {
+async function syncRecommendations(companyId, company, existingNBA, focusTopics = []) {
   const activeFlashcards = await prisma.flashcard.findMany({
     where: {
       companyId,
@@ -1564,7 +1896,7 @@ async function syncRecommendations(companyId, company, existingNBA) {
 
   let candidates = [];
   try {
-    candidates = await generateRecommendationCandidates(company, activeFlashcards);
+    candidates = await generateRecommendationCandidates(company, activeFlashcards, focusTopics);
   } catch (error) {
     console.error(`Recommendation generation failed for ${companyId}: ${error.message}`);
   }
@@ -1648,8 +1980,9 @@ async function processCompany(companyId, reason = {}) {
     data = await getAllData(companyId);
   }
 
+  const focusTopics = selectResearchTopics(data, 5);
   const flashcards = await syncFlashcards(companyId, data.company, data, previousKnowledge);
-  const recommendations = await syncRecommendations(companyId, data.company, data.existingNBA);
+  const recommendations = await syncRecommendations(companyId, data.company, data.existingNBA, focusTopics);
   const nextData = await getAllData(companyId);
   await saveKnowledge(companyId, {
     snapshot: buildSnapshot(nextData),
@@ -1658,6 +1991,7 @@ async function processCompany(companyId, reason = {}) {
       flashcards,
       recommendations,
       hashtagUpdates,
+      focusTopics: focusTopics.map((topic) => topic.label),
     },
     research: {
       enabled: RESEARCH_ENABLED,
@@ -1673,10 +2007,9 @@ async function processCompany(companyId, reason = {}) {
     flashcards,
     recommendations,
     dataSynced: {
-      products: data.products.length,
-      customers: data.customers.length,
-      competitors: data.competitors.length,
+      sources: data.sources.length,
       uploadedFiles: data.uploadedFiles.length,
+      topics: data.topics.length,
       feedback: data.feedback.length,
     },
   };
@@ -1692,8 +2025,15 @@ async function enrichOldestItems() {
     if (!data.company) continue;
 
     const flashcard = await prisma.flashcard.findFirst({
-      where: { companyId, status: "ACTIVE" },
-      orderBy: { updatedAt: "asc" },
+      where: {
+        companyId,
+        status: "ACTIVE",
+      },
+      orderBy: [
+        { lastActionAt: "asc" },
+        { refreshedAt: "asc" },
+        { updatedAt: "asc" },
+      ],
     });
 
     if (flashcard) {
@@ -1710,7 +2050,10 @@ async function enrichOldestItems() {
           promptBody: flashcard.generatedBody || flashcard.body,
           fingerprint: flashcard.fingerprint
         };
-        const research = await discoverResearch(data.company, source);
+        const relatedTopics = selectResearchTopics(data, 5).filter((topic) =>
+          normalizeLoose([flashcard.title, flashcard.body, ...(flashcard.hashtags || [])].join(" ")).includes(normalizeTopicLabel(topic.label)),
+        );
+        const research = await discoverResearch(data.company, source, relatedTopics);
         const generated = await generateFlashcardCandidate(data.company, source, research);
         const evidence = buildFlashcardEvidence(source, generated, research);
 
@@ -1722,6 +2065,7 @@ async function enrichOldestItems() {
             confidence: generated.confidence,
             impact: generated.impact,
             weight: generated.weight,
+            hashtags: mergeHashtags(flashcard.hashtags, generated.hashtags),
             evidence: evidence,
             kind: generated.kind,
             updatedAt: new Date(),
@@ -1733,7 +2077,7 @@ async function enrichOldestItems() {
     }
 
     // 2. Refresh recommendations for the company if any flashcards changed
-    await syncRecommendations(companyId, data.company, data.existingNBA);
+    await syncRecommendations(companyId, data.company, data.existingNBA, selectResearchTopics(data, 5));
   }
 }
 
@@ -1920,9 +2264,7 @@ setInterval(async () => {
         const data = await getAllData(row.id);
         if (!data?.company) continue;
         const hasAnySource =
-          data.products.length > 0 ||
-          data.customers.length > 0 ||
-          data.competitors.length > 0 ||
+          data.sources.length > 0 ||
           data.uploadedFiles.length > 0;
         if (!hasAnySource) {
           await saveKnowledge(row.id, {

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Plus, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Plus, Sparkles, Zap, ListOrdered } from "lucide-react";
 import { motion } from "framer-motion";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
@@ -43,7 +43,7 @@ export default function CompanyDashboard() {
   const params = useParams();
   const companyId = params.companyId as string;
 
-  const { company, setCompany, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
+  const { company, setCompany, sources, setSources } = useStore();
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [topTasks, setTopTasks] = useState<NBAItem[]>([]);
@@ -58,19 +58,15 @@ export default function CompanyDashboard() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async (cid: string) => {
-    const [p, c, r, f, nba, knowmore, members] = await Promise.all([
-      fetch(`/api/products?companyId=${cid}`).then((res) => res.json()),
-      fetch(`/api/customers?companyId=${cid}`).then((res) => res.json()),
-      fetch(`/api/competitors?companyId=${cid}`).then((res) => res.json()),
+    const [s, f, nba, knowmore, members] = await Promise.all([
+      fetch(`/api/sources?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/nba?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/knowmore?companyId=${cid}`).then((res) => res.json()),
       fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
     ]);
 
-    setProducts(p);
-    setCustomers(c);
-    setCompetitors(r);
+    setSources(s);
     setFileCount(Array.isArray(f) ? f.length : 0);
 
     // Get current user session to determine role
@@ -89,7 +85,7 @@ export default function CompanyDashboard() {
         .slice(0, 3),
     );
     setFlashcardCount((knowmore as Flashcard[]).length);
-  }, [setCompetitors, setCustomers, setProducts]);
+  }, [setSources]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -178,9 +174,9 @@ export default function CompanyDashboard() {
 
   const tip = getDashboardExpertTip({
     companyId,
-    productCount: products.length,
-    customerCount: customers.length,
-    competitorCount: competitors.length,
+    productCount: sources.length,
+    customerCount: 0,
+    competitorCount: 0,
     fileCount,
     flashcardCount,
     pendingTaskCount,
@@ -197,16 +193,24 @@ export default function CompanyDashboard() {
         />
       </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
+      <div className="grid gap-4 md:grid-cols-4 mb-8">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <LinkCard
             href={`/${companyId}/data`}
             icon={Plus}
-            title={`Data Collection (${products.length + customers.length + competitors.length + fileCount})`}
-            description="Add products, customers, competitors"
+            title={`Data Collection (${sources.length + fileCount})`}
+            description="Add raw sources and files"
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <LinkCard
+            href={`/${companyId}/topics`}
+            icon={ListOrdered}
+            title="Topics"
+            description="Prioritize AI research focus"
+          />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
           <LinkCard
             href={`/${companyId}/nba`}
             icon={Zap}
@@ -214,7 +218,7 @@ export default function CompanyDashboard() {
             description="View checklist suggestions"
           />
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}>
           <LinkCard
             href={`/${companyId}/knowmore`}
             icon={Sparkles}

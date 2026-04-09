@@ -4,14 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { FileUp, Package, Users, Search, Plus, CheckCircle } from "lucide-react";
+import { FileUp, Plus, CheckCircle, ScrollText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { EntityTagSelector } from "@/components/ui/entity-tag-selector";
-import { SourceTypePicker, type SourceTypeOption } from "@/components/ui/source-type-picker";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { SourceDataCard } from "@/components/source-data-card";
 import {
@@ -22,7 +21,7 @@ import {
 } from "@/lib/hashtags";
 import React from "react";
 
-type DataType = "product" | "customer" | "competitor" | "file";
+type DataType = "source" | "file";
 
 interface DataItem {
   id: string;
@@ -30,6 +29,8 @@ interface DataItem {
   name: string;
   type: DataType;
   hashtags: string[];
+  aiClusters?: string[];
+  entityTag?: string | null;
   description?: string;
   createdAt: string;
 }
@@ -50,9 +51,8 @@ function sortDataItems(items: DataItem[]) {
 export default function GlobalDataCollectionPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { company, setCompany, products, customers, competitors, setProducts, setCustomers, setCompetitors } = useStore();
+  const { company, setCompany, sources, setSources } = useStore();
   const [input, setInput] = useState("");
-  const [sourceType, setSourceType] = useState<SourceTypeOption>("product");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [entityTag, setEntityTag] = useState<string | null>(null);
@@ -65,25 +65,19 @@ export default function GlobalDataCollectionPage() {
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
 
   const loadAllData = useCallback(async (companyId: string) => {
-    const [p, c, r, f] = await Promise.all([
-      fetch(`/api/products?companyId=${companyId}`).then((res) => res.json()),
-      fetch(`/api/customers?companyId=${companyId}`).then((res) => res.json()),
-      fetch(`/api/competitors?companyId=${companyId}`).then((res) => res.json()),
+    const [s, f] = await Promise.all([
+      fetch(`/api/sources?companyId=${companyId}`).then((res) => res.json()),
       fetch(`/api/data-files?companyId=${companyId}`).then((res) => res.json()),
     ]);
-    setProducts(p);
-    setCustomers(c);
-    setCompetitors(r);
+    setSources(s);
     
     const all = sortDataItems([
-      ...p.map((x: any) => ({ ...x, type: "product" as DataType })),
-      ...c.map((x: any) => ({ ...x, type: "customer" as DataType })),
-      ...r.map((x: any) => ({ ...x, type: "competitor" as DataType })),
+      ...s.map((x: any) => ({ ...x, name: x.content, type: "source" as DataType })),
       ...f.map((x: any) => ({ ...x, type: "file" as DataType })),
     ]);
     setItems(all);
     setLoading(false);
-  }, [setProducts, setCustomers, setCompetitors]);
+  }, [setSources]);
 
   useEffect(() => {
     const loadForCompany = async () => {
@@ -145,34 +139,7 @@ export default function GlobalDataCollectionPage() {
     e.preventDefault();
     if ((!input.trim() && selectedFiles.length === 0) || !company) return;
 
-    const type = sourceType;
-    const normalizedHashtags = normalizeSourceHashtags(hashtags, type);
-    const endpoint = selectedFiles.length > 0
-      ? "/api/data-files"
-      : type === "product" ? "/api/products" 
-      : type === "customer" ? "/api/customers" 
-      : "/api/competitors";
-
-    const payload = type === "product" 
-      ? {
-          companyId: company.id,
-          name: input,
-          hashtags: normalizedHashtags,
-          entityTag: entityTag ?? undefined,
-          urls: [],
-          features: [],
-        }
-      : type === "customer"
-      ? { companyId: company.id, name: input, hashtags: normalizedHashtags, entityTag: entityTag ?? undefined, segments: [], painPoints: [], channels: [] }
-      : {
-          companyId: company.id,
-          name: input,
-          hashtags: normalizedHashtags,
-          entityTag: entityTag ?? undefined,
-          urls: [],
-          strengths: [],
-          weaknesses: [],
-        };
+    const normalizedHashtags = normalizeSourceHashtags(hashtags, "industry");
 
     try {
       if (editingId) {
@@ -180,18 +147,12 @@ export default function GlobalDataCollectionPage() {
         if (!currentItem) {
           throw new Error("Edited item not found");
         }
-        const editEndpoint = currentItem.type === "product"
-          ? "/api/products"
-          : currentItem.type === "customer"
-            ? "/api/customers"
-            : currentItem.type === "file"
-              ? "/api/data-files"
-              : "/api/competitors";
+        const editEndpoint = currentItem.type === "file" ? "/api/data-files" : "/api/sources";
 
         await fetch(`${editEndpoint}?id=${editingId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: input, hashtags: normalizedHashtags, entityTag }),
+          body: JSON.stringify({ content: input, name: input, hashtags: normalizedHashtags, entityTag }),
         });
       } else if (selectedFiles.length > 0) {
         const formData = new FormData();
@@ -201,17 +162,21 @@ export default function GlobalDataCollectionPage() {
         for (const file of selectedFiles) {
           formData.append("files", file);
         }
-        await fetch(endpoint, { method: "POST", body: formData });
+        await fetch("/api/data-files", { method: "POST", body: formData });
       } else {
-        await fetch(endpoint, {
+        await fetch("/api/sources", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            companyId: company.id,
+            content: input,
+            hashtags: normalizedHashtags,
+            entityTag: entityTag ?? undefined,
+          }),
         });
       }
       
       setInput("");
-      setSourceType("product");
       setHashtags([]);
       setSelectedFiles([]);
       setEntityTag(null);
@@ -226,9 +191,6 @@ export default function GlobalDataCollectionPage() {
 
   const startEdit = (item: DataItem) => {
     setEditingId(item.id);
-    if (item.type !== "file") {
-      setSourceType(item.type);
-    }
     setInput(item.name);
     setHashtags(item.hashtags ?? []);
     setEntityTag((item as any).entityTag ?? null);
@@ -239,7 +201,6 @@ export default function GlobalDataCollectionPage() {
   const cancelEdit = () => {
     setEditingId(null);
     setInput("");
-    setSourceType("product");
     setHashtags([]);
     setEntityTag(null);
     setSelectedFiles([]);
@@ -248,10 +209,7 @@ export default function GlobalDataCollectionPage() {
   const deleteItem = async (item: DataItem) => {
     if (!confirm(`Delete "${item.name}"?`) || !company) return;
     
-    const endpoint = item.type === "file" ? "/api/data-files"
-      : item.type === "product" ? "/api/products" 
-      : item.type === "customer" ? "/api/customers" 
-      : "/api/competitors";
+    const endpoint = item.type === "file" ? "/api/data-files" : "/api/sources";
 
     await fetch(`${endpoint}?id=${item.id}`, { method: "DELETE" });
     loadAllData(company.id);
@@ -300,13 +258,6 @@ export default function GlobalDataCollectionPage() {
               placeholder="Paste a URL, type a source name, or write notes..."
               className="min-h-[120px] text-base"
               rows={4}
-            />
-
-            <SourceTypePicker
-              value={sourceType}
-              onChange={setSourceType}
-              disabled={editingId ? items.find((item) => item.id === editingId)?.type === "file" : false}
-              label={editingId ? "Source type" : "Add as"}
             />
 
             {!editingId ? (
@@ -360,9 +311,7 @@ export default function GlobalDataCollectionPage() {
       )}
 
       <MetricGrid>
-        <MetricCard icon={Package} label="Products" value={products.length} />
-        <MetricCard icon={Users} label="Customers" value={customers.length} />
-        <MetricCard icon={Search} label="Competitors" value={competitors.length} />
+        <MetricCard icon={ScrollText} label="Sources" value={sources.length} />
         <MetricCard icon={FileUp} label="Files" value={items.filter(i => i.type === "file").length} />
       </MetricGrid>
 

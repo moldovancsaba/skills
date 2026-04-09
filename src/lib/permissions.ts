@@ -20,7 +20,7 @@ export async function verifyMembership(
 
   const membership = await prisma.user.findFirst({
     where: {
-      email: session.email,
+      email: session.email.trim().toLowerCase(),
       companyId: companyId as string
     }
   });

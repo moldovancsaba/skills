@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { readAppSession } from "@/lib/auth";
 
+function normalizeEmail(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ companyId: string }> }
@@ -14,7 +18,7 @@ export async function GET(
 
     // Check if requester is member of this company
     const requester = await prisma.user.findFirst({
-      where: { companyId, email: session.email }
+      where: { companyId, email: normalizeEmail(session.email) }
     });
 
     if (!requester) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -40,32 +44,44 @@ export async function POST(
 
     const { companyId } = await context.params;
     const { email, name, role } = await request.json();
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
+    if (!normalizedEmail) return NextResponse.json({ error: "Email required" }, { status: 400 });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return NextResponse.json({ error: "Valid email required" }, { status: 400 });
+    }
 
     // Check if requester is OWNER
     const requester = await prisma.user.findFirst({
-      where: { companyId, email: session.email, role: "OWNER" }
+      where: { companyId, email: normalizeEmail(session.email), role: "OWNER" }
     });
 
     if (!requester) return NextResponse.json({ error: "Only owners can invite" }, { status: 403 });
+    if (normalizedEmail === normalizeEmail(session.email)) {
+      return NextResponse.json({ error: "You already have access to this company" }, { status: 400 });
+    }
 
-    // Add user to company (direct association)
+    // Create or refresh the invitation. Access is claimed automatically on first login with this email.
     const newUser = await prisma.user.upsert({
       where: {
         email_companyId: {
-          email,
+          email: normalizedEmail,
           companyId
         }
       },
       update: {
-        role: role || "MEMBER"
+        role: role || "MEMBER",
+        invitedAt: new Date(),
+        invitedByEmail: normalizeEmail(session.email),
       },
       create: {
-        email,
+        email: normalizedEmail,
         name: name || null,
         companyId,
-        role: role || "MEMBER"
+        role: role || "MEMBER",
+        invitedAt: new Date(),
+        invitedByEmail: normalizeEmail(session.email),
+        acceptedAt: null,
       }
     });
 
@@ -90,12 +106,12 @@ export async function DELETE(
 
     // Check if requester is OWNER
     const requester = await prisma.user.findFirst({
-      where: { companyId, email: session.email, role: "OWNER" }
+      where: { companyId, email: normalizeEmail(session.email), role: "OWNER" }
     });
 
     if (!requester) return NextResponse.json({ error: "Only owners can remove members" }, { status: 403 });
 
-    await prisma.user.delete({
+    await prisma.user.deleteMany({
       where: { id: userId, companyId }
     });
 

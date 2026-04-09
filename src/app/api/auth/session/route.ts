@@ -10,6 +10,10 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     authenticated: true,
+    id: session.sub,
+    email: session.email,
+    name: session.name,
+    picture: session.picture,
     user: {
       id: session.sub,
       email: session.email,

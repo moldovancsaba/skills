@@ -110,7 +110,10 @@ export function readOAuthState(token: string): OAuthState | null {
 }
 
 export function createAppSession(session: AppSession): string {
-  return createToken(session, SESSION_MAX_AGE);
+  return createToken({
+    ...session,
+    email: session.email.trim().toLowerCase(),
+  }, SESSION_MAX_AGE);
 }
 
 export async function readAppSession(req: NextRequest): Promise<AppSession | null> {
@@ -123,11 +126,15 @@ export async function readAppSession(req: NextRequest): Promise<AppSession | nul
 
   return {
     sub: data.sub,
-    email: data.email,
+    email: data.email.trim().toLowerCase(),
     name: data.name,
     picture: typeof data.picture === "string" ? data.picture : undefined,
     provider: "google",
   };
+}
+
+function normalizeEmail(value: string | null | undefined) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
 export function getSsoRedirectUri() {
@@ -219,13 +226,17 @@ export async function handleOAuthCallback(req: NextRequest) {
 
     const tokens = await exchangeCodeForTokens(code, oauthState.codeVerifier);
     const userInfo = decodeIdToken(tokens.id_token);
+    const normalizedEmail = normalizeEmail(userInfo.email);
 
     // Sync Google Profile to our membership records
     try {
       const { prisma } = await import("@/lib/db");
       await prisma.user.updateMany({
-        where: { email: userInfo.email },
-        data: { name: userInfo.name || userInfo.email }
+        where: { email: normalizedEmail },
+        data: {
+          name: userInfo.name || normalizedEmail,
+          acceptedAt: new Date(),
+        }
       });
     } catch (dbError) {
       console.error("Failed to sync user profile to DB:", dbError);
@@ -234,8 +245,8 @@ export async function handleOAuthCallback(req: NextRequest) {
 
     const session = createAppSession({
       sub: userInfo.sub,
-      email: userInfo.email,
-      name: userInfo.name || userInfo.email,
+      email: normalizedEmail,
+      name: userInfo.name || normalizedEmail,
       picture: userInfo.picture,
       provider: "google",
     });

@@ -87,7 +87,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
             Team Members
           </CardTitle>
           <CardDescription>
-            Manage who has access to this company dashboard.
+            Invite users by email. When they log in with that address, they automatically get access to this company.
           </CardDescription>
         </div>
       </CardHeader>
@@ -104,7 +104,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
             />
             <Button type="submit" disabled={inviting} className="gap-2 shrink-0">
               <UserPlus className="h-4 w-4" />
-              Add Member
+              Invite User
             </Button>
           </form>
         )}
@@ -134,6 +134,9 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                       <Shield className={`h-3 w-3 ${member.role === 'OWNER' ? 'text-amber-500' : 'text-muted-foreground'}`} />
                       <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
                         {member.role}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                        {member.acceptedAt ? "ACTIVE" : "INVITED"}
                       </span>
                     </div>
                   </div>

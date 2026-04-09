@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       where: {
         users: {
           some: {
-            email: session.email
+            email: session.email.trim().toLowerCase()
           }
         }
       },

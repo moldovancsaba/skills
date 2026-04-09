@@ -285,14 +285,17 @@ model UploadedSourceFile {
 }
 
 model User {
-  id        String   @id @default(uuid()) @map("_id")
-  email     String 
-  name      String?
-  companyId String
-  role      Role     @default(MEMBER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  company   Company  @relation(fields: [companyId], references: [id])
+  id             String   @id @default(uuid()) @map("_id")
+  email          String
+  name           String?
+  companyId      String
+  role           Role     @default(MEMBER)
+  invitedAt      DateTime?
+  invitedByEmail String?
+  acceptedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  company        Company  @relation(fields: [companyId], references: [id])
 
   @@unique([email, companyId])
 }

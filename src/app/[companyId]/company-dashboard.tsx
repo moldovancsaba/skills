@@ -214,18 +214,18 @@ export default function CompanyDashboard() {
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
           <LinkCard
-            href={`/${companyId}/nba`}
-            icon={Zap}
-            title={`Checklist (${pendingTaskCount})`}
-            description="View checklist suggestions"
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}>
-          <LinkCard
             href={`/${companyId}/knowmore`}
             icon={Sparkles}
             title={`Knowmore (${flashcardCount})`}
             description="Track the knowledge layer behind your AI"
+          />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}>
+          <LinkCard
+            href={`/${companyId}/nba`}
+            icon={Zap}
+            title={`Checklist (${pendingTaskCount})`}
+            description="View checklist suggestions"
           />
         </motion.div>
       </div>

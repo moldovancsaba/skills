@@ -148,6 +148,7 @@ export default function CompanyTopicsPage() {
   return (
     <PageShell width="5xl">
       <PipelineAccentHeader
+        activeKey="topics"
         title="Topics"
         icon="looks_two"
         toneClassName="text-orange-600"

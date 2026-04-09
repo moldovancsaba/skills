@@ -484,6 +484,7 @@ export default function CompanyKnowMorePage() {
         )}
 
         <PipelineAccentHeader
+          activeKey="knowmore"
           title="Knowmore"
           icon="looks_3"
           toneClassName="text-green-600"

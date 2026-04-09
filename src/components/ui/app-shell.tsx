@@ -211,6 +211,7 @@ export function LinkCard({
 }
 
 type PipelineAccentHeaderProps = {
+  activeKey: "data" | "topics" | "knowmore" | "checklist";
   title: string;
   icon: string;
   toneClassName: string;
@@ -219,12 +220,20 @@ type PipelineAccentHeaderProps = {
 };
 
 export function PipelineAccentHeader({
+  activeKey,
   title,
   icon,
   toneClassName,
   borderClassName,
   backgroundClassName,
 }: PipelineAccentHeaderProps) {
+  const segments = [
+    { key: "data", className: "pipeline-accent-data" },
+    { key: "topics", className: "pipeline-accent-topics" },
+    { key: "knowmore", className: "pipeline-accent-knowmore" },
+    { key: "checklist", className: "pipeline-accent-checklist" },
+  ] as const;
+
   return (
     <>
       <div
@@ -239,24 +248,27 @@ export function PipelineAccentHeader({
         {title}
       </div>
 
-      <div className="mb-4 hidden items-center gap-4 md:flex">
-        <div
-          className={cn(
-            "inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium",
-            toneClassName,
-            borderClassName,
-            backgroundClassName,
-          )}
-        >
-          <span className="material-symbols-outlined text-[18px]">{icon}</span>
-          <span>{title}</span>
-        </div>
-        <div className="flex h-2 flex-1 overflow-hidden rounded-full">
-          <div className="pipeline-accent-data h-full w-1/4" />
-          <div className="pipeline-accent-topics h-full w-1/4" />
-          <div className="pipeline-accent-knowmore h-full w-1/4" />
-          <div className="pipeline-accent-checklist h-full w-1/4" />
-        </div>
+      <div className="mb-4 hidden grid-cols-4 items-center gap-3 md:grid">
+        {segments.map((segment) =>
+          segment.key === activeKey ? (
+            <div
+              key={segment.key}
+              className={cn(
+                "inline-flex h-12 items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium shadow-card",
+                toneClassName,
+                borderClassName,
+                backgroundClassName,
+              )}
+            >
+              <span className="material-symbols-outlined text-[18px]">{icon}</span>
+              <span>{title}</span>
+            </div>
+          ) : (
+            <div key={segment.key} className="flex items-center">
+              <div className={cn("h-2 w-full rounded-full", segment.className)} />
+            </div>
+          ),
+        )}
       </div>
     </>
   );

@@ -230,6 +230,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <PipelineAccentHeader
+          activeKey="checklist"
           title="Checklist"
           icon="looks_4"
           toneClassName="text-violet-600"

@@ -284,6 +284,7 @@ export default function CompanyDataPage() {
     <PageShell width="5xl">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <PipelineAccentHeader
+          activeKey="data"
           title="Data"
           icon="looks_one"
           toneClassName="text-blue-600"

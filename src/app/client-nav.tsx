@@ -10,6 +10,37 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Sun, Moon, LogOut, User } from "lucide-react";
 
+const pipelineItems = [
+  {
+    key: "data",
+    href: (companyId: string) => `/${companyId}/data`,
+    label: "Data",
+    icon: "looks_one",
+    colorClass: "pipeline-data",
+  },
+  {
+    key: "topics",
+    href: (companyId: string) => `/${companyId}/topics`,
+    label: "Topics",
+    icon: "looks_two",
+    colorClass: "pipeline-topics",
+  },
+  {
+    key: "knowmore",
+    href: (companyId: string) => `/${companyId}/knowmore`,
+    label: "Knowmore",
+    icon: "looks_3",
+    colorClass: "pipeline-knowmore",
+  },
+  {
+    key: "checklist",
+    href: (companyId: string) => `/${companyId}/nba`,
+    label: "Checklist",
+    icon: "looks_4",
+    colorClass: "pipeline-checklist",
+  },
+];
+
 export function ClientNav() {
   const router = useRouter();
   const { company } = useStore();
@@ -50,18 +81,18 @@ export function ClientNav() {
                 <Link href={`/${company.id}`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
                   Dashboard
                 </Link>
-                <Link href={`/${company.id}/data`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-                  Data
-                </Link>
-                <Link href={`/${company.id}/topics`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-                  Topics
-                </Link>
-                <Link href={`/${company.id}/nba`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-                  Checklist
-                </Link>
-                <Link href={`/${company.id}/knowmore`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-                  Knowmore
-                </Link>
+                {pipelineItems.map((item) => (
+                  <Link
+                    key={item.key}
+                    href={item.href(company.id)}
+                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5")}
+                  >
+                    <span className={cn("material-symbols-outlined text-[18px]", item.colorClass)} aria-hidden="true">
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
               </div>
             )}
             

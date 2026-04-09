@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,600,1,0&display=optional");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -127,6 +129,58 @@
 }
 
 @layer utilities {
+  .material-symbols-outlined {
+    font-family: "Material Symbols Outlined";
+    font-weight: normal;
+    font-style: normal;
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings:
+      "FILL" 1,
+      "wght" 600,
+      "GRAD" 0,
+      "opsz" 24;
+  }
+
+  .pipeline-data {
+    color: rgb(59 130 246);
+  }
+
+  .pipeline-topics {
+    color: rgb(249 115 22);
+  }
+
+  .pipeline-knowmore {
+    color: rgb(34 197 94);
+  }
+
+  .pipeline-checklist {
+    color: rgb(168 85 247);
+  }
+
+  .pipeline-accent-data {
+    background-image: linear-gradient(90deg, rgb(96 165 250), rgb(37 99 235));
+  }
+
+  .pipeline-accent-topics {
+    background-image: linear-gradient(90deg, rgb(251 146 60), rgb(234 88 12));
+  }
+
+  .pipeline-accent-knowmore {
+    background-image: linear-gradient(90deg, rgb(74 222 128), rgb(22 163 74));
+  }
+
+  .pipeline-accent-checklist {
+    background-image: linear-gradient(90deg, rgb(196 181 253), rgb(147 51 234));
+  }
+
   .input {
     @apply flex h-11 w-full rounded-lg border border-input bg-background/95 px-4 py-2 text-sm text-foreground shadow-card placeholder:text-muted-foreground transition-[border-color,box-shadow,background-color] focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50;
   }

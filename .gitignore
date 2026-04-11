@@ -2,8 +2,10 @@ node_modules
 .next
 .vercel
 .env
+.env.*
 *.log
 dist
 build
 .DS_Store
 *.pem
+scripts/knowledge/

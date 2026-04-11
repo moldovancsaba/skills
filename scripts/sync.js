@@ -3278,6 +3278,8 @@ async function handleHealth(_req, res) {
     ollamaHost: OLLAMA_HOST,
     lastSync,
     settings: {
+      // Surface the active runtime contract here so operators can verify that the
+      // running worker picked up the configured cadence/timeout values.
       pollIntervalMs: POLL_INTERVAL_MS,
       ollamaTimeoutMs: OLLAMA_TIMEOUT_MS,
       researchTimeoutMs: RESEARCH_TIMEOUT_MS,

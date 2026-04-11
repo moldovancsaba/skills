@@ -22,6 +22,7 @@ model Company {
   flashcards          Flashcard[]
   flashcardCorrections FlashcardCorrection[]
   hashtagFeedback     HashtagFeedback[]
+  hashtagMaintenanceEvents HashtagMaintenanceEvent[]
   nbaItems            NBAItem[]
   products            Product[]
   sources             Source[]
@@ -101,6 +102,9 @@ model Flashcard {
   reviewStatus            FlashcardReviewStatus @default(PENDING)
   userAnnotation          String?
   hashtags                String[]               @default([])
+  hashtagMaintainedAt     DateTime?
+  hashtagEvaluationPending Boolean              @default(true)
+  lastHashtagError        String?
   evidence                Json?
   feedbackConfidenceDelta Int                   @default(0)
   feedbackWeightDelta     Int                   @default(0)
@@ -193,6 +197,9 @@ model NBAItem {
   brainVersion       String?    @default("local-brain@0.8.0")
   generatedAt        DateTime?
   hashtags           String[]   @default([])
+  hashtagMaintainedAt DateTime?
+  hashtagEvaluationPending Boolean @default(true)
+  lastHashtagError   String?
   promptVersion      String?    @default("nba-policy@0.8.0")
   feedback           Feedback[]
   company            Company    @relation(fields: [companyId], references: [id])
@@ -213,6 +220,21 @@ model HashtagFeedback {
 
   @@index([companyId, entityType, entityId, createdAt])
   @@index([companyId, tag, createdAt])
+}
+
+model HashtagMaintenanceEvent {
+  id         String                @id @default(uuid()) @map("_id")
+  companyId  String
+  entityType HashtagEntityType
+  entityId   String
+  status     HashtagMaintenanceStatus
+  note       String?
+  createdBy  String?               @default("local-ai")
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @default(now()) @updatedAt
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, entityType, entityId, createdAt])
 }
 
 model Product {
@@ -237,6 +259,9 @@ model Source {
   publicId        Int?     @unique
   content         String
   hashtags        String[] @default([])
+  hashtagMaintainedAt DateTime?
+  hashtagEvaluationPending Boolean @default(true)
+  lastHashtagError String?
   entityTag       String?
   aiClusters      String[] @default([])
   metadata        Json?
@@ -253,6 +278,10 @@ model Topic {
   id        String   @id @default(uuid()) @map("_id")
   companyId String
   label     String
+  hashtags  String[] @default([])
+  hashtagMaintainedAt DateTime?
+  hashtagEvaluationPending Boolean @default(true)
+  lastHashtagError String?
   active    Boolean  @default(true)
   sortOrder Int      @default(0)
   notes     String?
@@ -276,6 +305,9 @@ model UploadedSourceFile {
   companyId String
   name      String
   hashtags  String[] @default([])
+  hashtagMaintainedAt DateTime?
+  hashtagEvaluationPending Boolean @default(true)
+  lastHashtagError String?
   entityTag String?
   mimeType  String
   sizeBytes Int
@@ -323,8 +355,16 @@ enum FlashcardCorrectionType {
 
 enum HashtagEntityType {
   SOURCE
+  FILE
   FLASHCARD
   CHECKLIST
+  TOPIC
+}
+
+enum HashtagMaintenanceStatus {
+  SUCCESS
+  FAILED
+  SKIPPED
 }
 
 enum HashtagFeedbackAction {

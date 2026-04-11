@@ -179,7 +179,7 @@ function previewLines(value: string) {
 async function summarizeFile(seed: UploadedFileSeed, extractedText: string) {
   const trimmed = collapseWhitespace(extractedText).slice(0, MAX_EXTRACTED_TEXT);
   if (!trimmed || trimmed.length < 120) {
-    return null;
+    return { analysis: null, error: "insufficient-file-text-for-ai-analysis" as string | null };
   }
 
   try {
@@ -205,43 +205,23 @@ async function summarizeFile(seed: UploadedFileSeed, extractedText: string) {
     });
 
     if (!response.ok) {
-      return null;
+      return { analysis: null, error: `ollama-file-analysis-http-${response.status}` };
     }
 
     const data = await response.json();
     const content = data.message?.content || "";
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return null;
+      return { analysis: null, error: "ollama-file-analysis-no-json" };
     }
 
-    return JSON.parse(jsonMatch[0]) as FileAnalysis;
-  } catch {
-    return null;
+    return { analysis: JSON.parse(jsonMatch[0]) as FileAnalysis, error: null };
+  } catch (error) {
+    return {
+      analysis: null,
+      error: error instanceof Error ? error.message : "unknown-file-analysis-error",
+    };
   }
-}
-
-function fallbackAnalysis(extractedText: string): FileAnalysis {
-  const sentences = extractedText
-    .split(/(?<=[.!?])\s+/)
-    .map((line) => collapseWhitespace(line))
-    .filter((line) => line.length > 40);
-
-  const bullets = uniqueShortStrings(sentences, 6);
-  return {
-    summary: bullets[0],
-    explanations: bullets.slice(0, 2),
-    conclusions: bullets.slice(0, 2),
-    evaluations: bullets.slice(2, 4),
-    judgments: [],
-    recommendations: [],
-    comparisons: [],
-    industryNews: [],
-    researchPlans: [],
-    forecasts: [],
-    prices: [],
-    marketChatter: [],
-  };
 }
 
 export async function enrichUploadedFile(seed: UploadedFileSeed): Promise<FileExtraction> {
@@ -269,18 +249,28 @@ export async function enrichUploadedFile(seed: UploadedFileSeed): Promise<FileEx
     };
   }
 
-  const aiAnalysis = await summarizeFile(seed, cleanedText);
-  const analysis = aiAnalysis ?? fallbackAnalysis(cleanedText);
+  const { analysis, error: analysisError } = await summarizeFile(seed, cleanedText);
+  if (analysisError) {
+    console.warn(
+      JSON.stringify({
+        kind: "fileAnalysisFailed",
+        fileName: seed.name,
+        mimeType: seed.mimeType,
+        sizeBytes: seed.sizeBytes,
+        reason: analysisError,
+      }),
+    );
+  }
   const usefulSignals = [
-    analysis.summary,
-    ...(analysis.explanations ?? []),
-    ...(analysis.conclusions ?? []),
-    ...(analysis.evaluations ?? []),
-    ...(analysis.judgments ?? []),
-    ...(analysis.recommendations ?? []),
-    ...(analysis.comparisons ?? []),
-    ...(analysis.researchPlans ?? []),
-    ...(analysis.prices ?? []),
+    analysis?.summary,
+    ...(analysis?.explanations ?? []),
+    ...(analysis?.conclusions ?? []),
+    ...(analysis?.evaluations ?? []),
+    ...(analysis?.judgments ?? []),
+    ...(analysis?.recommendations ?? []),
+    ...(analysis?.comparisons ?? []),
+    ...(analysis?.researchPlans ?? []),
+    ...(analysis?.prices ?? []),
   ].filter(Boolean);
 
   return {
@@ -295,7 +285,11 @@ export async function enrichUploadedFile(seed: UploadedFileSeed): Promise<FileEx
       preview: previewLines(extracted.text),
       qualityGate: {
         passed: usefulSignals.length > 0,
-        reason: usefulSignals.length > 0 ? "sufficient-file-evidence" : "weak-file-evidence",
+        reason: usefulSignals.length > 0
+          ? "sufficient-file-evidence"
+          : analysisError
+            ? "file-analysis-failed"
+            : "weak-file-evidence",
       },
       analysis,
     },

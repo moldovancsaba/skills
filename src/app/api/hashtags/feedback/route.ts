@@ -20,7 +20,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "entityId and tag required" }, { status: 400 });
     }
 
-    if (![HashtagEntityType.SOURCE, HashtagEntityType.FLASHCARD, HashtagEntityType.CHECKLIST].includes(entityType)) {
+    if (
+      entityType !== HashtagEntityType.SOURCE &&
+      entityType !== HashtagEntityType.FILE &&
+      entityType !== HashtagEntityType.FLASHCARD &&
+      entityType !== HashtagEntityType.CHECKLIST &&
+      entityType !== HashtagEntityType.TOPIC
+    ) {
       return NextResponse.json({ error: "Invalid entityType" }, { status: 400 });
     }
 
@@ -29,8 +35,11 @@ export async function POST(request: NextRequest) {
         ? await prisma.flashcard.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
         : entityType === HashtagEntityType.CHECKLIST
           ? await prisma.nBAItem.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
-          : await prisma.source.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
-            ?? await prisma.uploadedSourceFile.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } });
+          : entityType === HashtagEntityType.TOPIC
+            ? await prisma.topic.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
+            : entityType === HashtagEntityType.FILE
+              ? await prisma.uploadedSourceFile.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
+              : await prisma.source.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } });
 
     if (!lookup) {
       return NextResponse.json({ error: "Entity not found" }, { status: 404 });
@@ -44,17 +53,28 @@ export async function POST(request: NextRequest) {
     if (entityType === HashtagEntityType.FLASHCARD) {
       await prisma.flashcard.update({
         where: { id: entityId },
-        data: { hashtags: nextHashtags, updatedAt: new Date() },
+        data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
       });
     } else if (entityType === HashtagEntityType.CHECKLIST) {
       await prisma.nBAItem.update({
         where: { id: entityId },
-        data: { hashtags: nextHashtags, updatedAt: new Date() },
+        data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
+      });
+    } else if (entityType === HashtagEntityType.TOPIC) {
+      await prisma.topic.update({
+        where: { id: entityId },
+        data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
+      });
+    } else if (entityType === HashtagEntityType.FILE) {
+      await prisma.uploadedSourceFile.update({
+        where: { id: entityId },
+        data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
       });
     } else {
-      const updates = { hashtags: nextHashtags, updatedAt: new Date() };
-      await prisma.source.updateMany({ where: { id: entityId }, data: updates });
-      await prisma.uploadedSourceFile.updateMany({ where: { id: entityId }, data: updates });
+      await prisma.source.update({
+        where: { id: entityId },
+        data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
+      });
     }
 
     await prisma.hashtagFeedback.create({

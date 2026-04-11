@@ -1015,59 +1015,16 @@ function inferPricing(insights: UrlInsight[]) {
   return null;
 }
 
-function fallbackProductSummary(insights: UrlInsight[]) {
-  const summary = firstNonEmpty(
-    insights[0]?.description,
-    insights[0]?.textSnippet,
-    insights[0]?.headings.join(". "),
+function logUrlEnrichmentFailure(kind: "product" | "competitor", seedName: string | null | undefined, urls: string[], reason: string) {
+  console.warn(
+    JSON.stringify({
+      kind: "urlEnrichmentFailed",
+      entityKind: kind,
+      seedName: seedName ?? null,
+      urls,
+      reason,
+    }),
   );
-  const features = filterBusinessSignals(
-    insights.flatMap((insight) => [...insight.headings, ...insight.bullets]),
-  );
-  const pricing = inferPricing(insights);
-
-  return {
-    name: cleanCandidateText(insights[0]?.title) ?? deriveNameFromUrl(insights[0]?.finalUrl ?? ""),
-    conclusions: summary ? [summary] : [],
-    evaluations: filterBusinessSignals(insights[0]?.headings ?? [], 2),
-    judgments: [],
-    recommendations: [],
-    industryNews: [],
-    researchPlans: [],
-    forecasts: [],
-    stockSignal: [],
-    marketChatter: [],
-    pricing,
-    features,
-  };
-}
-
-function fallbackCompetitorSummary(insights: UrlInsight[]) {
-  const positioning = firstNonEmpty(
-    insights[0]?.description,
-    insights[0]?.textSnippet,
-    insights[0]?.headings.join(". "),
-  );
-  const signals = filterBusinessSignals(
-    insights.flatMap((insight) => [...insight.headings, ...insight.bullets]),
-    6,
-  );
-
-  return {
-    name: cleanCandidateText(insights[0]?.title) ?? deriveNameFromUrl(insights[0]?.finalUrl ?? ""),
-    conclusions: positioning ? [positioning] : [],
-    evaluations: signals.slice(0, 2),
-    judgments: [],
-    recommendations: [],
-    industryNews: [],
-    researchPlans: [],
-    forecasts: [],
-    stockSignal: [],
-    marketChatter: [],
-    pricing: inferPricing(insights),
-    strengths: signals.slice(0, 3),
-    weaknesses: [] as string[],
-  };
 }
 
 export function normalizeQuickAddInput(input: string) {
@@ -1161,8 +1118,11 @@ export async function enrichProductSeed(seed: ProductSeed) {
   const stockSignal = insights.length > 0 ? await fetchStockSignal(inferTicker(insights)) : null;
   const aiSummary =
     insights.length > 0 ? await callLocalSummarizer("product", insights, newsSignals, searchSignals, stockSignal) : null;
-  const fallback = insights.length > 0 ? fallbackProductSummary(insights) : null;
-  const chosenName = chooseEntityName(seed.name, urls, typeof aiSummary?.name === "string" ? aiSummary.name : null, fallback?.name);
+  const aiFailed = insights.length > 0 && !aiSummary;
+  if (aiFailed) {
+    logUrlEnrichmentFailure("product", seed.name, urls, "ai-summary-missing-or-invalid");
+  }
+  const chosenName = chooseEntityName(seed.name, urls, typeof aiSummary?.name === "string" ? aiSummary.name : null, null);
   const pageTitles = insights
     .map((item) => item.title)
     .filter((value): value is string => Boolean(value));
@@ -1171,27 +1131,24 @@ export async function enrichProductSeed(seed: ProductSeed) {
   const filteredFeatures = filterBusinessSignals([
     ...(seed.features ?? []),
     ...((Array.isArray(aiSummary?.features) ? aiSummary.features : []) as string[]),
-    ...(fallback?.features ?? []),
   ]);
   const primarySignals = filterBusinessSignals([
     typeof aiSummary?.pricing === "string" ? aiSummary.pricing : null,
-    fallback?.pricing,
     typeof aiSummary?.conclusions?.[0] === "string" ? aiSummary.conclusions[0] : null,
     ...filteredFeatures,
   ]);
   const secondarySignals = filterBusinessSignals([
     ...(Array.isArray(aiSummary?.evaluations) ? aiSummary.evaluations : []),
-    ...(fallback?.evaluations ?? []),
   ]);
-  const passedQualityGate = hasMinimumBusinessEvidence(insights, primarySignals, secondarySignals);
+  const passedQualityGate = !aiFailed && hasMinimumBusinessEvidence(insights, primarySignals, secondarySignals);
   const decisionBody = buildDecisionBody([
-    ["Conclusions", passedQualityGate ? filterLowValueConclusions((aiSummary?.conclusions as string[]) ?? fallback?.conclusions ?? []) : []],
-    ["Evaluation", passedQualityGate ? filterLowValueConclusions((aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []) : []],
-    ["Judgment", passedQualityGate ? filterLowValueConclusions((aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []) : []],
-    ["Recommendation", passedQualityGate ? filterLowValueConclusions((aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []) : []],
+    ["Conclusions", passedQualityGate ? filterLowValueConclusions((aiSummary?.conclusions as string[]) ?? []) : []],
+    ["Evaluation", passedQualityGate ? filterLowValueConclusions((aiSummary?.evaluations as string[]) ?? []) : []],
+    ["Judgment", passedQualityGate ? filterLowValueConclusions((aiSummary?.judgments as string[]) ?? []) : []],
+    ["Recommendation", passedQualityGate ? filterLowValueConclusions((aiSummary?.recommendations as string[]) ?? []) : []],
     ["Industry news", passedQualityGate ? sanitizeIndustryNews((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title), chosenName, pageTitles) : []],
-    ["R&D / roadmap", passedQualityGate ? ((aiSummary?.researchPlans as string[]) ?? fallback?.researchPlans ?? []) : []],
-    ["Forecast", passedQualityGate ? ((aiSummary?.forecasts as string[]) ?? fallback?.forecasts ?? []) : []],
+    ["R&D / roadmap", passedQualityGate ? ((aiSummary?.researchPlans as string[]) ?? []) : []],
+    ["Forecast", passedQualityGate ? ((aiSummary?.forecasts as string[]) ?? []) : []],
     [
       "Stock signal",
       passedQualityGate ? ((aiSummary?.stockSignal as string[]) ??
@@ -1205,7 +1162,7 @@ export async function enrichProductSeed(seed: ProductSeed) {
     ],
     [
       "Market chatter (low confidence)",
-      passedQualityGate ? ((aiSummary?.marketChatter as string[]) ?? fallback?.marketChatter ?? []) : [],
+      passedQualityGate ? ((aiSummary?.marketChatter as string[]) ?? []) : [],
     ],
   ]);
 
@@ -1214,11 +1171,10 @@ export async function enrichProductSeed(seed: ProductSeed) {
     name: chosenName ?? sanitizeEntityName(fallbackName),
     description: passedQualityGate
       ? firstNonEmpty(decisionBody, seed.description)
-      : null,
+      : firstNonEmpty(seed.description),
     pricing: firstNonEmpty(
       seed.pricing,
       typeof aiSummary?.pricing === "string" ? aiSummary.pricing : null,
-      fallback?.pricing,
     ),
     features: passedQualityGate ? filteredFeatures : [],
     watchedContent:
@@ -1234,7 +1190,9 @@ export async function enrichProductSeed(seed: ProductSeed) {
               passed: passedQualityGate,
               reason: passedQualityGate
                 ? "sufficient-business-evidence"
-                : "generic-platform-or-navigation-content",
+                : aiFailed
+                  ? "url-analysis-failed"
+                  : "generic-platform-or-navigation-content",
             },
           }
         : (seed.watchedContent ?? null),
@@ -1277,8 +1235,11 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
   const stockSignal = insights.length > 0 ? await fetchStockSignal(inferTicker(insights)) : null;
   const aiSummary =
     insights.length > 0 ? await callLocalSummarizer("competitor", insights, newsSignals, searchSignals, stockSignal) : null;
-  const fallback = insights.length > 0 ? fallbackCompetitorSummary(insights) : null;
-  const chosenName = chooseEntityName(seed.name, urls, typeof aiSummary?.name === "string" ? aiSummary.name : null, fallback?.name);
+  const aiFailed = insights.length > 0 && !aiSummary;
+  if (aiFailed) {
+    logUrlEnrichmentFailure("competitor", seed.name, urls, "ai-summary-missing-or-invalid");
+  }
+  const chosenName = chooseEntityName(seed.name, urls, typeof aiSummary?.name === "string" ? aiSummary.name : null, null);
   const pageTitles = insights
     .map((item) => item.title)
     .filter((value): value is string => Boolean(value));
@@ -1287,32 +1248,28 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
   const filteredStrengths = filterBusinessSignals([
     ...(seed.strengths ?? []),
     ...((Array.isArray(aiSummary?.strengths) ? aiSummary.strengths : []) as string[]),
-    ...(fallback?.strengths ?? []),
   ]);
   const filteredWeaknesses = filterBusinessSignals([
     ...(seed.weaknesses ?? []),
     ...((Array.isArray(aiSummary?.weaknesses) ? aiSummary.weaknesses : []) as string[]),
-    ...(fallback?.weaknesses ?? []),
   ]);
   const primarySignals = filterBusinessSignals([
     typeof aiSummary?.pricing === "string" ? aiSummary.pricing : null,
-    fallback?.pricing,
     ...filteredStrengths,
     ...filteredWeaknesses,
   ]);
   const secondarySignals = filterBusinessSignals([
     ...(Array.isArray(aiSummary?.evaluations) ? aiSummary.evaluations : []),
-    ...(fallback?.evaluations ?? []),
   ]);
-  const passedQualityGate = hasMinimumBusinessEvidence(insights, primarySignals, secondarySignals);
+  const passedQualityGate = !aiFailed && hasMinimumBusinessEvidence(insights, primarySignals, secondarySignals);
   const decisionBody = buildDecisionBody([
-    ["Conclusions", passedQualityGate ? filterLowValueConclusions((aiSummary?.conclusions as string[]) ?? fallback?.conclusions ?? []) : []],
-    ["Evaluation", passedQualityGate ? filterLowValueConclusions((aiSummary?.evaluations as string[]) ?? fallback?.evaluations ?? []) : []],
-    ["Judgment", passedQualityGate ? filterLowValueConclusions((aiSummary?.judgments as string[]) ?? fallback?.judgments ?? []) : []],
-    ["Recommendation", passedQualityGate ? filterLowValueConclusions((aiSummary?.recommendations as string[]) ?? fallback?.recommendations ?? []) : []],
+    ["Conclusions", passedQualityGate ? filterLowValueConclusions((aiSummary?.conclusions as string[]) ?? []) : []],
+    ["Evaluation", passedQualityGate ? filterLowValueConclusions((aiSummary?.evaluations as string[]) ?? []) : []],
+    ["Judgment", passedQualityGate ? filterLowValueConclusions((aiSummary?.judgments as string[]) ?? []) : []],
+    ["Recommendation", passedQualityGate ? filterLowValueConclusions((aiSummary?.recommendations as string[]) ?? []) : []],
     ["Industry news", passedQualityGate ? sanitizeIndustryNews((aiSummary?.industryNews as string[]) ?? relevantNewsSignals.map((item) => item.title), chosenName, pageTitles) : []],
-    ["R&D / roadmap", passedQualityGate ? ((aiSummary?.researchPlans as string[]) ?? fallback?.researchPlans ?? []) : []],
-    ["Forecast", passedQualityGate ? ((aiSummary?.forecasts as string[]) ?? fallback?.forecasts ?? []) : []],
+    ["R&D / roadmap", passedQualityGate ? ((aiSummary?.researchPlans as string[]) ?? []) : []],
+    ["Forecast", passedQualityGate ? ((aiSummary?.forecasts as string[]) ?? []) : []],
     [
       "Stock signal",
       passedQualityGate ? ((aiSummary?.stockSignal as string[]) ??
@@ -1326,7 +1283,7 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
     ],
     [
       "Market chatter (low confidence)",
-      passedQualityGate ? ((aiSummary?.marketChatter as string[]) ?? fallback?.marketChatter ?? []) : [],
+      passedQualityGate ? ((aiSummary?.marketChatter as string[]) ?? []) : [],
     ],
   ]);
 
@@ -1336,9 +1293,8 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
     pricing: firstNonEmpty(
       seed.pricing,
       typeof aiSummary?.pricing === "string" ? aiSummary.pricing : null,
-      fallback?.pricing,
     ),
-    positioning: passedQualityGate ? firstNonEmpty(decisionBody, seed.positioning) : null,
+    positioning: passedQualityGate ? firstNonEmpty(decisionBody, seed.positioning) : firstNonEmpty(seed.positioning),
     strengths: passedQualityGate ? filteredStrengths : [],
     weaknesses: passedQualityGate ? filteredWeaknesses : [],
     watchedContent:
@@ -1354,7 +1310,9 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
               passed: passedQualityGate,
               reason: passedQualityGate
                 ? "sufficient-business-evidence"
-                : "generic-platform-or-navigation-content",
+                : aiFailed
+                  ? "url-analysis-failed"
+                  : "generic-platform-or-navigation-content",
             },
           }
         : (seed.watchedContent ?? null),

@@ -30,9 +30,47 @@ function envFlag(value, fallback = false) {
 const PORT = Number(process.env.PORT || "10005");
 const OLLAMA_HOST = process.env.OLLAMA_HOST || process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:latest";
-const POLL_INTERVAL = Math.max(Number(process.env.POLL_INTERVAL || "300000"), 30_000);
-const ENRICHMENT_INTERVAL = 15 * 60 * 1000; // 15 minutes
-const ENRICHMENT_BATCH_SIZE = 5;
+const POLL_INTERVAL_MS = Math.max(
+  Number(process.env.CHECKLIST_POLL_INTERVAL_MS || process.env.POLL_INTERVAL || "300000"),
+  30_000,
+);
+const FLASHCARD_REVISIT_INTERVAL_MINUTES = Math.max(
+  Number(process.env.CHECKLIST_FLASHCARD_REVISIT_INTERVAL_MINUTES || "15"),
+  5,
+);
+const FLASHCARD_REVISIT_INTERVAL_MS = FLASHCARD_REVISIT_INTERVAL_MINUTES * 60_000;
+const FLASHCARD_REVISIT_BATCH_SIZE = Math.max(
+  Number(process.env.CHECKLIST_FLASHCARD_REVISIT_BATCH_SIZE || "5"),
+  1,
+);
+const TASK_REVISIT_INTERVAL_MINUTES = Math.max(
+  Number(process.env.CHECKLIST_TASK_REVISIT_INTERVAL_MINUTES || "30"),
+  5,
+);
+const TASK_REVISIT_INTERVAL_MS = TASK_REVISIT_INTERVAL_MINUTES * 60_000;
+const TASK_REVISIT_BATCH_SIZE = Math.max(
+  Number(process.env.CHECKLIST_TASK_REVISIT_BATCH_SIZE || "2"),
+  1,
+);
+const FEEDBACK_REPLAY_INTERVAL_MINUTES = Math.max(
+  Number(process.env.CHECKLIST_FEEDBACK_REPLAY_INTERVAL_MINUTES || "30"),
+  5,
+);
+const FEEDBACK_REPLAY_INTERVAL_MS = FEEDBACK_REPLAY_INTERVAL_MINUTES * 60_000;
+const FEEDBACK_REPLAY_BATCH_SIZE = Math.max(
+  Number(process.env.CHECKLIST_FEEDBACK_REPLAY_BATCH_SIZE || "2"),
+  1,
+);
+const HASHTAG_MAINTENANCE_INTERVAL_HOURS = Math.max(Number(process.env.CHECKLIST_HASHTAG_MAINTENANCE_HOURS || "24"), 1);
+const HASHTAG_MAINTENANCE_INTERVAL_MS = HASHTAG_MAINTENANCE_INTERVAL_HOURS * 3_600_000;
+const HASHTAG_MAINTENANCE_BATCH_SIZE = Math.max(Number(process.env.CHECKLIST_HASHTAG_MAINTENANCE_BATCH_SIZE || "1"), 1);
+const CLEANUP_INTERVAL_HOURS = Math.max(Number(process.env.CHECKLIST_CLEANUP_INTERVAL_HOURS || "24"), 1);
+const CLEANUP_INTERVAL_MS = CLEANUP_INTERVAL_HOURS * 3_600_000;
+const CLEANUP_BATCH_SIZE = Math.max(Number(process.env.CHECKLIST_CLEANUP_BATCH_SIZE || "25"), 1);
+const TASK_MIN_ICE_SCORE = Math.max(Number(process.env.CHECKLIST_TASK_MIN_ICE_SCORE || "100"), 0);
+const FLASHCARD_MIN_CONFIDENCE = Math.max(Number(process.env.CHECKLIST_FLASHCARD_MIN_CONFIDENCE || "60"), 1);
+const FLASHCARD_MIN_IMPACT = Math.max(Number(process.env.CHECKLIST_FLASHCARD_MIN_IMPACT || "40"), 1);
+const FLASHCARD_MIN_WEIGHT = Math.max(Number(process.env.CHECKLIST_FLASHCARD_MIN_WEIGHT || "40"), 1);
 const LOCAL_SYNC_SECRET = process.env.LOCAL_SYNC_SECRET || "checklist-sync-2024";
 const APP_VERSION = process.env.CHECKLIST_APP_VERSION || "checklist-local-worker";
 const BRAIN_VERSION = process.env.CHECKLIST_BRAIN_VERSION || "worker-v3-research";
@@ -95,8 +133,33 @@ let modelReady = false;
 let modelBlocker = null;
 let lastPollError = null;
 let lastSync = Date.now() - 3_600_000;
+let lastHashtagMaintenanceAt = Date.now() - HASHTAG_MAINTENANCE_INTERVAL_MS;
 let firstRun = true;
 let prisma = null;
+
+function createLaneState(name, intervalMs, batchSize = null) {
+  return {
+    name,
+    intervalMs,
+    batchSize,
+    running: false,
+    lastStartedAt: null,
+    lastSucceededAt: null,
+    lastFailedAt: null,
+    lastDurationMs: null,
+    lastError: null,
+    lastResult: null,
+  };
+}
+
+const laneStates = {
+  poll: createLaneState("poll", POLL_INTERVAL_MS),
+  flashcardRevisit: createLaneState("flashcardRevisit", FLASHCARD_REVISIT_INTERVAL_MS, FLASHCARD_REVISIT_BATCH_SIZE),
+  taskRevisit: createLaneState("taskRevisit", TASK_REVISIT_INTERVAL_MS, TASK_REVISIT_BATCH_SIZE),
+  feedbackReplay: createLaneState("feedbackReplay", FEEDBACK_REPLAY_INTERVAL_MS, FEEDBACK_REPLAY_BATCH_SIZE),
+  hashtagMaintenance: createLaneState("hashtagMaintenance", HASHTAG_MAINTENANCE_INTERVAL_MS, HASHTAG_MAINTENANCE_BATCH_SIZE),
+  cleanup: createLaneState("cleanup", CLEANUP_INTERVAL_MS, CLEANUP_BATCH_SIZE),
+};
 
 if (!fs.existsSync(KNOWLEDGE_DIR)) {
   fs.mkdirSync(KNOWLEDGE_DIR, { recursive: true });
@@ -350,6 +413,23 @@ function similarity(a, b) {
   return common.length / Math.max(left.length, right.length, 1);
 }
 
+function tokenizeText(value) {
+  return normalizeLoose(value)
+    .split(/\s+/)
+    .filter((token) => token.length > 2 && !HASHTAG_STOPWORDS.has(token));
+}
+
+function overlapScore(a, b) {
+  const left = new Set(tokenizeText(a));
+  const right = new Set(tokenizeText(b));
+  if (left.size === 0 || right.size === 0) return 0;
+  let common = 0;
+  for (const token of left) {
+    if (right.has(token)) common += 1;
+  }
+  return common / Math.max(left.size, right.size, 1);
+}
+
 function toArray(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   return [];
@@ -406,12 +486,65 @@ function clampInt(value, fallback, min = 1, max = 100) {
   return Math.min(Math.max(Math.round(parsed), min), max);
 }
 
+function parseBoundedInt(value, min = 1, max = 100) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.min(Math.max(Math.round(parsed), min), max);
+}
+
 function isUniqueConstraintError(error) {
   return Boolean(error && typeof error === "object" && error.code === "P2002");
 }
 
 function isoTimestamp(value = new Date()) {
   return new Date(value).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+async function runLane(laneName, executor) {
+  const lane = laneStates[laneName];
+  if (!lane) {
+    return executor();
+  }
+  if (lane.running) {
+    return { skipped: true, reason: "already-running" };
+  }
+
+  const startedAt = Date.now();
+  lane.running = true;
+  lane.lastStartedAt = startedAt;
+
+  try {
+    const result = await executor();
+    lane.lastSucceededAt = Date.now();
+    lane.lastDurationMs = lane.lastSucceededAt - startedAt;
+    lane.lastError = null;
+    lane.lastResult = result || null;
+    return result;
+  } catch (error) {
+    lane.lastFailedAt = Date.now();
+    lane.lastDurationMs = lane.lastFailedAt - startedAt;
+    lane.lastError = error.message;
+    lane.lastResult = { error: error.message };
+    throw error;
+  } finally {
+    lane.running = false;
+  }
+}
+
+function classifyLaneHealth(lane) {
+  if (!lane) return "unknown";
+  if (lane.running) return "running";
+  if (lane.lastFailedAt && (!lane.lastSucceededAt || lane.lastFailedAt >= lane.lastSucceededAt)) {
+    return "failed";
+  }
+  if (!lane.lastSucceededAt) {
+    return "pending";
+  }
+
+  const age = Date.now() - lane.lastSucceededAt;
+  if (age > lane.intervalMs * 3) return "stale";
+  if (age > lane.intervalMs * 1.5) return "delayed";
+  return "healthy";
 }
 
 function buildSnapshot(data) {
@@ -426,10 +559,27 @@ function buildSnapshot(data) {
     topics: fingerprint(data.topics, ["id", "updatedAt", "label", "active", "sortOrder"]),
     uploadedFiles: fingerprint(data.uploadedFiles, ["id", "updatedAt", "name", "sizeBytes"]),
     flashcards: fingerprint(data.flashcards, ["id", "updatedAt", "status", "reviewStatus", "fingerprint"]),
-    flashcardActions: fingerprint(data.flashcardActions, ["id", "createdAt", "action", "flashcardId"]),
-    feedback: fingerprint(data.feedback, ["id", "createdAt", "action", "nbaItemId"]),
+    flashcardActions: fingerprint(data.flashcardActions, ["id", "createdAt", "action", "flashcardId", "annotation", "modifiedTitle", "modifiedBody"]),
+    feedback: fingerprint(data.feedback, ["id", "createdAt", "action", "nbaItemId", "annotation", "modifiedTitle", "modifiedDescription"]),
     hashtagFeedback: fingerprint(data.hashtagFeedback, ["id", "createdAt", "action", "entityId", "tag"]),
     pendingNBA: fingerprint(data.existingNBA, ["id", "updatedAt", "status", "title"]),
+  };
+}
+
+function buildCoreSnapshot(snapshot = {}) {
+  return {
+    sources: snapshot.sources || "",
+    topics: snapshot.topics || "",
+    uploadedFiles: snapshot.uploadedFiles || "",
+  };
+}
+
+function buildFeedbackSnapshot(snapshot = {}) {
+  return {
+    flashcards: snapshot.flashcards || "",
+    flashcardActions: snapshot.flashcardActions || "",
+    feedback: snapshot.feedback || "",
+    pendingNBA: snapshot.pendingNBA || "",
   };
 }
 
@@ -1003,21 +1153,6 @@ async function callOllamaJson(systemPrompt, userPrompt) {
   }
 }
 
-function buildFallbackRecommendations(company, flashcards) {
-  return flashcards.slice(0, 3).map((card, index) => ({
-    title: `Act on: ${normalizeText(card.title) || `Priority ${index + 1}`}`,
-    description: truncate(
-      `Turn the flashcard "${normalizeText(card.title) || `Priority ${index + 1}`}" into a concrete next action for ${company.name}. Validate the claim, package it for the right audience, and assign an owner with a measurable outcome.`,
-      600,
-    ),
-    impact: clampInt(card.impact, 6, 1, 10),
-    confidence: clampInt(card.confidence, 65, 1, 100),
-    ease: clampInt(Math.max(3, Math.min(8, Math.round((card.weight + card.impact) / 2))), 5, 1, 10),
-    sourceFlashcardIds: [card.id],
-    hashtags: mergeHashtags(card.hashtags, deriveKeywordHashtags(card.title, card.body)).slice(0, 10),
-  }));
-}
-
 function deriveFlashcardHashtags(source, generated) {
   return mergeHashtags(
     source.hashtags,
@@ -1044,6 +1179,170 @@ function computeFlashcardConfidence(source, research, rawConfidence, synthesisWe
   const adjusted = rawConfidence + bodySignal + tagSignal + researchSignal + synthesisSignal;
   const cap = Number(research?.factCheck?.confidenceCap || 78);
   return Math.min(clampInt(adjusted, rawConfidence, 1, 100), cap);
+}
+
+function computeRecommendationIceScore(recommendation) {
+  return recommendation.impact * (recommendation.confidence / 100) * recommendation.ease * 10;
+}
+
+function scoreFlashcardCandidate(candidate) {
+  return (Number(candidate.weight || 0) * 0.45) + (Number(candidate.impact || 0) * 0.35) + (Number(candidate.confidence || 0) * 0.2);
+}
+
+function toFeedbackExcerpt(value, max = 280) {
+  return truncate(normalizeText(value) || "", max);
+}
+
+function compactFeedbackRecord(row) {
+  return {
+    taskPublicId: row.taskPublicId ?? null,
+    taskTitle: truncate(row.taskTitle, 160),
+    taskDescription: truncate(row.taskDescription, 320),
+    action: row.action,
+    annotation: toFeedbackExcerpt(row.annotation, 320),
+    createdAt: row.createdAt,
+  };
+}
+
+function summarizeFeedbackPatterns(rows = []) {
+  const termCounts = new Map();
+  const hashtagCounts = new Map();
+
+  for (const row of rows) {
+    for (const token of tokenizeText([
+      row.taskTitle,
+      row.taskDescription,
+      row.annotation,
+    ].join(" "))) {
+      termCounts.set(token, (termCounts.get(token) || 0) + 1);
+    }
+    for (const tag of normalizeHashtags(row.hashtags)) {
+      hashtagCounts.set(tag, (hashtagCounts.get(tag) || 0) + 1);
+    }
+  }
+
+  const topTerms = [...termCounts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 12)
+    .map(([term, count]) => ({ term, count }));
+  const topHashtags = [...hashtagCounts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 10)
+    .map(([tag, count]) => ({ tag, count }));
+
+  return { topTerms, topHashtags };
+}
+
+function buildFlashcardActionIndex(rows) {
+  const byFlashcardId = new Map();
+  for (const row of rows || []) {
+    if (!row?.flashcardId) continue;
+    if (!byFlashcardId.has(row.flashcardId)) {
+      byFlashcardId.set(row.flashcardId, []);
+    }
+    byFlashcardId.get(row.flashcardId).push({
+      action: row.action,
+      annotation: toFeedbackExcerpt(row.annotation),
+      modifiedTitle: toFeedbackExcerpt(row.modifiedTitle, 180),
+      modifiedBody: toFeedbackExcerpt(row.modifiedBody, 400),
+      createdAt: isoTimestamp(row.createdAt),
+    });
+  }
+  return byFlashcardId;
+}
+
+function buildTaskFeedbackIndex(existingNBA, feedbackRows) {
+  const itemById = new Map((existingNBA || []).map((item) => [item.id, item]));
+  const byFlashcardId = new Map();
+  const examples = [];
+
+  for (const row of feedbackRows || []) {
+    const item = itemById.get(row.nbaItemId);
+    if (!item) continue;
+    const payload = {
+      taskPublicId: item.publicId ?? null,
+      taskTitle: truncate(normalizeText(row.modifiedTitle) || normalizeText(item.title) || "Untitled task", 180),
+      taskDescription: truncate(normalizeText(row.modifiedDescription) || normalizeText(item.description) || "", 500),
+      hashtags: normalizeHashtags(item.hashtags),
+      action: row.action,
+      annotation: toFeedbackExcerpt(row.annotation, 500),
+      createdAt: isoTimestamp(row.createdAt),
+    };
+    examples.push(payload);
+
+    for (const flashcardId of item.sourceFlashcardIds || []) {
+      if (!byFlashcardId.has(flashcardId)) {
+        byFlashcardId.set(flashcardId, []);
+      }
+      byFlashcardId.get(flashcardId).push(payload);
+    }
+  }
+
+  return {
+    byFlashcardId,
+    examples: examples.slice(0, 400),
+  };
+}
+
+function selectRelevantTaskFeedback(taskFeedbackIndex, flashcardIds = [], contextText = "") {
+  const collected = [];
+  for (const flashcardId of flashcardIds) {
+    const rows = taskFeedbackIndex.byFlashcardId.get(flashcardId) || [];
+    collected.push(...rows);
+  }
+
+  const seen = new Set();
+  const uniqueCollected = collected.filter((row) => {
+    const key = `${row.taskPublicId || "none"}:${row.action}:${row.createdAt}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const ranked = uniqueCollected
+    .map((row) => ({
+      row,
+      score: overlapScore(contextText, [row.taskTitle, row.taskDescription, row.annotation, ...(row.hashtags || [])].join(" ")),
+    }))
+    .sort((left, right) => right.score - left.score);
+
+  const accepted = ranked
+    .filter((entry) => (entry.row.action === "ACCEPT" || entry.row.action === "MODIFY_ACCEPT") && entry.score > 0)
+    .slice(0, 8)
+    .map((entry) => compactFeedbackRecord(entry.row));
+  const declined = ranked
+    .filter((entry) => entry.row.action === "DECLINE" && entry.score > 0)
+    .slice(0, 8)
+    .map((entry) => compactFeedbackRecord(entry.row));
+
+  return {
+    accepted,
+    declined,
+  };
+}
+
+function companyFeedbackPatterns(taskFeedbackIndex) {
+  const acceptedRows = (taskFeedbackIndex.examples || [])
+    .filter((row) => row.action === "ACCEPT" || row.action === "MODIFY_ACCEPT")
+    .slice(0, 24);
+  const declinedRows = (taskFeedbackIndex.examples || [])
+    .filter((row) => row.action === "DECLINE")
+    .slice(0, 24);
+  return {
+    acceptedExamples: acceptedRows.slice(0, 12).map(compactFeedbackRecord),
+    declinedExamples: declinedRows.slice(0, 12).map(compactFeedbackRecord),
+    acceptedPatterns: summarizeFeedbackPatterns(acceptedRows),
+    declinedPatterns: summarizeFeedbackPatterns(declinedRows),
+  };
+}
+
+function buildFeedbackContext(taskFeedbackIndex, flashcardIds = [], contextText = "") {
+  const related = selectRelevantTaskFeedback(taskFeedbackIndex, flashcardIds, contextText);
+  const company = companyFeedbackPatterns(taskFeedbackIndex);
+  return {
+    related,
+    company,
+  };
 }
 
 async function saveKnowledge(companyId, data) {
@@ -1101,12 +1400,12 @@ async function getAllData(companyId) {
     prisma.flashcardAction.findMany({
       where: { flashcard: { companyId } },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      take: 1000,
     }),
     prisma.feedback.findMany({
       where: { nbaItem: { companyId } },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      take: 1000,
     }),
     prisma.hashtagFeedback.findMany({
       where: { companyId },
@@ -1151,28 +1450,8 @@ function buildHashtagFeedbackIndex(feedbackRows) {
   return { suppressedByEntity, suppressedGlobally, existingKeys };
 }
 
-function fallbackHashtagEvaluation(company, source, existingTags, suppressedTags) {
-  const heuristic = deriveKeywordHashtags(
-    source.name,
-    source.entityTag,
-    company?.name,
-    source.description,
-    source.pricing,
-    source.notes,
-    source.positioning,
-    source.content,
-    ...(source.urls || []),
-  );
-  const addedHashtags = heuristic.filter((tag) => !existingTags.includes(tag) && !suppressedTags.has(tag)).slice(0, 6);
-  const acceptedHashtags = existingTags.filter((tag) => !suppressedTags.has(tag));
-  const finalHashtags = mergeHashtags(acceptedHashtags, addedHashtags).slice(0, 10);
-
-  return {
-    acceptedHashtags,
-    rejectedHashtags: existingTags.filter((tag) => suppressedTags.has(tag)),
-    addedHashtags,
-    finalHashtags,
-  };
+function buildHashtagEntityKey(entityType, entityId) {
+  return `${entityType}:${entityId}`;
 }
 
 function normalizeTopicLabel(value) {
@@ -1249,34 +1528,78 @@ function selectResearchTopics(data, limit = 5) {
     }));
 }
 
-async function evaluateSourceHashtags(company, source, feedbackIndex) {
-  const existingTags = normalizeHashtags(source.hashtags);
-  const entitySuppressed = feedbackIndex.suppressedByEntity.get(`SOURCE:${source.id}`) || new Set();
+async function logHashtagMaintenanceEvent({ companyId, entityType, entityId, status, note }) {
+  const payload = {
+    companyId,
+    entityType,
+    entityId,
+    status,
+    note: truncate(note, 1000),
+    createdBy: "local-ai",
+  };
+  console.log(JSON.stringify({ kind: "hashtag-maintenance", ...payload }));
+  await prisma.hashtagMaintenanceEvent.create({ data: payload });
+}
+
+function buildHashtagMaintenanceInput(record) {
+  const fields = [
+    record.name,
+    record.entityTag,
+    record.label,
+    record.title,
+    record.description,
+    record.body,
+    record.notes,
+    record.content,
+    ...(record.urls || []),
+  ].filter(Boolean);
+  return truncate(fields.join("\n"), 2200);
+}
+
+function buildHashtagCandidateTags(company, record) {
+  return unique([
+    ...deriveKeywordHashtags(
+      company?.name,
+      record.name,
+      record.label,
+      record.title,
+      record.entityTag,
+      record.description,
+      record.notes,
+      record.body,
+      record.content,
+      ...(record.urls || []),
+    ),
+    ...normalizeHashtags(record.hashtags),
+  ]).slice(0, 16);
+}
+
+async function evaluateEntityHashtags(company, record, feedbackIndex) {
+  const existingTags = normalizeHashtags(record.hashtags);
+  const entitySuppressed = feedbackIndex.suppressedByEntity.get(buildHashtagEntityKey(record.entityType, record.id)) || new Set();
   const suppressedTags = new Set([...feedbackIndex.suppressedGlobally, ...entitySuppressed]);
-  const fallback = fallbackHashtagEvaluation(company, source, existingTags, suppressedTags);
 
   try {
-    const candidateTags = unique([
-      ...fallback.addedHashtags,
-      ...deriveKeywordHashtags(source.name, source.entityTag, company?.name, source.content || source.description || ""),
-    ]).slice(0, 12);
+    const candidateTags = buildHashtagCandidateTags(company, record);
 
     const raw = await callOllamaJson(
       [
-        "You evaluate business hashtags for a source record.",
+        "You evaluate business hashtags for one entity record.",
         "Return strict JSON with acceptedHashtags, rejectedHashtags, addedHashtags, finalHashtags.",
         "Keep only tags that are relevant to retrieval, clustering, and downstream task generation.",
         "Do not output source type tags like #product, #customer, #competitor, or #file.",
+        "It is valid to keep the current hashtags unchanged and return no additions.",
         "finalHashtags should be unique lowercase hashtags.",
       ].join(" "),
       [
         `Company: ${company?.name || "Unknown company"}`,
-        `Source name: ${source.name}`,
+        `Entity type: ${record.entityType}`,
+        `Entity name: ${record.name || record.label || record.title || "Untitled"}`,
         `Existing hashtags: ${existingTags.join(", ") || "none"}`,
         `Suppressed hashtags: ${[...suppressedTags].join(", ") || "none"}`,
         `Candidate hashtags: ${candidateTags.join(", ") || "none"}`,
-        `Entity tag: ${normalizeText(source.entityTag) || "n/a"}`,
-        `Source content: ${truncate(source.content || source.description || source.notes || source.positioning || "", 1800) || "n/a"}`,
+        `Entity tag: ${normalizeText(record.entityTag) || "n/a"}`,
+        `Entity content: ${buildHashtagMaintenanceInput(record) || "n/a"}`,
       ].join("\n"),
     );
 
@@ -1287,105 +1610,209 @@ async function evaluateSourceHashtags(company, source, feedbackIndex) {
       finalHashtags: normalizeHashtags(raw.finalHashtags).filter((tag) => !suppressedTags.has(tag)).slice(0, 10),
     };
   } catch (error) {
-    console.warn(`Hashtag evaluation fallback for ${source.id}: ${error.message}`);
-    return fallback;
+    throw new Error(`Hashtag evaluation failed: ${error.message}`);
   }
 }
 
-async function syncSourceHashtags(company, data) {
-  const feedbackIndex = buildHashtagFeedbackIndex(data.hashtagFeedback);
-  const updates = [];
-
-  for (const source of data.sources) {
-    updates.push({
+function buildHashtagMaintenanceRecords(data) {
+  return [
+    ...(data.sources || []).map((source) => ({
       model: "source",
+      entityType: "SOURCE",
       id: source.id,
+      companyId: source.companyId,
       current: normalizeHashtags(source.hashtags),
-      payload: await evaluateSourceHashtags(company, {
+      hashtagMaintainedAt: source.hashtagMaintainedAt,
+      hashtagEvaluationPending: source.hashtagEvaluationPending,
+      payload: {
         id: source.id,
+        entityType: "SOURCE",
         name: source.entityTag || source.content.split("\n").find(Boolean) || `source-${source.publicId || source.id}`,
         entityTag: source.entityTag,
         content: source.content,
         hashtags: source.hashtags,
-      }, feedbackIndex),
-    });
-  }
-
-  for (const file of data.uploadedFiles) {
-    updates.push({
+      },
+    })),
+    ...(data.uploadedFiles || []).map((file) => ({
       model: "uploadedSourceFile",
+      entityType: "FILE",
       id: file.id,
+      companyId: file.companyId,
       current: normalizeHashtags(file.hashtags),
-      payload: await evaluateSourceHashtags(company, {
+      hashtagMaintainedAt: file.hashtagMaintainedAt,
+      hashtagEvaluationPending: file.hashtagEvaluationPending,
+      payload: {
         id: file.id,
+        entityType: "FILE",
         name: file.name,
         entityTag: file.entityTag,
         content: decodeUploadedFile(file),
         hashtags: file.hashtags,
-      }, feedbackIndex),
-    });
-  }
+      },
+    })),
+    ...(data.flashcards || []).map((card) => ({
+      model: "flashcard",
+      entityType: "FLASHCARD",
+      id: card.id,
+      companyId: card.companyId,
+      current: normalizeHashtags(card.hashtags),
+      hashtagMaintainedAt: card.hashtagMaintainedAt,
+      hashtagEvaluationPending: card.hashtagEvaluationPending,
+      payload: {
+        id: card.id,
+        entityType: "FLASHCARD",
+        title: card.title,
+        body: card.body,
+        hashtags: card.hashtags,
+      },
+    })),
+    ...(data.existingNBA || []).map((item) => ({
+      model: "nBAItem",
+      entityType: "CHECKLIST",
+      id: item.id,
+      companyId: item.companyId,
+      current: normalizeHashtags(item.hashtags),
+      hashtagMaintainedAt: item.hashtagMaintainedAt,
+      hashtagEvaluationPending: item.hashtagEvaluationPending,
+      payload: {
+        id: item.id,
+        entityType: "CHECKLIST",
+        title: item.title,
+        description: item.description,
+        hashtags: item.hashtags,
+      },
+    })),
+    ...(data.topics || []).map((topic) => ({
+      model: "topic",
+      entityType: "TOPIC",
+      id: topic.id,
+      companyId: topic.companyId,
+      current: normalizeHashtags(topic.hashtags),
+      hashtagMaintainedAt: topic.hashtagMaintainedAt,
+      hashtagEvaluationPending: topic.hashtagEvaluationPending,
+      payload: {
+        id: topic.id,
+        entityType: "TOPIC",
+        label: topic.label,
+        notes: topic.notes,
+        hashtags: topic.hashtags,
+      },
+    })),
+  ];
+}
+
+function hashtagMaintenancePriority(record) {
+  const maintainedAt = record.hashtagMaintainedAt ? new Date(record.hashtagMaintainedAt).getTime() : 0;
+  const pendingBoost = record.hashtagEvaluationPending ? -1 : 0;
+  return [pendingBoost, maintainedAt];
+}
+
+async function syncHashtagMaintenance(company, data) {
+  const feedbackIndex = buildHashtagFeedbackIndex(data.hashtagFeedback);
+  const updates = buildHashtagMaintenanceRecords(data)
+    .sort((left, right) => {
+      const [leftPending, leftTime] = hashtagMaintenancePriority(left);
+      const [rightPending, rightTime] = hashtagMaintenancePriority(right);
+      return leftPending - rightPending || leftTime - rightTime || left.id.localeCompare(right.id);
+    })
+    .slice(0, HASHTAG_MAINTENANCE_BATCH_SIZE);
 
   let changed = 0;
   for (const update of updates) {
-    const nextHashtags = update.payload.finalHashtags;
-    if (JSON.stringify(update.current) === JSON.stringify(nextHashtags)) {
+    try {
+      const payload = await evaluateEntityHashtags(company, update.payload, feedbackIndex);
+      const nextHashtags = payload.finalHashtags;
+      const sameHashtags = JSON.stringify(update.current) === JSON.stringify(nextHashtags);
+
+      await prisma[update.model].update({
+        where: { id: update.id },
+        data: {
+          hashtags: sameHashtags ? update.current : nextHashtags,
+          hashtagMaintainedAt: new Date(),
+          hashtagEvaluationPending: false,
+          lastHashtagError: null,
+          updatedAt: new Date(),
+        },
+      });
+
+      for (const tag of payload.addedHashtags) {
+        const key = `${update.entityType}:${update.id}:AI_ADD:${tag}`;
+        if (feedbackIndex.existingKeys.has(key)) continue;
+        await prisma.hashtagFeedback.create({
+          data: {
+            companyId: company.id,
+            entityType: update.entityType,
+            entityId: update.id,
+            tag,
+            action: "AI_ADD",
+            createdBy: "local-ai",
+          },
+        });
+        feedbackIndex.existingKeys.add(key);
+      }
+
+      for (const tag of payload.rejectedHashtags) {
+        const key = `${update.entityType}:${update.id}:AI_REJECT:${tag}`;
+        if (feedbackIndex.existingKeys.has(key)) continue;
+        await prisma.hashtagFeedback.create({
+          data: {
+            companyId: company.id,
+            entityType: update.entityType,
+            entityId: update.id,
+            tag,
+            action: "AI_REJECT",
+            createdBy: "local-ai",
+          },
+        });
+        feedbackIndex.existingKeys.add(key);
+      }
+
+      await logHashtagMaintenanceEvent({
+        companyId: update.companyId,
+        entityType: update.entityType,
+        entityId: update.id,
+        status: "SUCCESS",
+        note: sameHashtags ? "Hashtags reviewed with no changes." : `Applied ${payload.addedHashtags.length} additions and ${payload.rejectedHashtags.length} rejections.`,
+      });
+
+      if (!sameHashtags) changed += 1;
       continue;
-    }
-    await prisma[update.model].update({
-      where: { id: update.id },
-      data: {
-        hashtags: nextHashtags,
-        updatedAt: new Date(),
-      },
-    });
-
-    for (const tag of update.payload.addedHashtags) {
-      const key = `SOURCE:${update.id}:AI_ADD:${tag}`;
-      if (feedbackIndex.existingKeys.has(key)) continue;
-      await prisma.hashtagFeedback.create({
+    } catch (error) {
+      await prisma[update.model].update({
+        where: { id: update.id },
         data: {
-          companyId: company.id,
-          entityType: "SOURCE",
-          entityId: update.id,
-          tag,
-          action: "AI_ADD",
-          createdBy: "local-ai",
+          hashtagEvaluationPending: true,
+          lastHashtagError: truncate(error.message, 800),
+          updatedAt: new Date(),
         },
       });
-      feedbackIndex.existingKeys.add(key);
-    }
-
-    for (const tag of update.payload.rejectedHashtags) {
-      const key = `SOURCE:${update.id}:AI_REJECT:${tag}`;
-      if (feedbackIndex.existingKeys.has(key)) continue;
-      await prisma.hashtagFeedback.create({
-        data: {
-          companyId: company.id,
-          entityType: "SOURCE",
-          entityId: update.id,
-          tag,
-          action: "AI_REJECT",
-          createdBy: "local-ai",
-        },
+      await logHashtagMaintenanceEvent({
+        companyId: update.companyId,
+        entityType: update.entityType,
+        entityId: update.id,
+        status: "FAILED",
+        note: error.message,
       });
-      feedbackIndex.existingKeys.add(key);
     }
-
-    changed += 1;
   }
 
   return changed;
 }
 
-async function generateFlashcardCandidate(company, source, research) {
+async function generateFlashcardCandidates(company, source, research, feedbackContext = {}) {
   const systemPrompt = [
-    "You generate exactly one Checklist flashcard as strict JSON.",
-    "Return an object with keys: title, body, kind, confidence, impact, weight, hashtags.",
+    "You generate zero or more Checklist flashcards as strict JSON.",
+    "Return a JSON array.",
+    "Each item must be an object with keys: title, body, kind, confidence, impact, weight, hashtags.",
     "Allowed kinds: SUMMARY, EXPLANATION, COMPARISON, NEWS, CONCLUSION, EVALUATION, OPINION, JUDGMENT, RECOMMENDATION, RESEARCH, FORECAST, STOCK, GOSSIP, PRICE.",
     "Use concise business language.",
     "Ground the output in the provided first-party source and public evidence only.",
+    "Treat direct user feedback as the highest-priority correction signal.",
+    "If prior user annotations, accepts, declines, or manual edits exist, align to them and avoid repeating rejected framing.",
     "If public evidence is present, reflect that in the body without inventing claims.",
+    "It is valid to return an empty array when the input is weak, unclear, redundant, not evidence-backed, or not useful enough to justify a flashcard.",
+    "Do not force a result from low-quality input.",
+    "One source may justify multiple distinct flashcards if it contains multiple separable grounded ideas.",
     "hashtags must be relevant retrieval and grouping tags only.",
     "confidence, impact, and weight must be integers from 1 to 100.",
     "Do not include markdown fences or extra text.",
@@ -1415,26 +1842,49 @@ async function generateFlashcardCandidate(company, source, research) {
     `Source name: ${source.sourceName}`,
     `Source hashtags: ${normalizeHashtags(source.hashtags).join(", ") || "none"}`,
     "",
+    "Direct user feedback history:",
+    JSON.stringify(feedbackContext, null, 2),
+    "",
     JSON.stringify(evidencePayload, null, 2),
   ].join("\n");
 
   const raw = await callOllamaJson(systemPrompt, userPrompt);
-  const kind = normalizeText(raw.kind || (research.citations.length > 0 ? "RESEARCH" : "SUMMARY")).toUpperCase();
-  const rawBody = truncate(raw.body || source.promptBody, 900);
-  const body = truncate(`${rawBody}\n\n${buildCitationFooter(research.factCheck, research.citations)}`, 1200);
-  const modelConfidence = clampInt(raw.confidence, 60);
-  return {
-    title: truncate(raw.title || `${source.sourceType}: ${source.sourceName}`, 160),
-    body,
-    kind: FLASHCARD_KINDS.has(kind) ? kind : "SUMMARY",
-    confidence: computeFlashcardConfidence(source, research, modelConfidence),
-    impact: clampInt(raw.impact, 55),
-    weight: clampInt(raw.weight, 55),
-    hashtags: mergeHashtags(source.hashtags, raw.hashtags, deriveKeywordHashtags(raw.title, raw.body)).slice(0, 10),
-  };
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item) => {
+      const kind = normalizeText(item.kind || (research.citations.length > 0 ? "RESEARCH" : "SUMMARY")).toUpperCase();
+      const rawBody = truncate(item.body || "", 900);
+      const body = truncate(`${rawBody}\n\n${buildCitationFooter(research.factCheck, research.citations)}`, 1200);
+      const modelConfidence = parseBoundedInt(item.confidence, 1, 100);
+      const impact = parseBoundedInt(item.impact, 1, 100);
+      const weight = parseBoundedInt(item.weight, 1, 100);
+      if (!item.title || !rawBody || modelConfidence === null || impact === null || weight === null) {
+        return null;
+      }
+      return {
+        title: truncate(item.title, 160),
+        body,
+        kind: FLASHCARD_KINDS.has(kind) ? kind : "SUMMARY",
+        confidence: computeFlashcardConfidence(source, research, modelConfidence),
+        impact,
+        weight,
+        hashtags: mergeHashtags(source.hashtags, item.hashtags, deriveKeywordHashtags(item.title, item.body)).slice(0, 10),
+      };
+    })
+    .filter((item) =>
+      item &&
+      item.title &&
+      item.body &&
+      item.confidence >= FLASHCARD_MIN_CONFIDENCE &&
+      item.impact >= FLASHCARD_MIN_IMPACT &&
+      item.weight >= FLASHCARD_MIN_WEIGHT,
+    )
+    .sort((left, right) => scoreFlashcardCandidate(right) - scoreFlashcardCandidate(left))
+    .slice(0, 5);
 }
 
-async function generateSynthesisFlashcard(company, topic, sources) {
+async function generateSynthesisFlashcards(company, topic, sources) {
   const evidenceSources = sources.slice(0, 4).map((source) => ({
     sourceType: source.sourceType,
     sourceName: source.sourceName,
@@ -1444,10 +1894,12 @@ async function generateSynthesisFlashcard(company, topic, sources) {
 
   const raw = await callOllamaJson(
     [
-      "You generate exactly one synthesis flashcard as strict JSON.",
-      "Return an object with keys: title, body, kind, confidence, impact, weight, hashtags.",
+      "You generate zero or more synthesis flashcards as strict JSON.",
+      "Return a JSON array.",
+      "Each item must contain: title, body, kind, confidence, impact, weight, hashtags.",
       "This flashcard must combine evidence across multiple sources, not paraphrase only one source.",
       "Prefer COMPARISON, EVALUATION, CONCLUSION, RECOMMENDATION, or RESEARCH kinds when appropriate.",
+      "Return an empty array if the sources do not support a strong combined insight.",
       "hashtags must reflect the topic and the combined evidence.",
     ].join(" "),
     [
@@ -1464,15 +1916,36 @@ async function generateSynthesisFlashcard(company, topic, sources) {
     promptBody: evidenceSources.map((item) => item.excerpt).join("\n\n"),
   };
 
-  return {
-    title: truncate(raw.title || `${topic.label}: cross-source synthesis`, 160),
-    body: truncate(raw.body || `Synthesis for ${topic.label}`, 1200),
-    kind: FLASHCARD_KINDS.has(normalizeText(raw.kind).toUpperCase()) ? normalizeText(raw.kind).toUpperCase() : "RESEARCH",
-    confidence: computeFlashcardConfidence(syntheticSource, { factCheck: { confidenceCap: 86, citationCount: 0, distinctDomainCount: 0 } }, clampInt(raw.confidence, 64), sources.length),
-    impact: clampInt(raw.impact, 74),
-    weight: clampInt(raw.weight, 76),
-    hashtags: mergeHashtags(raw.hashtags, [normalizeHashtag(topic.label)], ...sources.map((source) => source.hashtags)).slice(0, 10),
-  };
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item) => {
+      const confidence = parseBoundedInt(item.confidence, 1, 100);
+      const impact = parseBoundedInt(item.impact, 1, 100);
+      const weight = parseBoundedInt(item.weight, 1, 100);
+      if (!item.title || !item.body || confidence === null || impact === null || weight === null) {
+        return null;
+      }
+      return {
+        title: truncate(item.title, 160),
+        body: truncate(item.body, 1200),
+        kind: FLASHCARD_KINDS.has(normalizeText(item.kind).toUpperCase()) ? normalizeText(item.kind).toUpperCase() : "RESEARCH",
+        confidence: computeFlashcardConfidence(syntheticSource, { factCheck: { confidenceCap: 86, citationCount: 0, distinctDomainCount: 0 } }, confidence, sources.length),
+        impact,
+        weight,
+        hashtags: mergeHashtags(item.hashtags, [normalizeHashtag(topic.label)], ...sources.map((source) => source.hashtags)).slice(0, 10),
+      };
+    })
+    .filter((item) =>
+      item &&
+      item.title &&
+      item.body &&
+      item.confidence >= FLASHCARD_MIN_CONFIDENCE &&
+      item.impact >= FLASHCARD_MIN_IMPACT &&
+      item.weight >= FLASHCARD_MIN_WEIGHT,
+    )
+    .sort((left, right) => scoreFlashcardCandidate(right) - scoreFlashcardCandidate(left))
+    .slice(0, 3);
 }
 
 async function upsertFlashcardSource(flashcardId, source) {
@@ -1544,65 +2017,40 @@ async function syncTopicSynthesisFlashcards(companyId, company, data, sources, e
       continue;
     }
 
-    const fingerprint = hashValue(`TOPIC:${companyId}:${topic.id}:${relevantSources.map((source) => source.sourceId).join(":")}`);
-    const existing = existingByFingerprint.get(fingerprint) || await findFlashcardByFingerprint(companyId, fingerprint);
-    let generated;
+    let generatedItems;
 
     try {
-      generated = await generateSynthesisFlashcard(company, topic, relevantSources);
+      generatedItems = await generateSynthesisFlashcards(company, topic, relevantSources);
     } catch (error) {
       console.error(`Synthesis flashcard generation failed for ${companyId}/${topic.label}: ${error.message}`);
       continue;
     }
 
-    const primary = relevantSources[0];
-    const evidence = {
-      synthesisTopic: topic.label,
-      sourceCount: relevantSources.length,
-      sourceIds: relevantSources.map((source) => source.sourceId),
-      excerpts: relevantSources.map((source) => ({
-        sourceType: source.sourceType,
-        sourceId: source.sourceId,
-        sourceName: source.sourceName,
-        excerpt: truncate(source.promptBody, 500),
-      })),
-    };
+    if (!Array.isArray(generatedItems) || generatedItems.length === 0) {
+      continue;
+    }
 
-    if (existing) {
-      await prisma.flashcard.update({
-        where: { id: existing.id },
-        data: {
-          title: existing.manualTitle || generated.title,
-          body: existing.manualBody || generated.body,
-          generatedTitle: generated.title,
-          generatedBody: generated.body,
-          confidence: generated.confidence,
-          impact: generated.impact,
-          weight: generated.weight,
-          hashtags: generated.hashtags,
-          evidence,
-          kind: generated.kind,
-          fingerprint,
-          status: "ACTIVE",
-          refreshedAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-      await prisma.flashcardSource.deleteMany({
-        where: { flashcardId: existing.id, relationRole: { in: ["PRIMARY", "MERGED_FROM"] } },
-      });
-      updated += 1;
-    } else {
-      const flashcardId = crypto.randomUUID();
-      const publicId = await nextPublicId(PUBLIC_ID_SCOPES.flashcard);
-      try {
-        await prisma.flashcard.create({
+    for (const generated of generatedItems) {
+      const fingerprint = hashValue(`TOPIC:${companyId}:${topic.id}:${relevantSources.map((source) => source.sourceId).join(":")}:${generated.title}:${generated.body}`);
+      const existing = existingByFingerprint.get(fingerprint) || await findFlashcardByFingerprint(companyId, fingerprint);
+      const evidence = {
+        synthesisTopic: topic.label,
+        sourceCount: relevantSources.length,
+        sourceIds: relevantSources.map((source) => source.sourceId),
+        excerpts: relevantSources.map((source) => ({
+          sourceType: source.sourceType,
+          sourceId: source.sourceId,
+          sourceName: source.sourceName,
+          excerpt: truncate(source.promptBody, 500),
+        })),
+      };
+
+      if (existing) {
+        await prisma.flashcard.update({
+          where: { id: existing.id },
           data: {
-            id: flashcardId,
-            publicId,
-            companyId,
-            title: generated.title,
-            body: generated.body,
+            title: existing.manualTitle || generated.title,
+            body: existing.manualBody || generated.body,
             generatedTitle: generated.title,
             generatedBody: generated.body,
             confidence: generated.confidence,
@@ -1613,52 +2061,82 @@ async function syncTopicSynthesisFlashcards(companyId, company, data, sources, e
             kind: generated.kind,
             fingerprint,
             status: "ACTIVE",
-            createdBy: "local-ai",
-            reviewStatus: "PENDING",
-            refreshedAt: new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        });
-        existingByFingerprint.set(fingerprint, { id: flashcardId });
-        created += 1;
-      } catch (error) {
-        if (!isUniqueConstraintError(error)) throw error;
-        const concurrent = await findFlashcardByFingerprint(companyId, fingerprint);
-        if (!concurrent) throw error;
-        await prisma.flashcard.update({
-          where: { id: concurrent.id },
-          data: {
-            title: concurrent.manualTitle || generated.title,
-            body: concurrent.manualBody || generated.body,
-            generatedTitle: generated.title,
-            generatedBody: generated.body,
-            confidence: generated.confidence,
-            impact: generated.impact,
-            weight: generated.weight,
-            hashtags: generated.hashtags,
-            evidence,
-            kind: generated.kind,
-            status: "ACTIVE",
             refreshedAt: new Date(),
             updatedAt: new Date(),
           },
         });
-        existingByFingerprint.set(fingerprint, concurrent);
+        await prisma.flashcardSource.deleteMany({
+          where: { flashcardId: existing.id, relationRole: { in: ["PRIMARY", "MERGED_FROM"] } },
+        });
         updated += 1;
+      } else {
+        const flashcardId = crypto.randomUUID();
+        const publicId = await nextPublicId(PUBLIC_ID_SCOPES.flashcard);
+        try {
+          await prisma.flashcard.create({
+            data: {
+              id: flashcardId,
+              publicId,
+              companyId,
+              title: generated.title,
+              body: generated.body,
+              generatedTitle: generated.title,
+              generatedBody: generated.body,
+              confidence: generated.confidence,
+              impact: generated.impact,
+              weight: generated.weight,
+              hashtags: generated.hashtags,
+              evidence,
+              kind: generated.kind,
+              fingerprint,
+              status: "ACTIVE",
+              createdBy: "local-ai",
+              reviewStatus: "PENDING",
+              refreshedAt: new Date(),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+          existingByFingerprint.set(fingerprint, { id: flashcardId });
+          created += 1;
+        } catch (error) {
+          if (!isUniqueConstraintError(error)) throw error;
+          const concurrent = await findFlashcardByFingerprint(companyId, fingerprint);
+          if (!concurrent) throw error;
+          await prisma.flashcard.update({
+            where: { id: concurrent.id },
+            data: {
+              title: concurrent.manualTitle || generated.title,
+              body: concurrent.manualBody || generated.body,
+              generatedTitle: generated.title,
+              generatedBody: generated.body,
+              confidence: generated.confidence,
+              impact: generated.impact,
+              weight: generated.weight,
+              hashtags: generated.hashtags,
+              evidence,
+              kind: generated.kind,
+              status: "ACTIVE",
+              refreshedAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+          existingByFingerprint.set(fingerprint, concurrent);
+          updated += 1;
+        }
       }
-    }
 
-    const targetId = existing?.id || existingByFingerprint.get(fingerprint)?.id;
-    if (targetId) {
-      for (const [index, source] of relevantSources.entries()) {
-        await upsertFlashcardSource(targetId, {
-          sourceType: source.sourceType,
-          sourceId: source.sourceId,
-          sourcePublicId: source.sourcePublicId,
-          sourceName: source.sourceName,
-          relationRole: index === 0 ? "PRIMARY" : "MERGED_FROM",
-        });
+      const targetId = existing?.id || existingByFingerprint.get(fingerprint)?.id;
+      if (targetId) {
+        for (const [index, source] of relevantSources.entries()) {
+          await upsertFlashcardSource(targetId, {
+            sourceType: source.sourceType,
+            sourceId: source.sourceId,
+            sourcePublicId: source.sourcePublicId,
+            sourceName: source.sourceName,
+            relationRole: index === 0 ? "PRIMARY" : "MERGED_FROM",
+          });
+        }
       }
     }
   }
@@ -1672,133 +2150,154 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
   const localFlashcards = (data.flashcards || []).filter((card) => normalizeText(card.createdBy) === "local-ai");
   const existingByFingerprint = new Map(localFlashcards.map((card) => [card.fingerprint, card]));
   const seenFingerprints = new Set();
+  const flashcardActionIndex = buildFlashcardActionIndex(data.flashcardActions);
+  const taskFeedbackIndex = buildTaskFeedbackIndex(data.existingNBA, data.feedback);
 
   let created = 0;
   let updated = 0;
   let researched = 0;
 
   for (const source of sources) {
-    seenFingerprints.add(source.fingerprint);
     const sourceTopics = focusTopics.filter((topic) => topicMatchesSource(topic, source));
     const research = await discoverResearch(company, source, sourceTopics);
     if (research.enabled) researched += 1;
 
-    let generated;
+    let generatedItems;
     try {
-      generated = await generateFlashcardCandidate(company, source, research);
-      generated.hashtags = deriveFlashcardHashtags(source, generated);
+      const existing = existingByFingerprint.get(source.fingerprint) || await findFlashcardByFingerprint(companyId, source.fingerprint);
+      const relatedFlashcardIds = existing?.id ? [existing.id] : [];
+      const feedbackContext = {
+        flashcardActions: existing?.id ? (flashcardActionIndex.get(existing.id) || []).slice(0, 12) : [],
+        taskFeedback: buildFeedbackContext(
+          taskFeedbackIndex,
+          relatedFlashcardIds,
+          [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" "),
+        ),
+      };
+      generatedItems = await generateFlashcardCandidates(company, source, research, feedbackContext);
     } catch (error) {
       console.error(`Flashcard generation failed for ${companyId}/${source.sourceType}/${source.sourceId}: ${error.message}`);
       continue;
     }
 
-    const evidence = buildFlashcardEvidence(source, generated, research);
-    const existing = existingByFingerprint.get(source.fingerprint) || await findFlashcardByFingerprint(companyId, source.fingerprint);
-    
-    if (existing) {
-      const title = existing.manualTitle || existing.title || generated.title;
-      const body = existing.manualBody || generated.body;
-      
-      await prisma.flashcard.update({
-        where: { id: existing.id },
-        data: {
-          title,
-          body,
-          confidence: generated.confidence,
-          impact: generated.impact,
-          weight: generated.weight,
-          hashtags: generated.hashtags,
-          status: "ACTIVE",
-          refreshedAt: new Date(),
-          updatedAt: new Date(),
-          generatedTitle: generated.title,
-          generatedBody: generated.body,
-          evidence: evidence,
-          kind: generated.kind,
-          appVersion: APP_VERSION,
-          brainVersion: BRAIN_VERSION,
-          generatedAt: new Date(),
-          promptVersion: PROMPT_VERSION,
-        },
-      });
-      
-      await upsertFlashcardSource(existing.id, source);
-      if (RESEARCH_ENABLED) {
-        await syncSupportingSources(existing.id, research.citations);
-      }
-      updated += 1;
+    if (!Array.isArray(generatedItems) || generatedItems.length === 0) {
       continue;
     }
 
-    const flashcardId = crypto.randomUUID();
-    const flashcardPublicId = await nextPublicId(PUBLIC_ID_SCOPES.flashcard);
-    try {
-      await prisma.flashcard.create({
-        data: {
-          id: flashcardId,
-          publicId: flashcardPublicId,
-          companyId,
-          title: generated.title,
-          body: generated.body,
-          confidence: generated.confidence,
-          impact: generated.impact,
-          weight: generated.weight,
-          hashtags: generated.hashtags,
-          status: "ACTIVE",
-          createdBy: "local-ai",
-          refreshedAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          generatedBody: generated.body,
-          generatedTitle: generated.title,
-          reviewStatus: "PENDING",
-          evidence: evidence,
-          fingerprint: source.fingerprint,
-          kind: generated.kind,
-          appVersion: APP_VERSION,
-          brainVersion: BRAIN_VERSION,
-          generatedAt: new Date(),
-          promptVersion: PROMPT_VERSION,
-        },
-      });
-      existingByFingerprint.set(source.fingerprint, { id: flashcardId });
-      await upsertFlashcardSource(flashcardId, source);
-      if (RESEARCH_ENABLED) {
-        await syncSupportingSources(flashcardId, research.citations);
+    for (const generated of generatedItems) {
+      generated.hashtags = deriveFlashcardHashtags(source, generated);
+      const candidateFingerprint = hashValue(`${source.fingerprint}:${generated.title}:${generated.body}`);
+      seenFingerprints.add(candidateFingerprint);
+      const evidence = buildFlashcardEvidence(source, generated, research);
+      const existing = existingByFingerprint.get(candidateFingerprint) || await findFlashcardByFingerprint(companyId, candidateFingerprint);
+
+      if (existing) {
+        const title = existing.manualTitle || existing.title || generated.title;
+        const body = existing.manualBody || generated.body;
+
+        await prisma.flashcard.update({
+          where: { id: existing.id },
+          data: {
+            title,
+            body,
+            confidence: generated.confidence,
+            impact: generated.impact,
+            weight: generated.weight,
+            hashtags: generated.hashtags,
+            status: "ACTIVE",
+            refreshedAt: new Date(),
+            updatedAt: new Date(),
+            generatedTitle: generated.title,
+            generatedBody: generated.body,
+            evidence: evidence,
+            fingerprint: candidateFingerprint,
+            kind: generated.kind,
+            appVersion: APP_VERSION,
+            brainVersion: BRAIN_VERSION,
+            generatedAt: new Date(),
+            promptVersion: PROMPT_VERSION,
+          },
+        });
+
+        await upsertFlashcardSource(existing.id, source);
+        if (RESEARCH_ENABLED) {
+          await syncSupportingSources(existing.id, research.citations);
+        }
+        updated += 1;
+        continue;
       }
-      created += 1;
-    } catch (error) {
-      if (!isUniqueConstraintError(error)) throw error;
-      const concurrent = await findFlashcardByFingerprint(companyId, source.fingerprint);
-      if (!concurrent) throw error;
-      await prisma.flashcard.update({
-        where: { id: concurrent.id },
-        data: {
-          title: concurrent.manualTitle || concurrent.title || generated.title,
-          body: concurrent.manualBody || generated.body,
-          confidence: generated.confidence,
-          impact: generated.impact,
-          weight: generated.weight,
-          hashtags: generated.hashtags,
-          status: "ACTIVE",
-          refreshedAt: new Date(),
-          updatedAt: new Date(),
-          generatedBody: generated.body,
-          generatedTitle: generated.title,
-          evidence: evidence,
-          kind: generated.kind,
-          appVersion: APP_VERSION,
-          brainVersion: BRAIN_VERSION,
-          generatedAt: new Date(),
-          promptVersion: PROMPT_VERSION,
-        },
-      });
-      existingByFingerprint.set(source.fingerprint, concurrent);
-      await upsertFlashcardSource(concurrent.id, source);
-      if (RESEARCH_ENABLED) {
-        await syncSupportingSources(concurrent.id, research.citations);
+
+      const flashcardId = crypto.randomUUID();
+      const flashcardPublicId = await nextPublicId(PUBLIC_ID_SCOPES.flashcard);
+      try {
+        await prisma.flashcard.create({
+          data: {
+            id: flashcardId,
+            publicId: flashcardPublicId,
+            companyId,
+            title: generated.title,
+            body: generated.body,
+            confidence: generated.confidence,
+            impact: generated.impact,
+            weight: generated.weight,
+            hashtags: generated.hashtags,
+            status: "ACTIVE",
+            createdBy: "local-ai",
+            refreshedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            generatedBody: generated.body,
+            generatedTitle: generated.title,
+            reviewStatus: "PENDING",
+            evidence: evidence,
+            fingerprint: candidateFingerprint,
+            kind: generated.kind,
+            appVersion: APP_VERSION,
+            brainVersion: BRAIN_VERSION,
+            generatedAt: new Date(),
+            promptVersion: PROMPT_VERSION,
+          },
+        });
+        existingByFingerprint.set(candidateFingerprint, { id: flashcardId });
+        await upsertFlashcardSource(flashcardId, source);
+        if (RESEARCH_ENABLED) {
+          await syncSupportingSources(flashcardId, research.citations);
+        }
+        created += 1;
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) throw error;
+        const concurrent = await findFlashcardByFingerprint(companyId, candidateFingerprint);
+        if (!concurrent) throw error;
+        await prisma.flashcard.update({
+          where: { id: concurrent.id },
+          data: {
+            title: concurrent.manualTitle || concurrent.title || generated.title,
+            body: concurrent.manualBody || generated.body,
+            confidence: generated.confidence,
+            impact: generated.impact,
+            weight: generated.weight,
+            hashtags: generated.hashtags,
+            status: "ACTIVE",
+            refreshedAt: new Date(),
+            updatedAt: new Date(),
+            generatedBody: generated.body,
+            generatedTitle: generated.title,
+            evidence: evidence,
+            fingerprint: candidateFingerprint,
+            kind: generated.kind,
+            appVersion: APP_VERSION,
+            brainVersion: BRAIN_VERSION,
+            generatedAt: new Date(),
+            promptVersion: PROMPT_VERSION,
+          },
+        });
+        existingByFingerprint.set(candidateFingerprint, concurrent);
+        await upsertFlashcardSource(concurrent.id, source);
+        if (RESEARCH_ENABLED) {
+          await syncSupportingSources(concurrent.id, research.citations);
+        }
+        updated += 1;
       }
-      updated += 1;
     }
   }
 
@@ -1827,7 +2326,7 @@ async function evictProcessedSources(companyId, data) {
   return 0;
 }
 
-async function generateRecommendationCandidates(company, flashcards, focusTopics = []) {
+async function generateRecommendationCandidates(company, flashcards, focusTopics = [], feedbackContext = {}) {
   const cards = flashcards.slice(0, 25).map((card) => ({
     id: card.id,
     title: card.title,
@@ -1839,18 +2338,25 @@ async function generateRecommendationCandidates(company, flashcards, focusTopics
     weight: card.weight,
     factCheckStatus: normalizeText(card?.evidence?.research?.factCheck?.status || "NOT_RUN"),
     citationCount: Number(card?.evidence?.research?.factCheck?.citationCount || 0),
+    userAnnotation: toFeedbackExcerpt(card.userAnnotation, 400),
   }));
 
   if (cards.length === 0) return [];
 
   const systemPrompt = [
-    "You generate exactly three Checklist recommendations as strict JSON.",
+    "You generate zero or more Checklist recommendations as strict JSON.",
     "Return a JSON array of objects.",
     "Each object must contain: title, description, impact, confidence, ease, sourceFlashcardIds, hashtags.",
     "impact and ease are integers from 1 to 10.",
     "confidence is an integer from 1 to 100.",
     "Prefer the strongest grounded flashcards first.",
+    "It is valid to return an empty array when the evidence is weak, too generic, redundant, unsupported, or not actionable enough.",
+    "One flashcard can justify zero, one, or many checklist items.",
+    "Treat accepted archived task feedback and user annotations as the strongest signal for what good checklist items look like.",
+    "Treat declined feedback as a pattern to avoid.",
+    "If users rewrote or annotated accepted tasks, mirror that direction.",
     "sourceFlashcardIds must contain one or more ids from the provided flashcards.",
+    "Do not force a quota of results.",
     "Do not include markdown fences or extra text.",
   ].join(" ");
 
@@ -1858,6 +2364,8 @@ async function generateRecommendationCandidates(company, flashcards, focusTopics
     `Company: ${company.name}`,
     `Main goal: ${normalizeText(company.mainGoal) || "n/a"}`,
     `Active topics: ${focusTopics.map((topic) => topic.label).join(", ") || "none"}`,
+    "Archived user feedback patterns:",
+    JSON.stringify(feedbackContext, null, 2),
     "Flashcards:",
     JSON.stringify(cards, null, 2),
   ].join("\n");
@@ -1867,16 +2375,26 @@ async function generateRecommendationCandidates(company, flashcards, focusTopics
 
   const allowedIds = new Set(cards.map((card) => card.id));
   return raw
-    .map((item) => ({
-      title: truncate(item.title, 160),
-      description: truncate(item.description, 600),
-      impact: clampInt(item.impact, 5, 1, 10),
-      confidence: clampInt(item.confidence, 60),
-      ease: clampInt(item.ease, 5, 1, 10),
-      sourceFlashcardIds: toArray(item.sourceFlashcardIds).filter((id) => allowedIds.has(id)),
-      hashtags: normalizeHashtags(item.hashtags),
-    }))
-    .filter((item) => item.title && item.description && item.sourceFlashcardIds.length > 0);
+    .map((item) => {
+      const impact = parseBoundedInt(item.impact, 1, 10);
+      const confidence = parseBoundedInt(item.confidence, 1, 100);
+      const ease = parseBoundedInt(item.ease, 1, 10);
+      const sourceFlashcardIds = toArray(item.sourceFlashcardIds).filter((id) => allowedIds.has(id));
+      if (!item.title || !item.description || impact === null || confidence === null || ease === null || sourceFlashcardIds.length === 0) {
+        return null;
+      }
+      return {
+        title: truncate(item.title, 160),
+        description: truncate(item.description, 600),
+        impact,
+        confidence,
+        ease,
+        sourceFlashcardIds,
+        hashtags: normalizeHashtags(item.hashtags),
+      };
+    })
+    .filter((item) => item && item.title && item.description && item.sourceFlashcardIds.length > 0)
+    .filter((item) => computeRecommendationIceScore(item) >= TASK_MIN_ICE_SCORE);
 }
 
 async function syncRecommendations(companyId, company, existingNBA, focusTopics = []) {
@@ -1895,13 +2413,34 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
   });
 
   let candidates = [];
+  let recommendationError = null;
   try {
-    candidates = await generateRecommendationCandidates(company, activeFlashcards, focusTopics);
+    const taskFeedbackIndex = buildTaskFeedbackIndex(existingNBA, await prisma.feedback.findMany({
+      where: { nbaItem: { companyId } },
+      orderBy: { createdAt: "desc" },
+      take: 1000,
+    }));
+    candidates = await generateRecommendationCandidates(
+      company,
+      activeFlashcards,
+      focusTopics,
+      buildFeedbackContext(
+        taskFeedbackIndex,
+        activeFlashcards.map((card) => card.id),
+        activeFlashcards
+          .slice(0, 25)
+          .map((card) => [card.title, card.body, ...(card.hashtags || []), card.userAnnotation].join(" "))
+          .join("\n"),
+      ),
+    );
   } catch (error) {
+    recommendationError = error;
     console.error(`Recommendation generation failed for ${companyId}: ${error.message}`);
   }
   if (!Array.isArray(candidates) || candidates.length === 0) {
-    candidates = buildFallbackRecommendations(company, activeFlashcards);
+    const reason = recommendationError?.message || "AI returned no recommendation candidates";
+    console.error(`Recommendation generation produced no output for ${companyId}: ${reason}`);
+    return { created: 0, updated: 0, skipped: true, error: reason };
   }
   
   let created = 0;
@@ -1909,7 +2448,7 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
 
   for (const rec of candidates) {
     const match = existingNBA.find((item) => similarity(item.title, rec.title) >= 0.7);
-    const iceScore = rec.impact * (rec.confidence / 100) * rec.ease * 10;
+    const iceScore = computeRecommendationIceScore(rec);
     const sourceCards = activeFlashcards.filter((card) => rec.sourceFlashcardIds.includes(card.id));
     const resolvedHashtags = deriveChecklistHashtags(rec, sourceCards);
     
@@ -1970,14 +2509,9 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
 
 async function processCompany(companyId, reason = {}) {
   const previousKnowledge = await loadKnowledge(companyId);
-  let data = await getAllData(companyId);
+  const data = await getAllData(companyId);
   if (!data?.company) {
     throw new Error(`Company ${companyId} not found`);
-  }
-
-  const hashtagUpdates = await syncSourceHashtags(data.company, data);
-  if (hashtagUpdates > 0) {
-    data = await getAllData(companyId);
   }
 
   const focusTopics = selectResearchTopics(data, 5);
@@ -1990,7 +2524,7 @@ async function processCompany(companyId, reason = {}) {
     lastRun: {
       flashcards,
       recommendations,
-      hashtagUpdates,
+      hashtagUpdates: 0,
       focusTopics: focusTopics.map((topic) => topic.label),
     },
     research: {
@@ -2015,70 +2549,414 @@ async function processCompany(companyId, reason = {}) {
   };
 }
 
-async function enrichOldestItems() {
-  console.log("Enrichment Loop: Checking for oldest stale items...");
-  const companies = await prisma.company.findMany({ orderBy: { createdAt: "asc" }, select: { id: true } });
+async function findOldestHashtagMaintenanceCandidate() {
+  const [source, file, flashcard, checklist, topic] = await Promise.all([
+    prisma.source.findFirst({
+      orderBy: [{ hashtagEvaluationPending: "desc" }, { hashtagMaintainedAt: "asc" }, { updatedAt: "asc" }],
+      select: { id: true, companyId: true, hashtagMaintainedAt: true, hashtagEvaluationPending: true, updatedAt: true },
+    }),
+    prisma.uploadedSourceFile.findFirst({
+      orderBy: [{ hashtagEvaluationPending: "desc" }, { hashtagMaintainedAt: "asc" }, { updatedAt: "asc" }],
+      select: { id: true, companyId: true, hashtagMaintainedAt: true, hashtagEvaluationPending: true, updatedAt: true },
+    }),
+    prisma.flashcard.findFirst({
+      orderBy: [{ hashtagEvaluationPending: "desc" }, { hashtagMaintainedAt: "asc" }, { updatedAt: "asc" }],
+      select: { id: true, companyId: true, hashtagMaintainedAt: true, hashtagEvaluationPending: true, updatedAt: true },
+    }),
+    prisma.nBAItem.findFirst({
+      orderBy: [{ hashtagEvaluationPending: "desc" }, { hashtagMaintainedAt: "asc" }, { updatedAt: "asc" }],
+      select: { id: true, companyId: true, hashtagMaintainedAt: true, hashtagEvaluationPending: true, updatedAt: true },
+    }),
+    prisma.topic.findFirst({
+      orderBy: [{ hashtagEvaluationPending: "desc" }, { hashtagMaintainedAt: "asc" }, { updatedAt: "asc" }],
+      select: { id: true, companyId: true, hashtagMaintainedAt: true, hashtagEvaluationPending: true, updatedAt: true },
+    }),
+  ]);
 
-  for (const row of companies) {
-    const companyId = row.id;
-    const data = await getAllData(companyId);
-    if (!data.company) continue;
+  return [source, file, flashcard, checklist, topic]
+    .filter(Boolean)
+    .sort((left, right) => {
+      const leftPending = left.hashtagEvaluationPending ? 0 : 1;
+      const rightPending = right.hashtagEvaluationPending ? 0 : 1;
+      const leftTime = left.hashtagMaintainedAt ? new Date(left.hashtagMaintainedAt).getTime() : 0;
+      const rightTime = right.hashtagMaintainedAt ? new Date(right.hashtagMaintainedAt).getTime() : 0;
+      return leftPending - rightPending || leftTime - rightTime || new Date(left.updatedAt).getTime() - new Date(right.updatedAt).getTime();
+    })[0] || null;
+}
 
-    const flashcard = await prisma.flashcard.findFirst({
-      where: {
-        companyId,
-        status: "ACTIVE",
-      },
-      orderBy: [
-        { lastActionAt: "asc" },
-        { refreshedAt: "asc" },
-        { updatedAt: "asc" },
-      ],
-    });
+async function processHashtagMaintenance() {
+  const candidate = await findOldestHashtagMaintenanceCandidate();
+  if (!candidate) {
+    return { processed: 0, changed: 0, companyId: null };
+  }
 
-    if (flashcard) {
-      console.log(`Enriching oldest flashcard: ${flashcard.id} (${flashcard.title})`);
-      const fs = await prisma.flashcardSource.findFirst({
-        where: { flashcardId: flashcard.id, relationRole: "PRIMARY" },
-      });
-      if (fs) {
-        const source = {
-          sourceType: fs.sourceType,
-          sourceId: fs.sourceId,
-          sourcePublicId: fs.sourcePublicId,
-          sourceName: fs.sourceName,
-          promptBody: flashcard.generatedBody || flashcard.body,
-          fingerprint: flashcard.fingerprint
-        };
-        const relatedTopics = selectResearchTopics(data, 5).filter((topic) =>
-          normalizeLoose([flashcard.title, flashcard.body, ...(flashcard.hashtags || [])].join(" ")).includes(normalizeTopicLabel(topic.label)),
-        );
-        const research = await discoverResearch(data.company, source, relatedTopics);
-        const generated = await generateFlashcardCandidate(data.company, source, research);
-        const evidence = buildFlashcardEvidence(source, generated, research);
+  const data = await getAllData(candidate.companyId);
+  if (!data?.company) {
+    return { processed: 0, changed: 0, companyId: candidate.companyId };
+  }
 
-        await prisma.flashcard.update({
-          where: { id: flashcard.id },
-          data: {
-            generatedTitle: generated.title,
-            generatedBody: generated.body,
-            confidence: generated.confidence,
-            impact: generated.impact,
-            weight: generated.weight,
-            hashtags: mergeHashtags(flashcard.hashtags, generated.hashtags),
-            evidence: evidence,
-            kind: generated.kind,
-            updatedAt: new Date(),
-            refreshedAt: new Date(),
+  const changed = await syncHashtagMaintenance(data.company, data);
+  lastHashtagMaintenanceAt = Date.now();
+  return { processed: HASHTAG_MAINTENANCE_BATCH_SIZE, changed, companyId: candidate.companyId };
+}
+
+async function processPollingLane() {
+  const companies = await prisma.company.findMany({ select: { id: true }, orderBy: { createdAt: "asc" } });
+  let processedCompanies = 0;
+  let refreshedCompanies = 0;
+
+  if (firstRun) {
+    console.log("First run - syncing all company data...");
+    for (const row of companies) {
+      const data = await getAllData(row.id);
+      if (!data?.company) continue;
+      const hasAnySource = data.sources.length > 0 || data.uploadedFiles.length > 0;
+      if (!hasAnySource) {
+        await saveKnowledge(row.id, {
+          snapshot: buildSnapshot(data),
+          research: {
+            enabled: RESEARCH_ENABLED,
+            provider: RESEARCH_ENABLED ? RESEARCH_PROVIDER : null,
+            refreshHours: RESEARCH_REFRESH_HOURS,
+            lastRunAt: isoTimestamp(),
           },
         });
-        console.log(`Flashcard ${flashcard.id} enriched.`);
+        continue;
       }
+      processedCompanies += 1;
+      console.log(`Company ${row.id}: full processing run`);
+      await processCompany(row.id, { trigger: "poll-first-run" });
+    }
+    firstRun = false;
+    if (processedCompanies > 0) {
+      lastSync = Date.now();
+    }
+    return { processedCompanies, refreshedCompanies, firstRun: true };
+  }
+
+  console.log(`Polling core changes since ${new Date(lastSync).toISOString()}...`);
+  for (const row of companies) {
+    const data = await getAllData(row.id);
+    const nextSnapshot = buildSnapshot(data);
+    const previousKnowledge = await loadKnowledge(row.id);
+    const coreChanged = hasDataChanged(
+      buildCoreSnapshot(previousKnowledge.snapshot),
+      buildCoreSnapshot(nextSnapshot),
+    );
+    const refreshDue = isResearchRefreshDue(previousKnowledge);
+    if (!coreChanged && !refreshDue) {
+      continue;
+    }
+    processedCompanies += 1;
+    if (refreshDue) {
+      refreshedCompanies += 1;
+    }
+    console.log(
+      `Company ${row.id}: ${coreChanged ? "source or topic changed" : "company research refresh due"}`
+    );
+    await processCompany(row.id, { trigger: coreChanged ? "poll-core-delta" : "poll-research-refresh" });
+  }
+
+  if (processedCompanies > 0) {
+    lastSync = Date.now();
+  }
+  return { processedCompanies, refreshedCompanies, firstRun: false };
+}
+
+async function refreshOldestFlashcards(batchSize = FLASHCARD_REVISIT_BATCH_SIZE) {
+  console.log("Flashcard Revisit: checking oldest active flashcards...");
+  const flashcards = await prisma.flashcard.findMany({
+    where: { status: "ACTIVE" },
+    orderBy: [{ lastActionAt: "asc" }, { refreshedAt: "asc" }, { updatedAt: "asc" }],
+    take: batchSize,
+  });
+
+  let processed = 0;
+  let updated = 0;
+  let skipped = 0;
+  const companiesToRefresh = new Set();
+
+  for (const flashcard of flashcards) {
+    processed += 1;
+    const data = await getAllData(flashcard.companyId);
+    if (!data.company) {
+      skipped += 1;
+      continue;
+    }
+    const taskFeedbackIndex = buildTaskFeedbackIndex(data.existingNBA, data.feedback);
+    const flashcardActionIndex = buildFlashcardActionIndex(data.flashcardActions);
+    const fs = await prisma.flashcardSource.findFirst({
+      where: { flashcardId: flashcard.id, relationRole: "PRIMARY" },
+    });
+    if (!fs) {
+      skipped += 1;
+      continue;
     }
 
-    // 2. Refresh recommendations for the company if any flashcards changed
+    console.log(`Enriching oldest flashcard: ${flashcard.id} (${flashcard.title})`);
+    const source = {
+      sourceType: fs.sourceType,
+      sourceId: fs.sourceId,
+      sourcePublicId: fs.sourcePublicId,
+      sourceName: fs.sourceName,
+      promptBody: flashcard.generatedBody || flashcard.body,
+      fingerprint: flashcard.fingerprint,
+      hashtags: flashcard.hashtags,
+    };
+    const relatedTopics = selectResearchTopics(data, 5).filter((topic) =>
+      normalizeLoose([flashcard.title, flashcard.body, ...(flashcard.hashtags || [])].join(" ")).includes(normalizeTopicLabel(topic.label)),
+    );
+    const research = await discoverResearch(data.company, source, relatedTopics);
+    const feedbackContext = {
+      flashcardActions: (flashcardActionIndex.get(flashcard.id) || []).slice(0, 12),
+      taskFeedback: buildFeedbackContext(
+        taskFeedbackIndex,
+        [flashcard.id],
+        [flashcard.title, flashcard.body, source.promptBody, ...(flashcard.hashtags || [])].join(" "),
+      ),
+    };
+    const generatedCandidates = await generateFlashcardCandidates(data.company, source, research, feedbackContext);
+    const generated = generatedCandidates[0];
+    if (!generated) {
+      console.log(`Flashcard ${flashcard.id} skipped during revisit because AI returned no high-quality result.`);
+      skipped += 1;
+      continue;
+    }
+
+    await prisma.flashcard.update({
+      where: { id: flashcard.id },
+      data: {
+        generatedTitle: generated.title,
+        generatedBody: generated.body,
+        confidence: generated.confidence,
+        impact: generated.impact,
+        weight: generated.weight,
+        hashtags: mergeHashtags(flashcard.hashtags, generated.hashtags),
+        evidence: buildFlashcardEvidence(source, generated, research),
+        kind: generated.kind,
+        updatedAt: new Date(),
+        refreshedAt: new Date(),
+      },
+    });
+    companiesToRefresh.add(flashcard.companyId);
+    updated += 1;
+  }
+
+  for (const companyId of companiesToRefresh) {
+    const data = await getAllData(companyId);
+    if (!data.company) continue;
     await syncRecommendations(companyId, data.company, data.existingNBA, selectResearchTopics(data, 5));
   }
+
+  return { processed, updated, skipped, companiesRefreshed: companiesToRefresh.size };
+}
+
+async function revisitOldestTasks(batchSize = TASK_REVISIT_BATCH_SIZE) {
+  console.log("Task Revisit: checking oldest pending checklist tasks...");
+  const tasks = await prisma.nBAItem.findMany({
+    where: {
+      createdBy: "local-ai",
+      status: "PENDING",
+    },
+    orderBy: [{ generatedAt: "asc" }, { updatedAt: "asc" }, { createdAt: "asc" }],
+    take: batchSize,
+  });
+
+  let processed = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const task of tasks) {
+    processed += 1;
+    const data = await getAllData(task.companyId);
+    if (!data.company) {
+      skipped += 1;
+      continue;
+    }
+    const sourceCards = data.flashcards.filter((card) =>
+      card.status === "ACTIVE" && task.sourceFlashcardIds.includes(card.id),
+    );
+    if (sourceCards.length === 0) {
+      skipped += 1;
+      continue;
+    }
+
+    const taskFeedbackIndex = buildTaskFeedbackIndex(data.existingNBA, data.feedback);
+    const candidates = await generateRecommendationCandidates(
+      data.company,
+      sourceCards,
+      selectResearchTopics(data, 5),
+      buildFeedbackContext(
+        taskFeedbackIndex,
+        sourceCards.map((card) => card.id),
+        [task.title, task.description, task.userAnnotation, ...sourceCards.map((card) => `${card.title}\n${card.body}`)].filter(Boolean).join("\n"),
+      ),
+    );
+
+    const bestCandidate = candidates
+      .map((candidate) => ({
+        candidate,
+        score: similarity(task.title, candidate.title),
+      }))
+      .sort((left, right) =>
+        right.score - left.score ||
+        computeRecommendationIceScore(right.candidate) - computeRecommendationIceScore(left.candidate),
+      )[0]?.candidate;
+
+    if (!bestCandidate) {
+      skipped += 1;
+      continue;
+    }
+
+    await prisma.nBAItem.update({
+      where: { id: task.id },
+      data: {
+        title: bestCandidate.title,
+        description: bestCandidate.description,
+        impact: bestCandidate.impact,
+        confidence: bestCandidate.confidence,
+        ease: bestCandidate.ease,
+        iceScore: computeRecommendationIceScore(bestCandidate),
+        sourceFlashcardIds: bestCandidate.sourceFlashcardIds,
+        hashtags: deriveChecklistHashtags(bestCandidate, sourceCards),
+        generatedAt: new Date(),
+        updatedAt: new Date(),
+        appVersion: APP_VERSION,
+        brainVersion: BRAIN_VERSION,
+        promptVersion: PROMPT_VERSION,
+      },
+    });
+    updated += 1;
+  }
+
+  return { processed, updated, skipped };
+}
+
+async function replayFeedback(batchSize = FEEDBACK_REPLAY_BATCH_SIZE) {
+  console.log("Feedback Replay: checking companies with new annotations and task actions...");
+  const companies = await prisma.company.findMany({ select: { id: true }, orderBy: { createdAt: "asc" } });
+  let processedCompanies = 0;
+
+  for (const row of companies.slice(0, Math.max(batchSize * 4, batchSize))) {
+    const data = await getAllData(row.id);
+    if (!data.company || (data.feedback.length === 0 && data.flashcardActions.length === 0)) {
+      continue;
+    }
+
+    const nextSnapshot = buildSnapshot(data);
+    const knowledge = await loadKnowledge(row.id);
+    const feedbackChanged = hasDataChanged(
+      buildFeedbackSnapshot(knowledge.snapshot),
+      buildFeedbackSnapshot(nextSnapshot),
+    );
+    const lastReplayAt = knowledge?.feedbackReplay?.lastRunAt
+      ? new Date(knowledge.feedbackReplay.lastRunAt).getTime()
+      : 0;
+    const replayDue = !lastReplayAt || Date.now() - lastReplayAt >= FEEDBACK_REPLAY_INTERVAL_MS;
+
+    if (!feedbackChanged && !replayDue) {
+      continue;
+    }
+
+    processedCompanies += 1;
+    await processCompany(row.id, { trigger: feedbackChanged ? "feedback-replay-change" : "feedback-replay-refresh" });
+    await saveKnowledge(row.id, {
+      feedbackReplay: {
+        lastRunAt: isoTimestamp(),
+        reason: feedbackChanged ? "feedback-changed" : "feedback-refresh-due",
+      },
+    });
+
+    if (processedCompanies >= batchSize) {
+      break;
+    }
+  }
+
+  return { processedCompanies };
+}
+
+async function auditMaintenanceBacklog(batchSize = CLEANUP_BATCH_SIZE) {
+  const [flashcards, tasks] = await Promise.all([
+    prisma.flashcard.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true, companyId: true, title: true, body: true },
+      take: batchSize * 4,
+      orderBy: { updatedAt: "asc" },
+    }),
+    prisma.nBAItem.findMany({
+      where: { createdBy: "local-ai", status: "PENDING" },
+      select: { id: true, companyId: true, title: true, description: true, sourceFlashcardIds: true },
+      take: batchSize * 4,
+      orderBy: { updatedAt: "asc" },
+    }),
+  ]);
+
+  const flashcardKeys = new Map();
+  let duplicateFlashcards = 0;
+  for (const card of flashcards) {
+    const key = `${card.companyId}:${normalizeLoose(card.title)}:${normalizeLoose(card.body)}`;
+    if (flashcardKeys.has(key)) duplicateFlashcards += 1;
+    else flashcardKeys.set(key, card.id);
+  }
+
+  const taskKeys = new Map();
+  let duplicateTasks = 0;
+  for (const task of tasks) {
+    const key = `${task.companyId}:${normalizeLoose(task.title)}:${normalizeLoose(task.description)}:${[...(task.sourceFlashcardIds || [])].sort().join(",")}`;
+    if (taskKeys.has(key)) duplicateTasks += 1;
+    else taskKeys.set(key, task.id);
+  }
+
+  return {
+    auditedFlashcards: flashcards.length,
+    auditedTasks: tasks.length,
+    duplicateFlashcards,
+    duplicateTasks,
+  };
+}
+
+async function buildLaneBacklogEstimates() {
+  if (!dbReady || !prisma) {
+    return {};
+  }
+
+  const [
+    companyCount,
+    activeFlashcards,
+    pendingTasks,
+    feedbackCount,
+    flashcardActionCount,
+    pendingSourceTags,
+    pendingFileTags,
+    pendingFlashcardTags,
+    pendingTaskTags,
+    pendingTopicTags,
+  ] = await Promise.all([
+    prisma.company.count(),
+    prisma.flashcard.count({ where: { status: "ACTIVE" } }),
+    prisma.nBAItem.count({ where: { createdBy: "local-ai", status: "PENDING" } }),
+    prisma.feedback.count(),
+    prisma.flashcardAction.count(),
+    prisma.source.count({ where: { hashtagEvaluationPending: true } }),
+    prisma.uploadedSourceFile.count({ where: { hashtagEvaluationPending: true } }),
+    prisma.flashcard.count({ where: { hashtagEvaluationPending: true } }),
+    prisma.nBAItem.count({ where: { hashtagEvaluationPending: true } }),
+    prisma.topic.count({ where: { hashtagEvaluationPending: true } }),
+  ]);
+
+  return {
+    poll: companyCount,
+    flashcardRevisit: activeFlashcards,
+    taskRevisit: pendingTasks,
+    feedbackReplay: feedbackCount + flashcardActionCount,
+    hashtagMaintenance:
+      pendingSourceTags +
+      pendingFileTags +
+      pendingFlashcardTags +
+      pendingTaskTags +
+      pendingTopicTags,
+    cleanup: activeFlashcards + pendingTasks,
+  };
 }
 
 async function parseRequestBody(req) {
@@ -2163,13 +3041,52 @@ async function handleForce(req, res) {
 async function handleHealth(_req, res) {
   await ensureDbReady();
   await ensureModelReady();
-  
+
+  const backlog = await buildLaneBacklogEstimates().catch((error) => ({
+    error: error.message,
+  }));
+  const lanes = Object.fromEntries(
+    Object.entries(laneStates).map(([key, lane]) => [
+      key,
+      {
+        health: classifyLaneHealth(lane),
+        intervalMs: lane.intervalMs,
+        batchSize: lane.batchSize,
+        running: lane.running,
+        lastStartedAt: lane.lastStartedAt,
+        lastSucceededAt: lane.lastSucceededAt,
+        lastFailedAt: lane.lastFailedAt,
+        lastDurationMs: lane.lastDurationMs,
+        lastError: lane.lastError,
+        lastResult: lane.lastResult,
+        backlog: typeof backlog === "object" && backlog !== null ? backlog[key] ?? null : null,
+      },
+    ]),
+  );
+
   const health = {
     status: dbReady && modelReady ? "ok" : "degraded",
     ready: dbReady && modelReady,
     model: OLLAMA_MODEL,
     ollamaHost: OLLAMA_HOST,
     lastSync,
+    settings: {
+      pollIntervalMs: POLL_INTERVAL_MS,
+      flashcardRevisitIntervalMinutes: FLASHCARD_REVISIT_INTERVAL_MINUTES,
+      flashcardRevisitBatchSize: FLASHCARD_REVISIT_BATCH_SIZE,
+      taskRevisitIntervalMinutes: TASK_REVISIT_INTERVAL_MINUTES,
+      taskRevisitBatchSize: TASK_REVISIT_BATCH_SIZE,
+      feedbackReplayIntervalMinutes: FEEDBACK_REPLAY_INTERVAL_MINUTES,
+      feedbackReplayBatchSize: FEEDBACK_REPLAY_BATCH_SIZE,
+      hashtagMaintenanceIntervalHours: HASHTAG_MAINTENANCE_INTERVAL_HOURS,
+      hashtagMaintenanceBatchSize: HASHTAG_MAINTENANCE_BATCH_SIZE,
+      cleanupIntervalHours: CLEANUP_INTERVAL_HOURS,
+      cleanupBatchSize: CLEANUP_BATCH_SIZE,
+      taskMinIceScore: TASK_MIN_ICE_SCORE,
+      flashcardMinConfidence: FLASHCARD_MIN_CONFIDENCE,
+      flashcardMinImpact: FLASHCARD_MIN_IMPACT,
+      flashcardMinWeight: FLASHCARD_MIN_WEIGHT,
+    },
     db: {
       configured: Boolean(currentDbUrl),
       ready: dbReady,
@@ -2180,6 +3097,12 @@ async function handleHealth(_req, res) {
       blocker: modelBlocker,
     },
     researchEnabled: RESEARCH_ENABLED,
+    hashtagMaintenance: {
+      intervalHours: HASHTAG_MAINTENANCE_INTERVAL_HOURS,
+      batchSize: HASHTAG_MAINTENANCE_BATCH_SIZE,
+      lastRunAt: lastHashtagMaintenanceAt,
+    },
+    lanes,
     appVersion: APP_VERSION,
     brainVersion: BRAIN_VERSION,
     lastPollError,
@@ -2224,13 +3147,20 @@ server.listen(PORT, async () => {
   console.log("--------------------------------------------------");
   console.log(`Checklist worker starting on port ${PORT}`);
   console.log(`AI Configuration: ${OLLAMA_MODEL} @ ${OLLAMA_HOST}`);
+  console.log(`Poll lane: every ${Math.round(POLL_INTERVAL_MS / 1000)}s`);
+  console.log(`Flashcard revisit lane: every ${FLASHCARD_REVISIT_INTERVAL_MINUTES}m, batch ${FLASHCARD_REVISIT_BATCH_SIZE}`);
+  console.log(`Task revisit lane: every ${TASK_REVISIT_INTERVAL_MINUTES}m, batch ${TASK_REVISIT_BATCH_SIZE}`);
+  console.log(`Feedback replay lane: every ${FEEDBACK_REPLAY_INTERVAL_MINUTES}m, batch ${FEEDBACK_REPLAY_BATCH_SIZE}`);
+  console.log(`Hashtag maintenance lane: every ${HASHTAG_MAINTENANCE_INTERVAL_HOURS}h, batch ${HASHTAG_MAINTENANCE_BATCH_SIZE}`);
+  console.log(`Cleanup lane: every ${CLEANUP_INTERVAL_HOURS}h, batch ${CLEANUP_BATCH_SIZE}`);
+  console.log(`Quality gates: task ICE >= ${TASK_MIN_ICE_SCORE}, flashcard confidence >= ${FLASHCARD_MIN_CONFIDENCE}, impact >= ${FLASHCARD_MIN_IMPACT}, weight >= ${FLASHCARD_MIN_WEIGHT}`);
   console.log("--------------------------------------------------");
-  
+
   if (!(await ensureDbReady())) {
     console.warn("\x1b[31m%s\x1b[0m", "⚠ DATABASE BLOCKER:");
     console.warn("\x1b[31m%s\x1b[0m", `  ${dbBlocker}`);
   }
-  
+
   if (!(await ensureModelReady())) {
     console.warn("\x1b[31m%s\x1b[0m", "⚠ AI MODEL BLOCKER:");
     console.warn("\x1b[31m%s\x1b[0m", `  ${modelBlocker}`);
@@ -2242,82 +3172,65 @@ server.listen(PORT, async () => {
     console.log("\x1b[33m%s\x1b[0m", "⚠ WORKER IS DEGRADED - check health endpoint for details");
   }
   console.log("--------------------------------------------------");
+
+  const startupLanes = [
+    ["poll", processPollingLane],
+    ["feedbackReplay", () => replayFeedback()],
+    ["flashcardRevisit", () => refreshOldestFlashcards()],
+    ["taskRevisit", () => revisitOldestTasks()],
+    ["hashtagMaintenance", processHashtagMaintenance],
+    ["cleanup", () => auditMaintenanceBacklog()],
+  ];
+
+  for (const [laneName, executor] of startupLanes) {
+    runLane(laneName, executor).catch((err) => {
+      lastPollError = err.message;
+      console.error(`Initial ${laneName} lane failed:`, err.message);
+    });
+  }
 });
 
-setInterval(async () => {
-  try {
-    if (!(await ensureDbReady())) {
-      console.log(`Checklist worker poll skipped: ${dbBlocker}`);
-      return;
-    }
-    if (!(await ensureModelReady())) {
-      console.log(`Checklist worker poll skipped: ${modelBlocker}`);
-      return;
-    }
-
-    const companies = await prisma.company.findMany({ select: { id: true }, orderBy: { createdAt: "asc" } });
-    let anyNew = false;
-
-    if (firstRun) {
-      console.log("First run - syncing all company data...");
-      for (const row of companies) {
-        const data = await getAllData(row.id);
-        if (!data?.company) continue;
-        const hasAnySource =
-          data.sources.length > 0 ||
-          data.uploadedFiles.length > 0;
-        if (!hasAnySource) {
-          await saveKnowledge(row.id, {
-            snapshot: buildSnapshot(data),
-            research: {
-              enabled: RESEARCH_ENABLED,
-              provider: RESEARCH_ENABLED ? RESEARCH_PROVIDER : null,
-              refreshHours: RESEARCH_REFRESH_HOURS,
-              lastRunAt: isoTimestamp(),
-            },
-          });
-          continue;
-        }
-        anyNew = true;
-        console.log(`Company ${row.id}: full processing run`);
-        await processCompany(row.id, { trigger: "poll-first-run" });
-      }
-      firstRun = false;
-    } else {
-      console.log(`Polling since ${new Date(lastSync).toISOString()}...`);
-      for (const row of companies) {
-        const data = await getAllData(row.id);
-        const nextSnapshot = buildSnapshot(data);
-        const previousKnowledge = await loadKnowledge(row.id);
-        const snapshotChanged = hasDataChanged(previousKnowledge.snapshot, nextSnapshot);
-        const refreshDue = isResearchRefreshDue(previousKnowledge);
-        if (!snapshotChanged && !refreshDue) {
-          continue;
-        }
-        anyNew = true;
-        console.log(
-          `Company ${row.id}: ${snapshotChanged ? "source or review state changed" : "research refresh due"}`
-        );
-        await processCompany(row.id, { trigger: snapshotChanged ? "poll-delta" : "poll-research-refresh" });
-      }
-    }
-
-    if (anyNew) {
-      lastSync = Date.now();
-      lastPollError = null;
-    } else {
-      console.log("No new changes detected");
-    }
-  } catch (error) {
+setInterval(() => {
+  runLane("poll", processPollingLane).catch((error) => {
     lastPollError = error.message;
     console.error("Checklist worker poll error:", error.message);
-  }
-}, POLL_INTERVAL);
+  });
+}, POLL_INTERVAL_MS);
 
-// Start enrichment loop
 setInterval(() => {
-  enrichOldestItems().catch((err) => console.error("Enrichment skip:", err));
-}, ENRICHMENT_INTERVAL);
+  runLane("flashcardRevisit", () => refreshOldestFlashcards()).catch((error) => {
+    lastPollError = error.message;
+    console.error("Flashcard revisit lane failed:", error.message);
+  });
+}, FLASHCARD_REVISIT_INTERVAL_MS);
+
+setInterval(() => {
+  runLane("taskRevisit", () => revisitOldestTasks()).catch((error) => {
+    lastPollError = error.message;
+    console.error("Task revisit lane failed:", error.message);
+  });
+}, TASK_REVISIT_INTERVAL_MS);
+
+setInterval(() => {
+  runLane("feedbackReplay", () => replayFeedback()).catch((error) => {
+    lastPollError = error.message;
+    console.error("Feedback replay lane failed:", error.message);
+  });
+}, FEEDBACK_REPLAY_INTERVAL_MS);
+
+setInterval(() => {
+  runLane("hashtagMaintenance", processHashtagMaintenance).catch((error) => {
+    lastPollError = error.message;
+    console.error("Hashtag maintenance lane failed:", error.message);
+  });
+}, HASHTAG_MAINTENANCE_INTERVAL_MS);
+
+setInterval(() => {
+  runLane("cleanup", () => auditMaintenanceBacklog()).catch((error) => {
+    lastPollError = error.message;
+    console.error("Cleanup lane failed:", error.message);
+  });
+}, CLEANUP_INTERVAL_MS);
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);

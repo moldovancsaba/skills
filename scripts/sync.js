@@ -2884,43 +2884,241 @@ async function replayFeedback(batchSize = FEEDBACK_REPLAY_BATCH_SIZE) {
   return { processedCompanies };
 }
 
-async function auditMaintenanceBacklog(batchSize = CLEANUP_BATCH_SIZE) {
-  const [flashcards, tasks] = await Promise.all([
-    prisma.flashcard.findMany({
-      where: { status: "ACTIVE" },
-      select: { id: true, companyId: true, title: true, body: true },
-      take: batchSize * 4,
-      orderBy: { updatedAt: "asc" },
-    }),
-    prisma.nBAItem.findMany({
-      where: { createdBy: "local-ai", status: "PENDING" },
-      select: { id: true, companyId: true, title: true, description: true, sourceFlashcardIds: true },
-      take: batchSize * 4,
-      orderBy: { updatedAt: "asc" },
-    }),
-  ]);
+function flashcardDuplicateKey(card) {
+  return `${card.companyId}:${normalizeLoose(card.title)}:${normalizeLoose(card.body)}`;
+}
 
-  const flashcardKeys = new Map();
-  let duplicateFlashcards = 0;
+function taskDuplicateKey(task) {
+  return `${task.companyId}:${normalizeLoose(task.title)}:${normalizeLoose(task.description)}:${[...(task.sourceFlashcardIds || [])].sort().join(",")}`;
+}
+
+function flashcardKeepScore(card) {
+  const reviewBoost =
+    card.reviewStatus === "MODIFIED_ACCEPTED" ? 5_000 :
+    card.reviewStatus === "ACCEPTED" ? 4_000 :
+    card.reviewStatus === "PENDING" ? 2_000 :
+    0;
+  const manualBoost = (card.manualTitle || card.manualBody) ? 1_500 : 0;
+  const statusBoost = card.status === "ACTIVE" ? 500 : 0;
+  const qualityBoost = (Number(card.confidence || 0) * 10) + (Number(card.weight || 0) * 5) + Number(card.impact || 0);
+  const recencyPenalty = new Date(card.updatedAt || card.createdAt || Date.now()).getTime() / 1_000_000_000_000;
+  return reviewBoost + manualBoost + statusBoost + qualityBoost - recencyPenalty;
+}
+
+function taskKeepScore(task) {
+  const statusBoost =
+    task.status === "COMPLETED" ? 5_000 :
+    task.status === "ACCEPTED" ? 4_000 :
+    task.status === "PENDING" ? 2_000 :
+    0;
+  const annotationBoost = normalizeText(task.userAnnotation).length > 0 ? 500 : 0;
+  const qualityBoost = Number(task.iceScore || 0) + Number(task.confidence || 0) + Number(task.impact || 0) + Number(task.ease || 0);
+  const recencyPenalty = new Date(task.updatedAt || task.createdAt || Date.now()).getTime() / 1_000_000_000_000;
+  return statusBoost + annotationBoost + qualityBoost - recencyPenalty;
+}
+
+function remapSourceFlashcardIds(ids, canonicalFlashcardIds) {
+  const remapped = [];
+  for (const id of ids || []) {
+    remapped.push(canonicalFlashcardIds.get(id) || id);
+  }
+  return unique(remapped);
+}
+
+async function applyDuplicateFlashcardMaintenance(batchSize = CLEANUP_BATCH_SIZE) {
+  const flashcards = await prisma.flashcard.findMany({
+    where: {
+      status: { in: ["ACTIVE", "STALE"] },
+    },
+    select: {
+      id: true,
+      companyId: true,
+      title: true,
+      body: true,
+      confidence: true,
+      impact: true,
+      weight: true,
+      status: true,
+      reviewStatus: true,
+      manualTitle: true,
+      manualBody: true,
+      hashtags: true,
+      updatedAt: true,
+      createdAt: true,
+      createdBy: true,
+    },
+    take: batchSize * 8,
+    orderBy: { updatedAt: "asc" },
+  });
+
+  const groups = new Map();
   for (const card of flashcards) {
-    const key = `${card.companyId}:${normalizeLoose(card.title)}:${normalizeLoose(card.body)}`;
-    if (flashcardKeys.has(key)) duplicateFlashcards += 1;
-    else flashcardKeys.set(key, card.id);
+    const key = flashcardDuplicateKey(card);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(card);
   }
 
-  const taskKeys = new Map();
-  let duplicateTasks = 0;
+  const canonicalFlashcardIds = new Map();
+  let groupsProcessed = 0;
+  let archived = 0;
+  let rewiredTasks = 0;
+
+  for (const cards of groups.values()) {
+    if (cards.length < 2) continue;
+    const ranked = [...cards].sort((left, right) =>
+      flashcardKeepScore(right) - flashcardKeepScore(left) ||
+      new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+    );
+    const keeper = ranked[0];
+    const duplicates = ranked.slice(1).filter((card) => normalizeText(card.createdBy) === "local-ai");
+    if (duplicates.length === 0) continue;
+
+    groupsProcessed += 1;
+    for (const duplicate of duplicates) {
+      canonicalFlashcardIds.set(duplicate.id, keeper.id);
+    }
+
+    const mergedHashtags = mergeHashtags(...ranked.map((card) => card.hashtags));
+    if (JSON.stringify(mergeHashtags(keeper.hashtags)) !== JSON.stringify(mergedHashtags)) {
+      await prisma.flashcard.update({
+        where: { id: keeper.id },
+        data: {
+          hashtags: mergedHashtags,
+          updatedAt: new Date(),
+        },
+      });
+    }
+
+    for (const duplicate of duplicates) {
+      if (duplicate.status !== "ARCHIVED") {
+        await prisma.flashcard.update({
+          where: { id: duplicate.id },
+          data: {
+            status: "ARCHIVED",
+            updatedAt: new Date(),
+          },
+        });
+        archived += 1;
+      }
+    }
+  }
+
+  if (canonicalFlashcardIds.size > 0) {
+    const tasks = await prisma.nBAItem.findMany({
+      where: {
+        sourceFlashcardIds: { hasSome: [...canonicalFlashcardIds.keys()] },
+      },
+      select: {
+        id: true,
+        sourceFlashcardIds: true,
+      },
+    });
+
+    for (const task of tasks) {
+      const remapped = remapSourceFlashcardIds(task.sourceFlashcardIds, canonicalFlashcardIds);
+      if (JSON.stringify(remapped) === JSON.stringify(task.sourceFlashcardIds)) continue;
+      await prisma.nBAItem.update({
+        where: { id: task.id },
+        data: {
+          sourceFlashcardIds: remapped,
+          updatedAt: new Date(),
+        },
+      });
+      rewiredTasks += 1;
+    }
+  }
+
+  return { groupsProcessed, archivedFlashcards: archived, rewiredTasks, canonicalFlashcardIds };
+}
+
+async function applyDuplicateTaskMaintenance(batchSize = CLEANUP_BATCH_SIZE, canonicalFlashcardIds = new Map()) {
+  const tasks = await prisma.nBAItem.findMany({
+    where: {
+      status: { in: ["PENDING", "ACCEPTED", "COMPLETED"] },
+    },
+    select: {
+      id: true,
+      companyId: true,
+      title: true,
+      description: true,
+      sourceFlashcardIds: true,
+      status: true,
+      userAnnotation: true,
+      createdAt: true,
+      updatedAt: true,
+      iceScore: true,
+      confidence: true,
+      impact: true,
+      ease: true,
+      createdBy: true,
+    },
+    take: batchSize * 8,
+    orderBy: { updatedAt: "asc" },
+  });
+
+  const normalizedTasks = [];
+  let rewired = 0;
   for (const task of tasks) {
-    const key = `${task.companyId}:${normalizeLoose(task.title)}:${normalizeLoose(task.description)}:${[...(task.sourceFlashcardIds || [])].sort().join(",")}`;
-    if (taskKeys.has(key)) duplicateTasks += 1;
-    else taskKeys.set(key, task.id);
+    const remapped = remapSourceFlashcardIds(task.sourceFlashcardIds, canonicalFlashcardIds);
+    if (JSON.stringify(remapped) !== JSON.stringify(task.sourceFlashcardIds)) {
+      await prisma.nBAItem.update({
+        where: { id: task.id },
+        data: {
+          sourceFlashcardIds: remapped,
+          updatedAt: new Date(),
+        },
+      });
+      rewired += 1;
+    }
+    normalizedTasks.push({ ...task, sourceFlashcardIds: remapped });
   }
 
+  const groups = new Map();
+  for (const task of normalizedTasks) {
+    const key = taskDuplicateKey(task);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(task);
+  }
+
+  let groupsProcessed = 0;
+  let declined = 0;
+  for (const tasksInGroup of groups.values()) {
+    if (tasksInGroup.length < 2) continue;
+    const ranked = [...tasksInGroup].sort((left, right) =>
+      taskKeepScore(right) - taskKeepScore(left) ||
+      new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+    );
+    const keeper = ranked[0];
+    const duplicates = ranked.slice(1).filter((task) => task.status === "PENDING" && normalizeText(task.createdBy) === "local-ai");
+    if (duplicates.length === 0) continue;
+
+    groupsProcessed += 1;
+    for (const duplicate of duplicates) {
+      await prisma.nBAItem.update({
+        where: { id: duplicate.id },
+        data: {
+          status: "DECLINED",
+          userAnnotation: "Auto-declined because a duplicate checklist item already exists.",
+          updatedAt: new Date(),
+        },
+      });
+      declined += 1;
+    }
+  }
+
+  return { groupsProcessed, declinedTasks: declined, rewiredTasks: rewired };
+}
+
+async function auditMaintenanceBacklog(batchSize = CLEANUP_BATCH_SIZE) {
+  const flashcardCleanup = await applyDuplicateFlashcardMaintenance(batchSize);
+  const taskCleanup = await applyDuplicateTaskMaintenance(batchSize, flashcardCleanup.canonicalFlashcardIds);
   return {
-    auditedFlashcards: flashcards.length,
-    auditedTasks: tasks.length,
-    duplicateFlashcards,
-    duplicateTasks,
+    duplicateFlashcardGroups: flashcardCleanup.groupsProcessed,
+    archivedFlashcards: flashcardCleanup.archivedFlashcards,
+    flashcardTaskRewires: flashcardCleanup.rewiredTasks,
+    duplicateTaskGroups: taskCleanup.groupsProcessed,
+    declinedTasks: taskCleanup.declinedTasks,
+    taskRewires: taskCleanup.rewiredTasks,
   };
 }
 

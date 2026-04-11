@@ -3279,6 +3279,8 @@ async function handleHealth(_req, res) {
     lastSync,
     settings: {
       pollIntervalMs: POLL_INTERVAL_MS,
+      ollamaTimeoutMs: OLLAMA_TIMEOUT_MS,
+      researchTimeoutMs: RESEARCH_TIMEOUT_MS,
       flashcardRevisitIntervalMinutes: FLASHCARD_REVISIT_INTERVAL_MINUTES,
       flashcardRevisitBatchSize: FLASHCARD_REVISIT_BATCH_SIZE,
       taskRevisitIntervalMinutes: TASK_REVISIT_INTERVAL_MINUTES,

@@ -137,6 +137,15 @@ let lastHashtagMaintenanceAt = Date.now() - HASHTAG_MAINTENANCE_INTERVAL_MS;
 let firstRun = true;
 let prisma = null;
 
+function scheduleStartupLane(laneName, executor, delayMs = 0) {
+  setTimeout(() => {
+    runLane(laneName, executor).catch((err) => {
+      lastPollError = err.message;
+      console.error(`Initial ${laneName} lane failed:`, err.message);
+    });
+  }, delayMs);
+}
+
 function createLaneState(name, intervalMs, batchSize = null) {
   return {
     name,
@@ -3174,19 +3183,16 @@ server.listen(PORT, async () => {
   console.log("--------------------------------------------------");
 
   const startupLanes = [
-    ["poll", processPollingLane],
-    ["feedbackReplay", () => replayFeedback()],
-    ["flashcardRevisit", () => refreshOldestFlashcards()],
-    ["taskRevisit", () => revisitOldestTasks()],
-    ["hashtagMaintenance", processHashtagMaintenance],
-    ["cleanup", () => auditMaintenanceBacklog()],
+    ["poll", processPollingLane, 0],
+    ["cleanup", () => auditMaintenanceBacklog(), 5_000],
+    ["feedbackReplay", () => replayFeedback(), 20_000],
+    ["taskRevisit", () => revisitOldestTasks(), 40_000],
+    ["flashcardRevisit", () => refreshOldestFlashcards(), 60_000],
+    ["hashtagMaintenance", processHashtagMaintenance, 80_000],
   ];
 
-  for (const [laneName, executor] of startupLanes) {
-    runLane(laneName, executor).catch((err) => {
-      lastPollError = err.message;
-      console.error(`Initial ${laneName} lane failed:`, err.message);
-    });
+  for (const [laneName, executor, delayMs] of startupLanes) {
+    scheduleStartupLane(laneName, executor, delayMs);
   }
 });
 

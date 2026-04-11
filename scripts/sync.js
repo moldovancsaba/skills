@@ -31,42 +31,44 @@ const PORT = Number(process.env.PORT || "10005");
 const OLLAMA_HOST = process.env.OLLAMA_HOST || process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:latest";
 const POLL_INTERVAL_MS = Math.max(
-  Number(process.env.CHECKLIST_POLL_INTERVAL_MS || process.env.POLL_INTERVAL || "300000"),
+  Number(process.env.CHECKLIST_POLL_INTERVAL_MS || process.env.POLL_INTERVAL || "7200000"),
   30_000,
 );
 const FLASHCARD_REVISIT_INTERVAL_MINUTES = Math.max(
-  Number(process.env.CHECKLIST_FLASHCARD_REVISIT_INTERVAL_MINUTES || "15"),
-  5,
+  Number(process.env.CHECKLIST_FLASHCARD_REVISIT_INTERVAL_MINUTES || "0"),
+  0,
 );
 const FLASHCARD_REVISIT_INTERVAL_MS = FLASHCARD_REVISIT_INTERVAL_MINUTES * 60_000;
 const FLASHCARD_REVISIT_BATCH_SIZE = Math.max(
-  Number(process.env.CHECKLIST_FLASHCARD_REVISIT_BATCH_SIZE || "5"),
+  Number(process.env.CHECKLIST_FLASHCARD_REVISIT_BATCH_SIZE || "1"),
   1,
 );
 const TASK_REVISIT_INTERVAL_MINUTES = Math.max(
-  Number(process.env.CHECKLIST_TASK_REVISIT_INTERVAL_MINUTES || "30"),
-  5,
+  Number(process.env.CHECKLIST_TASK_REVISIT_INTERVAL_MINUTES || "0"),
+  0,
 );
 const TASK_REVISIT_INTERVAL_MS = TASK_REVISIT_INTERVAL_MINUTES * 60_000;
 const TASK_REVISIT_BATCH_SIZE = Math.max(
-  Number(process.env.CHECKLIST_TASK_REVISIT_BATCH_SIZE || "2"),
+  Number(process.env.CHECKLIST_TASK_REVISIT_BATCH_SIZE || "1"),
   1,
 );
 const FEEDBACK_REPLAY_INTERVAL_MINUTES = Math.max(
-  Number(process.env.CHECKLIST_FEEDBACK_REPLAY_INTERVAL_MINUTES || "30"),
-  5,
+  Number(process.env.CHECKLIST_FEEDBACK_REPLAY_INTERVAL_MINUTES || "0"),
+  0,
 );
 const FEEDBACK_REPLAY_INTERVAL_MS = FEEDBACK_REPLAY_INTERVAL_MINUTES * 60_000;
 const FEEDBACK_REPLAY_BATCH_SIZE = Math.max(
-  Number(process.env.CHECKLIST_FEEDBACK_REPLAY_BATCH_SIZE || "2"),
+  Number(process.env.CHECKLIST_FEEDBACK_REPLAY_BATCH_SIZE || "1"),
   1,
 );
-const HASHTAG_MAINTENANCE_INTERVAL_HOURS = Math.max(Number(process.env.CHECKLIST_HASHTAG_MAINTENANCE_HOURS || "24"), 1);
+const HASHTAG_MAINTENANCE_INTERVAL_HOURS = Math.max(Number(process.env.CHECKLIST_HASHTAG_MAINTENANCE_HOURS || "0"), 0);
 const HASHTAG_MAINTENANCE_INTERVAL_MS = HASHTAG_MAINTENANCE_INTERVAL_HOURS * 3_600_000;
 const HASHTAG_MAINTENANCE_BATCH_SIZE = Math.max(Number(process.env.CHECKLIST_HASHTAG_MAINTENANCE_BATCH_SIZE || "1"), 1);
-const CLEANUP_INTERVAL_HOURS = Math.max(Number(process.env.CHECKLIST_CLEANUP_INTERVAL_HOURS || "24"), 1);
+const CLEANUP_INTERVAL_HOURS = Math.max(Number(process.env.CHECKLIST_CLEANUP_INTERVAL_HOURS || "0"), 0);
 const CLEANUP_INTERVAL_MS = CLEANUP_INTERVAL_HOURS * 3_600_000;
-const CLEANUP_BATCH_SIZE = Math.max(Number(process.env.CHECKLIST_CLEANUP_BATCH_SIZE || "25"), 1);
+const CLEANUP_BATCH_SIZE = Math.max(Number(process.env.CHECKLIST_CLEANUP_BATCH_SIZE || "1"), 1);
+const COMPANY_LANE_CONTINUE_DELAY_MS = Math.max(Number(process.env.CHECKLIST_COMPANY_LANE_CONTINUE_DELAY_MS || "1000"), 250);
+const COMPANY_LANE_IDLE_DELAY_MS = Math.max(Number(process.env.CHECKLIST_COMPANY_LANE_IDLE_DELAY_MS || "30000"), 1000);
 const TASK_MIN_ICE_SCORE = Math.max(Number(process.env.CHECKLIST_TASK_MIN_ICE_SCORE || "100"), 0);
 const FLASHCARD_MIN_CONFIDENCE = Math.max(Number(process.env.CHECKLIST_FLASHCARD_MIN_CONFIDENCE || "60"), 1);
 const FLASHCARD_MIN_IMPACT = Math.max(Number(process.env.CHECKLIST_FLASHCARD_MIN_IMPACT || "40"), 1);
@@ -76,6 +78,7 @@ const APP_VERSION = process.env.CHECKLIST_APP_VERSION || "checklist-local-worker
 const BRAIN_VERSION = process.env.CHECKLIST_BRAIN_VERSION || "worker-v3-research";
 const PROMPT_VERSION = process.env.CHECKLIST_PROMPT_VERSION || "2026-04-06.checklist-worker-v3-research";
 const KNOWLEDGE_DIR = process.env.KNOWLEDGE_DIR || path.join(__dirname, "knowledge");
+const RUNTIME_METRICS_FILE = path.join(KNOWLEDGE_DIR, "runtime-metrics.ndjson");
 const RESEARCH_ENABLED = envFlag(process.env.CHECKLIST_RESEARCH_ENABLED, false);
 const RESEARCH_PROVIDER = process.env.CHECKLIST_RESEARCH_PROVIDER || "duckduckgo-html";
 const RESEARCH_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_RESEARCH_TIMEOUT_MS || "12000"), 3_000);
@@ -134,7 +137,6 @@ let modelBlocker = null;
 let lastPollError = null;
 let lastSync = Date.now() - 3_600_000;
 let lastHashtagMaintenanceAt = Date.now() - HASHTAG_MAINTENANCE_INTERVAL_MS;
-let firstRun = true;
 let prisma = null;
 
 function scheduleStartupLane(laneName, executor, delayMs = 0) {
@@ -162,12 +164,13 @@ function createLaneState(name, intervalMs, batchSize = null) {
 }
 
 const laneStates = {
+  companyCycle: createLaneState("companyCycle", POLL_INTERVAL_MS, 1),
   poll: createLaneState("poll", POLL_INTERVAL_MS),
-  flashcardRevisit: createLaneState("flashcardRevisit", FLASHCARD_REVISIT_INTERVAL_MS, FLASHCARD_REVISIT_BATCH_SIZE),
-  taskRevisit: createLaneState("taskRevisit", TASK_REVISIT_INTERVAL_MS, TASK_REVISIT_BATCH_SIZE),
-  feedbackReplay: createLaneState("feedbackReplay", FEEDBACK_REPLAY_INTERVAL_MS, FEEDBACK_REPLAY_BATCH_SIZE),
-  hashtagMaintenance: createLaneState("hashtagMaintenance", HASHTAG_MAINTENANCE_INTERVAL_MS, HASHTAG_MAINTENANCE_BATCH_SIZE),
-  cleanup: createLaneState("cleanup", CLEANUP_INTERVAL_MS, CLEANUP_BATCH_SIZE),
+  flashcardRevisit: createLaneState("flashcardRevisit", Math.max(FLASHCARD_REVISIT_INTERVAL_MS, POLL_INTERVAL_MS), FLASHCARD_REVISIT_BATCH_SIZE),
+  taskRevisit: createLaneState("taskRevisit", Math.max(TASK_REVISIT_INTERVAL_MS, POLL_INTERVAL_MS), TASK_REVISIT_BATCH_SIZE),
+  feedbackReplay: createLaneState("feedbackReplay", Math.max(FEEDBACK_REPLAY_INTERVAL_MS, POLL_INTERVAL_MS), FEEDBACK_REPLAY_BATCH_SIZE),
+  hashtagMaintenance: createLaneState("hashtagMaintenance", Math.max(HASHTAG_MAINTENANCE_INTERVAL_MS, POLL_INTERVAL_MS), HASHTAG_MAINTENANCE_BATCH_SIZE),
+  cleanup: createLaneState("cleanup", Math.max(CLEANUP_INTERVAL_MS, POLL_INTERVAL_MS), CLEANUP_BATCH_SIZE),
 };
 
 if (!fs.existsSync(KNOWLEDGE_DIR)) {
@@ -528,12 +531,18 @@ async function runLane(laneName, executor) {
     lane.lastDurationMs = lane.lastSucceededAt - startedAt;
     lane.lastError = null;
     lane.lastResult = result || null;
+    if (result?.companyId) {
+      await recordCompanyLaneRun(result.companyId, laneName, result, lane.lastDurationMs);
+    }
     return result;
   } catch (error) {
     lane.lastFailedAt = Date.now();
     lane.lastDurationMs = lane.lastFailedAt - startedAt;
     lane.lastError = error.message;
     lane.lastResult = { error: error.message };
+    if (error?.companyId) {
+      await recordCompanyLaneRun(error.companyId, laneName, { error: error.message }, lane.lastDurationMs, error);
+    }
     throw error;
   } finally {
     lane.running = false;
@@ -551,8 +560,9 @@ function classifyLaneHealth(lane) {
   }
 
   const age = Date.now() - lane.lastSucceededAt;
-  if (age > lane.intervalMs * 3) return "stale";
-  if (age > lane.intervalMs * 1.5) return "delayed";
+  const effectiveIntervalMs = Math.max(lane.intervalMs || 0, 60_000);
+  if (age > effectiveIntervalMs * 3) return "stale";
+  if (age > effectiveIntervalMs * 1.5) return "delayed";
   return "healthy";
 }
 
@@ -1376,6 +1386,74 @@ async function loadKnowledge(companyId) {
   } catch {
     return {};
   }
+}
+
+function appendRuntimeMetric(entry) {
+  const payload = {
+    recordedAt: isoTimestamp(),
+    ...entry,
+  };
+  fs.appendFileSync(RUNTIME_METRICS_FILE, `${JSON.stringify(payload)}\n`);
+}
+
+async function recordCompanyLaneRun(companyId, laneName, result = {}, durationMs = null, error = null) {
+  if (!companyId) return;
+  const existing = await loadKnowledge(companyId);
+  const scheduler = {
+    ...(existing.scheduler || {}),
+    [laneName]: {
+      lastRunAt: isoTimestamp(),
+      durationMs,
+      error: error ? String(error.message || error) : null,
+      result: result || null,
+    },
+  };
+  await saveKnowledge(companyId, { scheduler });
+  appendRuntimeMetric({
+    type: "company-lane-run",
+    companyId,
+    lane: laneName,
+    durationMs,
+    error: error ? String(error.message || error) : null,
+    result,
+  });
+}
+
+async function selectNextCompanyForLane(laneName, cooldownMs = 0) {
+  const companies = await prisma.company.findMany({ select: { id: true }, orderBy: { createdAt: "asc" } });
+  if (companies.length === 0) {
+    return { companyId: null, idleDelayMs: COMPANY_LANE_IDLE_DELAY_MS };
+  }
+
+  let selected = null;
+  let selectedLastRun = Number.POSITIVE_INFINITY;
+  let earliestNextDueAt = Number.POSITIVE_INFINITY;
+  const now = Date.now();
+
+  for (const row of companies) {
+    const knowledge = await loadKnowledge(row.id);
+    const lastRunAt = knowledge?.scheduler?.[laneName]?.lastRunAt
+      ? new Date(knowledge.scheduler[laneName].lastRunAt).getTime()
+      : 0;
+    const dueAt = lastRunAt + cooldownMs;
+    earliestNextDueAt = Math.min(earliestNextDueAt, dueAt);
+    if (dueAt > now) {
+      continue;
+    }
+    if (lastRunAt < selectedLastRun) {
+      selected = row.id;
+      selectedLastRun = lastRunAt;
+    }
+  }
+
+  if (selected) {
+    return { companyId: selected, idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS };
+  }
+
+  const idleDelayMs = Number.isFinite(earliestNextDueAt)
+    ? Math.max(earliestNextDueAt - now, COMPANY_LANE_IDLE_DELAY_MS)
+    : COMPANY_LANE_IDLE_DELAY_MS;
+  return { companyId: null, idleDelayMs };
 }
 
 function isResearchRefreshDue(knowledge) {
@@ -2558,25 +2636,31 @@ async function processCompany(companyId, reason = {}) {
   };
 }
 
-async function findOldestHashtagMaintenanceCandidate() {
+async function findOldestHashtagMaintenanceCandidate(companyId = null) {
+  const where = companyId ? { companyId } : undefined;
   const [source, file, flashcard, checklist, topic] = await Promise.all([
     prisma.source.findFirst({
+      where,
       orderBy: [{ hashtagEvaluationPending: "desc" }, { hashtagMaintainedAt: "asc" }, { updatedAt: "asc" }],
       select: { id: true, companyId: true, hashtagMaintainedAt: true, hashtagEvaluationPending: true, updatedAt: true },
     }),
     prisma.uploadedSourceFile.findFirst({
+      where,
       orderBy: [{ hashtagEvaluationPending: "desc" }, { hashtagMaintainedAt: "asc" }, { updatedAt: "asc" }],
       select: { id: true, companyId: true, hashtagMaintainedAt: true, hashtagEvaluationPending: true, updatedAt: true },
     }),
     prisma.flashcard.findFirst({
+      where,
       orderBy: [{ hashtagEvaluationPending: "desc" }, { hashtagMaintainedAt: "asc" }, { updatedAt: "asc" }],
       select: { id: true, companyId: true, hashtagMaintainedAt: true, hashtagEvaluationPending: true, updatedAt: true },
     }),
     prisma.nBAItem.findFirst({
+      where,
       orderBy: [{ hashtagEvaluationPending: "desc" }, { hashtagMaintainedAt: "asc" }, { updatedAt: "asc" }],
       select: { id: true, companyId: true, hashtagMaintainedAt: true, hashtagEvaluationPending: true, updatedAt: true },
     }),
     prisma.topic.findFirst({
+      where,
       orderBy: [{ hashtagEvaluationPending: "desc" }, { hashtagMaintainedAt: "asc" }, { updatedAt: "asc" }],
       select: { id: true, companyId: true, hashtagMaintainedAt: true, hashtagEvaluationPending: true, updatedAt: true },
     }),
@@ -2593,89 +2677,81 @@ async function findOldestHashtagMaintenanceCandidate() {
     })[0] || null;
 }
 
-async function processHashtagMaintenance() {
-  const candidate = await findOldestHashtagMaintenanceCandidate();
+async function processHashtagMaintenance(companyId = null) {
+  const selection = companyId
+    ? { companyId, idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS }
+    : await selectNextCompanyForLane("hashtagMaintenance", HASHTAG_MAINTENANCE_INTERVAL_MS);
+  if (!selection.companyId) {
+    return { processed: 0, changed: 0, companyId: null, idleDelayMs: selection.idleDelayMs };
+  }
+
+  const candidate = await findOldestHashtagMaintenanceCandidate(selection.companyId);
   if (!candidate) {
-    return { processed: 0, changed: 0, companyId: null };
+    return { processed: 0, changed: 0, companyId: selection.companyId, idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS };
   }
 
   const data = await getAllData(candidate.companyId);
   if (!data?.company) {
-    return { processed: 0, changed: 0, companyId: candidate.companyId };
+    return { processed: 0, changed: 0, companyId: candidate.companyId, idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS };
   }
 
   const changed = await syncHashtagMaintenance(data.company, data);
   lastHashtagMaintenanceAt = Date.now();
-  return { processed: HASHTAG_MAINTENANCE_BATCH_SIZE, changed, companyId: candidate.companyId };
+  return { processed: HASHTAG_MAINTENANCE_BATCH_SIZE, changed, companyId: candidate.companyId, idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS };
 }
 
-async function processPollingLane() {
-  const companies = await prisma.company.findMany({ select: { id: true }, orderBy: { createdAt: "asc" } });
-  let processedCompanies = 0;
-  let refreshedCompanies = 0;
-
-  if (firstRun) {
-    console.log("First run - syncing all company data...");
-    for (const row of companies) {
-      const data = await getAllData(row.id);
-      if (!data?.company) continue;
-      const hasAnySource = data.sources.length > 0 || data.uploadedFiles.length > 0;
-      if (!hasAnySource) {
-        await saveKnowledge(row.id, {
-          snapshot: buildSnapshot(data),
-          research: {
-            enabled: RESEARCH_ENABLED,
-            provider: RESEARCH_ENABLED ? RESEARCH_PROVIDER : null,
-            refreshHours: RESEARCH_REFRESH_HOURS,
-            lastRunAt: isoTimestamp(),
-          },
-        });
-        continue;
-      }
-      processedCompanies += 1;
-      console.log(`Company ${row.id}: full processing run`);
-      await processCompany(row.id, { trigger: "poll-first-run" });
-    }
-    firstRun = false;
-    if (processedCompanies > 0) {
-      lastSync = Date.now();
-    }
-    return { processedCompanies, refreshedCompanies, firstRun: true };
+async function processPollingLane(companyId) {
+  const previousKnowledge = await loadKnowledge(companyId);
+  const data = await getAllData(companyId);
+  if (!data?.company) {
+    return { companyId, processedCompanies: 0, refreshedCompanies: 0, skipped: true, reason: "company-missing" };
   }
 
-  console.log(`Polling core changes since ${new Date(lastSync).toISOString()}...`);
-  for (const row of companies) {
-    const data = await getAllData(row.id);
-    const nextSnapshot = buildSnapshot(data);
-    const previousKnowledge = await loadKnowledge(row.id);
-    const coreChanged = hasDataChanged(
-      buildCoreSnapshot(previousKnowledge.snapshot),
-      buildCoreSnapshot(nextSnapshot),
-    );
-    const refreshDue = isResearchRefreshDue(previousKnowledge);
-    if (!coreChanged && !refreshDue) {
-      continue;
-    }
-    processedCompanies += 1;
-    if (refreshDue) {
-      refreshedCompanies += 1;
-    }
-    console.log(
-      `Company ${row.id}: ${coreChanged ? "source or topic changed" : "company research refresh due"}`
-    );
-    await processCompany(row.id, { trigger: coreChanged ? "poll-core-delta" : "poll-research-refresh" });
+  const hasAnySource = data.sources.length > 0 || data.uploadedFiles.length > 0;
+  if (!previousKnowledge.snapshot && !hasAnySource) {
+    await saveKnowledge(companyId, {
+      snapshot: buildSnapshot(data),
+      research: {
+        enabled: RESEARCH_ENABLED,
+        provider: RESEARCH_ENABLED ? RESEARCH_PROVIDER : null,
+        refreshHours: RESEARCH_REFRESH_HOURS,
+        lastRunAt: isoTimestamp(),
+      },
+    });
+    return { companyId, processedCompanies: 0, refreshedCompanies: 0, skipped: true, reason: "no-source-data" };
   }
 
-  if (processedCompanies > 0) {
-    lastSync = Date.now();
+  const nextSnapshot = buildSnapshot(data);
+  const coreChanged = !previousKnowledge.snapshot || hasDataChanged(
+    buildCoreSnapshot(previousKnowledge.snapshot),
+    buildCoreSnapshot(nextSnapshot),
+  );
+  const refreshDue = isResearchRefreshDue(previousKnowledge);
+  if (!coreChanged && !refreshDue) {
+    return { companyId, processedCompanies: 0, refreshedCompanies: 0, skipped: true, reason: "not-due" };
   }
-  return { processedCompanies, refreshedCompanies, firstRun: false };
+
+  console.log(
+    `Company ${companyId}: ${!previousKnowledge.snapshot ? "initial run" : coreChanged ? "source or topic changed" : "company research refresh due"}`
+  );
+  const result = await processCompany(
+    companyId,
+    { trigger: !previousKnowledge.snapshot ? "poll-first-run-serial" : coreChanged ? "poll-core-delta" : "poll-research-refresh" },
+  );
+  lastSync = Date.now();
+  return {
+    companyId,
+    processedCompanies: 1,
+    refreshedCompanies: refreshDue ? 1 : 0,
+    skipped: false,
+    result,
+  };
 }
 
-async function refreshOldestFlashcards(batchSize = FLASHCARD_REVISIT_BATCH_SIZE) {
-  console.log("Flashcard Revisit: checking oldest active flashcards...");
+async function refreshOldestFlashcards(companyId, batchSize = FLASHCARD_REVISIT_BATCH_SIZE) {
+  console.log(`Flashcard Revisit: checking oldest active flashcards for company ${companyId}...`);
   const flashcards = await prisma.flashcard.findMany({
-    where: { status: "ACTIVE" },
+    where: { companyId, status: "ACTIVE" },
     orderBy: [{ lastActionAt: "asc" }, { refreshedAt: "asc" }, { updatedAt: "asc" }],
     take: batchSize,
   });
@@ -2687,7 +2763,7 @@ async function refreshOldestFlashcards(batchSize = FLASHCARD_REVISIT_BATCH_SIZE)
 
   for (const flashcard of flashcards) {
     processed += 1;
-    const data = await getAllData(flashcard.companyId);
+    const data = await getAllData(companyId);
     if (!data.company) {
       skipped += 1;
       continue;
@@ -2747,7 +2823,7 @@ async function refreshOldestFlashcards(batchSize = FLASHCARD_REVISIT_BATCH_SIZE)
         refreshedAt: new Date(),
       },
     });
-    companiesToRefresh.add(flashcard.companyId);
+    companiesToRefresh.add(companyId);
     updated += 1;
   }
 
@@ -2757,13 +2833,14 @@ async function refreshOldestFlashcards(batchSize = FLASHCARD_REVISIT_BATCH_SIZE)
     await syncRecommendations(companyId, data.company, data.existingNBA, selectResearchTopics(data, 5));
   }
 
-  return { processed, updated, skipped, companiesRefreshed: companiesToRefresh.size };
+  return { companyId, processed, updated, skipped, companiesRefreshed: companiesToRefresh.size };
 }
 
-async function revisitOldestTasks(batchSize = TASK_REVISIT_BATCH_SIZE) {
-  console.log("Task Revisit: checking oldest pending checklist tasks...");
+async function revisitOldestTasks(companyId, batchSize = TASK_REVISIT_BATCH_SIZE) {
+  console.log(`Task Revisit: checking oldest pending checklist tasks for company ${companyId}...`);
   const tasks = await prisma.nBAItem.findMany({
     where: {
+      companyId,
       createdBy: "local-ai",
       status: "PENDING",
     },
@@ -2777,7 +2854,7 @@ async function revisitOldestTasks(batchSize = TASK_REVISIT_BATCH_SIZE) {
 
   for (const task of tasks) {
     processed += 1;
-    const data = await getAllData(task.companyId);
+    const data = await getAllData(companyId);
     if (!data.company) {
       skipped += 1;
       continue;
@@ -2838,50 +2915,36 @@ async function revisitOldestTasks(batchSize = TASK_REVISIT_BATCH_SIZE) {
     updated += 1;
   }
 
-  return { processed, updated, skipped };
+  return { companyId, processed, updated, skipped };
 }
 
-async function replayFeedback(batchSize = FEEDBACK_REPLAY_BATCH_SIZE) {
-  console.log("Feedback Replay: checking companies with new annotations and task actions...");
-  const companies = await prisma.company.findMany({ select: { id: true }, orderBy: { createdAt: "asc" } });
-  let processedCompanies = 0;
-
-  for (const row of companies.slice(0, Math.max(batchSize * 4, batchSize))) {
-    const data = await getAllData(row.id);
-    if (!data.company || (data.feedback.length === 0 && data.flashcardActions.length === 0)) {
-      continue;
-    }
-
-    const nextSnapshot = buildSnapshot(data);
-    const knowledge = await loadKnowledge(row.id);
-    const feedbackChanged = hasDataChanged(
-      buildFeedbackSnapshot(knowledge.snapshot),
-      buildFeedbackSnapshot(nextSnapshot),
-    );
-    const lastReplayAt = knowledge?.feedbackReplay?.lastRunAt
-      ? new Date(knowledge.feedbackReplay.lastRunAt).getTime()
-      : 0;
-    const replayDue = !lastReplayAt || Date.now() - lastReplayAt >= FEEDBACK_REPLAY_INTERVAL_MS;
-
-    if (!feedbackChanged && !replayDue) {
-      continue;
-    }
-
-    processedCompanies += 1;
-    await processCompany(row.id, { trigger: feedbackChanged ? "feedback-replay-change" : "feedback-replay-refresh" });
-    await saveKnowledge(row.id, {
-      feedbackReplay: {
-        lastRunAt: isoTimestamp(),
-        reason: feedbackChanged ? "feedback-changed" : "feedback-refresh-due",
-      },
-    });
-
-    if (processedCompanies >= batchSize) {
-      break;
-    }
+async function replayFeedback(companyId) {
+  console.log(`Feedback Replay: checking company ${companyId} for new annotations and task actions...`);
+  const data = await getAllData(companyId);
+  if (!data.company || (data.feedback.length === 0 && data.flashcardActions.length === 0)) {
+    return { companyId, processedCompanies: 0, skipped: true, reason: "no-feedback" };
   }
 
-  return { processedCompanies };
+  const nextSnapshot = buildSnapshot(data);
+  const knowledge = await loadKnowledge(companyId);
+  const feedbackChanged = hasDataChanged(
+    buildFeedbackSnapshot(knowledge.snapshot),
+    buildFeedbackSnapshot(nextSnapshot),
+  );
+
+  if (!feedbackChanged && FEEDBACK_REPLAY_INTERVAL_MS <= 0) {
+    return { companyId, processedCompanies: 0, skipped: true, reason: "no-feedback-change" };
+  }
+
+  await processCompany(companyId, { trigger: feedbackChanged ? "feedback-replay-change" : "feedback-replay-refresh" });
+  await saveKnowledge(companyId, {
+    feedbackReplay: {
+      lastRunAt: isoTimestamp(),
+      reason: feedbackChanged ? "feedback-changed" : "feedback-refresh-due",
+    },
+  });
+
+  return { companyId, processedCompanies: 1, skipped: false, reason: feedbackChanged ? "feedback-changed" : "feedback-refresh-due" };
 }
 
 function flashcardDuplicateKey(card) {
@@ -2925,9 +2988,10 @@ function remapSourceFlashcardIds(ids, canonicalFlashcardIds) {
   return unique(remapped);
 }
 
-async function applyDuplicateFlashcardMaintenance(batchSize = CLEANUP_BATCH_SIZE) {
+async function applyDuplicateFlashcardMaintenance(batchSize = CLEANUP_BATCH_SIZE, companyId = null) {
   const flashcards = await prisma.flashcard.findMany({
     where: {
+      ...(companyId ? { companyId } : {}),
       status: { in: ["ACTIVE", "STALE"] },
     },
     select: {
@@ -3031,9 +3095,10 @@ async function applyDuplicateFlashcardMaintenance(batchSize = CLEANUP_BATCH_SIZE
   return { groupsProcessed, archivedFlashcards: archived, rewiredTasks, canonicalFlashcardIds };
 }
 
-async function applyDuplicateTaskMaintenance(batchSize = CLEANUP_BATCH_SIZE, canonicalFlashcardIds = new Map()) {
+async function applyDuplicateTaskMaintenance(batchSize = CLEANUP_BATCH_SIZE, canonicalFlashcardIds = new Map(), companyId = null) {
   const tasks = await prisma.nBAItem.findMany({
     where: {
+      ...(companyId ? { companyId } : {}),
       status: { in: ["PENDING", "ACCEPTED", "COMPLETED"] },
     },
     select: {
@@ -3109,10 +3174,11 @@ async function applyDuplicateTaskMaintenance(batchSize = CLEANUP_BATCH_SIZE, can
   return { groupsProcessed, declinedTasks: declined, rewiredTasks: rewired };
 }
 
-async function auditMaintenanceBacklog(batchSize = CLEANUP_BATCH_SIZE) {
-  const flashcardCleanup = await applyDuplicateFlashcardMaintenance(batchSize);
-  const taskCleanup = await applyDuplicateTaskMaintenance(batchSize, flashcardCleanup.canonicalFlashcardIds);
+async function auditMaintenanceBacklog(batchSize = CLEANUP_BATCH_SIZE, companyId = null) {
+  const flashcardCleanup = await applyDuplicateFlashcardMaintenance(batchSize, companyId);
+  const taskCleanup = await applyDuplicateTaskMaintenance(batchSize, flashcardCleanup.canonicalFlashcardIds, companyId);
   return {
+    companyId,
     duplicateFlashcardGroups: flashcardCleanup.groupsProcessed,
     archivedFlashcards: flashcardCleanup.archivedFlashcards,
     flashcardTaskRewires: flashcardCleanup.rewiredTasks,
@@ -3120,6 +3186,48 @@ async function auditMaintenanceBacklog(batchSize = CLEANUP_BATCH_SIZE) {
     declinedTasks: taskCleanup.declinedTasks,
     taskRewires: taskCleanup.rewiredTasks,
   };
+}
+
+async function processNextCompanyCycle() {
+  const selection = await selectNextCompanyForLane("companyCycle", POLL_INTERVAL_MS);
+  if (!selection.companyId) {
+    return { companyId: null, processed: false, idleDelayMs: selection.idleDelayMs };
+  }
+
+  const companyId = selection.companyId;
+  const cycleStartedAt = Date.now();
+  const poll = await runLane("poll", () => processPollingLane(companyId));
+  const flashcardRevisit = await runLane("flashcardRevisit", () => refreshOldestFlashcards(companyId, FLASHCARD_REVISIT_BATCH_SIZE));
+  const taskRevisit = await runLane("taskRevisit", () => revisitOldestTasks(companyId, TASK_REVISIT_BATCH_SIZE));
+  const feedbackReplay = await runLane("feedbackReplay", () => replayFeedback(companyId));
+  const hashtagMaintenance = await runLane("hashtagMaintenance", () => processHashtagMaintenance(companyId));
+  const cleanup = await runLane("cleanup", () => auditMaintenanceBacklog(CLEANUP_BATCH_SIZE, companyId));
+
+  const result = {
+    companyId,
+    processed: true,
+    poll,
+    flashcardRevisit,
+    taskRevisit,
+    feedbackReplay,
+    hashtagMaintenance,
+    cleanup,
+  };
+  return { ...result, idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS };
+}
+
+function scheduleCompanyCycleLoop(delayMs = 0) {
+  setTimeout(() => {
+    runLane("companyCycle", processNextCompanyCycle)
+      .then((result) => {
+        scheduleCompanyCycleLoop(result?.idleDelayMs ?? COMPANY_LANE_CONTINUE_DELAY_MS);
+      })
+      .catch((error) => {
+        lastPollError = error.message;
+        console.error("Company cycle scheduler failed:", error.message);
+        scheduleCompanyCycleLoop(COMPANY_LANE_IDLE_DELAY_MS);
+      });
+  }, delayMs);
 }
 
 async function buildLaneBacklogEstimates() {
@@ -3152,6 +3260,7 @@ async function buildLaneBacklogEstimates() {
   ]);
 
   return {
+    companyCycle: companyCount,
     poll: companyCount,
     flashcardRevisit: activeFlashcards,
     taskRevisit: pendingTasks,
@@ -3280,6 +3389,8 @@ async function handleHealth(_req, res) {
     settings: {
       // Surface the active runtime contract here so operators can verify that the
       // running worker picked up the configured cadence/timeout values.
+      schedulingMode: "company-serial-cycle",
+      companyCycleCooldownMs: POLL_INTERVAL_MS,
       pollIntervalMs: POLL_INTERVAL_MS,
       ollamaTimeoutMs: OLLAMA_TIMEOUT_MS,
       researchTimeoutMs: RESEARCH_TIMEOUT_MS,
@@ -3384,61 +3495,8 @@ server.listen(PORT, async () => {
   }
   console.log("--------------------------------------------------");
 
-  const startupLanes = [
-    ["poll", processPollingLane, 0],
-    ["cleanup", () => auditMaintenanceBacklog(), 5_000],
-    ["feedbackReplay", () => replayFeedback(), 20_000],
-    ["taskRevisit", () => revisitOldestTasks(), 40_000],
-    ["flashcardRevisit", () => refreshOldestFlashcards(), 60_000],
-    ["hashtagMaintenance", processHashtagMaintenance, 80_000],
-  ];
-
-  for (const [laneName, executor, delayMs] of startupLanes) {
-    scheduleStartupLane(laneName, executor, delayMs);
-  }
+  scheduleCompanyCycleLoop(0);
 });
-
-setInterval(() => {
-  runLane("poll", processPollingLane).catch((error) => {
-    lastPollError = error.message;
-    console.error("Checklist worker poll error:", error.message);
-  });
-}, POLL_INTERVAL_MS);
-
-setInterval(() => {
-  runLane("flashcardRevisit", () => refreshOldestFlashcards()).catch((error) => {
-    lastPollError = error.message;
-    console.error("Flashcard revisit lane failed:", error.message);
-  });
-}, FLASHCARD_REVISIT_INTERVAL_MS);
-
-setInterval(() => {
-  runLane("taskRevisit", () => revisitOldestTasks()).catch((error) => {
-    lastPollError = error.message;
-    console.error("Task revisit lane failed:", error.message);
-  });
-}, TASK_REVISIT_INTERVAL_MS);
-
-setInterval(() => {
-  runLane("feedbackReplay", () => replayFeedback()).catch((error) => {
-    lastPollError = error.message;
-    console.error("Feedback replay lane failed:", error.message);
-  });
-}, FEEDBACK_REPLAY_INTERVAL_MS);
-
-setInterval(() => {
-  runLane("hashtagMaintenance", processHashtagMaintenance).catch((error) => {
-    lastPollError = error.message;
-    console.error("Hashtag maintenance lane failed:", error.message);
-  });
-}, HASHTAG_MAINTENANCE_INTERVAL_MS);
-
-setInterval(() => {
-  runLane("cleanup", () => auditMaintenanceBacklog()).catch((error) => {
-    lastPollError = error.message;
-    console.error("Cleanup lane failed:", error.message);
-  });
-}, CLEANUP_INTERVAL_MS);
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);

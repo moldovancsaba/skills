@@ -55,10 +55,16 @@ The worker currently schedules work as a serial per-company cycle:
 3. revisit one oldest flashcard
 4. revisit one oldest task
 5. replay one feedback slice
-6. maintain one hashtag slice
-7. run one cleanup slice
+6. retry one fail-safe queue slice through the secondary local model
+7. maintain one hashtag slice
+8. run one cleanup slice
 
 After a company completes that cycle, it waits for the configured company-cycle cooldown before becoming due again.
+
+Two runtime rules now matter for delivery:
+
+- generation is `done is better than perfect`: low-score but valid cards are allowed through so later cycles can improve them
+- malformed or empty JSON from the primary model no longer silently kills delivery; recommendation/task work is queued for a secondary local model retry
 
 Current enrichment outputs may include:
 - conclusions
@@ -108,6 +114,21 @@ Some flashcards are sourced from AI-harvested public research rather than direct
 - `metadata.origin = "research-harvest"`
 
 The Knowmore API exposes these as sovereign-research cards so the UI can render them with a distinct visual treatment.
+
+### 4. Delivery metrics
+
+The worker now writes append-only runtime metrics to:
+
+- `scripts/knowledge/runtime-metrics.ndjson`
+
+The local control plane reads that file and exposes an hourly dashboard with:
+
+- companies processed fully
+- total new cards
+- total new flashcards
+- total new taskcards
+- total new datacards
+- per-company stacked totals for the same categories
 
 ### 3b. Research harvest
 

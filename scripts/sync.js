@@ -79,10 +79,16 @@ const BRAIN_VERSION = process.env.CHECKLIST_BRAIN_VERSION || "worker-v3-research
 const PROMPT_VERSION = process.env.CHECKLIST_PROMPT_VERSION || "2026-04-06.checklist-worker-v3-research";
 const KNOWLEDGE_DIR = process.env.KNOWLEDGE_DIR || path.join(__dirname, "knowledge");
 const RUNTIME_METRICS_FILE = path.join(KNOWLEDGE_DIR, "runtime-metrics.ndjson");
+const FAILSAFE_QUEUE_FILE = path.join(KNOWLEDGE_DIR, "failsafe-queue.ndjson");
 const RESEARCH_ENABLED = envFlag(process.env.CHECKLIST_RESEARCH_ENABLED, false);
 const RESEARCH_PROVIDER = process.env.CHECKLIST_RESEARCH_PROVIDER || "duckduckgo-html";
 const RESEARCH_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_RESEARCH_TIMEOUT_MS || "12000"), 3_000);
 const OLLAMA_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_OLLAMA_TIMEOUT_MS || "45000"), 5_000);
+const FAILSAFE_MODEL = process.env.CHECKLIST_FAILSAFE_MODEL || process.env.CHECKLIST_FAILSAFE_OLLAMA_MODEL || "gemma4:e4b";
+const FAILSAFE_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_FAILSAFE_TIMEOUT_MS || String(Math.max(OLLAMA_TIMEOUT_MS, 90_000))), 5_000);
+const FAILSAFE_MAX_ATTEMPTS = Math.max(Number(process.env.CHECKLIST_FAILSAFE_MAX_ATTEMPTS || "2"), 1);
+const STUCK_RUNNING_MS = Math.max(Number(process.env.CHECKLIST_STUCK_RUNNING_MS || "900000"), 60_000);
+const NO_PROGRESS_MS = Math.max(Number(process.env.CHECKLIST_NO_PROGRESS_MS || "10800000"), 60_000);
 const RESEARCH_MAX_QUERIES = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_QUERIES || "2"), 5), 0);
 const RESEARCH_MAX_RESULTS = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_RESULTS || "3"), 6), 0);
 const RESEARCH_MAX_FETCHES = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_FETCHES || "3"), 6), 0);
@@ -138,6 +144,7 @@ let modelBlocker = null;
 let lastPollError = null;
 let lastSync = Date.now() - 3_600_000;
 let lastHashtagMaintenanceAt = Date.now() - HASHTAG_MAINTENANCE_INTERVAL_MS;
+let lastMeaningfulProgressAt = Date.now();
 let prisma = null;
 
 function scheduleStartupLane(laneName, executor, delayMs = 0) {
@@ -173,6 +180,7 @@ const laneStates = {
   feedbackReplay: createLaneState("feedbackReplay", Math.max(FEEDBACK_REPLAY_INTERVAL_MS, POLL_INTERVAL_MS), FEEDBACK_REPLAY_BATCH_SIZE),
   hashtagMaintenance: createLaneState("hashtagMaintenance", Math.max(HASHTAG_MAINTENANCE_INTERVAL_MS, POLL_INTERVAL_MS), HASHTAG_MAINTENANCE_BATCH_SIZE),
   cleanup: createLaneState("cleanup", Math.max(CLEANUP_INTERVAL_MS, POLL_INTERVAL_MS), CLEANUP_BATCH_SIZE),
+  failsafeQueue: createLaneState("failsafeQueue", POLL_INTERVAL_MS, 1),
 };
 
 if (!fs.existsSync(KNOWLEDGE_DIR)) {
@@ -553,7 +561,10 @@ async function runLane(laneName, executor) {
 
 function classifyLaneHealth(lane) {
   if (!lane) return "unknown";
-  if (lane.running) return "running";
+  if (lane.running) {
+    const runningForMs = lane.lastStartedAt ? Date.now() - lane.lastStartedAt : 0;
+    return runningForMs > STUCK_RUNNING_MS ? "stuck" : "running";
+  }
   if (lane.lastFailedAt && (!lane.lastSucceededAt || lane.lastFailedAt >= lane.lastSucceededAt)) {
     return "failed";
   }
@@ -566,6 +577,40 @@ function classifyLaneHealth(lane) {
   if (age > effectiveIntervalMs * 3) return "stale";
   if (age > effectiveIntervalMs * 1.5) return "delayed";
   return "healthy";
+}
+
+function buildProgressState(backlog = {}) {
+  const now = Date.now();
+  const backlogTotal = Object.values(backlog || {}).reduce((total, value) => total + (Number.isFinite(value) ? value : 0), 0);
+  const runningLane = Object.values(laneStates).find((lane) => lane.running && lane.lastStartedAt && now - lane.lastStartedAt > STUCK_RUNNING_MS);
+  if (runningLane) {
+    return {
+      state: "stuck-running",
+      lane: runningLane.name,
+      runningForMs: now - runningLane.lastStartedAt,
+      backlogTotal,
+      lastMeaningfulProgressAt,
+      noProgressForMs: now - lastMeaningfulProgressAt,
+    };
+  }
+  if (backlogTotal > 0 && now - lastMeaningfulProgressAt > NO_PROGRESS_MS) {
+    return {
+      state: "stalled-no-progress",
+      lane: null,
+      runningForMs: 0,
+      backlogTotal,
+      lastMeaningfulProgressAt,
+      noProgressForMs: now - lastMeaningfulProgressAt,
+    };
+  }
+  return {
+    state: "healthy",
+    lane: null,
+    runningForMs: 0,
+    backlogTotal,
+    lastMeaningfulProgressAt,
+    noProgressForMs: now - lastMeaningfulProgressAt,
+  };
 }
 
 function buildSnapshot(data) {
@@ -1104,13 +1149,44 @@ async function ensureModelReady() {
   }
 }
 
-async function callOllama(messages) {
+async function ensureOllamaModelReady(modelName, { updatePrimary = false } = {}) {
+  try {
+    const response = await fetch(`${OLLAMA_HOST}/api/tags`, { method: "GET" });
+    if (!response.ok) {
+      throw new Error(`Ollama tags request failed with status ${response.status}`);
+    }
+    const payload = await response.json();
+    const names = (payload.models || []).map((model) => model?.name).filter(Boolean);
+    if (!names.includes(modelName)) {
+      throw new Error(`Required Ollama model ${modelName} is not installed`);
+    }
+    if (updatePrimary && modelName === OLLAMA_MODEL) {
+      modelReady = true;
+      modelBlocker = null;
+    }
+    return true;
+  } catch (error) {
+    if (updatePrimary && modelName === OLLAMA_MODEL) {
+      modelReady = false;
+      modelBlocker = error.message;
+      lastPollError = error.message;
+    }
+    throw error;
+  }
+}
+
+async function callOllama(messages, options = {}) {
+  const model = options.model || OLLAMA_MODEL;
+  const timeoutMs = options.timeoutMs || OLLAMA_TIMEOUT_MS;
   if (!(await ensureModelReady())) {
     throw new Error(modelBlocker || "Ollama model unavailable");
   }
+  if (model !== OLLAMA_MODEL) {
+    await ensureOllamaModelReady(model);
+  }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let response;
 
   try {
@@ -1118,15 +1194,16 @@ async function callOllama(messages) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: OLLAMA_MODEL,
+        model,
         stream: false,
         messages,
+        ...(options.format ? { format: options.format } : {}),
       }),
       signal: controller.signal,
     });
   } catch (error) {
     if (error.name === "AbortError") {
-      throw new Error(`Ollama chat timed out after ${OLLAMA_TIMEOUT_MS}ms`);
+      throw new Error(`Ollama chat timed out after ${timeoutMs}ms`);
     }
     throw error;
   } finally {
@@ -1141,11 +1218,15 @@ async function callOllama(messages) {
   return payload?.message?.content || "";
 }
 
-async function callOllamaJson(systemPrompt, userPrompt) {
+async function callOllamaJson(systemPrompt, userPrompt, options = {}) {
   const content = await callOllama([
     { role: "system", content: systemPrompt },
     { role: "user", content: userPrompt },
-  ]);
+  ], {
+    model: options.model,
+    timeoutMs: options.timeoutMs,
+    format: "json",
+  });
   const candidate = extractJsonCandidate(content);
   if (!candidate) {
     throw new Error("Ollama returned no JSON content");
@@ -1161,7 +1242,11 @@ async function callOllamaJson(systemPrompt, userPrompt) {
           "Repair the following payload into valid JSON. Return only valid JSON with no markdown fences or commentary.",
       },
       { role: "user", content: candidate },
-    ]);
+    ], {
+      model: options.model,
+      timeoutMs: options.timeoutMs,
+      format: "json",
+    });
     const repairedCandidate = extractJsonCandidate(repaired);
     if (!repairedCandidate) {
       throw new Error(`Failed to parse Ollama JSON response: ${error.message}`);
@@ -1396,6 +1481,136 @@ function appendRuntimeMetric(entry) {
     ...entry,
   };
   fs.appendFileSync(RUNTIME_METRICS_FILE, `${JSON.stringify(payload)}\n`);
+}
+
+function markMeaningfulProgress(entry = {}) {
+  lastMeaningfulProgressAt = Date.now();
+  appendRuntimeMetric({
+    type: "meaningful-progress",
+    ...entry,
+  });
+}
+
+function readNdjsonLatest(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  const lines = fs.readFileSync(filePath, "utf8").split("\n").filter(Boolean);
+  const byId = new Map();
+  for (const line of lines) {
+    try {
+      const row = JSON.parse(line);
+      if (!row?.id) continue;
+      byId.set(row.id, row);
+    } catch {
+      // Keep runtime storage append-only and resilient to partial writes.
+    }
+  }
+  return [...byId.values()];
+}
+
+function appendFailsafeQueueEvent(entry) {
+  fs.appendFileSync(FAILSAFE_QUEUE_FILE, `${JSON.stringify({ updatedAt: isoTimestamp(), ...entry })}\n`);
+}
+
+function listFailsafeJobs({ companyId = null, status = null } = {}) {
+  return readNdjsonLatest(FAILSAFE_QUEUE_FILE)
+    .filter((job) => !companyId || job.companyId === companyId)
+    .filter((job) => !status || job.status === status)
+    .sort((left, right) => new Date(left.updatedAt || left.createdAt || 0).getTime() - new Date(right.updatedAt || right.createdAt || 0).getTime());
+}
+
+function enqueueFailsafeJob(payload) {
+  const job = {
+    id: crypto.randomUUID(),
+    createdAt: isoTimestamp(),
+    status: "PENDING",
+    attempts: 0,
+    ...payload,
+  };
+  appendFailsafeQueueEvent(job);
+  appendRuntimeMetric({
+    type: "failsafe-queue",
+    action: "enqueued",
+    companyId: job.companyId,
+    queueKind: job.kind,
+    jobId: job.id,
+  });
+  return job;
+}
+
+function updateFailsafeJob(job, patch) {
+  const next = {
+    ...job,
+    ...patch,
+    updatedAt: isoTimestamp(),
+  };
+  appendFailsafeQueueEvent(next);
+  appendRuntimeMetric({
+    type: "failsafe-queue",
+    action: next.status?.toLowerCase() || "updated",
+    companyId: next.companyId,
+    queueKind: next.kind,
+    jobId: next.id,
+    attempts: next.attempts,
+    error: next.lastError || null,
+  });
+  return next;
+}
+
+function parseQueuedRecommendationOutput(job, raw) {
+  return parseRecommendationCandidates(raw, job?.payload?.cards || []);
+}
+
+function buildFeedbackMemorySummary(data) {
+  const taskFeedbackIndex = buildTaskFeedbackIndex(data.existingNBA, data.feedback);
+  const flashcardActionIndex = buildFlashcardActionIndex(data.flashcardActions);
+  const recentFlashcardActions = (data.flashcardActions || []).slice(0, 40).map((row) => ({
+    flashcardId: row.flashcardId,
+    action: row.action,
+    annotation: toFeedbackExcerpt(row.annotation, 280),
+    modifiedTitle: toFeedbackExcerpt(row.modifiedTitle, 180),
+    modifiedBody: toFeedbackExcerpt(row.modifiedBody, 280),
+    createdAt: isoTimestamp(row.createdAt),
+  }));
+
+  return {
+    capturedAt: isoTimestamp(),
+    totals: {
+      taskFeedback: data.feedback.length,
+      flashcardActions: data.flashcardActions.length,
+      acceptedTaskFeedback: (data.feedback || []).filter((row) => row.action === "ACCEPT" || row.action === "MODIFY_ACCEPT").length,
+      declinedTaskFeedback: (data.feedback || []).filter((row) => row.action === "DECLINE").length,
+    },
+    companyPatterns: companyFeedbackPatterns(taskFeedbackIndex),
+    recentTaskFeedback: (taskFeedbackIndex.examples || []).slice(0, 24).map(compactFeedbackRecord),
+    recentFlashcardActions,
+    flashcardActionCoverage: {
+      flashcardsWithActions: flashcardActionIndex.size,
+    },
+  };
+}
+
+function buildCompanyCycleMetric(companyId, cycleResult, durationMs) {
+  const pollResult = cycleResult?.poll?.result || {};
+  const processResult = pollResult?.result || {};
+  const flashcardCreated = Number(processResult?.flashcards?.created || 0);
+  const flashcardUpdated = Number(processResult?.flashcards?.updated || 0);
+  const taskCreated = Number(processResult?.recommendations?.created || 0);
+  const taskUpdated = Number(processResult?.recommendations?.updated || 0);
+  const dataCreated = Number(cycleResult?.researchHarvest?.result?.createdSources || 0);
+  const cardsCreated = flashcardCreated + taskCreated + dataCreated;
+  return {
+    type: "company-cycle-summary",
+    companyId,
+    durationMs,
+    cardsCreated,
+    flashcardsCreated: flashcardCreated,
+    flashcardsUpdated: flashcardUpdated,
+    taskcardsCreated: taskCreated,
+    taskcardsUpdated: taskUpdated,
+    datacardsCreated: dataCreated,
+    companiesProcessedFully: cycleResult?.processed ? 1 : 0,
+    queueProcessed: Number(cycleResult?.failsafeQueue?.result?.processed || 0),
+  };
 }
 
 async function recordCompanyLaneRun(companyId, laneName, result = {}, durationMs = null, error = null) {
@@ -1900,7 +2115,7 @@ async function syncHashtagMaintenance(company, data) {
   return changed;
 }
 
-async function generateFlashcardCandidates(company, source, research, feedbackContext = {}) {
+function buildFlashcardGenerationPrompts(company, source, research, feedbackContext = {}) {
   const systemPrompt = [
     "You generate zero or more Checklist flashcards as strict JSON.",
     "Return a JSON array.",
@@ -1949,9 +2164,11 @@ async function generateFlashcardCandidates(company, source, research, feedbackCo
     JSON.stringify(evidencePayload, null, 2),
   ].join("\n");
 
-  const raw = await callOllamaJson(systemPrompt, userPrompt);
-  if (!Array.isArray(raw)) return [];
+  return { systemPrompt, userPrompt };
+}
 
+function parseFlashcardCandidates(raw, source, research) {
+  if (!Array.isArray(raw)) return [];
   return raw
     .map((item) => {
       const kind = normalizeText(item.kind || (research.citations.length > 0 ? "RESEARCH" : "SUMMARY")).toUpperCase();
@@ -1976,16 +2193,19 @@ async function generateFlashcardCandidates(company, source, research, feedbackCo
     .filter((item) =>
       item &&
       item.title &&
-      item.body &&
-      item.confidence >= FLASHCARD_MIN_CONFIDENCE &&
-      item.impact >= FLASHCARD_MIN_IMPACT &&
-      item.weight >= FLASHCARD_MIN_WEIGHT,
+      item.body,
     )
     .sort((left, right) => scoreFlashcardCandidate(right) - scoreFlashcardCandidate(left))
     .slice(0, 5);
 }
 
-async function generateSynthesisFlashcards(company, topic, sources) {
+async function generateFlashcardCandidates(company, source, research, feedbackContext = {}, options = {}) {
+  const { systemPrompt, userPrompt } = buildFlashcardGenerationPrompts(company, source, research, feedbackContext);
+  const raw = await callOllamaJson(systemPrompt, userPrompt, options);
+  return parseFlashcardCandidates(raw, source, research);
+}
+
+function buildSynthesisPrompts(company, topic, sources) {
   const evidenceSources = sources.slice(0, 4).map((source) => ({
     sourceType: source.sourceType,
     sourceName: source.sourceName,
@@ -1993,28 +2213,29 @@ async function generateSynthesisFlashcards(company, topic, sources) {
     excerpt: truncate(source.promptBody, 700),
   }));
 
-  const raw = await callOllamaJson(
-    [
-      "You generate zero or more synthesis flashcards as strict JSON.",
-      "Return a JSON array.",
-      "Each item must contain: title, body, kind, confidence, impact, weight, hashtags.",
-      "This flashcard must combine evidence across multiple sources, not paraphrase only one source.",
-      "Prefer COMPARISON, EVALUATION, CONCLUSION, RECOMMENDATION, or RESEARCH kinds when appropriate.",
-      "Return an empty array if the sources do not support a strong combined insight.",
-      "hashtags must reflect the topic and the combined evidence.",
-    ].join(" "),
-    [
-      `Company: ${company.name}`,
-      `Focus topic: ${topic.label}`,
-      "Sources:",
-      JSON.stringify(evidenceSources, null, 2),
-    ].join("\n"),
-  );
+  const systemPrompt = [
+    "You generate zero or more synthesis flashcards as strict JSON.",
+    "Return a JSON array.",
+    "Each item must contain: title, body, kind, confidence, impact, weight, hashtags.",
+    "This flashcard must combine evidence across multiple sources, not paraphrase only one source.",
+    "Prefer COMPARISON, EVALUATION, CONCLUSION, RECOMMENDATION, or RESEARCH kinds when appropriate.",
+    "Return an empty array if the sources do not support a strong combined insight.",
+    "hashtags must reflect the topic and the combined evidence.",
+  ].join(" ");
+  const userPrompt = [
+    `Company: ${company.name}`,
+    `Focus topic: ${topic.label}`,
+    "Sources:",
+    JSON.stringify(evidenceSources, null, 2),
+  ].join("\n");
+  return [systemPrompt, userPrompt];
+}
 
+function parseSynthesisFlashcards(raw, topic, sources) {
   const syntheticSource = {
     sourceName: topic.label,
     hashtags: mergeHashtags(topic.label.split(/\s+/).map((word) => `#${word}`), ...sources.map((source) => source.hashtags)),
-    promptBody: evidenceSources.map((item) => item.excerpt).join("\n\n"),
+    promptBody: sources.map((source) => truncate(source.promptBody, 700)).join("\n\n"),
   };
 
   if (!Array.isArray(raw)) return [];
@@ -2040,13 +2261,16 @@ async function generateSynthesisFlashcards(company, topic, sources) {
     .filter((item) =>
       item &&
       item.title &&
-      item.body &&
-      item.confidence >= FLASHCARD_MIN_CONFIDENCE &&
-      item.impact >= FLASHCARD_MIN_IMPACT &&
-      item.weight >= FLASHCARD_MIN_WEIGHT,
+      item.body,
     )
     .sort((left, right) => scoreFlashcardCandidate(right) - scoreFlashcardCandidate(left))
     .slice(0, 3);
+}
+
+async function generateSynthesisFlashcards(company, topic, sources, options = {}) {
+  const [systemPrompt, userPrompt] = buildSynthesisPrompts(company, topic, sources);
+  const raw = await callOllamaJson(systemPrompt, userPrompt, options);
+  return parseSynthesisFlashcards(raw, topic, sources);
 }
 
 async function upsertFlashcardSource(flashcardId, source) {
@@ -2124,7 +2348,18 @@ async function syncTopicSynthesisFlashcards(companyId, company, data, sources, e
       generatedItems = await generateSynthesisFlashcards(company, topic, relevantSources);
     } catch (error) {
       console.error(`Synthesis flashcard generation failed for ${companyId}/${topic.label}: ${error.message}`);
-      continue;
+      const [systemPrompt, userPrompt] = buildSynthesisPrompts(company, topic, relevantSources);
+      try {
+        generatedItems = await runFailsafeModel(
+          "synthesis-flashcards",
+          { systemPrompt, userPrompt },
+          (raw) => parseSynthesisFlashcards(raw, topic, relevantSources),
+          { companyId, topicId: topic.id, topicLabel: topic.label },
+        );
+      } catch (failsafeError) {
+        console.error(`Fail-safe synthesis generation also failed for ${companyId}/${topic.label}: ${failsafeError.message}`);
+        continue;
+      }
     }
 
     if (!Array.isArray(generatedItems) || generatedItems.length === 0) {
@@ -2278,7 +2513,26 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
       generatedItems = await generateFlashcardCandidates(company, source, research, feedbackContext);
     } catch (error) {
       console.error(`Flashcard generation failed for ${companyId}/${source.sourceType}/${source.sourceId}: ${error.message}`);
-      continue;
+      const prompts = buildFlashcardGenerationPrompts(company, source, research, {
+        flashcardActions: [],
+        taskFeedback: buildFeedbackContext(taskFeedbackIndex, [], [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" ")),
+      });
+      try {
+        generatedItems = await runFailsafeModel(
+          "source-flashcards",
+          prompts,
+          (raw) => parseFlashcardCandidates(raw, source, research),
+          {
+            companyId,
+            sourceId: source.sourceId,
+            sourceName: source.sourceName,
+            sourceType: source.sourceType,
+          },
+        );
+      } catch (failsafeError) {
+        console.error(`Fail-safe flashcard generation also failed for ${companyId}/${source.sourceType}/${source.sourceId}: ${failsafeError.message}`);
+        continue;
+      }
     }
 
     if (!Array.isArray(generatedItems) || generatedItems.length === 0) {
@@ -2420,6 +2674,15 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
     });
   }
 
+  if (created > 0 || updated > 0 || synthesis.created > 0 || synthesis.updated > 0) {
+    markMeaningfulProgress({
+      companyId,
+      lane: "flashcardRevisit",
+      flashcardsCreated: created + synthesis.created,
+      flashcardsUpdated: updated + synthesis.updated,
+    });
+  }
+
   return { created: created + synthesis.created, updated: updated + synthesis.updated, stale: staleCandidates.length, researched };
 }
 
@@ -2427,7 +2690,7 @@ async function evictProcessedSources(companyId, data) {
   return 0;
 }
 
-async function generateRecommendationCandidates(company, flashcards, focusTopics = [], feedbackContext = {}) {
+function buildRecommendationPrompts(company, flashcards, focusTopics = [], feedbackContext = {}) {
   const cards = flashcards.slice(0, 25).map((card) => ({
     id: card.id,
     title: card.title,
@@ -2471,9 +2734,11 @@ async function generateRecommendationCandidates(company, flashcards, focusTopics
     JSON.stringify(cards, null, 2),
   ].join("\n");
 
-  const raw = await callOllamaJson(systemPrompt, userPrompt);
-  if (!Array.isArray(raw)) return [];
+  return { systemPrompt, userPrompt, cards };
+}
 
+function parseRecommendationCandidates(raw, cards) {
+  if (!Array.isArray(raw)) return [];
   const allowedIds = new Set(cards.map((card) => card.id));
   return raw
     .map((item) => {
@@ -2495,55 +2760,16 @@ async function generateRecommendationCandidates(company, flashcards, focusTopics
       };
     })
     .filter((item) => item && item.title && item.description && item.sourceFlashcardIds.length > 0)
-    .filter((item) => computeRecommendationIceScore(item) >= TASK_MIN_ICE_SCORE);
+    .sort((left, right) => computeRecommendationIceScore(right) - computeRecommendationIceScore(left));
 }
 
-async function syncRecommendations(companyId, company, existingNBA, focusTopics = []) {
-  const activeFlashcards = await prisma.flashcard.findMany({
-    where: {
-      companyId,
-      status: "ACTIVE",
-      reviewStatus: { not: "DECLINED" },
-    },
-    orderBy: [
-      { confidence: "desc" },
-      { weight: "desc" },
-      { impact: "desc" },
-      { updatedAt: "desc" },
-    ],
-  });
+async function generateRecommendationCandidates(company, flashcards, focusTopics = [], feedbackContext = {}, options = {}) {
+  const { systemPrompt, userPrompt, cards } = buildRecommendationPrompts(company, flashcards, focusTopics, feedbackContext);
+  const raw = await callOllamaJson(systemPrompt, userPrompt, options);
+  return parseRecommendationCandidates(raw, cards);
+}
 
-  let candidates = [];
-  let recommendationError = null;
-  try {
-    const taskFeedbackIndex = buildTaskFeedbackIndex(existingNBA, await prisma.feedback.findMany({
-      where: { nbaItem: { companyId } },
-      orderBy: { createdAt: "desc" },
-      take: 1000,
-    }));
-    candidates = await generateRecommendationCandidates(
-      company,
-      activeFlashcards,
-      focusTopics,
-      buildFeedbackContext(
-        taskFeedbackIndex,
-        activeFlashcards.map((card) => card.id),
-        activeFlashcards
-          .slice(0, 25)
-          .map((card) => [card.title, card.body, ...(card.hashtags || []), card.userAnnotation].join(" "))
-          .join("\n"),
-      ),
-    );
-  } catch (error) {
-    recommendationError = error;
-    console.error(`Recommendation generation failed for ${companyId}: ${error.message}`);
-  }
-  if (!Array.isArray(candidates) || candidates.length === 0) {
-    const reason = recommendationError?.message || "AI returned no recommendation candidates";
-    console.error(`Recommendation generation produced no output for ${companyId}: ${reason}`);
-    return { created: 0, updated: 0, skipped: true, error: reason };
-  }
-  
+async function persistRecommendationCandidates(companyId, existingNBA, activeFlashcards, candidates) {
   let created = 0;
   let updated = 0;
 
@@ -2552,7 +2778,7 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
     const iceScore = computeRecommendationIceScore(rec);
     const sourceCards = activeFlashcards.filter((card) => rec.sourceFlashcardIds.includes(card.id));
     const resolvedHashtags = deriveChecklistHashtags(rec, sourceCards);
-    
+
     if (match && normalizeText(match.createdBy) === "local-ai" && match.status === "PENDING") {
       await prisma.nBAItem.update({
         where: { id: match.id },
@@ -2562,7 +2788,7 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
           impact: rec.impact,
           confidence: rec.confidence,
           ease: rec.ease,
-          iceScore: iceScore,
+          iceScore,
           sourceFlashcardIds: rec.sourceFlashcardIds,
           hashtags: resolvedHashtags,
           updatedAt: new Date(),
@@ -2589,7 +2815,7 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
         impact: rec.impact,
         confidence: rec.confidence,
         ease: rec.ease,
-        iceScore: iceScore,
+        iceScore,
         status: "PENDING",
         createdBy: "local-ai",
         createdAt: new Date(),
@@ -2603,6 +2829,172 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
       },
     });
     created += 1;
+  }
+
+  return { created, updated };
+}
+
+async function persistTaskRevisitCandidates(task, sourceCards, candidates) {
+  const bestCandidate = candidates
+    .map((candidate) => ({
+      candidate,
+      score: similarity(task.title, candidate.title),
+    }))
+    .sort((left, right) =>
+      right.score - left.score ||
+      computeRecommendationIceScore(right.candidate) - computeRecommendationIceScore(left.candidate),
+    )[0]?.candidate;
+
+  if (!bestCandidate) {
+    return { updated: 0, skipped: 1 };
+  }
+
+  await prisma.nBAItem.update({
+    where: { id: task.id },
+    data: {
+      title: bestCandidate.title,
+      description: bestCandidate.description,
+      impact: bestCandidate.impact,
+      confidence: bestCandidate.confidence,
+      ease: bestCandidate.ease,
+      iceScore: computeRecommendationIceScore(bestCandidate),
+      sourceFlashcardIds: bestCandidate.sourceFlashcardIds,
+      hashtags: deriveChecklistHashtags(bestCandidate, sourceCards),
+      generatedAt: new Date(),
+      updatedAt: new Date(),
+      appVersion: APP_VERSION,
+      brainVersion: BRAIN_VERSION,
+      promptVersion: PROMPT_VERSION,
+    },
+  });
+  return { updated: 1, skipped: 0 };
+}
+
+async function runFailsafeModel(kind, prompts, parser, metadata = {}) {
+  const queuedJob = enqueueFailsafeJob({
+    companyId: metadata.companyId,
+    kind,
+    status: "PENDING",
+    payload: metadata.payload || metadata,
+  });
+  let job = updateFailsafeJob(queuedJob, {
+    status: "RUNNING",
+    attempts: 1,
+    model: FAILSAFE_MODEL,
+  });
+
+  try {
+    const raw = await callOllamaJson(prompts.systemPrompt, prompts.userPrompt, {
+      model: FAILSAFE_MODEL,
+      timeoutMs: FAILSAFE_TIMEOUT_MS,
+    });
+    const parsed = parser(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      throw new Error("Fail-safe model returned no usable candidates");
+    }
+    updateFailsafeJob(job, {
+      status: "COMPLETED",
+      attempts: 1,
+      model: FAILSAFE_MODEL,
+      outputCount: parsed.length,
+      lastError: null,
+    });
+    markMeaningfulProgress({
+      companyId: metadata.companyId,
+      lane: "failsafeQueue",
+      queueKind: kind,
+      outputCount: parsed.length,
+      model: FAILSAFE_MODEL,
+    });
+    return parsed;
+  } catch (error) {
+    job = updateFailsafeJob(job, {
+      status: "FAILED",
+      attempts: 1,
+      model: FAILSAFE_MODEL,
+      lastError: error.message,
+    });
+    throw error;
+  }
+}
+
+async function syncRecommendations(companyId, company, existingNBA, focusTopics = []) {
+  const activeFlashcards = await prisma.flashcard.findMany({
+    where: {
+      companyId,
+      status: "ACTIVE",
+      reviewStatus: { not: "DECLINED" },
+    },
+    orderBy: [
+      { confidence: "desc" },
+      { weight: "desc" },
+      { impact: "desc" },
+      { updatedAt: "desc" },
+    ],
+  });
+
+  let candidates = [];
+  let recommendationError = null;
+  const taskFeedbackIndex = buildTaskFeedbackIndex(existingNBA, await prisma.feedback.findMany({
+    where: { nbaItem: { companyId } },
+    orderBy: { createdAt: "desc" },
+    take: 1000,
+  }));
+  const feedbackContext = buildFeedbackContext(
+    taskFeedbackIndex,
+    activeFlashcards.map((card) => card.id),
+    activeFlashcards
+      .slice(0, 25)
+      .map((card) => [card.title, card.body, ...(card.hashtags || []), card.userAnnotation].join(" "))
+      .join("\n"),
+  );
+  try {
+    candidates = await generateRecommendationCandidates(
+      company,
+      activeFlashcards,
+      focusTopics,
+      feedbackContext,
+    );
+  } catch (error) {
+    recommendationError = error;
+    console.error(`Recommendation generation failed for ${companyId}: ${error.message}`);
+  }
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    const reason = recommendationError?.message || "AI returned no recommendation candidates";
+    console.error(`Recommendation generation produced no output for ${companyId}: ${reason}`);
+    if (recommendationError) {
+      try {
+        const prompts = buildRecommendationPrompts(company, activeFlashcards, focusTopics, feedbackContext);
+        candidates = await runFailsafeModel(
+          "company-recommendations",
+          prompts,
+          (raw) => parseRecommendationCandidates(raw, prompts.cards),
+          {
+            companyId,
+            flashcardCount: activeFlashcards.length,
+            payload: {
+              systemPrompt: prompts.systemPrompt,
+              userPrompt: prompts.userPrompt,
+              cards: prompts.cards,
+            },
+          },
+        );
+      } catch (failsafeError) {
+        return { created: 0, updated: 0, skipped: true, error: `${reason}; fail-safe: ${failsafeError.message}` };
+      }
+    } else {
+      return { created: 0, updated: 0, skipped: true, error: reason };
+    }
+  }
+  const { created, updated } = await persistRecommendationCandidates(companyId, existingNBA, activeFlashcards, candidates);
+
+  if (created > 0 || updated > 0) {
+    markMeaningfulProgress({
+      companyId,
+      lane: "taskRevisit",
+      taskcardsCreated: created,
+      taskcardsUpdated: updated,
+    });
   }
 
   return { created, updated };
@@ -2634,6 +3026,7 @@ async function processCompany(companyId, reason = {}) {
       refreshHours: RESEARCH_REFRESH_HOURS,
       lastRunAt: isoTimestamp(),
     },
+    memory: buildFeedbackMemorySummary(nextData),
   });
 
   await evictProcessedSources(companyId, data);
@@ -2831,6 +3224,11 @@ async function harvestResearchSources(companyId, company, data, batchSize = RESE
   }
 
   if (createdSources > 0) {
+    markMeaningfulProgress({
+      companyId,
+      lane: "researchHarvest",
+      datacardsCreated: createdSources,
+    });
     await processCompany(companyId, { trigger: "research-harvest" });
   }
 
@@ -3005,51 +3403,51 @@ async function revisitOldestTasks(companyId, batchSize = TASK_REVISIT_BATCH_SIZE
     }
 
     const taskFeedbackIndex = buildTaskFeedbackIndex(data.existingNBA, data.feedback);
-    const candidates = await generateRecommendationCandidates(
-      data.company,
-      sourceCards,
-      selectResearchTopics(data, 5),
-      buildFeedbackContext(
-        taskFeedbackIndex,
-        sourceCards.map((card) => card.id),
-        [task.title, task.description, task.userAnnotation, ...sourceCards.map((card) => `${card.title}\n${card.body}`)].filter(Boolean).join("\n"),
-      ),
+    const feedbackContext = buildFeedbackContext(
+      taskFeedbackIndex,
+      sourceCards.map((card) => card.id),
+      [task.title, task.description, task.userAnnotation, ...sourceCards.map((card) => `${card.title}\n${card.body}`)].filter(Boolean).join("\n"),
     );
-
-    const bestCandidate = candidates
-      .map((candidate) => ({
-        candidate,
-        score: similarity(task.title, candidate.title),
-      }))
-      .sort((left, right) =>
-        right.score - left.score ||
-        computeRecommendationIceScore(right.candidate) - computeRecommendationIceScore(left.candidate),
-      )[0]?.candidate;
-
-    if (!bestCandidate) {
-      skipped += 1;
-      continue;
+    let candidates = [];
+    try {
+      candidates = await generateRecommendationCandidates(
+        data.company,
+        sourceCards,
+        selectResearchTopics(data, 5),
+        feedbackContext,
+      );
+    } catch (error) {
+      const prompts = buildRecommendationPrompts(
+        data.company,
+        sourceCards,
+        selectResearchTopics(data, 5),
+        feedbackContext,
+      );
+      try {
+        candidates = await runFailsafeModel(
+          "task-revisit",
+          prompts,
+          (raw) => parseRecommendationCandidates(raw, prompts.cards),
+          {
+            companyId,
+            taskId: task.id,
+            taskPublicId: task.publicId ?? null,
+            payload: {
+              systemPrompt: prompts.systemPrompt,
+              userPrompt: prompts.userPrompt,
+              cards: prompts.cards,
+            },
+          },
+        );
+      } catch (failsafeError) {
+        skipped += 1;
+        continue;
+      }
     }
 
-    await prisma.nBAItem.update({
-      where: { id: task.id },
-      data: {
-        title: bestCandidate.title,
-        description: bestCandidate.description,
-        impact: bestCandidate.impact,
-        confidence: bestCandidate.confidence,
-        ease: bestCandidate.ease,
-        iceScore: computeRecommendationIceScore(bestCandidate),
-        sourceFlashcardIds: bestCandidate.sourceFlashcardIds,
-        hashtags: deriveChecklistHashtags(bestCandidate, sourceCards),
-        generatedAt: new Date(),
-        updatedAt: new Date(),
-        appVersion: APP_VERSION,
-        brainVersion: BRAIN_VERSION,
-        promptVersion: PROMPT_VERSION,
-      },
-    });
-    updated += 1;
+    const result = await persistTaskRevisitCandidates(task, sourceCards, candidates);
+    updated += result.updated;
+    skipped += result.skipped;
   }
 
   return { companyId, processed, updated, skipped };
@@ -3079,9 +3477,93 @@ async function replayFeedback(companyId) {
       lastRunAt: isoTimestamp(),
       reason: feedbackChanged ? "feedback-changed" : "feedback-refresh-due",
     },
+    memory: buildFeedbackMemorySummary(data),
+  });
+
+  markMeaningfulProgress({
+    companyId,
+    lane: "feedbackReplay",
+    feedbackRows: data.feedback.length,
+    flashcardActions: data.flashcardActions.length,
   });
 
   return { companyId, processedCompanies: 1, skipped: false, reason: feedbackChanged ? "feedback-changed" : "feedback-refresh-due" };
+}
+
+async function processFailsafeQueue(companyId = null) {
+  const jobs = listFailsafeJobs({ companyId, status: "FAILED" })
+    .concat(listFailsafeJobs({ companyId, status: "PENDING" }))
+    .filter((job, index, list) => list.findIndex((entry) => entry.id === job.id) === index)
+    .filter((job) => job.kind === "company-recommendations" || job.kind === "task-revisit")
+    .filter((job) => Number(job.attempts || 0) < FAILSAFE_MAX_ATTEMPTS)
+    .slice(0, 1);
+
+  if (jobs.length === 0) {
+    return { companyId, processed: 0, completed: 0, failed: 0, skipped: true, reason: "empty-queue" };
+  }
+
+  let completed = 0;
+  let failed = 0;
+  for (const job of jobs) {
+    try {
+      const nextAttempts = Number(job.attempts || 0) + 1;
+      updateFailsafeJob(job, {
+        status: "RUNNING",
+        attempts: nextAttempts,
+        model: FAILSAFE_MODEL,
+      });
+      const payload = job.payload || {};
+      if (!payload.systemPrompt || !payload.userPrompt) {
+        throw new Error("Queued fail-safe job is missing prompt payload");
+      }
+
+      const raw = await callOllamaJson(payload.systemPrompt, payload.userPrompt, {
+        model: FAILSAFE_MODEL,
+        timeoutMs: FAILSAFE_TIMEOUT_MS,
+      });
+      const parsed = parseQueuedRecommendationOutput(job, raw);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new Error("Fail-safe queue retry returned no usable candidates");
+      }
+
+      if (job.kind === "company-recommendations") {
+        const data = await getAllData(job.companyId);
+        await persistRecommendationCandidates(job.companyId, data.existingNBA, data.flashcards.filter((card) => card.status === "ACTIVE"), parsed);
+      } else if (job.kind === "task-revisit") {
+        const data = await getAllData(job.companyId);
+        const task = await prisma.nBAItem.findUnique({ where: { id: job.payload?.taskId } });
+        if (!task) throw new Error("task-missing");
+        const sourceCards = data.flashcards.filter((card) => task.sourceFlashcardIds.includes(card.id) && card.status === "ACTIVE");
+        await persistTaskRevisitCandidates(task, sourceCards, parsed);
+      }
+
+      updateFailsafeJob(job, {
+        status: "COMPLETED",
+        attempts: nextAttempts,
+        model: FAILSAFE_MODEL,
+        outputCount: parsed.length,
+        lastError: null,
+      });
+      markMeaningfulProgress({
+        companyId: job.companyId,
+        lane: "failsafeQueue",
+        queueKind: job.kind,
+        outputCount: parsed.length,
+        model: FAILSAFE_MODEL,
+      });
+      completed += 1;
+    } catch (error) {
+      failed += 1;
+      updateFailsafeJob(job, {
+        status: Number(job.attempts || 0) + 1 >= FAILSAFE_MAX_ATTEMPTS ? "FAILED_PERMANENT" : "FAILED",
+        attempts: Number(job.attempts || 0) + 1,
+        model: FAILSAFE_MODEL,
+        lastError: error.message,
+      });
+    }
+  }
+
+  return { companyId, processed: jobs.length, completed, failed };
 }
 
 function flashcardDuplicateKey(card) {
@@ -3344,6 +3826,7 @@ async function processNextCompanyCycle() {
   const flashcardRevisit = await runLane("flashcardRevisit", () => refreshOldestFlashcards(companyId, FLASHCARD_REVISIT_BATCH_SIZE));
   const taskRevisit = await runLane("taskRevisit", () => revisitOldestTasks(companyId, TASK_REVISIT_BATCH_SIZE));
   const feedbackReplay = await runLane("feedbackReplay", () => replayFeedback(companyId));
+  const failsafeQueue = await runLane("failsafeQueue", () => processFailsafeQueue(companyId));
   const hashtagMaintenance = await runLane("hashtagMaintenance", () => processHashtagMaintenance(companyId));
   const cleanup = await runLane("cleanup", () => auditMaintenanceBacklog(CLEANUP_BATCH_SIZE, companyId));
 
@@ -3355,9 +3838,22 @@ async function processNextCompanyCycle() {
     flashcardRevisit,
     taskRevisit,
     feedbackReplay,
+    failsafeQueue,
     hashtagMaintenance,
     cleanup,
   };
+  const cycleDurationMs = Date.now() - cycleStartedAt;
+  const cycleMetric = buildCompanyCycleMetric(companyId, result, cycleDurationMs);
+  appendRuntimeMetric(cycleMetric);
+  if (cycleMetric.cardsCreated > 0 || cycleMetric.flashcardsUpdated > 0 || cycleMetric.taskcardsUpdated > 0) {
+    markMeaningfulProgress({
+      companyId,
+      lane: "companyCycle",
+      cardsCreated: cycleMetric.cardsCreated,
+      flashcardsUpdated: cycleMetric.flashcardsUpdated,
+      taskcardsUpdated: cycleMetric.taskcardsUpdated,
+    });
+  }
   return { ...result, idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS };
 }
 
@@ -3411,6 +3907,7 @@ async function buildLaneBacklogEstimates() {
     flashcardRevisit: activeFlashcards,
     taskRevisit: pendingTasks,
     feedbackReplay: feedbackCount + flashcardActionCount,
+    failsafeQueue: listFailsafeJobs().filter((job) => job.status === "PENDING" || job.status === "FAILED").length,
     hashtagMaintenance:
       pendingSourceTags +
       pendingFileTags +
@@ -3525,9 +4022,10 @@ async function handleHealth(_req, res) {
       },
     ]),
   );
+  const progress = buildProgressState(backlog);
 
   const health = {
-    status: dbReady && modelReady ? "ok" : "degraded",
+    status: dbReady && modelReady && progress.state === "healthy" ? "ok" : "degraded",
     ready: dbReady && modelReady,
     model: OLLAMA_MODEL,
     ollamaHost: OLLAMA_HOST,
@@ -3540,6 +4038,9 @@ async function handleHealth(_req, res) {
       pollIntervalMs: POLL_INTERVAL_MS,
       researchHarvestBatchSize: RESEARCH_HARVEST_BATCH_SIZE,
       ollamaTimeoutMs: OLLAMA_TIMEOUT_MS,
+      failsafeModel: FAILSAFE_MODEL,
+      failsafeTimeoutMs: FAILSAFE_TIMEOUT_MS,
+      failsafeMaxAttempts: FAILSAFE_MAX_ATTEMPTS,
       researchTimeoutMs: RESEARCH_TIMEOUT_MS,
       flashcardRevisitIntervalMinutes: FLASHCARD_REVISIT_INTERVAL_MINUTES,
       flashcardRevisitBatchSize: FLASHCARD_REVISIT_BATCH_SIZE,
@@ -3555,6 +4056,8 @@ async function handleHealth(_req, res) {
       flashcardMinConfidence: FLASHCARD_MIN_CONFIDENCE,
       flashcardMinImpact: FLASHCARD_MIN_IMPACT,
       flashcardMinWeight: FLASHCARD_MIN_WEIGHT,
+      stuckRunningMs: STUCK_RUNNING_MS,
+      noProgressMs: NO_PROGRESS_MS,
     },
     db: {
       configured: Boolean(currentDbUrl),
@@ -3571,6 +4074,7 @@ async function handleHealth(_req, res) {
       batchSize: HASHTAG_MAINTENANCE_BATCH_SIZE,
       lastRunAt: lastHashtagMaintenanceAt,
     },
+    progress,
     lanes,
     appVersion: APP_VERSION,
     brainVersion: BRAIN_VERSION,
@@ -3622,7 +4126,8 @@ server.listen(PORT, async () => {
   console.log(`Feedback replay lane: every ${FEEDBACK_REPLAY_INTERVAL_MINUTES}m, batch ${FEEDBACK_REPLAY_BATCH_SIZE}`);
   console.log(`Hashtag maintenance lane: every ${HASHTAG_MAINTENANCE_INTERVAL_HOURS}h, batch ${HASHTAG_MAINTENANCE_BATCH_SIZE}`);
   console.log(`Cleanup lane: every ${CLEANUP_INTERVAL_HOURS}h, batch ${CLEANUP_BATCH_SIZE}`);
-  console.log(`Quality gates: task ICE >= ${TASK_MIN_ICE_SCORE}, flashcard confidence >= ${FLASHCARD_MIN_CONFIDENCE}, impact >= ${FLASHCARD_MIN_IMPACT}, weight >= ${FLASHCARD_MIN_WEIGHT}`);
+  console.log(`Fail-safe model: ${FAILSAFE_MODEL} (timeout ${FAILSAFE_TIMEOUT_MS}ms, max attempts ${FAILSAFE_MAX_ATTEMPTS})`);
+  console.log(`Preferred quality floors: task ICE ${TASK_MIN_ICE_SCORE}, flashcard confidence ${FLASHCARD_MIN_CONFIDENCE}, impact ${FLASHCARD_MIN_IMPACT}, weight ${FLASHCARD_MIN_WEIGHT}`);
   console.log("--------------------------------------------------");
 
   if (!(await ensureDbReady())) {

@@ -189,6 +189,9 @@ It creates `NBAItem` rows and stores `sourceFlashcardIds` so tasks can be traced
 
 Current task-generation contract:
 
+- **Strict Grounding**: Every task must be a direct consequence of provided flashcard evidence.
+- **Exclusion of Generic Advice**: Tasks that could apply to any company without specific evidence (e.g., "optimize SEO") are explicitly banned unless backed by specific findings.
+- **Feedback Loop Integration**: Generator strictly respects weighted signals (term/hashtag weights) from past annotations.
 - task creation now runs earlier in the company cycle
 - inside `processCompany`, the worker attempts recommendation generation before flashcard refresh and again after flashcard refresh
 - this puts checklist delivery earlier in the loop without losing the ability to create tasks from newly refreshed flashcards

@@ -74,6 +74,7 @@ type Flashcard = {
   corrections: FlashcardCorrection[];
   refreshedAt: string;
   lastActionAt: string | null;
+  isSovereignResearch?: boolean;
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
@@ -136,8 +137,12 @@ export function KnowledgeReviewCard({
   onRemoveHashtag,
   onCorrection,
 }: Props) {
+  const isSovereignResearch = Boolean(flashcard.isSovereignResearch);
   return (
-    <UnifiedCard className="group relative">
+    <UnifiedCard className={cn(
+      "group relative",
+      isSovereignResearch && "border-cyan-400/30 bg-[linear-gradient(180deg,rgba(14,116,144,0.16),rgba(15,23,42,0.96)_22%,rgba(15,23,42,0.98))] shadow-[0_0_0_1px_rgba(34,211,238,0.08),0_18px_48px_rgba(8,47,73,0.28)]"
+    )}>
       <UnifiedCardHeader
         badges={
           <div className="flex flex-wrap items-center gap-2">
@@ -147,6 +152,11 @@ export function KnowledgeReviewCard({
             <Badge variant="secondary" className="font-mono text-[10px] tracking-wider uppercase opacity-80">
               {kindLabel(flashcard.kind)}
             </Badge>
+            {isSovereignResearch && (
+              <Badge variant="outline" className="border-cyan-400/40 bg-cyan-500/10 font-mono text-[10px] tracking-wider uppercase text-cyan-200">
+                Sovereign research
+              </Badge>
+            )}
             <div className="ml-auto flex items-center gap-3 text-[10px] font-medium text-muted-foreground/60 uppercase tracking-tighter">
               <span>Impact {flashcard.impact}</span>
               <span>Confidence {flashcard.confidence}%</span>

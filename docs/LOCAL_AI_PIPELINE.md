@@ -48,6 +48,18 @@ The local layer can enrich a source using:
 - topic priority context
 - hashtag context and feedback
 
+The worker currently schedules work as a serial per-company cycle:
+
+1. poll the company
+2. run `researchHarvest`
+3. revisit one oldest flashcard
+4. revisit one oldest task
+5. replay one feedback slice
+6. maintain one hashtag slice
+7. run one cleanup slice
+
+After a company completes that cycle, it waits for the configured company-cycle cooldown before becoming due again.
+
 Current enrichment outputs may include:
 - conclusions
 - evaluations
@@ -89,6 +101,27 @@ Each flashcard carries:
 - `weight`
 - provenance/source links
 - review state
+
+Some flashcards are sourced from AI-harvested public research rather than direct user-entered rows. Those are still normal flashcards in storage, but their source lineage points at `Source` rows tagged with:
+
+- `entityTag = "research-harvest"`
+- `metadata.origin = "research-harvest"`
+
+The Knowmore API exposes these as sovereign-research cards so the UI can render them with a distinct visual treatment.
+
+### 3b. Research harvest
+
+The worker can now create new raw `Source` rows from topic-aligned public research.
+
+This lane:
+
+- starts from active flashcards plus active Topics
+- runs bounded public search
+- requires externally evidenced findings before it persists anything
+- writes new raw `Source` rows with research lineage metadata
+- immediately reprocesses the affected company so those harvested rows can become flashcards and later feed Checklist generation
+
+This keeps internet-discovered knowledge inside the same unified raw-source pipeline instead of attaching it only as transient flashcard evidence.
 
 ### 4. NBA generation
 
@@ -184,6 +217,7 @@ There is one supported hosted execution mode:
 - evidence-only publication is still being tightened for `NEWS`
 - provenance/version tagging is not yet attached to every generated artifact version
 - the webapp does not contact the local AI worker directly; if results are missing, check the local worker process, database connectivity, and Ollama connectivity
+- public research harvest is bounded and may yield zero new sources when evidence quality is too weak
 
 ## Operational rule
 

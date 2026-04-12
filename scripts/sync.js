@@ -87,6 +87,7 @@ const RESEARCH_MAX_QUERIES = Math.max(Math.min(Number(process.env.CHECKLIST_RESE
 const RESEARCH_MAX_RESULTS = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_RESULTS || "3"), 6), 0);
 const RESEARCH_MAX_FETCHES = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_FETCHES || "3"), 6), 0);
 const RESEARCH_REFRESH_HOURS = Math.max(Number(process.env.CHECKLIST_RESEARCH_REFRESH_HOURS || "24"), 1);
+const RESEARCH_HARVEST_BATCH_SIZE = Math.max(Number(process.env.CHECKLIST_RESEARCH_HARVEST_BATCH_SIZE || "1"), 1);
 const FACTCHECK_MIN_CITATIONS = Math.max(Math.min(Number(process.env.CHECKLIST_FACTCHECK_MIN_CITATIONS || "2"), 5), 1);
 const FACTCHECK_MIN_DOMAINS = Math.max(Math.min(Number(process.env.CHECKLIST_FACTCHECK_MIN_DOMAINS || "2"), 5), 1);
 const RESEARCH_ALLOWED_HOSTS = String(process.env.CHECKLIST_RESEARCH_ALLOWED_HOSTS || "")
@@ -166,6 +167,7 @@ function createLaneState(name, intervalMs, batchSize = null) {
 const laneStates = {
   companyCycle: createLaneState("companyCycle", POLL_INTERVAL_MS, 1),
   poll: createLaneState("poll", POLL_INTERVAL_MS),
+  researchHarvest: createLaneState("researchHarvest", Math.max(POLL_INTERVAL_MS, 60_000), RESEARCH_HARVEST_BATCH_SIZE),
   flashcardRevisit: createLaneState("flashcardRevisit", Math.max(FLASHCARD_REVISIT_INTERVAL_MS, POLL_INTERVAL_MS), FLASHCARD_REVISIT_BATCH_SIZE),
   taskRevisit: createLaneState("taskRevisit", Math.max(TASK_REVISIT_INTERVAL_MS, POLL_INTERVAL_MS), TASK_REVISIT_BATCH_SIZE),
   feedbackReplay: createLaneState("feedbackReplay", Math.max(FEEDBACK_REPLAY_INTERVAL_MS, POLL_INTERVAL_MS), FEEDBACK_REPLAY_BATCH_SIZE),
@@ -1556,6 +1558,18 @@ function topicMatchesSource(topic, source) {
   return haystack.includes(label) || label.split(/\s+/).every((token) => token.length > 2 && haystack.includes(token));
 }
 
+function topicMatchesFlashcard(topic, flashcard) {
+  const label = normalizeTopicLabel(topic.label);
+  if (!label) return false;
+  const haystack = normalizeLoose([
+    flashcard.title,
+    flashcard.body,
+    ...(flashcard.hashtags || []),
+    flashcard.userAnnotation,
+  ].join(" "));
+  return haystack.includes(label) || label.split(/\s+/).every((token) => token.length > 2 && haystack.includes(token));
+}
+
 function scoreTopicCoverage(topic, flashcards, checklistItems) {
   const label = normalizeTopicLabel(topic.label);
   const flashcardMatches = flashcards.filter((card) => {
@@ -2700,6 +2714,129 @@ async function processHashtagMaintenance(companyId = null) {
   return { processed: HASHTAG_MAINTENANCE_BATCH_SIZE, changed, companyId: candidate.companyId, idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS };
 }
 
+function buildResearchHarvestSourceContent(company, flashcard, citation, topics = []) {
+  const lines = [
+    "AI Research Harvest",
+    `Company: ${normalizeText(company.name) || "Unknown company"}`,
+    `Triggered from flashcard: ${normalizeText(flashcard.title) || flashcard.id}`,
+    `Research title: ${normalizeText(citation.title) || shortenUrl(citation.url)}`,
+    `URL: ${citation.url}`,
+    `Domain: ${citation.domain || "unknown"}`,
+    `Topics: ${topics.map((topic) => topic.label).join(", ") || "none"}`,
+    citation.snippet ? `Snippet: ${truncate(citation.snippet, 400)}` : null,
+    citation.excerpt ? `Excerpt:\n${truncate(citation.excerpt, 3000)}` : null,
+  ].filter(Boolean);
+  return lines.join("\n\n");
+}
+
+async function harvestResearchSources(companyId, company, data, batchSize = RESEARCH_HARVEST_BATCH_SIZE) {
+  const activeTopics = selectResearchTopics(data, 5);
+  if (activeTopics.length === 0) {
+    return { companyId, processed: 0, createdSources: 0, skipped: 0, reason: "no-active-topics" };
+  }
+
+  const flashcards = (data.flashcards || [])
+    .filter((card) => card.status === "ACTIVE")
+    .sort((left, right) =>
+      new Date(left.refreshedAt || left.updatedAt || left.createdAt || 0).getTime() -
+      new Date(right.refreshedAt || right.updatedAt || right.createdAt || 0).getTime()
+    );
+
+  let processed = 0;
+  let createdSources = 0;
+  let skipped = 0;
+
+  for (const flashcard of flashcards) {
+    if (processed >= batchSize) break;
+    const matchedTopics = activeTopics.filter((topic) => topicMatchesFlashcard(topic, flashcard));
+    if (matchedTopics.length === 0) {
+      continue;
+    }
+
+    const primarySource = await prisma.flashcardSource.findFirst({
+      where: { flashcardId: flashcard.id, relationRole: "PRIMARY" },
+    });
+    if (!primarySource) {
+      skipped += 1;
+      continue;
+    }
+
+    const source = {
+      sourceType: primarySource.sourceType,
+      sourceId: primarySource.sourceId,
+      sourcePublicId: primarySource.sourcePublicId,
+      sourceName: primarySource.sourceName,
+      promptBody: flashcard.generatedBody || flashcard.body,
+      fingerprint: flashcard.fingerprint,
+      hashtags: flashcard.hashtags,
+      queryHints: matchedTopics.map((topic) => `${company.name} ${topic.label}`),
+      urls: [],
+    };
+    const research = await discoverResearch(company, source, matchedTopics);
+    const citations = (research.citations || []).filter((citation) => citation.url && citation.excerpt);
+    if (citations.length === 0) {
+      skipped += 1;
+      processed += 1;
+      continue;
+    }
+
+    let createdForFlashcard = 0;
+    for (const citation of citations) {
+      if (createdForFlashcard >= batchSize || processed >= batchSize) break;
+      const legacyOriginKey = `research-harvest:${citation.url}`;
+      const existing = await prisma.source.findFirst({
+        where: { companyId, legacyOriginKey },
+        select: { id: true },
+      });
+      if (existing) {
+        skipped += 1;
+        continue;
+      }
+
+      const publicId = await nextPublicId(PUBLIC_ID_SCOPES.source);
+      await prisma.source.create({
+        data: {
+          id: crypto.randomUUID(),
+          companyId,
+          publicId,
+          content: buildResearchHarvestSourceContent(company, flashcard, citation, matchedTopics),
+          hashtags: mergeHashtags(flashcard.hashtags, matchedTopics.flatMap((topic) => topic.hashtags)),
+          aiClusters: normalizeHashtags(matchedTopics.map((topic) => topic.label)),
+          entityTag: "research-harvest",
+          metadata: {
+            origin: "research-harvest",
+            harvestedBy: "local-ai",
+            harvestedAt: isoTimestamp(),
+            harvestedFromFlashcardId: flashcard.id,
+            harvestedFromFlashcardPublicId: flashcard.publicId ?? null,
+            harvestedFromFlashcardTitle: flashcard.title,
+            sourceUrl: citation.url,
+            sourceDomain: citation.domain,
+            sourceTitle: citation.title,
+            sourceSnippet: citation.snippet,
+            sourceKind: citation.sourceKind,
+            query: citation.query,
+            topics: matchedTopics.map((topic) => ({
+              id: topic.id,
+              label: topic.label,
+            })),
+          },
+          legacyOriginKey,
+        },
+      });
+      createdSources += 1;
+      createdForFlashcard += 1;
+      processed += 1;
+    }
+  }
+
+  if (createdSources > 0) {
+    await processCompany(companyId, { trigger: "research-harvest" });
+  }
+
+  return { companyId, processed, createdSources, skipped };
+}
+
 async function processPollingLane(companyId) {
   const previousKnowledge = await loadKnowledge(companyId);
   const data = await getAllData(companyId);
@@ -3197,6 +3334,13 @@ async function processNextCompanyCycle() {
   const companyId = selection.companyId;
   const cycleStartedAt = Date.now();
   const poll = await runLane("poll", () => processPollingLane(companyId));
+  const researchHarvest = await runLane("researchHarvest", async () => {
+    const data = await getAllData(companyId);
+    if (!data.company) {
+      return { companyId, processed: 0, createdSources: 0, skipped: 0, reason: "company-missing" };
+    }
+    return harvestResearchSources(companyId, data.company, data, RESEARCH_HARVEST_BATCH_SIZE);
+  });
   const flashcardRevisit = await runLane("flashcardRevisit", () => refreshOldestFlashcards(companyId, FLASHCARD_REVISIT_BATCH_SIZE));
   const taskRevisit = await runLane("taskRevisit", () => revisitOldestTasks(companyId, TASK_REVISIT_BATCH_SIZE));
   const feedbackReplay = await runLane("feedbackReplay", () => replayFeedback(companyId));
@@ -3207,6 +3351,7 @@ async function processNextCompanyCycle() {
     companyId,
     processed: true,
     poll,
+    researchHarvest,
     flashcardRevisit,
     taskRevisit,
     feedbackReplay,
@@ -3262,6 +3407,7 @@ async function buildLaneBacklogEstimates() {
   return {
     companyCycle: companyCount,
     poll: companyCount,
+    researchHarvest: activeFlashcards,
     flashcardRevisit: activeFlashcards,
     taskRevisit: pendingTasks,
     feedbackReplay: feedbackCount + flashcardActionCount,
@@ -3392,6 +3538,7 @@ async function handleHealth(_req, res) {
       schedulingMode: "company-serial-cycle",
       companyCycleCooldownMs: POLL_INTERVAL_MS,
       pollIntervalMs: POLL_INTERVAL_MS,
+      researchHarvestBatchSize: RESEARCH_HARVEST_BATCH_SIZE,
       ollamaTimeoutMs: OLLAMA_TIMEOUT_MS,
       researchTimeoutMs: RESEARCH_TIMEOUT_MS,
       flashcardRevisitIntervalMinutes: FLASHCARD_REVISIT_INTERVAL_MINUTES,

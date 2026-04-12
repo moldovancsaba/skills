@@ -254,6 +254,9 @@ Important:
 - hashtags are part of the system annotation layer across data, Knowmore, and Checklist
 - the hosted webapp only reads and writes the shared database; it does not call the local worker directly
 - login, company selection, navigation, and pipeline page accents were refreshed to match the 4-step workflow
+- the local worker now runs as a serial per-company cycle with explicit maintenance lanes instead of one mixed poll loop
+- a new `researchHarvest` lane can create new AI-harvested `Source` rows from topic-aligned public research
+- Knowmore cards sourced from those harvested research rows are marked as sovereign research in the API/UI contract
 
 ## Documentation ownership
 

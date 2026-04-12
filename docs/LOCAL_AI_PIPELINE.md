@@ -137,7 +137,8 @@ The worker can now create new raw `Source` rows from topic-aligned public resear
 This lane:
 
 - starts from active flashcards plus active Topics
-- runs bounded public search
+- runs bounded, diversified public search (parallelized for throughput)
+- uses high-intent query patterns (reviews, comparisons, analysis) to improve yield
 - requires externally evidenced findings before it persists anything
 - writes new raw `Source` rows with research lineage metadata
 - immediately reprocesses the affected company so those harvested rows can become flashcards and later feed Checklist generation

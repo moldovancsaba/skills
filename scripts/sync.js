@@ -1011,19 +1011,33 @@ async function discoverResearch(company, source, focusTopics = []) {
   const topicQueries = focusTopics.flatMap((topic) => {
     const label = normalizeText(topic.label);
     if (!label) return [];
+    const companyName = normalizeText(company.name);
     return [
-      `${normalizeText(company.name)} ${label}`,
-      `${normalizeText(company.name)} ${normalizeText(source.sourceName)} ${label}`,
+      `${companyName} ${label}`,
+      `${companyName} ${label} reviews and analysis`,
+      `${companyName} vs competitors ${label}`,
+      `${companyName} ${label} case studies and success stories`,
+      `${label} trends ${company.industry || ""}`,
     ];
   });
 
-  const queries = unique(
+  const queryPool = unique(
     toArray(source.queryHints)
       .concat(topicQueries)
       .map((entry) => normalizeText(entry))
       .filter(Boolean)
-      .slice(0, RESEARCH_MAX_QUERIES)
   );
+  
+  // Prioritize high-intent queries if we have a lot
+  const queries = queryPool
+    .sort((left, right) => {
+      const highIntent = /reviews|analysis|vs|competitors|case study/i;
+      const leftInt = highIntent.test(left) ? 0 : 1;
+      const rightInt = highIntent.test(right) ? 0 : 1;
+      return leftInt - rightInt;
+    })
+    .slice(0, RESEARCH_MAX_QUERIES);
+
   const candidateUrls = unique(toArray(source.urls).map((entry) => safeUrl(entry)).filter(Boolean));
   const citations = [];
   const errors = [];
@@ -1057,22 +1071,23 @@ async function discoverResearch(company, source, focusTopics = []) {
   }
 
   if (RESEARCH_PROVIDER === "duckduckgo-html") {
-    for (const query of queries) {
-      if (citations.length >= RESEARCH_MAX_FETCHES) break;
+    const searchPromises = queries.map(async (query) => {
+      if (citations.length >= RESEARCH_MAX_FETCHES) return;
       try {
         const results = await searchDuckDuckGo(query);
-        for (const result of results) {
-          if (citations.length >= RESEARCH_MAX_FETCHES) break;
-          await tryFetch(result.url, {
-            sourceKind: "search-result",
-            query,
-            snippet: result.title,
-          });
-        }
+        // Take top 3 from each query for diversity
+        const topResults = results.slice(0, 3);
+        const fetchPromises = topResults.map((result) => tryFetch(result.url, {
+          sourceKind: "search-result",
+          query,
+          snippet: result.title,
+        }));
+        await Promise.all(fetchPromises);
       } catch (error) {
         errors.push({ stage: "search", query, message: error.message });
       }
-    }
+    });
+    await Promise.all(searchPromises);
   } else if (RESEARCH_PROVIDER !== "none") {
     errors.push({ stage: "config", message: `Unsupported research provider: ${RESEARCH_PROVIDER}` });
   }

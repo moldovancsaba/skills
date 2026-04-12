@@ -12,6 +12,9 @@ Current app version:
 Canonical production URL:
 - `https://checklist.sovereignsquad.com`
 
+Key decision records:
+- `docs/SCHEDULER_FAIRNESS_DECISION_RECORD.md` - fairness, anti-starvation, and restart-order contract for the local AI worker
+
 ## Current architecture
 
 ```text
@@ -166,6 +169,10 @@ npm run db:generate
 npm run db:push
 npm run repair:raw-sources
 ```
+
+Operational references:
+- `docs/LOCAL_AI_PIPELINE.md`
+- `docs/SCHEDULER_FAIRNESS_DECISION_RECORD.md`
 
 ## Environment
 

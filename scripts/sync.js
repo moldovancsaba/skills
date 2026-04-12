@@ -1634,7 +1634,7 @@ function companyFeedbackPatterns(taskFeedbackIndex) {
   };
 }
 
-function buildFeedbackContext(taskFeedbackIndex, flashcardIds = [], contextText = "", hashtagFeedback = []) {
+function buildFeedbackContext(taskFeedbackIndex, flashcardIds = [], contextText = "", hashtagFeedback = [], subjectMatterMemory = []) {
   const related = selectRelevantTaskFeedback(taskFeedbackIndex, flashcardIds, contextText);
   const company = companyFeedbackPatterns(taskFeedbackIndex);
   const weightedHashtagSignals = summarizeWeightedPatterns(
@@ -1649,6 +1649,7 @@ function buildFeedbackContext(taskFeedbackIndex, flashcardIds = [], contextText 
   return {
     related,
     company,
+    subjectMatterMemory: toArray(subjectMatterMemory).slice(0, 20),
     weightedSignals: {
       positiveTerms: company.weightedSignals.positiveTerms,
       negativeTerms: company.weightedSignals.negativeTerms,
@@ -1670,6 +1671,38 @@ function buildFeedbackContext(taskFeedbackIndex, flashcardIds = [], contextText 
       .filter(Boolean)
       .slice(0, 80),
   };
+}
+
+function extractDurableSubjectMatterMemory(data) {
+  const memory = [];
+  
+  // Extract from flashcard actions (manual rewrites)
+  for (const action of data.flashcardActions || []) {
+    if (action.action === "MODIFY_ACCEPT" && (action.modifiedTitle || action.modifiedBody)) {
+      memory.push({
+        type: "flashcard-correction",
+        id: action.flashcardId,
+        truth: action.modifiedTitle || action.modifiedBody,
+        context: action.annotation || "User manually corrected flashcard content",
+        updatedAt: action.updatedAt || action.createdAt,
+      });
+    }
+  }
+
+  // Extract from task feedback (user annotations on checklist items)
+  for (const feedback of data.feedback || []) {
+    if (feedback.annotation && feedback.annotation.length > 10) {
+      memory.push({
+        type: "task-annotation",
+        id: feedback.nbaItemId,
+        truth: feedback.annotation,
+        context: "User provided specific steering via task annotation",
+        updatedAt: feedback.updatedAt || feedback.createdAt,
+      });
+    }
+  }
+
+  return memory.sort((left, right) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime()).slice(0, 50);
 }
 
 async function saveKnowledge(companyId, data) {
@@ -2701,6 +2734,7 @@ function buildFlashcardGenerationPrompts(company, source, research, feedbackCont
       flashcardActions: toArray(feedbackContext.flashcardActions).slice(0, 8),
       taskFeedback: feedbackContext.taskFeedback,
       weightedClasses: feedbackContext.weightedClasses || {},
+      subjectMatterMemory: toArray(feedbackContext.taskFeedback?.subjectMatterMemory || []).slice(0, 10),
     }, null, 2),
     "",
     JSON.stringify(evidencePayload, null, 2),
@@ -3091,6 +3125,7 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
           relatedFlashcardIds,
           [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" "),
           data.hashtagFeedback,
+          previousKnowledge.memory?.subjectMatterMemory || [],
         ),
       };
       generatedItems = await generateFlashcardCandidates(company, source, research, feedbackContext);
@@ -3098,7 +3133,7 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
       console.error(`Flashcard generation failed for ${companyId}/${source.sourceType}/${source.sourceId}: ${error.message}`);
       const prompts = buildFlashcardGenerationPrompts(company, source, research, {
         flashcardActions: [],
-        taskFeedback: buildFeedbackContext(taskFeedbackIndex, [], [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" "), data.hashtagFeedback),
+        taskFeedback: buildFeedbackContext(taskFeedbackIndex, [], [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" "), data.hashtagFeedback, previousKnowledge.memory?.subjectMatterMemory || []),
       });
       try {
         generatedItems = await runFailsafeModel(
@@ -3106,7 +3141,7 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
           prompts,
           (raw) => parseFlashcardCandidates(raw, source, research, {
             flashcardActions: [],
-            taskFeedback: buildFeedbackContext(taskFeedbackIndex, [], [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" "), data.hashtagFeedback),
+            taskFeedback: buildFeedbackContext(taskFeedbackIndex, [], [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" "), data.hashtagFeedback, previousKnowledge.memory?.subjectMatterMemory || []),
           }),
           {
             companyId,
@@ -3362,6 +3397,7 @@ function buildRecommendationPrompts(company, flashcards, focusTopics = [], feedb
     weightedSignals: feedbackContext?.weightedSignals || { positiveTerms: [], negativeTerms: [], positiveHashtags: [], negativeHashtags: [] },
     weightedClasses: feedbackContext?.weightedClasses || {},
     existingChecklistTitles: toArray(feedbackContext?.existingChecklistTitles).slice(0, compact ? 10 : 20),
+    subjectMatterMemory: toArray(feedbackContext?.subjectMatterMemory).slice(0, compact ? 4 : 10),
   };
 
   const userPrompt = [
@@ -3606,7 +3642,7 @@ async function runFailsafeModel(kind, prompts, parser, metadata = {}, options = 
   }
 }
 
-async function syncRecommendations(companyId, company, existingNBA, focusTopics = []) {
+async function syncRecommendations(companyId, company, existingNBA, focusTopics = [], memory = {}) {
   const activeFlashcards = await prisma.flashcard.findMany({
     where: {
       companyId,
@@ -3660,6 +3696,7 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
       .map((card) => [card.title, card.body, ...(card.hashtags || []), card.userAnnotation].join(" "))
       .join("\n"),
     (await prisma.hashtagFeedback.findMany({ where: { companyId }, orderBy: { createdAt: "desc" }, take: 200 })),
+    memory.subjectMatterMemory || [],
   );
   try {
     candidates = await generateRecommendationCandidates(
@@ -3738,7 +3775,7 @@ async function processCompany(companyId, reason = {}) {
   }
 
   const focusTopics = selectResearchTopics(data, 5);
-  const recommendationsBeforeFlashcards = await syncRecommendations(companyId, data.company, data.existingNBA, focusTopics);
+  const recommendationsBeforeFlashcards = await syncRecommendations(companyId, data.company, data.existingNBA, focusTopics, previousKnowledge.memory || {});
   const flashcards = await syncFlashcards(companyId, data.company, data, previousKnowledge);
   const refreshedData = await getAllData(companyId);
   const recommendationsAfterFlashcards = await syncRecommendations(
@@ -3746,6 +3783,7 @@ async function processCompany(companyId, reason = {}) {
     refreshedData.company || data.company,
     refreshedData.existingNBA || data.existingNBA,
     selectResearchTopics(refreshedData, 5),
+    previousKnowledge.memory || {},
   );
   const recommendations = mergeRecommendationRuns(recommendationsBeforeFlashcards, recommendationsAfterFlashcards);
   const nextData = await getAllData(companyId);
@@ -3771,6 +3809,7 @@ async function processCompany(companyId, reason = {}) {
       ...buildFeedbackMemorySummary(nextData),
       weightedSignals: companyPatterns.weightedSignals,
       weightedClasses: companyPatterns.weightedClasses,
+      subjectMatterMemory: extractDurableSubjectMatterMemory(nextData),
     },
   });
 
@@ -3778,6 +3817,7 @@ async function processCompany(companyId, reason = {}) {
     type: "company-patterns-update",
     companyId,
     weightedClasses: companyPatterns.weightedClasses,
+    subjectMatterMemoryCount: extractDurableSubjectMatterMemory(nextData).length,
   });
 
   await evictProcessedSources(companyId, data);

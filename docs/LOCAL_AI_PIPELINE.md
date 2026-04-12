@@ -244,6 +244,14 @@ These actions update:
 - user annotation
 - ICE score recalculation
 
+### Durable Subject-Matter Memory
+
+The worker implements a durable "Subject-Matter Memory" layer that extracts ground truths from user modifications:
+- **Flashcard Corrections**: If a user rewrites a flashcard (`MODIFY_ACCEPT`), the content is captured as a durable fact.
+- **Task Annotations**: Specific steering provided in task annotations is persisted as steering memory.
+- **Self-Improvement Loop**: This memory is fed back into LLM prompts as "Known Truths" to prevent the worker from repeating past erroneous claims or using rejected framing.
+- Memory is stored per-company in `scripts/knowledge/[companyId].json`.
+
 ### Weighted signal learning
 
 The worker now implements explicit weighted learning from annotations:

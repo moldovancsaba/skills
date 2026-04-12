@@ -80,6 +80,7 @@ const PROMPT_VERSION = process.env.CHECKLIST_PROMPT_VERSION || "2026-04-06.check
 const KNOWLEDGE_DIR = process.env.KNOWLEDGE_DIR || path.join(__dirname, "knowledge");
 const RUNTIME_METRICS_FILE = path.join(KNOWLEDGE_DIR, "runtime-metrics.ndjson");
 const FAILSAFE_QUEUE_FILE = path.join(KNOWLEDGE_DIR, "failsafe-queue.ndjson");
+const SCHEDULER_STATE_FILE = path.join(KNOWLEDGE_DIR, "scheduler-state.json");
 const RESEARCH_ENABLED = envFlag(process.env.CHECKLIST_RESEARCH_ENABLED, false);
 const RESEARCH_PROVIDER = process.env.CHECKLIST_RESEARCH_PROVIDER || "duckduckgo-html";
 const RESEARCH_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_RESEARCH_TIMEOUT_MS || "12000"), 3_000);
@@ -1491,6 +1492,194 @@ function appendRuntimeMetric(entry) {
     ...entry,
   };
   fs.appendFileSync(RUNTIME_METRICS_FILE, `${JSON.stringify(payload)}\n`);
+}
+
+function loadSchedulerState() {
+  if (!fs.existsSync(SCHEDULER_STATE_FILE)) {
+    return {
+      version: 1,
+      nextCompanyId: null,
+      lastSelectedCompanyId: null,
+      lastSelectedAt: null,
+      lastCompletedCompanyId: null,
+      lastCompletedAt: null,
+      inFlightCompanyId: null,
+      inFlightStartedAt: null,
+      completedCycles: 0,
+      selectionOrder: [],
+      nextDueCompanyId: null,
+      nextDueAt: null,
+      activeCompanyIds: [],
+    };
+  }
+  try {
+    return JSON.parse(fs.readFileSync(SCHEDULER_STATE_FILE, "utf8"));
+  } catch {
+    return {
+      version: 1,
+      nextCompanyId: null,
+      lastSelectedCompanyId: null,
+      lastSelectedAt: null,
+      lastCompletedCompanyId: null,
+      lastCompletedAt: null,
+      inFlightCompanyId: null,
+      inFlightStartedAt: null,
+      completedCycles: 0,
+      selectionOrder: [],
+      nextDueCompanyId: null,
+      nextDueAt: null,
+      activeCompanyIds: [],
+    };
+  }
+}
+
+function saveSchedulerState(state = {}) {
+  const nextState = {
+    version: 1,
+    nextCompanyId: null,
+    lastSelectedCompanyId: null,
+    lastSelectedAt: null,
+    lastCompletedCompanyId: null,
+    lastCompletedAt: null,
+    inFlightCompanyId: null,
+    inFlightStartedAt: null,
+    completedCycles: 0,
+    selectionOrder: [],
+    nextDueCompanyId: null,
+    nextDueAt: null,
+    activeCompanyIds: [],
+    updatedAt: isoTimestamp(),
+    ...state,
+  };
+  fs.writeFileSync(SCHEDULER_STATE_FILE, JSON.stringify(nextState, null, 2));
+  return nextState;
+}
+
+function rotateCompanies(companies = [], startCompanyId = null) {
+  if (!companies.length) return [];
+  if (!startCompanyId) return [...companies];
+  const startIndex = companies.findIndex((company) => company.id === startCompanyId);
+  if (startIndex <= 0) return [...companies];
+  return companies.slice(startIndex).concat(companies.slice(0, startIndex));
+}
+
+function sanitizeSchedulerState(state = {}, companies = []) {
+  const activeCompanyIds = companies.map((company) => company.id);
+  const activeSet = new Set(activeCompanyIds);
+  const normalized = {
+    version: 1,
+    nextCompanyId: activeSet.has(state.nextCompanyId) ? state.nextCompanyId : activeCompanyIds[0] || null,
+    lastSelectedCompanyId: activeSet.has(state.lastSelectedCompanyId) ? state.lastSelectedCompanyId : null,
+    lastSelectedAt: state.lastSelectedAt || null,
+    lastCompletedCompanyId: activeSet.has(state.lastCompletedCompanyId) ? state.lastCompletedCompanyId : null,
+    lastCompletedAt: state.lastCompletedAt || null,
+    inFlightCompanyId: activeSet.has(state.inFlightCompanyId) ? state.inFlightCompanyId : null,
+    inFlightStartedAt: state.inFlightStartedAt || null,
+    completedCycles: Number(state.completedCycles || 0),
+    selectionOrder: Array.isArray(state.selectionOrder)
+      ? state.selectionOrder.filter((companyId) => activeSet.has(companyId))
+      : [],
+    nextDueCompanyId: activeSet.has(state.nextDueCompanyId) ? state.nextDueCompanyId : null,
+    nextDueAt: state.nextDueAt || null,
+    activeCompanyIds,
+  };
+  return normalized;
+}
+
+async function selectNextCompanyForCycle(cooldownMs = 0) {
+  const companies = await prisma.company.findMany({
+    select: { id: true, name: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (companies.length === 0) {
+    return { companyId: null, idleDelayMs: COMPANY_LANE_IDLE_DELAY_MS, schedulerState: saveSchedulerState({ activeCompanyIds: [] }) };
+  }
+
+  // Persist the cursor before work starts so a watchdog restart resumes from the
+  // next company instead of biasing the same tenant again.
+  const schedulerState = sanitizeSchedulerState(loadSchedulerState(), companies);
+  const orderedCompanies = rotateCompanies(companies, schedulerState.nextCompanyId);
+  const now = Date.now();
+  let selected = null;
+  let nextDue = null;
+  let nextDueAt = Number.POSITIVE_INFINITY;
+
+  for (const company of orderedCompanies) {
+    const knowledge = await loadKnowledge(company.id);
+    const lastRunAt = knowledge?.scheduler?.companyCycle?.lastRunAt
+      ? new Date(knowledge.scheduler.companyCycle.lastRunAt).getTime()
+      : 0;
+    const dueAt = lastRunAt + cooldownMs;
+    if (dueAt < nextDueAt) {
+      nextDueAt = dueAt;
+      nextDue = company;
+    }
+    if (dueAt <= now) {
+      selected = company;
+      break;
+    }
+  }
+
+  if (!selected) {
+    const persisted = saveSchedulerState({
+      ...schedulerState,
+      selectionOrder: orderedCompanies.map((company) => company.id),
+      nextDueCompanyId: nextDue?.id || null,
+      nextDueAt: Number.isFinite(nextDueAt) ? isoTimestamp(new Date(nextDueAt)) : null,
+      updatedAt: isoTimestamp(),
+    });
+    const idleDelayMs = Number.isFinite(nextDueAt)
+      ? Math.max(nextDueAt - now, COMPANY_LANE_IDLE_DELAY_MS)
+      : COMPANY_LANE_IDLE_DELAY_MS;
+    return { companyId: null, idleDelayMs, schedulerState: persisted };
+  }
+
+  const selectedIndex = orderedCompanies.findIndex((company) => company.id === selected.id);
+  const nextCompany = orderedCompanies[(selectedIndex + 1) % orderedCompanies.length] || null;
+  const persisted = saveSchedulerState({
+    ...schedulerState,
+    nextCompanyId: nextCompany?.id || selected.id,
+    lastSelectedCompanyId: selected.id,
+    lastSelectedAt: isoTimestamp(),
+    inFlightCompanyId: selected.id,
+    inFlightStartedAt: isoTimestamp(),
+    selectionOrder: orderedCompanies.map((company) => company.id),
+    nextDueCompanyId: nextCompany?.id || null,
+    nextDueAt: null,
+  });
+  appendRuntimeMetric({
+    type: "scheduler-selection",
+    companyId: selected.id,
+    nextCompanyId: persisted.nextCompanyId,
+    selectionOrder: persisted.selectionOrder,
+  });
+  return {
+    companyId: selected.id,
+    idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS,
+    schedulerState: persisted,
+  };
+}
+
+function finalizeCompanyCycleSelection(companyId, durationMs, error = null) {
+  const state = loadSchedulerState();
+  const nextState = saveSchedulerState({
+    ...state,
+    lastCompletedCompanyId: error ? state.lastCompletedCompanyId || null : companyId,
+    lastCompletedAt: error ? state.lastCompletedAt || null : isoTimestamp(),
+    inFlightCompanyId: null,
+    inFlightStartedAt: null,
+    completedCycles: error ? Number(state.completedCycles || 0) : Number(state.completedCycles || 0) + 1,
+    lastCycleDurationMs: durationMs,
+    lastCycleError: error ? String(error.message || error) : null,
+  });
+  appendRuntimeMetric({
+    type: error ? "scheduler-cycle-failed" : "scheduler-cycle-complete",
+    companyId,
+    nextCompanyId: nextState.nextCompanyId,
+    durationMs,
+    error: error ? String(error.message || error) : null,
+  });
+  return nextState;
 }
 
 function markMeaningfulProgress(entry = {}) {
@@ -4034,55 +4223,68 @@ async function auditMaintenanceBacklog(batchSize = CLEANUP_BATCH_SIZE, companyId
 }
 
 async function processNextCompanyCycle() {
-  const selection = await selectNextCompanyForLane("companyCycle", POLL_INTERVAL_MS);
+  const selection = await selectNextCompanyForCycle(POLL_INTERVAL_MS);
   if (!selection.companyId) {
-    return { companyId: null, processed: false, idleDelayMs: selection.idleDelayMs };
+    return {
+      companyId: null,
+      processed: false,
+      idleDelayMs: selection.idleDelayMs,
+      schedulerState: selection.schedulerState || null,
+    };
   }
 
   const companyId = selection.companyId;
   const cycleStartedAt = Date.now();
-  const poll = await runLane("poll", () => processPollingLane(companyId));
-  const researchHarvest = await runLane("researchHarvest", async () => {
-    const data = await getAllData(companyId);
-    if (!data.company) {
-      return { companyId, processed: 0, createdSources: 0, skipped: 0, reason: "company-missing" };
-    }
-    return harvestResearchSources(companyId, data.company, data, RESEARCH_HARVEST_BATCH_SIZE);
-  });
-  const flashcardRevisit = await runLane("flashcardRevisit", () => refreshOldestFlashcards(companyId, FLASHCARD_REVISIT_BATCH_SIZE));
-  const taskRevisit = await runLane("taskRevisit", () => revisitOldestTasks(companyId, TASK_REVISIT_BATCH_SIZE));
-  const feedbackReplay = await runLane("feedbackReplay", () => replayFeedback(companyId));
-  const failsafeQueue = await runLane("failsafeQueue", () => processFailsafeQueue(companyId));
-  const hashtagMaintenance = await runLane("hashtagMaintenance", () => processHashtagMaintenance(companyId));
-  const cleanup = await runLane("cleanup", () => auditMaintenanceBacklog(CLEANUP_BATCH_SIZE, companyId));
-  const reliabilityGuardrail = await runLane("reliabilityGuardrail", () => processReliabilityGuardrail());
-
-  const result = {
-    companyId,
-    processed: true,
-    poll,
-    researchHarvest,
-    flashcardRevisit,
-    taskRevisit,
-    feedbackReplay,
-    failsafeQueue,
-    hashtagMaintenance,
-    cleanup,
-    reliabilityGuardrail,
-  };
-  const cycleDurationMs = Date.now() - cycleStartedAt;
-  const cycleMetric = buildCompanyCycleMetric(companyId, result, cycleDurationMs);
-  appendRuntimeMetric(cycleMetric);
-  if (cycleMetric.cardsCreated > 0 || cycleMetric.flashcardsUpdated > 0 || cycleMetric.taskcardsUpdated > 0) {
-    markMeaningfulProgress({
-      companyId,
-      lane: "companyCycle",
-      cardsCreated: cycleMetric.cardsCreated,
-      flashcardsUpdated: cycleMetric.flashcardsUpdated,
-      taskcardsUpdated: cycleMetric.taskcardsUpdated,
+  try {
+    const poll = await runLane("poll", () => processPollingLane(companyId));
+    const taskRevisit = await runLane("taskRevisit", () => revisitOldestTasks(companyId, TASK_REVISIT_BATCH_SIZE));
+    const researchHarvest = await runLane("researchHarvest", async () => {
+      const data = await getAllData(companyId);
+      if (!data.company) {
+        return { companyId, processed: 0, createdSources: 0, skipped: 0, reason: "company-missing" };
+      }
+      return harvestResearchSources(companyId, data.company, data, RESEARCH_HARVEST_BATCH_SIZE);
     });
+    const flashcardRevisit = await runLane("flashcardRevisit", () => refreshOldestFlashcards(companyId, FLASHCARD_REVISIT_BATCH_SIZE));
+    const feedbackReplay = await runLane("feedbackReplay", () => replayFeedback(companyId));
+    const failsafeQueue = await runLane("failsafeQueue", () => processFailsafeQueue(companyId));
+    const hashtagMaintenance = await runLane("hashtagMaintenance", () => processHashtagMaintenance(companyId));
+    const cleanup = await runLane("cleanup", () => auditMaintenanceBacklog(CLEANUP_BATCH_SIZE, companyId));
+    const reliabilityGuardrail = await runLane("reliabilityGuardrail", () => processReliabilityGuardrail());
+
+    const result = {
+      companyId,
+      processed: true,
+      poll,
+      researchHarvest,
+      flashcardRevisit,
+      taskRevisit,
+      feedbackReplay,
+      failsafeQueue,
+      hashtagMaintenance,
+      cleanup,
+      reliabilityGuardrail,
+      schedulerState: selection.schedulerState || null,
+    };
+    const cycleDurationMs = Date.now() - cycleStartedAt;
+    finalizeCompanyCycleSelection(companyId, cycleDurationMs);
+    const cycleMetric = buildCompanyCycleMetric(companyId, result, cycleDurationMs);
+    appendRuntimeMetric(cycleMetric);
+    if (cycleMetric.cardsCreated > 0 || cycleMetric.flashcardsUpdated > 0 || cycleMetric.taskcardsUpdated > 0) {
+      markMeaningfulProgress({
+        companyId,
+        lane: "companyCycle",
+        cardsCreated: cycleMetric.cardsCreated,
+        flashcardsUpdated: cycleMetric.flashcardsUpdated,
+        taskcardsUpdated: cycleMetric.taskcardsUpdated,
+      });
+    }
+    return { ...result, idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS };
+  } catch (error) {
+    finalizeCompanyCycleSelection(companyId, Date.now() - cycleStartedAt, error);
+    error.companyId = companyId;
+    throw error;
   }
-  return { ...result, idleDelayMs: COMPANY_LANE_CONTINUE_DELAY_MS };
 }
 
 function scheduleCompanyCycleLoop(delayMs = 0) {
@@ -4233,6 +4435,12 @@ async function handleHealth(_req, res) {
   const backlog = await buildLaneBacklogEstimates().catch((error) => ({
     error: error.message,
   }));
+  const schedulerState = sanitizeSchedulerState(
+    loadSchedulerState(),
+    dbReady && prisma
+      ? await prisma.company.findMany({ select: { id: true, name: true }, orderBy: { createdAt: "asc" } }).catch(() => [])
+      : [],
+  );
   const lanes = Object.fromEntries(
     Object.entries(laneStates).map(([key, lane]) => [
       key,
@@ -4308,6 +4516,20 @@ async function handleHealth(_req, res) {
       lastRunAt: lastHashtagMaintenanceAt,
     },
     progress,
+    scheduler: {
+      nextCompanyId: schedulerState.nextCompanyId,
+      lastSelectedCompanyId: schedulerState.lastSelectedCompanyId,
+      lastSelectedAt: schedulerState.lastSelectedAt,
+      lastCompletedCompanyId: schedulerState.lastCompletedCompanyId,
+      lastCompletedAt: schedulerState.lastCompletedAt,
+      inFlightCompanyId: schedulerState.inFlightCompanyId,
+      inFlightStartedAt: schedulerState.inFlightStartedAt,
+      completedCycles: schedulerState.completedCycles,
+      selectionOrderHead: schedulerState.selectionOrder.slice(0, 8),
+      nextDueCompanyId: schedulerState.nextDueCompanyId,
+      nextDueAt: schedulerState.nextDueAt,
+      activeCompanyIds: schedulerState.activeCompanyIds,
+    },
     lanes,
     appVersion: APP_VERSION,
     brainVersion: BRAIN_VERSION,

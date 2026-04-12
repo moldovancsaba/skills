@@ -14,6 +14,7 @@ Canonical production URL:
 
 Key decision records:
 - `docs/SCHEDULER_FAIRNESS_DECISION_RECORD.md` - fairness, anti-starvation, and restart-order contract for the local AI worker
+- `docs/SCHEDULER_CURSOR_RUNTIME.md` - shipped persistent company cursor and restart-safe scheduler runtime behavior
 
 ## Current architecture
 
@@ -173,6 +174,7 @@ npm run repair:raw-sources
 Operational references:
 - `docs/LOCAL_AI_PIPELINE.md`
 - `docs/SCHEDULER_FAIRNESS_DECISION_RECORD.md`
+- `docs/SCHEDULER_CURSOR_RUNTIME.md`
 
 ## Environment
 

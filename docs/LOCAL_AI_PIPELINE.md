@@ -146,9 +146,11 @@ This keeps internet-discovered knowledge inside the same unified raw-source pipe
 
 Current selection contract:
 
-- the lane still prefers flashcards that match active Topics directly
-- if no direct topic match exists, it now falls back to the oldest eligible flashcards and uses the highest-priority active Topics as research context
-- this follows the `done is better than perfect` rule for research candidate selection: weak relevance is allowed, but persistence still requires real external evidence
+- **Topic-first Planning**: the lane now iterates through active `Topic` rows as the primary unit of work.
+- For each topic, it identifies the most relevant and stale `Flashcard` candidates to use as research seeds.
+- This ensures balanced coverage across all prioritized focus areas, rather than just researching the oldest overall flashcards.
+- If no direct topic matches exist for a chosen flashcard, the highest-priority active Topics are used as research context.
+- this follows the `done is better than perfect` rule for research candidate selection: weak relevance is allowed, but persistence still requires real external evidence.
 
 Current persistence contract:
 

@@ -3611,6 +3611,28 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
     return { created: 0, updated: 0, skipped: true, error: "no-active-flashcards" };
   }
 
+  let recommendationFlashcards = [];
+  if (focusTopics.length > 0) {
+    for (const topic of focusTopics) {
+      const topicMatches = activeFlashcards
+        .filter((card) => scoreTopicMatch(topic, card) > 0)
+        .slice(0, 5);
+      recommendationFlashcards.push(...topicMatches);
+    }
+  }
+  
+  // Fill remainder with overall highest priority flashcards if we have space.
+  const uniqueFlashcards = [...new Map(recommendationFlashcards.map((c) => [c.id, c])).values()];
+  const fallbackCount = 20 - uniqueFlashcards.length;
+  if (fallbackCount > 0) {
+    const fallback = activeFlashcards
+      .filter((card) => !uniqueFlashcards.some((seen) => seen.id === card.id))
+      .slice(0, fallbackCount);
+    uniqueFlashcards.push(...fallback);
+  }
+  
+  const selectedFlashcards = uniqueFlashcards.slice(0, 25);
+
   let candidates = [];
   let recommendationError = null;
   const taskFeedbackIndex = buildTaskFeedbackIndex(existingNBA, await prisma.feedback.findMany({
@@ -3620,9 +3642,8 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
   }));
   const feedbackContext = buildFeedbackContext(
     taskFeedbackIndex,
-    activeFlashcards.map((card) => card.id),
-    activeFlashcards
-      .slice(0, 25)
+    selectedFlashcards.map((card) => card.id),
+    selectedFlashcards
       .map((card) => [card.title, card.body, ...(card.hashtags || []), card.userAnnotation].join(" "))
       .join("\n"),
     (await prisma.hashtagFeedback.findMany({ where: { companyId }, orderBy: { createdAt: "desc" }, take: 200 })),
@@ -3630,7 +3651,7 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
   try {
     candidates = await generateRecommendationCandidates(
       company,
-      activeFlashcards,
+      selectedFlashcards,
       focusTopics,
       feedbackContext,
     );
@@ -3643,14 +3664,14 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
     console.error(`Recommendation generation produced no output for ${companyId}: ${reason}`);
     if (recommendationError) {
       try {
-        const prompts = buildRecommendationPrompts(company, activeFlashcards, focusTopics, feedbackContext, { compact: true });
+        const prompts = buildRecommendationPrompts(company, selectedFlashcards, focusTopics, feedbackContext, { compact: true });
         candidates = await runFailsafeModel(
           "company-recommendations",
           prompts,
           (raw) => parseRecommendationCandidates(raw, prompts.cards, feedbackContext),
           {
             companyId,
-            flashcardCount: activeFlashcards.length,
+            flashcardCount: selectedFlashcards.length,
             payload: {
               systemPrompt: prompts.systemPrompt,
               userPrompt: prompts.userPrompt,
@@ -3665,7 +3686,7 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
       return { created: 0, updated: 0, skipped: true, error: reason };
     }
   }
-  const { created, updated } = await persistRecommendationCandidates(companyId, existingNBA, activeFlashcards, candidates);
+  const { created, updated } = await persistRecommendationCandidates(companyId, existingNBA, selectedFlashcards, candidates);
   const annotationSignals = {
     weightedClasses: feedbackContext.weightedClasses || {},
     positiveTerms: toArray(feedbackContext.weightedSignals?.positiveTerms).slice(0, 6),
@@ -3860,13 +3881,6 @@ async function harvestResearchSources(companyId, company, data, batchSize = RESE
     };
   }
 
-  const flashcards = (data.flashcards || [])
-    .filter((card) => card.status === "ACTIVE")
-    .sort((left, right) =>
-      new Date(left.refreshedAt || left.updatedAt || left.createdAt || 0).getTime() -
-      new Date(right.refreshedAt || right.updatedAt || right.createdAt || 0).getTime()
-    );
-
   let processed = 0;
   let createdSources = 0;
   let skipped = 0;
@@ -3880,109 +3894,129 @@ async function harvestResearchSources(companyId, company, data, batchSize = RESE
   let noPrimarySource = 0;
   let noCitations = 0;
 
-  for (const flashcard of flashcards) {
+  // Refactor: Topics are now the primary planner.
+  // We iterate through active topics and find relevant stale flashcards for each.
+  for (const topic of activeTopics) {
     if (processed >= batchSize) break;
-    flashcardsScanned += 1;
-    const scoredTopics = activeTopics
-      .map((topic) => ({ topic, score: scoreTopicMatch(topic, flashcard) }))
-      .sort((left, right) => right.score - left.score || left.topic.sortOrder - right.topic.sortOrder);
-    const matchedTopics = scoredTopics.filter((entry) => entry.score > 0).map((entry) => entry.topic);
-    const fallbackTopics = matchedTopics.length > 0 ? matchedTopics : activeTopics.slice(0, Math.min(activeTopics.length, 2));
-    if (fallbackTopics.length === 0) {
-      continue;
-    }
-    if (matchedTopics.length > 0) {
-      topicMatchedFlashcards += 1;
-    } else {
-      topicFallbackFlashcards += 1;
-    }
 
-    const primarySource = await prisma.flashcardSource.findFirst({
-      where: { flashcardId: flashcard.id, relationRole: "PRIMARY" },
-    });
-    if (!primarySource) {
-      skipped += 1;
-      noPrimarySource += 1;
-      continue;
-    }
+    const topicFlashcards = (data.flashcards || [])
+      .filter((card) => card.status === "ACTIVE")
+      .map((card) => ({ card, score: scoreTopicMatch(topic, card) }))
+      .filter((entry) => entry.score > 0)
+      .sort((left, right) => {
+        const leftTime = new Date(left.card.refreshedAt || 0).getTime();
+        const rightTime = new Date(right.card.refreshedAt || 0).getTime();
+        return leftTime - rightTime || right.score - left.score;
+      })
+      .map((entry) => entry.card);
 
-    const flashcardTags = normalizeHashtags(flashcard.hashtags || []).slice(0, 4);
-    const source = {
-      sourceType: primarySource.sourceType,
-      sourceId: primarySource.sourceId,
-      sourcePublicId: primarySource.sourcePublicId,
-      sourceName: primarySource.sourceName,
-      promptBody: flashcard.generatedBody || flashcard.body,
-      fingerprint: flashcard.fingerprint,
-      hashtags: flashcard.hashtags,
-      queryHints: unique([
-        ...fallbackTopics.map((topic) => `${company.name} ${topic.label}`),
-        flashcard.title ? `${company.name} ${flashcard.title}` : null,
-        ...flashcardTags.map((tag) => `${company.name} ${tag.replace(/[_-]+/g, " ")}`),
-      ].filter(Boolean)),
-      urls: [],
-    };
-    flashcardsResearched += 1;
-    const research = await discoverResearch(company, source, fallbackTopics);
-    queriesRun += Array.isArray(research.queries) ? research.queries.length : 0;
-    const citations = (research.citations || []).filter((citation) => citation.url && citation.excerpt);
-    citationsFetched += citations.length;
-    if (citations.length === 0) {
-      skipped += 1;
-      noCitations += 1;
-      processed += 1;
-      continue;
-    }
+    // If no direct matches, we pick the oldest overall active flashcards as fallback context.
+    const eligibleFlashcards = topicFlashcards.length > 0 
+      ? topicFlashcards 
+      : (data.flashcards || [])
+          .filter((card) => card.status === "ACTIVE")
+          .sort((left, right) => new Date(left.refreshedAt || 0).getTime() - new Date(right.refreshedAt || 0).getTime());
 
-    let createdForFlashcard = 0;
-    for (const citation of citations) {
-      if (createdForFlashcard >= batchSize || processed >= batchSize) break;
-      const legacyOriginKey = `research-harvest:${citation.url}`;
-      const existing = await prisma.source.findFirst({
-        where: { companyId, legacyOriginKey },
-        select: { id: true },
+    for (const flashcard of eligibleFlashcards) {
+      if (processed >= batchSize) break;
+      flashcardsScanned += 1;
+      
+      const matchedTopics = topicFlashcards.length > 0 ? [topic] : [];
+      const fallbackTopics = topicFlashcards.length > 0 ? [topic] : activeTopics.slice(0, 2);
+      
+      if (matchedTopics.length > 0) {
+        topicMatchedFlashcards += 1;
+      } else {
+        topicFallbackFlashcards += 1;
+      }
+
+      const primarySource = await prisma.flashcardSource.findFirst({
+        where: { flashcardId: flashcard.id, relationRole: "PRIMARY" },
       });
-      if (existing) {
+      if (!primarySource) {
         skipped += 1;
-        duplicateCitations += 1;
+        noPrimarySource += 1;
         continue;
       }
 
-      const publicId = await nextPublicId(PUBLIC_ID_SCOPES.source);
-      await prisma.source.create({
-        data: {
-          id: crypto.randomUUID(),
-          companyId,
-          publicId,
-          content: buildResearchHarvestSourceContent(company, flashcard, citation, fallbackTopics),
-          hashtags: mergeHashtags(flashcard.hashtags, fallbackTopics.flatMap((topic) => topic.hashtags)),
-          aiClusters: normalizeHashtags(fallbackTopics.map((topic) => topic.label)),
-          entityTag: "research-harvest",
-          metadata: {
-            origin: "research-harvest",
-            harvestedBy: "local-ai",
-            harvestedAt: isoTimestamp(),
-            harvestedFromFlashcardId: flashcard.id,
-            harvestedFromFlashcardPublicId: flashcard.publicId ?? null,
-            harvestedFromFlashcardTitle: flashcard.title,
-            sourceUrl: citation.url,
-            sourceDomain: citation.domain,
-            sourceTitle: citation.title,
-            sourceSnippet: citation.snippet,
-            sourceKind: citation.sourceKind,
-            query: citation.query,
-            topics: fallbackTopics.map((topic) => ({
-              id: topic.id,
-              label: topic.label,
-            })),
-            topicMatchMode: matchedTopics.length > 0 ? "matched" : "fallback",
+      const flashcardTags = normalizeHashtags(flashcard.hashtags || []).slice(0, 4);
+      const source = {
+        sourceType: primarySource.sourceType,
+        sourceId: primarySource.sourceId,
+        sourcePublicId: primarySource.sourcePublicId,
+        sourceName: primarySource.sourceName,
+        promptBody: flashcard.generatedBody || flashcard.body,
+        fingerprint: flashcard.fingerprint,
+        hashtags: flashcard.hashtags,
+        queryHints: unique([
+          ...fallbackTopics.map((t) => `${company.name} ${t.label}`),
+          flashcard.title ? `${company.name} ${flashcard.title}` : null,
+          ...flashcardTags.map((tag) => `${company.name} ${tag.replace(/[_-]+/g, " ")}`),
+        ].filter(Boolean)),
+        urls: [],
+      };
+      flashcardsResearched += 1;
+      const research = await discoverResearch(company, source, fallbackTopics);
+      queriesRun += Array.isArray(research.queries) ? research.queries.length : 0;
+      const citations = (research.citations || []).filter((citation) => citation.url && citation.excerpt);
+      citationsFetched += citations.length;
+      if (citations.length === 0) {
+        skipped += 1;
+        noCitations += 1;
+        processed += 1;
+        continue;
+      }
+
+      let createdForFlashcard = 0;
+      for (const citation of citations) {
+        if (createdForFlashcard >= batchSize || processed >= batchSize) break;
+        const legacyOriginKey = `research-harvest:${citation.url}`;
+        const existing = await prisma.source.findFirst({
+          where: { companyId, legacyOriginKey },
+          select: { id: true },
+        });
+        if (existing) {
+          skipped += 1;
+          duplicateCitations += 1;
+          continue;
+        }
+
+        const publicId = await nextPublicId(PUBLIC_ID_SCOPES.source);
+        await prisma.source.create({
+          data: {
+            id: crypto.randomUUID(),
+            companyId,
+            publicId,
+            content: buildResearchHarvestSourceContent(company, flashcard, citation, fallbackTopics),
+            hashtags: mergeHashtags(flashcard.hashtags, fallbackTopics.flatMap((t) => t.hashtags)),
+            aiClusters: normalizeHashtags(fallbackTopics.map((t) => t.label)),
+            entityTag: "research-harvest",
+            metadata: {
+              origin: "research-harvest",
+              harvestedBy: "local-ai",
+              harvestedAt: isoTimestamp(),
+              harvestedFromFlashcardId: flashcard.id,
+              harvestedFromFlashcardPublicId: flashcard.publicId ?? null,
+              harvestedFromFlashcardTitle: flashcard.title,
+              sourceUrl: citation.url,
+              sourceDomain: citation.domain,
+              sourceTitle: citation.title,
+              sourceSnippet: citation.snippet,
+              sourceKind: citation.sourceKind,
+              query: citation.query,
+              topics: fallbackTopics.map((t) => ({
+                id: t.id,
+                label: t.label,
+              })),
+              topicMatchMode: matchedTopics.length > 0 ? "matched" : "fallback",
+            },
+            legacyOriginKey,
           },
-          legacyOriginKey,
-        },
-      });
-      createdSources += 1;
-      createdForFlashcard += 1;
-      processed += 1;
+        });
+        createdSources += 1;
+        createdForFlashcard += 1;
+        processed += 1;
+      }
     }
   }
 

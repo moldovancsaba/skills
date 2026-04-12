@@ -98,6 +98,10 @@ const STUCK_RUNNING_MS = Math.max(Number(process.env.CHECKLIST_STUCK_RUNNING_MS 
 const NO_PROGRESS_MS = Math.max(Number(process.env.CHECKLIST_NO_PROGRESS_MS || "10800000"), 60_000);
 const RELIABILITY_GUARDRAIL_INTERVAL_HOURS = Math.max(Number(process.env.CHECKLIST_RELIABILITY_GUARDRAIL_HOURS || "24"), 1);
 const RELIABILITY_GUARDRAIL_INTERVAL_MS = RELIABILITY_GUARDRAIL_INTERVAL_HOURS * 3_600_000;
+const INTELLIGENCE_STALE_DAYS = 30;
+const INTELLIGENCE_ARCHIVE_DAYS = 90;
+const INTELLIGENCE_MEMORY_PRUNE_DAYS = 60;
+const DECAY_SCORE_PER_THRESHOLD = 10;
 const RELIABILITY_GUARDRAIL_LOOKBACK_HOURS = Math.max(Number(process.env.CHECKLIST_RELIABILITY_GUARDRAIL_LOOKBACK_HOURS || "24"), 1);
 const RELIABILITY_GUARDRAIL_MIN_NEW_CARDS = Math.max(Number(process.env.CHECKLIST_RELIABILITY_GUARDRAIL_MIN_NEW_CARDS || "1"), 0);
 const RESEARCH_MAX_QUERIES = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_QUERIES || "2"), 5), 0);
@@ -3680,7 +3684,7 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
   const activeFlashcards = await prisma.flashcard.findMany({
     where: {
       companyId,
-      status: "ACTIVE",
+      status: { in: ["ACTIVE", "STALE"] },
       reviewStatus: { not: "DECLINED" },
     },
     orderBy: [
@@ -4817,11 +4821,80 @@ async function applyDuplicateTaskMaintenance(batchSize = CLEANUP_BATCH_SIZE, can
   return { groupsProcessed, declinedTasks: declined, rewiredTasks: rewired };
 }
 
+async function decayIntelligence(companyId) {
+  const now = new Date();
+  const staleThreshold = new Date(now.getTime() - INTELLIGENCE_STALE_DAYS * 24 * 3600 * 1000);
+  const archiveThreshold = new Date(now.getTime() - INTELLIGENCE_ARCHIVE_DAYS * 24 * 3600 * 1000);
+  const memoryPruneThreshold = new Date(now.getTime() - INTELLIGENCE_MEMORY_PRUNE_DAYS * 24 * 3600 * 1000);
+
+  const activeOrStaleCards = await prisma.flashcard.findMany({
+    where: {
+      companyId,
+      status: { in: ["ACTIVE", "STALE"] },
+    },
+    select: { id: true, status: true, refreshedAt: true, confidence: true },
+  });
+
+  let transitionedToStale = 0;
+  let transitionedToArchive = 0;
+  let decayedCount = 0;
+
+  for (const card of activeOrStaleCards) {
+    const refreshedAt = new Date(card.refreshedAt);
+    const ageDays = (now.getTime() - refreshedAt.getTime()) / (24 * 3600 * 1000);
+    
+    let nextStatus = card.status;
+    let nextConfidence = card.confidence;
+
+    // Transition Logic
+    if (ageDays >= INTELLIGENCE_ARCHIVE_DAYS) {
+      nextStatus = "ARCHIVED";
+      transitionedToArchive++;
+    } else if (ageDays >= INTELLIGENCE_STALE_DAYS && card.status === "ACTIVE") {
+      nextStatus = "STALE";
+      transitionedToStale++;
+    }
+
+    // Confidence Decay Logic
+    if (ageDays >= INTELLIGENCE_STALE_DAYS && nextStatus !== "ARCHIVED") {
+      const intervals = Math.floor(ageDays / 30);
+      const penalty = intervals * DECAY_SCORE_PER_THRESHOLD;
+      nextConfidence = Math.max(5, card.confidence - penalty);
+      if (nextConfidence < card.confidence) decayedCount++;
+    }
+
+    if (nextStatus !== card.status || nextConfidence !== card.confidence) {
+      await prisma.flashcard.update({
+        where: { id: card.id },
+        data: { status: nextStatus, confidence: nextConfidence },
+      });
+    }
+  }
+
+  // Memory Pruning Logic
+  const knowledge = await loadKnowledge(companyId);
+  if (knowledge.memory?.subjectMatterMemory) {
+    const originalCount = knowledge.memory.subjectMatterMemory.length;
+    knowledge.memory.subjectMatterMemory = knowledge.memory.subjectMatterMemory.filter((item) => {
+      const updatedDate = new Date(item.updatedAt || 0);
+      return updatedDate.getTime() > memoryPruneThreshold.getTime();
+    });
+    const prunedCount = originalCount - knowledge.memory.subjectMatterMemory.length;
+    if (prunedCount > 0) {
+      await saveKnowledge(companyId, knowledge);
+    }
+  }
+
+  return { transitionedToStale, transitionedToArchive, decayedCount };
+}
+
 async function auditMaintenanceBacklog(batchSize = CLEANUP_BATCH_SIZE, companyId = null) {
+  const decay = companyId ? await decayIntelligence(companyId) : { transitionedToStale: 0, transitionedToArchive: 0, decayedCount: 0 };
   const flashcardCleanup = await applyDuplicateFlashcardMaintenance(batchSize, companyId);
   const taskCleanup = await applyDuplicateTaskMaintenance(batchSize, flashcardCleanup.canonicalFlashcardIds, companyId);
   return {
     companyId,
+    intelligenceDecay: decay,
     duplicateFlashcardGroups: flashcardCleanup.groupsProcessed,
     archivedFlashcards: flashcardCleanup.archivedFlashcards,
     flashcardTaskRewires: flashcardCleanup.rewiredTasks,

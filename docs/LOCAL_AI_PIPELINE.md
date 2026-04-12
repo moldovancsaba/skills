@@ -276,6 +276,16 @@ Current weight classes:
 - `flashcardAccept`, `flashcardModifyAccept`, `flashcardDecline`, `flashcardRewrite`
 - `hashtagUserAdd`, `hashtagUserRemove`, `hashtagAiAccept`, `hashtagAiReject`
 
+### Intelligence Decay System
+
+The worker implements a time-based decay system to ensure intelligence remains fresh and avoids context pollution:
+- **STALE State**: Flashcards older than **30 days** since their last refresh are marked as `STALE`.
+- **ARCHIVED State**: Flashcards older than **90 days** are moved to `ARCHIVED` status.
+- **Confidence Decay**: Stale flashcards incur a penalty of **-10 confidence points** per 30-day interval, de-prioritizing them in decision loops.
+- **Task Filtering**: `ARCHIVED` cards are strictly excluded from generating new NBA recommendations.
+- **Memory Pruning**: `Subject-Matter Memory` entries older than **60 days** are pruned from the durable knowledge layer unless they are refreshed by newer evidence.
+- Transitions and decay counts are reported in the `cleanup` lane metrics.
+
 Task feedback is also applied back onto the linked source flashcards.
 
 ## Continuous improvement loop

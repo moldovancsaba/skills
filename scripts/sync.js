@@ -85,6 +85,12 @@ const RESEARCH_PROVIDER = process.env.CHECKLIST_RESEARCH_PROVIDER || "duckduckgo
 const RESEARCH_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_RESEARCH_TIMEOUT_MS || "12000"), 3_000);
 const OLLAMA_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_OLLAMA_TIMEOUT_MS || "45000"), 5_000);
 const FAILSAFE_MODEL = process.env.CHECKLIST_FAILSAFE_MODEL || process.env.CHECKLIST_FAILSAFE_OLLAMA_MODEL || "gemma4:e4b";
+const FAILSAFE_MODELS = unique(
+  String(process.env.CHECKLIST_FAILSAFE_MODELS || FAILSAFE_MODEL)
+    .split(",")
+    .map((value) => normalizeText(value))
+    .filter(Boolean),
+);
 const FAILSAFE_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_FAILSAFE_TIMEOUT_MS || String(Math.max(OLLAMA_TIMEOUT_MS, 90_000))), 5_000);
 const FAILSAFE_MAX_ATTEMPTS = Math.max(Number(process.env.CHECKLIST_FAILSAFE_MAX_ATTEMPTS || "2"), 1);
 const STUCK_RUNNING_MS = Math.max(Number(process.env.CHECKLIST_STUCK_RUNNING_MS || "900000"), 60_000);
@@ -129,7 +135,6 @@ const PUBLIC_ID_SCOPES = {
   flashcard: "flashcard",
   checklist: "checklist",
 };
-const SOURCE_TYPE_TAGS = new Set(["#product", "#customer", "#competitor", "#file"]);
 const HASHTAG_STOPWORDS = new Set([
   "the", "and", "for", "with", "from", "that", "this", "your", "into", "about",
   "after", "before", "under", "over", "their", "there", "have", "has", "are",
@@ -470,7 +475,7 @@ function normalizeHashtag(value) {
 }
 
 function normalizeHashtags(values) {
-  return unique(toArray(values).map(normalizeHashtag).filter(Boolean)).filter((tag) => !SOURCE_TYPE_TAGS.has(tag));
+  return unique(toArray(values).map(normalizeHashtag).filter(Boolean));
 }
 
 function deriveKeywordHashtags(...values) {
@@ -1556,8 +1561,62 @@ function updateFailsafeJob(job, patch) {
   return next;
 }
 
-function parseQueuedRecommendationOutput(job, raw) {
-  return parseRecommendationCandidates(raw, job?.payload?.cards || []);
+async function attemptFailsafeModels(prompts, parser, models = FAILSAFE_MODELS) {
+  const tried = [];
+  const errors = [];
+  for (const model of models) {
+    try {
+      tried.push(model);
+      const raw = await callOllamaJson(prompts.systemPrompt, prompts.userPrompt, {
+        model,
+        timeoutMs: FAILSAFE_TIMEOUT_MS,
+      });
+      const parsed = parser(raw);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        errors.push(`${model}: returned no usable candidates`);
+        continue;
+      }
+      return { parsed, model, tried, errors };
+    } catch (error) {
+      errors.push(`${model}: ${error.message}`);
+    }
+  }
+  throw new Error(errors.join(" | ") || "No fail-safe model succeeded");
+}
+
+function parseQueuedOutput(job, raw) {
+  const payload = job?.payload || {};
+  switch (job?.kind) {
+    case "company-recommendations":
+    case "task-revisit":
+      return parseRecommendationCandidates(raw, payload.cards || []);
+    default:
+      throw new Error(`Unsupported queued job kind: ${job?.kind || "unknown"}`);
+  }
+}
+
+async function persistQueuedOutput(job, parsed) {
+  if (job.kind === "company-recommendations") {
+    const data = await getAllData(job.companyId);
+    await persistRecommendationCandidates(
+      job.companyId,
+      data.existingNBA,
+      data.flashcards.filter((card) => card.status === "ACTIVE"),
+      parsed,
+    );
+    return;
+  }
+  if (job.kind === "task-revisit") {
+    const data = await getAllData(job.companyId);
+    const task = await prisma.nBAItem.findUnique({ where: { id: job.payload?.taskId } });
+    if (!task) throw new Error("task-missing");
+    const sourceCards = data.flashcards.filter((card) =>
+      task.sourceFlashcardIds.includes(card.id) && card.status === "ACTIVE",
+    );
+    await persistTaskRevisitCandidates(task, sourceCards, parsed);
+    return;
+  }
+  throw new Error(`Unsupported queued persistence kind: ${job.kind}`);
 }
 
 function buildFeedbackMemorySummary(data) {
@@ -1903,7 +1962,7 @@ async function evaluateEntityHashtags(company, record, feedbackIndex) {
         "You evaluate business hashtags for one entity record.",
         "Return strict JSON with acceptedHashtags, rejectedHashtags, addedHashtags, finalHashtags.",
         "Keep only tags that are relevant to retrieval, clustering, and downstream task generation.",
-        "Do not output source type tags like #product, #customer, #competitor, or #file.",
+        "Do not output generic source-type tags.",
         "It is valid to keep the current hashtags unchanged and return no additions.",
         "finalHashtags should be unique lowercase hashtags.",
       ].join(" "),
@@ -2354,7 +2413,16 @@ async function syncTopicSynthesisFlashcards(companyId, company, data, sources, e
           "synthesis-flashcards",
           { systemPrompt, userPrompt },
           (raw) => parseSynthesisFlashcards(raw, topic, relevantSources),
-          { companyId, topicId: topic.id, topicLabel: topic.label },
+          {
+            companyId,
+            topicId: topic.id,
+            topicLabel: topic.label,
+            payload: {
+              topicId: topic.id,
+              topicLabel: topic.label,
+            },
+          },
+          { enqueue: false },
         );
       } catch (failsafeError) {
         console.error(`Fail-safe synthesis generation also failed for ${companyId}/${topic.label}: ${failsafeError.message}`);
@@ -2527,7 +2595,13 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
             sourceId: source.sourceId,
             sourceName: source.sourceName,
             sourceType: source.sourceType,
+            payload: {
+              sourceId: source.sourceId,
+              sourceName: source.sourceName,
+              sourceType: source.sourceType,
+            },
           },
+          { enqueue: false },
         );
       } catch (failsafeError) {
         console.error(`Fail-safe flashcard generation also failed for ${companyId}/${source.sourceType}/${source.sourceId}: ${failsafeError.message}`);
@@ -2870,48 +2944,61 @@ async function persistTaskRevisitCandidates(task, sourceCards, candidates) {
   return { updated: 1, skipped: 0 };
 }
 
-async function runFailsafeModel(kind, prompts, parser, metadata = {}) {
+async function runFailsafeModel(kind, prompts, parser, metadata = {}, options = {}) {
+  const queueEnabled = options.enqueue !== false;
+  const payload = {
+    systemPrompt: prompts.systemPrompt,
+    userPrompt: prompts.userPrompt,
+    ...(metadata.payload || {}),
+  };
+  const models = Array.isArray(options.models) && options.models.length > 0 ? options.models : FAILSAFE_MODELS;
+  if (!queueEnabled) {
+    const { parsed, model } = await attemptFailsafeModels(prompts, parser, models);
+    markMeaningfulProgress({
+      companyId: metadata.companyId,
+      lane: "failsafeQueue",
+      queueKind: kind,
+      outputCount: parsed.length,
+      model,
+    });
+    return parsed;
+  }
+
   const queuedJob = enqueueFailsafeJob({
     companyId: metadata.companyId,
     kind,
     status: "PENDING",
-    payload: metadata.payload || metadata,
+    models,
+    payload,
   });
   let job = updateFailsafeJob(queuedJob, {
     status: "RUNNING",
     attempts: 1,
-    model: FAILSAFE_MODEL,
+    model: models.join(","),
   });
 
   try {
-    const raw = await callOllamaJson(prompts.systemPrompt, prompts.userPrompt, {
-      model: FAILSAFE_MODEL,
-      timeoutMs: FAILSAFE_TIMEOUT_MS,
-    });
-    const parsed = parser(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      throw new Error("Fail-safe model returned no usable candidates");
-    }
+    const { parsed, model, errors } = await attemptFailsafeModels(prompts, parser, models);
     updateFailsafeJob(job, {
       status: "COMPLETED",
       attempts: 1,
-      model: FAILSAFE_MODEL,
+      model,
       outputCount: parsed.length,
-      lastError: null,
+      lastError: errors.length > 0 ? errors.join(" | ") : null,
     });
     markMeaningfulProgress({
       companyId: metadata.companyId,
       lane: "failsafeQueue",
       queueKind: kind,
       outputCount: parsed.length,
-      model: FAILSAFE_MODEL,
+      model,
     });
     return parsed;
   } catch (error) {
     job = updateFailsafeJob(job, {
       status: "FAILED",
       attempts: 1,
-      model: FAILSAFE_MODEL,
+      model: models.join(","),
       lastError: error.message,
     });
     throw error;
@@ -3335,7 +3422,31 @@ async function refreshOldestFlashcards(companyId, batchSize = FLASHCARD_REVISIT_
         [flashcard.title, flashcard.body, source.promptBody, ...(flashcard.hashtags || [])].join(" "),
       ),
     };
-    const generatedCandidates = await generateFlashcardCandidates(data.company, source, research, feedbackContext);
+    let generatedCandidates = [];
+    try {
+      generatedCandidates = await generateFlashcardCandidates(data.company, source, research, feedbackContext);
+    } catch (error) {
+      const prompts = buildFlashcardGenerationPrompts(data.company, source, research, feedbackContext);
+      try {
+        generatedCandidates = await runFailsafeModel(
+          "flashcard-revisit",
+          prompts,
+          (raw) => parseFlashcardCandidates(raw, source, research),
+          {
+            companyId,
+            flashcardId: flashcard.id,
+            payload: {
+              flashcardId: flashcard.id,
+              sourceId: source.sourceId,
+            },
+          },
+          { enqueue: false },
+        );
+      } catch (_failsafeError) {
+        skipped += 1;
+        continue;
+      }
+    }
     const generated = generatedCandidates[0];
     if (!generated) {
       console.log(`Flashcard ${flashcard.id} skipped during revisit because AI returned no high-quality result.`);
@@ -3494,7 +3605,6 @@ async function processFailsafeQueue(companyId = null) {
   const jobs = listFailsafeJobs({ companyId, status: "FAILED" })
     .concat(listFailsafeJobs({ companyId, status: "PENDING" }))
     .filter((job, index, list) => list.findIndex((entry) => entry.id === job.id) === index)
-    .filter((job) => job.kind === "company-recommendations" || job.kind === "task-revisit")
     .filter((job) => Number(job.attempts || 0) < FAILSAFE_MAX_ATTEMPTS)
     .slice(0, 1);
 
@@ -3506,50 +3616,48 @@ async function processFailsafeQueue(companyId = null) {
   let failed = 0;
   for (const job of jobs) {
     try {
+      if (!(job.kind === "company-recommendations" || job.kind === "task-revisit")) {
+        updateFailsafeJob(job, {
+          status: "FAILED_UNSUPPORTED",
+          attempts: Number(job.attempts || 0),
+          model: null,
+          lastError: `unsupported-queue-kind:${job.kind}`,
+        });
+        continue;
+      }
       const nextAttempts = Number(job.attempts || 0) + 1;
       updateFailsafeJob(job, {
         status: "RUNNING",
         attempts: nextAttempts,
-        model: FAILSAFE_MODEL,
+        model: (Array.isArray(job.models) && job.models.length > 0 ? job.models : FAILSAFE_MODELS).join(","),
       });
       const payload = job.payload || {};
       if (!payload.systemPrompt || !payload.userPrompt) {
         throw new Error("Queued fail-safe job is missing prompt payload");
       }
-
-      const raw = await callOllamaJson(payload.systemPrompt, payload.userPrompt, {
-        model: FAILSAFE_MODEL,
-        timeoutMs: FAILSAFE_TIMEOUT_MS,
-      });
-      const parsed = parseQueuedRecommendationOutput(job, raw);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        throw new Error("Fail-safe queue retry returned no usable candidates");
-      }
-
-      if (job.kind === "company-recommendations") {
-        const data = await getAllData(job.companyId);
-        await persistRecommendationCandidates(job.companyId, data.existingNBA, data.flashcards.filter((card) => card.status === "ACTIVE"), parsed);
-      } else if (job.kind === "task-revisit") {
-        const data = await getAllData(job.companyId);
-        const task = await prisma.nBAItem.findUnique({ where: { id: job.payload?.taskId } });
-        if (!task) throw new Error("task-missing");
-        const sourceCards = data.flashcards.filter((card) => task.sourceFlashcardIds.includes(card.id) && card.status === "ACTIVE");
-        await persistTaskRevisitCandidates(task, sourceCards, parsed);
-      }
+      const { parsed, model, errors } = await attemptFailsafeModels(
+        {
+          systemPrompt: payload.systemPrompt,
+          userPrompt: payload.userPrompt,
+        },
+        (raw) => parseQueuedOutput(job, raw),
+        Array.isArray(job.models) && job.models.length > 0 ? job.models : FAILSAFE_MODELS,
+      );
+      await persistQueuedOutput(job, parsed);
 
       updateFailsafeJob(job, {
         status: "COMPLETED",
         attempts: nextAttempts,
-        model: FAILSAFE_MODEL,
+        model,
         outputCount: parsed.length,
-        lastError: null,
+        lastError: errors.length > 0 ? errors.join(" | ") : null,
       });
       markMeaningfulProgress({
         companyId: job.companyId,
         lane: "failsafeQueue",
         queueKind: job.kind,
         outputCount: parsed.length,
-        model: FAILSAFE_MODEL,
+        model,
       });
       completed += 1;
     } catch (error) {
@@ -3557,7 +3665,7 @@ async function processFailsafeQueue(companyId = null) {
       updateFailsafeJob(job, {
         status: Number(job.attempts || 0) + 1 >= FAILSAFE_MAX_ATTEMPTS ? "FAILED_PERMANENT" : "FAILED",
         attempts: Number(job.attempts || 0) + 1,
-        model: FAILSAFE_MODEL,
+        model: (Array.isArray(job.models) && job.models.length > 0 ? job.models : FAILSAFE_MODELS).join(","),
         lastError: error.message,
       });
     }
@@ -4039,6 +4147,7 @@ async function handleHealth(_req, res) {
       researchHarvestBatchSize: RESEARCH_HARVEST_BATCH_SIZE,
       ollamaTimeoutMs: OLLAMA_TIMEOUT_MS,
       failsafeModel: FAILSAFE_MODEL,
+      failsafeModels: FAILSAFE_MODELS,
       failsafeTimeoutMs: FAILSAFE_TIMEOUT_MS,
       failsafeMaxAttempts: FAILSAFE_MAX_ATTEMPTS,
       researchTimeoutMs: RESEARCH_TIMEOUT_MS,
@@ -4126,7 +4235,7 @@ server.listen(PORT, async () => {
   console.log(`Feedback replay lane: every ${FEEDBACK_REPLAY_INTERVAL_MINUTES}m, batch ${FEEDBACK_REPLAY_BATCH_SIZE}`);
   console.log(`Hashtag maintenance lane: every ${HASHTAG_MAINTENANCE_INTERVAL_HOURS}h, batch ${HASHTAG_MAINTENANCE_BATCH_SIZE}`);
   console.log(`Cleanup lane: every ${CLEANUP_INTERVAL_HOURS}h, batch ${CLEANUP_BATCH_SIZE}`);
-  console.log(`Fail-safe model: ${FAILSAFE_MODEL} (timeout ${FAILSAFE_TIMEOUT_MS}ms, max attempts ${FAILSAFE_MAX_ATTEMPTS})`);
+  console.log(`Fail-safe models: ${FAILSAFE_MODELS.join(", ")} (timeout ${FAILSAFE_TIMEOUT_MS}ms, max attempts ${FAILSAFE_MAX_ATTEMPTS})`);
   console.log(`Preferred quality floors: task ICE ${TASK_MIN_ICE_SCORE}, flashcard confidence ${FLASHCARD_MIN_CONFIDENCE}, impact ${FLASHCARD_MIN_IMPACT}, weight ${FLASHCARD_MIN_WEIGHT}`);
   console.log("--------------------------------------------------");
 

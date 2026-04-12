@@ -262,6 +262,15 @@ The worker now implements explicit weighted learning from annotations:
 - Candidates falling below a net score threshold are suppressed from delivery.
 - Weighting patterns and class summaries are persisted in the company `memory` layer and logged in `runtime-metrics.ndjson` for observability.
 
+### Fairness and Runtime Verification
+
+The worker now tracks processing duration and Yield consistency:
+- **Duration Tracking**: Every company cycle captures `processingDurationMs`.
+- **Fairness Verification**: A running audit of the last 30 processing samples is performed at the end of each cycle.
+- **Starvation Detection**: The audit compares processing frequency, duration, and yield across companies.
+- Reports are logged to `runtime-metrics.ndjson` with the type `fairness-verification-report`.
+
+
 Current weight classes:
 - `taskAccept`, `taskModifyAccept`, `taskDecline`, `taskAnnotation`
 - `flashcardAccept`, `flashcardModifyAccept`, `flashcardDecline`, `flashcardRewrite`

@@ -1737,6 +1737,40 @@ function appendRuntimeMetric(entry) {
   fs.appendFileSync(RUNTIME_METRICS_FILE, `${JSON.stringify(payload)}\n`);
 }
 
+function verifyFairnessConsistency(lookbackCount = 20) {
+  if (!fs.existsSync(RUNTIME_METRICS_FILE)) return;
+  try {
+    const lines = fs.readFileSync(RUNTIME_METRICS_FILE, "utf8").trim().split("\n");
+    const samples = lines.slice(-lookbackCount).map((l) => JSON.parse(l));
+    const companyStats = {};
+
+    for (const sample of samples) {
+      if (!sample.companyId) continue;
+      if (!companyStats[sample.companyId]) {
+        companyStats[sample.companyId] = { count: 0, totalDuration: 0, totalYield: 0 };
+      }
+      companyStats[sample.companyId].count += 1;
+      companyStats[sample.companyId].totalDuration += Number(sample.processingDurationMs || 0);
+      companyStats[sample.companyId].totalYield += Number(sample.flashcardsCreated || 0) + Number(sample.taskcardsCreated || 0);
+    }
+
+    const report = Object.entries(companyStats).map(([id, stats]) => ({
+      companyId: id,
+      frequency: stats.count,
+      avgDurationMs: Math.round(stats.totalDuration / stats.count),
+      avgYield: Math.round(stats.totalYield / stats.count),
+    }));
+
+    appendRuntimeMetric({
+      type: "fairness-verification-report",
+      sampleCount: samples.length,
+      report,
+    });
+  } catch (error) {
+    console.error(`Fairness verification failed: ${error.message}`);
+  }
+}
+
 function loadSchedulerState() {
   if (!fs.existsSync(SCHEDULER_STATE_FILE)) {
     return {
@@ -3768,6 +3802,7 @@ function mergeRecommendationRuns(...runs) {
 }
 
 async function processCompany(companyId, reason = {}) {
+  const startTime = Date.now();
   const previousKnowledge = await loadKnowledge(companyId);
   const data = await getAllData(companyId);
   if (!data?.company) {
@@ -3790,6 +3825,8 @@ async function processCompany(companyId, reason = {}) {
   const taskFeedbackIndex = buildTaskFeedbackIndex(nextData.existingNBA, nextData.feedback);
   const companyPatterns = companyFeedbackPatterns(taskFeedbackIndex);
 
+  const processingDurationMs = Date.now() - startTime;
+
   await saveKnowledge(companyId, {
     snapshot: buildSnapshot(nextData),
     lastTriggeredBy: reason,
@@ -3798,6 +3835,7 @@ async function processCompany(companyId, reason = {}) {
       recommendations,
       hashtagUpdates: 0,
       focusTopics: focusTopics.map((topic) => topic.label),
+      processingDurationMs,
     },
     research: {
       enabled: RESEARCH_ENABLED,
@@ -3818,18 +3856,24 @@ async function processCompany(companyId, reason = {}) {
     companyId,
     weightedClasses: companyPatterns.weightedClasses,
     subjectMatterMemoryCount: extractDurableSubjectMatterMemory(nextData).length,
+    processingDurationMs,
+    flashcardsCreated: flashcards.created,
+    taskcardsCreated: recommendations.created,
   });
 
-  await evictProcessedSources(companyId, data);
+  // Verify fairness across recent samples
+  verifyFairnessConsistency(30);
 
+  await evictProcessedSources(companyId, data);
+  
   return {
     flashcards,
     recommendations,
     dataSynced: {
-      sources: data.sources.length,
-      uploadedFiles: data.uploadedFiles.length,
-      topics: data.topics.length,
-      feedback: data.feedback.length,
+      sources: nextData.sources.length,
+      uploadedFiles: nextData.uploadedFiles.length,
+      topics: nextData.topics.length,
+      feedback: nextData.feedback.length,
     },
   };
 }

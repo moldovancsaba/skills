@@ -95,6 +95,10 @@ const FAILSAFE_TIMEOUT_MS = Math.max(Number(process.env.CHECKLIST_FAILSAFE_TIMEO
 const FAILSAFE_MAX_ATTEMPTS = Math.max(Number(process.env.CHECKLIST_FAILSAFE_MAX_ATTEMPTS || "2"), 1);
 const STUCK_RUNNING_MS = Math.max(Number(process.env.CHECKLIST_STUCK_RUNNING_MS || "900000"), 60_000);
 const NO_PROGRESS_MS = Math.max(Number(process.env.CHECKLIST_NO_PROGRESS_MS || "10800000"), 60_000);
+const RELIABILITY_GUARDRAIL_INTERVAL_HOURS = Math.max(Number(process.env.CHECKLIST_RELIABILITY_GUARDRAIL_HOURS || "24"), 1);
+const RELIABILITY_GUARDRAIL_INTERVAL_MS = RELIABILITY_GUARDRAIL_INTERVAL_HOURS * 3_600_000;
+const RELIABILITY_GUARDRAIL_LOOKBACK_HOURS = Math.max(Number(process.env.CHECKLIST_RELIABILITY_GUARDRAIL_LOOKBACK_HOURS || "24"), 1);
+const RELIABILITY_GUARDRAIL_MIN_NEW_CARDS = Math.max(Number(process.env.CHECKLIST_RELIABILITY_GUARDRAIL_MIN_NEW_CARDS || "1"), 0);
 const RESEARCH_MAX_QUERIES = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_QUERIES || "2"), 5), 0);
 const RESEARCH_MAX_RESULTS = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_RESULTS || "3"), 6), 0);
 const RESEARCH_MAX_FETCHES = Math.max(Math.min(Number(process.env.CHECKLIST_RESEARCH_MAX_FETCHES || "3"), 6), 0);
@@ -186,6 +190,7 @@ const laneStates = {
   hashtagMaintenance: createLaneState("hashtagMaintenance", Math.max(HASHTAG_MAINTENANCE_INTERVAL_MS, POLL_INTERVAL_MS), HASHTAG_MAINTENANCE_BATCH_SIZE),
   cleanup: createLaneState("cleanup", Math.max(CLEANUP_INTERVAL_MS, POLL_INTERVAL_MS), CLEANUP_BATCH_SIZE),
   failsafeQueue: createLaneState("failsafeQueue", POLL_INTERVAL_MS, 1),
+  reliabilityGuardrail: createLaneState("reliabilityGuardrail", Math.max(RELIABILITY_GUARDRAIL_INTERVAL_MS, POLL_INTERVAL_MS), 1),
 };
 
 if (!fs.existsSync(KNOWLEDGE_DIR)) {
@@ -1670,6 +1675,49 @@ function buildCompanyCycleMetric(companyId, cycleResult, durationMs) {
     companiesProcessedFully: cycleResult?.processed ? 1 : 0,
     queueProcessed: Number(cycleResult?.failsafeQueue?.result?.processed || 0),
   };
+}
+
+function summarizeRecentCardCreation(hours = RELIABILITY_GUARDRAIL_LOOKBACK_HOURS) {
+  const sinceMs = Date.now() - (hours * 3_600_000);
+  const rows = fs.existsSync(RUNTIME_METRICS_FILE)
+    ? fs.readFileSync(RUNTIME_METRICS_FILE, "utf8").split("\n").filter(Boolean)
+    : [];
+  let cardsCreated = 0;
+  let companyCycles = 0;
+  let lastCycleAt = null;
+
+  for (const line of rows) {
+    let row;
+    try {
+      row = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const recordedAt = row?.recordedAt ? new Date(row.recordedAt).getTime() : NaN;
+    if (!Number.isFinite(recordedAt) || recordedAt < sinceMs) continue;
+    if (row.type === "company-cycle-summary") {
+      cardsCreated += Number(row.cardsCreated || 0);
+      companyCycles += Number(row.companiesProcessedFully || 0);
+      if (!lastCycleAt || recordedAt > new Date(lastCycleAt).getTime()) {
+        lastCycleAt = row.recordedAt;
+      }
+      continue;
+    }
+    if (row.type === "company-lane-run" && row.lane === "companyCycle") {
+      const result = row.result || {};
+      const poll = result.poll?.result || {};
+      const flashcardsCreated = Number(poll.flashcards?.created || 0);
+      const taskcardsCreated = Number(poll.recommendations?.created || 0);
+      const datacardsCreated = Number(result.researchHarvest?.createdSources || 0);
+      cardsCreated += flashcardsCreated + taskcardsCreated + datacardsCreated;
+      if (result.processed) companyCycles += 1;
+      if (!lastCycleAt || recordedAt > new Date(lastCycleAt).getTime()) {
+        lastCycleAt = row.recordedAt;
+      }
+    }
+  }
+
+  return { hours, cardsCreated, companyCycles, lastCycleAt };
 }
 
 async function recordCompanyLaneRun(companyId, laneName, result = {}, durationMs = null, error = null) {
@@ -3674,6 +3722,76 @@ async function processFailsafeQueue(companyId = null) {
   return { companyId, processed: jobs.length, completed, failed };
 }
 
+async function processReliabilityGuardrail() {
+  const backlog = await buildLaneBacklogEstimates();
+  const backlogTotal = Object.entries(backlog || {})
+    .filter(([key]) => key !== "error")
+    .reduce((sum, [, value]) => sum + (Number.isFinite(value) ? value : 0), 0);
+  const summary = summarizeRecentCardCreation(RELIABILITY_GUARDRAIL_LOOKBACK_HOURS);
+
+  if (summary.cardsCreated >= RELIABILITY_GUARDRAIL_MIN_NEW_CARDS) {
+    return {
+      processed: 0,
+      skipped: true,
+      reason: "healthy-throughput",
+      cardsCreated: summary.cardsCreated,
+      lookbackHours: RELIABILITY_GUARDRAIL_LOOKBACK_HOURS,
+    };
+  }
+  if (backlogTotal <= 0) {
+    return {
+      processed: 0,
+      skipped: true,
+      reason: "no-backlog",
+      cardsCreated: summary.cardsCreated,
+      lookbackHours: RELIABILITY_GUARDRAIL_LOOKBACK_HOURS,
+    };
+  }
+
+  const selection = await selectNextCompanyForLane("companyCycle", 0);
+  if (!selection.companyId) {
+    return {
+      processed: 0,
+      skipped: true,
+      reason: "no-company-selected",
+      cardsCreated: summary.cardsCreated,
+      lookbackHours: RELIABILITY_GUARDRAIL_LOOKBACK_HOURS,
+    };
+  }
+
+  appendRuntimeMetric({
+    type: "reliability-alert",
+    action: "recovery-triggered",
+    companyId: selection.companyId,
+    backlogTotal,
+    cardsCreatedLookback: summary.cardsCreated,
+    lookbackHours: RELIABILITY_GUARDRAIL_LOOKBACK_HOURS,
+    minCards: RELIABILITY_GUARDRAIL_MIN_NEW_CARDS,
+  });
+
+  const result = await processCompany(selection.companyId, {
+    trigger: "reliability-guardrail",
+    reason: "low-throughput",
+    lookbackHours: RELIABILITY_GUARDRAIL_LOOKBACK_HOURS,
+  });
+
+  markMeaningfulProgress({
+    companyId: selection.companyId,
+    lane: "reliabilityGuardrail",
+    cardsCreatedLookback: summary.cardsCreated,
+    backlogTotal,
+  });
+
+  return {
+    processed: 1,
+    skipped: false,
+    companyId: selection.companyId,
+    lookbackHours: RELIABILITY_GUARDRAIL_LOOKBACK_HOURS,
+    cardsCreatedLookback: summary.cardsCreated,
+    result,
+  };
+}
+
 function flashcardDuplicateKey(card) {
   return `${card.companyId}:${normalizeLoose(card.title)}:${normalizeLoose(card.body)}`;
 }
@@ -3937,6 +4055,7 @@ async function processNextCompanyCycle() {
   const failsafeQueue = await runLane("failsafeQueue", () => processFailsafeQueue(companyId));
   const hashtagMaintenance = await runLane("hashtagMaintenance", () => processHashtagMaintenance(companyId));
   const cleanup = await runLane("cleanup", () => auditMaintenanceBacklog(CLEANUP_BATCH_SIZE, companyId));
+  const reliabilityGuardrail = await runLane("reliabilityGuardrail", () => processReliabilityGuardrail());
 
   const result = {
     companyId,
@@ -3949,6 +4068,7 @@ async function processNextCompanyCycle() {
     failsafeQueue,
     hashtagMaintenance,
     cleanup,
+    reliabilityGuardrail,
   };
   const cycleDurationMs = Date.now() - cycleStartedAt;
   const cycleMetric = buildCompanyCycleMetric(companyId, result, cycleDurationMs);
@@ -4016,6 +4136,7 @@ async function buildLaneBacklogEstimates() {
     taskRevisit: pendingTasks,
     feedbackReplay: feedbackCount + flashcardActionCount,
     failsafeQueue: listFailsafeJobs().filter((job) => job.status === "PENDING" || job.status === "FAILED").length,
+    reliabilityGuardrail: summarizeRecentCardCreation(RELIABILITY_GUARDRAIL_LOOKBACK_HOURS).cardsCreated < RELIABILITY_GUARDRAIL_MIN_NEW_CARDS ? 1 : 0,
     hashtagMaintenance:
       pendingSourceTags +
       pendingFileTags +
@@ -4150,6 +4271,9 @@ async function handleHealth(_req, res) {
       failsafeModels: FAILSAFE_MODELS,
       failsafeTimeoutMs: FAILSAFE_TIMEOUT_MS,
       failsafeMaxAttempts: FAILSAFE_MAX_ATTEMPTS,
+      reliabilityGuardrailIntervalHours: RELIABILITY_GUARDRAIL_INTERVAL_HOURS,
+      reliabilityGuardrailLookbackHours: RELIABILITY_GUARDRAIL_LOOKBACK_HOURS,
+      reliabilityGuardrailMinNewCards: RELIABILITY_GUARDRAIL_MIN_NEW_CARDS,
       researchTimeoutMs: RESEARCH_TIMEOUT_MS,
       flashcardRevisitIntervalMinutes: FLASHCARD_REVISIT_INTERVAL_MINUTES,
       flashcardRevisitBatchSize: FLASHCARD_REVISIT_BATCH_SIZE,
@@ -4235,6 +4359,7 @@ server.listen(PORT, async () => {
   console.log(`Feedback replay lane: every ${FEEDBACK_REPLAY_INTERVAL_MINUTES}m, batch ${FEEDBACK_REPLAY_BATCH_SIZE}`);
   console.log(`Hashtag maintenance lane: every ${HASHTAG_MAINTENANCE_INTERVAL_HOURS}h, batch ${HASHTAG_MAINTENANCE_BATCH_SIZE}`);
   console.log(`Cleanup lane: every ${CLEANUP_INTERVAL_HOURS}h, batch ${CLEANUP_BATCH_SIZE}`);
+  console.log(`Reliability guardrail: every ${RELIABILITY_GUARDRAIL_INTERVAL_HOURS}h, lookback ${RELIABILITY_GUARDRAIL_LOOKBACK_HOURS}h, min new cards ${RELIABILITY_GUARDRAIL_MIN_NEW_CARDS}`);
   console.log(`Fail-safe models: ${FAILSAFE_MODELS.join(", ")} (timeout ${FAILSAFE_TIMEOUT_MS}ms, max attempts ${FAILSAFE_MAX_ATTEMPTS})`);
   console.log(`Preferred quality floors: task ICE ${TASK_MIN_ICE_SCORE}, flashcard confidence ${FLASHCARD_MIN_CONFIDENCE}, impact ${FLASHCARD_MIN_IMPACT}, weight ${FLASHCARD_MIN_WEIGHT}`);
   console.log("--------------------------------------------------");

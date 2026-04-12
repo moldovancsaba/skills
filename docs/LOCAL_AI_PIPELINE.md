@@ -51,9 +51,9 @@ The local layer can enrich a source using:
 The worker currently schedules work as a serial per-company cycle:
 
 1. poll the company
-2. run `researchHarvest`
-3. revisit one oldest flashcard
-4. revisit one oldest task
+2. revisit one oldest task
+3. run `researchHarvest`
+4. revisit one oldest flashcard
 5. replay one feedback slice
 6. retry one fail-safe queue slice through the secondary local model
 7. maintain one hashtag slice
@@ -144,6 +144,33 @@ This lane:
 
 This keeps internet-discovered knowledge inside the same unified raw-source pipeline instead of attaching it only as transient flashcard evidence.
 
+Current selection contract:
+
+- the lane still prefers flashcards that match active Topics directly
+- if no direct topic match exists, it now falls back to the oldest eligible flashcards and uses the highest-priority active Topics as research context
+- this follows the `done is better than perfect` rule for research candidate selection: weak relevance is allowed, but persistence still requires real external evidence
+
+Current persistence contract:
+
+- the lane may research a flashcard and still create zero datacards
+- that is acceptable when public search returns no usable citations or only duplicates
+- zero creation is no longer ambiguous because the probe and lane results now expose:
+  - `flashcardsScanned`
+  - `flashcardsResearched`
+  - `topicMatchedFlashcards`
+  - `topicFallbackFlashcards`
+  - `queriesRun`
+  - `citationsFetched`
+  - `duplicateCitations`
+  - `noPrimarySource`
+  - `noCitations`
+
+Probe contract:
+
+- `npm run research:probe -- --minutes N` now runs through the worker's direct CLI path instead of a long-lived HTTP socket
+- before spawning, the probe reads the live worker health endpoint so the research on/off flag matches the running local AI worker
+- this makes the probe resilient to worker restarts and much closer to production behavior
+
 ### 4. NBA generation
 
 The NBA generator reads:
@@ -156,6 +183,30 @@ The NBA generator reads:
 - task feedback
 
 It creates `NBAItem` rows and stores `sourceFlashcardIds` so tasks can be traced back to the flashcards that supported them.
+
+Current task-generation contract:
+
+- task creation now runs earlier in the company cycle
+- inside `processCompany`, the worker attempts recommendation generation before flashcard refresh and again after flashcard refresh
+- this puts checklist delivery earlier in the loop without losing the ability to create tasks from newly refreshed flashcards
+- the task generator now uses compact flashcard refs (`sourceFlashcardRefs`) in prompts rather than asking the model to echo raw UUIDs
+- prompt context is intentionally smaller and more duplicate-aware:
+  - fewer seed flashcards
+  - stronger preference for actionable flashcard kinds
+  - feedback patterns over long historical examples
+  - explicit avoidance of archived checklist title duplication
+  - explicit ban on template phrases like `Act on:` and `Turn the flashcard`
+
+Task probe contract:
+
+- `npm run task:probe -- --minutes N` runs task creation directly through the worker CLI path
+- the probe uses the live worker health settings for task thresholds and local-model timeout config
+- probe output reports:
+  - `created`
+  - `updated`
+  - `activeFlashcards`
+  - per-company totals
+  - whether a run was skipped because a company had no active flashcards
 
 ## Feedback loops
 
@@ -186,6 +237,21 @@ These actions update:
 - optional task title/description edits
 - user annotation
 - ICE score recalculation
+
+### Weighted signal learning
+
+The worker now implements explicit weighted learning from annotations:
+
+- Actions have assigned business weights (e.g., `MODIFY_ACCEPT` > `ACCEPT`).
+- Feedback is tokenized into positive and negative term/hashtag weights.
+- Future flashcard and task candidates are scored against these patterns.
+- Candidates falling below a net score threshold are suppressed from delivery.
+- Weighting patterns and class summaries are persisted in the company `memory` layer and logged in `runtime-metrics.ndjson` for observability.
+
+Current weight classes:
+- `taskAccept`, `taskModifyAccept`, `taskDecline`, `taskAnnotation`
+- `flashcardAccept`, `flashcardModifyAccept`, `flashcardDecline`, `flashcardRewrite`
+- `hashtagUserAdd`, `hashtagUserRemove`, `hashtagAiAccept`, `hashtagAiReject`
 
 Task feedback is also applied back onto the linked source flashcards.
 

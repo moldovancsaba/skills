@@ -128,6 +128,7 @@ Checklist follows a 4-step operator pipeline:
 - `feedback loop`
   - flashcard feedback changes flashcard scoring
   - task feedback changes the source flashcards tied to that task
+  - **weighted annotation learning**: user actions (accept/decline/modify) calculate term and hashtag weights used to score and suppress future candidates
 - `continuous improvement direction`
   - the next planned system layer selects stale flashcards and tasks by oldest meaningful modification time
   - improvement work is ranked by business value before bounded research is spent

@@ -12,6 +12,8 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "repair:raw-sources": "node scripts/repair-raw-sources.mjs",
+    "research:probe": "node scripts/research-probe.mjs",
+    "task:probe": "node scripts/task-probe.mjs",
     "sync": "node scripts/sync.js"
   },
   "dependencies": {

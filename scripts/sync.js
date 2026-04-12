@@ -135,6 +135,20 @@ const FACTCHECK_CAPS = {
   UNVERIFIED: 52,
   NOT_RUN: 74,
 };
+const ANNOTATION_CLASS_WEIGHTS = Object.freeze({
+  taskAccept: 4,
+  taskModifyAccept: 7,
+  taskDecline: -8,
+  taskAnnotation: 2,
+  flashcardAccept: 3,
+  flashcardModifyAccept: 6,
+  flashcardDecline: -7,
+  flashcardRewrite: 3,
+  hashtagUserAdd: 2,
+  hashtagUserRemove: -5,
+  hashtagAiAccept: 1,
+  hashtagAiReject: -2,
+});
 const PUBLIC_ID_SCOPES = {
   source: "source",
   flashcard: "flashcard",
@@ -1101,6 +1115,10 @@ function buildFlashcardEvidence(source, generated, research) {
       factCheck: research.factCheck,
       errors: research.errors,
     },
+    annotations: {
+      signalScore: generated.annotationSignalScore ?? 0,
+      signals: generated.annotationSignals || null,
+    },
     citations: research.citations.map((citation) => ({
       url: citation.url,
       domain: citation.domain,
@@ -1230,15 +1248,23 @@ async function callOllama(messages, options = {}) {
 }
 
 async function callOllamaJson(systemPrompt, userPrompt, options = {}) {
-  const content = await callOllama([
+  const messages = [
     { role: "system", content: systemPrompt },
     { role: "user", content: userPrompt },
-  ], {
+  ];
+  let content = await callOllama(messages, {
     model: options.model,
     timeoutMs: options.timeoutMs,
     format: "json",
   });
-  const candidate = extractJsonCandidate(content);
+  let candidate = extractJsonCandidate(content);
+  if (!candidate) {
+    content = await callOllama(messages, {
+      model: options.model,
+      timeoutMs: options.timeoutMs,
+    });
+    candidate = extractJsonCandidate(content);
+  }
   if (!candidate) {
     throw new Error("Ollama returned no JSON content");
   }
@@ -1303,11 +1329,135 @@ function computeRecommendationIceScore(recommendation) {
 }
 
 function scoreFlashcardCandidate(candidate) {
-  return (Number(candidate.weight || 0) * 0.45) + (Number(candidate.impact || 0) * 0.35) + (Number(candidate.confidence || 0) * 0.2);
+  return (
+    (Number(candidate.weight || 0) * 0.45) +
+    (Number(candidate.impact || 0) * 0.35) +
+    (Number(candidate.confidence || 0) * 0.2) +
+    (Number(candidate.annotationSignalScore || 0) * 4)
+  );
 }
 
 function toFeedbackExcerpt(value, max = 280) {
   return truncate(normalizeText(value) || "", max);
+}
+
+function addWeightedCount(map, key, delta) {
+  if (!key || !Number.isFinite(delta) || delta === 0) return;
+  map.set(key, (map.get(key) || 0) + delta);
+}
+
+function buildWeightedEntries(map, keyName, limit = 12, direction = "desc") {
+  const sorted = [...map.entries()]
+    .filter(([, weight]) => Number.isFinite(weight) && (direction === "desc" ? weight > 0 : weight < 0))
+    .sort((left, right) => direction === "desc" ? right[1] - left[1] : left[1] - right[1])
+    .slice(0, limit);
+  return sorted.map(([key, weight]) => ({ [keyName]: key, weight }));
+}
+
+function taskFeedbackWeight(row) {
+  const base =
+    row?.action === "MODIFY_ACCEPT" ? ANNOTATION_CLASS_WEIGHTS.taskModifyAccept :
+    row?.action === "ACCEPT" ? ANNOTATION_CLASS_WEIGHTS.taskAccept :
+    row?.action === "DECLINE" ? ANNOTATION_CLASS_WEIGHTS.taskDecline :
+    0;
+  const annotationBoost = normalizeText(row?.annotation).length > 0 ? ANNOTATION_CLASS_WEIGHTS.taskAnnotation : 0;
+  return base + annotationBoost;
+}
+
+function flashcardActionWeight(row) {
+  const base =
+    row?.action === "MODIFY_ACCEPT" ? ANNOTATION_CLASS_WEIGHTS.flashcardModifyAccept :
+    row?.action === "ACCEPT" ? ANNOTATION_CLASS_WEIGHTS.flashcardAccept :
+    row?.action === "DECLINE" ? ANNOTATION_CLASS_WEIGHTS.flashcardDecline :
+    0;
+  const rewriteBoost = normalizeText(row?.modifiedTitle).length > 0 || normalizeText(row?.modifiedBody).length > 0
+    ? ANNOTATION_CLASS_WEIGHTS.flashcardRewrite
+    : 0;
+  return base + rewriteBoost;
+}
+
+function hashtagFeedbackWeight(row) {
+  return (
+    row?.action === "USER_REMOVE" ? ANNOTATION_CLASS_WEIGHTS.hashtagUserRemove :
+    row?.action === "USER_ADD" ? ANNOTATION_CLASS_WEIGHTS.hashtagUserAdd :
+    row?.action === "AI_ACCEPT" ? ANNOTATION_CLASS_WEIGHTS.hashtagAiAccept :
+    row?.action === "AI_REJECT" ? ANNOTATION_CLASS_WEIGHTS.hashtagAiReject :
+    0
+  );
+}
+
+function summarizeWeightedPatterns(rows = [], weightSelector = () => 0) {
+  const termWeights = new Map();
+  const hashtagWeights = new Map();
+
+  for (const row of rows) {
+    const weight = Number(weightSelector(row) || 0);
+    if (!weight) continue;
+    for (const token of tokenizeText([
+      row.taskTitle,
+      row.taskDescription,
+      row.annotation,
+      row.modifiedTitle,
+      row.modifiedBody,
+    ].join(" "))) {
+      addWeightedCount(termWeights, token, weight);
+    }
+    for (const tag of normalizeHashtags(row.hashtags || [])) {
+      addWeightedCount(hashtagWeights, tag, weight);
+    }
+  }
+
+  return {
+    positiveTerms: buildWeightedEntries(termWeights, "term", 12, "desc"),
+    negativeTerms: buildWeightedEntries(termWeights, "term", 12, "asc"),
+    positiveHashtags: buildWeightedEntries(hashtagWeights, "tag", 10, "desc"),
+    negativeHashtags: buildWeightedEntries(hashtagWeights, "tag", 10, "asc"),
+  };
+}
+
+function buildWeightedClassSummary(rows = [], classSelector = () => [], weightSelector = () => 0) {
+  const summary = {};
+  for (const row of rows) {
+    const weight = Number(weightSelector(row) || 0);
+    for (const className of classSelector(row)) {
+      if (!className) continue;
+      if (!summary[className]) {
+        summary[className] = { count: 0, weight: 0 };
+      }
+      summary[className].count += 1;
+      summary[className].weight += weight;
+    }
+  }
+  return summary;
+}
+
+function scoreSignalMatch(text, hashtags = [], signals = {}) {
+  const haystack = normalizeLoose(text);
+  const normalizedTags = normalizeHashtags(hashtags);
+  const positiveTermScore = toArray(signals.positiveTerms).reduce(
+    (sum, row) => sum + (haystack.includes(normalizeLoose(row.term)) ? Number(row.weight || 0) : 0),
+    0,
+  );
+  const negativeTermScore = toArray(signals.negativeTerms).reduce(
+    (sum, row) => sum + (haystack.includes(normalizeLoose(row.term)) ? Math.abs(Number(row.weight || 0)) : 0),
+    0,
+  );
+  const positiveHashtagScore = toArray(signals.positiveHashtags).reduce(
+    (sum, row) => sum + (normalizedTags.includes(normalizeHashtag(row.tag)) ? Number(row.weight || 0) : 0),
+    0,
+  );
+  const negativeHashtagScore = toArray(signals.negativeHashtags).reduce(
+    (sum, row) => sum + (normalizedTags.includes(normalizeHashtag(row.tag)) ? Math.abs(Number(row.weight || 0)) : 0),
+    0,
+  );
+  const positive = positiveTermScore + positiveHashtagScore;
+  const negative = negativeTermScore + negativeHashtagScore;
+  return {
+    positive,
+    negative,
+    net: positive - negative,
+    suppress: negative >= 10 && positive === 0,
+  };
 }
 
 function compactFeedbackRecord(row) {
@@ -1316,6 +1466,8 @@ function compactFeedbackRecord(row) {
     taskTitle: truncate(row.taskTitle, 160),
     taskDescription: truncate(row.taskDescription, 320),
     action: row.action,
+    signalClass: row.signalClass || null,
+    weight: Number(row.weight || 0),
     annotation: toFeedbackExcerpt(row.annotation, 320),
     createdAt: row.createdAt,
   };
@@ -1352,20 +1504,26 @@ function summarizeFeedbackPatterns(rows = []) {
 
 function buildFlashcardActionIndex(rows) {
   const byFlashcardId = new Map();
+  const all = [];
   for (const row of rows || []) {
     if (!row?.flashcardId) continue;
-    if (!byFlashcardId.has(row.flashcardId)) {
-      byFlashcardId.set(row.flashcardId, []);
-    }
-    byFlashcardId.get(row.flashcardId).push({
+    const payload = {
       action: row.action,
+      signalClass: row.action === "MODIFY_ACCEPT" ? "flashcardModifyAccept" : row.action === "ACCEPT" ? "flashcardAccept" : "flashcardDecline",
+      weight: flashcardActionWeight(row),
+      hashtags: normalizeHashtags(row.hashtags),
       annotation: toFeedbackExcerpt(row.annotation),
       modifiedTitle: toFeedbackExcerpt(row.modifiedTitle, 180),
       modifiedBody: toFeedbackExcerpt(row.modifiedBody, 400),
       createdAt: isoTimestamp(row.createdAt),
-    });
+    };
+    if (!byFlashcardId.has(row.flashcardId)) {
+      byFlashcardId.set(row.flashcardId, []);
+    }
+    byFlashcardId.get(row.flashcardId).push(payload);
+    all.push(payload);
   }
-  return byFlashcardId;
+  return { byFlashcardId, all };
 }
 
 function buildTaskFeedbackIndex(existingNBA, feedbackRows) {
@@ -1382,6 +1540,8 @@ function buildTaskFeedbackIndex(existingNBA, feedbackRows) {
       taskDescription: truncate(normalizeText(row.modifiedDescription) || normalizeText(item.description) || "", 500),
       hashtags: normalizeHashtags(item.hashtags),
       action: row.action,
+      signalClass: row.action === "MODIFY_ACCEPT" ? "taskModifyAccept" : row.action === "ACCEPT" ? "taskAccept" : "taskDecline",
+      weight: taskFeedbackWeight(row),
       annotation: toFeedbackExcerpt(row.annotation, 500),
       createdAt: isoTimestamp(row.createdAt),
     };
@@ -1419,7 +1579,7 @@ function selectRelevantTaskFeedback(taskFeedbackIndex, flashcardIds = [], contex
   const ranked = uniqueCollected
     .map((row) => ({
       row,
-      score: overlapScore(contextText, [row.taskTitle, row.taskDescription, row.annotation, ...(row.hashtags || [])].join(" ")),
+      score: overlapScore(contextText, [row.taskTitle, row.taskDescription, row.annotation, ...(row.hashtags || [])].join(" ")) + (Number(row.weight || 0) * 10),
     }))
     .sort((left, right) => right.score - left.score);
 
@@ -1450,15 +1610,50 @@ function companyFeedbackPatterns(taskFeedbackIndex) {
     declinedExamples: declinedRows.slice(0, 12).map(compactFeedbackRecord),
     acceptedPatterns: summarizeFeedbackPatterns(acceptedRows),
     declinedPatterns: summarizeFeedbackPatterns(declinedRows),
+    weightedSignals: summarizeWeightedPatterns(taskFeedbackIndex.examples || [], taskFeedbackWeight),
+    weightedClasses: buildWeightedClassSummary(
+      taskFeedbackIndex.examples || [],
+      (row) => [row.signalClass, normalizeText(row.annotation).length > 0 ? "taskAnnotation" : null],
+      taskFeedbackWeight,
+    ),
   };
 }
 
-function buildFeedbackContext(taskFeedbackIndex, flashcardIds = [], contextText = "") {
+function buildFeedbackContext(taskFeedbackIndex, flashcardIds = [], contextText = "", hashtagFeedback = []) {
   const related = selectRelevantTaskFeedback(taskFeedbackIndex, flashcardIds, contextText);
   const company = companyFeedbackPatterns(taskFeedbackIndex);
+  const weightedHashtagSignals = summarizeWeightedPatterns(
+    (hashtagFeedback || []).map((row) => ({ hashtags: [row.tag], action: row.action })),
+    hashtagFeedbackWeight,
+  );
+  const weightedHashtagClasses = buildWeightedClassSummary(
+    hashtagFeedback || [],
+    (row) => [row.action === "USER_REMOVE" ? "hashtagUserRemove" : row.action === "USER_ADD" ? "hashtagUserAdd" : row.action === "AI_ACCEPT" ? "hashtagAiAccept" : row.action === "AI_REJECT" ? "hashtagAiReject" : null],
+    hashtagFeedbackWeight,
+  );
   return {
     related,
     company,
+    weightedSignals: {
+      positiveTerms: company.weightedSignals.positiveTerms,
+      negativeTerms: company.weightedSignals.negativeTerms,
+      positiveHashtags: unique([
+        ...company.weightedSignals.positiveHashtags.map((row) => row.tag),
+        ...weightedHashtagSignals.positiveHashtags.map((row) => row.tag),
+      ]).map((tag) => ({ tag, weight: 1 })),
+      negativeHashtags: unique([
+        ...company.weightedSignals.negativeHashtags.map((row) => row.tag),
+        ...weightedHashtagSignals.negativeHashtags.map((row) => row.tag),
+      ]).map((tag) => ({ tag, weight: -1 })),
+    },
+    weightedClasses: {
+      ...company.weightedClasses,
+      ...weightedHashtagClasses,
+    },
+    existingChecklistTitles: (taskFeedbackIndex.examples || [])
+      .map((row) => row.taskTitle)
+      .filter(Boolean)
+      .slice(0, 80),
   };
 }
 
@@ -1837,7 +2032,15 @@ function buildFeedbackMemorySummary(data) {
     recentTaskFeedback: (taskFeedbackIndex.examples || []).slice(0, 24).map(compactFeedbackRecord),
     recentFlashcardActions,
     flashcardActionCoverage: {
-      flashcardsWithActions: flashcardActionIndex.size,
+      flashcardsWithActions: flashcardActionIndex.byFlashcardId.size,
+    },
+    weightedAnnotationClasses: {
+      ...companyFeedbackPatterns(taskFeedbackIndex).weightedClasses,
+      ...buildWeightedClassSummary(
+        flashcardActionIndex.all,
+        (row) => [row.signalClass, normalizeText(row.modifiedTitle).length > 0 || normalizeText(row.modifiedBody).length > 0 ? "flashcardRewrite" : null],
+        flashcardActionWeight,
+      ),
     },
   };
 }
@@ -2070,15 +2273,39 @@ function topicMatchesSource(topic, source) {
 }
 
 function topicMatchesFlashcard(topic, flashcard) {
+  return scoreTopicMatch(topic, flashcard) > 0;
+}
+
+function scoreTopicMatch(topic, flashcard) {
   const label = normalizeTopicLabel(topic.label);
-  if (!label) return false;
+  if (!label) return 0;
+  const topicTags = normalizeHashtags(topic.hashtags || []);
+  const flashcardTags = normalizeHashtags(flashcard.hashtags || []);
+  const sharedTags = topicTags.filter((tag) => flashcardTags.includes(tag));
+  if (sharedTags.length > 0) {
+    return 100 + sharedTags.length;
+  }
+
   const haystack = normalizeLoose([
     flashcard.title,
     flashcard.body,
     ...(flashcard.hashtags || []),
     flashcard.userAnnotation,
   ].join(" "));
-  return haystack.includes(label) || label.split(/\s+/).every((token) => token.length > 2 && haystack.includes(token));
+  if (haystack.includes(label)) {
+    return 50 + Math.min(label.length, 20);
+  }
+
+  const tokens = label.split(/\s+/).filter((token) => token.length > 2);
+  if (tokens.length === 0) return 0;
+  const matchedTokens = tokens.filter((token) => haystack.includes(token));
+  if (matchedTokens.length === tokens.length) {
+    return 25 + matchedTokens.length;
+  }
+  if (matchedTokens.length > 0) {
+    return matchedTokens.length;
+  }
+  return 0;
 }
 
 function scoreTopicCoverage(topic, flashcards, checklistItems) {
@@ -2455,7 +2682,11 @@ function buildFlashcardGenerationPrompts(company, source, research, feedbackCont
     `Source hashtags: ${normalizeHashtags(source.hashtags).join(", ") || "none"}`,
     "",
     "Direct user feedback history:",
-    JSON.stringify(feedbackContext, null, 2),
+    JSON.stringify({
+      flashcardActions: toArray(feedbackContext.flashcardActions).slice(0, 8),
+      taskFeedback: feedbackContext.taskFeedback,
+      weightedClasses: feedbackContext.weightedClasses || {},
+    }, null, 2),
     "",
     JSON.stringify(evidencePayload, null, 2),
   ].join("\n");
@@ -2463,7 +2694,30 @@ function buildFlashcardGenerationPrompts(company, source, research, feedbackCont
   return { systemPrompt, userPrompt };
 }
 
-function parseFlashcardCandidates(raw, source, research) {
+function applyAnnotationWeightingToFlashcardCandidate(candidate, feedbackContext = {}) {
+  const flashcardSignals = scoreSignalMatch(
+    [candidate.title, candidate.body].join(" "),
+    candidate.hashtags,
+    feedbackContext?.taskFeedback?.weightedSignals || {},
+  );
+  const actionSignals = scoreSignalMatch(
+    [candidate.title, candidate.body].join(" "),
+    candidate.hashtags,
+    summarizeWeightedPatterns(toArray(feedbackContext.flashcardActions), flashcardActionWeight),
+  );
+  const net = flashcardSignals.net + actionSignals.net;
+  return {
+    ...candidate,
+    annotationSignalScore: net,
+    annotationSignals: {
+      taskFeedback: flashcardSignals,
+      flashcardActions: actionSignals,
+    },
+    suppressedByAnnotation: flashcardSignals.suppress || actionSignals.suppress,
+  };
+}
+
+function parseFlashcardCandidates(raw, source, research, feedbackContext = {}) {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((item) => {
@@ -2486,10 +2740,12 @@ function parseFlashcardCandidates(raw, source, research) {
         hashtags: mergeHashtags(source.hashtags, item.hashtags, deriveKeywordHashtags(item.title, item.body)).slice(0, 10),
       };
     })
+    .map((item) => item ? applyAnnotationWeightingToFlashcardCandidate(item, feedbackContext) : null)
     .filter((item) =>
       item &&
       item.title &&
-      item.body,
+      item.body &&
+      !item.suppressedByAnnotation,
     )
     .sort((left, right) => scoreFlashcardCandidate(right) - scoreFlashcardCandidate(left))
     .slice(0, 5);
@@ -2498,7 +2754,7 @@ function parseFlashcardCandidates(raw, source, research) {
 async function generateFlashcardCandidates(company, source, research, feedbackContext = {}, options = {}) {
   const { systemPrompt, userPrompt } = buildFlashcardGenerationPrompts(company, source, research, feedbackContext);
   const raw = await callOllamaJson(systemPrompt, userPrompt, options);
-  return parseFlashcardCandidates(raw, source, research);
+  return parseFlashcardCandidates(raw, source, research, feedbackContext);
 }
 
 function buildSynthesisPrompts(company, topic, sources) {
@@ -2793,6 +3049,12 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
   const seenFingerprints = new Set();
   const flashcardActionIndex = buildFlashcardActionIndex(data.flashcardActions);
   const taskFeedbackIndex = buildTaskFeedbackIndex(data.existingNBA, data.feedback);
+  const companyTaskFeedbackPatterns = companyFeedbackPatterns(taskFeedbackIndex);
+  const flashcardActionWeightedClasses = buildWeightedClassSummary(
+    flashcardActionIndex.all,
+    (row) => [row.signalClass, normalizeText(row.modifiedTitle).length > 0 || normalizeText(row.modifiedBody).length > 0 ? "flashcardRewrite" : null],
+    flashcardActionWeight,
+  );
 
   let created = 0;
   let updated = 0;
@@ -2808,11 +3070,12 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
       const existing = existingByFingerprint.get(source.fingerprint) || await findFlashcardByFingerprint(companyId, source.fingerprint);
       const relatedFlashcardIds = existing?.id ? [existing.id] : [];
       const feedbackContext = {
-        flashcardActions: existing?.id ? (flashcardActionIndex.get(existing.id) || []).slice(0, 12) : [],
+        flashcardActions: existing?.id ? (flashcardActionIndex.byFlashcardId.get(existing.id) || []).slice(0, 12) : [],
         taskFeedback: buildFeedbackContext(
           taskFeedbackIndex,
           relatedFlashcardIds,
           [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" "),
+          data.hashtagFeedback,
         ),
       };
       generatedItems = await generateFlashcardCandidates(company, source, research, feedbackContext);
@@ -2820,13 +3083,16 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
       console.error(`Flashcard generation failed for ${companyId}/${source.sourceType}/${source.sourceId}: ${error.message}`);
       const prompts = buildFlashcardGenerationPrompts(company, source, research, {
         flashcardActions: [],
-        taskFeedback: buildFeedbackContext(taskFeedbackIndex, [], [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" ")),
+        taskFeedback: buildFeedbackContext(taskFeedbackIndex, [], [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" "), data.hashtagFeedback),
       });
       try {
         generatedItems = await runFailsafeModel(
           "source-flashcards",
           prompts,
-          (raw) => parseFlashcardCandidates(raw, source, research),
+          (raw) => parseFlashcardCandidates(raw, source, research, {
+            flashcardActions: [],
+            taskFeedback: buildFeedbackContext(taskFeedbackIndex, [], [source.sourceName, source.promptBody, ...(source.hashtags || [])].join(" "), data.hashtagFeedback),
+          }),
           {
             companyId,
             sourceId: source.sourceId,
@@ -2991,21 +3257,48 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
       lane: "flashcardRevisit",
       flashcardsCreated: created + synthesis.created,
       flashcardsUpdated: updated + synthesis.updated,
+      annotationWeightedClasses: Object.keys(companyTaskFeedbackPatterns.weightedClasses || {}).length,
     });
   }
 
-  return { created: created + synthesis.created, updated: updated + synthesis.updated, stale: staleCandidates.length, researched };
+  return {
+    created: created + synthesis.created,
+    updated: updated + synthesis.updated,
+    stale: staleCandidates.length,
+    researched,
+    annotationSignals: {
+      weightedClasses: companyTaskFeedbackPatterns.weightedClasses,
+      flashcardActionWeightedClasses,
+    },
+  };
 }
 
 async function evictProcessedSources(companyId, data) {
   return 0;
 }
 
-function buildRecommendationPrompts(company, flashcards, focusTopics = [], feedbackContext = {}) {
-  const cards = flashcards.slice(0, 25).map((card) => ({
+function selectRecommendationSeedFlashcards(flashcards = [], limit = 12) {
+  const preferredKinds = ["RECOMMENDATION", "RESEARCH", "PRICE", "FORECAST", "NEWS", "COMPARISON", "EVALUATION"];
+  return [...flashcards]
+    .sort((left, right) => {
+      const leftPreferred = preferredKinds.includes(left.kind) ? 1 : 0;
+      const rightPreferred = preferredKinds.includes(right.kind) ? 1 : 0;
+      return rightPreferred - leftPreferred ||
+        Number(right.impact || 0) - Number(left.impact || 0) ||
+        Number(right.weight || 0) - Number(left.weight || 0) ||
+        Number(right.confidence || 0) - Number(left.confidence || 0);
+    })
+    .slice(0, limit);
+}
+
+function buildRecommendationPrompts(company, flashcards, focusTopics = [], feedbackContext = {}, options = {}) {
+  const compact = Boolean(options.compact);
+  const selectedFlashcards = selectRecommendationSeedFlashcards(flashcards, compact ? 6 : 12);
+  const cards = selectedFlashcards.map((card, index) => ({
+    ref: index + 1,
     id: card.id,
     title: card.title,
-    body: truncate(card.body, 400),
+    body: truncate(card.body, compact ? 180 : 320),
     hashtags: normalizeHashtags(card.hashtags),
     kind: card.kind,
     confidence: card.confidence,
@@ -3021,26 +3314,49 @@ function buildRecommendationPrompts(company, flashcards, focusTopics = [], feedb
   const systemPrompt = [
     "You generate zero or more Checklist recommendations as strict JSON.",
     "Return a JSON array of objects.",
-    "Each object must contain: title, description, impact, confidence, ease, sourceFlashcardIds, hashtags.",
+    "Each object must contain: title, description, impact, confidence, ease, sourceFlashcardRefs, hashtags.",
     "impact and ease are integers from 1 to 10.",
     "confidence is an integer from 1 to 100.",
+    "sourceFlashcardRefs is an array of integer refs from the provided flashcards.",
     "Prefer the strongest grounded flashcards first.",
+    "Create concrete next actions with a named owner role and a measurable outcome.",
+    "Do not use template phrasing like 'Act on:' or 'Turn the flashcard'.",
+    "Do not restate the flashcard title as the task title.",
+    "Avoid near-duplicates of existing or archived checklist items.",
     "It is valid to return an empty array when the evidence is weak, too generic, redundant, unsupported, or not actionable enough.",
     "One flashcard can justify zero, one, or many checklist items.",
     "Treat accepted archived task feedback and user annotations as the strongest signal for what good checklist items look like.",
     "Treat declined feedback as a pattern to avoid.",
     "If users rewrote or annotated accepted tasks, mirror that direction.",
-    "sourceFlashcardIds must contain one or more ids from the provided flashcards.",
+    "Every task must reference one or more flashcards.",
     "Do not force a quota of results.",
     "Do not include markdown fences or extra text.",
   ].join(" ");
+
+  const compactFeedback = {
+    related: {
+      acceptedTitles: toArray(feedbackContext?.related?.accepted).slice(0, compact ? 2 : 4).map((row) => row.taskTitle),
+      declinedTitles: toArray(feedbackContext?.related?.declined).slice(0, compact ? 2 : 4).map((row) => row.taskTitle),
+    },
+    company: {
+      acceptedPatterns: feedbackContext?.company?.acceptedPatterns || { topTerms: [], topHashtags: [] },
+      declinedPatterns: feedbackContext?.company?.declinedPatterns || { topTerms: [], topHashtags: [] },
+      weightedSignals: feedbackContext?.company?.weightedSignals || { positiveTerms: [], negativeTerms: [], positiveHashtags: [], negativeHashtags: [] },
+      weightedClasses: feedbackContext?.company?.weightedClasses || {},
+      acceptedExampleTitles: compact ? [] : toArray(feedbackContext?.company?.acceptedExamples).slice(0, 4).map((row) => row.taskTitle),
+      declinedExampleTitles: compact ? [] : toArray(feedbackContext?.company?.declinedExamples).slice(0, 4).map((row) => row.taskTitle),
+    },
+    weightedSignals: feedbackContext?.weightedSignals || { positiveTerms: [], negativeTerms: [], positiveHashtags: [], negativeHashtags: [] },
+    weightedClasses: feedbackContext?.weightedClasses || {},
+    existingChecklistTitles: toArray(feedbackContext?.existingChecklistTitles).slice(0, compact ? 10 : 20),
+  };
 
   const userPrompt = [
     `Company: ${company.name}`,
     `Main goal: ${normalizeText(company.mainGoal) || "n/a"}`,
     `Active topics: ${focusTopics.map((topic) => topic.label).join(", ") || "none"}`,
-    "Archived user feedback patterns:",
-    JSON.stringify(feedbackContext, null, 2),
+    "Feedback and duplicate-avoidance signals:",
+    JSON.stringify(compactFeedback, null, 2),
     "Flashcards:",
     JSON.stringify(cards, null, 2),
   ].join("\n");
@@ -3048,20 +3364,48 @@ function buildRecommendationPrompts(company, flashcards, focusTopics = [], feedb
   return { systemPrompt, userPrompt, cards };
 }
 
-function parseRecommendationCandidates(raw, cards) {
+function applyAnnotationWeightingToRecommendation(candidate, feedbackContext = {}) {
+  const taskSignals = scoreSignalMatch(
+    [candidate.title, candidate.description].join(" "),
+    candidate.hashtags,
+    feedbackContext?.weightedSignals || {},
+  );
+  return {
+    ...candidate,
+    annotationSignalScore: taskSignals.net,
+    annotationSignals: taskSignals,
+    suppressedByAnnotation: taskSignals.suppress,
+  };
+}
+
+function scoreRecommendationCandidate(candidate) {
+  return computeRecommendationIceScore(candidate) + (Number(candidate.annotationSignalScore || 0) * 15);
+}
+
+function parseRecommendationCandidates(raw, cards, feedbackContext = {}) {
   if (!Array.isArray(raw)) return [];
   const allowedIds = new Set(cards.map((card) => card.id));
+  const refToId = new Map(cards.map((card) => [card.ref, card.id]));
   return raw
     .map((item) => {
       const impact = parseBoundedInt(item.impact, 1, 10);
       const confidence = parseBoundedInt(item.confidence, 1, 100);
       const ease = parseBoundedInt(item.ease, 1, 10);
-      const sourceFlashcardIds = toArray(item.sourceFlashcardIds).filter((id) => allowedIds.has(id));
+      const sourceFlashcardRefs = toArray(item.sourceFlashcardRefs)
+        .map((value) => parseBoundedInt(value, 1, cards.length))
+        .filter((value) => value !== null)
+        .map((value) => refToId.get(value))
+        .filter(Boolean);
+      const sourceFlashcardIds = unique(
+        sourceFlashcardRefs.concat(
+          toArray(item.sourceFlashcardIds).filter((id) => allowedIds.has(id)),
+        ),
+      );
       if (!item.title || !item.description || impact === null || confidence === null || ease === null || sourceFlashcardIds.length === 0) {
         return null;
       }
       return {
-        title: truncate(item.title, 160),
+        title: truncate(normalizeText(item.title).replace(/^act on:\s*/i, ""), 160),
         description: truncate(item.description, 600),
         impact,
         confidence,
@@ -3070,14 +3414,21 @@ function parseRecommendationCandidates(raw, cards) {
         hashtags: normalizeHashtags(item.hashtags),
       };
     })
-    .filter((item) => item && item.title && item.description && item.sourceFlashcardIds.length > 0)
-    .sort((left, right) => computeRecommendationIceScore(right) - computeRecommendationIceScore(left));
+    .map((item) => item ? applyAnnotationWeightingToRecommendation(item, feedbackContext) : null)
+    .filter((item) => item && item.title && item.description && item.sourceFlashcardIds.length > 0 && !item.suppressedByAnnotation)
+    .sort((left, right) => scoreRecommendationCandidate(right) - scoreRecommendationCandidate(left));
 }
 
 async function generateRecommendationCandidates(company, flashcards, focusTopics = [], feedbackContext = {}, options = {}) {
-  const { systemPrompt, userPrompt, cards } = buildRecommendationPrompts(company, flashcards, focusTopics, feedbackContext);
-  const raw = await callOllamaJson(systemPrompt, userPrompt, options);
-  return parseRecommendationCandidates(raw, cards);
+  const primaryPrompts = buildRecommendationPrompts(company, flashcards, focusTopics, feedbackContext, { compact: false });
+  try {
+    const raw = await callOllamaJson(primaryPrompts.systemPrompt, primaryPrompts.userPrompt, options);
+    return parseRecommendationCandidates(raw, primaryPrompts.cards, feedbackContext);
+  } catch (error) {
+    const compactPrompts = buildRecommendationPrompts(company, flashcards, focusTopics, feedbackContext, { compact: true });
+    const raw = await callOllamaJson(compactPrompts.systemPrompt, compactPrompts.userPrompt, options);
+    return parseRecommendationCandidates(raw, compactPrompts.cards, feedbackContext);
+  }
 }
 
 async function persistRecommendationCandidates(companyId, existingNBA, activeFlashcards, candidates) {
@@ -3256,6 +3607,9 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
       { updatedAt: "desc" },
     ],
   });
+  if (activeFlashcards.length === 0) {
+    return { created: 0, updated: 0, skipped: true, error: "no-active-flashcards" };
+  }
 
   let candidates = [];
   let recommendationError = null;
@@ -3271,6 +3625,7 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
       .slice(0, 25)
       .map((card) => [card.title, card.body, ...(card.hashtags || []), card.userAnnotation].join(" "))
       .join("\n"),
+    (await prisma.hashtagFeedback.findMany({ where: { companyId }, orderBy: { createdAt: "desc" }, take: 200 })),
   );
   try {
     candidates = await generateRecommendationCandidates(
@@ -3288,11 +3643,11 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
     console.error(`Recommendation generation produced no output for ${companyId}: ${reason}`);
     if (recommendationError) {
       try {
-        const prompts = buildRecommendationPrompts(company, activeFlashcards, focusTopics, feedbackContext);
+        const prompts = buildRecommendationPrompts(company, activeFlashcards, focusTopics, feedbackContext, { compact: true });
         candidates = await runFailsafeModel(
           "company-recommendations",
           prompts,
-          (raw) => parseRecommendationCandidates(raw, prompts.cards),
+          (raw) => parseRecommendationCandidates(raw, prompts.cards, feedbackContext),
           {
             companyId,
             flashcardCount: activeFlashcards.length,
@@ -3311,6 +3666,13 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
     }
   }
   const { created, updated } = await persistRecommendationCandidates(companyId, existingNBA, activeFlashcards, candidates);
+  const annotationSignals = {
+    weightedClasses: feedbackContext.weightedClasses || {},
+    positiveTerms: toArray(feedbackContext.weightedSignals?.positiveTerms).slice(0, 6),
+    negativeTerms: toArray(feedbackContext.weightedSignals?.negativeTerms).slice(0, 6),
+    positiveHashtags: toArray(feedbackContext.weightedSignals?.positiveHashtags).slice(0, 6),
+    negativeHashtags: toArray(feedbackContext.weightedSignals?.negativeHashtags).slice(0, 6),
+  };
 
   if (created > 0 || updated > 0) {
     markMeaningfulProgress({
@@ -3318,10 +3680,20 @@ async function syncRecommendations(companyId, company, existingNBA, focusTopics 
       lane: "taskRevisit",
       taskcardsCreated: created,
       taskcardsUpdated: updated,
+      annotationWeightedClasses: Object.keys(annotationSignals.weightedClasses).length,
     });
   }
 
-  return { created, updated };
+  return { created, updated, annotationSignals };
+}
+
+function mergeRecommendationRuns(...runs) {
+  return runs.reduce((accumulator, run) => ({
+    created: accumulator.created + Number(run?.created || 0),
+    updated: accumulator.updated + Number(run?.updated || 0),
+    skipped: Boolean(accumulator.skipped && run?.skipped),
+    errors: accumulator.errors.concat(run?.error ? [run.error] : []),
+  }), { created: 0, updated: 0, skipped: true, errors: [] });
 }
 
 async function processCompany(companyId, reason = {}) {
@@ -3332,9 +3704,20 @@ async function processCompany(companyId, reason = {}) {
   }
 
   const focusTopics = selectResearchTopics(data, 5);
+  const recommendationsBeforeFlashcards = await syncRecommendations(companyId, data.company, data.existingNBA, focusTopics);
   const flashcards = await syncFlashcards(companyId, data.company, data, previousKnowledge);
-  const recommendations = await syncRecommendations(companyId, data.company, data.existingNBA, focusTopics);
+  const refreshedData = await getAllData(companyId);
+  const recommendationsAfterFlashcards = await syncRecommendations(
+    companyId,
+    refreshedData.company || data.company,
+    refreshedData.existingNBA || data.existingNBA,
+    selectResearchTopics(refreshedData, 5),
+  );
+  const recommendations = mergeRecommendationRuns(recommendationsBeforeFlashcards, recommendationsAfterFlashcards);
   const nextData = await getAllData(companyId);
+  const taskFeedbackIndex = buildTaskFeedbackIndex(nextData.existingNBA, nextData.feedback);
+  const companyPatterns = companyFeedbackPatterns(taskFeedbackIndex);
+
   await saveKnowledge(companyId, {
     snapshot: buildSnapshot(nextData),
     lastTriggeredBy: reason,
@@ -3350,7 +3733,17 @@ async function processCompany(companyId, reason = {}) {
       refreshHours: RESEARCH_REFRESH_HOURS,
       lastRunAt: isoTimestamp(),
     },
-    memory: buildFeedbackMemorySummary(nextData),
+    memory: {
+      ...buildFeedbackMemorySummary(nextData),
+      weightedSignals: companyPatterns.weightedSignals,
+      weightedClasses: companyPatterns.weightedClasses,
+    },
+  });
+
+  appendRuntimeMetric({
+    type: "company-patterns-update",
+    companyId,
+    weightedClasses: companyPatterns.weightedClasses,
   });
 
   await evictProcessedSources(companyId, data);
@@ -3449,7 +3842,22 @@ function buildResearchHarvestSourceContent(company, flashcard, citation, topics 
 async function harvestResearchSources(companyId, company, data, batchSize = RESEARCH_HARVEST_BATCH_SIZE) {
   const activeTopics = selectResearchTopics(data, 5);
   if (activeTopics.length === 0) {
-    return { companyId, processed: 0, createdSources: 0, skipped: 0, reason: "no-active-topics" };
+    return {
+      companyId,
+      processed: 0,
+      createdSources: 0,
+      skipped: 0,
+      reason: "no-active-topics",
+      flashcardsScanned: 0,
+      flashcardsResearched: 0,
+      topicMatchedFlashcards: 0,
+      topicFallbackFlashcards: 0,
+      queriesRun: 0,
+      citationsFetched: 0,
+      duplicateCitations: 0,
+      noPrimarySource: 0,
+      noCitations: 0,
+    };
   }
 
   const flashcards = (data.flashcards || [])
@@ -3462,12 +3870,31 @@ async function harvestResearchSources(companyId, company, data, batchSize = RESE
   let processed = 0;
   let createdSources = 0;
   let skipped = 0;
+  let flashcardsScanned = 0;
+  let flashcardsResearched = 0;
+  let topicMatchedFlashcards = 0;
+  let topicFallbackFlashcards = 0;
+  let queriesRun = 0;
+  let citationsFetched = 0;
+  let duplicateCitations = 0;
+  let noPrimarySource = 0;
+  let noCitations = 0;
 
   for (const flashcard of flashcards) {
     if (processed >= batchSize) break;
-    const matchedTopics = activeTopics.filter((topic) => topicMatchesFlashcard(topic, flashcard));
-    if (matchedTopics.length === 0) {
+    flashcardsScanned += 1;
+    const scoredTopics = activeTopics
+      .map((topic) => ({ topic, score: scoreTopicMatch(topic, flashcard) }))
+      .sort((left, right) => right.score - left.score || left.topic.sortOrder - right.topic.sortOrder);
+    const matchedTopics = scoredTopics.filter((entry) => entry.score > 0).map((entry) => entry.topic);
+    const fallbackTopics = matchedTopics.length > 0 ? matchedTopics : activeTopics.slice(0, Math.min(activeTopics.length, 2));
+    if (fallbackTopics.length === 0) {
       continue;
+    }
+    if (matchedTopics.length > 0) {
+      topicMatchedFlashcards += 1;
+    } else {
+      topicFallbackFlashcards += 1;
     }
 
     const primarySource = await prisma.flashcardSource.findFirst({
@@ -3475,9 +3902,11 @@ async function harvestResearchSources(companyId, company, data, batchSize = RESE
     });
     if (!primarySource) {
       skipped += 1;
+      noPrimarySource += 1;
       continue;
     }
 
+    const flashcardTags = normalizeHashtags(flashcard.hashtags || []).slice(0, 4);
     const source = {
       sourceType: primarySource.sourceType,
       sourceId: primarySource.sourceId,
@@ -3486,13 +3915,21 @@ async function harvestResearchSources(companyId, company, data, batchSize = RESE
       promptBody: flashcard.generatedBody || flashcard.body,
       fingerprint: flashcard.fingerprint,
       hashtags: flashcard.hashtags,
-      queryHints: matchedTopics.map((topic) => `${company.name} ${topic.label}`),
+      queryHints: unique([
+        ...fallbackTopics.map((topic) => `${company.name} ${topic.label}`),
+        flashcard.title ? `${company.name} ${flashcard.title}` : null,
+        ...flashcardTags.map((tag) => `${company.name} ${tag.replace(/[_-]+/g, " ")}`),
+      ].filter(Boolean)),
       urls: [],
     };
-    const research = await discoverResearch(company, source, matchedTopics);
+    flashcardsResearched += 1;
+    const research = await discoverResearch(company, source, fallbackTopics);
+    queriesRun += Array.isArray(research.queries) ? research.queries.length : 0;
     const citations = (research.citations || []).filter((citation) => citation.url && citation.excerpt);
+    citationsFetched += citations.length;
     if (citations.length === 0) {
       skipped += 1;
+      noCitations += 1;
       processed += 1;
       continue;
     }
@@ -3507,6 +3944,7 @@ async function harvestResearchSources(companyId, company, data, batchSize = RESE
       });
       if (existing) {
         skipped += 1;
+        duplicateCitations += 1;
         continue;
       }
 
@@ -3516,9 +3954,9 @@ async function harvestResearchSources(companyId, company, data, batchSize = RESE
           id: crypto.randomUUID(),
           companyId,
           publicId,
-          content: buildResearchHarvestSourceContent(company, flashcard, citation, matchedTopics),
-          hashtags: mergeHashtags(flashcard.hashtags, matchedTopics.flatMap((topic) => topic.hashtags)),
-          aiClusters: normalizeHashtags(matchedTopics.map((topic) => topic.label)),
+          content: buildResearchHarvestSourceContent(company, flashcard, citation, fallbackTopics),
+          hashtags: mergeHashtags(flashcard.hashtags, fallbackTopics.flatMap((topic) => topic.hashtags)),
+          aiClusters: normalizeHashtags(fallbackTopics.map((topic) => topic.label)),
           entityTag: "research-harvest",
           metadata: {
             origin: "research-harvest",
@@ -3533,10 +3971,11 @@ async function harvestResearchSources(companyId, company, data, batchSize = RESE
             sourceSnippet: citation.snippet,
             sourceKind: citation.sourceKind,
             query: citation.query,
-            topics: matchedTopics.map((topic) => ({
+            topics: fallbackTopics.map((topic) => ({
               id: topic.id,
               label: topic.label,
             })),
+            topicMatchMode: matchedTopics.length > 0 ? "matched" : "fallback",
           },
           legacyOriginKey,
         },
@@ -3556,7 +3995,21 @@ async function harvestResearchSources(companyId, company, data, batchSize = RESE
     await processCompany(companyId, { trigger: "research-harvest" });
   }
 
-  return { companyId, processed, createdSources, skipped };
+  return {
+    companyId,
+    processed,
+    createdSources,
+    skipped,
+    flashcardsScanned,
+    flashcardsResearched,
+    topicMatchedFlashcards,
+    topicFallbackFlashcards,
+    queriesRun,
+    citationsFetched,
+    duplicateCitations,
+    noPrimarySource,
+    noCitations,
+  };
 }
 
 async function processPollingLane(companyId) {
@@ -3609,11 +4062,26 @@ async function processPollingLane(companyId) {
 
 async function refreshOldestFlashcards(companyId, batchSize = FLASHCARD_REVISIT_BATCH_SIZE) {
   console.log(`Flashcard Revisit: checking oldest active flashcards for company ${companyId}...`);
-  const flashcards = await prisma.flashcard.findMany({
+  const priorityData = await getAllData(companyId);
+  const priorityTaskFeedbackIndex = buildTaskFeedbackIndex(priorityData.existingNBA, priorityData.feedback);
+  const priorityFlashcardActionIndex = buildFlashcardActionIndex(priorityData.flashcardActions);
+  const flashcards = (await prisma.flashcard.findMany({
     where: { companyId, status: "ACTIVE" },
     orderBy: [{ lastActionAt: "asc" }, { refreshedAt: "asc" }, { updatedAt: "asc" }],
-    take: batchSize,
-  });
+    take: Math.max(batchSize * 6, batchSize),
+  }))
+    .sort((left, right) =>
+      scoreFlashcardRevisitPriority(
+        right,
+        priorityFlashcardActionIndex.byFlashcardId.get(right.id) || [],
+        priorityTaskFeedbackIndex.byFlashcardId.get(right.id) || [],
+      ) - scoreFlashcardRevisitPriority(
+        left,
+        priorityFlashcardActionIndex.byFlashcardId.get(left.id) || [],
+        priorityTaskFeedbackIndex.byFlashcardId.get(left.id) || [],
+      ),
+    )
+    .slice(0, batchSize);
 
   let processed = 0;
   let updated = 0;
@@ -3652,11 +4120,12 @@ async function refreshOldestFlashcards(companyId, batchSize = FLASHCARD_REVISIT_
     );
     const research = await discoverResearch(data.company, source, relatedTopics);
     const feedbackContext = {
-      flashcardActions: (flashcardActionIndex.get(flashcard.id) || []).slice(0, 12),
+      flashcardActions: (flashcardActionIndex.byFlashcardId.get(flashcard.id) || []).slice(0, 12),
       taskFeedback: buildFeedbackContext(
         taskFeedbackIndex,
         [flashcard.id],
         [flashcard.title, flashcard.body, source.promptBody, ...(flashcard.hashtags || [])].join(" "),
+        data.hashtagFeedback,
       ),
     };
     let generatedCandidates = [];
@@ -3755,6 +4224,7 @@ async function revisitOldestTasks(companyId, batchSize = TASK_REVISIT_BATCH_SIZE
       taskFeedbackIndex,
       sourceCards.map((card) => card.id),
       [task.title, task.description, task.userAnnotation, ...sourceCards.map((card) => `${card.title}\n${card.body}`)].filter(Boolean).join("\n"),
+      data.hashtagFeedback,
     );
     let candidates = [];
     try {
@@ -3770,12 +4240,13 @@ async function revisitOldestTasks(companyId, batchSize = TASK_REVISIT_BATCH_SIZE
         sourceCards,
         selectResearchTopics(data, 5),
         feedbackContext,
+        { compact: true },
       );
       try {
         candidates = await runFailsafeModel(
           "task-revisit",
           prompts,
-          (raw) => parseRecommendationCandidates(raw, prompts.cards),
+          (raw) => parseRecommendationCandidates(raw, prompts.cards, feedbackContext),
           {
             companyId,
             taskId: task.id,
@@ -4012,6 +4483,13 @@ function taskKeepScore(task) {
   const qualityBoost = Number(task.iceScore || 0) + Number(task.confidence || 0) + Number(task.impact || 0) + Number(task.ease || 0);
   const recencyPenalty = new Date(task.updatedAt || task.createdAt || Date.now()).getTime() / 1_000_000_000_000;
   return statusBoost + annotationBoost + qualityBoost - recencyPenalty;
+}
+
+function scoreFlashcardRevisitPriority(card, flashcardActions = [], relatedTaskFeedback = []) {
+  const flashcardSignal = toArray(flashcardActions).reduce((sum, row) => sum + Number(row.weight || 0), 0);
+  const taskSignal = toArray(relatedTaskFeedback).reduce((sum, row) => sum + Number(row.weight || 0), 0);
+  const ageBoost = Date.now() - new Date(card.lastActionAt || card.refreshedAt || card.updatedAt || card.createdAt || Date.now()).getTime();
+  return ageBoost + ((flashcardSignal + taskSignal) * 60_000);
 }
 
 function remapSourceFlashcardIds(ids, canonicalFlashcardIds) {
@@ -4349,6 +4827,296 @@ async function buildLaneBacklogEstimates() {
   };
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseCliArgs(argv = []) {
+  const out = {
+    researchProbeCli: false,
+    taskProbeCli: false,
+    minutes: 10,
+    companyIds: [],
+  };
+  for (let i = 0; i < argv.length; i += 1) {
+    const token = argv[i];
+    if (token === "--research-probe-cli") {
+      out.researchProbeCli = true;
+      continue;
+    }
+    if (token === "--task-probe-cli") {
+      out.taskProbeCli = true;
+      continue;
+    }
+    if (token === "--minutes" && argv[i + 1]) {
+      out.minutes = Math.max(Number(argv[i + 1]) || 10, 1);
+      i += 1;
+      continue;
+    }
+    if (token === "--company" && argv[i + 1]) {
+      const companyId = normalizeText(argv[i + 1]);
+      if (companyId) out.companyIds.push(companyId);
+      i += 1;
+    }
+  }
+  return out;
+}
+
+async function runResearchProbe(minutes = 10, companyIds = []) {
+  const durationMs = Math.max(Number(minutes || 10), 1) * 60_000;
+  const startedAt = new Date();
+  const startedMs = startedAt.getTime();
+  const deadline = startedMs + durationMs;
+
+  const allCompanies = await prisma.company.findMany({
+    select: { id: true, name: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const selectedCompanies = companyIds.length > 0
+    ? allCompanies.filter((company) => companyIds.includes(company.id))
+    : allCompanies;
+
+  const iterations = [];
+  const probeTotals = {
+    flashcardsScanned: 0,
+    flashcardsResearched: 0,
+    topicMatchedFlashcards: 0,
+    topicFallbackFlashcards: 0,
+    queriesRun: 0,
+    citationsFetched: 0,
+    duplicateCitations: 0,
+    noPrimarySource: 0,
+    noCitations: 0,
+  };
+  let cursor = 0;
+  while (Date.now() < deadline) {
+    if (selectedCompanies.length === 0) {
+      break;
+    }
+    const company = selectedCompanies[cursor % selectedCompanies.length];
+    cursor += 1;
+    const remainingMs = Math.max(deadline - Date.now(), 1000);
+    const iterationTimeoutMs = Math.max(Math.min(remainingMs, RESEARCH_TIMEOUT_MS + 15_000), 1000);
+    const data = await getAllData(company.id);
+    if (!data.company) {
+      iterations.push({
+        at: isoTimestamp(),
+        companyId: company.id,
+        companyName: company.name,
+        processed: 0,
+        createdSources: 0,
+        skipped: 0,
+        reason: "company-missing",
+      });
+      await sleep(500);
+      continue;
+    }
+    try {
+      const result = await Promise.race([
+        harvestResearchSources(
+          company.id,
+          data.company,
+          data,
+          RESEARCH_HARVEST_BATCH_SIZE,
+        ),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(`research probe iteration timed out after ${iterationTimeoutMs}ms`)), iterationTimeoutMs);
+        }),
+      ]);
+      iterations.push({
+        at: isoTimestamp(),
+        companyId: company.id,
+        companyName: company.name,
+        processed: Number(result.processed || 0),
+        createdSources: Number(result.createdSources || 0),
+        skipped: Number(result.skipped || 0),
+        flashcardsScanned: Number(result.flashcardsScanned || 0),
+        flashcardsResearched: Number(result.flashcardsResearched || 0),
+        topicMatchedFlashcards: Number(result.topicMatchedFlashcards || 0),
+        topicFallbackFlashcards: Number(result.topicFallbackFlashcards || 0),
+        queriesRun: Number(result.queriesRun || 0),
+        citationsFetched: Number(result.citationsFetched || 0),
+      });
+      for (const key of Object.keys(probeTotals)) {
+        probeTotals[key] += Number(result[key] || 0);
+      }
+    } catch (error) {
+      iterations.push({
+        at: isoTimestamp(),
+        companyId: company.id,
+        companyName: company.name,
+        processed: 0,
+        createdSources: 0,
+        skipped: 0,
+        reason: error.message || "probe-iteration-failed",
+      });
+    }
+    if (Date.now() < deadline) {
+      await sleep(500);
+    }
+  }
+
+  const allRecentSources = await prisma.source.findMany({
+    where: {
+      createdAt: {
+        gte: startedAt,
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  const findings = allRecentSources
+    .filter((source) => String(source.legacyOriginKey || "").startsWith("research-harvest:"))
+    .map((source) => ({
+      companyId: source.companyId,
+      publicId: source.publicId,
+      createdAt: isoTimestamp(source.createdAt),
+      sourceUrl: source?.metadata?.sourceUrl || null,
+      sourceDomain: source?.metadata?.sourceDomain || null,
+      sourceTitle: source?.metadata?.sourceTitle || null,
+      query: source?.metadata?.query || null,
+      contentPreview: truncate(source.content, 260),
+      hashtags: normalizeHashtags(source.hashtags).slice(0, 10),
+    }));
+
+  const byCompany = {};
+  for (const company of selectedCompanies) {
+    const companyIterations = iterations.filter((row) => row.companyId === company.id);
+    byCompany[company.id] = {
+      companyName: company.name,
+      createdSources: findings.filter((row) => row.companyId === company.id).length,
+      iterations: companyIterations.length,
+      flashcardsScanned: companyIterations.reduce((sum, row) => sum + Number(row.flashcardsScanned || 0), 0),
+      flashcardsResearched: companyIterations.reduce((sum, row) => sum + Number(row.flashcardsResearched || 0), 0),
+      topicMatchedFlashcards: companyIterations.reduce((sum, row) => sum + Number(row.topicMatchedFlashcards || 0), 0),
+      topicFallbackFlashcards: companyIterations.reduce((sum, row) => sum + Number(row.topicFallbackFlashcards || 0), 0),
+      queriesRun: companyIterations.reduce((sum, row) => sum + Number(row.queriesRun || 0), 0),
+      citationsFetched: companyIterations.reduce((sum, row) => sum + Number(row.citationsFetched || 0), 0),
+    };
+  }
+
+  return {
+    startedAt: isoTimestamp(startedAt),
+    finishedAt: isoTimestamp(),
+    durationMinutes: durationMs / 60_000,
+    selectedCompanyCount: selectedCompanies.length,
+    iterations: iterations.length,
+    findingsCount: findings.length,
+    probeTotals,
+    byCompany,
+    findings,
+  };
+}
+
+async function runTaskCreationProbe(minutes = 10, companyIds = []) {
+  const durationMs = Math.max(Number(minutes || 10), 1) * 60_000;
+  const startedAt = new Date();
+  const deadline = startedAt.getTime() + durationMs;
+
+  const allCompanies = await prisma.company.findMany({
+    select: { id: true, name: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const selectedCompanies = companyIds.length > 0
+    ? allCompanies.filter((company) => companyIds.includes(company.id))
+    : allCompanies;
+
+  const iterations = [];
+  const totals = {
+    flashcardsSeen: 0,
+    recommendationRuns: 0,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: 0,
+  };
+  let cursor = 0;
+
+  while (Date.now() < deadline) {
+    if (selectedCompanies.length === 0) break;
+    const company = selectedCompanies[cursor % selectedCompanies.length];
+    cursor += 1;
+
+    const data = await getAllData(company.id);
+    if (!data.company) {
+      iterations.push({
+        at: isoTimestamp(),
+        companyId: company.id,
+        companyName: company.name,
+        created: 0,
+        updated: 0,
+        skipped: true,
+        reason: "company-missing",
+      });
+      await sleep(500);
+      continue;
+    }
+
+    const activeFlashcards = (data.flashcards || []).filter((card) => card.status === "ACTIVE" && card.reviewStatus !== "DECLINED");
+    totals.flashcardsSeen += activeFlashcards.length;
+    totals.recommendationRuns += 1;
+    if (activeFlashcards.length === 0) {
+      totals.skipped += 1;
+      iterations.push({
+        at: isoTimestamp(),
+        companyId: company.id,
+        companyName: company.name,
+        activeFlashcards: 0,
+        created: 0,
+        updated: 0,
+        skipped: true,
+        error: null,
+        reason: "no-active-flashcards",
+      });
+      if (Date.now() < deadline) {
+        await sleep(500);
+      }
+      continue;
+    }
+    const result = await syncRecommendations(company.id, data.company, data.existingNBA, selectResearchTopics(data, 5));
+    totals.created += Number(result.created || 0);
+    totals.updated += Number(result.updated || 0);
+    totals.skipped += result.skipped ? 1 : 0;
+    totals.errors += result.error ? 1 : 0;
+    iterations.push({
+      at: isoTimestamp(),
+      companyId: company.id,
+      companyName: company.name,
+      activeFlashcards: activeFlashcards.length,
+      created: Number(result.created || 0),
+      updated: Number(result.updated || 0),
+      skipped: Boolean(result.skipped),
+      error: result.error || null,
+    });
+    if (Date.now() < deadline) {
+      await sleep(500);
+    }
+  }
+
+  const byCompany = {};
+  for (const company of selectedCompanies) {
+    const companyIterations = iterations.filter((row) => row.companyId === company.id);
+    byCompany[company.id] = {
+      companyName: company.name,
+      iterations: companyIterations.length,
+      activeFlashcardsSeen: companyIterations.reduce((sum, row) => sum + Number(row.activeFlashcards || 0), 0),
+      created: companyIterations.reduce((sum, row) => sum + Number(row.created || 0), 0),
+      updated: companyIterations.reduce((sum, row) => sum + Number(row.updated || 0), 0),
+      errors: companyIterations.filter((row) => row.error).length,
+    };
+  }
+
+  return {
+    startedAt: isoTimestamp(startedAt),
+    finishedAt: isoTimestamp(),
+    durationMinutes: durationMs / 60_000,
+    selectedCompanyCount: selectedCompanies.length,
+    iterations: iterations.length,
+    totals,
+    byCompany,
+    runs: iterations,
+  };
+}
+
 async function parseRequestBody(req) {
   return await new Promise((resolve) => {
     let data = "";
@@ -4423,6 +5191,37 @@ async function handleForce(req, res) {
     res.end(JSON.stringify({ success: true, ...result }));
   } catch (error) {
     console.error("Checklist worker force error:", error);
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: error.message }));
+  }
+}
+
+async function handleResearchProbe(req, res) {
+  try {
+    if (!(await ensureDbReady())) {
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: dbBlocker || "database unavailable" }));
+      return;
+    }
+    if (!(await ensureModelReady())) {
+      res.writeHead(503, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: modelBlocker || "model unavailable" }));
+      return;
+    }
+    if (req.headers.authorization !== `Bearer ${LOCAL_SYNC_SECRET}`) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Unauthorized" }));
+      return;
+    }
+
+    const body = await parseRequestBody(req);
+    const minutes = Math.max(Number(body.minutes || 10), 1);
+    const companyIds = Array.isArray(body.companyIds) ? body.companyIds.map((value) => normalizeText(value)).filter(Boolean) : [];
+    const result = await runResearchProbe(minutes, companyIds);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: true, ...result }));
+  } catch (error) {
+    console.error("Checklist worker research probe error:", error);
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: error.message }));
   }
@@ -4540,72 +5339,106 @@ async function handleHealth(_req, res) {
   res.end(JSON.stringify(health));
 }
 
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://localhost:${PORT}`);
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+async function startWorkerServer() {
+  const server = http.createServer(async (req, res) => {
+    const url = new URL(req.url, `http://localhost:${PORT}`);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  if (req.method === "OPTIONS") {
-    res.writeHead(204);
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    if (url.pathname === "/sync" && req.method === "POST") {
+      await handleSync(req, res);
+      return;
+    }
+
+    if (url.pathname === "/force" && req.method === "POST") {
+      await handleForce(req, res);
+      return;
+    }
+
+    if (url.pathname === "/research-probe" && req.method === "POST") {
+      await handleResearchProbe(req, res);
+      return;
+    }
+
+    if (url.pathname === "/health" || url.pathname === "/") {
+      await handleHealth(req, res);
+      return;
+    }
+
+    res.writeHead(404);
     res.end();
+  });
+
+  server.listen(PORT, async () => {
+    console.log("--------------------------------------------------");
+    console.log(`Checklist worker starting on port ${PORT}`);
+    console.log(`AI Configuration: ${OLLAMA_MODEL} @ ${OLLAMA_HOST}`);
+    console.log(`Poll lane: every ${Math.round(POLL_INTERVAL_MS / 1000)}s`);
+    console.log(`Flashcard revisit lane: every ${FLASHCARD_REVISIT_INTERVAL_MINUTES}m, batch ${FLASHCARD_REVISIT_BATCH_SIZE}`);
+    console.log(`Task revisit lane: every ${TASK_REVISIT_INTERVAL_MINUTES}m, batch ${TASK_REVISIT_BATCH_SIZE}`);
+    console.log(`Feedback replay lane: every ${FEEDBACK_REPLAY_INTERVAL_MINUTES}m, batch ${FEEDBACK_REPLAY_BATCH_SIZE}`);
+    console.log(`Hashtag maintenance lane: every ${HASHTAG_MAINTENANCE_INTERVAL_HOURS}h, batch ${HASHTAG_MAINTENANCE_BATCH_SIZE}`);
+    console.log(`Cleanup lane: every ${CLEANUP_INTERVAL_HOURS}h, batch ${CLEANUP_BATCH_SIZE}`);
+    console.log(`Reliability guardrail: every ${RELIABILITY_GUARDRAIL_INTERVAL_HOURS}h, lookback ${RELIABILITY_GUARDRAIL_LOOKBACK_HOURS}h, min new cards ${RELIABILITY_GUARDRAIL_MIN_NEW_CARDS}`);
+    console.log(`Fail-safe models: ${FAILSAFE_MODELS.join(", ")} (timeout ${FAILSAFE_TIMEOUT_MS}ms, max attempts ${FAILSAFE_MAX_ATTEMPTS})`);
+    console.log(`Preferred quality floors: task ICE ${TASK_MIN_ICE_SCORE}, flashcard confidence ${FLASHCARD_MIN_CONFIDENCE}, impact ${FLASHCARD_MIN_IMPACT}, weight ${FLASHCARD_MIN_WEIGHT}`);
+    console.log("--------------------------------------------------");
+
+    if (!(await ensureDbReady())) {
+      console.warn("\x1b[31m%s\x1b[0m", "⚠ DATABASE BLOCKER:");
+      console.warn("\x1b[31m%s\x1b[0m", `  ${dbBlocker}`);
+    }
+
+    if (!(await ensureModelReady())) {
+      console.warn("\x1b[31m%s\x1b[0m", "⚠ AI MODEL BLOCKER:");
+      console.warn("\x1b[31m%s\x1b[0m", `  ${modelBlocker}`);
+    }
+
+    if (dbReady && modelReady) {
+      console.log("\x1b[32m%s\x1b[0m", "✓ WORKER IS READY AND POLLING");
+    } else {
+      console.log("\x1b[33m%s\x1b[0m", "⚠ WORKER IS DEGRADED - check health endpoint for details");
+    }
+    console.log("--------------------------------------------------");
+
+    scheduleCompanyCycleLoop(0);
+  });
+}
+
+async function runCliEntry() {
+  const cli = parseCliArgs(process.argv.slice(2));
+  if (!cli.researchProbeCli && !cli.taskProbeCli) {
+    await startWorkerServer();
     return;
   }
-
-  if (url.pathname === "/sync" && req.method === "POST") {
-    await handleSync(req, res);
-    return;
-  }
-
-  if (url.pathname === "/force" && req.method === "POST") {
-    await handleForce(req, res);
-    return;
-  }
-
-  if (url.pathname === "/health" || url.pathname === "/") {
-    await handleHealth(req, res);
-    return;
-  }
-
-  res.writeHead(404);
-  res.end();
-});
-
-server.listen(PORT, async () => {
-  console.log("--------------------------------------------------");
-  console.log(`Checklist worker starting on port ${PORT}`);
-  console.log(`AI Configuration: ${OLLAMA_MODEL} @ ${OLLAMA_HOST}`);
-  console.log(`Poll lane: every ${Math.round(POLL_INTERVAL_MS / 1000)}s`);
-  console.log(`Flashcard revisit lane: every ${FLASHCARD_REVISIT_INTERVAL_MINUTES}m, batch ${FLASHCARD_REVISIT_BATCH_SIZE}`);
-  console.log(`Task revisit lane: every ${TASK_REVISIT_INTERVAL_MINUTES}m, batch ${TASK_REVISIT_BATCH_SIZE}`);
-  console.log(`Feedback replay lane: every ${FEEDBACK_REPLAY_INTERVAL_MINUTES}m, batch ${FEEDBACK_REPLAY_BATCH_SIZE}`);
-  console.log(`Hashtag maintenance lane: every ${HASHTAG_MAINTENANCE_INTERVAL_HOURS}h, batch ${HASHTAG_MAINTENANCE_BATCH_SIZE}`);
-  console.log(`Cleanup lane: every ${CLEANUP_INTERVAL_HOURS}h, batch ${CLEANUP_BATCH_SIZE}`);
-  console.log(`Reliability guardrail: every ${RELIABILITY_GUARDRAIL_INTERVAL_HOURS}h, lookback ${RELIABILITY_GUARDRAIL_LOOKBACK_HOURS}h, min new cards ${RELIABILITY_GUARDRAIL_MIN_NEW_CARDS}`);
-  console.log(`Fail-safe models: ${FAILSAFE_MODELS.join(", ")} (timeout ${FAILSAFE_TIMEOUT_MS}ms, max attempts ${FAILSAFE_MAX_ATTEMPTS})`);
-  console.log(`Preferred quality floors: task ICE ${TASK_MIN_ICE_SCORE}, flashcard confidence ${FLASHCARD_MIN_CONFIDENCE}, impact ${FLASHCARD_MIN_IMPACT}, weight ${FLASHCARD_MIN_WEIGHT}`);
-  console.log("--------------------------------------------------");
 
   if (!(await ensureDbReady())) {
-    console.warn("\x1b[31m%s\x1b[0m", "⚠ DATABASE BLOCKER:");
-    console.warn("\x1b[31m%s\x1b[0m", `  ${dbBlocker}`);
+    throw new Error(dbBlocker || "database unavailable");
   }
-
   if (!(await ensureModelReady())) {
-    console.warn("\x1b[31m%s\x1b[0m", "⚠ AI MODEL BLOCKER:");
-    console.warn("\x1b[31m%s\x1b[0m", `  ${modelBlocker}`);
+    throw new Error(modelBlocker || "model unavailable");
   }
 
-  if (dbReady && modelReady) {
-    console.log("\x1b[32m%s\x1b[0m", "✓ WORKER IS READY AND POLLING");
-  } else {
-    console.log("\x1b[33m%s\x1b[0m", "⚠ WORKER IS DEGRADED - check health endpoint for details");
-  }
-  console.log("--------------------------------------------------");
-
-  scheduleCompanyCycleLoop(0);
-});
+  const result = cli.taskProbeCli
+    ? await runTaskCreationProbe(cli.minutes, cli.companyIds)
+    : await runResearchProbe(cli.minutes, cli.companyIds);
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  await prisma?.$disconnect().catch(() => {});
+  process.exit(0);
+}
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+runCliEntry().catch((error) => {
+  console.error("Checklist worker bootstrap error:", error);
+  process.exit(1);
 });

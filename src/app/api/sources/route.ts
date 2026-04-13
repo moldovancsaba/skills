@@ -17,8 +17,6 @@ export async function GET(request: NextRequest) {
   if (!companyId) return NextResponse.json({ error: "companyId required" }, { status: 400 });
 
   try {
-    await ensureUnifiedSources(companyId);
-    await ensureSourcePublicIds(companyId);
     const sources = await prisma.source.findMany({
       where: { companyId },
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],

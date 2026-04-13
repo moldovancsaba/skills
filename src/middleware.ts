@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const APP_SESSION_COOKIE = "checklist_session";
 
-export function proxy(req: NextRequest) {
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const session = req.cookies.get(APP_SESSION_COOKIE)?.value;
 
   // 1. Allow these specific public paths
-  const publicPaths = ["/login", "/auth/callback", "/api/auth"];
+  const publicPaths = ["/login", "/auth/callback", "/api/auth", "/api/bridge", "/api/test-public"];
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 
   // 2. Allow static files regardless of auth

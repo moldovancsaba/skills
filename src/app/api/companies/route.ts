@@ -120,9 +120,6 @@ export async function DELETE(request: NextRequest) {
     await prisma.feedback.deleteMany({ where: { nbaItem: { companyId: id } } });
     await prisma.nBAItem.deleteMany({ where: { companyId: id } });
     await prisma.flashcard.deleteMany({ where: { companyId: id } });
-    await prisma.product.deleteMany({ where: { companyId: id } });
-    await prisma.customer.deleteMany({ where: { companyId: id } });
-    await prisma.competitor.deleteMany({ where: { companyId: id } });
     await prisma.user.deleteMany({ where: { companyId: id } });
     await prisma.company.delete({ where: { id } });
     

@@ -17,55 +17,21 @@ model Company {
   mainGoal            GoalType?
   createdAt           DateTime              @default(now())
   updatedAt DateTime @default(now()) @updatedAt
-  competitors         Competitor[]
-  customers           Customer[]
   flashcards          Flashcard[]
   flashcardCorrections FlashcardCorrection[]
   hashtagFeedback     HashtagFeedback[]
   hashtagMaintenanceEvents HashtagMaintenanceEvent[]
   nbaItems            NBAItem[]
-  products            Product[]
   sources             Source[]
   topics              Topic[]
   uploadedSourceFiles UploadedSourceFile[]
+  creativeDrafts      CreativeDraft[]
+  workerConfig        Json?                 @default("{}")
   users               User[]
+  communicationSettings CommunicationSettings?
 }
 
-model Competitor {
-  id             String   @id @default(uuid()) @map("_id")
-  companyId      String
-  name           String
-  urls           String[]
-  pricing        String?
-  strengths      String[]
-  weaknesses     String[]
-  positioning    String?
-  watchedContent Json?
-  createdAt      DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  publicId       Int?     @unique
-  hashtags       String[] @default([])
-  entityTag      String?
-  company        Company  @relation(fields: [companyId], references: [id])
-}
 
-model Customer {
-  id            String   @id @default(uuid()) @map("_id")
-  companyId     String
-  name          String
-  email         String?
-  segments      String[]
-  painPoints    String[]
-  channels      String[]
-  lifetimeValue Float?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  publicId      Int?     @unique
-  hashtags      String[] @default([])
-  entityTag     String?
-  company       Company  @relation(fields: [companyId], references: [id])
-}
 
 model Feedback {
   id                  String     @id @default(uuid()) @map("_id")
@@ -109,12 +75,12 @@ model Flashcard {
   feedbackConfidenceDelta Int                   @default(0)
   feedbackWeightDelta     Int                   @default(0)
   fingerprint             String?
-  kind                    FlashcardKind         @default(SUMMARY)
+  kind                    String                @default("SUMMARY")
   appVersion              String?               @default("0.8.0")
   brainVersion            String?               @default("local-brain@0.8.0")
   generatedAt             DateTime?
   promptVersion           String?               @default("flashcard-policy@0.8.0")
-  company                 Company               @relation(fields: [companyId], references: [id])
+  company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actions                 FlashcardAction[]
   corrections             FlashcardCorrection[]
   sources                 FlashcardSource[]
@@ -202,7 +168,8 @@ model NBAItem {
   lastHashtagError   String?
   promptVersion      String?    @default("nba-policy@0.8.0")
   feedback           Feedback[]
-  company            Company    @relation(fields: [companyId], references: [id])
+  kind               String?    @default("TASK")
+  company            Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model HashtagFeedback {
@@ -237,21 +204,6 @@ model HashtagMaintenanceEvent {
   @@index([companyId, entityType, entityId, createdAt])
 }
 
-model Product {
-  id          String   @id @default(uuid()) @map("_id")
-  companyId   String
-  name        String
-  description String?
-  pricing     String?
-  features    String[]
-  urls        String[]
-  createdAt   DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  publicId    Int?     @unique
-  hashtags    String[] @default([])
-  entityTag   String?
-  company     Company  @relation(fields: [companyId], references: [id])
-}
 
 model Source {
   id              String   @id @default(uuid()) @map("_id")
@@ -299,6 +251,70 @@ model PublicIdCounter {
   updatedAt DateTime @default(now()) @updatedAt
 }
 
+model WorkerReport {
+  id        String   @id @default(uuid()) @map("_id")
+  type      String
+  data      Json
+  createdAt DateTime @default(now())
+}
+
+model CommunicationSettings {
+  id           String      @id @default(uuid()) @map("_id")
+  companyId    String      @unique
+  channel      ChannelType @default(IMESSAGE)
+  handle       String?
+  isEnabled    Boolean     @default(false)
+  bridgeSecret String?     @default(uuid())
+  minIceScore  Int         @default(600)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @default(now()) @updatedAt
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model CreativeDraft {
+  id            String             @id @default(uuid()) @map("_id")
+  publicId      Int?               @unique
+  companyId     String
+  nbaItemId     String?
+  type          CreativeDraftType  @default(EMAIL)
+  status        CreativeDraftStatus @default(DRAFT)
+  title         String
+  subject       String?
+  content       String
+  iceScore      Float              @default(0)
+  usageMetrics  Json?
+  appVersion    String?            @default("0.10.0")
+  brainVersion  String?            @default("worker-v4-alerting")
+  promptVersion String?            @default("agency-policy@0.10.0")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @default(now()) @updatedAt
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status, createdAt])
+}
+
+enum CreativeDraftType {
+  EMAIL
+  LINKEDIN
+  SMS
+  AD_COPY
+  CRM_NOTE
+}
+
+enum CreativeDraftStatus {
+  DRAFT
+  APPROVED
+  SENT
+  ARCHIVED
+}
+
+enum ChannelType {
+  IMESSAGE
+  WHATSAPP
+  EMAIL
+  WEBHOOK
+}
+
 model UploadedSourceFile {
   id        String   @id @default(uuid()) @map("_id")
   publicId  Int?     @unique
@@ -330,6 +346,7 @@ model User {
   updatedAt      DateTime @default(now()) @updatedAt
   company        Company  @relation(fields: [companyId], references: [id])
 
+
   @@unique([email, companyId])
 }
 
@@ -342,6 +359,8 @@ enum ActionType {
 enum FlashcardActionType {
   ACCEPT
   DECLINE
+  REJECT
+  ANNOTATE
   MODIFY_ACCEPT
 }
 
@@ -407,14 +426,15 @@ enum FlashcardSourceRole {
 
 enum FlashcardSourceType {
   SOURCE
-  PRODUCT
-  CUSTOMER
-  COMPETITOR
   AGENT_FOUND
   FILE
 }
 
 enum FlashcardStatus {
+  DRAFT
+  CHECKED
+  VERIFIED
+  EXPIRED
   ACTIVE
   STALE
   ARCHIVED
@@ -429,10 +449,15 @@ enum GoalType {
 }
 
 enum NBAStatus {
+  DRAFT
+  CHECKED
+  VERIFIED
+  EXPIRED
   PENDING
   ACCEPTED
   DECLINED
   COMPLETED
+  ARCHIVED
 }
 
 enum Role {

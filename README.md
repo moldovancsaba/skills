@@ -7,7 +7,7 @@ Checklist is a split-system marketing operating system:
 - MongoDB Atlas via Prisma is the shared system of record
 
 Current app version:
-- `v0.8.0`
+- `v0.10.0` (Hardened Intelligence & Alerting Bridge)
 
 Canonical production URL:
 - `https://checklist.sovereignsquad.com`
@@ -64,15 +64,20 @@ Checklist follows a 4-step operator pipeline:
 2. `TOPICS`
    - manually prioritized research focus areas
    - active/inactive and user-ordered
-   - used by the local AI worker to decide what to research and emphasize
+   - used as the **Primary Planner** for all local AI work (research, flashcards, tasks)
+- the worker focuses 100% of its intelligence budget on items aligned with active topics
 3. `FLASHCARDS`
    - processed knowledge atoms shown on `/:companyId/knowmore`
    - derived from source evidence and public signals
    - carry `confidence`, `impact`, `weight`, provenance, and review state
-4. `TASKS`
+7. `TASKS`
    - checklist items shown on `/:companyId/nba`
    - generated from flashcards and company context
    - carry `impact`, `confidence`, `ease`, and `ICE`
+8. `ALERTING`
+   - proactive dispatch of high-impact discoveries
+   - filtered by communication settings and ICE threshold
+   - supports two-way bridge for follow-up data ingestion
 
 ## Current route structure
 
@@ -86,6 +91,8 @@ Checklist follows a 4-step operator pipeline:
 | `/[companyId]/knowmore` | flashcards / knowledge layer |
 | `/[companyId]/nba` | checklist tasks / next best actions |
 | `/[companyId]/nba_archived` | archived checklist items |
+| `/[companyId]/topics` | topic prioritization for AI research |
+| `/[companyId]/settings` | communication and bridge settings |
 
 ### Global routes
 
@@ -130,9 +137,9 @@ Checklist follows a 4-step operator pipeline:
   - task feedback changes the source flashcards tied to that task
   - **weighted annotation learning**: user actions (accept/decline/modify) calculate term and hashtag weights used to score and suppress future candidates
 - `continuous improvement direction`
-  - the next planned system layer selects stale flashcards and tasks by oldest meaningful modification time
-  - improvement work is ranked by business value before bounded research is spent
-  - the implementation contract is documented in `docs/CONTINUOUS_IMPROVEMENT_PLAN.md`
+  - the system uses an **Active Topic Primary Planner** to decide what to research and refresh
+  - improvement work is ranked by business value and topic "Pressure" (coverage gaps)
+  - logic for multi-pass reasoning follows the **Trinity (Draft/Write/Judge)** architecture
 - `ICE scoring`
   - `Impact: 0-10`
   - `Confidence: 0-100`
@@ -242,6 +249,8 @@ Important:
 | `/api/feedback` | `GET, POST` | task feedback |
 | `/api/feedback/analytics` | `GET` | task feedback analytics |
 | `/api/release` | `GET` | app and prompt release metadata |
+| `/api/communication/settings` | `GET, POST` | notification channel CRUD |
+| `/api/bridge/ingress` | `POST` | two-way bridge data ingestion |
 
 ### Local AI bridge
 
@@ -257,16 +266,11 @@ Important:
 - `NEWS` flashcards are being tightened aggressively and evidence-only publishing is still evolving
 - provenance and version metadata are present but not yet surfaced uniformly in every user-facing place
 
-## Recent shipped changes in `v0.8.0`
+## Recent shipped changes in `v0.10.0`
 
-- unified `Source` records are now the primary raw-ingestion model in the active UI and API
-- `Topics` is a first-class page and model that the local worker uses as research focus
-- hashtags are part of the system annotation layer across data, Knowmore, and Checklist
-- the hosted webapp only reads and writes the shared database; it does not call the local worker directly
-- login, company selection, navigation, and pipeline page accents were refreshed to match the 4-step workflow
-- the local worker now runs as a serial per-company cycle with explicit maintenance lanes instead of one mixed poll loop
-- a new `researchHarvest` lane can create new AI-harvested `Source` rows from topic-aligned public research
-- Knowmore cards sourced from those harvested research rows are marked as sovereign research in the API/UI contract
+- `v0.9.0`: The intelligence engine is now **Topic-Primary**; it only researches and generates knowledge that aligns with explicitly enabled Topics.
+- introduced the **Trinity (Draft → Write → Judge)** reasoning pipeline for high-fidelity synthesis and memory-grounded audits.
+- unified `Source` records... (rest of the list)
 
 ## Documentation ownership
 

@@ -50,8 +50,8 @@ export const useStore = create<AppState>((set) => ({
   isLoading: false,
 
   setCompany: (company) => set({ company }),
-  setSources: (sources) => set({ sources }),
-  setNbaItems: (nbaItems) => set({ nbaItems }),
+  setSources: (sources) => set({ sources: Array.isArray(sources) ? sources : [] }),
+  setNbaItems: (nbaItems) => set({ nbaItems: Array.isArray(nbaItems) ? nbaItems : [] }),
   setLoading: (isLoading) => set({ isLoading }),
 }));
 

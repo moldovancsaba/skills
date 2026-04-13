@@ -59,16 +59,29 @@ export default function CompanyDashboard() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async (cid: string) => {
+    const safeFetch = async (url: string) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Fetch failed: ${url} status ${res.status}`);
+        return await res.json();
+      } catch (e) {
+        console.error(e);
+        return [];
+      }
+    };
+
     const [s, f, nba, knowmore, members] = await Promise.all([
-      fetch(`/api/sources?companyId=${cid}`).then((res) => res.json()),
-      fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
-      fetch(`/api/nba?companyId=${cid}`).then((res) => res.json()),
-      fetch(`/api/knowmore?companyId=${cid}`).then((res) => res.json()),
-      fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
+      safeFetch(`/api/sources?companyId=${cid}`),
+      safeFetch(`/api/data-files?companyId=${cid}`),
+      safeFetch(`/api/nba?companyId=${cid}`),
+      safeFetch(`/api/knowmore?companyId=${cid}`),
+      safeFetch(`/api/companies/${cid}/members`),
     ]);
 
-    setSources(s);
+    setSources(Array.isArray(s) ? s : []);
     setFileCount(Array.isArray(f) ? f.length : 0);
+    setNbaItems(Array.isArray(nba) ? nba : []);
+    setKnowmore(Array.isArray(knowmore) ? knowmore : []);
 
     // Get current user session to determine role
     const sessionRes = await fetch("/api/auth/session");
@@ -78,14 +91,19 @@ export default function CompanyDashboard() {
       setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
     }
 
-    const pendingTasks = (nba as NBAItem[]).filter((item) => item.status === "PENDING");
+    const safeNBA = Array.isArray(nba) ? nba : [];
+    const safeKnowmore = Array.isArray(knowmore) ? knowmore : [];
+
+    const pendingTasks = safeNBA.filter((item) =>
+      ["PENDING", "DRAFT", "CHECKED", "VERIFIED"].includes(item.status)
+    );
     setPendingTaskCount(pendingTasks.length);
     setTopTasks(
       pendingTasks
         .sort((left, right) => right.iceScore - left.iceScore)
         .slice(0, 3),
     );
-    setFlashcardCount((knowmore as Flashcard[]).length);
+    setFlashcardCount(safeKnowmore.length);
   }, [setSources]);
 
   useEffect(() => {
@@ -107,9 +125,10 @@ export default function CompanyDashboard() {
         setCompanyCount(companies.length);
         setCompany(found);
         await loadDashboard(found.id);
-        setLoading(false);
       } catch (error) {
-        console.error(error);
+        console.error("Dashboard initialization failed:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -174,9 +193,10 @@ export default function CompanyDashboard() {
     return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
   }
 
+  const safeSources = Array.isArray(sources) ? sources : [];
   const tip = getDashboardExpertTip({
     companyId,
-    productCount: sources.length,
+    productCount: safeSources.length,
     customerCount: 0,
     competitorCount: 0,
     fileCount,
@@ -195,12 +215,12 @@ export default function CompanyDashboard() {
         />
       </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-4 mb-8">
+      <div className="grid gap-4 md:grid-cols-5 mb-8">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <LinkCard
             href={`/${companyId}/data`}
             icon={Plus}
-            title={`Data Collection (${sources.length + fileCount})`}
+            title={`Data Collection (${(Array.isArray(sources) ? sources.length : 0) + fileCount})`}
             description="Add raw sources and files"
           />
         </motion.div>
@@ -209,7 +229,7 @@ export default function CompanyDashboard() {
             href={`/${companyId}/topics`}
             icon={ListOrdered}
             title="Topics"
-            description="Prioritize AI research focus"
+            description="Prioritize AI focus"
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
@@ -217,7 +237,7 @@ export default function CompanyDashboard() {
             href={`/${companyId}/knowmore`}
             icon={Sparkles}
             title={`Knowmore (${flashcardCount})`}
-            description="Track the knowledge layer behind your AI"
+            description="Knowledge layer"
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}>
@@ -225,7 +245,15 @@ export default function CompanyDashboard() {
             href={`/${companyId}/nba`}
             icon={Zap}
             title={`Checklist (${pendingTaskCount})`}
-            description="View checklist suggestions"
+            description="Next best actions"
+          />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
+          <LinkCard
+            href={`/${companyId}/settings`}
+            icon={SettingsIcon}
+            title="Settings"
+            description="Alerts & Bridge"
           />
         </motion.div>
       </div>

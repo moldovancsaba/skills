@@ -54,45 +54,7 @@ type UnifiedSource = BaseSourceRecord & {
   metadata: Prisma.JsonValue | null;
 };
 
-type ProductSource = BaseSourceRecord & {
-  type: "PRODUCT";
-  description: string | null;
-  pricing: string | null;
-  features: string[];
-  urls: string[];
-  watchedContent: Prisma.JsonValue | null;
-};
-
-type CustomerSource = BaseSourceRecord & {
-  type: "CUSTOMER";
-  email: string | null;
-  segments: string[];
-  painPoints: string[];
-  channels: string[];
-  lifetimeValue: number | null;
-  notes: string | null;
-};
-
-type CompetitorSource = BaseSourceRecord & {
-  type: "COMPETITOR";
-  urls: string[];
-  pricing: string | null;
-  strengths: string[];
-  weaknesses: string[];
-  positioning: string | null;
-  watchedContent: Prisma.JsonValue | null;
-};
-
-type FileSource = BaseSourceRecord & {
-  type: "FILE";
-  mimeType: string;
-  sizeBytes: number;
-  hashtags: string[];
-  extractedText: string | null;
-  watchedContent: Prisma.JsonValue | null;
-};
-
-type SourceRecord = UnifiedSource | ProductSource | CustomerSource | CompetitorSource | FileSource;
+type SourceRecord = UnifiedSource | FileSource;
 
 type FlashcardLinkedSource = {
   type: FlashcardSourceKind;
@@ -1125,21 +1087,24 @@ function isPublishableSource(source: SourceRecord) {
   }
 }
 
-function buildFlashcardDrafts(source: SourceRecord, context: SourceRecord[]) {
-  switch (source.type) {
-    case "SOURCE":
-      return buildSourceDrafts(source, context);
-    case "PRODUCT":
-      return buildProductDrafts(source, context);
-    case "CUSTOMER":
-      return buildCustomerDrafts(source);
-    case "COMPETITOR":
-      return buildCompetitorDrafts(source, context);
-    case "FILE":
-      return buildFileDrafts(source);
-    default:
-      return assertNever(source);
+function buildFlashcardDrafts(source: UnifiedSource, context: SourceRecord[]) {
+  // Use tag-driven specialized logic instead of hardcoded types
+  if (source.entityTag === "TAG:PRODUCT") {
+    return buildProductDrafts(source as any, context);
   }
+  if (source.entityTag === "TAG:COMPETITOR") {
+    return buildCompetitorDrafts(source as any, context);
+  }
+  if (source.entityTag === "TAG:CUSTOMER") {
+    return buildCustomerDrafts(source as any);
+  }
+
+  // Fallback to generic source or file specific drafting
+  if (source.type === "FILE") {
+    return buildFileDrafts(source as any);
+  }
+
+  return buildSourceDrafts(source, context);
 }
 
 function resolveDisplayContent(existing: { manualTitle: string | null; manualBody: string | null }, draft: FlashcardDraft) {
@@ -1817,12 +1782,14 @@ export async function listCompanyFlashcards(companyId: string) {
   return prisma.flashcard.findMany({
     where: {
       companyId,
-      status: FlashcardStatus.ACTIVE,
+      status: {
+        in: [FlashcardStatus.ACTIVE, FlashcardStatus.DRAFT, FlashcardStatus.CHECKED, FlashcardStatus.VERIFIED]
+      },
       reviewStatus: {
         not: FlashcardReviewStatus.DECLINED,
       },
       confidence: {
-        gt: 50,
+        gt: 0,
       },
     },
     include: FLASHCARD_INCLUDES,

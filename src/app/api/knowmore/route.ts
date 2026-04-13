@@ -28,8 +28,11 @@ export async function GET(request: NextRequest) {
     const researchHarvestIds = new Set(
       researchHarvestSources
         .filter((source) => {
-          const metadata = source.metadata as Record<string, unknown> | null;
-          return source.entityTag === "research-harvest" || metadata?.origin === "research-harvest";
+          const metadata = (source.metadata as Record<string, unknown>) || {};
+          return (
+            source.entityTag === "research-harvest" ||
+            (metadata && typeof metadata === "object" && metadata.origin === "research-harvest")
+          );
         })
         .map((source) => source.id)
     );

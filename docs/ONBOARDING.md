@@ -6,7 +6,7 @@ Do not place production credentials in this file.
 
 Current release:
 
-- `v0.8.0`
+- `v0.10.0`
 
 ## Canonical Environments
 
@@ -26,6 +26,7 @@ If another preview domain exists, treat it as non-canonical unless explicitly do
 - `/[companyId]/knowmore`
 - `/[companyId]/nba`
 - `/[companyId]/nba_archived`
+- `/[companyId]/settings`
 
 ### Supporting routes
 
@@ -159,6 +160,14 @@ GET  /api/feedback/analytics?companyId=<company-id>
 - `ACCEPT`
 - `DECLINE`
 - `MODIFY_ACCEPT`
+
+### Communication & Alerting
+
+```text
+GET  /api/communication/settings?companyId=<companyId>
+POST /api/communication/settings
+POST /api/bridge/ingress (Two-Way Bridge)
+```
 
 ### Local AI bridge
 

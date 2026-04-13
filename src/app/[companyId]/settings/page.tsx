@@ -1,0 +1,279 @@
+"use client";
+
+import React, { useState, useEffect, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { 
+  Bell, 
+  ShieldCheck, 
+  Key, 
+  Settings as SettingsIcon, 
+  Copy, 
+  RefreshCcw, 
+  Eye, 
+  EyeOff,
+  MessageSquare,
+  Mail,
+  Smartphone,
+  Webhook
+} from "lucide-react";
+import { PageHeader, PageShell } from "@/components/ui/app-shell";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { toast } from "@/components/ui/use-toast";
+import { motion } from "framer-motion";
+
+type CommunicationSettings = {
+  isEnabled: boolean;
+  channel: string;
+  handle: string;
+  minIceScore: number;
+  bridgeSecret: string;
+};
+
+export default function SettingsPage() {
+  const params = useParams();
+  const router = useRouter();
+  const companyId = params.companyId as string;
+
+  const [settings, setSettings] = useState<CommunicationSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/communication/settings?companyId=${companyId}`);
+      if (res.ok) {
+        setSettings(await res.json());
+      }
+    } catch (error) {
+      console.error("Failed to load settings", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    if (companyId) fetchSettings();
+  }, [companyId, fetchSettings]);
+
+  const saveSettings = async (updates: Partial<CommunicationSettings>) => {
+    if (!settings) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/communication/settings?companyId=${companyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...settings, ...updates }),
+      });
+      if (res.ok) {
+        setSettings(await res.json());
+        toast({ title: "Settings saved", description: "Communication preferences updated successfully." });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const regenerateSecret = async () => {
+    if (!confirm("Regenerating the secret will break existing bridge integrations. Continue?")) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/communication/settings?companyId=${companyId}&action=regenerate-secret`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setSettings(await res.json());
+        toast({ title: "Secret regenerated", description: "A new Bridge API Key has been issued." });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to regenerate secret.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied", description: "Copied to clipboard." });
+  };
+
+  if (loading) return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>;
+  if (!settings) return <div className="flex min-h-screen items-center justify-center"><p>Error: Settings not found.</p></div>;
+
+  return (
+    <PageShell width="xl">
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <PageHeader 
+          title="Communication Settings" 
+          description="Manage AI alerts and the two-way communication bridge."
+          backHref={`/${companyId}`}
+        />
+      </motion.div>
+
+      <div className="grid gap-8 lg:grid-cols-12">
+        <div className="space-y-6 lg:col-span-12">
+          {/* Global Alerting Control */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <Card className="border-accent/20 bg-accent/5 backdrop-blur-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div className="space-y-1">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-accent" />
+                    Alerting Layer
+                  </CardTitle>
+                  <CardDescription>Enable or disable automated AI discoveries and task alerts.</CardDescription>
+                </div>
+                <Switch 
+                  checked={settings.isEnabled} 
+                  onCheckedChange={(checked) => saveSettings({ isEnabled: checked })}
+                  disabled={saving}
+                />
+              </CardHeader>
+            </Card>
+          </motion.div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Channel Configuration */}
+            <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}>
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Smartphone className="h-5 w-5 text-muted-foreground" />
+                    Notification Channel
+                  </CardTitle>
+                  <CardDescription>Choose where the AI sends high-impact alerts.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Channel</Label>
+                    <Select 
+                      value={settings.channel} 
+                      onValueChange={(val) => saveSettings({ channel: val })}
+                      disabled={saving}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="IMESSAGE">iMessage</SelectItem>
+                        <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+                        <SelectItem value="EMAIL">Email</SelectItem>
+                        <SelectItem value="WEBHOOK">Webhook</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Contact Handle / URL</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        value={settings.handle || ""} 
+                        onChange={(e) => setSettings({ ...settings, handle: e.target.value })}
+                        placeholder={settings.channel === 'EMAIL' ? 'email@example.com' : '+123456789'}
+                      />
+                      <Button variant="outline" size="sm" onClick={() => saveSettings({ handle: settings.handle })}>Save</Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Threshold Configuration */}
+            <motion.div initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+                    Sensitivity & Priority
+                  </CardTitle>
+                  <CardDescription>Only items meeting this threshold will trigger a notification.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Minimum ICE Score</Label>
+                      <span className="text-sm font-mono font-bold text-accent">{settings.minIceScore}</span>
+                    </div>
+                    <Slider 
+                      value={[settings.minIceScore]} 
+                      min={0} 
+                      max={1000} 
+                      step={10} 
+                      onValueChange={(val) => setSettings({ ...settings, minIceScore: val[0] })}
+                      onValueCommit={(val) => saveSettings({ minIceScore: val[0] })}
+                      disabled={saving}
+                    />
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      Higher score = Fewer, higher-quality notifications.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+
+          {/* Two-Way Bridge Security */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Key className="h-5 w-5 text-muted-foreground" />
+                  Communication Bridge API
+                </CardTitle>
+                <CardDescription>Use this key to send data into Checklist memory from external scripts.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg border bg-muted/30 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 truncate font-mono text-sm">
+                      {showSecret ? settings.bridgeSecret : "•".repeat(36)}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => setShowSecret(!showSecret)}>
+                        {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(settings.bridgeSecret)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={regenerateSecret} disabled={saving}>
+                        <RefreshCcw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-muted-foreground">Endpoint</Label>
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/10 p-2 text-xs font-mono">
+                       {typeof window !== 'undefined' ? window.location.origin : ''}/api/bridge/ingress
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-muted-foreground">Example Payload</Label>
+                    <div className="rounded-md border bg-muted/80 p-2 text-[10px] font-mono text-muted">
+                      {`{ "secret": "...", "sender": "+123", "text": "New market insight..." }`}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </div>
+    </PageShell>
+  );
+}

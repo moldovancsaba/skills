@@ -6,7 +6,7 @@ Checklist is an active production web application with local-AI-assisted enrichm
 
 Current release baseline:
 
-- app version: `v0.6.0`
+- app version: `v0.10.0`
 - framework: `Next.js 16.2.2`
 - product title: `Checklist Marketing OS`
 - canonical production URL: `https://checklist.sovereignsquad.com`
@@ -37,6 +37,8 @@ The system is designed so the online app remains usable even when the local AI l
 | `/[companyId]/knowmore` | flashcard review and knowledge layer |
 | `/[companyId]/nba` | pending next-best-action checklist |
 | `/[companyId]/nba_archived` | archived checklist items |
+| `/[companyId]/topics` | topic prioritization for AI research |
+| `/[companyId]/settings` | communication and bridge settings |
 
 ### Supporting routes
 
@@ -88,7 +90,7 @@ Local AI layer
 ## Current Tech Stack
 
 - Frontend: `Next.js 16.2.2`, `React 18`, `Tailwind`, `shadcn-ui`
-- Database: `PostgreSQL (Neon)` via `Prisma`
+- Database: `MongoDB Atlas` via `Prisma`
 - Local AI: `Ollama`
 - Auth: environment-configured OAuth/OIDC-style SSO with PKCE support
 
@@ -140,17 +142,18 @@ Range: 0-1000
 
 ### Domain APIs
 
-- `/api/companies`
-- `/api/products`
-- `/api/customers`
-- `/api/competitors`
-- `/api/data-files`
+- `/api/topics`
+- `/api/hashtags/recommendations`
+- `/api/hashtags/feedback`
 - `/api/knowmore`
 - `/api/knowmore/actions`
 - `/api/knowmore/sync`
+- `/api/knowmore/corrections`
 - `/api/nba`
 - `/api/feedback`
 - `/api/feedback/analytics`
+- `/api/communication/settings`
+- `/api/bridge/ingress`
 - `/api/release`
 
 ### Local AI bridge
@@ -197,4 +200,4 @@ When any of these change, update docs in the same change set:
 ## Document Status
 
 Status: current
-Last updated: `2026-04-06`
+Last updated: `2026-04-13`

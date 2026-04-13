@@ -1638,9 +1638,43 @@ function companyFeedbackPatterns(taskFeedbackIndex) {
   };
 }
 
+function diceSimilarity(str1, str2) {
+  const normalize = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const s1 = normalize(str1);
+  const s2 = normalize(str2);
+  if (s1 === s2) return 1;
+  if (s1.length < 2 || s2.length < 2) return 0;
+
+  const getBigrams = (s) => {
+    const bigrams = new Set();
+    for (let i = 0; i < s.length - 1; i++) {
+      bigrams.add(s.substring(i, i + 2));
+    }
+    return bigrams;
+  };
+
+  const b1 = getBigrams(s1);
+  const b2 = getBigrams(s2);
+  let intersection = 0;
+  for (const gram of b1) {
+    if (b2.has(gram)) intersection++;
+  }
+  return (2 * intersection) / (b1.size + b2.size);
+}
+
 function buildFeedbackContext(taskFeedbackIndex, flashcardIds = [], contextText = "", hashtagFeedback = [], subjectMatterMemory = []) {
   const related = selectRelevantTaskFeedback(taskFeedbackIndex, flashcardIds, contextText);
   const company = companyFeedbackPatterns(taskFeedbackIndex);
+  
+  const semanticMemory = toArray(subjectMatterMemory)
+    .map((item) => ({
+      item,
+      score: diceSimilarity(contextText, item.truth),
+    }))
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 10)
+    .map((entry) => entry.item);
+
   const weightedHashtagSignals = summarizeWeightedPatterns(
     (hashtagFeedback || []).map((row) => ({ hashtags: [row.tag], action: row.action })),
     hashtagFeedbackWeight,
@@ -1653,7 +1687,7 @@ function buildFeedbackContext(taskFeedbackIndex, flashcardIds = [], contextText 
   return {
     related,
     company,
-    subjectMatterMemory: toArray(subjectMatterMemory).slice(0, 20),
+    subjectMatterMemory: semanticMemory,
     weightedSignals: {
       positiveTerms: company.weightedSignals.positiveTerms,
       negativeTerms: company.weightedSignals.negativeTerms,
@@ -2737,6 +2771,7 @@ function buildFlashcardGenerationPrompts(company, source, research, feedbackCont
     "If public evidence is present, reflect that in the body without inventing claims.",
     "It is valid to return an empty array when the input is weak, unclear, redundant, not evidence-backed, or not useful enough to justify a flashcard.",
     "Do not force a result from low-quality input.",
+    "SELF-AUDIT CONTRACT: Your generated candidates MUST NOT contradict any facts provided in the `subjectMatterMemory`. Prioritize user-provided memory truths over new research unless the research provides stronger, newer, and explicitly verified proof.",
     "One source may justify multiple distinct flashcards if it contains multiple separable grounded ideas.",
     "hashtags must be relevant retrieval and grouping tags only.",
     "confidence, impact, and weight must be integers from 1 to 100.",
@@ -2825,6 +2860,8 @@ function parseFlashcardCandidates(raw, source, research, feedbackContext = {}) {
         impact,
         weight,
         hashtags: mergeHashtags(source.hashtags, item.hashtags, deriveKeywordHashtags(item.title, item.body)).slice(0, 10),
+        evidenceClash: Boolean(item.evidence_clash),
+        clashNotes: truncate(item.clash_notes || "", 400),
       };
     })
     .map((item) => item ? applyAnnotationWeightingToFlashcardCandidate(item, feedbackContext) : null)
@@ -3243,6 +3280,19 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
         if (RESEARCH_ENABLED) {
           await syncSupportingSources(existing.id, research.citations);
         }
+
+        if (generated.evidenceClash) {
+          await prisma.flashcardCorrection.create({
+            data: {
+              companyId,
+              flashcardId: existing.id,
+              correctionType: "MARK_WRONG",
+              note: `IQ CONFLICT: ${generated.clashNotes}`,
+              actedBy: "local-ai-self-audit",
+            },
+          });
+        }
+
         updated += 1;
         continue;
       }
@@ -3283,6 +3333,19 @@ async function syncFlashcards(companyId, company, data, previousKnowledge = {}) 
         if (RESEARCH_ENABLED) {
           await syncSupportingSources(flashcardId, research.citations);
         }
+
+        if (generated.evidenceClash) {
+          await prisma.flashcardCorrection.create({
+            data: {
+              companyId,
+              flashcardId: flashcardId,
+              correctionType: "MARK_WRONG",
+              note: `IQ CONFLICT: ${generated.clashNotes}`,
+              actedBy: "local-ai-self-audit",
+            },
+          });
+        }
+
         created += 1;
       } catch (error) {
         if (!isUniqueConstraintError(error)) throw error;
@@ -3411,6 +3474,7 @@ function buildRecommendationPrompts(company, flashcards, focusTopics = [], feedb
     "Do not use template phrasing like 'Act on:' or 'Turn the flashcard'.",
     "Do not restate the flashcard title as the task title.",
     "Avoid near-duplicates of existing or archived checklist items.",
+    "SELF-AUDIT CONTRACT: Your generated candidates MUST NOT contradict any facts provided in the `subjectMatterMemory`. If you discover a conflict between new flashcard data and memory, prioritize the memory truth and flag it if required.",
     "It is valid to return an empty array when the evidence is weak, too generic, redundant, unsupported, or not actionable enough.",
     "One flashcard can justify zero, one, or many checklist items.",
     "FEEDBACK LOOP: Strictly respect the weightedSignals and accepted/declined patterns provided. If a term or hashtag has a strong negative weight, avoid generating tasks containing those patterns.",
@@ -3499,6 +3563,8 @@ function parseRecommendationCandidates(raw, cards, feedbackContext = {}) {
         ease,
         sourceFlashcardIds,
         hashtags: normalizeHashtags(item.hashtags),
+        evidenceClash: Boolean(item.evidence_clash),
+        clashNotes: truncate(item.clash_notes || "", 400),
       };
     })
     .map((item) => item ? applyAnnotationWeightingToRecommendation(item, feedbackContext) : null)
@@ -3548,6 +3614,19 @@ async function persistRecommendationCandidates(companyId, existingNBA, activeFla
         },
       });
       updated += 1;
+      
+      if (rec.evidenceClash) {
+        await prisma.flashcardCorrection.create({
+          data: {
+            companyId,
+            flashcardId: rec.sourceFlashcardIds[0],
+            correctionType: "MARK_WRONG",
+            note: `IQ TASK CONFLICT: ${rec.clashNotes}`,
+            actedBy: "local-ai-self-audit",
+          },
+        });
+      }
+
       continue;
     }
 
@@ -3578,6 +3657,18 @@ async function persistRecommendationCandidates(companyId, existingNBA, activeFla
       },
     });
     created += 1;
+
+    if (rec.evidenceClash) {
+      await prisma.flashcardCorrection.create({
+        data: {
+          companyId,
+          flashcardId: rec.sourceFlashcardIds[0],
+          correctionType: "MARK_WRONG",
+          note: `IQ TASK CONFLICT: ${rec.clashNotes}`,
+          actedBy: "local-ai-self-audit",
+        },
+      });
+    }
   }
 
   return { created, updated };

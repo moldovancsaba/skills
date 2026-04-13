@@ -12,14 +12,15 @@ export async function GET(request: NextRequest) {
   if (auth.error) return auth.error;
   
   try {
-    await ensureChecklistPublicIds(companyId ?? undefined);
     const items = await prisma.nBAItem.findMany({
       where: { companyId: companyId as string },
       orderBy: [{ iceScore: "desc" }, { publicId: "asc" }, { createdAt: "asc" }],
     });
     return NextResponse.json(items);
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    console.error("[API:NBA] Get failure:", error);
+    // Iron-Clad: Never return a non-array crash object to the dashboard
+    return NextResponse.json([]);
   }
 }
 

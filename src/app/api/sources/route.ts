@@ -29,7 +29,9 @@ export async function GET(request: NextRequest) {
       })),
     );
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    console.error("[API:SOURCES] Get failure:", error);
+    // Iron-Clad: Never return a non-array crash object to the dashboard
+    return NextResponse.json([]);
   }
 }
 

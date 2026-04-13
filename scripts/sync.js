@@ -30,6 +30,11 @@ function envFlag(value, fallback = false) {
 const PORT = Number(process.env.PORT || "10005");
 const OLLAMA_HOST = process.env.OLLAMA_HOST || process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:latest";
+const STAGE_MODELS = {
+  DRAFT: ["ibm-granite-nano:latest", "qwen2.5:3b", "gemma4:e4b", OLLAMA_MODEL],
+  WRITE: ["gemma4:latest", "qwen2.5:7b", OLLAMA_MODEL],
+  JUDGE: ["gemma4:latest", "mistral:7b", OLLAMA_MODEL],
+};
 const POLL_INTERVAL_MS = Math.max(
   Number(process.env.CHECKLIST_POLL_INTERVAL_MS || process.env.POLL_INTERVAL || "7200000"),
   30_000,
@@ -1315,6 +1320,55 @@ async function callOllamaJson(systemPrompt, userPrompt, options = {}) {
   }
 }
 
+async function callOllamaWithFailover(systemPrompt, userPrompt, modelList, options = {}) {
+  let lastError = null;
+  for (const model of modelList) {
+    try {
+      return await callOllamaJson(systemPrompt, userPrompt, { ...options, model });
+    } catch (err) {
+      lastError = err;
+      console.warn(`Model ${model} failed, trying next...: ${err.message}`);
+    }
+  }
+  throw lastError || new Error("All Trinity models failed");
+}
+
+async function runTrinityPass(company, inputContext, stages = {}) {
+  const result = { draft: null, synthesis: null, audit: null };
+
+  // STAGE 1: DRAFT (Extraction)
+  if (stages.draft) {
+    result.draft = await callOllamaWithFailover(
+      stages.draft.systemPrompt,
+      JSON.stringify(inputContext),
+      STAGE_MODELS.DRAFT,
+      { timeoutMs: 90000 }
+    );
+  }
+
+  // STAGE 2: WRITE (Synthesis)
+  if (stages.write) {
+    result.synthesis = await callOllamaWithFailover(
+      stages.write.systemPrompt,
+      JSON.stringify({ draft: result.draft, originalContext: inputContext }),
+      STAGE_MODELS.WRITE,
+      { timeoutMs: 120000 }
+    );
+  }
+
+  // STAGE 3: JUDGE (Audit)
+  if (stages.judge) {
+    result.audit = await callOllamaWithFailover(
+      stages.judge.systemPrompt,
+      JSON.stringify({ synthesis: result.synthesis, draft: result.draft, memory: inputContext.subjectMatterMemory }),
+      STAGE_MODELS.JUDGE,
+      { timeoutMs: 90000 }
+    );
+  }
+
+  return result;
+}
+
 function deriveFlashcardHashtags(source, generated) {
   return mergeHashtags(
     source.hashtags,
@@ -1799,11 +1853,22 @@ function verifyFairnessConsistency(lookbackCount = 20) {
       avgYield: Math.round(stats.totalYield / stats.count),
     }));
 
-    appendRuntimeMetric({
+    const metrics = {
       type: "fairness-verification-report",
       sampleCount: samples.length,
       report,
-    });
+    };
+
+    appendRuntimeMetric(metrics);
+
+    if (prisma) {
+      prisma.workerReport.create({
+        data: {
+          type: "FAIRNESS_AUDIT",
+          data: metrics,
+        },
+      }).catch(() => {});
+    }
   } catch (error) {
     console.error(`Fairness verification failed: ${error.message}`);
   }
@@ -2876,9 +2941,42 @@ function parseFlashcardCandidates(raw, source, research, feedbackContext = {}) {
 }
 
 async function generateFlashcardCandidates(company, source, research, feedbackContext = {}, options = {}) {
-  const { systemPrompt, userPrompt } = buildFlashcardGenerationPrompts(company, source, research, feedbackContext);
-  const raw = await callOllamaJson(systemPrompt, userPrompt, options);
-  return parseFlashcardCandidates(raw, source, research, feedbackContext);
+  const { systemPrompt: baseSystem, userPrompt: baseUser } = buildFlashcardGenerationPrompts(company, source, research, feedbackContext);
+  
+  const stages = {
+    draft: {
+      systemPrompt: "You are the Intelligence Extractor. Your task is to extract raw research claims, evidence snippets, and specific entities from the input. Format as a simple JSON object: { claims: [{ fact: string, confidence: number, source_grounding: string }] }.",
+    },
+    write: {
+      systemPrompt: [
+        "You are the Intelligence Synthesizer.",
+        "Take the DRAFT claims and convert them into high-impact Checklist flashcards.",
+        "Return a JSON array of objects with keys: title, body, kind, confidence, impact, weight, hashtags.",
+        "Kinds: SUMMARY, EXPLANATION, COMPARISON, NEWS, CONCLUSION, EVALUATION, OPINION, JUDGMENT, RECOMMENDATION, RESEARCH, FORECAST.",
+        "Ensure the body is grounded and evidence-backed.",
+        "hashtags must be relevant grouping tags."
+      ].join(" "),
+    },
+    judge: {
+      systemPrompt: [
+        "You are the Intelligence Auditor.",
+        "Review the synthesized flashcards against the DRAFT and the company MEMORY.",
+        "If a flashcard contradicts a memory truth, set evidence_clash to true and explain why in clash_notes.",
+        "Refine hashtags for accuracy.",
+        "Return the refined JSON array of flashcards."
+      ].join(" "),
+    }
+  };
+
+  try {
+    const trinityResult = await runTrinityPass(company, { research, source, feedbackContext }, stages);
+    const raw = trinityResult.audit || trinityResult.synthesis;
+    return parseFlashcardCandidates(raw, source, research, feedbackContext);
+  } catch (error) {
+    console.warn(`Trinity pass failed, falling back to single-pass: ${error.message}`);
+    const raw = await callOllamaJson(baseSystem, baseUser, options);
+    return parseFlashcardCandidates(raw, source, research, feedbackContext);
+  }
 }
 
 function buildSynthesisPrompts(company, topic, sources) {
@@ -3564,23 +3662,47 @@ function parseRecommendationCandidates(raw, cards, feedbackContext = {}) {
         sourceFlashcardIds,
         hashtags: normalizeHashtags(item.hashtags),
         evidenceClash: Boolean(item.evidence_clash),
-        clashNotes: truncate(item.clash_notes || "", 400),
+            clashNotes: truncate(item.clash_notes || "", 400),
       };
     })
     .map((item) => item ? applyAnnotationWeightingToRecommendation(item, feedbackContext) : null)
     .filter((item) => item && item.title && item.description && item.sourceFlashcardIds.length > 0 && !item.suppressedByAnnotation)
     .sort((left, right) => scoreRecommendationCandidate(right) - scoreRecommendationCandidate(left));
-}
 
 async function generateRecommendationCandidates(company, flashcards, focusTopics = [], feedbackContext = {}, options = {}) {
   const primaryPrompts = buildRecommendationPrompts(company, flashcards, focusTopics, feedbackContext, { compact: false });
+  
+  const stages = {
+    draft: {
+      systemPrompt: "You are the Task Architect. Your task is to extract actionable themes, opportunities, and specific requirements from the provided flashcards. Format as a simple JSON object: { themes: [{ goal: string, source_id: string, reason: string }] }.",
+    },
+    write: {
+      systemPrompt: [
+        "You are the Checklist Author.",
+        "Take the Task DRAFT and synthesize it into clear, high-impact Checklist items.",
+        "Return a JSON array of objects with keys: title, description, impact, confidence, ease, sourceFlashcardIds, hashtags.",
+        "Ensure titles are actionable and descriptions are grounded in the flashcard evidence.",
+      ].join(" "),
+    },
+    judge: {
+      systemPrompt: [
+        "You are the Checklist Auditor.",
+        "Review the synthesized items against the DRAFT and the company MEMORY.",
+        "Check for redundancy with existing tasks.",
+        "If an item contradicts a memory truth, set evidence_clash to true and explain why in clash_notes.",
+        "Return the refined JSON array of checklist items."
+      ].join(" "),
+    }
+  };
+
   try {
-    const raw = await callOllamaJson(primaryPrompts.systemPrompt, primaryPrompts.userPrompt, options);
+    const trinityResult = await runTrinityPass(company, { flashcards, feedbackContext, focusTopics }, stages);
+    const raw = trinityResult.audit || trinityResult.synthesis;
     return parseRecommendationCandidates(raw, primaryPrompts.cards, feedbackContext);
   } catch (error) {
-    const compactPrompts = buildRecommendationPrompts(company, flashcards, focusTopics, feedbackContext, { compact: true });
-    const raw = await callOllamaJson(compactPrompts.systemPrompt, compactPrompts.userPrompt, options);
-    return parseRecommendationCandidates(raw, compactPrompts.cards, feedbackContext);
+    console.warn(`Trinity pass failed for recommendations, falling back to single-pass: ${error.message}`);
+    const raw = await callOllamaJson(primaryPrompts.systemPrompt, primaryPrompts.userPrompt, options);
+    return parseRecommendationCandidates(raw, primaryPrompts.cards, feedbackContext);
   }
 }
 
@@ -5043,6 +5165,16 @@ async function processNextCompanyCycle() {
     finalizeCompanyCycleSelection(companyId, cycleDurationMs);
     const cycleMetric = buildCompanyCycleMetric(companyId, result, cycleDurationMs);
     appendRuntimeMetric(cycleMetric);
+
+    if (prisma) {
+      prisma.workerReport.create({
+        data: {
+          type: "PULSE",
+          data: cycleMetric,
+        },
+      }).catch(() => {});
+    }
+
     if (cycleMetric.cardsCreated > 0 || cycleMetric.flashcardsUpdated > 0 || cycleMetric.taskcardsUpdated > 0) {
       markMeaningfulProgress({
         companyId,

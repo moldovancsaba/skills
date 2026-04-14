@@ -13,6 +13,7 @@ import {
   LinkCard,
   PageHeader,
   PageShell,
+  UnifiedGrid,
 } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
 
@@ -208,7 +209,7 @@ export default function CompanyDashboard() {
   });
 
   return (
-    <PageShell width="5xl">
+    <PageShell width="full">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <PageHeader
           title={company?.name ?? "Company"}
@@ -289,12 +290,12 @@ export default function CompanyDashboard() {
             No pending checklist items yet. Open Checklist to generate recommendations.
           </p>
         ) : (
-          <div className="grid gap-4">
+          <UnifiedGrid>
             {topTasks.map((task, index) => (
               <React.Fragment key={task.id}>
                 <motion.div
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.03 }}
                 >
                   <TaskReviewCard
@@ -319,20 +320,16 @@ export default function CompanyDashboard() {
                   />
                 </motion.div>
 
-                {/* Inject Expert Tip and Team Members at 3rd place (index 1 is after 2nd item) */}
-                {index === 1 && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="grid gap-4 md:grid-cols-2"
-                  >
+                {/* Inject Expert Tip and Team Members only if we have exactly enough items or at the end */}
+                {index === 2 && (
+                  <>
                     <ExpertTipCard tip={tip} />
                     <MemberList companyId={companyId} isOwner={isOwner} />
-                  </motion.div>
+                  </>
                 )}
               </React.Fragment>
             ))}
-          </div>
+          </UnifiedGrid>
         )}
       </div>
 

@@ -14,7 +14,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { UnifiedCard, UnifiedCardHeader } from "@/components/ui/unified-card";
+import { 
+  UnifiedCard, 
+  UnifiedCardHeader, 
+  UnifiedCardBody, 
+  UnifiedCardText, 
+  UnifiedCardActions 
+} from "@/components/ui/unified-card";
 import { StructuredActionRow, StructuredCard, StructuredChipRow } from "@/components/ui/structured-card";
 
 type PageShellProps = {
@@ -218,42 +224,47 @@ export function LinkCard({
 
   return (
     <Link href={href} className={cn("group block h-full", className)}>
-      <StructuredCard
+      <UnifiedCard
         className={cn(
           "h-full transition-all duration-300",
           variant && variantClasses[variant]
         )}
-        chips={
-          <StructuredChipRow className="flex items-center justify-between w-full">
-            <span className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-              variant ? iconClasses[variant] : "bg-accent/10 text-accent group-hover:bg-accent/15"
-            )}>
-              <Icon className="h-5 w-5" />
-            </span>
-            {metric !== undefined && (
+      >
+        <UnifiedCardHeader
+          badges={
+            <div className="flex items-center justify-between w-full">
               <span className={cn(
-                "text-4xl font-black italic tracking-tighter opacity-80 transition-transform duration-300 group-hover:scale-110",
-                variant ? iconClasses[variant].split(' ')[0] : "text-zinc-500"
+                "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                variant ? iconClasses[variant] : "bg-accent/10 text-accent group-hover:bg-accent/15"
               )}>
-                {metric}
+                <Icon className="h-5 w-5" />
               </span>
-            )}
-          </StructuredChipRow>
-        }
-        title={<span className="text-base font-bold">{title}</span>}
-        body={<span className="text-zinc-400 text-sm">{description}</span>}
-        actions={
-          <StructuredActionRow>
-            <span className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "h-8 px-3 text-[10px] uppercase font-bold tracking-widest border border-white/5 bg-white/5 hover:bg-white/10"
-            )}>
-              Open
-            </span>
-          </StructuredActionRow>
-        }
-      />
+              {metric !== undefined && (
+                <span className={cn(
+                  "text-4xl font-black italic tracking-tighter opacity-80 transition-transform duration-300 group-hover:scale-110",
+                  variant ? iconClasses[variant].split(' ')[0] : "text-zinc-500"
+                )}>
+                  {metric}
+                </span>
+              )}
+            </div>
+          }
+          title={title}
+        />
+        <UnifiedCardBody>
+          <UnifiedCardText className="text-zinc-400 text-sm">
+            {description}
+          </UnifiedCardText>
+        </UnifiedCardBody>
+        <UnifiedCardActions>
+          <span className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "h-8 px-3 text-[10px] uppercase font-bold tracking-widest border border-white/5 bg-white/5 hover:bg-white/10"
+          )}>
+            Open
+          </span>
+        </UnifiedCardActions>
+      </UnifiedCard>
     </Link>
   );
 }

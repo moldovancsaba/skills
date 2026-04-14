@@ -14,6 +14,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Plus, Sparkles, Zap, ListOrdered, Settings as SettingsIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,11 @@ export default function CompanyDashboard() {
   const [draftDescription, setDraftDescription] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const [workerState, setWorkerState] = useState<{ online: boolean; state: string; currentCompany?: string }>({ 
+    online: false, 
+    state: "checking" 
+  });
+
   const loadDashboard = useCallback(async (cid: string) => {
     const safeFetch = async (url: string) => {
       try {
@@ -81,18 +87,20 @@ export default function CompanyDashboard() {
       }
     };
 
-    const [s, f, nba, knowmore, topics, members] = await Promise.all([
+    const [s, f, nba, knowmore, topics, members, worker] = await Promise.all([
       safeFetch(`/api/sources?companyId=${cid}`),
       safeFetch(`/api/data-files?companyId=${cid}`),
       safeFetch(`/api/nba?companyId=${cid}`),
       safeFetch(`/api/knowmore?companyId=${cid}`),
       safeFetch(`/api/topics?companyId=${cid}`),
       safeFetch(`/api/companies/${cid}/members`),
+      safeFetch(`/api/intelligence/worker-status`),
     ]);
 
     setSources(Array.isArray(s) ? s : []);
     setFileCount(Array.isArray(f) ? f.length : 0);
     setNbaItems(Array.isArray(nba) ? nba : []);
+    setWorkerState(worker || { online: false, state: "offline" });
 
     // Get current user session to determine role
     const sessionRes = await fetch("/api/auth/session");
@@ -105,18 +113,19 @@ export default function CompanyDashboard() {
     const safeNBA = Array.isArray(nba) ? nba as NBAItem[] : [];
     const safeKnowmore = Array.isArray(knowmore) ? knowmore : [];
 
+    // v0.11.3: Filter for active processing states
     const pendingTasks = safeNBA.filter((item) =>
-      ["PENDING", "DRAFT", "CHECKED", "VERIFIED"].includes(item.processingStatus)
+      ["DRAFT", "CHECKED", "VERIFIED"].includes(item.processingStatus)
     );
     setPendingTaskCount(pendingTasks.length);
     setTopTasks(
       pendingTasks
-        .sort((left, right) => right.iceScore - left.iceScore)
-        .slice(0, 3),
+        .sort((left, right) => (right.impact + right.confidenceScore + right.ease) - (left.impact + left.confidenceScore + left.ease))
+        .slice(0, 4),
     );
     setFlashcardCount(safeKnowmore.length);
     setTopicCount(Array.isArray(topics) ? topics.length : 0);
-  }, [setSources]);
+  }, [setSources, setNbaItems]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -164,7 +173,7 @@ export default function CompanyDashboard() {
   }, []);
 
   const handleShare = useCallback(async (item: NBAItem) => {
-    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidenceScore}% | Ease: ${item.ease}\nICE Score: ${Math.round(item.iceScore)}`;
+    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidenceScore}% | Ease: ${item.ease}`;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(item.id);
@@ -202,7 +211,7 @@ export default function CompanyDashboard() {
   }, [company, loadDashboard, resetActionForm]);
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
+    return <div className="flex items-center justify-center min-h-screen bg-zinc-950 text-zinc-500"><Sparkles className="animate-pulse mr-2" /> Initializing Sovereign Context...</div>;
   }
 
   const safeSources = Array.isArray(sources) ? sources : [];
@@ -221,9 +230,25 @@ export default function CompanyDashboard() {
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <PageHeader
           title={company?.name ?? "Company"}
-          description="Use raw data, knowledge flashcards, and checklist items as separate system layers."
+          description="Integrated intelligence layers: Data, Topics, Knowmore, and Checklist."
           backHref={companyCount > 1 ? "/" : undefined}
           backLabel="Switch company"
+          actions={
+            <div className="flex items-center gap-3 rounded-full border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 transition-colors hover:border-zinc-700">
+              <div className="relative">
+                <div className={cn(
+                  "h-2 w-2 rounded-full",
+                  workerState.online ? (workerState.state === "idle" ? "bg-amber-500" : "bg-green-500") : "bg-zinc-600"
+                )} />
+                {workerState.online && workerState.state !== "idle" && (
+                  <div className="absolute inset-0 animate-ping rounded-full bg-green-500 opacity-75" />
+                )}
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                Synthesis Pulse: {workerState.online ? (workerState.state === "idle" ? "Resting" : "Active") : "Offline"}
+              </span>
+            </div>
+          }
         />
       </motion.div>
 
@@ -234,8 +259,8 @@ export default function CompanyDashboard() {
             icon={Plus}
             variant="blue"
             metric={(Array.isArray(sources) ? sources.length : 0) + fileCount}
-            title={`Data Collection (${(Array.isArray(sources) ? sources.length : 0) + fileCount})`}
-            description="Add raw sources and files"
+            title={`Data Collection`}
+            description="Raw sources & files"
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -244,7 +269,7 @@ export default function CompanyDashboard() {
             icon={ListOrdered}
             variant="amber"
             metric={topicCount}
-            title={`Topics (${topicCount})`}
+            title={`Topics`}
             description="Prioritize AI focus"
           />
         </motion.div>
@@ -254,7 +279,7 @@ export default function CompanyDashboard() {
             icon={Sparkles}
             variant="green"
             metric={flashcardCount}
-            title={`Knowmore (${flashcardCount})`}
+            title={`Knowmore`}
             description="Knowledge layer"
           />
         </motion.div>
@@ -264,8 +289,8 @@ export default function CompanyDashboard() {
             icon={Zap}
             variant="violet"
             metric={pendingTaskCount}
-            title={`Checklist (${pendingTaskCount})`}
-            description="Next best actions"
+            title={`Checklist`}
+            description="High-impact actions"
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
@@ -282,8 +307,8 @@ export default function CompanyDashboard() {
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Top checklist items</h2>
-            <p className="text-sm text-muted-foreground">The top 3 pending items, ranked by ICE score.</p>
+            <h2 className="text-lg font-semibold text-foreground">Top strategic intelligence</h2>
+            <p className="text-sm text-muted-foreground">High-impact tasks generated by the Trinity synthesis engine.</p>
           </div>
           <Button asChild variant="outline" size="sm">
             <Link href={`/${companyId}/nba`}>
@@ -293,52 +318,45 @@ export default function CompanyDashboard() {
           </Button>
         </div>
 
-        {topTasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No pending checklist items yet. Open Checklist to generate recommendations.
-          </p>
-        ) : (
-          <UnifiedGrid>
-            {topTasks.map((task, index) => (
-              <React.Fragment key={task.id}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.03 }}
-                >
-                  <TaskReviewCard
-                    item={task}
-                    isActionOpen={actionItemId === task.id && actionMode !== null}
-                    actionMode={actionMode}
-                    isBusy={loading}
-                    copied={copiedId === task.id}
-                    annotation={annotation}
-                    draftTitle={draftTitle}
-                    draftDescription={draftDescription}
-                    activeHashtags={[]}
-                    onOpenAction={openActionForm}
-                    onCloseAction={resetActionForm}
-                    onAnnotationChange={setAnnotation}
-                    onDraftTitleChange={setDraftTitle}
-                    onDraftDescriptionChange={setDraftDescription}
-                    onToggleHashtag={() => {}}
-                    onRemoveHashtag={() => {}}
-                    onSubmit={handleFeedback}
-                    onShare={handleShare}
-                  />
-                </motion.div>
-
-                {/* Inject Expert Tip and Team Members only if we have exactly enough items or at the end */}
-                {index === 2 && (
-                  <>
-                    <ExpertTipCard tip={tip} />
-                    <MemberList companyId={companyId} isOwner={isOwner} />
-                  </>
-                )}
-              </React.Fragment>
-            ))}
-          </UnifiedGrid>
-        )}
+        <UnifiedGrid>
+          {topTasks.map((task, index) => (
+            <motion.div
+              key={task.id}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.03 }}
+            >
+              <TaskReviewCard
+                item={task}
+                isActionOpen={actionItemId === task.id && actionMode !== null}
+                actionMode={actionMode}
+                isBusy={loading}
+                copied={copiedId === task.id}
+                annotation={annotation}
+                draftTitle={draftTitle}
+                draftDescription={draftDescription}
+                activeHashtags={[]}
+                onOpenAction={openActionForm}
+                onCloseAction={resetActionForm}
+                onAnnotationChange={setAnnotation}
+                onDraftTitleChange={setDraftTitle}
+                onDraftDescriptionChange={setDraftDescription}
+                onToggleHashtag={() => {}}
+                onRemoveHashtag={() => {}}
+                onSubmit={handleFeedback}
+                onShare={handleShare}
+              />
+            </motion.div>
+          ))}
+          
+          {/* Always show strategic context cards */}
+          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: topTasks.length * 0.03 }}>
+            <ExpertTipCard tip={tip} />
+          </motion.div>
+          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: (topTasks.length + 1) * 0.03 }}>
+            <MemberList companyId={companyId} isOwner={isOwner} />
+          </motion.div>
+        </UnifiedGrid>
       </div>
 
       <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8">

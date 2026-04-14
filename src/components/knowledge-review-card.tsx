@@ -132,7 +132,7 @@ export function KnowledgeReviewCard({
       isSovereignResearch && "border-cyan-400/30 bg-[linear-gradient(180deg,rgba(14,116,144,0.16),rgba(15,23,42,0.96)_22%,rgba(15,23,42,0.98))] shadow-[0_0_0_1px_rgba(34,211,238,0.08),0_18px_48px_rgba(8,47,73,0.28)]"
     )}>
       <UnifiedCardHeader
-        badges={
+        supporting={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className={cn("font-mono text-[10px] tracking-wider", reviewStatusClasses(flashcard.processingStatus))}>
               {flashcard.processingStatus.toUpperCase()}

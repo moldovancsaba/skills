@@ -253,7 +253,7 @@ export default function CompanyTopicsPage() {
             >
               <UnifiedCard>
                 <UnifiedCardHeader 
-                  badges={badges} 
+                  supporting={badges} 
                   title={topic.label} 
                 />
                 

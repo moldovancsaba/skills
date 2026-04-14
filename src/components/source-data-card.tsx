@@ -62,7 +62,7 @@ export function SourceDataCard({
 
   return (
     <UnifiedCard>
-      <UnifiedCardHeader badges={badges} title={name.length > 80 ? name.slice(0, 80) + "..." : name} />
+      <UnifiedCardHeader supporting={badges} title={name.length > 80 ? name.slice(0, 80) + "..." : name} />
       
       <UnifiedCardBody>
         <UnifiedCardText className="line-clamp-4 whitespace-pre-wrap">

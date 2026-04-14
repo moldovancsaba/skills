@@ -21,7 +21,7 @@ type StructuredCardProps = {
 export function StructuredCard({ chips, title, body, actions, details, className }: StructuredCardProps) {
   return (
     <UnifiedCard className={className}>
-      <UnifiedCardHeader badges={chips} title={title} />
+      <UnifiedCardHeader supporting={chips} title={title} />
       <UnifiedCardBody>
         {body ? <UnifiedCardText>{body}</UnifiedCardText> : null}
         {actions ? <UnifiedCardActions>{actions}</UnifiedCardActions> : null}

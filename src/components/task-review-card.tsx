@@ -79,7 +79,7 @@ export function TaskReviewCard({
   onSubmit,
   onShare,
 }: TaskReviewCardProps) {
-  const badges = (
+  const supporting = (
     <>
       <Badge variant="outline" className="font-mono text-[10px] tracking-wider border-zinc-200/20 text-zinc-400">
         {item.processingStatus.toUpperCase()}
@@ -96,7 +96,7 @@ export function TaskReviewCard({
 
   return (
     <UnifiedCard className={cn(item.processingStatus === "DECLINED" && "opacity-60")}>
-      <UnifiedCardHeader badges={badges} title={item.title} />
+      <UnifiedCardHeader supporting={supporting} title={item.title} />
       
       <UnifiedCardBody>
         <UnifiedCardText className="text-[0.95rem] leading-relaxed text-zinc-300/90">

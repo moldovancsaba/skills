@@ -4,7 +4,12 @@ import { ArrowRight, Lightbulb, Sparkles } from "lucide-react";
 import type { ExpertTip } from "@/content/help";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  UnifiedCard, 
+  UnifiedCardHeader, 
+  UnifiedCardBody, 
+  UnifiedCardActions 
+} from "@/components/ui/unified-card";
 
 type ExpertTipCardProps = {
   tip: ExpertTip;
@@ -12,55 +17,58 @@ type ExpertTipCardProps = {
 
 export function ExpertTipCard({ tip }: ExpertTipCardProps) {
   return (
-    <Card className="h-full border-amber-200/80 bg-gradient-to-br from-amber-50 via-background to-orange-50 dark:border-amber-500/20 dark:from-amber-500/10 dark:via-background dark:to-orange-500/10">
-      <CardHeader className="space-y-4 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300">
-            <Lightbulb className="h-5 w-5" />
+    <UnifiedCard className="h-full bg-gradient-to-br from-amber-500/5 via-zinc-950/40 to-orange-500/5">
+      <UnifiedCardHeader
+        supporting={
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+              <Lightbulb className="h-4 w-4" />
+            </div>
+            <Badge variant="outline" className="border-amber-500/20 bg-amber-500/5 text-[10px] uppercase tracking-wider font-bold text-amber-200">
+              {tip.category}
+            </Badge>
           </div>
-          <Badge variant="outline" className="border-amber-300/70 bg-background/70 text-xs uppercase tracking-wide text-amber-800 dark:text-amber-200">
-            {tip.category}
-          </Badge>
-        </div>
-        <div className="space-y-2">
-          <CardTitle className="text-xl md:text-2xl">{tip.title}</CardTitle>
-          <p className="text-sm text-muted-foreground">{tip.body}</p>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4 p-5 pt-0">
-        <div className="rounded-lg border border-border/80 bg-card/80 p-3 text-sm text-foreground">
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Sparkles className="h-3.5 w-3.5" />
-            Why this matters
+        }
+        title={tip.title}
+        description={tip.body}
+      />
+      
+      <UnifiedCardBody className="space-y-4">
+        <div className="rounded-lg border border-amber-500/10 bg-amber-500/[0.02] p-3 text-sm text-zinc-300">
+          <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-500/70">
+            <Sparkles className="h-3 w-3" />
+            Strategic Rationale
           </div>
-          <p>{tip.whyItMatters}</p>
+          <p className="leading-relaxed">{tip.whyItMatters}</p>
         </div>
 
-        {tip.samplePhrases && tip.samplePhrases.length > 0 ? (
+        {tip.samplePhrases && tip.samplePhrases.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Useful wording</p>
-            <div className="space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Suggested Phrasing</p>
+            <div className="space-y-1.5">
               {tip.samplePhrases.map((phrase) => (
-                <div key={phrase} className="rounded-lg border border-dashed border-border/80 bg-background/70 px-3 py-2 text-sm text-foreground">
+                <div key={phrase} className="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs italic text-zinc-400">
                   “{phrase}”
                 </div>
               ))}
             </div>
           </div>
-        ) : null}
+        )}
+      </UnifiedCardBody>
 
+      <UnifiedCardActions>
         <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-500 text-white border-0">
             <Link href={tip.ctaHref}>
               {tip.ctaLabel}
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="ml-2 h-3.5 w-3.5" />
             </Link>
           </Button>
-          <Button asChild variant="ghost" size="sm">
+          <Button asChild variant="ghost" size="sm" className="text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40">
             <Link href="/faq">FAQ</Link>
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </UnifiedCardActions>
+    </UnifiedCard>
   );
 }

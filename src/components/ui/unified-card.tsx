@@ -40,21 +40,21 @@ export function UnifiedCard({ children, className }: UnifiedCardProps) {
 }
 
 type UnifiedCardHeaderProps = {
-  badges?: ReactNode;
+  supporting?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
   className?: string;
 };
 
 export function UnifiedCardHeader({
-  badges,
+  supporting,
   title,
   description,
   className,
 }: UnifiedCardHeaderProps) {
   return (
     <div className={cn("px-6 pt-6 pb-2 space-y-4", className)}>
-      {badges ? <div className="flex flex-wrap items-center gap-2">{badges}</div> : null}
+      {supporting ? <div className="flex flex-wrap items-center gap-2">{supporting}</div> : null}
       <div className="space-y-2">
         <h3 className="font-display text-[1.45rem] font-bold leading-tight tracking-tight text-white">{title}</h3>
         {description ? <p className="text-[0.95rem] leading-relaxed text-zinc-400">{description}</p> : null}

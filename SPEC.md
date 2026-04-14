@@ -6,11 +6,11 @@ Checklist is an active production web application with local-AI-assisted enrichm
 
 Current release baseline:
 
-- app version: `v0.11.1`
+- app version: `v0.11.3`
 - framework: `Next.js 16.2.2`
 - product title: `Checklist Marketing OS`
 - canonical production URL: `https://checklist.sovereignsquad.com`
-- local AI version: `Sovereign Trinity v0.11.1`
+- local AI version: `Sovereign Trinity v0.11.3`
 
 ## Product Definition
 
@@ -197,5 +197,5 @@ When any of these change, update docs in the same change set:
 
 ## Document Status
 
-Status: current (v0.11.1)
+Status: current (v0.11.3)
 Last updated: `2026-04-14`

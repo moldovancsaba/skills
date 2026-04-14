@@ -11,19 +11,29 @@ export async function GET(request: NextRequest) {
 
     const [
       companyCount,
-      flashcardStatusCounts,
-      nbaStatusCounts,
+      flashcardProcessingStats,
+      flashcardActivityStats,
+      nbaProcessingStats,
+      nbaActivityStats,
       conflictCount,
       workerReports,
       topCompanies,
     ] = await Promise.all([
       prisma.company.count(),
       prisma.flashcard.groupBy({
-        by: ['status'],
+        by: ['processingStatus'],
+        _count: { _all: true },
+      }),
+      prisma.flashcard.groupBy({
+        by: ['activityState'],
         _count: { _all: true },
       }),
       prisma.nBAItem.groupBy({
-        by: ['status'],
+        by: ['processingStatus'],
+        _count: { _all: true },
+      }),
+      prisma.nBAItem.groupBy({
+        by: ['activityState'],
         _count: { _all: true },
       }),
       prisma.flashcardCorrection.count({
@@ -59,15 +69,21 @@ export async function GET(request: NextRequest) {
     const stats = {
       global: {
         companies: companyCount,
-        flashcards: flashcardStatusCounts.reduce((acc, curr) => ({ ...acc, [curr.status]: curr._count._all }), {} as any),
-        tasks: nbaStatusCounts.reduce((acc, curr) => ({ ...acc, [curr.status]: curr._count._all }), {} as any),
+        flashcards: {
+          processing: flashcardProcessingStats.reduce((acc, curr) => ({ ...acc, [curr.processingStatus]: curr._count._all }), {} as any),
+          activity: flashcardActivityStats.reduce((acc, curr) => ({ ...acc, [curr.activityState]: curr._count._all }), {} as any),
+        },
+        tasks: {
+          processing: nbaProcessingStats.reduce((acc, curr) => ({ ...acc, [curr.processingStatus]: curr._count._all }), {} as any),
+          activity: nbaActivityStats.reduce((acc, curr) => ({ ...acc, [curr.activityState]: curr._count._all }), {} as any),
+        },
         conflicts: conflictCount,
       },
       yieldByCompany: enrichedCompanies,
       workerReports: workerReports.map(r => ({
         id: r.id,
         type: r.type,
-        data: r.data,
+        data: r.data as any,
         createdAt: r.createdAt,
       })),
     };

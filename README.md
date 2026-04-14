@@ -1,285 +1,77 @@
-# Checklist
+# Sovereign Marketing OS (v0.11.3)
 
-Checklist is a split-system marketing operating system:
+> **The Decentralized Intelligence Layer for Strategic Marketing.**
 
-- the `online webapp` runs on Vercel and is the user-facing product
-- the `local AI layer` enriches source evidence, generates flashcards, researches active topics, and supports checklist generation
-- MongoDB Atlas via Prisma is the shared system of record
+Sovereign Marketing OS is a high-performance, autonomous intelligence system designed to bridge the gap between raw market evidence and executive-level strategy. It leverages a unique **Online/Local split-architecture** to ensure maximum privacy, data sovereignty, and high-quality AI reasoning.
 
-Current app version:
-- `v0.11.1` (Unified Task Interaction & Judge Hardening)
+- **Frontend**: Premium Next.js 16 Web Interface (Unified Design System).
+- **Intelligence**: Local **Trinity Synthesis Engine** powered by Ollama.
+- **Persistence**: Hybrid MongoDB Atlas via Prisma.
 
-Canonical production URL:
-- `https://checklist.sovereignsquad.com`
+## 🛡️ The Sovereign Paradigm
 
-Key decision records:
-- `docs/SCHEDULER_FAIRNESS_DECISION_RECORD.md` - fairness, anti-starvation, and restart-order contract for the local AI worker
-- `docs/SCHEDULER_CURSOR_RUNTIME.md` - shipped persistent company cursor and restart-safe scheduler runtime behavior
+Unlike traditional "SaaS" tools that process your data in the cloud, Sovereign Marketing OS treats your data as a strategic asset. 
 
-## Current architecture
+1. **Passive Ingress**: The webapp captures user intent and raw signals without expensive cloud-side processing.
+2. **Local Authority**: All complex reasoning, IC&E scoring, and knowledge synthesis occur on your local hardware via the **Trinity Pipeline**.
+3. **The Pulse**: A real-time bridge communicates the state of the local synthesis worker directly to the dashboard, providing transparency into the autonomous thinking process.
 
-```text
-┌────────────────────────────────────────────────────────────┐
-│ Online webapp (Vercel)                                    │
-│ https://checklist.sovereignsquad.com                      │
-│ - Next.js 16 app router                                   │
-│ - source data entry                                       │
-│ - Knowmore flashcards                                     │
-│ - NBA checklist tasks                                     │
-│ - auth, feedback, and release metadata                    │
-└──────────────────────────────┬─────────────────────────────┘
-                               │
-                               │ writes / reads
-                               ▼
-┌────────────────────────────────────────────────────────────┐
-│ Shared database (MongoDB Atlas via Prisma)                │
-│ - companies + memberships                                 │
-│ - unified sources + uploaded source files                 │
-│ - topics + hashtag feedback                               │
-│ - flashcards + flashcard actions                          │
-│ - checklist items + feedback                              │
-│ - public ID counters                                      │
-└──────────────────────────────┬─────────────────────────────┘
-                               │
-                               │ enrichment / generation
-                               ▼
-┌────────────────────────────────────────────────────────────┐
-│ Local AI layer                                             │
-│ - local URL fetch + public signal collection               │
-│ - local model reasoning via Ollama                         │
-│ - flashcard generation / refresh                           │
-│ - NBA generation support                                   │
-│ - optional webhook-triggered sync bridge                   │
-└────────────────────────────────────────────────────────────┘
-```
+---
 
-## Product model
+## 🌪️ Trinity Synthesis Pipeline
 
-Checklist follows a 4-step operator pipeline:
+The system's core intelligence is governed by a three-pass autonomous loop:
 
-1. `DATA`
-   - raw user-ingested `Source` rows and uploaded files
-   - hashtagged and entity-tagged evidence
-   - the hosted app writes these rows directly to the shared database
-2. `TOPICS`
-   - manually prioritized research focus areas
-   - active/inactive and user-ordered
-   - used as the **Primary Planner** for all local AI work (research, flashcards, tasks)
-- the worker focuses 100% of its intelligence budget on items aligned with active topics
-3. `FLASHCARDS`
-   - processed knowledge atoms shown on `/:companyId/knowmore`
-   - derived from source evidence and public signals
-   - carry `confidence`, `impact`, `weight`, provenance, and review state
-7. `TASKS`
-   - checklist items shown on `/:companyId/nba`
-   - generated from flashcards and company context
-   - carry `impact`, `confidence`, `ease`, and `ICE`
-8. `ALERTING`
-   - proactive dispatch of high-impact discoveries
-   - filtered by communication settings and ICE threshold
-   - supports two-way bridge for follow-up data ingestion
+| Pass | Role | Description |
+| :--- | :--- | :--- |
+| **Pass 1: DRAFTER** | *Extraction* | Scrubs raw sources, entities, and uploaded files to identify atomic insights. |
+| **Pass 2: WRITER** | *Refinement* | Calculates strategic impact (ICE), generates provenance-backed flashcards, and drafts Next-Best-Actions. |
+| **Pass 3: JUDGE** | *Audit* | Hardens the knowledge layer by rejecting low-confidence items and enforcing a statistical quality floor. |
 
-## Current route structure
+---
 
-### Company-scoped routes
+## 🗺️ Product Architecture
 
-| Route | Purpose |
-|---|---|
-| `/[companyId]` | company dashboard |
-| `/[companyId]/data` | raw source data entry |
-| `/[companyId]/topics` | topic prioritization for local AI research |
-| `/[companyId]/knowmore` | flashcards / knowledge layer |
-| `/[companyId]/nba` | checklist tasks / next best actions |
-| `/[companyId]/nba_archived` | archived checklist items |
-| `/[companyId]/topics` | topic prioritization for AI research |
-| `/[companyId]/settings` | communication and bridge settings |
+The system operates across four distinct intelligence layers:
 
-### Global routes
+### 1. Unified Data (Ingress)
+Raw market evidence, product docs, customer feedback, and competitor signals are ingested into a unified relational context.
 
-| Route | Purpose |
-|---|---|
-| `/` | company selection / company CRUD |
-| `/login` | login page |
-| `/auth` | auth landing page |
-| `/manual` | redirects to FAQ |
-| `/faq` | frequently asked questions |
-| `/privacy` | privacy policy |
-| `/terms` | terms |
-| `/brand` | brand page |
-| `/products` | global products view |
-| `/customers` | global customers view |
-| `/competitors` | global competitors view |
-| `/data` | global data view |
-| `/content` | content page |
-| `/crm` | CRM page |
-| `/intelligence` | intelligence page |
-| `/leads` | leads page |
-| `/portfolio` | portfolio page |
-| `/strategy` | strategy page |
-| `/pre-fortitude` | pre-fortitude page |
+### 2. Autonomous Topics (Strategy)
+User-defined research focus areas that act as the **Primary Planner** for the AI. The Trinity Worker prioritizes processing for topics with high "Strategic Pressure".
 
-## Current core behaviors
+### 3. Knowmore (Knowledge)
+The synthesized Knowledge Layer. Atomic flashcards (`SUMMARY`, `FORECAST`, `JUDGMENT`) that carry verifiable confidence scores and provenance.
 
-- `public IDs`
-  - user-facing source records, flashcards, and checklist items use readable integer IDs in addition to UUIDs
-- `Knowmore flashcards`
-  - kinds include `SUMMARY`, `EXPLANATION`, `COMPARISON`, `NEWS`, `CONCLUSION`, `EVALUATION`, `OPINION`, `JUDGMENT`, `RECOMMENDATION`, `RESEARCH`, `FORECAST`, `STOCK`, `GOSSIP`, `PRICE`
-- `flashcard review actions`
-  - `Accept`
-  - `Decline`
-  - `Modify + accept`
-- `NBA task review actions`
-  - `Accept`
-  - `Decline`
-  - `Modify + accept`
-- `feedback loop`
-  - flashcard feedback changes flashcard scoring
-  - task feedback changes the source flashcards tied to that task
-  - **weighted annotation learning**: user actions (accept/decline/modify) calculate term and hashtag weights used to score and suppress future candidates
-- `continuous improvement direction`
-  - the system uses an **Active Topic Primary Planner** to decide what to research and refresh
-  - improvement work is ranked by business value and topic "Pressure" (coverage gaps)
-  - logic for multi-pass reasoning follows the **Trinity (Draft/Write/Judge)** architecture
-- `ICE scoring`
-  - `Impact: 0-10`
-  - `Confidence: 0-100`
-  - `Ease: 0-10`
-  - formula: `impact * (confidence / 10) * ease`
-  - output range: `0-1000`
+### 4. NBA Checklist (Action)
+Next-Best-Action recommendations ranked by **ICE Score** (Impact, Confidence, Ease). These are derived directly from the Knowledge Layer to ensure every action is rooted in evidence.
 
-## Tech stack
+---
 
-- `Next.js 16.2.2`
-- `React 18`
-- `Prisma + MongoDB Atlas`
-- `Tailwind + shadcn-ui`
-- `Ollama` for local model execution
+## 🚀 Recent Innovations in v0.11.3
 
-## Development
+- **Unified Card UI**: A singular, premium card design system used across all intelligence layers, purging legacy patterns.
+- **Synthesis Heartbeat**: A live "Pulse" indicator on the dashboard connected via a real-time proxy to the local worker.
+- **Statistical Quality Floor**: The `JUDGE` actively demotes any card falling below the 10th percentile of verified intelligence.
+- **Topic-Primary Synthesis**: Total alignment of the AI reasoning budget with the user's active strategic priorities.
 
-Install:
+---
+
+## 🛠️ Stack & Operations
+
+- **Frontend**: Next.js 16.2.2 + React 18 + TailwindCSS.
+- **Design Primitives**: `UnifiedCard`, `AppShell`, `StructuredCard` (Hardened for Dark Mode).
+- **Core Engine**: `Ollama` running Sovereign prompts.
+- **Persistence**: `Prisma` + `MongoDB Atlas`.
+
+### Development Setup
 
 ```bash
+# 1. Install Dependencies
 npm install
-```
 
-Run the dev server:
-
-```bash
-npm run dev
-```
-
-Useful commands:
-
-```bash
-npm run lint
-npm run build
-npm run db:generate
+# 2. Synchronize Schema
 npm run db:push
-npm run repair:raw-sources
-```
-
-Operational references:
-- `docs/LOCAL_AI_PIPELINE.md`
-- `docs/SCHEDULER_FAIRNESS_DECISION_RECORD.md`
-- `docs/SCHEDULER_CURSOR_RUNTIME.md`
-
-## Environment
-
-Required environment variables are local-only secrets and must not be committed to docs or source control.
-
-At minimum, this app expects:
-
-- `DATABASE_URL`
-- `APP_SESSION_SECRET`
-- `SSO_CLIENT_ID`
-- `SSO_CLIENT_SECRET`
-- `SSO_AUTH_URL`
-- `SSO_TOKEN_URL`
-- `SSO_REDIRECT_URI`
-- `SSO_SCOPES`
-- `NEXT_PUBLIC_BASE_URL`
-- local AI / sync envs where applicable:
-  - `OLLAMA_URL`
-  - `OLLAMA_HOST` (preferred worker alias; falls back to `OLLAMA_URL`)
-  - `OLLAMA_MODEL`
-
-Use local `.env` and Vercel project env management. Do not place real credentials in documentation.
-
-## Database contract
-
-There is a single Checklist database schema for this product:
-
-- Prisma schema path: `prisma/schema.prisma`
-- Prisma datasource env: `DATABASE_URL`
-
-If you run a local AI worker on another machine, it must connect to the same Checklist MongoDB database by using the same Checklist `DATABASE_URL`.
-
-Important:
-
-- there is no second Checklist Prisma schema inside another app
-- if setup fails on a new machine, treat it as a missing Checklist database connection or missing `prisma db push`, not as a bad path to another app's schema
-
-## Main API routes
-
-### Auth
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/api/auth/login` | `GET` | start OAuth login |
-| `/api/auth/callback` | `GET` | auth callback |
-| `/api/auth/logout` | `GET` | clear session |
-| `/api/auth/session` | `GET` | current session state |
-
-### Core app data
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/api/companies` | `GET, POST, PATCH, DELETE` | company CRUD |
-| `/api/sources` | `GET, POST, PATCH, DELETE` | unified raw source CRUD |
-| `/api/data-files` | `GET, POST, PATCH, DELETE` | uploaded source files |
-| `/api/topics` | `GET, POST, PATCH, DELETE` | topic CRUD and ordering |
-| `/api/hashtags/recommendations` | `GET` | hashtag recommendations |
-| `/api/hashtags/feedback` | `POST` | hashtag feedback actions |
-| `/api/knowmore` | `GET` | visible flashcards |
-| `/api/knowmore/actions` | `POST` | flashcard review actions |
-| `/api/knowmore/corrections` | `GET, POST` | flashcard/source correction events |
-| `/api/knowmore/sync` | `POST` | force company knowledge refresh |
-| `/api/nba` | `GET, POST` | read/create NBA items |
-| `/api/feedback` | `GET, POST` | task feedback |
-| `/api/feedback/analytics` | `GET` | task feedback analytics |
-| `/api/release` | `GET` | app and prompt release metadata |
-| `/api/communication/settings` | `GET, POST` | notification channel CRUD |
-| `/api/bridge/ingress` | `POST` | two-way bridge data ingestion |
-
-### Local AI bridge
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/api/agent/local` | `POST` | returns queued/no-op; hosted webapp does not call local AI directly |
-| `/api/webhook/trigger` | `GET, POST` | returns queued/no-op; local AI must poll the shared database |
-
-## Important current limitations
-
-- the hosted webapp only reads and writes the shared database; local AI processing must be done by a separate worker that polls the database
-- some public-search collection is opportunistic and less reliable than direct page fetch plus explicit evidence
-- `NEWS` flashcards are being tightened aggressively and evidence-only publishing is still evolving
-- provenance and version metadata are present but not yet surfaced uniformly in every user-facing place
-
-## Recent shipped changes in `v0.11.1`
-
-- `v0.11.1`: **Unified Task Interaction & Judge Hardening**.
-    - Restored iterative action buttons (Accept/Decline/Modify) for all TaskCard states to align with the Knowledge Review workflow.
-    - Hardened the `JUDGE` logic to forcefully crater metrics (reset to 1) for rejected items, ensuring they sink to the bottom of sorting stacks.
-    - Stripped deprecated source tagging UI (PRODUCT/CUSTOMER/COMPETITOR) and cleaned up "About (Entity)" noise.
-    - Fixed Turbopack build runtime error by aligning proxy export naming for Next.js 16.2.2 compatibility.
-- `v0.11.0`: **Sovereign Trinity Migration**. Purged legacy model references and unified synthesis under the Draft/Write/Judge pipeline.
-- `v0.10.0`: The intelligence engine is now **Topic-Primary**; it only researches and generates knowledge that aligns with explicitly enabled Topics.
-
-## Documentation ownership
-
-Use these files intentionally:
-
 - `README.md`
   - current product overview, stack, routes, setup, and API inventory
 - `SPEC.md`

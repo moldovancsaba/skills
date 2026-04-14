@@ -60,7 +60,6 @@ export default function CompanyDataPage() {
   const [input, setInput] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [hashtagSuggestions, setHashtagSuggestions] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -223,7 +222,6 @@ export default function CompanyDataPage() {
       
       setInput("");
       setHashtags([]);
-      setSelectedFiles([]);
       setSelectedFiles([]);
       setEditingId(null);
       setSaved(true);

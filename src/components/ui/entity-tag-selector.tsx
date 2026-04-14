@@ -71,13 +71,7 @@ export function EntityTagSelector({
 
   return (
     <div className="space-y-2" ref={containerRef}>
-      {label && (
-        <div className="flex items-center gap-1.5">
-          <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
-          <label className="text-sm font-medium text-foreground">{label}</label>
-          <span className="text-xs text-muted-foreground">(optional — links this data to a specific entity)</span>
-        </div>
-      )}
+
 
       {/* Selected entity display */}
       {value ? (

@@ -96,7 +96,7 @@ export function TaskReviewCard({
     </StructuredChipRow>
   );
 
-  const actions = item.processingStatus === "VERIFIED" ? (
+  const actions = (
     <StructuredActionRow>
       <Button size="sm" variant="secondary" onClick={() => onOpenAction(item, "ACCEPT")}>
         <Check className="h-4 w-4" />
@@ -110,10 +110,7 @@ export function TaskReviewCard({
         <PencilLine className="h-4 w-4" />
         Modify + accept
       </Button>
-    </StructuredActionRow>
-  ) : (
-    <StructuredActionRow>
-      <Button onClick={() => onShare(item)} variant="ghost" size="sm" title="Share">
+      <Button onClick={() => onShare(item)} variant="ghost" size="sm" title="Share" className="ml-auto">
         {copied ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Share2 className="h-4 w-4" />}
         Share
       </Button>

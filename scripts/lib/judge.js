@@ -49,7 +49,9 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Legacy Sync
-      confidenceScore: finalScore,
+      confidenceScore: 1,
+      impact: 1,
+      weight: 1,
       userAnnotation: `[JUDGE REJECTION]: ${raw.reason || "Confidence below quality floor."}` 
     };
   }
@@ -98,7 +100,10 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Legacy Sync
-      confidenceScore: finalScore,
+      confidenceScore: 1,
+      impact: 1,
+      ease: 1,
+      iceScore: 1,
       userAnnotation: `[JUDGE REJECTION]: ${raw.reason || "Confidence below quality floor."}`
     };
   }

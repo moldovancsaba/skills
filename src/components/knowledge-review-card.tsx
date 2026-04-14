@@ -178,13 +178,6 @@ export function KnowledgeReviewCard({
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-1.5 opacity-60 transition-opacity group-hover:opacity-100">
-            {flashcard.sources.map((source) => (
-              <Badge key={source.id} variant="outline" className="text-[10px] font-normal lowercase bg-background/50">
-                {sourceLabel(source.sourceType)}: {source.sourceName}
-              </Badge>
-            ))}
-          </div>
 
           <UnifiedCardActions className="pt-2">
             <Button size="sm" variant="secondary" className="h-8 shadow-sm" onClick={() => onOpenAction(flashcard, "ACCEPT")} disabled={isBusy || isGenerating}>

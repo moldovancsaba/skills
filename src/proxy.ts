@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const APP_SESSION_COOKIE = "checklist_session";
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const session = req.cookies.get(APP_SESSION_COOKIE)?.value;
 

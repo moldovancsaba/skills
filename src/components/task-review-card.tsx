@@ -96,6 +96,8 @@ export function TaskReviewCard({
     </StructuredChipRow>
   );
 
+  // Actions are now always visible (even in DRAFT) to allow iterative iterative user verification
+  // and review, matching the Knowmore flashcard workflow.
   const actions = (
     <StructuredActionRow>
       <Button size="sm" variant="secondary" onClick={() => onOpenAction(item, "ACCEPT")}>

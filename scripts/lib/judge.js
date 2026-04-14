@@ -4,7 +4,8 @@ const { getWorkerConfig, calculatePercentile } = require("./shared");
 
 /**
  * The JUDGE is the final stage of the Trinity Quality Gate.
- * It audits CHECKED cards and either promotes to VERIFIED or demotes to DRAFT.
+ * it audits CHECKED cards and either promotes to VERIFIED or demotes to DRAFT.
+ * Rejections forcefully crater all metrics to 1 to ensure they sink to the bottom of sorting layers.
  */
 async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
@@ -49,7 +50,7 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Legacy Sync
-      confidenceScore: 1,
+      confidenceScore: 1, // Crater scores to sink to the bottom of the list
       impact: 1,
       weight: 1,
       userAnnotation: `[JUDGE REJECTION]: ${raw.reason || "Confidence below quality floor."}` 
@@ -100,7 +101,7 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Legacy Sync
-      confidenceScore: 1,
+      confidenceScore: 1, // Crater scores to sink to the bottom of the list
       impact: 1,
       ease: 1,
       iceScore: 1,

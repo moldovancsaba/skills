@@ -6,11 +6,11 @@ Checklist is an active production web application with local-AI-assisted enrichm
 
 Current release baseline:
 
-- app version: `v0.11.0`
+- app version: `v0.11.1`
 - framework: `Next.js 16.2.2`
 - product title: `Checklist Marketing OS`
 - canonical production URL: `https://checklist.sovereignsquad.com`
-- local AI version: `Sovereign Trinity v0.11.0`
+- local AI version: `Sovereign Trinity v0.11.1`
 
 ## Product Definition
 
@@ -123,7 +123,7 @@ Local AI Layer (The Trinity - Authoritative Engine)
 
 ### Quality floor (Percentile)
 
-The Judge demotes any card falling below the `confidence_reject_percentile` (default: 10th percentile) of current verified intelligence.
+The Judge demotes any card falling below the `confidence_reject_percentile` (default: 10th percentile) of current verified intelligence. Rejected cards are returned to `DRAFT` status and their metrics (`confidenceScore`, `impact`, `ease`, `iceScore`) are forcefully reset to `1` to ensure they are de-prioritized in the user interface.
 
 ### Deduplication
 - Flashcards: `EVO:FC:[company]:[source]:[title]`
@@ -197,5 +197,5 @@ When any of these change, update docs in the same change set:
 
 ## Document Status
 
-Status: current (v0.11.0)
+Status: current (v0.11.1)
 Last updated: `2026-04-14`

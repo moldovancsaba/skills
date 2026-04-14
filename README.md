@@ -7,7 +7,7 @@ Checklist is a split-system marketing operating system:
 - MongoDB Atlas via Prisma is the shared system of record
 
 Current app version:
-- `v0.10.0` (Hardened Intelligence & Alerting Bridge)
+- `v0.11.1` (Unified Task Interaction & Judge Hardening)
 
 Canonical production URL:
 - `https://checklist.sovereignsquad.com`
@@ -266,11 +266,15 @@ Important:
 - `NEWS` flashcards are being tightened aggressively and evidence-only publishing is still evolving
 - provenance and version metadata are present but not yet surfaced uniformly in every user-facing place
 
-## Recent shipped changes in `v0.10.0`
+## Recent shipped changes in `v0.11.1`
 
-- `v0.9.0`: The intelligence engine is now **Topic-Primary**; it only researches and generates knowledge that aligns with explicitly enabled Topics.
-- introduced the **Trinity (Draft → Write → Judge)** reasoning pipeline for high-fidelity synthesis and memory-grounded audits.
-- unified `Source` records... (rest of the list)
+- `v0.11.1`: **Unified Task Interaction & Judge Hardening**.
+    - Restored iterative action buttons (Accept/Decline/Modify) for all TaskCard states to align with the Knowledge Review workflow.
+    - Hardened the `JUDGE` logic to forcefully crater metrics (reset to 1) for rejected items, ensuring they sink to the bottom of sorting stacks.
+    - Stripped deprecated source tagging UI (PRODUCT/CUSTOMER/COMPETITOR) and cleaned up "About (Entity)" noise.
+    - Fixed Turbopack build runtime error by aligning proxy export naming for Next.js 16.2.2 compatibility.
+- `v0.11.0`: **Sovereign Trinity Migration**. Purged legacy model references and unified synthesis under the Draft/Write/Judge pipeline.
+- `v0.10.0`: The intelligence engine is now **Topic-Primary**; it only researches and generates knowledge that aligns with explicitly enabled Topics.
 
 ## Documentation ownership
 

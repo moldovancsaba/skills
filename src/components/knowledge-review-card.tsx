@@ -9,6 +9,7 @@ import {
   UnifiedCard,
   UnifiedCardActions,
   UnifiedCardBody,
+  UnifiedCardFooter,
   UnifiedCardHeader,
   UnifiedCardSection,
   UnifiedCardText,
@@ -159,7 +160,7 @@ export function KnowledgeReviewCard({
       />
 
       <UnifiedCardBody>
-        <UnifiedCardText className="text-[0.95rem] leading-relaxed text-foreground/90">
+        <UnifiedCardText className="text-[0.95rem] leading-relaxed text-zinc-300/90">
           {flashcard.body}
         </UnifiedCardText>
 
@@ -170,81 +171,78 @@ export function KnowledgeReviewCard({
           onRemove={(tag) => onRemoveHashtag(flashcard.id, tag)}
         />
 
-        <div className="space-y-4 pt-2">
-          {flashcard.userAnnotation && (
-            <div className="flex items-start gap-2 rounded-lg bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-200">
-              <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 opacity-70" />
-              <p>{flashcard.userAnnotation}</p>
-            </div>
-          )}
+        {flashcard.userAnnotation && (
+          <div className={`flex items-start gap-2 rounded-lg px-4 py-3 text-sm ${flashcard.userAnnotation.includes("[JUDGE REJECTION]") ? "border border-amber-200/80 bg-amber-50/80 text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100" : "bg-zinc-400/5 text-zinc-300"}`}>
+            <MessageSquare className={`mt-0.5 h-4 w-4 shrink-0 ${flashcard.userAnnotation.includes("[JUDGE REJECTION]") ? "text-amber-600 dark:text-amber-400" : "opacity-70"}`} />
+            <p>{flashcard.userAnnotation}</p>
+          </div>
+        )}
 
+        <UnifiedCardActions className="pt-2">
+          <Button size="sm" variant="secondary" className="h-9 shadow-sm" onClick={() => onOpenAction(flashcard, "ACCEPT")} disabled={isBusy || isGenerating}>
+            {isBusy && actionMode === "ACCEPT" && isActionOpen ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            Accept
+          </Button>
+          <Button size="sm" variant="outline" className="h-9 border-zinc-200/10 hover:bg-zinc-200/5" onClick={() => onOpenAction(flashcard, "DECLINE")} disabled={isBusy || isGenerating}>
+            <X className="h-3.5 w-3.5" />
+            Decline
+          </Button>
+          <Button size="sm" variant="outline" className="h-9 border-zinc-200/10 hover:bg-zinc-200/5" onClick={() => onOpenAction(flashcard, "MODIFY_ACCEPT")} disabled={isBusy || isGenerating}>
+            <PencilLine className="h-3.5 w-3.5" />
+            Edit
+          </Button>
+        </UnifiedCardActions>
 
-          <UnifiedCardActions className="pt-2">
-            <Button size="sm" variant="secondary" className="h-8 shadow-sm" onClick={() => onOpenAction(flashcard, "ACCEPT")} disabled={isBusy || isGenerating}>
-              {isBusy && actionMode === "ACCEPT" && isActionOpen ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-              Accept
-            </Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => onOpenAction(flashcard, "DECLINE")} disabled={isBusy || isGenerating}>
-              <X className="h-3.5 w-3.5" />
-              Decline
-            </Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => onOpenAction(flashcard, "MODIFY_ACCEPT")} disabled={isBusy || isGenerating}>
-              <PencilLine className="h-3.5 w-3.5" />
-              Edit
-            </Button>
-          </UnifiedCardActions>
-
-          {isActionOpen && actionMode && (
-            <UnifiedCardSection className="space-y-4 bg-accent/5 backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200">
-              <p className="text-sm font-semibold">{actionLabel(actionMode)}</p>
-              {actionMode === "MODIFY_ACCEPT" && (
-                <div className="space-y-3">
-                  <FormInput label="Title" value={editedTitle} onChange={(e) => onEditedTitleChange(e.target.value)} />
-                  <FormTextarea label="Body" value={editedBody} onChange={(e) => onEditedBodyChange(e.target.value)} rows={3} />
-                </div>
-              )}
-              <FormTextarea
-                label="Feedback"
-                placeholder="Why this action? Help the AI learn..."
-                value={actionComment}
-                onChange={(e) => onActionCommentChange(e.target.value)}
-                rows={2}
-              />
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => onSubmit(flashcard.id)} disabled={isBusy}>
-                  {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={onCloseAction} disabled={isBusy}>Cancel</Button>
-              </div>
-            </UnifiedCardSection>
-          )}
-
-          <div className="flex gap-4 border-t border-border/40 pt-4">
-            <div className="flex-1 space-y-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Intelligence controls</p>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="ghost" className="h-7 text-[10px] uppercase font-bold tracking-tight hover:bg-violet-500/10 hover:text-violet-600" onClick={() => onCorrection({ flashcardId: flashcard.id, correctionType: "PIN" })} disabled={isBusy || isGenerating}>
-                  Pin Evidence
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-[10px] uppercase font-bold tracking-tight hover:bg-sky-500/10 hover:text-sky-600" onClick={() => onCorrection({ flashcardId: flashcard.id, correctionType: "REQUEST_REFRESH" })} disabled={isBusy || isGenerating}>
-                  Refresh
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-[10px] uppercase font-bold tracking-tight hover:bg-orange-500/10 hover:text-orange-600" onClick={() => onCorrection({ flashcardId: flashcard.id, correctionType: "HIDE" })} disabled={isBusy || isGenerating}>
-                  Archive
-                </Button>
-              </div>
-            </div>
-            {flashcard.actions.length > 0 && (
-              <div className="shrink-0 text-right">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">History</p>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Last seen {new Date(flashcard.refreshedAt).toLocaleDateString()}
-                </p>
+        {isActionOpen && actionMode && (
+          <UnifiedCardSection className="space-y-4 bg-zinc-400/5 backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200">
+            <p className="text-sm font-semibold">{actionLabel(actionMode)}</p>
+            {actionMode === "MODIFY_ACCEPT" && (
+              <div className="space-y-3">
+                <FormInput label="Title" value={editedTitle} onChange={(e) => onEditedTitleChange(e.target.value)} />
+                <FormTextarea label="Body" value={editedBody} onChange={(e) => onEditedBodyChange(e.target.value)} rows={3} />
               </div>
             )}
+            <FormTextarea
+              label="Feedback"
+              placeholder="Why this action? Help the AI learn..."
+              value={actionComment}
+              onChange={(e) => onActionCommentChange(e.target.value)}
+              rows={2}
+            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => onSubmit(flashcard.id)} disabled={isBusy}>
+                {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={onCloseAction} disabled={isBusy}>Cancel</Button>
+            </div>
+          </UnifiedCardSection>
+        )}
+      </UnifiedCardBody>
+
+      <UnifiedCardFooter className="flex flex-col gap-4">
+        <div className="space-y-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Intelligence controls</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-violet-500/10 hover:text-violet-400" onClick={() => onCorrection({ flashcardId: flashcard.id, correctionType: "PIN" })} disabled={isBusy || isGenerating}>
+              Pin Evidence
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-sky-500/10 hover:text-sky-400" onClick={() => onCorrection({ flashcardId: flashcard.id, correctionType: "REQUEST_REFRESH" })} disabled={isBusy || isGenerating}>
+              Refresh
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-orange-500/10 hover:text-orange-400" onClick={() => onCorrection({ flashcardId: flashcard.id, correctionType: "HIDE" })} disabled={isBusy || isGenerating}>
+              Archive
+            </Button>
           </div>
         </div>
-      </UnifiedCardBody>
+        
+        {flashcard.actions.length > 0 && (
+          <div className="border-t border-zinc-200/5 pt-3">
+            <p className="text-[10px] text-zinc-500">
+              Last seen {new Date(flashcard.refreshedAt).toLocaleDateString()}
+            </p>
+          </div>
+        )}
+      </UnifiedCardFooter>
     </UnifiedCard>
   );
 }

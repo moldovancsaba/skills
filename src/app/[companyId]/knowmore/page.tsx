@@ -22,6 +22,7 @@ import {
   PageHeader,
   PageShell,
   PipelineAccentHeader,
+  UnifiedGrid,
 } from "@/components/ui/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
@@ -468,7 +469,7 @@ export default function CompanyKnowMorePage() {
   }
 
   return (
-    <PageShell width="5xl">
+    <PageShell width="full">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         {errorMessage && (
           <Notice variant="destructive" className="mb-4">
@@ -572,7 +573,7 @@ export default function CompanyKnowMorePage() {
           />
         </motion.div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
+        <UnifiedGrid>
           {filteredFlashcards.map((flashcard, index) => {
             const isActionOpen = activeFlashcardId === flashcard.id && actionMode !== null;
             const isBusy = actingId === flashcard.id;
@@ -625,12 +626,14 @@ export default function CompanyKnowMorePage() {
                 {index === 1 && (
                   <React.Fragment>
                     <motion.div 
+                      key="expert-tip"
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
                     >
                       <ExpertTipCard tip={tip} />
                     </motion.div>
                     <motion.div 
+                      key="member-list"
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
                     >
@@ -641,7 +644,7 @@ export default function CompanyKnowMorePage() {
               </React.Fragment>
             );
           })}
-        </div>
+        </UnifiedGrid>
       )}
     </PageShell>
   );

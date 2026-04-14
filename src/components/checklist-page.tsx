@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Archive, Brain, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { EmptyState, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
+import { EmptyState, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
 
@@ -228,7 +228,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const filteredItems = items.filter((item) => matchesAllHashtags(item.hashtags, activeHashtags));
 
   return (
-    <PageShell width="5xl">
+    <PageShell width="full">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <PipelineAccentHeader
           activeKey="checklist"
@@ -275,7 +275,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           description={activeHashtags.length > 0 ? "Try clearing hashtag filters." : archived ? "Accepted and declined items will appear here." : "Add data to get AI-powered suggestions."}
         />
       ) : (
-        <div className="grid gap-4">
+        <UnifiedGrid>
           {filteredItems.map((item, index) => (
             <motion.div
               key={item.id}
@@ -305,7 +305,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
               />
             </motion.div>
           ))}
-        </div>
+        </UnifiedGrid>
       )}
     </PageShell>
   );

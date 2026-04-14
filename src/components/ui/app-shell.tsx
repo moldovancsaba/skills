@@ -19,7 +19,7 @@ import { StructuredActionRow, StructuredCard, StructuredChipRow } from "@/compon
 
 type PageShellProps = {
   children: ReactNode;
-  width?: "md" | "lg" | "xl" | "2xl" | "5xl" | "7xl";
+  width?: "md" | "lg" | "xl" | "2xl" | "5xl" | "7xl" | "full";
   className?: string;
 };
 
@@ -30,6 +30,7 @@ const widthClasses: Record<NonNullable<PageShellProps["width"]>, string> = {
   "2xl": "max-w-6xl",
   "5xl": "max-w-5xl",
   "7xl": "max-w-7xl",
+  full: "max-w-full px-4 md:px-12",
 };
 
 export function PageShell({
@@ -107,6 +108,14 @@ export function Notice({
 
 export function MetricGrid({ children }: { children: ReactNode }) {
   return <div className="grid gap-4 md:grid-cols-3">{children}</div>;
+}
+
+export function UnifiedGrid({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn("grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3", className)}>
+      {children}
+    </div>
+  );
 }
 
 type MetricCardProps = {

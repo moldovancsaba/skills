@@ -16,7 +16,10 @@ type UnifiedCardProps = {
 
 export function UnifiedCard({ children, className }: UnifiedCardProps) {
   return (
-    <Card className={cn("overflow-hidden border-border/80 bg-card/95 shadow-card transition-[transform,box-shadow,border-color] duration-200 hover:border-accent/20 hover:shadow-card-hover", className)}>
+    <Card className={cn(
+      "overflow-hidden border-zinc-200/10 bg-zinc-950/40 shadow-card transition-[transform,box-shadow,border-color] duration-300 hover:border-accent/20 hover:shadow-card-hover",
+      className
+    )}>
       {children}
     </Card>
   );
@@ -26,7 +29,6 @@ type UnifiedCardHeaderProps = {
   badges?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
-  aside?: ReactNode;
   className?: string;
 };
 
@@ -34,35 +36,39 @@ export function UnifiedCardHeader({
   badges,
   title,
   description,
-  aside,
   className,
 }: UnifiedCardHeaderProps) {
   return (
-    <CardHeader className={cn("gap-4", className)}>
+    <div className={cn("px-6 pt-6 pb-2 space-y-4", className)}>
       {badges ? <div className="flex flex-wrap items-center gap-2">{badges}</div> : null}
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0 flex-1">
-          <CardTitle className="text-xl leading-tight md:text-[1.35rem]">{title}</CardTitle>
-          {description ? <CardDescription className="mt-2 text-[0.95rem]">{description}</CardDescription> : null}
-        </div>
-        {aside ? <div className="shrink-0">{aside}</div> : null}
+      <div className="space-y-2">
+        <h3 className="font-display text-[1.45rem] font-bold leading-tight tracking-tight text-white">{title}</h3>
+        {description ? <p className="text-[0.95rem] leading-relaxed text-zinc-400">{description}</p> : null}
       </div>
-    </CardHeader>
+    </div>
   );
 }
 
 export function UnifiedCardBody({ children, className }: UnifiedCardProps) {
-  return <CardContent className={cn("space-y-4", className)}>{children}</CardContent>;
+  return <div className={cn("px-6 py-4 space-y-4", className)}>{children}</div>;
 }
 
 export function UnifiedCardText({ children, className }: UnifiedCardProps) {
-  return <p className={cn("text-sm leading-6 text-foreground", className)}>{children}</p>;
+  return <p className={cn("text-[0.925rem] leading-relaxed text-zinc-300/90", className)}>{children}</p>;
 }
 
 export function UnifiedCardSection({ children, className }: UnifiedCardProps) {
-  return <div className={cn("rounded-lg border border-border/80 bg-muted/40 p-4 shadow-card", className)}>{children}</div>;
+  return <div className={cn("rounded-xl border border-zinc-200/5 bg-zinc-400/5 p-4", className)}>{children}</div>;
 }
 
 export function UnifiedCardActions({ children, className }: UnifiedCardProps) {
-  return <div className={cn("flex flex-wrap gap-2", className)}>{children}</div>;
+  return <div className={cn("flex flex-wrap gap-2 pt-2", className)}>{children}</div>;
+}
+
+export function UnifiedCardFooter({ children, className }: UnifiedCardProps) {
+  return (
+    <div className={cn("border-t border-zinc-200/5 bg-zinc-900/20 px-6 py-5", className)}>
+      {children}
+    </div>
+  );
 }

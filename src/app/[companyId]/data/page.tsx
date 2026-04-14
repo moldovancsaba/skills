@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
-import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
+import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
 import { SourceDataCard } from "@/components/source-data-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
@@ -283,7 +283,7 @@ export default function CompanyDataPage() {
   }
 
   return (
-    <PageShell width="5xl">
+    <PageShell width="full">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         <PipelineAccentHeader
           activeKey="data"
@@ -383,13 +383,13 @@ export default function CompanyDataPage() {
       </MetricGrid>
 
       <div>
-        <h2 className="text-lg font-semibold text-foreground mb-3">
+        <h2 className="text-lg font-bold tracking-tight text-white mb-4">
           All Data ({filteredItems.length}{activeHashtags.length > 0 ? ` of ${items.length}` : ""})
         </h2>
         {filteredItems.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data yet. Add your first item above.</p>
         ) : (
-          <div className="grid gap-4">
+          <UnifiedGrid>
             {filteredItems.map((item, index) => {
               const tip = getDashboardExpertTip({
                 companyId,
@@ -417,19 +417,25 @@ export default function CompanyDataPage() {
 
                   {/* Inject Expert Tip and Team Members at 3rd place (index 1 is after 2nd item) */}
                   {index === 1 && (
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="grid gap-4 md:grid-cols-2"
-                    >
-                      <ExpertTipCard tip={tip} />
-                      <MemberList companyId={companyId} isOwner={isOwner} />
-                    </motion.div>
+                    <React.Fragment>
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                      >
+                        <ExpertTipCard tip={tip} />
+                      </motion.div>
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                      >
+                        <MemberList companyId={companyId} isOwner={isOwner} />
+                      </motion.div>
+                    </React.Fragment>
                   )}
                 </React.Fragment>
               );
             })}
-          </div>
+          </UnifiedGrid>
         )}
       </div>
     </PageShell>

@@ -8,6 +8,8 @@ const { runMaintenance } = require("./maintenance");
 // Global state for /health reporting
 let synthesisState = {
   state: "idle",
+  stage: "IDLE",
+  pass: 0,
   lastProgressAt: new Date().toISOString(),
   currentCompany: null,
   cycleCount: 0
@@ -34,6 +36,8 @@ async function runSynthesisCycle(prisma) {
   });
 
   synthesisState.state = "running";
+  synthesisState.stage = "SCHEDULING";
+  synthesisState.pass = 0;
   synthesisState.lastProgressAt = new Date().toISOString();
   synthesisState.cycleCount++;
 
@@ -50,6 +54,8 @@ async function runSynthesisCycle(prisma) {
   }
 
   synthesisState.state = "idle";
+  synthesisState.stage = "IDLE";
+  synthesisState.pass = 0;
   synthesisState.currentCompany = null;
   synthesisState.lastProgressAt = new Date().toISOString();
 }
@@ -67,6 +73,7 @@ async function processCompanySynthesis(prisma, company) {
   console.log(`[SYNTHESIS] ${company.name}: Starting ${passes}-pass Mini-loop.`);
 
   for (let pass = 1; pass <= passes; pass++) {
+    synthesisState.pass = pass;
     console.log(`[SYNTHESIS] ${company.name}: PASS ${pass}/${passes}`);
     
     // Step A: Teach Local Brain
@@ -77,9 +84,11 @@ async function processCompanySynthesis(prisma, company) {
       where: { id: cid },
       data: { lastAIVisited: new Date() }
     });
+    synthesisState.stage = "ORBITING";
     console.log(`[SYNTHESIS] ${company.name}: Entering Orbit...`);
 
     // --- STAGE 1: DRAFTER (Sources -> Flashcards) ---
+    synthesisState.stage = "SCRUBBING";
     const sources = await prisma.source.findMany({ 
       where: { companyId: cid },
       take: orbitLimit
@@ -107,6 +116,7 @@ async function processCompanySynthesis(prisma, company) {
     // --- STAGE 2: WRITER & JUDGE (The Quality Pipeline) ---
     
     // 2.a Flashcards: DRAFT -> CHECKED -> VERIFIED
+    synthesisState.stage = "WRITING";
     const fcActive = await prisma.flashcard.findMany({ 
       where: { companyId: cid, processingStatus: { in: ["DRAFT", "CHECKED"] } },
       take: orbitLimit * 2
@@ -119,6 +129,7 @@ async function processCompanySynthesis(prisma, company) {
           await prisma.flashcard.update({ where: { id: fc.id }, data: refined });
         }
       } else if (fc.processingStatus === "CHECKED") {
+        synthesisState.stage = "JUDGING";
         const audit = await auditCheckedFlashCard(prisma, fc, memoryPrompt);
         if (audit) {
           await prisma.flashcard.update({ where: { id: fc.id }, data: audit });
@@ -135,11 +146,13 @@ async function processCompanySynthesis(prisma, company) {
 
     for (const tc of tcActive) {
       if (tc.processingStatus === "DRAFT") {
+        synthesisState.stage = "WRITING";
         const refined = await refineDraftTaskCard(prisma, tc, memoryPrompt);
         if (refined) {
           await prisma.nBAItem.update({ where: { id: tc.id }, data: refined });
         }
       } else if (tc.processingStatus === "CHECKED") {
+        synthesisState.stage = "JUDGING";
         const audit = await auditCheckedTaskCard(prisma, tc, memoryPrompt);
         if (audit) {
           await prisma.nBAItem.update({ where: { id: tc.id }, data: audit });
@@ -148,6 +161,7 @@ async function processCompanySynthesis(prisma, company) {
     }
 
     // --- STAGE 3: SYNTHESIS ASCENSION (Verified Flashcards -> Draft Tasks) ---
+    synthesisState.stage = "ASCENDING";
     const verifiedFlash = await prisma.flashcard.findMany({ 
       where: { companyId: cid, processingStatus: "VERIFIED" },
       take: orbitLimit
@@ -165,6 +179,7 @@ async function processCompanySynthesis(prisma, company) {
   }
 
   // Maintenance Phase
+  synthesisState.stage = "MAINTENANCE";
   await runMaintenance(prisma, company);
 }
 

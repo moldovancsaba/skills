@@ -13,8 +13,12 @@ export async function GET(request: NextRequest) {
   
   try {
     const items = await prisma.nBAItem.findMany({
-      where: { companyId: companyId as string },
-      orderBy: [{ iceScore: "desc" }, { publicId: "asc" }, { createdAt: "asc" }],
+      where: { 
+        companyId: companyId as string,
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+        activityState: { in: ["ACTIVE", "STALE"] }
+      },
+      orderBy: [{ confidenceScore: "desc" }, { publicId: "asc" }],
     });
     return NextResponse.json(items);
   } catch (error) {
@@ -30,36 +34,29 @@ export async function POST(request: NextRequest) {
     const auth = await verifyMembership(request, data.companyId);
     if (auth.error) return auth.error;
 
-    const { impact, confidence, ease } = normalizeNBAMetrics(data);
-    const iceScore = calculateICEScore({ impact, confidence, ease });
-    
-    const item = await prisma.$transaction(async (tx) => {
-      const publicId = await nextChecklistPublicId(tx);
-      return tx.nBAItem.create({
-        data: {
-          publicId,
-          companyId: data.companyId,
-          title: data.title,
-          description: data.description,
-          impact,
-          confidence,
-          ease,
-          iceScore,
-          scheduledDate: data.scheduledDate,
-          createdBy: data.createdBy,
-          sourceFlashcardIds: data.sourceFlashcardIds ?? [],
-          hashtags: normalizeSourceHashtags(data.hashtags),
-          appVersion: APP_VERSION,
-          brainVersion: BRAIN_VERSION,
-          promptVersion: NBA_PROMPT_VERSION,
-          generatedAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-    }, TRANSACTION_SETTINGS);
+    // Passive Ingress: No logic, no scoring, no ID generation.
+    // The Local AI Worker will pick this up for hardening.
+    const item = await prisma.nBAItem.create({
+      data: {
+        companyId: data.companyId,
+        title: data.title,
+        description: data.description,
+        processingStatus: "DRAFT",
+        activityState: "ACTIVE",
+        status: "PENDING", // Legacy Sync
+        scheduledDate: data.scheduledDate,
+        createdBy: data.createdBy,
+        appVersion: APP_VERSION,
+        brainVersion: BRAIN_VERSION,
+        promptVersion: NBA_PROMPT_VERSION,
+        generatedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
     
     return NextResponse.json(item);
   } catch (error) {
+    console.error("[API:NBA] Post failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

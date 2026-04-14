@@ -27,45 +27,65 @@ function joinBody(body) {
  * It reads raw DataCards (Sources) and proposes the initial DRAFT cards.
  */
 async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPrompt) {
-  const bodyLimit = getWorkerConfig(company, "draft_body_limit", 1200);
+  const bodyLimit = await getWorkerConfig(prisma, company, "draft_body_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
 
+  const { getSkillForSource } = require("./skills");
+  const skill = getSkillForSource(dataCard);
+  const skillPrompt = skill 
+    ? `\n### [SPECIALIZED SKILL ACTIVATED: ${skill.label}]\nYou MUST apply the following marketing framework to this synthesis:\n${skill.framework}\n`
+    : "";
+
   const systemPrompt = [
-    "You are the Checklist DRAFTER. Your goal is to extract intelligence from DataCards (raw data).",
+    "You are the Checklist DRAFTER. Your goal matches DataCards (raw data) to potential FlashCards.",
     "Your synthesis MUST align with the following strategic context of the company:",
     strategicContext,
+    skillPrompt,
     "Required fields: title, body, kind, confidence, impact, weight, hashtags.",
     "If the intelligence already exists in the provided context, do NOT duplicate it.",
+    "You may propose MULTIPLE FlashCards if the raw data contains distinct insights.",
+    "Format: Return a JSON array of objects.",
     "Status will be DRAFT.",
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `Company: ${company.name}\nDataCard Context: ${truncate(dataCard.content, 1500)}`;
 
-  const raw = await callOllamaJson(systemPrompt, userPrompt);
-  if (!raw || !raw.title || !raw.body) return null;
+  const rawArray = await callOllamaJson(systemPrompt, userPrompt);
+  if (!Array.isArray(rawArray)) return [];
 
-  const publicId = await nextPublicId(prisma, "Flashcard");
-  
-  return {
-    id: crypto.randomUUID(),
-    publicId,
-    companyId: company.id,
-    title: truncate(raw.title, 160),
-    body: truncate(joinBody(raw.body), bodyLimit),
-    confidence: parseInt(raw.confidence) || 50,
-    impact: parseInt(raw.impact) || 5,
-    weight: parseInt(raw.weight) || 5,
-    status: "DRAFT",
-    kind: String(raw.kind || "SUMMARY").toUpperCase(), 
-    hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : [],
-    fingerprint: hashValue(`EVO:FC:${company.id}:${dataCard.id}:${raw.title}`),
-    createdBy: "drafter-agent"
-  };
+  const drafts = [];
+  for (const raw of rawArray) {
+    if (!raw.title || !raw.body) continue;
+    const publicId = await nextPublicId(prisma, "Flashcard");
+    
+    drafts.push({
+      id: crypto.randomUUID(),
+      publicId,
+      companyId: company.id,
+      title: truncate(raw.title, 160),
+      body: truncate(joinBody(raw.body), bodyLimit),
+      confidenceScore: parseFloat(raw.confidence) || 50,
+      impact: parseInt(raw.impact) || 5,
+      weight: parseInt(raw.weight) || 5,
+      processingStatus: "DRAFT",
+      activityState: "ACTIVE",
+      status: "DRAFT", // Legacy Sync
+      reviewStatus: "PENDING", // Legacy Sync
+      kind: String(raw.kind || "SUMMARY").toUpperCase(), 
+      hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : [],
+      fingerprint: hashValue(`EVO:FC:${company.id}:${dataCard.id}:${raw.title}`),
+      createdBy: "drafter-agent",
+      // Link info for later
+      sourceId: dataCard.id,
+      sourceType: "SOURCE"
+    });
+  }
+  return drafts;
 }
 
 async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryPrompt) {
-  const descLimit = getWorkerConfig(company, "draft_desc_limit", 1200);
+  const descLimit = await getWorkerConfig(prisma, company, "draft_desc_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
 
   const systemPrompt = [
@@ -74,30 +94,40 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     strategicContext,
     "Required fields: title, description, kind, impact, confidence, ease.",
     "Check the context carefully. Do NOT draft a task that is already present.",
+    "You may propose MULTIPLE TaskCards if appropriate.",
+    "Format: Return a JSON array of objects.",
     "Status will be DRAFT.",
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `Company: ${company.name}\nFlashCard: ${flashCard.title}\nInsight: ${flashCard.body}`;
 
-  const raw = await callOllamaJson(systemPrompt, userPrompt);
-  if (!raw || !raw.title || !raw.description) return null;
+  const rawArray = await callOllamaJson(systemPrompt, userPrompt);
+  if (!Array.isArray(rawArray)) return [];
 
-  const publicId = await nextPublicId(prisma, "NBAItem");
+  const drafts = [];
+  for (const raw of rawArray) {
+    if (!raw.title || !raw.description) continue;
+    const publicId = await nextPublicId(prisma, "NBAItem");
 
-  return {
-    id: crypto.randomUUID(),
-    publicId,
-    companyId: company.id,
-    title: truncate(raw.title, 160),
-    description: truncate(joinBody(raw.description), descLimit),
-    kind: String(raw.kind || "TASK").toUpperCase(),
-    impact: parseInt(raw.impact) || 5,
-    confidence: parseInt(raw.confidence) || 50,
-    ease: parseInt(raw.ease) || 5,
-    status: "DRAFT",
-    createdBy: "drafter-agent"
-  };
+    drafts.push({
+      id: crypto.randomUUID(),
+      publicId,
+      companyId: company.id,
+      title: truncate(raw.title, 160),
+      description: truncate(joinBody(raw.description), descLimit),
+      kind: String(raw.kind || "TASK").toUpperCase(),
+      impact: parseInt(raw.impact) || 5,
+      confidenceScore: parseFloat(raw.confidence) || 50,
+      ease: parseInt(raw.ease) || 5,
+      processingStatus: "DRAFT",
+      activityState: "ACTIVE",
+      status: "DRAFT", // Legacy Sync
+      createdBy: "drafter-agent",
+      fingerprint: hashValue(`EVO:TC:${company.id}:${flashCard.id}:${raw.title}`)
+    });
+  }
+  return drafts;
 }
 
 module.exports = {

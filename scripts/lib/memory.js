@@ -1,3 +1,5 @@
+const { truncate } = require("./shared");
+
 /**
  * The MEMORY engine harvests human feedback (History) into rigid constraints.
  * It scavenges FlashcardAction and Feedback history.
@@ -27,7 +29,20 @@ async function getHumanMemoryPrompt(prisma, company) {
     orderBy: { createdAt: "desc" }
   });
 
-  if (!actions.length && !feedbacks.length && !corrections.length) {
+  // 4. Scavenge Accepted Patterns (Golden Examples)
+  const acceptedFlash = await prisma.flashcard.findMany({
+    where: { companyId: company.id, status: "VERIFIED" },
+    take: 5,
+    orderBy: { updatedAt: "desc" }
+  });
+
+  const acceptedTasks = await prisma.nBAItem.findMany({
+    where: { companyId: company.id, status: "VERIFIED" },
+    take: 5,
+    orderBy: { updatedAt: "desc" }
+  });
+
+  if (!actions.length && !feedbacks.length && !corrections.length && !acceptedFlash.length && !acceptedTasks.length) {
     return "No prior human feedback detected. Focus on high-quality marketing extraction.";
   }
 
@@ -45,10 +60,18 @@ async function getHumanMemoryPrompt(prisma, company) {
     guidelines.push(`- USER CORRECTION: Change "${c.originalValue}" to "${c.correctedValue}"`);
   });
 
+  let goldenExamples = "";
+  if (acceptedFlash.length || acceptedTasks.length) {
+    goldenExamples = "\n### [GOLDEN EXAMPLES / POSITIVE PATTERNS]\nThe user highly values these existing items. Follow their depth and tone:\n";
+    acceptedFlash.forEach(f => goldenExamples += `- ${f.title}: ${truncate(f.body, 200)}\n`);
+    acceptedTasks.forEach(t => goldenExamples += `- ${t.title}: ${truncate(t.description || "", 200)}\n`);
+  }
+
   return [
     "### RIGID HUMAN CONSTRAINTS (MANDATORY)",
     "The following feedback from the owner is ABSOLUTE LAW. You MUST NOT violate these principles:",
-    ...new Set(guidelines.slice(0, 20))
+    ...new Set(guidelines.slice(0, 15)),
+    goldenExamples
   ].join("\n");
 }
 

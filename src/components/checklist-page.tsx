@@ -18,10 +18,11 @@ interface NBAItem {
   title: string;
   description: string;
   impact: number;
-  confidence: number;
+  confidenceScore: number;
   ease: number;
   iceScore: number;
-  status: string;
+  processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
+  activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
   userAnnotation?: string;
   hashtags: string[];
 }
@@ -52,8 +53,8 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     const res = await fetch(`/api/nba?companyId=${cid}`);
     const data = await res.json();
     const filtered = archived
-      ? data.filter((item: NBAItem) => item.status !== "PENDING")
-      : data.filter((item: NBAItem) => item.status === "PENDING");
+      ? data.filter((item: NBAItem) => ["ACCEPTED", "DECLINED"].includes(item.processingStatus))
+      : data.filter((item: NBAItem) => ["DRAFT", "VERIFIED"].includes(item.processingStatus));
     setItems(filtered);
     setLoading(false);
   }, [archived]);
@@ -109,7 +110,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   }, [archived, company, loadChecklist]);
 
   const handleShare = useCallback(async (item: NBAItem) => {
-    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidence}% | Ease: ${item.ease}\nICE Score: ${Math.round(item.iceScore)}`;
+    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidenceScore}% | Ease: ${item.ease}\nICE Score: ${Math.round(item.iceScore)}`;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(item.id);
@@ -207,9 +208,9 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
       if (event.key === "r" || event.key === "R") {
         void handleRefresh();
       } else if (event.key === "a" || event.key === "A") {
-        const pending = items.find((item) => item.status === "PENDING");
-        if (pending) {
-          void handleFeedback(pending.id, "ACCEPT");
+        const actionable = items.find((item) => ["VERIFIED", "DRAFT"].includes(item.processingStatus));
+        if (actionable) {
+          void handleFeedback(actionable.id, "ACCEPT");
         }
       } else if (event.key === "Escape") {
         resetActionForm();

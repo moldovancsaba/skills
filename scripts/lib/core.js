@@ -4,16 +4,16 @@ require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
 const OLLAMA_HOST = process.env.OLLAMA_HOST || process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:3b";
 
-const GLOBAL_OLLAMA_TIMEOUT_MS = 150_000;
-const FAILSAFE_TIMEOUT_MS = 300_000;
-const TRINITY_DRAFT_TIMEOUT_MS = 150_000;
-const TRINITY_WRITE_TIMEOUT_MS = 150_000;
-const TRINITY_JUDGE_TIMEOUT_MS = 150_000;
+const GLOBAL_OLLAMA_TIMEOUT_MS = 120_000;
+const FAILSAFE_TIMEOUT_MS = 240_000;
+const TRINITY_DRAFT_TIMEOUT_MS = 90_000;
+const TRINITY_WRITE_TIMEOUT_MS = 120_000;
+const TRINITY_JUDGE_TIMEOUT_MS = 90_000;
 
 const STAGE_MODELS = {
-  DRAFT: ["llama3.2:3b"],
-  WRITE: ["llama3.2:3b"],
-  JUDGE: ["llama3.2:3b"],
+  DRAFT: ["llama3.2:3b", "granite3.3:2b"],
+  WRITE: ["llama3.2:3b", "granite3.1:8b"],
+  JUDGE: ["llama3.2:3b", "granite3.3:2b"],
 };
 
 const FLASHCARD_MIN_CONFIDENCE = 40;

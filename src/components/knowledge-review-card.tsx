@@ -46,27 +46,14 @@ type FlashcardCorrection = {
 type Flashcard = {
   id: string;
   publicId: number | null;
-  kind:
-    | "SUMMARY"
-    | "EXPLANATION"
-    | "COMPARISON"
-    | "NEWS"
-    | "CONCLUSION"
-    | "EVALUATION"
-    | "OPINION"
-    | "JUDGMENT"
-    | "RECOMMENDATION"
-    | "RESEARCH"
-    | "FORECAST"
-    | "STOCK"
-    | "GOSSIP"
-    | "PRICE";
+  kind: string;
   title: string;
   body: string;
-  confidence: number;
+  confidenceScore: number;
   impact: number;
   weight: number;
-  reviewStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "MODIFIED_ACCEPTED";
+  processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
+  activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
   userAnnotation: string | null;
   hashtags: string[];
   sources: FlashcardSource[];
@@ -88,8 +75,8 @@ type Props = {
   actionComment: string;
   editedTitle: string;
   editedBody: string;
-  reviewStatusClasses: (status: Flashcard["reviewStatus"]) => string;
-  reviewStatusLabel: (status: Flashcard["reviewStatus"]) => string;
+  reviewStatusClasses: (status: Flashcard["processingStatus"]) => string;
+  reviewStatusLabel: (status: Flashcard["processingStatus"]) => string;
   kindLabel: (kind: Flashcard["kind"]) => string;
   sourceLabel: (type: FlashcardSource["sourceType"]) => string;
   actionLabel: (action: FlashcardAction["action"] | ActionMode) => string;
@@ -146,11 +133,16 @@ export function KnowledgeReviewCard({
       <UnifiedCardHeader
         badges={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className={cn("font-mono text-[10px] tracking-wider", reviewStatusClasses(flashcard.reviewStatus))}>
-              {reviewStatusLabel(flashcard.reviewStatus).toUpperCase()}
+            <Badge variant="outline" className={cn("font-mono text-[10px] tracking-wider", reviewStatusClasses(flashcard.processingStatus))}>
+              {flashcard.processingStatus.toUpperCase()}
             </Badge>
+            {flashcard.activityState !== "ACTIVE" && (
+              <Badge variant="destructive" className="font-mono text-[10px] tracking-wider uppercase opacity-80">
+                {flashcard.activityState}
+              </Badge>
+            )}
             <Badge variant="secondary" className="font-mono text-[10px] tracking-wider uppercase opacity-80">
-              {kindLabel(flashcard.kind)}
+              {kindLabel(flashcard.kind as any)}
             </Badge>
             {isSovereignResearch && (
               <Badge variant="outline" className="border-cyan-400/40 bg-cyan-500/10 font-mono text-[10px] tracking-wider uppercase text-cyan-200">
@@ -159,7 +151,7 @@ export function KnowledgeReviewCard({
             )}
             <div className="ml-auto flex items-center gap-3 text-[10px] font-medium text-muted-foreground/60 uppercase tracking-tighter">
               <span>Impact {flashcard.impact}</span>
-              <span>Confidence {flashcard.confidence}%</span>
+              <span>Confidence {Math.round(flashcard.confidenceScore)}%</span>
             </div>
           </div>
         }

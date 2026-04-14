@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Plus, Sparkles, Zap, ListOrdered } from "lucide-react";
+import { ArrowRight, Plus, Sparkles, Zap, ListOrdered, Settings as SettingsIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
@@ -24,10 +24,11 @@ type NBAItem = {
   title: string;
   description: string;
   impact: number;
-  confidence: number;
+  confidenceScore: number;
   ease: number;
   iceScore: number;
-  status: string;
+  processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
+  activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
   userAnnotation?: string;
   hashtags: string[];
 };
@@ -43,7 +44,7 @@ export default function CompanyDashboard() {
   const params = useParams();
   const companyId = params.companyId as string;
 
-  const { company, setCompany, sources, setSources } = useStore();
+  const { company, setCompany, sources, setSources, setNbaItems } = useStore();
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [topTasks, setTopTasks] = useState<NBAItem[]>([]);
@@ -81,7 +82,6 @@ export default function CompanyDashboard() {
     setSources(Array.isArray(s) ? s : []);
     setFileCount(Array.isArray(f) ? f.length : 0);
     setNbaItems(Array.isArray(nba) ? nba : []);
-    setKnowmore(Array.isArray(knowmore) ? knowmore : []);
 
     // Get current user session to determine role
     const sessionRes = await fetch("/api/auth/session");
@@ -91,11 +91,11 @@ export default function CompanyDashboard() {
       setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
     }
 
-    const safeNBA = Array.isArray(nba) ? nba : [];
+    const safeNBA = Array.isArray(nba) ? nba as NBAItem[] : [];
     const safeKnowmore = Array.isArray(knowmore) ? knowmore : [];
 
     const pendingTasks = safeNBA.filter((item) =>
-      ["PENDING", "DRAFT", "CHECKED", "VERIFIED"].includes(item.status)
+      ["PENDING", "DRAFT", "CHECKED", "VERIFIED"].includes(item.processingStatus)
     );
     setPendingTaskCount(pendingTasks.length);
     setTopTasks(
@@ -152,7 +152,7 @@ export default function CompanyDashboard() {
   }, []);
 
   const handleShare = useCallback(async (item: NBAItem) => {
-    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidence}% | Ease: ${item.ease}\nICE Score: ${Math.round(item.iceScore)}`;
+    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidenceScore}% | Ease: ${item.ease}\nICE Score: ${Math.round(item.iceScore)}`;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(item.id);

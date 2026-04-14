@@ -14,10 +14,11 @@ type NBAItem = {
   title: string;
   description: string;
   impact: number;
-  confidence: number;
+  confidenceScore: number;
   ease: number;
   iceScore: number;
-  status: string;
+  processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
+  activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
   userAnnotation?: string;
   hashtags: string[];
 };
@@ -85,15 +86,17 @@ export function TaskReviewCard({
       <Badge variant="secondary" className="font-mono">
         {item.publicId ? `#${item.publicId}` : `ID ${item.id.slice(0, 8)}`}
       </Badge>
-      <Badge variant={statusVariant(item.status)}>{item.status.toUpperCase()}</Badge>
-      <Badge variant="outline">ICE {Math.round(item.iceScore)}</Badge>
+      <Badge variant={statusVariant(item.processingStatus)}>{item.processingStatus.toUpperCase()}</Badge>
+      {item.activityState !== "ACTIVE" && (
+        <Badge variant="destructive" className="font-mono opacity-80">{item.activityState}</Badge>
+      )}
       <Badge variant="outline">Impact {item.impact}</Badge>
-      <Badge variant="outline">Confidence {item.confidence}%</Badge>
+      <Badge variant="outline">Confidence {Math.round(item.confidenceScore)}%</Badge>
       <Badge variant="outline">Ease {item.ease}</Badge>
     </StructuredChipRow>
   );
 
-  const actions = item.status === "PENDING" ? (
+  const actions = item.processingStatus === "VERIFIED" ? (
     <StructuredActionRow>
       <Button size="sm" variant="secondary" onClick={() => onOpenAction(item, "ACCEPT")}>
         <Check className="h-4 w-4" />
@@ -179,5 +182,5 @@ export function TaskReviewCard({
     </div>
   );
 
-  return <StructuredCard chips={chips} title={item.title} body={item.description} actions={actions} details={details} className={item.status === "DECLINED" ? "opacity-60" : undefined} />;
+  return <StructuredCard chips={chips} title={item.title} body={item.description} actions={actions} details={details} className={item.processingStatus === "DECLINED" ? "opacity-60" : undefined} />;
 }

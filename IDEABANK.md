@@ -95,7 +95,12 @@ Build Marketing Skill IDEABANK that:
 - [ ] product-marketing-context - Context document
 
 ## Acceptance Checks
-- [ ] Skills available in IDEABANK
+- [x] Sovereign Trinity Engine (Drafter, Writer, Judge) Operational
+- [x] Passive Ingress Architecture (Thin Webapp / Authoritative Worker)
+- [x] Fair Orbit Rotation & AI Resilience
+- [x] Intelligence Specialization: Positive Feedback Replay
+- [x] Skill Selection Logic (CRO, SEO, Strategy)
+- [ ] Skills available in IDEABANK (Phase 2)
 - [ ] Skill can be triggered by user command
 - [ ] Skill generates relevant NBA
 - [ ] Skill uses proper context

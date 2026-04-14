@@ -108,12 +108,32 @@ async function nextPublicId(prisma, scope) {
 }
 
 /**
- * Fetches a configuration value from the Company's dynamic workerConfig.
+ * Fetches a configuration value from the Company's dynamic workerConfig or GlobalSetting.
  * Ensures zero hardcoding in the logic files.
  */
-function getWorkerConfig(company, key, fallback) {
-  const config = company.workerConfig || {};
-  return config[key] !== undefined ? config[key] : fallback;
+async function getWorkerConfig(prisma, company, key, fallback) {
+  const companyConfig = company?.workerConfig || {};
+  if (companyConfig[key] !== undefined) return companyConfig[key];
+
+  // Check GlobalSetting
+  if (prisma) {
+    const globalSetting = await prisma.globalSetting.findUnique({
+      where: { key }
+    });
+    if (globalSetting && globalSetting.value !== undefined) return globalSetting.value;
+  }
+
+  return fallback;
+}
+
+/**
+ * Calculates the Nth percentile value from a list of numbers.
+ */
+function calculatePercentile(values, percentile) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.floor((percentile / 100) * (sorted.length - 1));
+  return sorted[index];
 }
 
 module.exports = {
@@ -130,5 +150,6 @@ module.exports = {
   mergeHashtags,
   clampInt,
   parseBoundedInt,
+  calculatePercentile,
   isUniqueConstraintError
 };

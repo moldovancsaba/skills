@@ -15,9 +15,6 @@ const VALID_CORRECTIONS = new Set<FlashcardCorrectionType>([
 ]);
 
 const VALID_SOURCE_TYPES = new Set<FlashcardSourceType>([
-  FlashcardSourceType.PRODUCT,
-  FlashcardSourceType.CUSTOMER,
-  FlashcardSourceType.COMPETITOR,
   FlashcardSourceType.SOURCE,
   FlashcardSourceType.FILE,
   FlashcardSourceType.AGENT_FOUND,

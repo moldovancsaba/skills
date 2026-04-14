@@ -6,10 +6,11 @@ Checklist is an active production web application with local-AI-assisted enrichm
 
 Current release baseline:
 
-- app version: `v0.10.0`
+- app version: `v0.11.0`
 - framework: `Next.js 16.2.2`
 - product title: `Checklist Marketing OS`
 - canonical production URL: `https://checklist.sovereignsquad.com`
+- local AI version: `Sovereign Trinity v0.11.0`
 
 ## Product Definition
 
@@ -20,8 +21,9 @@ Checklist is a marketing operating system that separates:
    - products, customers, competitors, uploaded files
 2. `KNOWMORE`
    - processed flashcards derived from raw evidence and enrichment
-3. `NBA`
+3. `TASKCARDS` (NBA)
    - ranked next-best-action checklist items derived from company context and flashcards
+   - deduplicated via deterministic fingerprinting
 
 The system is designed so the online app remains usable even when the local AI layer is delayed or unavailable.
 
@@ -67,24 +69,22 @@ The system is designed so the online app remains usable even when the local AI l
 ```text
 Online webapp (Vercel)
 - Next.js 16 app router
-- Prisma + Neon Postgres
-- user-facing CRUD, review, and navigation
-- auth and session handling
+- Prisma + MongoDB Atlas
+- **Passive Ingress**: UI captures user 'Intent' (title/description).
+- **Zero Business Logic**: Online APIs do not perform scoring, ID generation, or research.
+- Auth and session handling.
 
-Shared persistence
-- companies
-- source records
-- uploaded files
-- flashcards, flashcard actions, and provenance
-- NBA items and feedback
-- public ID counters
+Shared persistence (MongoDB Atlas)
+- The 'Bridge' between Human Reality and AI Strategy.
+- Companies, Source records, FlashCards, TaskCards, Feedbacks.
 
-Local AI layer
-- Ollama-backed reasoning
-- URL/content enrichment
-- flashcard generation and refresh
-- NBA suggestion generation
-- optional sync bridge via webhook/local endpoint
+Local AI Layer (The Trinity - Authoritative Engine)
+- **Authoritative Source**: Performs all scoring (ICE), sequential ID reservation, and hardening.
+- Drafter: Extracts insights from raw sources into FlashCard drafts.
+- Writer: Refines FlashCards and TaskCards (Calculating ICE scores).
+- Judge: Audits quality against a statistical percentile floor.
+- Orchestration: Fair Orbit (oldest last-visited first) with Carousel batching.
+- Fail-Safe: Managed via `launchd` + Health Check Contract v1 (Port 10005).
 ```
 
 ## Current Tech Stack
@@ -121,15 +121,13 @@ Local AI layer
   - `MODIFY_ACCEPT`
 - task feedback can propagate back to source flashcards
 
-### ICE contract
+### Quality floor (Percentile)
 
-```text
-Impact: 0-10
-Confidence: 0-100
-Ease: 0-10
-ICE = impact * (confidence / 10) * ease
-Range: 0-1000
-```
+The Judge demotes any card falling below the `confidence_reject_percentile` (default: 10th percentile) of current verified intelligence.
+
+### Deduplication
+- Flashcards: `EVO:FC:[company]:[source]:[title]`
+- TaskCards: `EVO:TC:[company]:[flashcard]:[title]`
 
 ## Current API Surface
 
@@ -199,5 +197,5 @@ When any of these change, update docs in the same change set:
 
 ## Document Status
 
-Status: current
-Last updated: `2026-04-13`
+Status: current (v0.11.0)
+Last updated: `2026-04-14`

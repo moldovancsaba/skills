@@ -69,27 +69,14 @@ type FlashcardCorrection = {
 type Flashcard = {
   id: string;
   publicId: number | null;
-  kind:
-    | "SUMMARY"
-    | "EXPLANATION"
-    | "COMPARISON"
-    | "NEWS"
-    | "CONCLUSION"
-    | "EVALUATION"
-    | "OPINION"
-    | "JUDGMENT"
-    | "RECOMMENDATION"
-    | "RESEARCH"
-    | "FORECAST"
-    | "STOCK"
-    | "GOSSIP"
-    | "PRICE";
+  kind: string;
   title: string;
   body: string;
-  confidence: number;
+  confidenceScore: number;
   impact: number;
   weight: number;
-  reviewStatus: "PENDING" | "ACCEPTED" | "DECLINED" | "MODIFIED_ACCEPTED";
+  processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
+  activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
   userAnnotation: string | null;
   hashtags: string[];
   lastActionAt: string | null;
@@ -148,28 +135,33 @@ function actionLabel(action: FlashcardAction["action"] | ActionMode) {
   }
 }
 
-function reviewStatusLabel(reviewStatus: Flashcard["reviewStatus"]) {
-  switch (reviewStatus) {
-    case "PENDING":
-      return "Pending";
+function reviewStatusLabel(processingStatus: Flashcard["processingStatus"]) {
+  switch (processingStatus) {
+    case "DRAFT":
+      return "Draft";
+    case "CHECKED":
+      return "Checked";
+    case "VERIFIED":
+      return "Verified";
     case "ACCEPTED":
       return "Accepted";
     case "DECLINED":
       return "Declined";
-    case "MODIFIED_ACCEPTED":
-      return "Modified + accepted";
   }
 }
 
-function reviewStatusClasses(reviewStatus: Flashcard["reviewStatus"]) {
-  switch (reviewStatus) {
+function reviewStatusClasses(processingStatus: Flashcard["processingStatus"]) {
+  switch (processingStatus) {
     case "ACCEPTED":
       return "border-transparent bg-green-100 text-green-700";
     case "DECLINED":
       return "border-transparent bg-red-100 text-red-700";
-    case "MODIFIED_ACCEPTED":
-      return "border-transparent bg-amber-100 text-amber-700";
-    case "PENDING":
+    case "VERIFIED":
+      return "border-transparent bg-violet-100 text-violet-700";
+    case "DRAFT":
+    case "CHECKED":
+      return "border-input bg-background text-foreground";
+    default:
       return "border-input bg-background text-foreground";
   }
 }
@@ -234,7 +226,7 @@ export default function CompanyKnowMorePage() {
 
       setSources(s);
       setFileCount(Array.isArray(f) ? f.length : 0);
-      setPendingTaskCount(Array.isArray(nba) ? nba.filter((t: any) => t.status === "PENDING").length : 0);
+      setPendingTaskCount(Array.isArray(nba) ? nba.filter((t: any) => t.processingStatus === "VERIFIED").length : 0);
 
       if (sessionRes.ok) {
         const session = await sessionRes.json();
@@ -308,10 +300,10 @@ export default function CompanyKnowMorePage() {
 
     const totals = flashcards.reduce(
       (acc, flashcard) => {
-        acc.confidence += flashcard.confidence;
+        acc.confidence += flashcard.confidenceScore;
         acc.impact += flashcard.impact;
         acc.weight += flashcard.weight;
-        if (flashcard.reviewStatus !== "PENDING") {
+        if (["ACCEPTED", "DECLINED"].includes(flashcard.processingStatus)) {
           acc.reviewed += 1;
         }
         return acc;

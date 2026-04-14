@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readAppSession } from "./auth";
 import { prisma } from "./db";
 
-export type Role = "SUPERADMIN" | "OWNER" | "MEMBER";
+export type Role = "SUPERADMIN" | "OWNER" | "ADMIN" | "MEMBER";
 
 export async function isSuperAdminEmail(email: string) {
   const membership = await prisma.user.findFirst({

@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    console.error("[API:KNOWMORE] Get failure:", error);
+    // Iron-Clad: Return empty array to prevent frontend 'filter' crash
+    return NextResponse.json([]);
   }
 }

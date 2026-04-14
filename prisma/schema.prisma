@@ -27,6 +27,7 @@ model Company {
   uploadedSourceFiles UploadedSourceFile[]
   creativeDrafts      CreativeDraft[]
   workerConfig        Json?                 @default("{}")
+  lastAIVisited       DateTime?
   users               User[]
   communicationSettings CommunicationSettings?
 }
@@ -55,7 +56,10 @@ model Flashcard {
   confidence              Int                   @default(50)
   impact                  Int                   @default(5)
   weight                  Int                   @default(5)
-  status                  FlashcardStatus       @default(ACTIVE)
+  processingStatus        FlashcardProcessingStatus @default(DRAFT)
+  activityState           FlashcardActivityState    @default(ACTIVE)
+  confidenceScore         Float                 @default(50)
+  status                  FlashcardStatus       @default(ACTIVE) // Legacy, keeping for migration
   createdBy               String?               @default("bootstrap-source")
   refreshedAt             DateTime              @default(now())
   createdAt               DateTime              @default(now())
@@ -151,7 +155,10 @@ model NBAItem {
   confidence         Int        @default(50)
   ease               Int        @default(5)
   iceScore           Float      @default(0)
-  status             NBAStatus  @default(PENDING)
+  processingStatus   NBAProcessingStatus @default(DRAFT)
+  activityState      NBAActivityState    @default(ACTIVE)
+  confidenceScore    Float      @default(50)
+  status             NBAStatus  @default(PENDING) // Legacy
   userAnnotation     String?
   createdAt          DateTime   @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -168,8 +175,11 @@ model NBAItem {
   lastHashtagError   String?
   promptVersion      String?    @default("nba-policy@0.8.0")
   feedback           Feedback[]
+  fingerprint        String?
   kind               String?    @default("TASK")
   company            Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, fingerprint])
 }
 
 model HashtagFeedback {
@@ -248,6 +258,13 @@ model Topic {
 model PublicIdCounter {
   scope     String   @id @map("_id")
   value     Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model GlobalSetting {
+  id        String   @id @default(uuid()) @map("_id")
+  key       String   @unique
+  value     Json
   updatedAt DateTime @default(now()) @updatedAt
 }
 
@@ -457,6 +474,36 @@ enum NBAStatus {
   ACCEPTED
   DECLINED
   COMPLETED
+  ARCHIVED
+}
+
+enum FlashcardProcessingStatus {
+  DRAFT
+  CHECKED
+  VERIFIED
+  ACCEPTED
+  DECLINED
+}
+
+enum FlashcardActivityState {
+  ACTIVE
+  STALE
+  EXPIRED
+  ARCHIVED
+}
+
+enum NBAProcessingStatus {
+  DRAFT
+  CHECKED
+  VERIFIED
+  ACCEPTED
+  DECLINED
+}
+
+enum NBAActivityState {
+  ACTIVE
+  STALE
+  EXPIRED
   ARCHIVED
 }
 

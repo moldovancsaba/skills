@@ -1,5 +1,5 @@
 const { callOllamaJson } = require("./ai");
-const { truncate, getWorkerConfig, similarity } = require("./shared");
+const { truncate, getWorkerConfig, similarity, clampInt } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 
 /**

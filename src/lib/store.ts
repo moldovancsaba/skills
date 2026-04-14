@@ -14,7 +14,6 @@ interface Source {
   publicId: number | null;
   content: string;
   hashtags: string[];
-  entityTag: string | null;
   aiClusters: string[];
   metadata?: unknown;
   createdAt: string;

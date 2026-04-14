@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
-import { EntityTagSelector } from "@/components/ui/entity-tag-selector";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { SourceDataCard } from "@/components/source-data-card";
 import {
@@ -55,8 +54,7 @@ export default function GlobalDataCollectionPage() {
   const [input, setInput] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [entityTag, setEntityTag] = useState<string | null>(null);
-  const [entitySuggestions, setEntitySuggestions] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [hashtagSuggestions, setHashtagSuggestions] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -94,10 +92,6 @@ export default function GlobalDataCollectionPage() {
 
       if (activeCompany) {
         await loadAllData(activeCompany.id);
-        fetch(`/api/entities?companyId=${activeCompany.id}`)
-          .then(r => r.ok ? r.json() : [])
-          .then(data => setEntitySuggestions(data))
-          .catch(console.error);
       } else {
         setLoading(false);
       }
@@ -154,7 +148,7 @@ export default function GlobalDataCollectionPage() {
         const response = await fetch(`${editEndpoint}?id=${editingId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: input, name: input, hashtags: normalizedHashtags, entityTag }),
+          body: JSON.stringify({ content: input, name: input, hashtags: normalizedHashtags }),
         });
         if (!response.ok) {
           const payload = await response.json().catch(() => null);
@@ -164,7 +158,7 @@ export default function GlobalDataCollectionPage() {
         const formData = new FormData();
         formData.append("companyId", company.id);
         formData.append("hashtags", JSON.stringify(normalizedHashtags));
-        if (entityTag) formData.append("entityTag", entityTag);
+        formData.append("hashtags", JSON.stringify(normalizedHashtags));
         for (const file of selectedFiles) {
           formData.append("files", file);
         }
@@ -181,7 +175,6 @@ export default function GlobalDataCollectionPage() {
             companyId: company.id,
             content: input,
             hashtags: normalizedHashtags,
-            entityTag: entityTag ?? undefined,
           }),
         });
         if (!response.ok) {
@@ -193,7 +186,7 @@ export default function GlobalDataCollectionPage() {
       setInput("");
       setHashtags([]);
       setSelectedFiles([]);
-      setEntityTag(null);
+      setSelectedFiles([]);
       setEditingId(null);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
@@ -208,7 +201,6 @@ export default function GlobalDataCollectionPage() {
     setEditingId(item.id);
     setInput(item.name);
     setHashtags(item.hashtags ?? []);
-    setEntityTag((item as any).entityTag ?? null);
     setSelectedFiles([]);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -217,7 +209,6 @@ export default function GlobalDataCollectionPage() {
     setEditingId(null);
     setInput("");
     setHashtags([]);
-    setEntityTag(null);
     setSelectedFiles([]);
   };
 
@@ -294,14 +285,6 @@ export default function GlobalDataCollectionPage() {
               placeholder="#soccer, #academy..."
             />
 
-            <EntityTagSelector
-              value={entityTag}
-              onChange={setEntityTag}
-              suggestions={entitySuggestions}
-              label="About (Entity)"
-              placeholder="Which entity is this about?"
-            />
-
             <div className="flex justify-end gap-2 pt-2">
               {editingId ? (
                 <Button type="button" variant="ghost" onClick={cancelEdit}>
@@ -354,7 +337,6 @@ export default function GlobalDataCollectionPage() {
                   name={item.name}
                   type={item.type}
                   hashtags={item.hashtags ?? []}
-                  entityTag={(item as any).entityTag ?? null}
                   onStartEdit={() => startEdit(item)}
                   onDelete={() => deleteItem(item)}
                   activeHashtags={activeHashtags}

@@ -13,7 +13,6 @@ type SourceDataCardProps = {
   name: string;
   type: DataType;
   hashtags: string[];
-  entityTag?: string | null;
   onStartEdit?: () => void;
   onDelete: () => void;
   activeHashtags?: string[];
@@ -50,7 +49,6 @@ export function SourceDataCard({
   name,
   type,
   hashtags,
-  entityTag,
   onStartEdit,
   onDelete,
   activeHashtags = [],
@@ -72,12 +70,6 @@ export function SourceDataCard({
             <Icon className="h-3.5 w-3.5" />
             {type}
           </Badge>
-          {entityTag && (
-            <Badge className="gap-1 bg-primary/10 text-primary border-primary/30 font-medium">
-              <Link2 className="h-3 w-3" />
-              <span>{entityTag}</span>
-            </Badge>
-          )}
           <HashtagChipList hashtags={hashtags} activeTags={activeHashtags} onToggle={onToggleHashtag} />
         </StructuredChipRow>
       }

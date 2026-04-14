@@ -1,3 +1,7 @@
+/**
+ * SOVEREIGN CORE CONFIGURATION
+ * v0.11.3-PRODUCTION
+ */
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
 

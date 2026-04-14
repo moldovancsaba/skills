@@ -65,7 +65,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
     hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : flashCard.hashtags,
     confidenceScore: parseFloat(raw.confidenceScore) || flashCard.confidenceScore || 60,
     processingStatus: "CHECKED",
-    status: "CHECKED", // Legacy Sync
+    status: "CHECKED", // Internal Sync
     activityState: "ACTIVE"
   };
 };
@@ -87,7 +87,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt) {
   if (existing.some(e => similarity(e.title, taskCard.title) > 0.8)) {
     return { 
       processingStatus: "DECLINED", 
-      status: "DECLINED", // Legacy Sync
+      status: "DECLINED", // Internal Sync
       userAnnotation: "[WRITER]: Duplicate task detected." 
     };
   }

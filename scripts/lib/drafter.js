@@ -1,3 +1,7 @@
+/**
+ * SOVEREIGN SHARED UTILITIES
+ * v0.11.3-PRODUCTION
+ */
 const crypto = require("crypto");
 const { callOllamaJson } = require("./ai");
 const { truncate, hashValue, nextPublicId, getWorkerConfig } = require("./shared");
@@ -23,8 +27,9 @@ function joinBody(body) {
 }
 
 /**
- * The DRAFTER is the first stage of the Trinity.
- * It reads raw DataCards (Sources) and proposes the initial DRAFT cards.
+ * The DRAFTER is the first stage of the Sovereign Synthesis Trinity.
+ * It reads raw DataCards (Sources/Files) and proposes initial DRAFT intelligence.
+ * Aligned with v0.11.3 standards.
  */
 async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPrompt) {
   const bodyLimit = await getWorkerConfig(prisma, company, "draft_body_limit", 1200);
@@ -70,7 +75,7 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
       weight: parseInt(raw.weight) || 5,
       processingStatus: "DRAFT",
       activityState: "ACTIVE",
-      status: "DRAFT", // Legacy Sync
+      status: "DRAFT", // Internal Sync
       reviewStatus: "PENDING", // Legacy Sync
       kind: String(raw.kind || "SUMMARY").toUpperCase(), 
       hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : [],
@@ -122,7 +127,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       ease: parseInt(raw.ease) || 5,
       processingStatus: "DRAFT",
       activityState: "ACTIVE",
-      status: "DRAFT", // Legacy Sync
+      status: "DRAFT", // Internal Sync
       createdBy: "drafter-agent",
       fingerprint: hashValue(`EVO:TC:${company.id}:${flashCard.id}:${raw.title}`)
     });

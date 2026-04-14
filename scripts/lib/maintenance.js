@@ -7,7 +7,7 @@ const { getWorkerConfig } = require("./shared");
 async function scrubDatabase(prisma) {
   console.log(`[MAINTENANCE] Starting Global Data Integrity Scrub...`);
   
-  // 1. Flashcards Scrub (v0.11.0 Hardening + v0.10.x Production Compatibility)
+  // 1. Flashcards Integrity Scrub (v0.11.x Sovereignty Hardening)
   const allFlash = await prisma.flashcard.findMany();
   const validKinds = ["SUMMARY", "EXPLANATION", "COMPARISON", "NEWS", "CONCLUSION", "EVALUATION", "OPINION", "JUDGMENT", "RECOMMENDATION", "RESEARCH", "FORECAST", "STOCK", "GOSSIP", "PRICE"];
   
@@ -21,9 +21,9 @@ async function scrubDatabase(prisma) {
         data: { 
           processingStatus: card.processingStatus || "CHECKED", 
           activityState: card.activityState || "ACTIVE",
-          // Legacy Compatibility: v0.10.x webapp doesn't support CHECKED/VERIFIED in FlashcardStatus
+          // Internal State Alignment: Ensure the unified 'status' field remains ACTIVE for downstream consumers
           status: "ACTIVE",
-          // Legacy Compatibility: v0.10.x webapp crashing on dynamic AI-generated kinds
+          // Type Safety Scrub: Ensure kinds adhere to the Sovereign Kind Registry
           kind: validKinds.includes(card.kind) ? card.kind : "SUMMARY"
         }
       });
@@ -38,7 +38,7 @@ async function scrubDatabase(prisma) {
     }
   }
   
-  // 2. NBA Scrub (v0.11.0 Hardening + v0.10.x Production Compatibility)
+  // 2. NBA Integrity Scrub (v0.11.x Sovereignty Hardening)
   const allNBA = await prisma.nBAItem.findMany();
   for (const task of allNBA) {
     const isStandardKind = ["TASK", "CHECKLIST"].includes(task.kind);
@@ -51,9 +51,9 @@ async function scrubDatabase(prisma) {
         data: {
           processingStatus: task.processingStatus || "CHECKED",
           activityState: task.activityState || "ACTIVE",
-          // Legacy Compatibility: v0.10.x webapp doesn't support CHECKED in NBAStatus
+          // Internal State Alignment: Ensure the unified 'status' field remains PENDING for legacy alerts
           status: "PENDING",
-          // Legacy Compatibility: v0.10.x webapp crashing on dynamic AI-generated kinds
+          // Type Safety Scrub: Ensure task kinds are valid
           kind: isStandardKind ? task.kind : "TASK"
         }
       });

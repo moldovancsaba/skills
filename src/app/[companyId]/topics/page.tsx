@@ -1,3 +1,11 @@
+/**
+ * TOPICS FOCUS PAGE
+ * v0.11.3-PRODUCTION
+ * 
+ * Implements Unified Page Architecture:
+ * - PageShell: Full-Width Layout
+ * - UnifiedGrid: 3-Column Desktop Display
+ */
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";

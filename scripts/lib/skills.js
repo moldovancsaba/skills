@@ -1,6 +1,9 @@
 /**
- * Sovereign Marketing Skill Library
- * Aligned with IDEABANK.md
+ * SOVEREIGN MARKETING SKILL LIBRARY
+ * v0.11.3-PRODUCTION
+ * 
+ * Defines specialized marketing frameworks used by the Drafter to categorize 
+ * and process intelligence across different domains.
  */
 
 const MARKETING_SKILLS = {

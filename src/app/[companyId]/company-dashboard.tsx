@@ -1,3 +1,11 @@
+/**
+ * COMPANY DASHBOARD PAGE
+ * v0.11.3-PRODUCTION
+ * 
+ * Implements Unified Page Architecture:
+ * - PageShell: Full-Width Layout
+ * - UnifiedGrid: 3-Column Desktop Display for checklist preview
+ */
 'use client';
 
 import React, { useState, useEffect, useCallback } from "react";

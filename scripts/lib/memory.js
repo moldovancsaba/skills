@@ -1,8 +1,11 @@
 const { truncate } = require("./shared");
 
 /**
- * The MEMORY engine harvests human feedback (History) into rigid constraints.
- * It scavenges FlashcardAction and Feedback history.
+ * SOVEREIGN MEMORY ENGINE
+ * v0.11.3-PRODUCTION
+ * 
+ * The MEMORY engine harvests human feedback (History) into rigid strategic constraints.
+ * It scavenges FlashcardAction and Feedback history for reinforcement learning bits.
  */
 async function getHumanMemoryPrompt(prisma, company) {
   // 1. Scavenge FlashcardAction History (Accept/Decline signals)

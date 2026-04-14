@@ -1,3 +1,12 @@
+/**
+ * UNIFIED PAGE ARCHITECTURE
+ * v0.11.3-PRODUCTION
+ * 
+ * Defines standardized layout primitives for the Checklist Marketing OS.
+ * - PageShell: Handles horizontal scaling (width="full" for screen-wide dashboards).
+ * - UnifiedGrid: Responsive 1/2/3-column grid for standard intelligence listings.
+ * - PipelineAccentHeader: Themed headers for system layers (Data, Topics, Knowmore, Checklist).
+ */
 "use client";
 
 import Link from "next/link";

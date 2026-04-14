@@ -1,5 +1,19 @@
+/**
+ * UNIFIED DESIGN SYSTEM: SINGULAR CARD UI
+ * v0.11.3-PRODUCTION
+ * 
+ * Provides a highly standardized, premium "Deep Dark" card architecture (UnifiedCard).
+ * Used across Data, Topics, Knowmore, and Checklist pages to ensure a consistent, 
+ * information-dense intelligence display.
+ * 
+ * Architecture:
+ * - UnifiedCard (Container): Zinc-950/40 background with subtle border logic.
+ * - UnifiedCardHeader: Supporting badges, prominent title, and optional description.
+ * - UnifiedCardBody: Main content area with consistent internal spacing.
+ * - UnifiedCardActions: Section for primary interaction buttons.
+ * - UnifiedCardFooter: Optional metadata or secondary information section.
+ */
 import type { ReactNode } from "react";
-
 import { cn } from "@/lib/utils";
 import {
   Card,

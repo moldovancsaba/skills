@@ -1,3 +1,7 @@
+/**
+ * SOVEREIGN AI INTERFACE
+ * v0.11.3-PRODUCTION
+ */
 const http = require("http");
 const { 
   OLLAMA_HOST, 

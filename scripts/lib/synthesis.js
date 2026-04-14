@@ -20,10 +20,11 @@ function getSynthesisProgress() {
 const BATCH_LIMIT = 5; // The Carousel Orbit Limit
 
 /**
- * THE SOVEREIGN SYNTHESIS ENGINE (CAROUSEL EDITION)
- * v0.13.3-STABLE
+ * SOVEREIGN SYNTHESIS ENGINE
+ * v0.11.3-PRODUCTION
  * 
- * Implements round-robin orchestration to prevent sequential starvation.
+ * Implements round-robin orchestration (Orbiting) across all multi-tenant companies.
+ * Ensures fair distribution of AI compute and prevents sequential starvation.
  */
 async function runSynthesisCycle(prisma) {
   // Fair Rotation: Oldest last-visited company first
@@ -56,7 +57,7 @@ async function runSynthesisCycle(prisma) {
 async function processCompanySynthesis(prisma, company) {
   const cid = company.id;
   
-  // 1. Context & Config
+  // 1. Worker Configuration
   const passes = await getWorkerConfig(prisma, company, "mini_loop_passes", 3);
   const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
   
@@ -146,7 +147,7 @@ async function processCompanySynthesis(prisma, company) {
       }
     }
 
-    // --- STAGE 3: TASK DRAFTER (Verified Flashcards -> Draft Tasks) ---
+    // --- STAGE 3: SYNTHESIS ASCENSION (Verified Flashcards -> Draft Tasks) ---
     const verifiedFlash = await prisma.flashcard.findMany({ 
       where: { companyId: cid, processingStatus: "VERIFIED" },
       take: orbitLimit

@@ -9,8 +9,10 @@ const prisma = new PrismaClient();
 const PORT = 10005;
 
 /**
- * The SOVEREIGN TRINITY ORCHESTRATOR
- * Aligned with SOVEREIGN_WORKFLOW.md
+ * SOVEREIGN TRINITY ORCHESTRATOR
+ * v0.11.3-PRODUCTION
+ * 
+ * Aligned with SOVEREIGN_WORKFLOW.md and the Unified Design System.
  */
 const { runSynthesisCycle, getSynthesisProgress } = require("./lib/synthesis");
 const { scrubDatabase } = require("./lib/maintenance");

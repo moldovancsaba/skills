@@ -2,8 +2,8 @@ const { truncate } = require("./shared");
 
 /**
  * Loads the "Strategic Stack" for a company.
- * Fetches Related Cards (Topics, Insights, Tasks) to provide AI agents with full context.
- * Aligned with Sovereign Architecture v0.10.0-PROPER.
+ * Fetches Related Assets (Topics, Flashcards, Tasks) to provide AI agents with full context.
+ * Aligned with Sovereign Architecture v0.11.3-PRODUCTION.
  */
 async function getCompanyStrategicContext(prisma, companyId) {
   // 1. Load TopicCards (The Strategy)
@@ -12,16 +12,16 @@ async function getCompanyStrategicContext(prisma, companyId) {
     orderBy: { sortOrder: "asc" }
   });
 
-  // 2. Load Verified FlashCards (The Insights)
+  // 2. Load Verified Flashcards (The Intelligence)
   const recentInsights = await prisma.flashcard.findMany({
-    where: { companyId, status: "VERIFIED" },
+    where: { companyId, processingStatus: "VERIFIED" },
     take: 10,
     orderBy: { updatedAt: "desc" }
   });
 
-  // 3. Load Active TaskCards (To avoid duplication)
+  // 3. Load Active Tasks (To avoid duplication)
   const activeTasks = await prisma.nBAItem.findMany({
-    where: { companyId, status: { in: ["PENDING", "DRAFT", "CHECKED", "VERIFIED"] } },
+    where: { companyId, processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] } },
     take: 10,
     orderBy: { updatedAt: "desc" }
   });

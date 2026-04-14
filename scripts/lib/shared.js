@@ -1,3 +1,7 @@
+/**
+ * SOVEREIGN SHARED UTILITIES
+ * v0.11.3-PRODUCTION
+ */
 const crypto = require("crypto");
 
 function normalizeText(value) {

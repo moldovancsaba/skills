@@ -1,3 +1,11 @@
+/**
+ * NBA CHECKLIST PAGE
+ * v0.11.3-PRODUCTION
+ * 
+ * Implements Unified Page Architecture:
+ * - PageShell: Full-Width Layout
+ * - UnifiedGrid: 3-Column Desktop Display
+ */
 'use client';
 
 import { useParams } from "next/navigation";

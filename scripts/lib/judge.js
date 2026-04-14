@@ -42,14 +42,14 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
   if (raw.decision === "VERIFIED" && finalScore >= threshold) {
     return { 
       processingStatus: "VERIFIED", 
-      status: "VERIFIED", // Legacy Sync
+      status: "VERIFIED", // Internal Sync
       confidenceScore: finalScore, 
       activityState: "ACTIVE" 
     };
   } else {
     return { 
       processingStatus: "DRAFT", 
-      status: "DRAFT", // Legacy Sync
+      status: "DRAFT", // Internal Sync
       confidenceScore: 1, // Crater scores to sink to the bottom of the list
       impact: 1,
       weight: 1,
@@ -93,14 +93,14 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
   if (raw.decision === "VERIFIED" && finalScore >= threshold) {
     return { 
       processingStatus: "VERIFIED", 
-      status: "VERIFIED", // Legacy Sync
+      status: "VERIFIED", // Internal Sync
       confidenceScore: finalScore, 
       activityState: "ACTIVE" 
     };
   } else {
     return { 
       processingStatus: "DRAFT", 
-      status: "DRAFT", // Legacy Sync
+      status: "DRAFT", // Internal Sync
       confidenceScore: 1, // Crater scores to sink to the bottom of the list
       impact: 1,
       ease: 1,

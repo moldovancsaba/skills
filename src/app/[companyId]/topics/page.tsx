@@ -2,13 +2,22 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormInput } from "@/components/ui/form-fields";
-import { Notice, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
+import { Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
+import { 
+  UnifiedCard, 
+  UnifiedCardHeader, 
+  UnifiedCardBody, 
+  UnifiedCardActions, 
+  UnifiedCardText 
+} from "@/components/ui/unified-card";
+import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 type Topic = {
   id: string;
@@ -146,7 +155,7 @@ export default function CompanyTopicsPage() {
   }
 
   return (
-    <PageShell width="5xl">
+    <PageShell width="full">
       <PipelineAccentHeader
         activeKey="topics"
         title="Topics"
@@ -168,76 +177,145 @@ export default function CompanyTopicsPage() {
         </Notice>
       ) : null}
 
-      <Card>
-        <CardContent className="space-y-4 p-6">
+      <UnifiedCard className="mb-8">
+        <UnifiedCardHeader title="Add New Research Topic" />
+        <UnifiedCardBody className="space-y-4">
           <div className="flex gap-2">
             <FormInput
-              label="Add topic"
+              label="Topic Label"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="trending, pricing, retention, market landscape analysis..."
+              placeholder="e.g., market landscape analysis, pricing strategy, trending..."
             />
-            <Button type="button" className="self-end" onClick={() => void addTopic()}>
+            <Button 
+              type="button" 
+              className="self-end h-10 px-6 font-bold uppercase tracking-widest text-[10px]" 
+              onClick={() => void addTopic()}
+            >
               <Plus className="h-4 w-4" />
-              Add
+              Add Topic
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </UnifiedCardBody>
+      </UnifiedCard>
 
-      <div className="space-y-3">
-        {orderedTopics.map((topic, index) => (
-          <Card
-            key={topic.id}
-            draggable
-            onDragStart={() => setDraggingId(topic.id)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={() => {
-              if (!draggingId || draggingId === topic.id) return;
-              const from = orderedTopics.findIndex((item) => item.id === draggingId);
-              const to = orderedTopics.findIndex((item) => item.id === topic.id);
-              if (from < 0 || to < 0) return;
-              void persistOrder(reorder(orderedTopics, from, to));
-              setDraggingId(null);
-            }}
-            onDragEnd={() => setDraggingId(null)}
-            className={draggingId === topic.id ? "opacity-60" : undefined}
-          >
-            <CardContent className="flex items-center gap-4 p-4">
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-              <span className="w-8 text-sm font-mono text-muted-foreground">{index + 1}</span>
-              <Checkbox checked={topic.active} onCheckedChange={() => void toggleActive(topic)} />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-foreground">{topic.label}</p>
-                <p className="text-sm text-muted-foreground">
-                  {topic.active ? "Active research focus" : "Inactive"}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => {
-                  if (index === 0) return;
-                  void persistOrder(reorder(orderedTopics, index, index - 1));
-                }}>
-                  Up
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => {
-                  if (index === orderedTopics.length - 1) return;
-                  void persistOrder(reorder(orderedTopics, index, index + 1));
-                }}>
-                  Down
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => void removeTopic(topic)}>
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {orderedTopics.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No topics yet. Add your first research focus above.</p>
-        ) : null}
+      <div className="mb-4">
+        <h2 className="text-lg font-bold tracking-tight text-white">Focus topics ({orderedTopics.length})</h2>
+        <p className="text-sm text-zinc-500">Drag to reorder or use the buttons below.</p>
       </div>
+
+      <UnifiedGrid>
+        {orderedTopics.map((topic, index) => {
+          const badges = (
+            <>
+              <Badge variant="outline" className="font-mono text-[10px] tracking-wider border-zinc-200/20 text-zinc-400">
+                {index + 1}
+              </Badge>
+              <Badge variant="secondary" className={cn(
+                "font-mono text-[10px] tracking-wider border-zinc-200/20",
+                topic.active ? "bg-green-500/10 text-green-400" : "bg-zinc-800 text-zinc-500"
+              )}>
+                {topic.active ? "ACTIVE" : "PAUSED"}
+              </Badge>
+            </>
+          );
+
+          return (
+            <motion.div
+              key={topic.id}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.03 }}
+              draggable
+              onDragStart={() => setDraggingId(topic.id)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={() => {
+                if (!draggingId || draggingId === topic.id) return;
+                const from = orderedTopics.findIndex((item) => item.id === draggingId);
+                const to = orderedTopics.findIndex((item) => item.id === topic.id);
+                if (from < 0 || to < 0) return;
+                void persistOrder(reorder(orderedTopics, from, to));
+                setDraggingId(null);
+              }}
+              onDragEnd={() => setDraggingId(null)}
+              className={cn(
+                "group cursor-grab active:cursor-grabbing",
+                draggingId === topic.id && "opacity-60"
+              )}
+            >
+              <UnifiedCard>
+                <UnifiedCardHeader 
+                  badges={badges} 
+                  title={topic.label} 
+                />
+                
+                <UnifiedCardBody>
+                  <div className="flex items-center gap-3 mb-4">
+                    <Checkbox 
+                      checked={topic.active} 
+                      onCheckedChange={() => void toggleActive(topic)} 
+                      className="h-5 w-5 border-zinc-700 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Research Focus</p>
+                      <p className="text-sm text-zinc-300">
+                        {topic.active ? "Actively processing strategic intelligence" : "Research paused"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <UnifiedCardActions>
+                    <div className="flex w-full items-center gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-8 border-zinc-200/10 hover:bg-zinc-200/5 text-zinc-400" 
+                        onClick={() => {
+                          if (index === 0) return;
+                          void persistOrder(reorder(orderedTopics, index, index - 1));
+                        }}
+                        disabled={index === 0}
+                      >
+                        <ArrowUp className="h-3 w-3" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-8 border-zinc-200/10 hover:bg-zinc-200/5 text-zinc-400" 
+                        onClick={() => {
+                          if (index === orderedTopics.length - 1) return;
+                          void persistOrder(reorder(orderedTopics, index, index + 1));
+                        }}
+                        disabled={index === orderedTopics.length - 1}
+                      >
+                        <ArrowDown className="h-3 w-3" />
+                      </Button>
+                      
+                      <div className="ml-auto flex items-center gap-2">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <GripVertical className="h-4 w-4 text-zinc-600" />
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-8 text-zinc-500 hover:text-red-400" 
+                          onClick={() => void removeTopic(topic)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </UnifiedCardActions>
+                </UnifiedCardBody>
+              </UnifiedCard>
+            </motion.div>
+          );
+        })}
+      </UnifiedGrid>
+
+      {orderedTopics.length === 0 ? (
+        <p className="mt-8 text-center text-sm text-zinc-500">No topics yet. Add your first research focus above.</p>
+      ) : null}
     </PageShell>
   );
 }

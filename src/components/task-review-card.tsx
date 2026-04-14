@@ -129,8 +129,8 @@ export function TaskReviewCard({
       />
 
       {item.userAnnotation ? (
-        <div className="text-sm text-foreground">
-          <MessageSquare className="mr-2 inline h-4 w-4 align-text-bottom text-muted-foreground" />
+        <div className={`text-sm ${item.userAnnotation.includes("[JUDGE REJECTION]") ? "rounded-lg border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100" : "text-foreground"}`}>
+          <MessageSquare className={`mr-2 inline h-4 w-4 align-text-bottom ${item.userAnnotation.includes("[JUDGE REJECTION]") ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`} />
           {item.userAnnotation}
         </div>
       ) : null}

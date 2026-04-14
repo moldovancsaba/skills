@@ -23,9 +23,17 @@ async function scrubDatabase(prisma) {
           activityState: card.activityState || "ACTIVE",
           // Legacy Compatibility: v0.10.x webapp doesn't support CHECKED/VERIFIED in FlashcardStatus
           status: "ACTIVE",
-          // Legacy Compatibility: v0.10.x webapp crashes on dynamic AI-generated kinds
+          // Legacy Compatibility: v0.10.x webapp crashing on dynamic AI-generated kinds
           kind: validKinds.includes(card.kind) ? card.kind : "SUMMARY"
         }
+      });
+    }
+
+    // 1.1 Rejection Scrub: Force scores to 1 for rejected cards
+    if (card.userAnnotation?.includes("[JUDGE REJECTION]")) {
+      await prisma.flashcard.update({
+        where: { id: card.id },
+        data: { confidenceScore: 1, impact: 1, weight: 1 }
       });
     }
   }
@@ -48,6 +56,14 @@ async function scrubDatabase(prisma) {
           // Legacy Compatibility: v0.10.x webapp crashing on dynamic AI-generated kinds
           kind: isStandardKind ? task.kind : "TASK"
         }
+      });
+    }
+
+    // 2.1 Rejection Scrub: Force scores to 1 for rejected tasks
+    if (task.userAnnotation?.includes("[JUDGE REJECTION]")) {
+      await prisma.nBAItem.update({
+        where: { id: task.id },
+        data: { confidenceScore: 1, impact: 1, ease: 1, iceScore: 1 }
       });
     }
   }

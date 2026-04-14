@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
         processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
         activityState: { in: ["ACTIVE", "STALE"] }
       },
-      orderBy: [{ confidenceScore: "desc" }, { publicId: "asc" }],
+      orderBy: [{ iceScore: "desc" }, { confidenceScore: "desc" }, { publicId: "asc" }],
     });
     return NextResponse.json(items);
   } catch (error) {

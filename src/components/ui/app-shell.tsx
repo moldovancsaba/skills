@@ -186,6 +186,8 @@ type LinkCardProps = {
   icon: LucideIcon;
   title: string;
   description: string;
+  metric?: string | number;
+  variant?: "blue" | "amber" | "green" | "violet" | "teal";
   className?: string;
 };
 
@@ -194,24 +196,61 @@ export function LinkCard({
   icon: Icon,
   title,
   description,
+  metric,
+  variant,
   className,
 }: LinkCardProps) {
+  const variantClasses = {
+    blue: "bg-blue-500/10 border-blue-500/20 group-hover:bg-blue-500/20",
+    amber: "bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500/20",
+    green: "bg-green-500/10 border-green-500/20 group-hover:bg-green-500/20",
+    violet: "bg-violet-500/10 border-violet-500/20 group-hover:bg-violet-500/20",
+    teal: "bg-teal-500/10 border-teal-500/20 group-hover:bg-teal-500/20",
+  };
+
+  const iconClasses = {
+    blue: "text-blue-400 bg-blue-500/10",
+    amber: "text-amber-400 bg-amber-500/10",
+    green: "text-green-400 bg-green-500/10",
+    violet: "text-violet-400 bg-violet-500/10",
+    teal: "text-teal-400 bg-teal-500/10",
+  };
+
   return (
-    <Link href={href} className={cn("group block", className)}>
+    <Link href={href} className={cn("group block h-full", className)}>
       <StructuredCard
-        className="h-full transition-colors group-hover:bg-muted/40"
+        className={cn(
+          "h-full transition-all duration-300",
+          variant && variantClasses[variant]
+        )}
         chips={
-          <StructuredChipRow>
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 transition-colors group-hover:bg-accent/15">
-              <Icon className="h-5 w-5 text-accent transition-colors" />
+          <StructuredChipRow className="flex items-center justify-between w-full">
+            <span className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+              variant ? iconClasses[variant] : "bg-accent/10 text-accent group-hover:bg-accent/15"
+            )}>
+              <Icon className="h-5 w-5" />
             </span>
+            {metric !== undefined && (
+              <span className={cn(
+                "text-4xl font-black italic tracking-tighter opacity-80 transition-transform duration-300 group-hover:scale-110",
+                variant ? iconClasses[variant].split(' ')[0] : "text-zinc-500"
+              )}>
+                {metric}
+              </span>
+            )}
           </StructuredChipRow>
         }
-        title={<span className="text-base">{title}</span>}
-        body={description}
+        title={<span className="text-base font-bold">{title}</span>}
+        body={<span className="text-zinc-400 text-sm">{description}</span>}
         actions={
           <StructuredActionRow>
-            <span className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Open</span>
+            <span className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "h-8 px-3 text-[10px] uppercase font-bold tracking-widest border border-white/5 bg-white/5 hover:bg-white/10"
+            )}>
+              Open
+            </span>
           </StructuredActionRow>
         }
       />

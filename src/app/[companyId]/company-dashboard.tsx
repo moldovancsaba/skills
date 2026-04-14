@@ -51,6 +51,7 @@ export default function CompanyDashboard() {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [flashcardCount, setFlashcardCount] = useState(0);
   const [fileCount, setFileCount] = useState(0);
+  const [topicCount, setTopicCount] = useState(0);
   const [companyCount, setCompanyCount] = useState(0);
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
   const [actionItemId, setActionItemId] = useState<string | null>(null);
@@ -71,11 +72,12 @@ export default function CompanyDashboard() {
       }
     };
 
-    const [s, f, nba, knowmore, members] = await Promise.all([
+    const [s, f, nba, knowmore, topics, members] = await Promise.all([
       safeFetch(`/api/sources?companyId=${cid}`),
       safeFetch(`/api/data-files?companyId=${cid}`),
       safeFetch(`/api/nba?companyId=${cid}`),
       safeFetch(`/api/knowmore?companyId=${cid}`),
+      safeFetch(`/api/topics?companyId=${cid}`),
       safeFetch(`/api/companies/${cid}/members`),
     ]);
 
@@ -104,6 +106,7 @@ export default function CompanyDashboard() {
         .slice(0, 3),
     );
     setFlashcardCount(safeKnowmore.length);
+    setTopicCount(Array.isArray(topics) ? topics.length : 0);
   }, [setSources]);
 
   useEffect(() => {
@@ -220,6 +223,8 @@ export default function CompanyDashboard() {
           <LinkCard
             href={`/${companyId}/data`}
             icon={Plus}
+            variant="blue"
+            metric={(Array.isArray(sources) ? sources.length : 0) + fileCount}
             title={`Data Collection (${(Array.isArray(sources) ? sources.length : 0) + fileCount})`}
             description="Add raw sources and files"
           />
@@ -228,7 +233,9 @@ export default function CompanyDashboard() {
           <LinkCard
             href={`/${companyId}/topics`}
             icon={ListOrdered}
-            title="Topics"
+            variant="amber"
+            metric={topicCount}
+            title={`Topics (${topicCount})`}
             description="Prioritize AI focus"
           />
         </motion.div>
@@ -236,6 +243,8 @@ export default function CompanyDashboard() {
           <LinkCard
             href={`/${companyId}/knowmore`}
             icon={Sparkles}
+            variant="green"
+            metric={flashcardCount}
             title={`Knowmore (${flashcardCount})`}
             description="Knowledge layer"
           />
@@ -244,6 +253,8 @@ export default function CompanyDashboard() {
           <LinkCard
             href={`/${companyId}/nba`}
             icon={Zap}
+            variant="violet"
+            metric={pendingTaskCount}
             title={`Checklist (${pendingTaskCount})`}
             description="Next best actions"
           />
@@ -252,6 +263,7 @@ export default function CompanyDashboard() {
           <LinkCard
             href={`/${companyId}/settings`}
             icon={SettingsIcon}
+            variant="teal"
             title="Settings"
             description="Alerts & Bridge"
           />

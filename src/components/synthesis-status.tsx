@@ -27,6 +27,7 @@ interface SynthesisStatusProps {
 }
 
 export function SynthesisStatus({ initialState, pollInterval = 10000 }: SynthesisStatusProps) {
+  const [state, setState] = useState<WorkerState>(initialState || { online: false, state: "offline", stage: "IDLE" });
   const [isReanimating, setIsReanimating] = useState(false);
 
   const fetchStatus = async () => {

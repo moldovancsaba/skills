@@ -19,36 +19,56 @@ const DEFAULT_IDLE_INTERVAL = 300000;      // 5 minutes default
  * Main entry point for the background AI synthesis loop.
  * Orchestrates the recurring execution of the Trinity pipeline and serves health metrics.
  */
-const { runSynthesisCycle, getSynthesisProgress, synthesisState } = require("./lib/synthesis");
+const { runSynthesisCycle, getSynthesisProgress, syncSynthesisStateToDb, synthesisState } = require("./lib/synthesis");
 const { scrubDatabase } = require("./lib/maintenance");
 
 // --- CONTINUOUS HEARTBEAT ---
-// Updates the "Last Activity" timestamp even when the worker is idling/resting.
-// This proves the system is alive to the dashboard.
-setInterval(() => {
+// Updates the "Last Activity" timestamp and syncs to DB for the Cloud Dashboard.
+setInterval(async () => {
   if (synthesisState) {
     synthesisState.lastProgressAt = new Date().toISOString();
+    await syncSynthesisStateToDb(prisma);
   }
 }, 60000);
 
+let lastCycleStartTime = 0;
+
 /**
- * Main worker loop. Executes the synthesis cycle and schedules the next run based on configuration.
+ * Main worker loop. Executes the synthesis cycle and handles the 'Sovereign' command-and-control polling.
  */
 async function runWorkerLoop() {
   try {
-    const loopInterval = await getWorkerConfig(prisma, {}, "loop_interval_ms", 600000);
-    const idleInterval = await getWorkerConfig(prisma, {}, "idle_poll_interval_ms", 300000); // Default 5m
+    const loopInterval = await getWorkerConfig(prisma, {}, "loop_interval_ms", DEFAULT_LOOP_INTERVAL);
+    const idleInterval = await getWorkerConfig(prisma, {}, "idle_poll_interval_ms", DEFAULT_IDLE_INTERVAL);
     
     console.log(`[SYNTHESIS] Starting Cycle...`);
+    lastCycleStartTime = Date.now();
     const result = await runSynthesisCycle(prisma);
+    await syncSynthesisStateToDb(prisma); // Post-cycle sync
     
-    if (result.workDone) {
-      console.log(`[SYNTHESIS] Cycle Complete (${result.operations} ops). Standard cooldown: ${loopInterval / 60000} mins.`);
-      setTimeout(runWorkerLoop, loopInterval);
-    } else {
-      console.log(`[HEARTBEAT] System idle (0 ops). Re-polling in ${idleInterval / 60000} mins.`);
-      setTimeout(runWorkerLoop, idleInterval);
+    const cooldown = result.workDone ? loopInterval : idleInterval;
+    const cooldownMins = cooldown / 60000;
+    console.log(`[SYNTHESIS] Cycle Complete (${result.operations} ops). Resting for ${cooldownMins} mins...`);
+    
+    // --- IDLE WATCHER LOOP ---
+    // Instead of one long setTimeout, we sleep in 30s increments to poll for DB reanimation signals.
+    const wakeUpAt = Date.now() + cooldown;
+    while (Date.now() < wakeUpAt) {
+      // Check for Manual Reanimate Signal from Cloud
+      const reanimateSignal = await prisma.globalSetting.findUnique({ where: { key: "core_synthesis_reanimate_requested_at" } });
+      if (reanimateSignal) {
+        const signalTime = new Date(reanimateSignal.value.timestamp).getTime();
+        if (signalTime > lastCycleStartTime) {
+          console.log(`[DEFIBRILLATOR] Manual reanimation detected in DB. Waking up...`);
+          break; // Exit idle loop to start new cycle
+        }
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 30000)); // Poll every 30s
     }
+
+    // Recurse to next cycle
+    runWorkerLoop();
   } catch (err) {
     console.error(`[CRITICAL] Worker Loop Failure:`, err);
     setTimeout(runWorkerLoop, 60000); // Retry in 1 min on crash

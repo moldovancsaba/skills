@@ -1,49 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySuperAdmin } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 
 /**
- * SOVEREIGN DEFIBRILLATOR API
- * v0.11.6
+ * SOVEREIGN DEFIBRILLATOR API (Decoupled)
+ * v0.12.0
  *
- * Proxies a force-trigger request to the internal Trinity Worker.
- * Bypasses scheduling cooldowns to reanimate the system on demand.
- * 
- * Restricted to SuperAdmins only to prevent compute exhaustion.
+ * Signals a reanimation request by updating a timestamp in the shared database.
+ * The Local AI Worker polls this setting to detect manual triggers from the cloud.
  */
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifySuperAdmin(request);
     if (auth.error) return auth.error;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const signal = {
+      timestamp: new Date().toISOString(),
+      requestedBy: "Dashboard"
+    };
 
-    const res = await fetch("http://127.0.0.1:10005/force", {
-      method: "POST",
-      signal: controller.signal,
-      cache: 'no-store'
+    await prisma.globalSetting.upsert({
+      where: { key: "core_synthesis_reanimate_requested_at" },
+      create: { key: "core_synthesis_reanimate_requested_at", value: signal },
+      update: { value: signal, updatedAt: new Date() }
     });
-
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      return NextResponse.json({ 
-        success: false, 
-        message: "Worker rejected reanimation request." 
-      }, { status: 502 });
-    }
 
     return NextResponse.json({ 
       success: true, 
-      message: "Defibrillator engaged. System reanimating..." 
+      message: "Defibrillator signal dispatched to MongoDB. System will reanimate shortly." 
     });
   } catch (error) {
     console.error("[API:REANIMATE] Failure:", error);
     return NextResponse.json({ 
       success: false, 
-      message: "Worker unreachable. Reanimation failed." 
-    }, { status: 503 });
+      message: "Failed to dispatch reanimation signal to database." 
+    }, { status: 500 });
   }
 }

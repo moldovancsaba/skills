@@ -12,41 +12,17 @@
 const http = require("http");
 const fs   = require("fs");
 const path = require("path");
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
 const STATUS_PORT      = 10006;
-const WORKER_PORT      = 10005;
 const LOG_FILE         = path.join(__dirname, "..", "logs", "guardian.log");
 const HEARTBEAT_FILE   = path.join(__dirname, "..", "logs", "guardian-heartbeat.json");
 
 // --- DATA FETCHERS ---
 
 /**
- * Retrieves the live health state from the active Trinity Worker.
- * 
- * @returns {Promise<object>} health status and payload
- */
-function fetchWorkerHealth() {
-  return new Promise((resolve) => {
-    const req = http.get(
-      { hostname: "127.0.0.1", port: WORKER_PORT, path: "/health", timeout: 3000 },
-      (res) => {
-        let body = "";
-        res.on("data", (c) => (body += c));
-        res.on("end", () => {
-          try { resolve({ ok: true, data: JSON.parse(body) }); }
-          catch { resolve({ ok: false }); }
-        });
-      }
-    );
-    req.on("error", () => resolve({ ok: false }));
-    req.on("timeout", () => { req.destroy(); resolve({ ok: false }); });
-  });
-}
-
-/**
  * Reads the latest heartbeat snapshot from the Guardian filesystem log.
- * 
- * @returns {object|null} Parsed heartbeat data or null if missing
  */
 function readHeartbeat() {
   try { return JSON.parse(fs.readFileSync(HEARTBEAT_FILE, "utf8")); }
@@ -55,9 +31,6 @@ function readHeartbeat() {
 
 /**
  * Extracts the last N lines from the Guardian log file.
- * 
- * @param {number} n - Number of lines to tail
- * @returns {string[]} Array of log lines
  */
 function readLogTail(n = 120) {
   try {
@@ -70,20 +43,30 @@ function readLogTail(n = 120) {
 
 /**
  * Handles the GET /api/status request.
- * Aggregates worker health, guardian heartbeats, and logs into a unified JSON payload.
- * 
- * @param {http.ServerResponse} res - HTTP response object
+ * Aggregates worker health from DB, guardian heartbeats, and logs.
  */
 async function handleApi(res) {
-  const [health, heartbeat] = await Promise.all([
-    fetchWorkerHealth(),
+  const [setting, heartbeat] = await Promise.all([
+    prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
     Promise.resolve(readHeartbeat()),
   ]);
   const logTail = readLogTail(120);
 
+  let worker = { online: false };
+  if (setting) {
+    const data = setting.value;
+    const lastUpdate = new Date(setting.updatedAt).getTime();
+    const isStale = (Date.now() - lastUpdate) > 10 * 60 * 1000;
+    
+    worker = {
+      online: !isStale,
+      ...data
+    };
+  }
+
   const payload = {
     ts: new Date().toISOString(),
-    worker: health.ok ? { online: true, ...health.data, ...health.data.progress } : { online: false },
+    worker,
     guardian: heartbeat,
     logTail,
   };
@@ -94,6 +77,31 @@ async function handleApi(res) {
     "Cache-Control": "no-store",
   });
   res.end(JSON.stringify(payload));
+}
+
+/**
+ * Handles the POST /api/reanimate request.
+ * Signals a reanimation request by updating the database.
+ */
+async function handleReanimate(res) {
+  try {
+    const signal = {
+      timestamp: new Date().toISOString(),
+      requestedBy: "StatusServer"
+    };
+
+    await prisma.globalSetting.upsert({
+      where: { key: "core_synthesis_reanimate_requested_at" },
+      create: { key: "core_synthesis_reanimate_requested_at", value: signal },
+      update: { value: signal, updatedAt: new Date() }
+    });
+
+    res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+    res.end(JSON.stringify({ success: true, message: "Defibrillator engaged via DB pulse." }));
+  } catch (err) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: false, error: err.message }));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -263,6 +271,21 @@ const HTML = /* html */ `<!DOCTYPE html>
     .guardian-ok  { color: var(--green); }
     .guardian-bad { color: var(--red); }
 
+    .btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--amber);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: var(--amber); color: var(--bg); border-color: var(--amber); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
     section { margin-bottom: 20px; }
   </style>
 </head>
@@ -300,7 +323,12 @@ const HTML = /* html */ `<!DOCTYPE html>
   <!-- Row 2: Progress + Guardian -->
   <section class="grid grid-2" style="margin-bottom:20px">
     <div class="card">
-      <div class="card-title">Synthesis Progress</div>
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        Synthesis Progress
+        <div id="defib-group" style="display:none">
+          <button id="defib-btn" class="btn" onclick="reanimate()">⚡ Defibrillate</button>
+        </div>
+      </div>
       <div id="last-progress" style="font-size:12px;color:var(--muted);margin-bottom:10px">Last activity: —</div>
       <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
       <div style="margin-top:14px;font-size:11px;color:var(--muted)" id="stage-description">Waiting for worker...</div>

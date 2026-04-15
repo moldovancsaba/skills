@@ -32,6 +32,32 @@ let synthesisState = {
 function getSynthesisProgress() {
   return synthesisState;
 }
+
+/**
+ * Persists the current synthesis state to the database global settings.
+ * This acts as the Source of Truth for the cloud-based webapp (Vercel).
+ */
+async function syncSynthesisStateToDb(prisma) {
+  try {
+    const data = {
+      state: synthesisState.state,
+      stage: synthesisState.stage,
+      pass: synthesisState.pass,
+      lastProgressAt: synthesisState.lastProgressAt,
+      currentCompany: synthesisState.currentCompany,
+      cycleCount: synthesisState.cycleCount,
+      timestamp: new Date().toISOString()
+    };
+    
+    await prisma.globalSetting.upsert({
+      where: { key: "core_synthesis_progress" },
+      create: { key: "core_synthesis_progress", value: data },
+      update: { value: data, updatedAt: new Date() }
+    });
+  } catch (err) {
+    console.error(`[HEARTBEAT] Global sync failed:`, err.message);
+  }
+}
 // --- CYCLING LOGIC ---
 
 /**
@@ -232,5 +258,6 @@ module.exports = {
   runSynthesisCycle,
   processCompanySynthesis,
   getSynthesisProgress,
+  syncSynthesisStateToDb,
   synthesisState
 };

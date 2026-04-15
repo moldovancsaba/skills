@@ -1,52 +1,57 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 
 /**
- * SOVEREIGN WORKER STATUS PROXY
- * v0.11.3-PRODUCTION
+ * SOVEREIGN WORKER STATUS API (Decoupled)
+ * v0.12.0
  *
- * Bridges the internal Trinity Worker (Port 10005) to the frontend pill indicator.
- * Kept intentionally minimal — full monitoring belongs in the local status server.
+ * Reads operational status from the shared GlobalSetting table.
+ * This allows Vercel to see the Local AI Server's state via MongoDB Atlas.
  */
 export async function GET() {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1500);
-
-    const res = await fetch("http://127.0.0.1:10005/health", {
-      signal: controller.signal,
-      cache: 'no-store'
+    const setting = await prisma.globalSetting.findUnique({
+      where: { key: "core_synthesis_progress" }
     });
 
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
+    if (!setting) {
       return NextResponse.json({
         online: false,
         state: "offline",
-        message: "Worker responded with error status."
+        message: "Worker has never reported status."
       });
     }
 
-    const data = await res.json();
+    const data = setting.value as any;
+    const lastUpdate = new Date(setting.updatedAt).getTime();
+    const isStale = (Date.now() - lastUpdate) > 10 * 60 * 1000; // 10 minutes tolerance
+
+    if (isStale) {
+      return NextResponse.json({
+        online: false,
+        state: "offline",
+        message: "Worker heartbeat is stale. Local server may be down."
+      });
+    }
+
     return NextResponse.json({
       online: true,
-      state:          data.progress.state,
-      stage:          data.progress.stage,
-      pass:           data.progress.pass,
-      currentCompany: data.progress.currentCompany,
-      cycleCount:     data.progress.cycleCount,
-      lastProgressAt: data.progress.lastProgressAt,
-      settings: {
-        cooldownMs: data.settings.companyCycleCooldownMs
-      }
+      state:          data.state,
+      stage:          data.stage,
+      pass:           data.pass,
+      currentCompany: data.currentCompany,
+      cycleCount:     data.cycleCount,
+      lastProgressAt: data.lastProgressAt,
+      timestamp:      data.timestamp
     });
-  } catch {
+  } catch (error) {
+    console.error("[API:WORKER-STATUS] Failure:", error);
     return NextResponse.json({
       online: false,
       state: "offline",
-      message: "Worker unreachable. Ensure the Guardian is active."
-    });
+      message: "Database connection failure."
+    }, { status: 500 });
   }
 }

@@ -47,14 +47,12 @@ async function scrubDatabase(prisma) {
     await prisma.flashcard.updateMany({
       where: { 
         userAnnotation: { contains: "[JUDGE REJECTION]" },
-        processingStatus: { not: "DRAFT" }
+        activityState: { not: "ARCHIVED" }
       },
       data: { 
         processingStatus: "DRAFT",
         status: "DRAFT",
-        confidence: 1, 
-        impact: 1, 
-        weight: 1 
+        activityState: "ARCHIVED"
       }
     });
   } catch (e) {
@@ -82,19 +80,19 @@ async function scrubDatabase(prisma) {
       });
     }
 
-    // Specialized Logic: Rejection Scrub & ICE Backfill
+    // Specialized Logic: Rejection Scrub & Inconsistency Reset
     await prisma.nBAItem.updateMany({
       where: { 
-        userAnnotation: { contains: "[JUDGE REJECTION]" },
-        processingStatus: { not: "DRAFT" }
+        OR: [
+          { userAnnotation: { contains: "[JUDGE REJECTION]" } },
+          { userAnnotation: { contains: "[WRITER]:" } }
+        ],
+        activityState: { not: "ARCHIVED" }
       },
       data: { 
         processingStatus: "DRAFT",
         status: "DRAFT",
-        confidence: 1, 
-        impact: 1, 
-        ease: 1, 
-        iceScore: 1 
+        activityState: "ARCHIVED"
       }
     });
   } catch (e) {

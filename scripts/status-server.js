@@ -514,7 +514,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(STATUS_PORT, "127.0.0.1", () => {
-  console.log(`[STATUS] Sovereign Status Server running at http://127.0.0.1:${STATUS_PORT}`);
+  console.log(`[STATUS] Sovereign Status Server (Sovereign mode) running at http://127.0.0.1:${STATUS_PORT}`);
   console.log(`[STATUS] Open your browser → http://127.0.0.1:${STATUS_PORT}`);
-  console.log(`[STATUS] Data source: http://127.0.0.1:${WORKER_PORT}/health`);
+  console.log(`[STATUS] Data source: MongoDB Atlas (decoupled)`);
 });

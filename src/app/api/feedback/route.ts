@@ -80,6 +80,8 @@ export async function POST(request: NextRequest) {
         where: { id: data.nbaItemId },
         data: {
           status: data.action === "DECLINE" ? "DECLINED" : "ACCEPTED",
+          processingStatus: data.action === "DECLINE" ? "DECLINED" : "ACCEPTED",
+          activityState: "ARCHIVED",
           title: data.action === "MODIFY_ACCEPT" && data.modifiedTitle?.trim() ? data.modifiedTitle.trim() : item.title,
           description:
             data.action === "MODIFY_ACCEPT" && typeof data.modifiedDescription === "string"

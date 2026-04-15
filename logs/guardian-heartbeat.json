@@ -1,9 +1,9 @@
 {
   "guardianPid": 24666,
-  "workerPid": 55708,
+  "workerPid": 66613,
   "workerAlive": true,
-  "restartCount": 2,
-  "startedAt": 1776256321532,
-  "lastHealthAt": "2026-04-15T18:38:20.633Z",
-  "lastProgressAt": "2026-04-15T17:49:53.056Z"
+  "restartCount": 7,
+  "startedAt": 1776278755171,
+  "lastHealthAt": "2026-04-15T18:45:55.174Z",
+  "lastProgressAt": null
 }

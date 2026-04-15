@@ -9,6 +9,9 @@ const APP_VERSION = packageJson.version;
 const prisma = new PrismaClient();
 const PORT = 10005;
 
+const DEFAULT_LOOP_INTERVAL = 600000;      // 10 minutes default
+const DEFAULT_IDLE_INTERVAL = 300000;      // 5 minutes default
+
 /**
  * SOVEREIGN TRINITY ORCHESTRATOR
  * v0.11.4-STABLE
@@ -56,7 +59,7 @@ const server = http.createServer(async (req, res) => {
   if (req.url === "/health" && req.method === "GET") {
     // Contract v1 Health Response for mvp-factory-control
     const progress = getSynthesisProgress();
-    const pollIntervalSec = await getWorkerConfig(prisma, {}, "loop_interval_ms", 3600000) / 1000;
+    const pollIntervalSec = await getWorkerConfig(prisma, {}, "loop_interval_ms", DEFAULT_LOOP_INTERVAL) / 1000;
     const ollamaTimeout = await getWorkerConfig(prisma, {}, "ollama_timeout_ms", 120000);
 
     const health = {

@@ -1,6 +1,9 @@
 /**
  * SOVEREIGN CORE CONFIGURATION
- * v0.11.3-PRODUCTION
+ * v0.11.4-STABLE
+ * 
+ * Global settings, timeout thresholds, and the AI Inference Serial Lock.
+ * Centralized configuration for the entire Trinity Engine.
  */
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
@@ -15,9 +18,9 @@ const TRINITY_WRITE_TIMEOUT_MS = 120_000;
 const TRINITY_JUDGE_TIMEOUT_MS = 90_000;
 
 const STAGE_MODELS = {
-  DRAFT: ["llama3.2:3b", "granite3.3:2b"],
-  WRITE: ["llama3.2:3b", "granite3.1:8b"],
-  JUDGE: ["llama3.2:3b", "granite3.3:2b"],
+  DRAFT: ["qwen2.5:7b", "granite4:3b"],
+  WRITE: ["granite4:3b", "llama3.2:3b"],
+  JUDGE: ["MichelRosselli/apertus:latest", "qwen2.5:7b"],
 };
 
 const FLASHCARD_MIN_CONFIDENCE = 40;
@@ -25,10 +28,15 @@ const FLASHCARD_MIN_IMPACT = 40;
 const FLASHCARD_MIN_WEIGHT = 40;
 const TASK_MIN_ICE_SCORE = 50;
 
-// The Sovereign Serial Lock (Concurrency = 1)
+// --- AI SERIAL LOCK (CONCURRENCY = 1) ---
+
 let aiInferenceQueue = [];
 let aiSystemBusy = false;
 
+/**
+ * Internal processor for the AI Inference Queue.
+ * Ensures only one LLM request is active at any time to preserve VRAM/Compute.
+ */
 async function processAiInferenceQueue() {
   if (aiSystemBusy || aiInferenceQueue.length === 0) return;
   aiSystemBusy = true;
@@ -44,6 +52,13 @@ async function processAiInferenceQueue() {
   }
 }
 
+/**
+ * Enqueues an AI task for serial execution.
+ * Returns a promise that resolves when the task is eventually processed.
+ * 
+ * @param {Function} task - Async function containing the AI call
+ * @returns {Promise<any>} Result of the task
+ */
 function queueAiInference(task) {
   return new Promise((resolve, reject) => {
     aiInferenceQueue.push({ resolve, reject, task });
@@ -51,6 +66,14 @@ function queueAiInference(task) {
   });
 }
 
+/**
+ * Robust environment variable flag evaluator.
+ * Recognizes true/yes/on/1 as true.
+ * 
+ * @param {string|number|boolean} value - Raw value from process.env
+ * @param {boolean} fallback - Value to return if input is null/empty
+ * @returns {boolean}
+ */
 function envFlag(value, fallback = false) {
   if (value == null || value === "") return fallback;
   return /^(1|true|yes|on)$/i.test(String(value).trim());

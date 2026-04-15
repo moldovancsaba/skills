@@ -5,7 +5,15 @@ const { auditCheckedFlashCard, auditCheckedTaskCard } = require("./judge");
 const { getWorkerConfig } = require("./shared");
 const { runMaintenance } = require("./maintenance");
 
-// Global state for /health reporting
+/**
+ * SOVEREIGN SYNTHESIS ENGINE
+ * v0.11.4-STABLE
+ * 
+ * Implements round-robin orchestration (Orbiting) across all multi-tenant companies.
+ * Ensures fair distribution of AI compute and prevents sequential starvation.
+ */
+
+// --- GLOBAL STATE ---
 let synthesisState = {
   state: "idle",
   stage: "IDLE",
@@ -15,20 +23,26 @@ let synthesisState = {
   cycleCount: 0
 };
 
+/**
+ * Retrieves the current internal operational state of the synthesis engine.
+ * Used primarily for health reporting and status dashboards.
+ * 
+ * @returns {object} Current synthesis state
+ */
 function getSynthesisProgress() {
   return synthesisState;
 }
-
-const BATCH_LIMIT = 5; // The Carousel Orbit Limit
+// --- CYCLING LOGIC ---
 
 /**
- * SOVEREIGN SYNTHESIS ENGINE
- * v0.11.3-PRODUCTION
+ * Executes a global synthesis cycle across all companies in the database.
+ * Uses a rotation-aware selection to ensure equitable distribution of AI attention.
  * 
- * Implements round-robin orchestration (Orbiting) across all multi-tenant companies.
- * Ensures fair distribution of AI compute and prevents sequential starvation.
+ * @param {PrismaClient} prisma - Database client instance
+ * @returns {Promise<{ workDone: boolean, operations: number }>} Result of the cycle
  */
 async function runSynthesisCycle(prisma) {
+  let totalOperations = 0;
   // Fair Rotation: Oldest last-visited company first
   const companies = await prisma.company.findMany({
     where: { updatedAt: { not: undefined } }, // Just to ensure active
@@ -47,7 +61,8 @@ async function runSynthesisCycle(prisma) {
   // Process a batch of companies to ensure fairness
   for (const company of companies.slice(0, batchSize)) {
     try {
-      await processCompanySynthesis(prisma, company);
+      const ops = await processCompanySynthesis(prisma, company);
+      totalOperations += ops;
     } catch (err) {
       console.error(`[ERROR] Synthesis failure for ${company.name}:`, err.message);
     }
@@ -58,9 +73,23 @@ async function runSynthesisCycle(prisma) {
   synthesisState.pass = 0;
   synthesisState.currentCompany = null;
   synthesisState.lastProgressAt = new Date().toISOString();
+
+  return { 
+    workDone: totalOperations > 0, 
+    operations: totalOperations 
+  };
 }
 
+/**
+ * Performs a deep synthesis pass for a specific company.
+ * Orchestrates Drafter -> Writer -> Judge pipeline across multiple passes.
+ * 
+ * @param {PrismaClient} prisma - Database client instance
+ * @param {object} company - Company database record to synthesize
+ * @returns {Promise<number>} Number of meaningful operations performed
+ */
 async function processCompanySynthesis(prisma, company) {
+  let ops = 0;
   const cid = company.id;
   
   // 1. Worker Configuration
@@ -95,6 +124,8 @@ async function processCompanySynthesis(prisma, company) {
     });
     
     for (const s of sources) {
+      synthesisState.lastProgressAt = new Date().toISOString();
+      console.log(`[DEBUG] draftFlashcardFromDataCard for ${s.id}...`);
       const drafts = await draftFlashcardFromDataCard(prisma, company, s, memoryPrompt);
       for (const draft of drafts) {
         const { sourceId, sourceType, ...cleanDraft } = draft;
@@ -110,6 +141,7 @@ async function processCompanySynthesis(prisma, company) {
           create: { flashcardId: created.id, sourceType, sourceId, sourceName: "Auto-detected Source" },
           update: {}
         });
+        ops++;
       }
     }
 
@@ -123,16 +155,20 @@ async function processCompanySynthesis(prisma, company) {
     });
 
     for (const fc of fcActive) {
+      synthesisState.lastProgressAt = new Date().toISOString();
+      console.log(`[DEBUG] Processing fc.id: ${fc.id}, status: ${fc.processingStatus}`);
       if (fc.processingStatus === "DRAFT") {
         const refined = await refineDraftFlashCard(prisma, fc, memoryPrompt);
         if (refined) {
           await prisma.flashcard.update({ where: { id: fc.id }, data: refined });
+          ops++;
         }
       } else if (fc.processingStatus === "CHECKED") {
         synthesisState.stage = "JUDGING";
         const audit = await auditCheckedFlashCard(prisma, fc, memoryPrompt);
         if (audit) {
           await prisma.flashcard.update({ where: { id: fc.id }, data: audit });
+          ops++;
         }
       }
     }
@@ -145,17 +181,21 @@ async function processCompanySynthesis(prisma, company) {
     });
 
     for (const tc of tcActive) {
+      synthesisState.lastProgressAt = new Date().toISOString();
+      console.log(`[DEBUG] Processing tc.id: ${tc.id}, status: ${tc.processingStatus}`);
       if (tc.processingStatus === "DRAFT") {
         synthesisState.stage = "WRITING";
         const refined = await refineDraftTaskCard(prisma, tc, memoryPrompt);
         if (refined) {
           await prisma.nBAItem.update({ where: { id: tc.id }, data: refined });
+          ops++;
         }
       } else if (tc.processingStatus === "CHECKED") {
         synthesisState.stage = "JUDGING";
         const audit = await auditCheckedTaskCard(prisma, tc, memoryPrompt);
         if (audit) {
           await prisma.nBAItem.update({ where: { id: tc.id }, data: audit });
+          ops++;
         }
       }
     }
@@ -167,6 +207,8 @@ async function processCompanySynthesis(prisma, company) {
       take: orbitLimit
     });
     for (const vf of verifiedFlash) {
+      synthesisState.lastProgressAt = new Date().toISOString();
+      console.log(`[DEBUG] draftTaskcardFromFlashCard for vf.id: ${vf.id}`);
       const taskDrafts = await draftTaskcardFromFlashCard(prisma, company, vf, memoryPrompt);
       for (const td of taskDrafts) {
         await prisma.nBAItem.upsert({
@@ -174,6 +216,7 @@ async function processCompanySynthesis(prisma, company) {
           create: td,
           update: { updatedAt: new Date() }
         });
+        ops++;
       }
     }
   }
@@ -181,6 +224,8 @@ async function processCompanySynthesis(prisma, company) {
   // Maintenance Phase
   synthesisState.stage = "MAINTENANCE";
   await runMaintenance(prisma, company);
+
+  return ops;
 }
 
 module.exports = { 

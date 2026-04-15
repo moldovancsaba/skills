@@ -1,9 +1,19 @@
 const { truncate } = require("./shared");
 
 /**
- * Loads the "Strategic Stack" for a company.
- * Fetches Related Assets (Topics, Flashcards, Tasks) to provide AI agents with full context.
- * Aligned with Sovereign Architecture v0.11.3-PRODUCTION.
+ * SOVEREIGN STRATEGIC CONTEXT
+ * v0.11.4-STABLE
+ * 
+ * Orchestrates the "Strategic Stack" for AI agents.
+ * Aggregates TopicCards, recent verified Flashcards, and active TaskCards into a unified context prompt.
+ */
+/**
+ * Builds a comprehensive strategic prompt containing the company's focus, recent insights, and existing tasks.
+ * Ensures the AI remains aligned with the 'TopicCard' strategic layer.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {string} companyId - Unique company identifier
+ * @returns {Promise<string>} Formatted strategic context prompt
  */
 async function getCompanyStrategicContext(prisma, companyId) {
   // 1. Load TopicCards (The Strategy)

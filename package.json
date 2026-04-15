@@ -1,6 +1,6 @@
 {
   "name": "checklist-marketing-os",
-  "version": "0.11.3",
+  "version": "0.11.4",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,7 +14,10 @@
     "repair:raw-sources": "node scripts/repair-raw-sources.mjs",
     "research:probe": "node scripts/research-probe.mjs",
     "task:probe": "node scripts/task-probe.mjs",
-    "sync": "node scripts/sync.js"
+    "sync": "node scripts/sync.js",
+    "guardian": "node scripts/guardian.js",
+    "guardian:logs": "tail -f logs/guardian.log",
+    "status": "node scripts/status-server.js"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

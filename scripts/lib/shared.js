@@ -1,9 +1,20 @@
 /**
  * SOVEREIGN SHARED UTILITIES
- * v0.11.3-PRODUCTION
+ * v0.11.4-STABLE
+ * 
+ * Central library of cross-module helper functions.
+ * Handles text normalization, hashing, similarity checks, and dynamic configuration.
  */
 const crypto = require("crypto");
 
+// --- TEXT PROCESSING ---
+
+/**
+ * Strips HTML and special characters from a string.
+ * 
+ * @param {string} value - Raw string
+ * @returns {string} Sanitized string
+ */
 function normalizeText(value) {
   if (!value) return "";
   return String(value)
@@ -13,16 +24,36 @@ function normalizeText(value) {
     .trim();
 }
 
+/**
+ * Truncates a string to a specific length with an ellipsis.
+ * 
+ * @param {string} value - String to truncate
+ * @param {number} max - Max character count
+ * @returns {string} Truncated string
+ */
 function truncate(value, max = 2000) {
   if (!value) return "";
   if (value.length <= max) return value;
   return value.slice(0, max - 3) + "...";
 }
 
+/**
+ * Generates an MD5 hash of a value for fingerprinting.
+ * 
+ * @param {any} value - Input value
+ * @returns {string} Hexadecimal hash
+ */
 function hashValue(value) {
   return crypto.createHash("md5").update(String(value)).digest("hex");
 }
 
+/**
+ * Calculates a Levenshtein-based similarity score (0.0 to 1.0) between two strings.
+ * 
+ * @param {string} s1 - First string
+ * @param {string} s2 - Second string
+ * @returns {number} Similarity coefficient
+ */
 function similarity(s1, s2) {
   if (!s1 || !s2) return 0;
   const longer = s1.length > s2.length ? s1 : s2;
@@ -83,6 +114,17 @@ function mergeHashtags(...groups) {
   return unique(normalizeHashtags(all));
 }
 
+// --- SCORING & SCALING ---
+
+/**
+ * Clamps an integer between bounds with a fallback.
+ * 
+ * @param {any} value - Input value to parse
+ * @param {number} fallback - Value if parsing fails
+ * @param {number} min - Minimum bound
+ * @param {number} max - Maximum bound
+ * @returns {number} Clamped integer
+ */
 function clampInt(value, fallback, min = 1, max = 100) {
   const parsed = parseInt(value, 10);
   if (isNaN(parsed)) return fallback;
@@ -99,8 +141,14 @@ function isUniqueConstraintError(error) {
   return error && (error.code === 'P2002' || error.message?.includes('unique constraint'));
 }
 
+// --- DATABASE UTILITIES ---
+
 /**
  * Provides the next sequential publicId for a specific scope (e.g., "Flashcard", "Source").
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {string} scope - Counter scope name
+ * @returns {Promise<number>} New public ID
  */
 async function nextPublicId(prisma, scope) {
   const counter = await prisma.publicIdCounter.upsert({
@@ -114,6 +162,12 @@ async function nextPublicId(prisma, scope) {
 /**
  * Fetches a configuration value from the Company's dynamic workerConfig or GlobalSetting.
  * Ensures zero hardcoding in the logic files.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {object} company - Company record
+ * @param {string} key - Configuration key
+ * @param {any} fallback - Default value if not found
+ * @returns {Promise<any>} Configuration value
  */
 async function getWorkerConfig(prisma, company, key, fallback) {
   const companyConfig = company?.workerConfig || {};

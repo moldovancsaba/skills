@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const items = await prisma.nBAItem.findMany({
       where: { 
         companyId: companyId as string,
-        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] },
         activityState: { in: ["ACTIVE", "STALE"] }
       },
       orderBy: [{ iceScore: "desc" }, { confidenceScore: "desc" }, { publicId: "asc" }],

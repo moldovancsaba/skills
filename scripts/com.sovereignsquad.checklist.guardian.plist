@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sovereignsquad.checklist.guardian</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/node</string>
+        <string>/Users/Shared/Projects/checklist/scripts/guardian.js</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/Shared/Projects/checklist</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <!-- Auto-start at login and auto-restart on exit -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Throttle immediately if crashing very fast -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <!-- Log stdout / stderr -->
+    <key>StandardOutPath</key>
+    <string>/Users/Shared/Projects/checklist/logs/guardian-launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/Shared/Projects/checklist/logs/guardian-launchd-error.log</string>
+</dict>
+</plist>

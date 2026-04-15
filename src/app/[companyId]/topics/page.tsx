@@ -26,6 +26,7 @@ import {
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { SynthesisStatus } from "@/components/synthesis-status";
 
 type Topic = {
   id: string;
@@ -177,6 +178,7 @@ export default function CompanyTopicsPage() {
         backLabel="Back"
         title="Topics"
         description={`Prioritized research focus topics for ${company?.name ?? "this company"}. Drag to reorder, use the checkbox to activate or pause.`}
+        actions={<SynthesisStatus />}
       />
 
       {message ? (

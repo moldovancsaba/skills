@@ -1,11 +1,25 @@
+/**
+ * SOVEREIGN JUDGE
+ * v0.11.4-STABLE
+ * 
+ * The final quality gate of the Trinity Synthesis pipeline.
+ * Audits CHECKED cards and determines if they meet the threshold for promotion to VERIFIED.
+ * Rejections are demoted to DRAFT with cratered scores to sink in sorting layers.
+ */
 const { callOllamaJson } = require("./ai");
 const { getCompanyStrategicContext } = require("./context");
 const { getWorkerConfig, calculatePercentile } = require("./shared");
 
+// --- AUDITING ENGINE ---
+
 /**
- * The JUDGE is the final stage of the Trinity Quality Gate.
- * it audits CHECKED cards and either promotes to VERIFIED or demotes to DRAFT.
- * Rejections forcefully crater all metrics to 1 to ensure they sink to the bottom of sorting layers.
+ * Audits a CHECKED Flashcard and determines its promotion path.
+ * Uses a dynamic quality floor based on the percentile distribution of existing scores.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {object} flashCard - CHECKED flashcard record
+ * @param {string} memoryPrompt - Contextual AI memory injection
+ * @returns {Promise<object>} Audit decision updates
  */
 async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
@@ -58,6 +72,15 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
   }
 }
 
+/**
+ * Audits a CHECKED Taskcard (NBA) and determines its promotion path.
+ * Enforces quality standards for strategic tactical recommendations.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {object} taskCard - CHECKED taskcard record
+ * @param {string} memoryPrompt - Contextual AI memory injection
+ * @returns {Promise<object>} Audit decision updates
+ */
 async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
   const strategicContext = await getCompanyStrategicContext(prisma, taskCard.companyId);
 
@@ -91,10 +114,12 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
   const finalScore = parseFloat(raw.confidenceScore) || taskCard.confidenceScore || 50;
 
   if (raw.decision === "VERIFIED" && finalScore >= threshold) {
+    const ice = taskCard.impact * (finalScore / 10) * taskCard.ease;
     return { 
       processingStatus: "VERIFIED", 
       status: "VERIFIED", // Internal Sync
       confidenceScore: finalScore, 
+      iceScore: Math.round(ice * 10) / 10,
       activityState: "ACTIVE" 
     };
   } else {

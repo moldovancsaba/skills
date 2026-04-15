@@ -1,76 +1,131 @@
 const { getWorkerConfig } = require("./shared");
 
 /**
- * Maintenance Engine for Card Ageing and Expiration.
- * Implements the 7/30/90 rule and critical data integrity scrubs.
+ * SOVEREIGN MAINTENANCE ENGINE
+ * v0.11.4-STABLE
+ * 
+ * Manages the lifecycle and state-integrity of Flashcards and Taskcards.
+ * Implements the 7/30/90 rule for card ageing and performs global data consistency scrubs.
+ */
+// --- DATA INTEGRITY ---
+
+/**
+ * Performs a global audit of all cards to ensure status and kind alignment.
+ * Fixes legacy status strings and enforces the Sovereign Kind Registry.
+ * 
+ * @param {PrismaClient} prisma - Database client
  */
 async function scrubDatabase(prisma) {
   console.log(`[MAINTENANCE] Starting Global Data Integrity Scrub...`);
   
-  // 1. Flashcards Integrity Scrub (v0.11.x Sovereignty Hardening)
-  const allFlash = await prisma.flashcard.findMany();
   const validKinds = ["SUMMARY", "EXPLANATION", "COMPARISON", "NEWS", "CONCLUSION", "EVALUATION", "OPINION", "JUDGMENT", "RECOMMENDATION", "RESEARCH", "FORECAST", "STOCK", "GOSSIP", "PRICE"];
-  
-  for (const card of allFlash) {
-    const needsStatusFix = !card.processingStatus || !card.activityState || card.status === "CHECKED";
-    const needsKindFix = !validKinds.includes(card.kind);
+  const validProc = ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "DECLINED"];
 
-    if (needsStatusFix || needsKindFix) {
-      await prisma.flashcard.update({
-        where: { id: card.id },
-        data: { 
-          processingStatus: card.processingStatus || "CHECKED", 
-          activityState: card.activityState || "ACTIVE",
-          // Internal State Alignment: Ensure the unified 'status' field remains ACTIVE for downstream consumers
-          status: "ACTIVE",
-          // Type Safety Scrub: Ensure kinds adhere to the Sovereign Kind Registry
-          kind: validKinds.includes(card.kind) ? card.kind : "SUMMARY"
-        }
+  // 1. Flashcards (Batch Scrub)
+  try {
+    const fcToFix = await prisma.flashcard.findMany({
+      where: {
+        OR: [
+          { processingStatus: { notIn: validProc } },
+          { status: { not: "ACTIVE" } },
+          { kind: { notIn: validKinds } }
+        ]
+      },
+      take: 500,
+      select: { id: true }
+    });
+
+    if (fcToFix.length > 0) {
+      console.log(`[MAINTENANCE] Repairing ${fcToFix.length} Flashcard records...`);
+      await prisma.flashcard.updateMany({
+        where: { id: { in: fcToFix.map(c => c.id) } },
+        data: { processingStatus: "CHECKED", status: "ACTIVE", activityState: "ACTIVE", kind: "SUMMARY" }
       });
     }
 
-    // 1.1 Rejection Scrub: Force scores to 1 for rejected cards
-    if (card.userAnnotation?.includes("[JUDGE REJECTION]")) {
-      await prisma.flashcard.update({
-        where: { id: card.id },
-        data: { confidenceScore: 1, impact: 1, weight: 1 }
-      });
-    }
+    // Specialized Logic: Rejection Scrub
+    await prisma.flashcard.updateMany({
+      where: { 
+        userAnnotation: { contains: "[JUDGE REJECTION]" },
+        processingStatus: { not: "DRAFT" }
+      },
+      data: { 
+        processingStatus: "DRAFT",
+        status: "DRAFT",
+        confidenceScore: 1, 
+        impact: 1, 
+        weight: 1 
+      }
+    });
+  } catch (e) {
+    console.warn(`[MAINTENANCE] Flashcard scrub partially failed: ${e.message}`);
   }
-  
-  // 2. NBA Integrity Scrub (v0.11.x Sovereignty Hardening)
-  const allNBA = await prisma.nBAItem.findMany();
-  for (const task of allNBA) {
-    const isStandardKind = ["TASK", "CHECKLIST"].includes(task.kind);
-    const needsStatusFix = !task.processingStatus || !task.activityState || task.status === "CHECKED";
-    const needsKindFix = !isStandardKind;
 
-    if (needsStatusFix || needsKindFix) {
-      await prisma.nBAItem.update({
-        where: { id: task.id },
-        data: {
-          processingStatus: task.processingStatus || "CHECKED",
-          activityState: task.activityState || "ACTIVE",
-          // Internal State Alignment: Ensure the unified 'status' field remains PENDING for legacy alerts
-          status: "PENDING",
-          // Type Safety Scrub: Ensure task kinds are valid
-          kind: isStandardKind ? task.kind : "TASK"
-        }
+  // 2. NBA Items (Batch Scrub)
+  try {
+    const tcToFix = await prisma.nBAItem.findMany({
+      where: {
+        OR: [
+          { processingStatus: { notIn: validProc } },
+          { status: { not: "PENDING" } }
+        ]
+      },
+      take: 500,
+      select: { id: true }
+    });
+
+    if (tcToFix.length > 0) {
+      console.log(`[MAINTENANCE] Repairing ${tcToFix.length} NBAItem records...`);
+      await prisma.nBAItem.updateMany({
+        where: { id: { in: tcToFix.map(c => c.id) } },
+        data: { processingStatus: "CHECKED", status: "PENDING", activityState: "ACTIVE", kind: "TASK" }
       });
     }
 
-    // 2.1 Rejection Scrub: Force scores to 1 for rejected tasks
-    if (task.userAnnotation?.includes("[JUDGE REJECTION]")) {
+    // Specialized Logic: Rejection Scrub & ICE Backfill
+    await prisma.nBAItem.updateMany({
+      where: { 
+        userAnnotation: { contains: "[JUDGE REJECTION]" },
+        processingStatus: { not: "DRAFT" }
+      },
+      data: { 
+        processingStatus: "DRAFT",
+        status: "DRAFT",
+        confidenceScore: 1, 
+        impact: 1, 
+        ease: 1, 
+        iceScore: 1 
+      }
+    });
+
+    // Global ICE Backfill: impact * (confidence / 10) * ease
+    const tasks = await prisma.nBAItem.findMany({
+      where: { iceScore: 0, impact: { gt: 0 } },
+      select: { id: true, impact: true, confidenceScore: true, ease: true }
+    });
+    for (const t of tasks) {
+      const ice = t.impact * (t.confidenceScore / 10) * t.ease;
       await prisma.nBAItem.update({
-        where: { id: task.id },
-        data: { confidenceScore: 1, impact: 1, ease: 1, iceScore: 1 }
+        where: { id: t.id },
+        data: { iceScore: Math.round(ice * 10) / 10 }
       });
     }
+  } catch (e) {
+    console.warn(`[MAINTENANCE] Taskcard scrub partially failed: ${e.message}`);
   }
 
   console.log(`[MAINTENANCE] Scrub Complete.`);
 }
 
+// --- LIFECYCLE MANAGEMENT ---
+
+/**
+ * Executes the ageing logic for a specific company's intelligence layer.
+ * Transitions cards through ACTIVE -> EXPIRED -> STALE -> ARCHIVED states.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {object} company - Company database record
+ */
 async function runMaintenance(prisma, company) {
   const cid = company.id;
   const now = new Date();
@@ -123,7 +178,11 @@ async function runMaintenance(prisma, company) {
 }
 
 /**
- * Reactivation Rule: Reset to ACTIVE + DRAFT
+ * Forces a card back into the ACTIVE + DRAFT state for re-processing.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {string} cardType - "Flashcard" or "NBAItem"
+ * @param {string} cardId - Unique card identifier
  */
 async function reactivateCard(prisma, cardType, cardId) {
   const model = cardType === "Flashcard" ? prisma.flashcard : prisma.nBAItem;

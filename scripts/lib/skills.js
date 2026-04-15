@@ -1,6 +1,6 @@
 /**
  * SOVEREIGN MARKETING SKILL LIBRARY
- * v0.11.3-PRODUCTION
+ * v0.11.4-STABLE
  * 
  * Defines specialized marketing frameworks used by the Drafter to categorize 
  * and process intelligence across different domains.
@@ -43,7 +43,11 @@ const MARKETING_SKILLS = {
 };
 
 /**
- * Returns a relevant skill based on content tags or keywords.
+ * Identifies and returns a relevant marketing skill framework based on content triggers.
+ * Analyzes raw content strings, entity tags, and source metadata.
+ * 
+ * @param {object} source - Raw source/datacard record
+ * @returns {object|null} Matched skill object or null
  */
 function getSkillForSource(source) {
   const content = (source.content || "").toLowerCase();

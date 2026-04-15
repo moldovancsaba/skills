@@ -1,3 +1,11 @@
+/**
+ * SOVEREIGN FLASHCARD ENGINE
+ * v0.11.4-STABLE
+ * 
+ * Core business logic for generating, refining, and managing Flashcards and Taskcards.
+ * Handles induction from sources, similarity checks, and strategic alignment.
+ */
+
 // @ts-nocheck
 import {
   FlashcardActionType,
@@ -34,6 +42,8 @@ import {
   shouldEnrichCompetitor,
   shouldEnrichProduct,
 } from "@/lib/url-enrichment";
+
+// --- TYPES ---
 
 type FlashcardSourceKind = "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "SOURCE" | "FILE" | "AGENT_FOUND";
 
@@ -193,6 +203,15 @@ const SECTION_KIND_MAP: Record<string, FlashcardKind> = {
 const PRICE_PATTERN =
   /(?:\$|EUR|USD|GBP)\s?\d[\d,.]*(?:\s*\/\s*(?:mo|month|yr|year|user))?|free\b|trial\b|pricing\b/i;
 
+// --- UTILITIES ---
+
+/**
+ * Generates a stable composite key for source tracking.
+ * 
+ * @param {FlashcardSourceKind} sourceType - Kind of source
+ * @param {string} sourceId - Unique ID of the source
+ * @returns {string} Composite key
+ */
 function sourceKey(sourceType: FlashcardSourceKind, sourceId: string) {
   return `${sourceType}:${sourceId}`;
 }
@@ -346,6 +365,15 @@ function isWeakPriceSignal(value: string | null | undefined) {
   return normalized === "pricing" || normalized === "$" || normalized === "price";
 }
 
+/**
+ * Constructs a unique deterministic fingerprint for a flashcard.
+ * Prevents duplicates during re-induction.
+ * 
+ * @param {SourceRecord} source - The source object
+ * @param {FlashcardKind} kind - Type of flashcard
+ * @param {string} seed - Seed value for slugification
+ * @returns {string} Unique fingerprint
+ */
 function buildFingerprint(source: SourceRecord, kind: FlashcardKind, seed: string) {
   return `${source.type}:${source.id}:${kind}:${slugify(seed)}`;
 }
@@ -555,6 +583,16 @@ function sharedSourceContext(left: UnifiedSource, right: UnifiedSource) {
   return dedupeStrings([...sharedTags, ...sharedClusters], 5);
 }
 
+// --- DRAFTING ENGINE ---
+
+/**
+ * Generates an array of FlashcardDraft objects from a UnifiedSource (DataCard).
+ * Implements rule-based extraction for summaries, price signals, and comparisons.
+ * 
+ * @param {UnifiedSource} source - The source record to process
+ * @param {SourceRecord[]} context - Related sources for comparative synthesis
+ * @returns {FlashcardDraft[]} Array of potential intelligence drafts
+ */
 function buildSourceDrafts(source: UnifiedSource, context: SourceRecord[]) {
   const drafts: FlashcardDraft[] = [];
   const sourceName = displaySourceName(sourceDisplayName(source));
@@ -677,6 +715,21 @@ function competitorEvidenceSignals(source: CompetitorSource) {
   ).filter((item) => !isWeakEvidenceLine(item));
 }
 
+/**
+ * Factory function for creating a FlashcardDraft object.
+ * Enforces schema constraints and normalizes scores/hashtags.
+ * 
+ * @param {SourceRecord} source - The source record
+ * @param {FlashcardKind} kind - Flashcard category
+ * @param {string} title - Human-readable title
+ * @param {string} body - Synthesized description
+ * @param {number} confidence - AI-estimated confidence (1-100)
+ * @param {number} impact - Strategic impact (1-10)
+ * @param {number} weight - Relative weight (1-10)
+ * @param {Prisma.InputJsonValue | null} evidence - Supporting data
+ * @param {string} seed - Seed for fingerprinting
+ * @returns {FlashcardDraft} Standardized draft object
+ */
 function makeDraft(source: SourceRecord, kind: FlashcardKind, title: string, body: string, confidence: number, impact: number, weight: number, evidence: Prisma.InputJsonValue | null, seed: string): FlashcardDraft {
   return {
     kind,

@@ -2,10 +2,18 @@ const { truncate } = require("./shared");
 
 /**
  * SOVEREIGN MEMORY ENGINE
- * v0.11.3-PRODUCTION
+ * v0.11.4-STABLE
  * 
- * The MEMORY engine harvests human feedback (History) into rigid strategic constraints.
- * It scavenges FlashcardAction and Feedback history for reinforcement learning bits.
+ * Harvests human feedback and historical outcomes into rigid strategic constraints.
+ * Ensures the AI learns from user corrections and preferences over time.
+ */
+/**
+ * Aggregates all human feedback signals into a single memory-injected prompt.
+ * Collects acceptance/rejection patterns, comments, and card corrections.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {object} company - Company database record
+ * @returns {Promise<string>} Formatted AI memory prompt
  */
 async function getHumanMemoryPrompt(prisma, company) {
   // 1. Scavenge FlashcardAction History (Accept/Decline signals)

@@ -1,3 +1,11 @@
+/**
+ * SOVEREIGN HASHTAG UTILITIES
+ * v0.11.4-STABLE
+ * 
+ * Logic for sanitizing, normalizing, and filtering hashtags across the intelligence layer.
+ * Enforces unified formatting and handles source-type exclusions.
+ */
+
 export const SOURCE_TYPE_TAGS = new Set(["#product", "#customer", "#competitor", "#file", "#industry"]);
 
 export function normalizeHashtag(value: string) {
@@ -8,12 +16,25 @@ export function normalizeHashtag(value: string) {
   return `#${bare}`;
 }
 
+/**
+ * Sanitizes and deduplicates a list of hashtags.
+ * 
+ * @param {string[] | null | undefined} values - Raw array of hashtag strings
+ * @returns {string[]} Deduplicated array of normalized #hashtags
+ */
 export function normalizeHashtagList(values: string[] | null | undefined) {
   return Array.from(
     new Set((values ?? []).map(normalizeHashtag).filter((value): value is string => Boolean(value))),
   );
 }
 
+/**
+ * Removes internal source-type tags (e.g., #product, #competitor) from a list.
+ * Used when displaying tags to users or exporting knowledge.
+ * 
+ * @param {string[] | null | undefined} values - Array of hashtags
+ * @returns {string[]} Filtered array of hashtags
+ */
 export function stripSourceTypeHashtags(values: string[] | null | undefined) {
   return normalizeHashtagList(values).filter((tag) => !SOURCE_TYPE_TAGS.has(tag));
 }
@@ -38,6 +59,13 @@ export function stringifyHashtagFilterParam(values: string[] | null | undefined)
   return normalized.join(",");
 }
 
+/**
+ * Standardizes hashtags for a Source record, ensuring no reserved internal tags are included.
+ * 
+ * @param {string[] | null | undefined} values - Raw hashtag array
+ * @param {string} [_type] - Optional type hint (unused)
+ * @returns {string[]} Sanitized hashtags
+ */
 export function normalizeSourceHashtags(values: string[] | null | undefined, _type?: string) {
   return normalizeHashtagList(values).filter((tag) => !SOURCE_TYPE_TAGS.has(tag));
 }

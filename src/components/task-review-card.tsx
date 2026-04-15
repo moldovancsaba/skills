@@ -1,3 +1,10 @@
+/**
+ * SOVEREIGN TASK CARD
+ * v0.11.5-STABLE
+ * 
+ * A specialized UI component for reviewing and acting upon Next Best Action (NBA) items.
+ * Prioritizes the ICE Score (Impact * Confidence * Ease) as the primary sorting and quality metric.
+ */
 import { Check, CheckCircle, Loader2, MessageSquare, PencilLine, Share2, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +22,14 @@ import {
 } from "@/components/ui/unified-card";
 import { cn } from "@/lib/utils";
 
+/**
+ * Valid action modes for task feedback.
+ */
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
 
+/**
+ * Tactical intelligence unit representing a proposed action.
+ */
 type NBAItem = {
   id: string;
   publicId: number | null;
@@ -87,9 +100,8 @@ export function TaskReviewCard({
       <Badge variant="secondary" className="font-mono text-[10px] tracking-wider border-zinc-200/20 bg-zinc-800 text-zinc-300">
         TASK
       </Badge>
-      <div className="ml-auto flex items-center gap-3 text-[10px] font-medium text-zinc-500 uppercase tracking-tighter">
-        <span>Impact {item.impact}</span>
-        <span>Confidence {Math.round(item.confidenceScore)}%</span>
+      <div className="ml-auto flex items-center gap-3 text-[10px] font-bold text-violet-400 uppercase tracking-tighter bg-violet-500/10 px-2 py-0.5 rounded-md border border-violet-500/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">
+        <span>ICE {Math.round(item.iceScore)}</span>
       </div>
     </>
   );

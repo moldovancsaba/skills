@@ -15,6 +15,7 @@ import { SourceDataCard } from "@/components/source-data-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
+import { SynthesisStatus } from "@/components/synthesis-status";
 import React from "react";
 import {
   matchesAllHashtags,
@@ -298,6 +299,7 @@ export default function CompanyDataPage() {
           backLabel="Back"
           title={editingId ? "Edit Data" : "Add Data"}
           description={editingId ? "Edit the selected raw source from the list below." : "Store raw URLs, notes, and files with hashtags. Processing happens later."}
+          actions={<SynthesisStatus />}
         />
       </motion.div>
 

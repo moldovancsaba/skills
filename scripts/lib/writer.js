@@ -1,9 +1,21 @@
+/**
+ * SOVEREIGN WRITER
+ * v0.11.4-STABLE
+ * 
+ * The refinement stage of the Trinity Synthesis pipeline.
+ * Upgrades DRAFT cards to CHECKED by improving tone, clarity, and enforcing deduplication.
+ */
 const { callOllamaJson } = require("./ai");
 const { truncate, getWorkerConfig, similarity, clampInt } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 
+// --- UTILITIES ---
+
 /**
- * Handles AI-returned objects/arrays for the 'body' field.
+ * Normalizes AI-returned body content into a professional string.
+ * 
+ * @param {any} body - Raw body content from AI
+ * @returns {string} Formatted string
  */
 function joinBody(body) {
   if (typeof body === "string") return body;
@@ -14,9 +26,16 @@ function joinBody(body) {
   return String(body);
 }
 
+// --- REFINEMENT ENGINE ---
+
 /**
- * The WRITER is the second stage of the Trinity.
- * It refines DRAFT cards and upgrades them to CHECKED.
+ * Refines a DRAFT Flashcard into a CHECKED state.
+ * Implements similarity-based deduplication against the existing knowledge base.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {object} flashCard - DRAFT flashcard record
+ * @param {string} memoryPrompt - Contextual AI memory injection
+ * @returns {Promise<object|null>} Refined record data or decline status
  */
 async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
   const bodyLimit = await getWorkerConfig(prisma, flashCard.company || {}, "write_body_limit", 1200);
@@ -70,6 +89,15 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
   };
 };
 
+/**
+ * Refines a DRAFT Taskcard (NBA) into a CHECKED state.
+ * Performs ICE scoring and ensures tactical tasks aren't redundant.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {object} taskCard - DRAFT taskcard record
+ * @param {string} memoryPrompt - Contextual AI memory injection
+ * @returns {Promise<object|null>} Refined record data or decline status
+ */
 async function refineDraftTaskCard(prisma, taskCard, memoryPrompt) {
   const descLimit = await getWorkerConfig(prisma, taskCard.company || {}, "write_desc_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, taskCard.companyId);

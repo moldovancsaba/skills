@@ -2,6 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const http = require("http");
 const { getHumanMemoryPrompt } = require("./lib/memory");
 const { getWorkerConfig } = require("./lib/shared");
+const { OLLAMA_MODEL } = require("./lib/core");
 const packageJson = require("../package.json");
 const APP_VERSION = packageJson.version;
 
@@ -10,22 +11,32 @@ const PORT = 10005;
 
 /**
  * SOVEREIGN TRINITY ORCHESTRATOR
- * v0.11.3-PRODUCTION
+ * v0.11.4-STABLE
  * 
- * Aligned with SOVEREIGN_WORKFLOW.md and the Unified Design System.
+ * Main entry point for the background AI synthesis loop.
+ * Orchestrates the recurring execution of the Trinity pipeline and serves health metrics.
  */
 const { runSynthesisCycle, getSynthesisProgress } = require("./lib/synthesis");
 const { scrubDatabase } = require("./lib/maintenance");
 
+/**
+ * Main worker loop. Executes the synthesis cycle and schedules the next run based on configuration.
+ */
 async function runWorkerLoop() {
   try {
-    const interval = await getWorkerConfig(prisma, {}, "loop_interval_ms", 3600000);
-    console.log(`[SYNTHESIS] Starting Cycle... (Next cycle in ${interval / 60000} mins)`);
+    const loopInterval = await getWorkerConfig(prisma, {}, "loop_interval_ms", 3600000);
+    const idleInterval = await getWorkerConfig(prisma, {}, "idle_poll_interval_ms", 300000); // Default 5m
     
-    await runSynthesisCycle(prisma);
+    console.log(`[SYNTHESIS] Starting Cycle...`);
+    const result = await runSynthesisCycle(prisma);
     
-    console.log(`[SYNTHESIS] Cycle Complete. Waiting ${interval / 60000} mins.`);
-    setTimeout(runWorkerLoop, interval);
+    if (result.workDone) {
+      console.log(`[SYNTHESIS] Cycle Complete (${result.operations} ops). Standard cooldown: ${loopInterval / 60000} mins.`);
+      setTimeout(runWorkerLoop, loopInterval);
+    } else {
+      console.log(`[HEARTBEAT] System idle (0 ops). Re-polling in ${idleInterval / 60000} mins.`);
+      setTimeout(runWorkerLoop, idleInterval);
+    }
   } catch (err) {
     console.error(`[CRITICAL] Worker Loop Failure:`, err);
     setTimeout(runWorkerLoop, 60000); // Retry in 1 min on crash
@@ -43,6 +54,8 @@ const server = http.createServer(async (req, res) => {
       researchEnabled: process.env.CHECKLIST_RESEARCH_ENABLED === "true",
       progress: {
         state: progress.state,
+        stage: progress.stage,
+        pass: progress.pass,
         lastProgressAt: progress.lastProgressAt,
         currentCompany: progress.currentCompany,
         cycleCount: progress.cycleCount
@@ -53,7 +66,7 @@ const server = http.createServer(async (req, res) => {
         companyCycleCooldownMs: pollIntervalSec * 1000,
         researchHarvestBatchSize: 1,
         ollamaTimeoutMs: ollamaTimeout,
-        failsafeModel: "gemma4:e4b,granite3.3:2b",
+        failsafeModel: `${OLLAMA_MODEL},llama3.2:3b`,
         failsafeTimeoutMs: 90000,
         failsafeMaxAttempts: 2,
         taskMinIceScore: await getWorkerConfig(prisma, {}, "task_min_ice", 50),
@@ -92,6 +105,10 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, async () => {
   console.log(`Sovereign Trinity Worker v${APP_VERSION} Active on Port ${PORT}`);
-  await scrubDatabase(prisma); // Critical Pre-flight scrub
+  try {
+    await scrubDatabase(prisma); // Critical Pre-flight scrub
+  } catch (err) {
+    console.error(`[MAINTENANCE] Pre-flight scrub failed (non-critical):`, err.message);
+  }
   runWorkerLoop();
 });

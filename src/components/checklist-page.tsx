@@ -1,3 +1,12 @@
+/**
+ * SOVEREIGN CHECKLIST INTERFACE
+ * v0.11.5-STABLE
+ * 
+ * Orchestrates the full lifecycle of Next Best Action (NBA) items.
+ * Implements adaptive state filtering:
+ *   - Active: DRAFT, CHECKED, VERIFIED
+ *   - Archived: ACCEPTED, DECLINED, EXPIRED, ARCHIVED
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from "react";
@@ -11,7 +20,11 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
+import { SynthesisStatus } from "@/components/synthesis-status";
 
+/**
+ * Representational interface for a tactical intelligence unit (Task).
+ */
 interface NBAItem {
   id: string;
   publicId: number | null;
@@ -52,9 +65,14 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     setLoading(true);
     const res = await fetch(`/api/nba?companyId=${cid}`);
     const data = await res.json();
+    
+    // Intelligence Filtering Rule (v0.11.5 Standard)
+    // Active Checklist = DRAFT, CHECKED, VERIFIED
+    // Archived Checklist = ACCEPTED, DECLINED
     const filtered = archived
       ? data.filter((item: NBAItem) => ["ACCEPTED", "DECLINED"].includes(item.processingStatus))
-      : data.filter((item: NBAItem) => ["DRAFT", "VERIFIED"].includes(item.processingStatus));
+      : data.filter((item: NBAItem) => ["DRAFT", "CHECKED", "VERIFIED"].includes(item.processingStatus));
+    
     setItems(filtered);
     setLoading(false);
   }, [archived]);
@@ -245,6 +263,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           description={`${filteredItems.length} ${archived ? "archived" : "pending"} checklist items`}
           actions={
             <>
+              <SynthesisStatus />
               {archived ? (
                 <Button asChild variant="ghost" size="sm">
                   <Link href={`/${companyId}/nba`}>Open Active Checklist</Link>

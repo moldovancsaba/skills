@@ -1,6 +1,16 @@
+/**
+ * SOVEREIGN SETTINGS SEEDER
+ * v0.11.4-STABLE
+ * 
+ * Initializes the global configuration layer for the Sovereign Trinity Engine.
+ * Enforces baseline intervals, quality thresholds, and data lifecycle durations.
+ */
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+/**
+ * Executes the global settings upsert sequence.
+ */
 async function seed() {
   console.log("Seeding Global Settings...");
 

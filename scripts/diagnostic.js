@@ -1,6 +1,16 @@
+/**
+ * SOVEREIGN DIAGNOSTIC AUDIT
+ * v0.11.4-STABLE
+ * 
+ * Performs a deep health audit of the database record distribution.
+ * Used for verifying state transitions and multi-tenant data integrity.
+ */
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+/**
+ * Executes the diagnostic audit suite.
+ */
 async function main() {
   console.log("--- Database Audit ---");
   

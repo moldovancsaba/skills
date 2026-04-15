@@ -1,15 +1,23 @@
 /**
- * SOVEREIGN SHARED UTILITIES
- * v0.11.3-PRODUCTION
+ * SOVEREIGN DRAFTER
+ * v0.11.4-STABLE
+ * 
+ * The induction stage of the Trinity Synthesis pipeline.
+ * Extracts raw intelligence from DataCards (Sources/Files) into structured DRAFT cards.
  */
 const crypto = require("crypto");
 const { callOllamaJson } = require("./ai");
 const { truncate, hashValue, nextPublicId, getWorkerConfig } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 
+// --- UTILITIES ---
+
 /**
- * Handles AI-returned objects/arrays for the 'body' field
- * and converts them into a single professional string.
+ * Normalizes complex AI-returned body content into a professional string.
+ * Handles strings, arrays of items/keys, and raw objects.
+ * 
+ * @param {any} body - Raw body content from AI
+ * @returns {string} Formatted string
  */
 function joinBody(body) {
   if (typeof body === "string") return body;
@@ -26,10 +34,17 @@ function joinBody(body) {
   return String(body);
 }
 
+// --- DRAFTING ENGINE ---
+
 /**
- * The DRAFTER is the first stage of the Sovereign Synthesis Trinity.
- * It reads raw DataCards (Sources/Files) and proposes initial DRAFT intelligence.
- * Aligned with v0.11.3 standards.
+ * Generates one or more Flashcard DRAFTs from a raw Source or File.
+ * Aligns extraction with the company's current strategic TopicCards.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {object} company - Company database record
+ * @param {object} dataCard - Raw source or file record
+ * @param {string} memoryPrompt - Contextual AI memory injection
+ * @returns {Promise<object[]>} Array of drafted Flashcard objects
  */
 async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPrompt) {
   const bodyLimit = await getWorkerConfig(prisma, company, "draft_body_limit", 1200);
@@ -89,6 +104,16 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
   return drafts;
 }
 
+/**
+ * Generates actionable TaskCard (NBA) DRAFTs from a verified Flashcard.
+ * Transforms static knowledge into strategic operational tasks.
+ * 
+ * @param {PrismaClient} prisma - Database client
+ * @param {object} company - Company database record
+ * @param {object} flashCard - Source Flashcard for task induction
+ * @param {string} memoryPrompt - Contextual AI memory injection
+ * @returns {Promise<object[]>} Array of drafted TaskCard objects
+ */
 async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryPrompt) {
   const descLimit = await getWorkerConfig(prisma, company, "draft_desc_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);

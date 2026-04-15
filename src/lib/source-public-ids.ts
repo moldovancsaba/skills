@@ -1,3 +1,10 @@
+/**
+ * SOVEREIGN ID ORCHESTRATOR
+ * v0.11.4-STABLE
+ * 
+ * Logic for managing sequential, human-readable Public IDs across all DataCards.
+ * Implements transaction-safe reservation and backfill orchestration for Sources and Tasks.
+ */
 import { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
@@ -43,6 +50,14 @@ function isRetryableTransactionError(error: unknown) {
   );
 }
 
+/**
+ * Executes an operation with serializable-fault retry logic.
+ * Primarily used to handle Prisma P2034 (Transaction isolation) errors.
+ * 
+ * @param {Function} operation - The async closure to execute
+ * @param {number} attempt - Current retry attempt
+ * @returns {Promise<any>} Operation result
+ */
 export async function withSerializableRetry<T>(
   operation: () => Promise<T>,
   attempt = 0,
@@ -58,6 +73,14 @@ export async function withSerializableRetry<T>(
   }
 }
 
+/**
+ * Reserves a block of sequential IDs for a specific scope in the database.
+ * 
+ * @param {TransactionClient} tx - Active database transaction
+ * @param {string} scope - Counter scope (e.g. "source", "flashcard")
+ * @param {number} count - Number of IDs to reserve
+ * @returns {Promise<number[]>} Array of reserved IDs
+ */
 export async function reservePublicIds(
   tx: TransactionClient,
   scope: string,
@@ -157,6 +180,13 @@ async function assignSourcePublicId(
   }
 }
 
+/**
+ * Scans for Sources without public IDs and assigns them in order of creation.
+ * Uses serializable-retry wrapper to ensure data-integrity under concurrency.
+ * 
+ * @param {string} [companyId] - Optional company filter
+ * @returns {Promise<number>} Count of assigned IDs
+ */
 export async function ensureSourcePublicIds(companyId?: string) {
   return withSerializableRetry(() =>
     prisma.$transaction(
@@ -211,6 +241,12 @@ async function readMissingChecklistItems(
   });
 }
 
+/**
+ * Scans for TaskCards (NBAItems) without public IDs and assigns them in order of creation.
+ * 
+ * @param {string} [companyId] - Optional company filter
+ * @returns {Promise<number>} Count of assigned IDs
+ */
 export async function ensureChecklistPublicIds(companyId?: string) {
   return withSerializableRetry(() =>
     prisma.$transaction(

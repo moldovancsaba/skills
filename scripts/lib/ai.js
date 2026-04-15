@@ -1,6 +1,9 @@
 /**
  * SOVEREIGN AI INTERFACE
- * v0.11.3-PRODUCTION
+ * v0.11.4-STABLE
+ * 
+ * Core communication layer for Ollama and the Trinity Synthesis pipeline.
+ * Handles JSON repair, model failover, and serial inference locking.
  */
 const http = require("http");
 const { 
@@ -15,6 +18,12 @@ const {
 
 // --- UTILITIES ---
 
+/**
+ * Normalizes text by removing HTML tags and special characters.
+ * 
+ * @param {string} value - Raw text input
+ * @returns {string} Cleaned, normalized string
+ */
 function normalizeText(value) {
   if (!value) return "";
   return String(value)
@@ -24,6 +33,12 @@ function normalizeText(value) {
     .trim();
 }
 
+/**
+ * Tokenizes text into a set of significant keywords.
+ * 
+ * @param {string} value - Text to tokenize
+ * @returns {string[]} Array of lowercase keywords > 3 chars
+ */
 function tokenizeText(value) {
   return normalizeText(value)
     .toLowerCase()
@@ -31,6 +46,12 @@ function tokenizeText(value) {
     .filter((t) => t.length > 3);
 }
 
+/**
+ * Processes an array of hashtags into a stable, comparable format.
+ * 
+ * @param {string[]} values - Raw hashtag array
+ * @returns {string[]} Sanitized, lowercase, space-free hashtags
+ */
 function normalizeHashtags(values = []) {
   if (!Array.isArray(values)) return [];
   return values
@@ -38,6 +59,12 @@ function normalizeHashtags(values = []) {
     .filter((v) => v.length > 2);
 }
 
+/**
+ * Identifies and extracts the first JSON block from a string.
+ * 
+ * @param {string} content - Raw AI output string
+ * @returns {string|null} Full {JSON} block if found, else null
+ */
 function extractJsonCandidate(content) {
   if (!content) return null;
   const match = content.match(/\{[\s\S]*\}/);
@@ -46,6 +73,14 @@ function extractJsonCandidate(content) {
 
 // --- CORE AI FETCHERS ---
 
+/**
+ * Performs a chat completion via the local Ollama instance.
+ * Automatically respects the Sovereign Serial Lock.
+ * 
+ * @param {object[]} messages - Array of chat message objects
+ * @param {object} options - Execution options (model, timeout, format)
+ * @returns {Promise<string>} Model response content
+ */
 async function callOllama(messages, options = {}) {
   return queueAiInference(() => new Promise((resolve, reject) => {
     const payload = JSON.stringify({
@@ -87,6 +122,15 @@ async function callOllama(messages, options = {}) {
   }));
 }
 
+/**
+ * Requests a JSON-structured response from the AI.
+ * Implements an automatic "Deep Repair" pass if initial JSON is malformed.
+ * 
+ * @param {string} systemPrompt - Instruction context
+ * @param {string} userPrompt - Query context
+ * @param {object} options - Execution options
+ * @returns {Promise<object>} Parsed JSON object
+ */
 async function callOllamaJson(systemPrompt, userPrompt, options = {}) {
   const messages = [
     { role: "system", content: systemPrompt },
@@ -121,6 +165,16 @@ async function callOllamaJson(systemPrompt, userPrompt, options = {}) {
   }
 }
 
+/**
+ * Executes a JSON query with a prioritized list of models.
+ * Automatically falls back to the next model if the current one fails.
+ * 
+ * @param {string} systemPrompt - Instruction context
+ * @param {string} userPrompt - Query context
+ * @param {string[]} modelList - Array of models to attempt
+ * @param {object} options - Execution options
+ * @returns {Promise<object>} Parsed JSON object from successful model
+ */
 async function callOllamaWithFailover(systemPrompt, userPrompt, modelList, options = {}) {
   let lastError = null;
   for (const model of modelList) {
@@ -134,6 +188,14 @@ async function callOllamaWithFailover(systemPrompt, userPrompt, modelList, optio
   throw lastError || new Error("All models failed");
 }
 
+/**
+ * Orchestrates a full 3-pass Trinity Synthesis cycle for a company.
+ * 
+ * @param {object} company - Company database record
+ * @param {object} inputContext - Contextual data for synthesis
+ * @param {object} stages - Configuration for DRAFT, WRITE, and AUDIT stages
+ * @returns {Promise<object>} Full synthesis result object
+ */
 async function runTrinityPass(company, inputContext, stages = {}) {
   const result = { draft: null, synthesis: null, audit: null };
 

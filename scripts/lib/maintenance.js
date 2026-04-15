@@ -193,6 +193,64 @@ async function processUserFeedback(prisma, company) {
 // --- LIFECYCLE MANAGEMENT ---
 
 /**
+ * SCRUB COMPANY REJECTIONS
+ * v0.11.5
+ * 
+ * Specifically targets and corrects cards that were rejected by the judge but
+ * remain in an inconsistent processingStatus (e.g. VERIFIED).
+ * Also cleans up [object Object] anomalies in annotations.
+ */
+async function scrubCompanyRejections(prisma, cid) {
+  // 1. Flashcards Scrub
+  await prisma.flashcard.updateMany({
+    where: { 
+      companyId: cid,
+      userAnnotation: { contains: "[JUDGE REJECTION]" },
+      processingStatus: { not: "DRAFT" }
+    },
+    data: { 
+      processingStatus: "DRAFT",
+      status: "ACTIVE", // Using ACTIVE as base status for Drafts
+      confidence: 1, 
+      impact: 1, 
+      weight: 1 
+    }
+  });
+
+  // 2. NBA Item Scrub (The "Verified Rejection" fix)
+  await prisma.nBAItem.updateMany({
+    where: { 
+      companyId: cid,
+      userAnnotation: { contains: "[JUDGE REJECTION]" },
+      processingStatus: { not: "DRAFT" }
+    },
+    data: { 
+      processingStatus: "DRAFT",
+      status: "PENDING", // Using PENDING as base status for Task Drafts
+      confidence: 1, 
+      impact: 1, 
+      ease: 1, 
+      iceScore: 1 
+    }
+  });
+
+  // 3. Stringification Cleanup (Fix [object Object])
+  // This is more complex for updateMany, but we can target the common pattern.
+  const objectObjectItems = await prisma.nBAItem.findMany({
+    where: { companyId: cid, userAnnotation: { contains: "[object Object]" } },
+    select: { id: true, userAnnotation: true }
+  });
+
+  for (const item of objectObjectItems) {
+    const cleaned = item.userAnnotation.replace(/\[object Object\]/g, "(Structured reason data)");
+    await prisma.nBAItem.update({
+      where: { id: item.id },
+      data: { userAnnotation: cleaned }
+    });
+  }
+}
+
+/**
  * Executes the ageing logic for a specific company's intelligence layer.
  * Transitions cards through ACTIVE -> EXPIRED -> STALE -> ARCHIVED states.
  * 
@@ -216,6 +274,9 @@ async function runMaintenance(prisma, company) {
 
   // 0. Brain Reconciliation (User Feedback)
   await processUserFeedback(prisma, company);
+
+  // 0.5 Global Inconsistency Scrub (v0.11.5 Harden)
+  await scrubCompanyRejections(prisma, cid);
 
   // 1. Flashcards Ageing
   // EXPIRED (7 days)
@@ -276,5 +337,6 @@ module.exports = {
   runMaintenance,
   reactivateCard,
   scrubDatabase,
-  processUserFeedback
+  processUserFeedback,
+  scrubCompanyRejections
 };

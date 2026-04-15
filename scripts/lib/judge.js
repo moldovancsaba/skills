@@ -61,13 +61,14 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
       activityState: "ACTIVE" 
     };
   } else {
+    const reasonText = typeof raw.reason === "string" ? raw.reason : JSON.stringify(raw.reason);
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Internal Sync
       confidenceScore: 1, // Crater scores to sink to the bottom of the list
       impact: 1,
       weight: 1,
-      userAnnotation: `[JUDGE REJECTION]: ${raw.reason || "Confidence below quality floor."}` 
+      userAnnotation: `[JUDGE REJECTION]: ${reasonText || "Confidence below quality floor."}` 
     };
   }
 }
@@ -123,6 +124,7 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
       activityState: "ACTIVE" 
     };
   } else {
+    const reasonText = typeof raw.reason === "string" ? raw.reason : JSON.stringify(raw.reason);
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Internal Sync
@@ -130,7 +132,7 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
       impact: 1,
       ease: 1,
       iceScore: 1,
-      userAnnotation: `[JUDGE REJECTION]: ${raw.reason || "Confidence below quality floor."}`
+      userAnnotation: `[JUDGE REJECTION]: ${reasonText || "Confidence below quality floor."}`
     };
   }
 }

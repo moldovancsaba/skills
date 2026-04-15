@@ -49,9 +49,26 @@ type Flashcard = {
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
 
+export default function CompanyDashboard() {
+  const router = useRouter();
+  const params = useParams();
+  const companyId = params.companyId as string;
 
-    setTopicCount(Array.isArray(topics) ? topics.length : 0);
-  }, [setSources, setNbaItems]);
+  const { company, setCompany, sources, setSources, setNbaItems } = useStore();
+  const [loading, setLoading] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
+  const [topTasks, setTopTasks] = useState<NBAItem[]>([]);
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
+  const [flashcardCount, setFlashcardCount] = useState(0);
+  const [fileCount, setFileCount] = useState(0);
+  const [topicCount, setTopicCount] = useState(0);
+  const [companyCount, setCompanyCount] = useState(0);
+  const [actionMode, setActionMode] = useState<ActionMode | null>(null);
+  const [actionItemId, setActionItemId] = useState<string | null>(null);
+  const [annotation, setAnnotation] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async (cid: string) => {
     const safeFetch = async (url: string) => {
@@ -78,6 +95,22 @@ type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
     setFileCount(Array.isArray(f) ? f.length : 0);
     setNbaItems(Array.isArray(nba) ? nba : []);
     setTopicCount(Array.isArray(topics) ? topics.length : 0);
+    setFlashcardCount(Array.isArray(knowmore) ? knowmore.length : 0);
+
+    const safeNBA = Array.isArray(nba) ? nba as NBAItem[] : [];
+    const pendingTasks = safeNBA.filter((item) =>
+      ["DRAFT", "CHECKED", "VERIFIED"].includes(item.processingStatus)
+    );
+    setPendingTaskCount(pendingTasks.length);
+    setTopTasks(pendingTasks.slice(0, 3));
+
+    // Get current user session to determine role
+    const sessionRes = await fetch("/api/auth/session");
+    if (sessionRes.ok) {
+      const session = await sessionRes.json();
+      const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
+      setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
+    }
   }, [setSources, setNbaItems]);
 
   useEffect(() => {

@@ -59,6 +59,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
     return { 
       processingStatus: "DECLINED", 
       reviewStatus: "DECLINED", // Legacy Sync
+      activityState: "ARCHIVED", // Hide duplicates
       userAnnotation: `[WRITER]: Detected duplicate of ${duplicate.publicId}` 
     };
   }
@@ -116,6 +117,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt) {
     return { 
       processingStatus: "DECLINED", 
       status: "DECLINED", // Internal Sync
+      activityState: "ARCHIVED", // Hide duplicates
       userAnnotation: "[WRITER]: Duplicate task detected." 
     };
   }

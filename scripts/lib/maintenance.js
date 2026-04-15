@@ -205,32 +205,33 @@ async function scrubCompanyRejections(prisma, cid) {
   await prisma.flashcard.updateMany({
     where: { 
       companyId: cid,
-      userAnnotation: { contains: "[JUDGE REJECTION]" },
-      processingStatus: { not: "DRAFT" }
+      OR: [
+        { userAnnotation: { contains: "[JUDGE REJECTION]" } },
+        { userAnnotation: { contains: "[WRITER]:" } }
+      ],
+      activityState: { not: "ARCHIVED" }
     },
     data: { 
       processingStatus: "DRAFT",
-      status: "ACTIVE", // Using ACTIVE as base status for Drafts
-      confidence: 1, 
-      impact: 1, 
-      weight: 1 
+      status: "ACTIVE",
+      activityState: "ARCHIVED" // Hide from active lists
     }
   });
 
-  // 2. NBA Item Scrub (The "Verified Rejection" fix)
+  // 2. NBA Item Scrub (The "ICE 1 Fix")
   await prisma.nBAItem.updateMany({
     where: { 
       companyId: cid,
-      userAnnotation: { contains: "[JUDGE REJECTION]" },
-      processingStatus: { not: "DRAFT" }
+      OR: [
+        { userAnnotation: { contains: "[JUDGE REJECTION]" } },
+        { userAnnotation: { contains: "[WRITER]:" } }
+      ],
+      activityState: { not: "ARCHIVED" }
     },
     data: { 
       processingStatus: "DRAFT",
-      status: "PENDING", // Using PENDING as base status for Task Drafts
-      confidence: 1, 
-      impact: 1, 
-      ease: 1, 
-      iceScore: 1 
+      status: "PENDING",
+      activityState: "ARCHIVED" // Hide from active lists
     }
   });
 

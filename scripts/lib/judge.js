@@ -65,9 +65,8 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Internal Sync
-      confidenceScore: 1, // Crater scores to sink to the bottom of the list
-      impact: 1,
-      weight: 1,
+      confidenceScore: 50, // Restore neutral score
+      activityState: "ARCHIVED", // Hide from active lists
       userAnnotation: `[JUDGE REJECTION]: ${reasonText || "Confidence below quality floor."}` 
     };
   }
@@ -128,10 +127,8 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Internal Sync
-      confidenceScore: 1, // Crater scores to sink to the bottom of the list
-      impact: 1,
-      ease: 1,
-      iceScore: 1,
+      confidenceScore: 50, // Restore neutral score
+      activityState: "ARCHIVED", // Hide from active lists
       userAnnotation: `[JUDGE REJECTION]: ${reasonText || "Confidence below quality floor."}`
     };
   }

@@ -231,5 +231,6 @@ async function processCompanySynthesis(prisma, company) {
 module.exports = { 
   runSynthesisCycle,
   processCompanySynthesis,
-  getSynthesisProgress
+  getSynthesisProgress,
+  synthesisState
 };

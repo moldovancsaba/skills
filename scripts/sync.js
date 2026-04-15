@@ -16,15 +16,24 @@ const PORT = 10005;
  * Main entry point for the background AI synthesis loop.
  * Orchestrates the recurring execution of the Trinity pipeline and serves health metrics.
  */
-const { runSynthesisCycle, getSynthesisProgress } = require("./lib/synthesis");
+const { runSynthesisCycle, getSynthesisProgress, synthesisState } = require("./lib/synthesis");
 const { scrubDatabase } = require("./lib/maintenance");
+
+// --- CONTINUOUS HEARTBEAT ---
+// Updates the "Last Activity" timestamp even when the worker is idling/resting.
+// This proves the system is alive to the dashboard.
+setInterval(() => {
+  if (synthesisState) {
+    synthesisState.lastProgressAt = new Date().toISOString();
+  }
+}, 60000);
 
 /**
  * Main worker loop. Executes the synthesis cycle and schedules the next run based on configuration.
  */
 async function runWorkerLoop() {
   try {
-    const loopInterval = await getWorkerConfig(prisma, {}, "loop_interval_ms", 3600000);
+    const loopInterval = await getWorkerConfig(prisma, {}, "loop_interval_ms", 600000);
     const idleInterval = await getWorkerConfig(prisma, {}, "idle_poll_interval_ms", 300000); // Default 5m
     
     console.log(`[SYNTHESIS] Starting Cycle...`);

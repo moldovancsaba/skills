@@ -63,17 +63,11 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
 
   const loadChecklist = useCallback(async (cid: string) => {
     setLoading(true);
-    const res = await fetch(`/api/nba?companyId=${cid}`);
+    const res = await fetch(`/api/nba?companyId=${cid}${archived ? "&archived=true" : ""}`);
     const data = await res.json();
     
-    // Intelligence Filtering Rule (v0.11.5 Standard)
-    // Active Checklist = DRAFT, CHECKED, VERIFIED
-    // Archived Checklist = ACCEPTED, DECLINED
-    const filtered = archived
-      ? data.filter((item: NBAItem) => ["ACCEPTED", "DECLINED"].includes(item.processingStatus))
-      : data.filter((item: NBAItem) => ["DRAFT", "CHECKED", "VERIFIED"].includes(item.processingStatus));
-    
-    setItems(filtered);
+    // API now handles the filtering standard (v0.11.5)
+    setItems(data);
     setLoading(false);
   }, [archived]);
 
@@ -291,7 +285,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         <EmptyState
           icon={archived ? Archive : Brain}
           title={archived ? "No archived checklist items" : "No checklist items yet"}
-          description={activeHashtags.length > 0 ? "Try clearing hashtag filters." : archived ? "Accepted and declined items will appear here." : "Add data to get AI-powered suggestions."}
+          description={activeHashtags.length > 0 ? "Try clearing hashtag filters." : archived ? "Accepted, declined, and AI-filtered items will appear here." : "Add data to get AI-powered suggestions."}
         />
       ) : (
         <UnifiedGrid>

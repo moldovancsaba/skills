@@ -8,16 +8,25 @@ import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
+  const isArchived = request.nextUrl.searchParams.get("archived") === "true";
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
   
   try {
+    const where: any = { companyId: companyId as string };
+
+    if (isArchived) {
+      where.OR = [
+        { activityState: "ARCHIVED" },
+        { processingStatus: { in: ["ACCEPTED", "DECLINED"] } }
+      ];
+    } else {
+      where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED"] };
+      where.activityState = { in: ["ACTIVE", "STALE"] };
+    }
+
     const items = await prisma.nBAItem.findMany({
-      where: { 
-        companyId: companyId as string,
-        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] },
-        activityState: { in: ["ACTIVE", "STALE"] }
-      },
+      where,
       orderBy: [{ iceScore: "desc" }, { confidenceScore: "desc" }, { publicId: "asc" }],
     });
     return NextResponse.json(items);

@@ -52,7 +52,7 @@ async function scrubDatabase(prisma) {
       data: { 
         processingStatus: "DRAFT",
         status: "DRAFT",
-        confidenceScore: 1, 
+        confidence: 1, 
         impact: 1, 
         weight: 1 
       }
@@ -91,30 +91,103 @@ async function scrubDatabase(prisma) {
       data: { 
         processingStatus: "DRAFT",
         status: "DRAFT",
-        confidenceScore: 1, 
+        confidence: 1, 
         impact: 1, 
         ease: 1, 
         iceScore: 1 
       }
     });
-
-    // Global ICE Backfill: impact * (confidence / 10) * ease
-    const tasks = await prisma.nBAItem.findMany({
-      where: { iceScore: 0, impact: { gt: 0 } },
-      select: { id: true, impact: true, confidenceScore: true, ease: true }
-    });
-    for (const t of tasks) {
-      const ice = t.impact * (t.confidenceScore / 10) * t.ease;
-      await prisma.nBAItem.update({
-        where: { id: t.id },
-        data: { iceScore: Math.round(ice * 10) / 10 }
-      });
-    }
   } catch (e) {
     console.warn(`[MAINTENANCE] Taskcard scrub partially failed: ${e.message}`);
   }
 
   console.log(`[MAINTENANCE] Scrub Complete.`);
+}
+
+/**
+ * RECONCILE USER FEEDBACK (The Offline Brain)
+ * v0.11.5
+ * 
+ * Processes raw feedback signals collected online.
+ * Performs ICE recalculations and propagates strategic feedback to the Flashcard layer.
+ */
+async function processUserFeedback(prisma, company) {
+  const cid = company.id;
+  
+  // 1. Find Unprocessed Feedback for this company
+  const pendingFeedback = await prisma.feedback.findMany({
+    where: { 
+      nbaItem: { companyId: cid },
+      processedByWorkerAt: null 
+    },
+    include: { nbaItem: true },
+    orderBy: { createdAt: "asc" }
+  });
+
+  if (pendingFeedback.length === 0) return 0;
+
+  console.log(`[BRAIN] ${company.name}: Processing ${pendingFeedback.length} user feedback signals...`);
+
+  for (const f of pendingFeedback) {
+    const item = f.nbaItem;
+    const action = f.action; // ACCEPT, DECLINE, MODIFY_ACCEPT
+    
+    // a. Determine Intelligence Impact
+    let iceImpact = 0;
+    if (action === "ACCEPT") iceImpact = 10;
+    else if (action === "MODIFY_ACCEPT") iceImpact = 15;
+    else if (action === "DECLINE") iceImpact = -50;
+
+    // b. Recalculate ICE Score Locally
+    const impact = Math.max(0, Math.min(10, item.impact));
+    const confidence = Math.max(0, Math.min(100, item.confidence));
+    const ease = Math.max(0, Math.min(10, item.ease));
+    const baseScore = impact * (confidence / 10) * ease;
+    const newScore = baseScore * (1 + iceImpact / 100);
+
+    // c. Update NBA Item Intelligence
+    await prisma.nBAItem.update({
+      where: { id: item.id },
+      data: {
+        iceScore: Math.max(0, Math.min(1000, Math.round(newScore * 10) / 10)),
+        updatedAt: new Date()
+      }
+    });
+
+    // d. Propagate to Knowledge Layer (Flashcards)
+    if (item.sourceFlashcardIds && item.sourceFlashcardIds.length > 0) {
+      const delta = (action === "DECLINE")
+        ? { confidence: -22, weight: -18 }
+        : { confidence: 8, weight: 10 };
+
+      for (const fcId of item.sourceFlashcardIds) {
+        const fc = await prisma.flashcard.findUnique({ where: { id: fcId } });
+        if (!fc) continue;
+
+        await prisma.flashcard.update({
+          where: { id: fcId },
+          data: {
+            feedbackConfidenceDelta: Math.max(-50, Math.min(50, fc.feedbackConfidenceDelta + delta.confidence)),
+            feedbackWeightDelta: Math.max(-50, Math.min(50, fc.feedbackWeightDelta + delta.weight)),
+            confidence: Math.max(1, Math.min(100, fc.confidence + delta.confidence)),
+            weight: Math.max(1, Math.min(100, fc.weight + delta.weight)),
+            updatedAt: new Date()
+          }
+        });
+      }
+    }
+
+    // e. Mark as Processed
+    await prisma.feedback.update({
+      where: { id: f.id },
+      data: { 
+        processedByWorkerAt: new Date(),
+        iceImpact: iceImpact 
+      }
+    });
+  }
+
+  return pendingFeedback.length;
 }
 
 // --- LIFECYCLE MANAGEMENT ---
@@ -140,6 +213,9 @@ async function runMaintenance(prisma, company) {
   const archiveThreshold = new Date(now.getTime() - archiveDays * 24 * 60 * 60 * 1000);
 
   console.log(`[MAINTENANCE] ${company.name}: Cleaning up aged cards...`);
+
+  // 0. Brain Reconciliation (User Feedback)
+  await processUserFeedback(prisma, company);
 
   // 1. Flashcards Ageing
   // EXPIRED (7 days)
@@ -199,5 +275,6 @@ async function reactivateCard(prisma, cardType, cardId) {
 module.exports = {
   runMaintenance,
   reactivateCard,
-  scrubDatabase
+  scrubDatabase,
+  processUserFeedback
 };

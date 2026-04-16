@@ -57,7 +57,8 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
     "If the intelligence already exists in the provided context, do NOT duplicate it.",
     "You may propose MULTIPLE FlashCards if the raw data contains distinct insights.",
     "Format: Return a JSON array of objects.",
-    "APERTUS Principle: You MUST detect the dominant language of the input context and generate all output (titles, body, hashtags) in that SAME language. Do not translate. Maintain semantic and linguistic consistency with the source material.",
+    "APERTUS Principle: You MUST detect the dominant language of the input context and generate all output (titles, body, hashtags) in that SAME language.",
+    "STRATEGIC FOCUS: Use the [TopicCards] provided in the context as anchors. Prioritize extracting evidence and insights that relate directly to these topics.",
     memoryPrompt
   ].join("\n");
 
@@ -128,6 +129,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     "You may propose MULTIPLE TaskCards if appropriate.",
     "Format: Return a JSON array of objects.",
     "APERTUS Principle: You MUST detect the dominant language of the input context and generate all output in that SAME language.",
+    "STRATEGIC FOCUS: Generate TaskCards that directly support the [TopicCards] listed in the context.",
     memoryPrompt
   ].join("\n");
 

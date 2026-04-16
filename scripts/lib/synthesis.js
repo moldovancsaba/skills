@@ -190,29 +190,54 @@ async function processCompanySynthesis(prisma, company) {
     synthesisState.stage = "ORBITING";
     console.log(`[SYNTHESIS] ${company.name}: Entering Orbit...`);
 
-    // --- STAGE 1: DRAFTER (Sources -> Flashcards) ---
+    // --- STAGE 1: DRAFTER (Sources & Files -> Flashcards) ---
     synthesisState.stage = "SCRUBBING";
-    const sources = await prisma.source.findMany({ 
-      where: { companyId: cid },
-      take: orbitLimit
-    });
     
-    for (const s of sources) {
+    // Fetch both raw text sources and uploaded binary files
+    const [rawSources, rawFiles] = await Promise.all([
+      prisma.source.findMany({ where: { companyId: cid }, take: orbitLimit }),
+      prisma.uploadedSourceFile.findMany({ where: { companyId: cid }, take: orbitLimit })
+    ]);
+
+    // Normalize into Unified DataCards
+    const dataCards = [
+      ...rawSources.map(s => ({ 
+        id: s.id, 
+        type: "SOURCE", 
+        content: s.content, 
+        name: "Source Snippet" 
+      })),
+      ...rawFiles.map(f => ({ 
+        id: f.id, 
+        type: "FILE", 
+        content: f.content ? f.content.toString("utf8") : "", 
+        name: f.name 
+      }))
+    ];
+
+    console.log(`[SYNTHESIS] ${company.name}: Scrubbing ${dataCards.length} DataCards...`);
+    
+    for (const dc of dataCards) {
       synthesisState.lastProgressAt = new Date().toISOString();
-      console.log(`[DEBUG] draftFlashcardFromDataCard for ${s.id}...`);
-      const drafts = await draftFlashcardFromDataCard(prisma, company, s, memoryPrompt);
+      console.log(`[SYNTHESIS] [${dc.type}] Scrubbing: ${dc.name} (${dc.id})...`);
+      
+      const drafts = await draftFlashcardFromDataCard(prisma, company, dc, memoryPrompt);
+      if (drafts.length === 0) {
+        console.log(`[WARN] Drafter returned 0 insights for ${dc.type}: ${dc.id}. Model may be refusing or content is silent.`);
+      }
+
       for (const draft of drafts) {
         const { sourceId, sourceType, ...cleanDraft } = draft;
         const created = await prisma.flashcard.upsert({
           where: { companyId_fingerprint: { companyId: cid, fingerprint: draft.fingerprint } },
-          create: cleanDraft,
+          create: { ...cleanDraft, companyId: cid },
           update: { updatedAt: new Date() }
         });
         
         // Ensure Source Linking
         await prisma.flashcardSource.upsert({
-          where: { flashcardId_sourceType_sourceId: { flashcardId: created.id, sourceType, sourceId } },
-          create: { flashcardId: created.id, sourceType, sourceId, sourceName: "Auto-detected Source" },
+          where: { flashcardId_sourceType_sourceId: { flashcardId: created.id, sourceType: dc.type, sourceId: dc.id } },
+          create: { flashcardId: created.id, sourceType: dc.type, sourceId: dc.id, sourceName: dc.name },
           update: {}
         });
         ops++;

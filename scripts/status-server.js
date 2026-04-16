@@ -485,6 +485,8 @@ const HTML = /* html */ `<!DOCTYPE html>
       if (line.includes("HEALTH OK"))      return "HEALTH";
       if (line.includes("[DEBUG]"))         return "DEBUG";
       if (line.includes("[SYNTHESIS]"))     return "SYNTHESIS";
+      if (line.includes("[FILE]"))          return "MAINTENANCE"; // Color reuse for files
+      if (line.includes("[SOURCE]"))        return "SYNTHESIS";   // Color reuse for source snippets
       if (line.includes("[MAINTENANCE]"))   return "MAINTENANCE";
       if (line.includes("[WORKER]"))        return "WORKER-INFO";
       if (line.includes("[WARN"))           return "WARN";

@@ -42,14 +42,47 @@ function readLogTail(n = 120) {
 // --- API ENDPOINTS ---
 
 /**
+ * Handles the GET /api/companies request.
+ * Returns a list of all multi-tenant companies.
+ */
+async function handleCompanies(res) {
+  try {
+    const companies = await prisma.company.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" }
+    });
+
+    res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+    res.end(JSON.stringify(companies));
+  } catch (err) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: err.message }));
+  }
+}
+
+/**
  * Handles the GET /api/status request.
  * Aggregates worker health from DB, guardian heartbeats, and logs.
+ * Optionally returns stats for a specific company if ?cid= is provided.
  */
-async function handleApi(res) {
-  const [setting, heartbeat] = await Promise.all([
+async function handleApi(req, res) {
+  const urlParams = new URL(req.url, `http://${req.headers.host}`);
+  const cid = urlParams.searchParams.get("cid");
+
+  const [setting, heartbeat, companyStats] = await Promise.all([
     prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
     Promise.resolve(readHeartbeat()),
+    cid ? (async () => {
+      const [s, f, fc, tc] = await Promise.all([
+        prisma.source.count({ where: { companyId: cid } }),
+        prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
+        prisma.flashcard.count({ where: { companyId: cid } }),
+        prisma.nBAItem.count({ where: { companyId: cid } }),
+      ]);
+      return { sources: s, files: f, flashcards: fc, taskcards: tc };
+    })() : Promise.resolve(null)
   ]);
+  
   const logTail = readLogTail(120);
 
   let worker = { online: false };
@@ -69,6 +102,7 @@ async function handleApi(res) {
     worker,
     guardian: heartbeat,
     logTail,
+    companyStats
   };
 
   res.writeHead(200, {
@@ -351,6 +385,32 @@ const HTML = /* html */ `<!DOCTYPE html>
     .btn:hover { background: var(--amber); color: var(--bg); }
     .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
+    /* ── Selector ── */
+    .company-select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      outline: none;
+      appearance: none;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      transition: all 0.2s;
+    }
+    .company-select:hover { border-color: var(--muted); }
+    .company-select:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+
+    .inventory-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .inventory-item { padding: 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border); }
+    .inventory-val { font-size: 18px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+    .inventory-label { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 600; }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -391,6 +451,13 @@ const HTML = /* html */ `<!DOCTYPE html>
         </div>
 
         <div class="sidebar-section">
+          <div class="sidebar-label">Discovery Scope</div>
+          <select id="company-selector" class="company-select" onchange="handleSelectionChange()">
+            <option value="">Global Overview</option>
+          </select>
+        </div>
+
+        <div class="sidebar-section">
           <div class="sidebar-label">Configuration</div>
           <div id="settings-list">
             <span style="color:var(--muted);font-size:11px">Awaiting engine...</span>
@@ -424,10 +491,18 @@ const HTML = /* html */ `<!DOCTYPE html>
           <div id="current-company" class="stat-value" style="font-size:20px; font-weight:800">—</div>
           <div id="pass-label" class="stat-label"></div>
         </div>
-        <div class="card">
-          <div class="card-title">Completed Cycles</div>
-          <div id="cycle-count" class="stat-value">0</div>
-          <div class="stat-label">since engine start</div>
+        <div id="inventory-card" class="card" style="opacity: 0.5; pointer-events: none;">
+          <div class="card-title">Strategic Inventory</div>
+          <div class="inventory-grid">
+            <div class="inventory-item">
+              <div class="inventory-val" id="count-data">0</div>
+              <div class="inventory-label">Data Ingested</div>
+            </div>
+            <div class="inventory-item">
+              <div class="inventory-val" id="count-cards">0</div>
+              <div class="inventory-label">Intel Cards</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -508,7 +583,7 @@ const HTML = /* html */ `<!DOCTYPE html>
     }
 
     function render(data) {
-      const { worker, guardian, logTail } = data;
+      const { worker, guardian, logTail, companyStats } = data;
 
       // Header dot
       const dot = document.getElementById("header-dot");
@@ -533,8 +608,17 @@ const HTML = /* html */ `<!DOCTYPE html>
       document.getElementById("current-company").textContent = worker.currentCompany || "—";
       document.getElementById("pass-label").textContent = worker.pass ? "Processing Pass " + worker.pass + "/3" : "";
 
-      // Cycle
-      document.getElementById("cycle-count").textContent = worker.cycleCount ?? 0;
+      // Inventory
+      const invCard = document.getElementById("inventory-card");
+      if (companyStats) {
+        invCard.style.opacity = 1;
+        document.getElementById("count-data").textContent = companyStats.sources + companyStats.files;
+        document.getElementById("count-cards").textContent = companyStats.flashcards + companyStats.taskcards;
+      } else {
+        invCard.style.opacity = 0.5;
+        document.getElementById("count-data").textContent = "0";
+        document.getElementById("count-cards").textContent = "0";
+      }
 
       // Progress bar
       const stageProgress = { IDLE:100, SCHEDULING:5, ORBITING:15, SCRUBBING:40, WRITING:65, JUDGING:80, ASCENDING:95, MAINTENANCE:98 };
@@ -604,6 +688,31 @@ const HTML = /* html */ `<!DOCTYPE html>
       document.getElementById("last-updated").textContent = new Date().toLocaleTimeString();
     }
 
+    function handleSelectionChange() {
+      const cid = document.getElementById("company-selector").value;
+      localStorage.setItem("selectedCompanyId", cid);
+      refresh();
+    }
+
+    async function fetchCompanies() {
+      try {
+        const res = await fetch("/api/companies");
+        const companies = await res.json();
+        const sel = document.getElementById("company-selector");
+        const currentId = localStorage.getItem("selectedCompanyId");
+        
+        companies.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.id;
+          opt.textContent = c.name;
+          if (c.id === currentId) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      } catch (e) {
+        console.error("Failed to fetch companies:", e);
+      }
+    }
+
     async function reanimate() {
       const btn = document.getElementById("defib-btn");
       if (!btn) return;
@@ -624,7 +733,8 @@ const HTML = /* html */ `<!DOCTYPE html>
 
     async function refresh() {
       try {
-        const res = await fetch("/api/status");
+        const cid = localStorage.getItem("selectedCompanyId") || "";
+        const res = await fetch("/api/status?cid=" + cid);
         const data = await res.json();
         render(data);
       } catch (e) {
@@ -632,6 +742,7 @@ const HTML = /* html */ `<!DOCTYPE html>
       }
     }
 
+    fetchCompanies();
     refresh();
     setInterval(refresh, 8000); // 8s refresh
   </script>
@@ -643,8 +754,12 @@ const HTML = /* html */ `<!DOCTYPE html>
 // ---------------------------------------------------------------------------
 
 const server = http.createServer(async (req, res) => {
-  if (req.url === "/api/status") {
-    handleApi(res);
+  if (req.url.startsWith("/api/status")) {
+    handleApi(req, res);
+    return;
+  }
+  if (req.url === "/api/companies") {
+    handleCompanies(res);
     return;
   }
   if (req.url === "/api/reanimate" && req.method === "POST") {

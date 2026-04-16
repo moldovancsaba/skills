@@ -118,10 +118,12 @@ async function syncSynthesisStateToDb(prisma) {
 async function runSynthesisCycle(prisma) {
   let totalOperations = 0;
   // Fair Rotation: Oldest last-visited company first
+  // REMOVED [where: { updatedAt: { not: undefined } }] to avoid skipping newly created or un-updated companies
   const companies = await prisma.company.findMany({
-    where: { updatedAt: { not: undefined } }, // Just to ensure active
     orderBy: { lastAIVisited: "asc" }
   });
+
+  console.log(`[SYNTHESIS] FOUND ${companies.length} COMPANIES: ${companies.map(c => c.name).join(", ")}`);
 
   synthesisState.state = "running";
   synthesisState.stage = "SCHEDULING";
@@ -199,21 +201,32 @@ async function processCompanySynthesis(prisma, company) {
       prisma.uploadedSourceFile.findMany({ where: { companyId: cid }, take: orbitLimit })
     ]);
 
-    // Normalize into Unified DataCards
-    const dataCards = [
-      ...rawSources.map(s => ({ 
-        id: s.id, 
-        type: "SOURCE", 
-        content: s.content, 
-        name: "Source Snippet" 
-      })),
-      ...rawFiles.map(f => ({ 
-        id: f.id, 
-        type: "FILE", 
-        content: f.content ? f.content.toString("utf8") : "", 
-        name: f.name 
-      }))
-    ];
+      // Normalize into Unified DataCards
+      const dataCards = [
+        ...rawSources.map(s => ({ 
+          id: s.id, 
+          type: "SOURCE", 
+          content: s.content, 
+          name: "Source Snippet" 
+        })),
+        ...rawFiles.map(f => {
+          // Robust Byte-to-Text conversion for binary files
+          let safeContent = "";
+          if (f.content) {
+            try {
+              safeContent = f.content.toString("utf8").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+            } catch (e) {
+              console.warn(`[WARN] Failed to stringify content for file ${f.id}, skipping content...`);
+            }
+          }
+          return { 
+            id: f.id, 
+            type: "FILE", 
+            content: safeContent, 
+            name: f.name 
+          };
+        })
+      ];
 
     console.log(`[SYNTHESIS] ${company.name}: Scrubbing ${dataCards.length} DataCards...`);
     

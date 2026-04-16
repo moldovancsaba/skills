@@ -105,7 +105,7 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
       fingerprint: hashValue(`EVO:FC:${company.id}:${dataCard.id}:${raw.title}`),
       createdBy: "drafter-agent",
       sourceId: dataCard.id,
-      sourceType: "SOURCE"
+      sourceType: dataCard.type
     });
   }
   return drafts;

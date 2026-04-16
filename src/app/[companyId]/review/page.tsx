@@ -43,7 +43,7 @@ export default function ReviewDashboard() {
 
       const merged = [
         ...(Array.isArray(fcData) ? fcData : []).filter(item => item.processingStatus === "REVIEW"),
-        ...(Array.isArray(nbaData) ? nbaData : []).filter({processingStatus: "REVIEW"})
+        ...(Array.isArray(nbaData) ? nbaData : []).filter(item => item.processingStatus === "REVIEW")
       ].map(item => ({...item, _type: item.kind === 'TASK' ? 'TASK' : 'FLASHCARD'}));
 
       setItems(merged);
@@ -100,7 +100,7 @@ export default function ReviewDashboard() {
           title="Axiom Review Gateway" 
           description="Resolve intelligence items where the AI elected not to assign strict mathematical scoring parameters. You must supply a 1-10 boundary score for each item to return it to autonomous flow." 
         />
-        <SynthesisStatus companyId={companyId} />
+        <SynthesisStatus />
       </motion.div>
 
       {loading ? (

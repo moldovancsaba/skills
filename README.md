@@ -1,92 +1,85 @@
-# Sovereign Marketing OS (v0.11.3)
+# Sovereign Marketing OS
 
 > **The Decentralized Intelligence Layer for Strategic Marketing.**
 
-Sovereign Marketing OS is a high-performance, autonomous intelligence system designed to bridge the gap between raw market evidence and executive-level strategy. It leverages a unique **Online/Local split-architecture** to ensure maximum privacy, data sovereignty, and high-quality AI reasoning.
+Sovereign Marketing OS is an open-source, high-performance, autonomous intelligence system designed to bridge the gap between raw market evidence and executive-level strategy. It leverages a unique **Online/Local split-architecture** to ensure maximum privacy, data sovereignty, and high-quality AI reasoning.
 
-- **Frontend**: Premium Next.js 16 Web Interface (Unified Design System).
-- **Intelligence**: Local **Trinity Synthesis Engine** powered by Ollama.
-- **Persistence**: Hybrid MongoDB Atlas via Prisma.
+## 🌟 Overview
 
-## 🛡️ The Sovereign Paradigm
-
-Unlike traditional "SaaS" tools that process your data in the cloud, Sovereign Marketing OS treats your data as a strategic asset. 
+Unlike traditional "SaaS" tools that process your proprietary business data in the cloud, Sovereign Marketing OS treats your data as a strategic asset.
 
 1. **Passive Ingress**: The webapp captures user intent and raw signals without expensive cloud-side processing.
-2. **Local Authority**: All complex reasoning, IC&E scoring, and knowledge synthesis occur on your local hardware via the **Trinity Pipeline**.
-3. **The Pulse**: A real-time bridge communicates the state of the local synthesis worker directly to the dashboard, providing transparency into the autonomous thinking process.
-
----
+2. **Local Authority**: All complex reasoning, ICE scoring, and knowledge synthesis occur securely on your local hardware via the **Trinity Engine**.
+3. **The Pulse**: A real-time bridge communicates the state of the local synthesis worker directly to your dashboard via MongoDB, providing transparency into the autonomous thinking process without direct network exposure.
 
 ## 🌪️ Trinity Synthesis Pipeline
 
-The system's core intelligence is governed by a three-pass autonomous loop:
+The system's core intelligence is governed by a three-pass autonomous loop, enforcing strict mathematical boundaries (Axioms):
 
-| Pass | Role | Description |
+| Pass | Agent | Objective |
 | :--- | :--- | :--- |
-| **Pass 1: DRAFTER** | *Extraction* | Scrubs raw sources, entities, and uploaded files to identify atomic insights. |
-| **Pass 2: WRITER** | *Refinement* | Calculates strategic impact (ICE), generates provenance-backed flashcards, and drafts Next-Best-Actions. |
-| **Pass 3: JUDGE** | *Audit* | Hardens the knowledge layer by rejecting low-confidence items and enforcing a statistical quality floor. |
-
----
+| **Pass 1** | **DRAFTER** | Scrubs raw sources, entities, and uploaded files to identify atomic insights and predict initial 1-10 metrics. |
+| **Pass 2** | **WRITER** | Refines language, drops duplicates, and strictly calculates priority (Impact × Confidence × Ease). |
+| **Pass 3** | **JUDGE** | Hardens the knowledge layer by rejecting low-confidence items and enforcing a statistical quality floor. Demoted items are cratered and removed from active flow. |
 
 ## 🗺️ Product Architecture
 
-The system operates across four distinct intelligence layers:
+The system operates across five distinct intelligence layers:
 
-### 1. Unified Data (Ingress)
-Raw market evidence, product docs, customer feedback, and competitor signals are ingested into a unified relational context.
+1. **Data (Ingress)**: Raw market evidence, product docs, customer feedback, and competitor signals.
+2. **Topics (Strategy)**: User-defined research focus areas that guide the AI's processing budget.
+3. **Review (The Human Circuit)**: A fail-safe mechanism where items that the AI cannot mathematically score are routed for manual human annotation.
+4. **Knowmore (Knowledge)**: The synthesized layer of atomic flashcards, carrying verifiable confidence scores and provenance.
+5. **Checklist (Action)**: Next-Best-Action recommendations ranked by **ICE Score**.
 
-### 2. Autonomous Topics (Strategy)
-User-defined research focus areas that act as the **Primary Planner** for the AI. The Trinity Worker prioritizes processing for topics with high "Strategic Pressure".
+## 🛠️ Tech Stack & Operations
 
-### 3. Knowmore (Knowledge)
-The synthesized Knowledge Layer. Atomic flashcards (`SUMMARY`, `FORECAST`, `JUDGMENT`) that carry verifiable confidence scores and provenance.
+This project is built for scale, performance, and security.
 
-### 4. NBA Checklist (Action)
-Next-Best-Action recommendations ranked by **ICE Score** (Impact, Confidence, Ease). These are derived directly from the Knowledge Layer to ensure every action is rooted in evidence.
+- **Frontend**: Next.js 16.2 (App Router) + React 18 + TailwindCSS.
+- **Design Primitives**: Unified "Deep Dark" styling with dynamic Sovereign ICE color metric mapping.
+- **Core Engine**: Local `Ollama` running specialized, fine-tuned agent prompts.
+- **Persistence**: `Prisma` + `MongoDB Atlas` (Decoupled command-and-control).
 
----
+## 🚀 Getting Started (Developers & Operators)
 
-## 🚀 Recent Innovations in v0.11.3
+### 1. Prerequisites
+- Node.js (v18+)
+- MongoDB Atlas cluster URL
+- Ollama installed locally
 
-- **Unified Card UI**: A singular, premium card design system used across all intelligence layers, purging legacy patterns.
-- **Synthesis Heartbeat**: A live "Pulse" indicator on the dashboard connected via a real-time proxy to the local worker.
-- **Statistical Quality Floor**: The `JUDGE` actively demotes any card falling below the 10th percentile of verified intelligence.
-- **Topic-Primary Synthesis**: Total alignment of the AI reasoning budget with the user's active strategic priorities.
-
----
-
-## 🛠️ Stack & Operations
-
-- **Frontend**: Next.js 16.2.2 + React 18 + TailwindCSS.
-- **Design Primitives**: `UnifiedCard`, `AppShell`, `StructuredCard` (Hardened for Dark Mode).
-- **Core Engine**: `Ollama` running Sovereign prompts.
-- **Persistence**: `Prisma` + `MongoDB Atlas`.
-
-### Development Setup
-
+### 2. Setup
+Clone the repository and install dependencies:
 ```bash
-# 1. Install Dependencies
+git clone https://github.com/sovereignsquad/checklist.git
+cd checklist
 npm install
+```
 
-# 2. Synchronize Schema
+### 3. Database Migration
+Ensure your local `.env` contains your `DATABASE_URL`, then push the schema:
+```bash
 npm run db:push
-- `README.md`
-  - current product overview, stack, routes, setup, and API inventory
-- `SPEC.md`
-  - current product and system specification
-- `docs/ONBOARDING.md`
-  - operator and developer setup
-- `docs/HELP_SYSTEM.md`
-  - in-app help system architecture and maintenance
-- `docs/LOCAL_AI_PIPELINE.md`
-  - online/local contract
-- `DESIGN_SYSTEM.md`
-  - UI grammar and component rules
+npm run db:generate
+```
 
-Historical handoff notes belong in `docs/archive/`, not in active root documentation.
+### 4. Run the Ecosystem
+Start the Web App:
+```bash
+npm run dev
+```
 
-## Source of truth
+In a separate terminal, ignite the local AI Trinity Engine background loop:
+```bash
+npm run background
+```
 
-If docs conflict with code, treat the code and Prisma schema as authoritative until the docs are corrected.
+## 📖 Documentation Directory
+For deep architectural dives, refer to our extended internal specs:
+- `SPEC.md`: Product and system specification schemas.
+- `docs/ONBOARDING.md`: Detailed operator setup.
+- `docs/LOCAL_AI_PIPELINE.md`: Breakdown of the online/local orchestration loop.
+- `DESIGN_SYSTEM.md`: UI grammar and component rules.
+
+---
+*Built with precision by Sovereign Squad.*

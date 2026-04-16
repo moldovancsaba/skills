@@ -6,11 +6,11 @@ Checklist is an active production web application with local-AI-assisted enrichm
 
 Current release baseline:
 
-- app version: `v0.11.3`
+- app version: `v0.12.0`
 - framework: `Next.js 16.2.2`
 - product title: `Checklist Marketing OS`
 - canonical production URL: `https://checklist.sovereignsquad.com`
-- local AI version: `Sovereign Trinity v0.11.3`
+- local AI version: `Sovereign Trinity v0.12.0`
 
 ## Product Definition
 
@@ -19,9 +19,13 @@ Checklist is a marketing operating system that separates:
 1. `DATA`
    - raw source records entered by users
    - products, customers, competitors, uploaded files
-2. `KNOWMORE`
+2. `TOPICS`
+   - strategic priorities that dictate AI orchestration
+3. `REVIEW`
+   - circuit breaking manual intervention dashboard for uncalculatable AI intelligence
+4. `KNOWMORE`
    - processed flashcards derived from raw evidence and enrichment
-3. `TASKCARDS` (NBA)
+5. `TASKCARDS` (NBA)
    - ranked next-best-action checklist items derived from company context and flashcards
    - deduplicated via deterministic fingerprinting
 
@@ -36,11 +40,10 @@ The system is designed so the online app remains usable even when the local AI l
 | `/` | company selection and company CRUD |
 | `/[companyId]` | company dashboard |
 | `/[companyId]/data` | raw source ingestion |
+| `/[companyId]/topics` | topic prioritization for AI research |
+| `/[companyId]/review` | manual loop for uncalculatable AI outputs |
 | `/[companyId]/knowmore` | flashcard review and knowledge layer |
 | `/[companyId]/nba` | pending next-best-action checklist |
-| `/[companyId]/nba_archived` | archived checklist items |
-| `/[companyId]/topics` | topic prioritization for AI research |
-| `/[companyId]/settings` | communication and bridge settings |
 
 ### Supporting routes
 
@@ -50,19 +53,6 @@ The system is designed so the online app remains usable even when the local AI l
 | `/manual` | operator manual |
 | `/faq` | FAQ |
 | `/privacy` | privacy policy |
-| `/terms` | terms |
-| `/brand` | brand page |
-| `/products` | global products page |
-| `/customers` | global customers page |
-| `/competitors` | global competitors page |
-| `/data` | global data page |
-| `/content` | content page |
-| `/crm` | CRM page |
-| `/intelligence` | intelligence page |
-| `/leads` | leads page |
-| `/portfolio` | portfolio page |
-| `/strategy` | strategy page |
-| `/pre-fortitude` | pre-fortitude page |
 
 ## Architecture
 
@@ -71,20 +61,18 @@ Online webapp (Vercel)
 - Next.js 16 app router
 - Prisma + MongoDB Atlas
 - **Passive Ingress**: UI captures user 'Intent' (title/description).
-- **Zero Business Logic**: Online APIs do not perform scoring, ID generation, or research.
-- Auth and session handling.
+- **Axiomatic Enforcement**: Core interface color layers strictly bound to 1-10 thresholds.
 
 Shared persistence (MongoDB Atlas)
 - The 'Bridge' between Human Reality and AI Strategy.
-- Companies, Source records, FlashCards, TaskCards, Feedbacks.
+- Decoupled Command and Control: Worker health and status stored in GlobalSettings table.
 
 Local AI Layer (The Trinity - Authoritative Engine)
-- **Authoritative Source**: Performs all scoring (ICE), sequential ID reservation, and hardening.
-- Drafter: Extracts insights from raw sources into FlashCard drafts.
-- Writer: Refines FlashCards and TaskCards (Calculating ICE scores).
-- Judge: Audits quality against a statistical percentile floor.
-- Orchestration: Fair Orbit (oldest last-visited first) with Carousel batching.
-- Fail-Safe: Managed via `launchd` + Health Check Contract v1 (Port 10005).
+- **Authoritative Source**: Performs all scoring (ICE), bounded to strict 1-10 integers.
+- Drafter: Extracts insights from raw sources into FlashCard drafts. Reroutes logic failures to REVIEW state.
+- Writer: Refines FlashCards and TaskCards (Calculating ICE Impact * Confidence * Ease).
+- Judge: Audits quality against a statistical percentile floor. Unsalvageable cards cratered to 1 score.
+- Defibrillator Hook: Local worker heartbeat can be forcefully reset via API ping to MongoDB.
 ```
 
 ## Current Tech Stack
@@ -96,93 +84,15 @@ Local AI Layer (The Trinity - Authoritative Engine)
 
 ## Core Behaviors
 
-### Company and source management
+### Quality floor & Axiom Bounds
 
-- companies are created and selected from `/`
-- raw source records are stored as products, customers, competitors, and uploaded files
-- source creation and edits trigger knowledge sync flows
+All parameters (Impact, Confidence, Ease, Weight) exist strictly on a `1 to 10` boundary. The ICE score formula is directly computed (`I * C * E`), expanding to bounds of `1 to 1000`. Feedback interactions provide a direct `+1/-1` metric impact.
 
-### Knowmore
-
-- flashcards are shown on `/:companyId/knowmore`
-- flashcards carry confidence, impact, weight, provenance, and review state
-- review actions:
-  - `ACCEPT`
-  - `DECLINE`
-  - `MODIFY_ACCEPT`
-
-### NBA
-
-- checklist tasks are shown on `/:companyId/nba`
-- tasks carry impact, confidence, ease, and ICE score
-- task review actions:
-  - `ACCEPT`
-  - `DECLINE`
-  - `MODIFY_ACCEPT`
-- task feedback can propagate back to source flashcards
-
-### Quality floor (Percentile)
-
-The Judge demotes any card falling below the `confidence_reject_percentile` (default: 10th percentile) of current verified intelligence. Rejected cards are returned to `DRAFT` status and their metrics (`confidenceScore`, `impact`, `ease`, `iceScore`) are forcefully reset to `1` to ensure they are de-prioritized in the user interface.
+The Judge demotes any card falling below the `confidence_reject_percentile` (default: 10th percentile) of current verified intelligence. Rejected cards are returned to `DRAFT` status and their metrics are forcefully reset to `1`.
 
 ### Deduplication
 - Flashcards: `EVO:FC:[company]:[source]:[title]`
 - TaskCards: `EVO:TC:[company]:[flashcard]:[title]`
-
-## Current API Surface
-
-### Auth
-
-- `/api/auth/login`
-- `/api/auth/callback`
-- `/api/auth/logout`
-- `/api/auth/session`
-
-### Domain APIs
-
-- `/api/topics`
-- `/api/hashtags/recommendations`
-- `/api/hashtags/feedback`
-- `/api/knowmore`
-- `/api/knowmore/actions`
-- `/api/knowmore/sync`
-- `/api/knowmore/corrections`
-- `/api/nba`
-- `/api/feedback`
-- `/api/feedback/analytics`
-- `/api/communication/settings`
-- `/api/bridge/ingress`
-- `/api/release`
-
-### Local AI bridge
-
-- `/api/agent/local`
-- `/api/webhook/trigger`
-
-## Authentication Contract
-
-Authentication is environment-driven.
-
-The app expects:
-
-- `APP_SESSION_SECRET`
-- `SSO_CLIENT_ID`
-- `SSO_CLIENT_SECRET`
-- `SSO_AUTH_URL`
-- `SSO_TOKEN_URL`
-- `SSO_REDIRECT_URI`
-- `SSO_SCOPES`
-- `NEXT_PUBLIC_BASE_URL`
-
-Docs should not hardcode a provider name unless the deployed environment is explicitly standardized on one provider and all callback/base URLs have been updated to match.
-
-## Design-System Rule
-
-Checklist should use shared page-shell, form, card, and action primitives rather than route-local styling patterns.
-
-The authoritative UI rules belong in:
-
-- `DESIGN_SYSTEM.md`
 
 ## Operational Rule
 
@@ -197,5 +107,5 @@ When any of these change, update docs in the same change set:
 
 ## Document Status
 
-Status: current (v0.11.3)
-Last updated: `2026-04-14`
+Status: current (v0.12.0)
+Last updated: `2026-04-16`

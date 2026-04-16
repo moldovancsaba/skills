@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySuperAdmin } from "@/lib/permissions";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 

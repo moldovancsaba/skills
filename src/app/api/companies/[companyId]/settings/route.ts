@@ -6,9 +6,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { companyId: string } }
+  { params }: { params: Promise<{ companyId: string }> }
 ) {
-  const { companyId } = params;
+  const { companyId } = await params;
 
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
@@ -35,9 +35,9 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { companyId: string } }
+  { params }: { params: Promise<{ companyId: string }> }
 ) {
-  const { companyId } = params;
+  const { companyId } = await params;
 
   const auth = await verifyMembership(request, companyId, "ADMIN");
   if (auth.error) return auth.error;

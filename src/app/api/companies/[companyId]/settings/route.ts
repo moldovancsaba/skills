@@ -46,7 +46,7 @@ export async function PATCH(
     const data = await request.json();
     
     // Validate allowedLanguages is an array of strings
-    if (data.allowedLanguages && (!Array.isArray(data.allowedLanguages) || !data.allowedLanguages.every(l => typeof l === 'string'))) {
+    if (data.allowedLanguages && (!Array.isArray(data.allowedLanguages) || !data.allowedLanguages.every((l: unknown) => typeof l === 'string'))) {
       return NextResponse.json({ error: "Invalid allowedLanguages format" }, { status: 400 });
     }
 

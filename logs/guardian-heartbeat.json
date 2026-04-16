@@ -4,8 +4,8 @@
   "workerAlive": true,
   "restartCount": 1,
   "startedAt": 1776364553803,
-  "lastHealthAt": "2026-04-16T18:58:24.326Z",
-  "lastProgressAt": "2026-04-16T18:58:15.414Z",
+  "lastHealthAt": "2026-04-16T19:06:24.304Z",
+  "lastProgressAt": "2026-04-16T19:06:21.749Z",
   "healthState": "running",
-  "healthStage": "SCRUBBING"
+  "healthStage": "ASCENDING"
 }

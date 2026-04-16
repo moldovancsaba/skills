@@ -8,7 +8,7 @@ import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronDown, Sun, Moon, LogOut, User, Menu } from "lucide-react";
+import { ChevronDown, Sun, Moon, LogOut, User, Menu, Settings as SettingsIcon } from "lucide-react";
 
 const pipelineItems = [
   {
@@ -45,6 +45,15 @@ const pipelineItems = [
     label: "Checklist",
     icon: "looks_4",
     colorClass: "pipeline-checklist",
+  },
+];
+
+const bottomItems = [
+  {
+    key: "settings",
+    href: (companyId: string) => `/${companyId}/settings`,
+    label: "Settings",
+    colorClass: "text-muted-foreground",
   },
 ];
 
@@ -167,6 +176,29 @@ export function ClientNav() {
                   <span className={cn("material-symbols-outlined text-[22px] shrink-0", item.colorClass, isActive && "scale-110 transition-transform")} aria-hidden="true">
                     {item.icon}
                   </span>
+                  {!isCollapsed && <span className={cn("font-medium transition-colors", isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{item.label}</span>}
+                </Link>
+              );
+            })}
+
+            {/* Settings - always at bottom of nav section */}
+            {bottomItems.map((item) => {
+              const isActive = pathname.includes(item.key);
+              return (
+                <Link
+                  key={item.key}
+                  href={item.href(company.id)}
+                  className={cn(
+                    buttonVariants({ variant: isActive ? "secondary" : "ghost", size: "sm" }),
+                    "w-full justify-start gap-4 h-10 mt-2 relative group",
+                    isCollapsed && "justify-center px-0 hover:bg-zinc-800/50"
+                  )}
+                  title={item.label}
+                >
+                  {isActive && !isCollapsed && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-foreground rounded-r-md" />
+                  )}
+                  <SettingsIcon className={cn("h-[22px] w-[22px] shrink-0", item.colorClass, isActive && "text-foreground")} />
                   {!isCollapsed && <span className={cn("font-medium transition-colors", isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{item.label}</span>}
                 </Link>
               );

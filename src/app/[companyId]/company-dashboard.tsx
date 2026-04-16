@@ -12,7 +12,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Plus, Sparkles, Zap, ListOrdered, Settings as SettingsIcon } from "lucide-react";
+import { ArrowRight, Plus, Sparkles, Zap, ListOrdered } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { getDashboardExpertTip } from "@/content/help";
@@ -223,7 +223,7 @@ export default function CompanyDashboard() {
         />
       </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-5 mb-8">
+      <div className="grid gap-4 md:grid-cols-4 mb-8">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <LinkCard
             href={`/${companyId}/data`}
@@ -262,15 +262,6 @@ export default function CompanyDashboard() {
             metric={pendingTaskCount}
             title={`Checklist`}
             description="High-impact actions"
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
-          <LinkCard
-            href={`/${companyId}/settings`}
-            icon={SettingsIcon}
-            variant="teal"
-            title="Settings"
-            description="Alerts & Bridge"
           />
         </motion.div>
       </div>

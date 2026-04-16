@@ -20,7 +20,7 @@ const DEFAULT_IDLE_INTERVAL = 300000;      // 5 minutes default
  * Orchestrates the recurring execution of the Trinity pipeline and serves health metrics.
  */
 const { runSynthesisCycle, getSynthesisProgress, collectGlobalWorkerSettings, syncSynthesisStateToDb, synthesisState } = require("./lib/synthesis");
-const { scrubDatabase } = require("./lib/maintenance");
+const { scrubDatabaseElemental } = require("./lib/maintenance");
 
 // --- CONTINUOUS HEARTBEAT ---
 // Updates the "Last Activity" timestamp and syncs to DB for the Cloud Dashboard.
@@ -32,44 +32,64 @@ setInterval(async () => {
 }, 60000);
 
 let lastCycleStartTime = 0;
+const FAILSAFE_INTERVAL = 3600000; // 1 Hour Failsafe
+const IDLE_INTERVAL = 300000;     // 5 Minute Idle Gap
+const POLLING_INTERVAL = 30000;   // 30 Seconds DB Check
 
 /**
  * Main worker loop. Executes the synthesis cycle and handles the 'Sovereign' command-and-control polling.
  */
 async function runWorkerLoop() {
   try {
-    const loopInterval = await getWorkerConfig(prisma, {}, "loop_interval_ms", DEFAULT_LOOP_INTERVAL);
-    const idleInterval = await getWorkerConfig(prisma, {}, "idle_poll_interval_ms", DEFAULT_IDLE_INTERVAL);
-    
-    console.log(`[SYNTHESIS] Starting Cycle...`);
+    console.log(`[SYNTHESIS] Initiating Elemental Cycle...`);
     lastCycleStartTime = Date.now();
+    
+    // Elemental Database Scrub (Limited batch per cycle)
+    await scrubDatabaseElemental(prisma);
+    
     const result = await runSynthesisCycle(prisma);
     await syncSynthesisStateToDb(prisma); // Post-cycle sync
     
-    const cooldown = result.workDone ? loopInterval : idleInterval;
-    const cooldownMins = cooldown / 60000;
-    console.log(`[SYNTHESIS] Cycle Complete (${result.operations} ops). Resting for ${cooldownMins} mins...`);
+    const cycleDuration = Date.now() - lastCycleStartTime;
+    const isFastCycle = cycleDuration < FAILSAFE_INTERVAL;
     
-    // --- IDLE WATCHER LOOP ---
-    // Instead of one long setTimeout, we sleep in 30s increments to poll for DB reanimation signals.
-    const wakeUpAt = Date.now() + cooldown;
-    while (Date.now() < wakeUpAt) {
-      // Check for Manual Reanimate Signal from Cloud
+    // Logic: If fast cycle, wait 5 mins. If slow (>1h), proceed to failsafe check immediately.
+    const cooldown = isFastCycle ? IDLE_INTERVAL : 0;
+    const cooldownMins = cooldown / 60000;
+    
+    if (cooldown > 0) {
+      console.log(`[SYNTHESIS] Elemental Cycle Complete (${result.operations} ops). Resting 5-min idle...`);
+    } else {
+      console.log(`[SYNTHESIS] Long Cycle Detected (>1h). Re-evaluating failsafe immediately.`);
+    }
+    
+    // --- IDLE WATCHER LOOP (The Failsafe Watchdog) ---
+    // We poll for manual reanimates OR reaches the 1-hour failsafe threshold
+    const wakeUpAt = lastCycleStartTime + Math.max(FAILSAFE_INTERVAL, Date.now() + cooldown);
+    
+    // Wait until either IDLE cooldown ends OR 1-hour Failsafe threshold is reached
+    const targetWakeTime = isFastCycle ? (Date.now() + IDLE_INTERVAL) : (lastCycleStartTime + FAILSAFE_INTERVAL);
+
+    while (Date.now() < targetWakeTime) {
+      // 1. Check for Manual Reanimate Signal
       const reanimateSignal = await prisma.globalSetting.findUnique({ where: { key: "core_synthesis_reanimate_requested_at" } });
       if (reanimateSignal) {
         const signalTime = new Date(reanimateSignal.value.timestamp).getTime();
-        const isFresh = signalTime > lastCycleStartTime;
-        
-        if (isFresh) {
-          console.log(`[DEFIBRILLATOR] Manual reanimation detected in DB (Signal: ${new Date(signalTime).toISOString()}, Last Cycle: ${new Date(lastCycleStartTime).toISOString()}). Waking up...`);
-          break; // Exit idle loop to start new cycle
+        if (signalTime > lastCycleStartTime) {
+          console.log(`[DEFIBRILLATOR] Manual reanimation pulse detected. Waking up...`);
+          break; 
         }
       }
+
+      // 2. Failsafe Check (Paranoia Layer)
+      if (Date.now() - lastCycleStartTime >= FAILSAFE_INTERVAL) {
+        console.log(`[WATCHDOG] 1-Hour Failsafe Interval reached. Forcing loop start.`);
+        break;
+      }
       
-      await new Promise(resolve => setTimeout(resolve, 30000)); // Poll every 30s
+      await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
     }
 
-    // Recurse to next cycle
     runWorkerLoop();
   } catch (err) {
     console.error(`[CRITICAL] Worker Loop Failure:`, err);
@@ -111,10 +131,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, async () => {
   console.log(`Sovereign Trinity Worker v${APP_VERSION} Active on Port ${PORT}`);
-  try {
-    await scrubDatabase(prisma); // Critical Pre-flight scrub
-  } catch (err) {
-    console.error(`[MAINTENANCE] Pre-flight scrub failed (non-critical):`, err.message);
-  }
   runWorkerLoop();
 });

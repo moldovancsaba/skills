@@ -15,8 +15,8 @@ const { getWorkerConfig } = require("./shared");
  * 
  * @param {PrismaClient} prisma - Database client
  */
-async function scrubDatabase(prisma) {
-  console.log(`[MAINTENANCE] Starting Global Data Integrity Scrub...`);
+async function scrubDatabaseElemental(prisma) {
+  console.log(`[MAINTENANCE] Scrubbing oldest entries (Elemental Mode)...`);
   
   const validKinds = ["SUMMARY", "EXPLANATION", "COMPARISON", "NEWS", "CONCLUSION", "EVALUATION", "OPINION", "JUDGMENT", "RECOMMENDATION", "RESEARCH", "FORECAST", "STOCK", "GOSSIP", "PRICE"];
   const validProc = ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "DECLINED"];
@@ -31,7 +31,8 @@ async function scrubDatabase(prisma) {
           { kind: { notIn: validKinds } }
         ]
       },
-      take: 500,
+      orderBy: { updatedAt: "asc" },
+      take: 10,
       select: { id: true }
     });
 
@@ -68,7 +69,8 @@ async function scrubDatabase(prisma) {
           { status: { not: "PENDING" } }
         ]
       },
-      take: 500,
+      orderBy: { updatedAt: "asc" },
+      take: 10,
       select: { id: true }
     });
 
@@ -351,7 +353,7 @@ async function reactivateCard(prisma, cardType, cardId) {
 module.exports = {
   runMaintenance,
   reactivateCard,
-  scrubDatabase,
+  scrubDatabaseElemental,
   processUserFeedback,
   scrubCompanyRejections
 };

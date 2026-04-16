@@ -263,7 +263,8 @@ async function processCompanySynthesis(prisma, company) {
     synthesisState.stage = "WRITING";
     const fcActive = await prisma.flashcard.findMany({ 
       where: { companyId: cid, processingStatus: { in: ["DRAFT", "CHECKED"] } },
-      take: orbitLimit * 2
+      orderBy: { updatedAt: "asc" }, // FOCUS: Oldest modified first
+      take: orbitLimit
     });
 
     for (const fc of fcActive) {
@@ -288,7 +289,7 @@ async function processCompanySynthesis(prisma, company) {
     // 2.b Taskcards: DRAFT -> CHECKED -> VERIFIED
     const tcActive = await prisma.nBAItem.findMany({ 
       where: { companyId: cid, processingStatus: { in: ["DRAFT", "CHECKED"] } },
-      orderBy: { createdAt: "desc" }, // Prioritize new user-created drafts
+      orderBy: { updatedAt: "asc" }, // FOCUS: Oldest modified first
       take: orbitLimit
     });
 
@@ -316,6 +317,7 @@ async function processCompanySynthesis(prisma, company) {
     synthesisState.stage = "ASCENDING";
     const verifiedFlash = await prisma.flashcard.findMany({ 
       where: { companyId: cid, processingStatus: "VERIFIED" },
+      orderBy: { updatedAt: "asc" }, // FOCUS: Oldest modified first
       take: orbitLimit
     });
     for (const vf of verifiedFlash) {

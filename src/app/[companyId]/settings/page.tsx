@@ -163,6 +163,24 @@ export default function SettingsPage() {
 
       <div className="grid gap-8 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-12">
+          {/* Global Alerting Control */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <Card className="border-accent/20 bg-accent/5 backdrop-blur-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div className="space-y-1">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-accent" />
+                    Alerting Layer
+                  </CardTitle>
+                  <CardDescription>Enable or disable automated AI discoveries and task alerts.</CardDescription>
+                </div>
+                <Switch 
+                  checked={settings.isEnabled} 
+                  onCheckedChange={(checked) => saveSettings({ isEnabled: checked })}
+                  disabled={saving}
+                />
+              </CardHeader>
+            </Card>
           </motion.div>
 
           {/* Organization Settings */}

@@ -32,6 +32,9 @@ Strategic synthesis is governed by a three-pass autonomous loop, enforcing stric
 *   **Human-in-the-loop**: High-ambiguity data is routed to the **Review Stage**, where human operators provide the "ground truth" that the engine uses to learn.
 *   **Provenance**: Every flashcard and task is linked back to its original source material, ensuring verifiable intelligence.
 
+#### APERTUS Language Continuity
+The system adheres to the **APERTUS** principle of universal integration. Trinity agents dynamically detect the dominant language of the input context (regardless of whether it is Hungarian, English, German, or any other supported LLM language) and generate all intelligence in that same native language. This ensures linguistic and semantic continuity across the knowledge graph without artificial translation barriers.
+
 ---
 
 ## 🛠️ Architecture & Tech Stack

@@ -8,7 +8,7 @@ import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronDown, Sun, Moon, LogOut, User } from "lucide-react";
+import { ChevronDown, Sun, Moon, LogOut, User, Menu } from "lucide-react";
 
 const pipelineItems = [
   {
@@ -55,6 +55,7 @@ export function ClientNav() {
   const { isDark, toggle } = useTheme();
   const [session, setSession] = useState<any>(null);
   const [companyCount, setCompanyCount] = useState(0);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -80,87 +81,149 @@ export function ClientNav() {
   }
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-border/80 bg-background/85 backdrop-blur">
-      <div className="mx-auto max-w-7xl px-4 md:px-6">
-        <div className="flex min-h-16 items-center justify-between gap-3">
-          <Link href="/" className="font-display text-lg font-bold text-foreground">
+    <aside className={cn(
+      "relative shrink-0 border-r border-border/80 bg-background/85 backdrop-blur z-40 flex flex-col transition-all duration-300",
+      isCollapsed ? "w-16" : "w-64"
+    )}>
+      {/* Header */}
+      <div className="flex items-center justify-between h-16 px-4 border-b border-border/50 shrink-0">
+        {!isCollapsed && (
+          <Link href="/" className="font-display text-lg font-bold text-foreground truncate">
             Checklist
           </Link>
-
-          <div className="flex-1 flex items-center justify-center gap-1">
-            {company && (
-              <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border/80 bg-card/80 p-1 shadow-card">
-                <Link href={`/${company.id}`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-                  Dashboard
-                </Link>
-                {pipelineItems.map((item) => (
-                  <Link
-                    key={item.key}
-                    href={item.href(company.id)}
-                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5")}
-                  >
-                    <span className={cn("material-symbols-outlined text-[18px]", item.colorClass)} aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={toggle}
-              variant="ghost"
-              size="icon"
-              title={isDark ? "Light mode" : "Dark mode"}
-              className="rounded-full"
-            >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
-
-            {company && companyCount > 1 && (
-              <Button onClick={handleSwitchCompany} variant="secondary" size="sm" className="hidden md:flex min-w-[10rem] justify-between">
-                <span>{company.name}</span>
-                <ChevronDown className="w-3 h-3" />
-              </Button>
-            )}
-
-            {session && (
-              <div className="flex items-center gap-2 pl-3 border-l border-border/50">
-                <div className="text-right">
-                  <p className="text-xs font-semibold leading-none">{session.name}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1 lowercase">{session.email}</p>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  {session.picture ? (
-                    <Image
-                      src={session.picture}
-                      alt={session.name}
-                      width={32}
-                      height={32}
-                      className="w-full h-full rounded-full"
-                      unoptimized
-                    />
-                  ) : (
-                    <User className="w-4 h-4 text-primary" />
-                  )}
-                </div>
-                <Button 
-                  onClick={handleLogout}
-                  variant="ghost" 
-                  size="icon" 
-                  className="text-muted-foreground hover:text-destructive"
-                  title="Logout"
-                >
-                  <LogOut className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className={cn("h-8 w-8", isCollapsed && "mx-auto")}
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
       </div>
-    </nav>
+
+      {/* Main Nav */}
+      <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6">
+        {company && (
+          <div className="space-y-2">
+            {/* Company Switcher */}
+             <div className="mb-6 px-1">
+              {companyCount > 1 ? (
+                <Button 
+                  onClick={handleSwitchCompany} 
+                  variant="outline" 
+                  size="sm" 
+                  className={cn("w-full justify-start overflow-hidden border-border/50 shadow-sm", isCollapsed && "px-0 justify-center border-transparent shadow-none")}
+                  title={company.name}
+                >
+                  {isCollapsed ? (
+                    <span className="font-bold text-xs uppercase tracking-widest">{company.name.slice(0, 2)}</span>
+                  ) : (
+                    <>
+                      <span className="truncate flex-1 text-left font-semibold">{company.name}</span>
+                      <ChevronDown className="w-3 h-3 ml-2 shrink-0 opacity-50" />
+                    </>
+                  )}
+                </Button>
+              ) : (
+                 <div className="px-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate text-center">
+                   {isCollapsed ? company.name.slice(0, 2) : company.name}
+                 </div>
+              )}
+            </div>
+
+            {/* Dashboard Link - Now with requested space_dashboard icon */}
+            <Link
+              href={`/${company.id}`}
+              className={cn(
+                buttonVariants({ variant: pathname === `/${company.id}` ? "secondary" : "ghost", size: "sm" }),
+                "w-full justify-start gap-4 h-10",
+                isCollapsed && "justify-center px-0 hover:bg-zinc-800/50"
+              )}
+              title="Dashboard"
+            >
+              <span className="material-symbols-outlined text-[22px] text-zinc-400 shrink-0" aria-hidden="true">space_dashboard</span>
+              {!isCollapsed && <span className="font-medium">Dashboard</span>}
+            </Link>
+
+            {/* Pipeline Links */}
+            {pipelineItems.map((item) => {
+              const isActive = pathname.includes(item.key);
+              return (
+                <Link
+                  key={item.key}
+                  href={item.href(company.id)}
+                  className={cn(
+                    buttonVariants({ variant: isActive ? "secondary" : "ghost", size: "sm" }),
+                    "w-full justify-start gap-4 h-10 relative group",
+                    isCollapsed && "justify-center px-0 hover:bg-zinc-800/50"
+                  )}
+                  title={item.label}
+                >
+                  {isActive && !isCollapsed && (
+                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-foreground rounded-r-md" />
+                  )}
+                  <span className={cn("material-symbols-outlined text-[22px] shrink-0", item.colorClass, isActive && "scale-110 transition-transform")} aria-hidden="true">
+                    {item.icon}
+                  </span>
+                  {!isCollapsed && <span className={cn("font-medium transition-colors", isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{item.label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Footer Nav */}
+      <div className="p-3 border-t border-border/50 shrink-0 space-y-3 bg-zinc-950/20">
+         {/* Theme Toggle */}
+         <Button
+            onClick={toggle}
+            variant="ghost"
+            size="sm"
+            className={cn("w-full justify-start gap-4 h-10", isCollapsed && "justify-center px-0 hover:bg-zinc-800/50")}
+            title={isDark ? "Light mode" : "Dark mode"}
+          >
+            {isDark ? <Sun className="w-4 h-4 shrink-0 text-amber-500" /> : <Moon className="w-4 h-4 shrink-0 text-indigo-400" />}
+            {!isCollapsed && <span className="font-medium text-muted-foreground">Theme</span>}
+          </Button>
+          
+          {/* User Profile */}
+          {session && (
+            <div className={cn("flex flex-wrap items-center mt-2", isCollapsed ? "justify-center gap-3" : "gap-3 px-2")}>
+              <div className="w-9 h-9 shrink-0 rounded-full bg-primary/10 flex items-center justify-center border border-border/50 shadow-sm overflow-hidden">
+                {session.picture ? (
+                  <Image
+                    src={session.picture}
+                    alt={session.name}
+                    width={36}
+                    height={36}
+                    className="w-full h-full object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <User className="w-4 h-4 text-primary" />
+                )}
+              </div>
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold leading-none truncate">{session.name}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 lowercase truncate">{session.email}</p>
+                </div>
+              )}
+              <Button 
+                onClick={handleLogout}
+                variant="ghost" 
+                size="icon" 
+                className={cn("text-muted-foreground hover:text-destructive shrink-0", isCollapsed ? "w-full mt-2" : "h-8 w-8")}
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+      </div>
+    </aside>
   );
 }

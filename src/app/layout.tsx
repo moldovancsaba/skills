@@ -43,11 +43,13 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,600,1,0"
         />
       </head>
-      <body className={`${fontBody.variable} ${fontDisplay.variable} min-h-screen flex flex-col font-body`}>
+      <body className={`${fontBody.variable} ${fontDisplay.variable} h-screen flex font-body overflow-hidden`}>
         <ThemeProvider>
           <ClientNav />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <div className="flex-1 flex flex-col h-full overflow-y-auto min-w-0 bg-background relative">
+            <main className="flex-1 shrink-0">{children}</main>
+            <Footer />
+          </div>
           <CookieBanner />
         </ThemeProvider>
       </body>

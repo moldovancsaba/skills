@@ -30,6 +30,7 @@ model Company {
   lastAIVisited       DateTime?
   users               User[]
   communicationSettings CommunicationSettings?
+  allowedLanguages    String[]              @default(["English"])
 }
 
 

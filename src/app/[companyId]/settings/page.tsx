@@ -14,9 +14,12 @@ import {
   MessageSquare,
   Mail,
   Smartphone,
-  Webhook
+  Webhook,
+  Globe,
+  Languages
 } from "lucide-react";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,21 +44,35 @@ type CommunicationSettings = {
   bridgeSecret: string;
 };
 
+type CompanySettings = {
+  id: string;
+  name: string;
+  allowedLanguages: string[];
+};
+
 export default function SettingsPage() {
   const params = useParams();
   const router = useRouter();
   const companyId = params.companyId as string;
 
   const [settings, setSettings] = useState<CommunicationSettings | null>(null);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
 
   const fetchSettings = useCallback(async () => {
     try {
-      const res = await fetch(`/api/communication/settings?companyId=${companyId}`);
-      if (res.ok) {
-        setSettings(await res.json());
+      const [commRes, companyRes] = await Promise.all([
+        fetch(`/api/communication/settings?companyId=${companyId}`),
+        fetch(`/api/companies/${companyId}/settings`)
+      ]);
+      
+      if (commRes.ok) {
+        setSettings(await commRes.json());
+      }
+      if (companyRes.ok) {
+        setCompanySettings(await companyRes.json());
       }
     } catch (error) {
       console.error("Failed to load settings", error);
@@ -83,6 +100,26 @@ export default function SettingsPage() {
       }
     } catch (error) {
       toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveCompanySettings = async (updates: Partial<CompanySettings>) => {
+    if (!companySettings) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/companies/${companyId}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...companySettings, ...updates }),
+      });
+      if (res.ok) {
+        setCompanySettings(await res.json());
+        toast({ title: "Organization saved", description: "Language and organization settings updated." });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to save organization settings.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -126,23 +163,63 @@ export default function SettingsPage() {
 
       <div className="grid gap-8 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-12">
-          {/* Global Alerting Control */}
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card className="border-accent/20 bg-accent/5 backdrop-blur-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-accent" />
-                    Alerting Layer
-                  </CardTitle>
-                  <CardDescription>Enable or disable automated AI discoveries and task alerts.</CardDescription>
+          </motion.div>
+
+          {/* Organization Settings */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+            <Card className="border-accent/20 bg-accent/5 backdrop-blur-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-5">
+                <Globe className="h-32 w-32" />
+              </div>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-accent/10">
+                    <Languages className="h-5 w-5 text-accent" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Language Management</CardTitle>
+                    <CardDescription>Define which languages the AI is allowed to use for intelligence synthesis.</CardDescription>
+                  </div>
                 </div>
-                <Switch 
-                  checked={settings.isEnabled} 
-                  onCheckedChange={(checked) => saveSettings({ isEnabled: checked })}
-                  disabled={saving}
-                />
               </CardHeader>
+              <CardContent className="space-y-6 relative z-10">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold text-zinc-300">Allowed Languages</Label>
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-tighter border-zinc-700">
+                      {companySettings?.allowedLanguages.length || 0} Enabled
+                    </Badge>
+                  </div>
+                  
+                  <LanguageSelector 
+                    selectedIds={companySettings?.allowedLanguages || []}
+                    onChange={(ids) => {
+                      if (companySettings) {
+                        setCompanySettings({ ...companySettings, allowedLanguages: ids });
+                      }
+                    }}
+                    disabled={saving}
+                  />
+                  
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={() => saveCompanySettings({ allowedLanguages: companySettings?.allowedLanguages })}
+                      disabled={saving || !companySettings}
+                      className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs uppercase tracking-widest"
+                    >
+                      {saving ? "Saving..." : "Apply Language Policy"}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-950/30">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Policy Enforcement</h4>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    AI agents will strictly use only these permitted languages for <span className="text-accent underline decoration-accent/30 underline-offset-4">flashcards</span>, <span className="text-accent underline decoration-accent/30 underline-offset-4">subjectcards</span>, and <span className="text-accent underline decoration-accent/30 underline-offset-4">taskcards</span>. 
+                    If source data is provided in a disallowed language, the AI will automatically translate and synthesize the output into the permitted set.
+                  </p>
+                </div>
+              </CardContent>
             </Card>
           </motion.div>
 

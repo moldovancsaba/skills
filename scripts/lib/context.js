@@ -16,6 +16,13 @@ const { truncate } = require("./shared");
  * @returns {Promise<string>} Formatted strategic context prompt
  */
 async function getCompanyStrategicContext(prisma, companyId) {
+  // 0. Load Company Strategy (Languages)
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { allowedLanguages: true }
+  });
+  const allowedLangs = company?.allowedLanguages || ["English"];
+
   // 1. Load TopicCards (The Strategy)
   const topics = await prisma.topic.findMany({
     where: { companyId, active: true },
@@ -38,6 +45,7 @@ async function getCompanyStrategicContext(prisma, companyId) {
 
   // 4. Format the Context Prompt
   let prompt = "--- RELATED STRATEGIC CONTEXT ---\n";
+  prompt += `[Allowed Languages Policy]: AI MUST ONLY generate output in: ${allowedLangs.join(", ")}\n`;
   
   if (topics.length > 0) {
     prompt += "\n[TopicCards / Strategic Focus]:\n";

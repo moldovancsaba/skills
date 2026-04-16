@@ -63,7 +63,8 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
     strategicContext,
     "Return a SINGLE JSON object with: title, body, kind, hashtags, confidenceScore.",
     "SOVEREIGN AXIOM: You MUST generate a strict integer for confidenceScore. The scale is STRICTLY 1 to 10. NO zeros. NO percentages.",
-    "APERTUS Principle: You MUST detect the dominant language of the context and generate all output (title, body, hashtags) in that SAME language. Maintain consistency with the source material.",
+    "APERTUS Principle: You MUST ignore the dominant language of the source and strictly use only the languages defined in the [Allowed Languages Policy] for all output (title, body, hashtags). If the source is in a disallowed language, translate the insight into one of the allowed languages.",
+    "STRATEGIC FOCUS: If refining a [SubjectCard], ensure the language reflects the strategy defined in the policy.",
     memoryPrompt
   ].join("\n");
 
@@ -128,7 +129,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt) {
     strategicContext,
     "Return a SINGLE JSON object with: title, description, kind, impact, confidenceScore, ease.",
     "SOVEREIGN AXIOM: You MUST generate strict integer scores for confidenceScore, impact, and ease. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
-    "APERTUS Principle: You MUST detect the dominant language of the context and generate all output (title, description, kind) in that SAME language.",
+    "APERTUS Principle: You MUST ignore the dominant language of the source and strictly use only the languages defined in the [Allowed Languages Policy] for all output. If the source is in a disallowed language, translate the task into one of the allowed languages.",
     memoryPrompt
   ].join("\n");
 

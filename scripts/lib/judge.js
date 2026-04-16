@@ -40,7 +40,7 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
     strategicContext,
     "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
     "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
-    "APERTUS Principle: You MUST detect the language of the card and generate all reasoning/feedback in that SAME language.",
+    "APERTUS Principle: You MUST verify that the card strictly uses the languages defined in the [Allowed Languages Policy]. If the card contains disallowed languages, you MUST REJECT it. Your reasoning and feedback MUST ALSO be in one of the allowed languages.",
     memoryPrompt
   ].join("\n");
 
@@ -110,7 +110,7 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
     strategicContext,
     "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
     "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
-    "APERTUS Principle: You MUST detect the language of the card and generate all reasoning/feedback in that SAME language.",
+    "APERTUS Principle: You MUST verify that the card strictly uses the languages defined in the [Allowed Languages Policy]. If the card contains disallowed languages, you MUST REJECT it. Your reasoning and feedback MUST ALSO be in one of the allowed languages.",
     memoryPrompt
   ].join("\n");
 

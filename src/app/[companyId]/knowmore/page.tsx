@@ -40,7 +40,6 @@ import { getDashboardExpertTip } from "@/content/help";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { useStore } from "@/lib/store";
 import React from "react";
-import { SynthesisStatus } from "@/components/synthesis-status";
 
 type Company = {
   id: string;
@@ -499,7 +498,6 @@ export default function CompanyKnowMorePage() {
           backLabel="Back"
           title="Knowmore"
           description={`Flashcards and knowledge slices for ${company?.name ?? "this company"}.`}
-          actions={<SynthesisStatus />}
         />
       </motion.div>
 

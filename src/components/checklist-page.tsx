@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
-import { SynthesisStatus } from "@/components/synthesis-status";
 
 /**
  * Representational interface for a tactical intelligence unit (Task).
@@ -257,7 +256,6 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           description={`${filteredItems.length} ${archived ? "archived" : "pending"} checklist items`}
           actions={
             <>
-              <SynthesisStatus />
               {archived ? (
                 <Button asChild variant="ghost" size="sm">
                   <Link href={`/${companyId}/nba`}>Open Active Checklist</Link>

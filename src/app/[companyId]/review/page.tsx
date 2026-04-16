@@ -9,7 +9,6 @@ import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardActions } from "@/components/ui/unified-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SynthesisStatus } from "@/components/synthesis-status";
 import { FormInput } from "@/components/ui/form-fields";
 
 export default function ReviewDashboard() {
@@ -100,7 +99,6 @@ export default function ReviewDashboard() {
           title="Axiom Review Gateway" 
           description="Resolve intelligence items where the AI elected not to assign strict mathematical scoring parameters. You must supply a 1-10 boundary score for each item to return it to autonomous flow." 
         />
-        <SynthesisStatus />
       </motion.div>
 
       {loading ? (

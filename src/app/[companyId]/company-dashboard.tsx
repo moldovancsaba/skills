@@ -25,7 +25,6 @@ import {
   UnifiedGrid,
 } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
-import { SynthesisStatus } from "@/components/synthesis-status";
 import { MemberList } from "@/components/member-list";
 
 type NBAItem = {
@@ -219,7 +218,6 @@ export default function CompanyDashboard() {
           description="Integrated intelligence layers: Data, Topics, Knowmore, and Checklist."
           backHref={companyCount > 1 ? "/" : undefined}
           backLabel="Switch company"
-          actions={<SynthesisStatus />}
         />
       </motion.div>
 

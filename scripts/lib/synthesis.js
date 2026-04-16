@@ -4,6 +4,7 @@ const { refineDraftFlashCard, refineDraftTaskCard } = require("./writer");
 const { auditCheckedFlashCard, auditCheckedTaskCard } = require("./judge");
 const { getWorkerConfig } = require("./shared");
 const { runMaintenance } = require("./maintenance");
+const { OLLAMA_MODEL } = require("./core");
 
 /**
  * SOVEREIGN SYNTHESIS ENGINE
@@ -14,7 +15,7 @@ const { runMaintenance } = require("./maintenance");
  */
 
 // --- GLOBAL STATE ---
-let synthesisState = {
+var synthesisState = {
   state: "idle",
   stage: "IDLE",
   pass: 0,
@@ -34,11 +35,56 @@ function getSynthesisProgress() {
 }
 
 /**
+ * Aggregates global worker configuration settings for reporting.
+ * 
+ * @param {PrismaClient} prisma - Database client instance
+ * @returns {Promise<object>} Map of active worker settings
+ */
+async function collectGlobalWorkerSettings(prisma) {
+  const pollIntervalSec = await getWorkerConfig(prisma, {}, "loop_interval_ms", 600000) / 1000;
+  const ollamaTimeout = await getWorkerConfig(prisma, {}, "ollama_timeout_ms", 120000);
+
+  return {
+    supervisorContractVersion: 1,
+    schedulingMode: "company-serial-cycle",
+    companyCycleCooldownMs: pollIntervalSec * 1000,
+    researchHarvestBatchSize: 1,
+    ollamaTimeoutMs: ollamaTimeout,
+    failsafeModel: `${OLLAMA_MODEL},llama3.2:3b`,
+    failsafeTimeoutMs: 90000,
+    failsafeMaxAttempts: 2,
+    taskMinIceScore: await getWorkerConfig(prisma, {}, "task_min_ice", 50),
+    flashcardMinConfidence: await getWorkerConfig(prisma, {}, "flashcard_min_confidence", 40),
+    flashcardMinImpact: await getWorkerConfig(prisma, {}, "flashcard_min_impact", 40),
+    flashcardMinWeight: await getWorkerConfig(prisma, {}, "flashcard_min_weight", 40),
+    stuckRunningMs: 15 * 60 * 1000,
+    noProgressMs: 180 * 60 * 1000,
+    flashcardRevisitBatchSize: await getWorkerConfig(prisma, {}, "flashcard_revisit_batch_size", 1),
+    taskRevisitBatchSize: await getWorkerConfig(prisma, {}, "task_revisit_batch_size", 1),
+    feedbackReplayBatchSize: await getWorkerConfig(prisma, {}, "feedback_replay_batch_size", 1),
+    hashtagMaintenanceBatchSize: await getWorkerConfig(prisma, {}, "hashtag_maintenance_batch_size", 1),
+    cleanupBatchSize: await getWorkerConfig(prisma, {}, "cleanup_batch_size", 1),
+    flashcardRevisitIntervalMinutes: await getWorkerConfig(prisma, {}, "flashcard_revisit_interval_minutes", 0),
+    taskRevisitIntervalMinutes: await getWorkerConfig(prisma, {}, "task_revisit_interval_minutes", 0),
+    feedbackReplayIntervalMinutes: await getWorkerConfig(prisma, {}, "feedback_replay_interval_minutes", 0),
+    hashtagMaintenanceIntervalHours: await getWorkerConfig(prisma, {}, "hashtag_maintenance_interval_hours", 0),
+    cleanupIntervalHours: await getWorkerConfig(prisma, {}, "cleanup_interval_hours", 0),
+    factcheckMinCitations: await getWorkerConfig(prisma, {}, "factcheck_min_citations", 2),
+    factcheckMinDomains: await getWorkerConfig(prisma, {}, "factcheck_min_domains", 2)
+  };
+}
+
+/**
  * Persists the current synthesis state to the database global settings.
  * This acts as the Source of Truth for the cloud-based webapp (Vercel).
  */
 async function syncSynthesisStateToDb(prisma) {
   try {
+    if (!synthesisState) {
+      console.warn("[WORKER] [SYNC] synthesisState not initialized, skipping DB sync...");
+      return;
+    }
+    const settings = await collectGlobalWorkerSettings(prisma);
     const data = {
       state: synthesisState.state,
       stage: synthesisState.stage,
@@ -46,7 +92,9 @@ async function syncSynthesisStateToDb(prisma) {
       lastProgressAt: synthesisState.lastProgressAt,
       currentCompany: synthesisState.currentCompany,
       cycleCount: synthesisState.cycleCount,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      researchEnabled: process.env.CHECKLIST_RESEARCH_ENABLED === "true",
+      settings
     };
     
     await prisma.globalSetting.upsert({
@@ -258,6 +306,7 @@ module.exports = {
   runSynthesisCycle,
   processCompanySynthesis,
   getSynthesisProgress,
+  collectGlobalWorkerSettings,
   syncSynthesisStateToDb,
   synthesisState
 };

@@ -19,7 +19,7 @@ const DEFAULT_IDLE_INTERVAL = 300000;      // 5 minutes default
  * Main entry point for the background AI synthesis loop.
  * Orchestrates the recurring execution of the Trinity pipeline and serves health metrics.
  */
-const { runSynthesisCycle, getSynthesisProgress, syncSynthesisStateToDb, synthesisState } = require("./lib/synthesis");
+const { runSynthesisCycle, getSynthesisProgress, collectGlobalWorkerSettings, syncSynthesisStateToDb, synthesisState } = require("./lib/synthesis");
 const { scrubDatabase } = require("./lib/maintenance");
 
 // --- CONTINUOUS HEARTBEAT ---
@@ -58,8 +58,10 @@ async function runWorkerLoop() {
       const reanimateSignal = await prisma.globalSetting.findUnique({ where: { key: "core_synthesis_reanimate_requested_at" } });
       if (reanimateSignal) {
         const signalTime = new Date(reanimateSignal.value.timestamp).getTime();
-        if (signalTime > lastCycleStartTime) {
-          console.log(`[DEFIBRILLATOR] Manual reanimation detected in DB. Waking up...`);
+        const isFresh = signalTime > lastCycleStartTime;
+        
+        if (isFresh) {
+          console.log(`[DEFIBRILLATOR] Manual reanimation detected in DB (Signal: ${new Date(signalTime).toISOString()}, Last Cycle: ${new Date(lastCycleStartTime).toISOString()}). Waking up...`);
           break; // Exit idle loop to start new cycle
         }
       }
@@ -79,8 +81,7 @@ const server = http.createServer(async (req, res) => {
   if (req.url === "/health" && req.method === "GET") {
     // Contract v1 Health Response for mvp-factory-control
     const progress = getSynthesisProgress();
-    const pollIntervalSec = await getWorkerConfig(prisma, {}, "loop_interval_ms", DEFAULT_LOOP_INTERVAL) / 1000;
-    const ollamaTimeout = await getWorkerConfig(prisma, {}, "ollama_timeout_ms", 120000);
+    const settings = await collectGlobalWorkerSettings(prisma);
 
     const health = {
       researchEnabled: process.env.CHECKLIST_RESEARCH_ENABLED === "true",
@@ -92,34 +93,7 @@ const server = http.createServer(async (req, res) => {
         currentCompany: progress.currentCompany,
         cycleCount: progress.cycleCount
       },
-      settings: {
-        supervisorContractVersion: 1,
-        schedulingMode: "company-serial-cycle",
-        companyCycleCooldownMs: pollIntervalSec * 1000,
-        researchHarvestBatchSize: 1,
-        ollamaTimeoutMs: ollamaTimeout,
-        failsafeModel: `${OLLAMA_MODEL},llama3.2:3b`,
-        failsafeTimeoutMs: 90000,
-        failsafeMaxAttempts: 2,
-        taskMinIceScore: await getWorkerConfig(prisma, {}, "task_min_ice", 50),
-        flashcardMinConfidence: await getWorkerConfig(prisma, {}, "flashcard_min_confidence", 40),
-        flashcardMinImpact: await getWorkerConfig(prisma, {}, "flashcard_min_impact", 40),
-        flashcardMinWeight: await getWorkerConfig(prisma, {}, "flashcard_min_weight", 40),
-        stuckRunningMs: 15 * 60 * 1000,
-        noProgressMs: 180 * 60 * 1000,
-        flashcardRevisitBatchSize: await getWorkerConfig(prisma, {}, "flashcard_revisit_batch_size", 1),
-        taskRevisitBatchSize: await getWorkerConfig(prisma, {}, "task_revisit_batch_size", 1),
-        feedbackReplayBatchSize: await getWorkerConfig(prisma, {}, "feedback_replay_batch_size", 1),
-        hashtagMaintenanceBatchSize: await getWorkerConfig(prisma, {}, "hashtag_maintenance_batch_size", 1),
-        cleanupBatchSize: await getWorkerConfig(prisma, {}, "cleanup_batch_size", 1),
-        flashcardRevisitIntervalMinutes: await getWorkerConfig(prisma, {}, "flashcard_revisit_interval_minutes", 0),
-        taskRevisitIntervalMinutes: await getWorkerConfig(prisma, {}, "task_revisit_interval_minutes", 0),
-        feedbackReplayIntervalMinutes: await getWorkerConfig(prisma, {}, "feedback_replay_interval_minutes", 0),
-        hashtagMaintenanceIntervalHours: await getWorkerConfig(prisma, {}, "hashtag_maintenance_interval_hours", 0),
-        cleanupIntervalHours: await getWorkerConfig(prisma, {}, "cleanup_interval_hours", 0),
-        factcheckMinCitations: await getWorkerConfig(prisma, {}, "factcheck_min_citations", 2),
-        factcheckMinDomains: await getWorkerConfig(prisma, {}, "factcheck_min_domains", 2)
-      }
+      settings
     };
 
     res.writeHead(200, { "Content-Type": "application/json" });

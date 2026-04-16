@@ -1,85 +1,85 @@
-# Sovereign Marketing OS
+# 🌌 Sovereign Marketing OS
 
 > **The Decentralized Intelligence Layer for Strategic Marketing.**
 
-Sovereign Marketing OS is an open-source, high-performance, autonomous intelligence system designed to bridge the gap between raw market evidence and executive-level strategy. It leverages a unique **Online/Local split-architecture** to ensure maximum privacy, data sovereignty, and high-quality AI reasoning.
+Sovereign Marketing OS is a high-performance, private-first autonomous intelligence system. It bridges the gap between raw market evidence and executive strategy by leveraging a unique **Online/Local split-architecture**. This ensures data sovereignty while providing access to state-of-the-art AI reasoning.
 
-## 🌟 Overview
+---
 
-Unlike traditional "SaaS" tools that process your proprietary business data in the cloud, Sovereign Marketing OS treats your data as a strategic asset.
+## 🏛️ Core Philosophy: Sovereign Mode
+Unlike traditional SaaS tools that ingest your proprietary data into a central cloud, Sovereign Marketing OS treats your data as a protected strategic asset.
 
-1. **Passive Ingress**: The webapp captures user intent and raw signals without expensive cloud-side processing.
-2. **Local Authority**: All complex reasoning, ICE scoring, and knowledge synthesis occur securely on your local hardware via the **Trinity Engine**.
-3. **The Pulse**: A real-time bridge communicates the state of the local synthesis worker directly to your dashboard via MongoDB, providing transparency into the autonomous thinking process without direct network exposure.
+1.  **Passive Ingress**: The cloud-side web interface captures signals and intent without processing proprietary logic in the cloud.
+2.  **Local Authority (Trinity Engine)**: All deep reasoning, ICE scoring, and knowledge synthesis occur on **your private infrastructure** (Local AI).
+3.  **The Pulse**: A real-time, one-way bridge synchronizes the state of your local intelligence engine to the cloud dashboard, providing total transparency without exposing your network.
 
-## 🌪️ Trinity Synthesis Pipeline
+---
 
-The system's core intelligence is governed by a three-pass autonomous loop, enforcing strict mathematical boundaries (Axioms):
+## 🌪️ The AI Trinity Pipeline
+Strategic synthesis is governed by a three-pass autonomous loop, enforcing strict mathematical boundaries (Axioms).
 
-| Pass | Agent | Objective |
+| Agent | Pass | Role & Objective |
 | :--- | :--- | :--- |
-| **Pass 1** | **DRAFTER** | Scrubs raw sources, entities, and uploaded files to identify atomic insights and predict initial 1-10 metrics. |
-| **Pass 2** | **WRITER** | Refines language, drops duplicates, and strictly calculates priority (Impact × Confidence × Ease). |
-| **Pass 3** | **JUDGE** | Hardens the knowledge layer by rejecting low-confidence items and enforcing a statistical quality floor. Demoted items are cratered and removed from active flow. |
+| **DRAFTER** | Pass 1 | **Evidence Extraction**: Scrubs raw sources, transcripts, and files to identify atomic insights and predict initial 1-10 metrics. |
+| **WRITER** | Pass 2 | **Strategic Synthesis**: Refines language, eliminates duplicates, and strictly calculates the **ICE Priority Score**. |
+| **JUDGE** | Pass 3 | **Quality Audit**: Hardens the knowledge layer by rejecting low-confidence items and enforcing a statistical quality floor. |
 
-## 🗺️ Product Architecture
+---
 
-The system operates across five distinct intelligence layers:
+## 💎 Core Axioms (The Rules of Intelligence)
+*   **Mathematical Merit**: No item is promoted without a calculated ICE Score (Impact × Confidence × Ease).
+*   **Default Skepticism**: New entities start with a "Quality Floor" check. If the Judge cannot verify the value, the item remains in **Review**.
+*   **Human-in-the-loop**: High-ambiguity data is routed to the **Review Stage**, where human operators provide the "ground truth" that the engine uses to learn.
+*   **Provenance**: Every flashcard and task is linked back to its original source material, ensuring verifiable intelligence.
 
-1. **Data (Ingress)**: Raw market evidence, product docs, customer feedback, and competitor signals.
-2. **Topics (Strategy)**: User-defined research focus areas that guide the AI's processing budget.
-3. **Review (The Human Circuit)**: A fail-safe mechanism where items that the AI cannot mathematically score are routed for manual human annotation.
-4. **Knowmore (Knowledge)**: The synthesized layer of atomic flashcards, carrying verifiable confidence scores and provenance.
-5. **Checklist (Action)**: Next-Best-Action recommendations ranked by **ICE Score**.
+---
 
-## 🛠️ Tech Stack & Operations
+## 🛠️ Architecture & Tech Stack
 
-This project is built for scale, performance, and security.
+*   **Intelligence Layer**: Local `Ollama` running specialized agent models (Drafter, Writer, Judge).
+*   **Frontend**: Next.js 16 (App Router) + React 18 + TailwindCSS.
+*   **Design**: Unified "Deep Dark" aesthetics with dynamic ICE color mapping.
+*   **Persistence**: Prisma + MongoDB Atlas (Decoupled command-and-control).
 
-- **Frontend**: Next.js 16.2 (App Router) + React 18 + TailwindCSS.
-- **Design Primitives**: Unified "Deep Dark" styling with dynamic Sovereign ICE color metric mapping.
-- **Core Engine**: Local `Ollama` running specialized, fine-tuned agent prompts.
-- **Persistence**: `Prisma` + `MongoDB Atlas` (Decoupled command-and-control).
+---
 
-## 🚀 Getting Started (Developers & Operators)
+## 🚀 Deployment & Operations
 
 ### 1. Prerequisites
-- Node.js (v18+)
-- MongoDB Atlas cluster URL
-- Ollama installed locally
+*   Node.js v18+
+*   MongoDB Atlas Connection String
+*   Ollama (installed on private local infrastructure)
 
-### 2. Setup
-Clone the repository and install dependencies:
+### 2. Setup & Installation
 ```bash
 git clone https://github.com/sovereignsquad/checklist.git
 cd checklist
 npm install
 ```
 
-### 3. Database Migration
-Ensure your local `.env` contains your `DATABASE_URL`, then push the schema:
+### 3. Database Sync
 ```bash
+# Push schema to your MongoDB instance
 npm run db:push
 npm run db:generate
 ```
 
-### 4. Run the Ecosystem
-Start the Web App:
+### 4. Igniting the Engine
+Start the web dashboard:
 ```bash
 npm run dev
 ```
 
-In a separate terminal, ignite the local AI Trinity Engine background loop:
+In a separate terminal, ignite the local **Trinity Engine** background loop:
 ```bash
 npm run background
 ```
 
-## 📖 Documentation Directory
-For deep architectural dives, refer to our extended internal specs:
-- `SPEC.md`: Product and system specification schemas.
-- `docs/ONBOARDING.md`: Detailed operator setup.
-- `docs/LOCAL_AI_PIPELINE.md`: Breakdown of the online/local orchestration loop.
-- `DESIGN_SYSTEM.md`: UI grammar and component rules.
-
 ---
+
+## 🗺️ Product Roadmap
+*   [x] **v0.11.0**: Sovereign Pulse implementation & Trinity Hardening.
+*   [ ] **v0.12.0**: Advanced Multi-Tenant signal ingestion & Predictive Industry Tagging.
+*   [ ] **v1.0.0**: Fully autonomous executive summary generation.
+
 *Built with precision by Sovereign Squad.*

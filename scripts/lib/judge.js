@@ -9,6 +9,7 @@
 const { callOllamaJson } = require("./ai");
 const { getCompanyStrategicContext } = require("./context");
 const { getWorkerConfig, calculatePercentile, parseBoundedInt } = require("./shared");
+const { unifyObject } = require("./synthesis-utils");
 
 // --- AUDITING ENGINE ---
 
@@ -39,12 +40,14 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
     strategicContext,
     "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
     "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
+    `IMPORTANT: Since the company is "magyar nyelv" or related content is in Hungarian, you MUST generate the reasoning in Hungarian.`,
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `Title: ${flashCard.title}\nBody: ${flashCard.body}`;
 
-  const raw = await callOllamaJson(systemPrompt, userPrompt);
+  const res = await callOllamaJson(systemPrompt, userPrompt);
+  const raw = unifyObject(res);
   if (!raw || !raw.decision) return { processingStatus: "CHECKED" }; 
 
   let finalScore;
@@ -107,12 +110,14 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
     strategicContext,
     "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
     "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
+    `IMPORTANT: Since the company is "magyar nyelv" or related content is in Hungarian, you MUST generate the reasoning in Hungarian.`,
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `Title: ${taskCard.title}\nDescription: ${taskCard.description}`;
 
-  const raw = await callOllamaJson(systemPrompt, userPrompt);
+  const res = await callOllamaJson(systemPrompt, userPrompt);
+  const raw = unifyObject(res);
   if (!raw || !raw.decision) return { processingStatus: "CHECKED" };
 
   let finalScore;

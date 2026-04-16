@@ -9,6 +9,7 @@ const crypto = require("crypto");
 const { callOllamaJson } = require("./ai");
 const { truncate, hashValue, nextPublicId, getWorkerConfig, parseBoundedInt } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
+const { unifyArray } = require("./synthesis-utils");
 
 // --- UTILITIES ---
 
@@ -56,12 +57,14 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
     "If the intelligence already exists in the provided context, do NOT duplicate it.",
     "You may propose MULTIPLE FlashCards if the raw data contains distinct insights.",
     "Format: Return a JSON array of objects.",
+    `IMPORTANT: Since the company is "${company.name}", you MUST generate the content in the same language as the context (Hungarian).`,
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `Company: ${company.name}\nDataCard Context: ${truncate(dataCard.content, 1500)}`;
 
-  const rawArray = await callOllamaJson(systemPrompt, userPrompt);
+  const raw = await callOllamaJson(systemPrompt, userPrompt);
+  const rawArray = unifyArray(raw);
   if (!Array.isArray(rawArray)) return [];
 
   const drafts = [];
@@ -124,12 +127,14 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     "Check the context carefully. Do NOT draft a task that is already present.",
     "You may propose MULTIPLE TaskCards if appropriate.",
     "Format: Return a JSON array of objects.",
+    `IMPORTANT: Since the company is "${company.name}", you MUST generate the content in the same language as the context (Hungarian).`,
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `Company: ${company.name}\nFlashCard: ${flashCard.title}\nInsight: ${flashCard.body}`;
 
-  const rawArray = await callOllamaJson(systemPrompt, userPrompt);
+  const raw = await callOllamaJson(systemPrompt, userPrompt);
+  const rawArray = unifyArray(raw);
   if (!Array.isArray(rawArray)) return [];
 
   const drafts = [];

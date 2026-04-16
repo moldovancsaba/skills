@@ -21,6 +21,7 @@ import {
   UnifiedCardText,
 } from "@/components/ui/unified-card";
 import { cn } from "@/lib/utils";
+import { getIceColorClasses } from "@/lib/ice-colors";
 
 /**
  * Valid action modes for task feedback.
@@ -100,7 +101,7 @@ export function TaskReviewCard({
       <Badge variant="secondary" className="font-mono text-[10px] tracking-wider border-zinc-200/20 bg-zinc-800 text-zinc-300">
         TASK
       </Badge>
-      <div className="ml-auto flex items-center gap-3 text-[10px] font-bold text-violet-400 uppercase tracking-tighter bg-violet-500/10 px-2 py-0.5 rounded-md border border-violet-500/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">
+      <div className={cn("ml-auto flex items-center gap-3 text-[10px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md border", getIceColorClasses(item.iceScore))}>
         <span>ICE {Math.round(item.iceScore)}</span>
       </div>
     </>

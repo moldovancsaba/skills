@@ -1,6 +1,7 @@
 import { Check, Loader2, MessageSquare, PencilLine, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { getMetricColorClasses } from "@/lib/ice-colors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormInput, FormTextarea } from "@/components/ui/form-fields";
@@ -150,9 +151,9 @@ export function KnowledgeReviewCard({
                 Sovereign research
               </Badge>
             )}
-            <div className="ml-auto flex items-center gap-3 text-[10px] font-medium text-muted-foreground/60 uppercase tracking-tighter">
+            <div className={cn("ml-auto flex items-center gap-3 text-[10px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md border", getMetricColorClasses(flashcard.confidenceScore))}>
               <span>Impact {flashcard.impact}</span>
-              <span>Confidence {Math.round(flashcard.confidenceScore)}%</span>
+              <span>Confidence {flashcard.confidenceScore}</span>
             </div>
           </div>
         }

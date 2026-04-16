@@ -7,17 +7,13 @@
  */
 const crypto = require("crypto");
 const { callOllamaJson } = require("./ai");
-const { truncate, hashValue, nextPublicId, getWorkerConfig } = require("./shared");
+const { truncate, hashValue, nextPublicId, getWorkerConfig, parseBoundedInt } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 
 // --- UTILITIES ---
 
 /**
  * Normalizes complex AI-returned body content into a professional string.
- * Handles strings, arrays of items/keys, and raw objects.
- * 
- * @param {any} body - Raw body content from AI
- * @returns {string} Formatted string
  */
 function joinBody(body) {
   if (typeof body === "string") return body;
@@ -39,12 +35,6 @@ function joinBody(body) {
 /**
  * Generates one or more Flashcard DRAFTs from a raw Source or File.
  * Aligns extraction with the company's current strategic TopicCards.
- * 
- * @param {PrismaClient} prisma - Database client
- * @param {object} company - Company database record
- * @param {object} dataCard - Raw source or file record
- * @param {string} memoryPrompt - Contextual AI memory injection
- * @returns {Promise<object[]>} Array of drafted Flashcard objects
  */
 async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPrompt) {
   const bodyLimit = await getWorkerConfig(prisma, company, "draft_body_limit", 1200);
@@ -62,10 +52,10 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
     strategicContext,
     skillPrompt,
     "Required fields: title, body, kind, confidence, impact, weight, hashtags.",
+    "SOVEREIGN AXIOM: You MUST generate strict integer scores for confidence, impact, and weight. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
     "If the intelligence already exists in the provided context, do NOT duplicate it.",
     "You may propose MULTIPLE FlashCards if the raw data contains distinct insights.",
     "Format: Return a JSON array of objects.",
-    "Status will be DRAFT.",
     memoryPrompt
   ].join("\n");
 
@@ -79,24 +69,37 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
     if (!raw.title || !raw.body) continue;
     const publicId = await nextPublicId(prisma, "Flashcard");
     
+    let confidence, impact, weight;
+    let procStatus = "DRAFT";
+    
+    try {
+      confidence = parseBoundedInt(raw.confidence, 1, 10);
+      impact = parseBoundedInt(raw.impact, 1, 10);
+      weight = parseBoundedInt(raw.weight, 1, 10);
+    } catch (e) {
+      // Axiom 2: Human Review Circuit
+      confidence = 1; impact = 1; weight = 1;
+      procStatus = "REVIEW";
+    }
+    
     drafts.push({
       id: crypto.randomUUID(),
       publicId,
       companyId: company.id,
       title: truncate(raw.title, 160),
       body: truncate(joinBody(raw.body), bodyLimit),
-      confidenceScore: parseFloat(raw.confidence) || 50,
-      impact: parseInt(raw.impact) || 5,
-      weight: parseInt(raw.weight) || 5,
-      processingStatus: "DRAFT",
+      confidenceScore: confidence, // Reusing confidenceScore as strict 1-10 metric
+      confidence: confidence,
+      impact: impact,
+      weight: weight,
+      processingStatus: procStatus,
       activityState: "ACTIVE",
-      status: "DRAFT", // Internal Sync
-      reviewStatus: "PENDING", // Legacy Sync
+      status: "ACTIVE", 
+      reviewStatus: "PENDING", 
       kind: String(raw.kind || "SUMMARY").toUpperCase(), 
       hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : [],
       fingerprint: hashValue(`EVO:FC:${company.id}:${dataCard.id}:${raw.title}`),
       createdBy: "drafter-agent",
-      // Link info for later
       sourceId: dataCard.id,
       sourceType: "SOURCE"
     });
@@ -107,12 +110,6 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
 /**
  * Generates actionable TaskCard (NBA) DRAFTs from a verified Flashcard.
  * Transforms static knowledge into strategic operational tasks.
- * 
- * @param {PrismaClient} prisma - Database client
- * @param {object} company - Company database record
- * @param {object} flashCard - Source Flashcard for task induction
- * @param {string} memoryPrompt - Contextual AI memory injection
- * @returns {Promise<object[]>} Array of drafted TaskCard objects
  */
 async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryPrompt) {
   const descLimit = await getWorkerConfig(prisma, company, "draft_desc_limit", 1200);
@@ -123,10 +120,10 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     "Your tasks MUST be strategically aligned with the company's TopicCards and existing work:",
     strategicContext,
     "Required fields: title, description, kind, impact, confidence, ease.",
+    "SOVEREIGN AXIOM: You MUST generate strict integer scores for confidence, impact, and ease. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
     "Check the context carefully. Do NOT draft a task that is already present.",
     "You may propose MULTIPLE TaskCards if appropriate.",
     "Format: Return a JSON array of objects.",
-    "Status will be DRAFT.",
     memoryPrompt
   ].join("\n");
 
@@ -140,6 +137,20 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     if (!raw.title || !raw.description) continue;
     const publicId = await nextPublicId(prisma, "NBAItem");
 
+    let confidence, impact, ease, iceScore;
+    let procStatus = "DRAFT";
+    
+    try {
+      confidence = parseBoundedInt(raw.confidence, 1, 10);
+      impact = parseBoundedInt(raw.impact, 1, 10);
+      ease = parseBoundedInt(raw.ease, 1, 10);
+      iceScore = impact * confidence * ease;
+    } catch (e) {
+      // Axiom 2: Human Review Circuit
+      confidence = 1; impact = 1; ease = 1; iceScore = 1;
+      procStatus = "REVIEW";
+    }
+
     drafts.push({
       id: crypto.randomUUID(),
       publicId,
@@ -147,12 +158,14 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       title: truncate(raw.title, 160),
       description: truncate(joinBody(raw.description), descLimit),
       kind: String(raw.kind || "TASK").toUpperCase(),
-      impact: parseInt(raw.impact) || 5,
-      confidenceScore: parseFloat(raw.confidence) || 50,
-      ease: parseInt(raw.ease) || 5,
-      processingStatus: "DRAFT",
+      impact: impact,
+      confidenceScore: confidence,
+      confidence: confidence, // syncing both for legacy columns
+      ease: ease,
+      iceScore: iceScore,
+      processingStatus: procStatus,
       activityState: "ACTIVE",
-      status: "DRAFT", // Internal Sync
+      status: "PENDING", 
       createdBy: "drafter-agent",
       fingerprint: hashValue(`EVO:TC:${company.id}:${flashCard.id}:${raw.title}`)
     });

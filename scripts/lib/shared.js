@@ -117,23 +117,24 @@ function mergeHashtags(...groups) {
 // --- SCORING & SCALING ---
 
 /**
- * Clamps an integer between bounds with a fallback.
+ * SOVEREIGN AXIOM: No Default Math.
+ * Clamps an integer between bounds. Throws if unparseable.
  * 
  * @param {any} value - Input value to parse
- * @param {number} fallback - Value if parsing fails
- * @param {number} min - Minimum bound
- * @param {number} max - Maximum bound
+ * @param {number} min - Minimum bound (Axiom: usually 1)
+ * @param {number} max - Maximum bound (Axiom: usually 10)
  * @returns {number} Clamped integer
+ * @throws {Error} If value is missing or unparseable.
  */
-function clampInt(value, fallback, min = 1, max = 100) {
+function clampInt(value, min = 1, max = 10) {
   const parsed = parseInt(value, 10);
-  if (isNaN(parsed)) return fallback;
+  if (isNaN(parsed)) throw new Error("Axiom Violation: Missing or unparseable score");
   return Math.min(Math.max(parsed, min), max);
 }
 
-function parseBoundedInt(value, min = 1, max = 100) {
+function parseBoundedInt(value, min = 1, max = 10) {
   const parsed = parseInt(value, 10);
-  if (isNaN(parsed)) return null;
+  if (isNaN(parsed)) throw new Error("Axiom Violation: Missing or unparseable score");
   return Math.min(Math.max(parsed, min), max);
 }
 

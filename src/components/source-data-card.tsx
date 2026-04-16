@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/unified-card";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { cn } from "@/lib/utils";
+import { getIceColorClasses } from "@/lib/ice-colors";
 
 type DataType = "source" | "file";
 
@@ -54,7 +55,10 @@ export function SourceDataCard({
         <Icon className="h-3 w-3" />
         {type}
       </Badge>
-      <div className="ml-auto text-[10px] font-mono text-zinc-500">
+      <div className={cn("ml-auto flex items-center gap-3 text-[10px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md border", getIceColorClasses(50))}>
+        <span title="Data stage default minimum requirement.">ICE 50</span>
+      </div>
+      <div className="text-[10px] font-mono text-zinc-500">
         #{publicId || id.slice(0, 8)}
       </div>
     </>

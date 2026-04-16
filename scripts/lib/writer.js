@@ -6,16 +6,13 @@
  * Upgrades DRAFT cards to CHECKED by improving tone, clarity, and enforcing deduplication.
  */
 const { callOllamaJson } = require("./ai");
-const { truncate, getWorkerConfig, similarity, clampInt } = require("./shared");
+const { truncate, getWorkerConfig, similarity, parseBoundedInt, nextPublicId } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 
 // --- UTILITIES ---
 
 /**
  * Normalizes AI-returned body content into a professional string.
- * 
- * @param {any} body - Raw body content from AI
- * @returns {string} Formatted string
  */
 function joinBody(body) {
   if (typeof body === "string") return body;
@@ -30,12 +27,6 @@ function joinBody(body) {
 
 /**
  * Refines a DRAFT Flashcard into a CHECKED state.
- * Implements similarity-based deduplication against the existing knowledge base.
- * 
- * @param {PrismaClient} prisma - Database client
- * @param {object} flashCard - DRAFT flashcard record
- * @param {string} memoryPrompt - Contextual AI memory injection
- * @returns {Promise<object|null>} Refined record data or decline status
  */
 async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
   const bodyLimit = await getWorkerConfig(prisma, flashCard.company || {}, "write_body_limit", 1200);
@@ -70,6 +61,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
     "Strategic context:",
     strategicContext,
     "Return a SINGLE JSON object with: title, body, kind, hashtags, confidenceScore.",
+    "SOVEREIGN AXIOM: You MUST generate a strict integer for confidenceScore. The scale is STRICTLY 1 to 10. NO zeros. NO percentages.",
     memoryPrompt
   ].join("\n");
 
@@ -78,13 +70,24 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
   const raw = await callOllamaJson(systemPrompt, userPrompt);
   if (!raw || !raw.title || !raw.body) return null;
 
+  let confidence;
+  let procStatus = "CHECKED";
+  try {
+    confidence = parseBoundedInt(raw.confidenceScore, 1, 10);
+  } catch (e) {
+    // Axiom 2: Human Review Circuit
+    confidence = 1;
+    procStatus = "REVIEW";
+  }
+
   return {
     title: truncate(raw.title, 160),
     body: truncate(joinBody(raw.body), bodyLimit),
     kind: String(raw.kind || flashCard.kind).toUpperCase(), 
     hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : flashCard.hashtags,
-    confidenceScore: parseFloat(raw.confidenceScore) || flashCard.confidenceScore || 60,
-    processingStatus: "CHECKED",
+    confidenceScore: confidence,
+    confidence: confidence,
+    processingStatus: procStatus,
     status: "CHECKED", // Internal Sync
     activityState: "ACTIVE"
   };
@@ -92,12 +95,6 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
 
 /**
  * Refines a DRAFT Taskcard (NBA) into a CHECKED state.
- * Performs ICE scoring and ensures tactical tasks aren't redundant.
- * 
- * @param {PrismaClient} prisma - Database client
- * @param {object} taskCard - DRAFT taskcard record
- * @param {string} memoryPrompt - Contextual AI memory injection
- * @returns {Promise<object|null>} Refined record data or decline status
  */
 async function refineDraftTaskCard(prisma, taskCard, memoryPrompt) {
   const descLimit = await getWorkerConfig(prisma, taskCard.company || {}, "write_desc_limit", 1200);
@@ -127,10 +124,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt) {
     "Strategic context:",
     strategicContext,
     "Return a SINGLE JSON object with: title, description, kind, impact, confidenceScore, ease.",
-    "Guidelines:",
-    "- Impact: 1-10",
-    "- Confidence: 0-100",
-    "- Ease: 1-10",
+    "SOVEREIGN AXIOM: You MUST generate strict integer scores for confidenceScore, impact, and ease. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
     memoryPrompt
   ].join("\n");
 
@@ -139,13 +133,22 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt) {
   const raw = await callOllamaJson(systemPrompt, userPrompt);
   if (!raw || !raw.title || !raw.description) return null;
 
-  // 1. Scoring Logic (Centralized from Webapp)
-  const impact = clampInt(raw.impact || taskCard.impact, 5, 1, 10);
-  const confidence = clampInt(raw.confidenceScore || taskCard.confidenceScore, 60, 0, 100);
-  const ease = clampInt(raw.ease || taskCard.ease, 5, 1, 10);
-  const iceScore = impact * (confidence / 10) * ease;
+  let confidence, impact, ease, iceScore;
+  let procStatus = "CHECKED";
+  try {
+    confidence = parseBoundedInt(raw.confidenceScore, 1, 10);
+    impact = parseBoundedInt(raw.impact, 1, 10);
+    ease = parseBoundedInt(raw.ease, 1, 10);
+    iceScore = impact * confidence * ease;
+    // ensure min range
+    iceScore = Math.max(1, Math.min(1000, iceScore));
+  } catch (e) {
+    // Axiom 2: Human Review Circuit
+    confidence = 1; impact = 1; ease = 1; iceScore = 1;
+    procStatus = "REVIEW";
+  }
 
-  // 2. ID Generation (Centralized from Webapp)
+  // ID Generation
   let publicId = taskCard.publicId;
   if (!publicId) {
     publicId = await nextPublicId(prisma, "checklist");
@@ -158,9 +161,10 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt) {
     kind: String(raw.kind || taskCard.kind).toUpperCase(),
     impact,
     confidenceScore: confidence,
+    confidence: confidence,
     ease,
     iceScore,
-    processingStatus: "CHECKED",
+    processingStatus: procStatus,
     status: "CHECKED", // Legacy Sync
     activityState: "ACTIVE"
   };

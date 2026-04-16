@@ -26,6 +26,13 @@ const pipelineItems = [
     colorClass: "pipeline-topics",
   },
   {
+    key: "review",
+    href: (companyId: string) => `/${companyId}/review`,
+    label: "Review",
+    icon: "rule",
+    colorClass: "text-amber-500", // Visual distinction for human review
+  },
+  {
     key: "knowmore",
     href: (companyId: string) => `/${companyId}/knowmore`,
     label: "Knowmore",

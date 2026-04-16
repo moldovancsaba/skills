@@ -8,18 +8,13 @@
  */
 const { callOllamaJson } = require("./ai");
 const { getCompanyStrategicContext } = require("./context");
-const { getWorkerConfig, calculatePercentile } = require("./shared");
+const { getWorkerConfig, calculatePercentile, parseBoundedInt } = require("./shared");
 
 // --- AUDITING ENGINE ---
 
 /**
  * Audits a CHECKED Flashcard and determines its promotion path.
  * Uses a dynamic quality floor based on the percentile distribution of existing scores.
- * 
- * @param {PrismaClient} prisma - Database client
- * @param {object} flashCard - CHECKED flashcard record
- * @param {string} memoryPrompt - Contextual AI memory injection
- * @returns {Promise<object>} Audit decision updates
  */
 async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
@@ -31,7 +26,7 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
     select: { confidenceScore: true }
   })).map(f => f.confidenceScore);
 
-  let threshold = 60; // Bootstrap floor
+  let threshold = 6; // Bootstrap floor on 1-10 scale
   if (existingScores.length >= 10) {
     threshold = calculatePercentile(existingScores, percentile);
   }
@@ -43,6 +38,7 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
     "Strategic context:",
     strategicContext,
     "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
+    "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
     memoryPrompt
   ].join("\n");
 
@@ -51,13 +47,24 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
   const raw = await callOllamaJson(systemPrompt, userPrompt);
   if (!raw || !raw.decision) return { processingStatus: "CHECKED" }; 
 
-  const finalScore = parseFloat(raw.confidenceScore) || flashCard.confidenceScore || 50;
+  let finalScore;
+  try {
+    finalScore = parseBoundedInt(raw.confidenceScore, 1, 10);
+  } catch(e) {
+    // If the Judge refuses to score it properly, send to human review
+    return {
+      processingStatus: "REVIEW",
+      confidenceScore: 1,
+      confidence: 1
+    };
+  }
 
   if (raw.decision === "VERIFIED" && finalScore >= threshold) {
     return { 
       processingStatus: "VERIFIED", 
       status: "VERIFIED", // Internal Sync
       confidenceScore: finalScore, 
+      confidence: finalScore,
       activityState: "ACTIVE" 
     };
   } else {
@@ -65,7 +72,9 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Internal Sync
-      confidenceScore: 50, // Restore neutral score
+      confidenceScore: 1, // Axiom 6/7: Complete degradation
+      confidence: 1,
+      weight: 1,
       activityState: "ARCHIVED", // Hide from active lists
       userAnnotation: `[JUDGE REJECTION]: ${reasonText || "Confidence below quality floor."}` 
     };
@@ -75,11 +84,6 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
 /**
  * Audits a CHECKED Taskcard (NBA) and determines its promotion path.
  * Enforces quality standards for strategic tactical recommendations.
- * 
- * @param {PrismaClient} prisma - Database client
- * @param {object} taskCard - CHECKED taskcard record
- * @param {string} memoryPrompt - Contextual AI memory injection
- * @returns {Promise<object>} Audit decision updates
  */
 async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
   const strategicContext = await getCompanyStrategicContext(prisma, taskCard.companyId);
@@ -91,7 +95,7 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
     select: { confidenceScore: true }
   })).map(f => f.confidenceScore);
 
-  let threshold = 60;
+  let threshold = 6;
   if (existingScores.length >= 10) {
     threshold = calculatePercentile(existingScores, percentile);
   }
@@ -102,7 +106,7 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
     "Strategic context:",
     strategicContext,
     "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
-    // memoryPrompt is ignored here locally if not needed but included for signature parity
+    "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
     memoryPrompt
   ].join("\n");
 
@@ -111,15 +115,25 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
   const raw = await callOllamaJson(systemPrompt, userPrompt);
   if (!raw || !raw.decision) return { processingStatus: "CHECKED" };
 
-  const finalScore = parseFloat(raw.confidenceScore) || taskCard.confidenceScore || 50;
+  let finalScore;
+  try {
+    finalScore = parseBoundedInt(raw.confidenceScore, 1, 10);
+  } catch(e) {
+    return {
+      processingStatus: "REVIEW",
+      confidenceScore: 1,
+      confidence: 1
+    };
+  }
 
   if (raw.decision === "VERIFIED" && finalScore >= threshold) {
-    const ice = taskCard.impact * (finalScore / 10) * taskCard.ease;
+    const ice = taskCard.impact * finalScore * taskCard.ease;
     return { 
       processingStatus: "VERIFIED", 
       status: "VERIFIED", // Internal Sync
       confidenceScore: finalScore, 
-      iceScore: Math.round(ice * 10) / 10,
+      confidence: finalScore,
+      iceScore: Math.max(1, Math.min(1000, ice)),
       activityState: "ACTIVE" 
     };
   } else {
@@ -127,7 +141,11 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Internal Sync
-      confidenceScore: 50, // Restore neutral score
+      confidenceScore: 1, // Axiom 6/7: Complete Degradation
+      confidence: 1,
+      impact: 1,
+      ease: 1,
+      iceScore: 1,
       activityState: "ARCHIVED", // Hide from active lists
       userAnnotation: `[JUDGE REJECTION]: ${reasonText || "Confidence below quality floor."}`
     };

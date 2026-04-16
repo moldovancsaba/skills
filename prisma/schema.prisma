@@ -484,6 +484,7 @@ enum FlashcardProcessingStatus {
   VERIFIED
   ACCEPTED
   DECLINED
+  REVIEW
 }
 
 enum FlashcardActivityState {
@@ -499,6 +500,7 @@ enum NBAProcessingStatus {
   VERIFIED
   ACCEPTED
   DECLINED
+  REVIEW
 }
 
 enum NBAActivityState {

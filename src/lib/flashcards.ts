@@ -9,6 +9,7 @@
 // @ts-nocheck
 import {
   FlashcardActionType,
+  FlashcardActivityState,
   FlashcardCorrectionType,
   FlashcardKind,
   FlashcardProcessingStatus,

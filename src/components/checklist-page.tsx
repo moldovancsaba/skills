@@ -59,6 +59,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const [draftDescription, setDraftDescription] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
+  const [actingId, setActingId] = useState<string | null>(null);
 
   const loadChecklist = useCallback(async (cid: string) => {
     setLoading(true);
@@ -154,7 +155,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     modifiedTitle?: string,
     modifiedDescription?: string,
   ) => {
-    setLoading(true);
+    setActingId(itemId);
     const res = await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -170,15 +171,13 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     if (res.ok) {
       // Archive or update the item in local state
       if (action === "ACCEPT" || action === "DECLINE" || action === "MODIFY_ACCEPT") {
-        // If we are in active view, remove it. If in archived view, we could update it.
-        // For now, removing from current view is the cleanest "card-level" update.
         setItems(prev => prev.filter(i => i.id !== itemId));
       }
     }
 
     resetActionForm();
-    setLoading(false);
-  }, [company, loadChecklist, resetActionForm]);
+    setActingId(null);
+  }, [resetActionForm]);
 
   const toggleHashtagFilter = useCallback((tag: string) => {
     const next = activeHashtags.includes(tag)
@@ -196,7 +195,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
 
   const removeTaskHashtag = useCallback(async (itemId: string, tag: string) => {
     if (!company) return;
-    setLoading(true);
+    setActingId(itemId);
     try {
       const res = await fetch("/api/hashtags/feedback", {
         method: "POST",
@@ -212,9 +211,9 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         setItems(prev => prev.map(i => i.id === itemId ? { ...i, hashtags: result.hashtags } : i));
       }
     } finally {
-      setLoading(false);
+      setActingId(null);
     }
-  }, [company, loadChecklist]);
+  }, [company]);
 
   useEffect(() => {
     if (archived) return;
@@ -306,7 +305,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                 item={item}
                 isActionOpen={actionItemId === item.id && actionMode !== null}
                 actionMode={actionMode}
-                isBusy={loading}
+                isBusy={actingId === item.id}
                 copied={copiedId === item.id}
                 annotation={annotation}
                 draftTitle={draftTitle}

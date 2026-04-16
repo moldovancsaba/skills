@@ -11,6 +11,7 @@ import {
   FlashcardActionType,
   FlashcardCorrectionType,
   FlashcardKind,
+  FlashcardProcessingStatus,
   FlashcardReviewStatus,
   FlashcardSourceRole,
   FlashcardStatus,
@@ -1740,14 +1741,19 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
         throw new Error("Decline requires a comment");
       }
 
-      const generatedTitle = flashcard.generatedTitle ?? flashcard.title;
-      const generatedBody = flashcard.generatedBody ?? flashcard.body;
-      let manualTitle = normalizeText(flashcard.manualTitle);
-      let manualBody = normalizeText(flashcard.manualBody);
+      // BASELINE CONTENT: We use generatedTitle/Body if they exist, otherwise we use the current title/body as the "AI baseline"
+      // unless we ALREADY have a manual override.
+      const generatedTitle = flashcard.generatedTitle ?? (flashcard.manualTitle ? null : flashcard.title);
+      const generatedBody = flashcard.generatedBody ?? (flashcard.manualBody ? null : flashcard.body);
+      
+      let currentManualTitle = normalizeText(flashcard.manualTitle);
+      let currentManualBody = normalizeText(flashcard.manualBody);
+      
       let effectiveTitle = flashcard.title;
       let effectiveBody = flashcard.body;
       let modifiedTitle: string | null = null;
       let modifiedBody: string | null = null;
+      let newProcessingStatus: FlashcardProcessingStatus = flashcard.processingStatus;
 
       if (input.action === FlashcardActionType.MODIFY_ACCEPT) {
         modifiedTitle = normalizeText(input.modifiedTitle);
@@ -1757,13 +1763,28 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
           throw new Error("Modify and accept requires both title and body");
         }
 
-        manualTitle = modifiedTitle === generatedTitle ? null : modifiedTitle;
-        manualBody = modifiedBody === generatedBody ? null : modifiedBody;
-        effectiveTitle = manualTitle ?? generatedTitle;
-        effectiveBody = manualBody ?? generatedBody;
+        // Only set manual if it's DIFFERENT from the AI baseline (if baseline exists)
+        // If baseline doesn't exist (e.g. legacy), we always treat user input as manual if it differs from current.
+        const baselineTitle = generatedTitle ?? flashcard.title;
+        const baselineBody = generatedBody ?? flashcard.body;
+
+        currentManualTitle = (modifiedTitle === baselineTitle) ? null : modifiedTitle;
+        currentManualBody = (modifiedBody === baselineBody) ? null : modifiedBody;
+        
+        effectiveTitle = modifiedTitle;
+        effectiveBody = modifiedBody;
+        newProcessingStatus = FlashcardProcessingStatus.ACCEPTED;
+      } else if (input.action === FlashcardActionType.ACCEPT) {
+        effectiveTitle = currentManualTitle ?? flashcard.title;
+        effectiveBody = currentManualBody ?? flashcard.body;
+        newProcessingStatus = FlashcardProcessingStatus.ACCEPTED;
+      } else if (input.action === FlashcardActionType.DECLINE) {
+        effectiveTitle = currentManualTitle ?? flashcard.title;
+        effectiveBody = currentManualBody ?? flashcard.body;
+        newProcessingStatus = FlashcardProcessingStatus.DECLINED;
       } else {
-        effectiveTitle = manualTitle ?? generatedTitle;
-        effectiveBody = manualBody ?? generatedBody;
+        effectiveTitle = currentManualTitle ?? flashcard.title;
+        effectiveBody = currentManualBody ?? flashcard.body;
       }
 
       const delta = flashcardActionDelta(input.action);
@@ -1788,8 +1809,9 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
         data: {
           title: effectiveTitle,
           body: effectiveBody,
-          manualTitle,
-          manualBody,
+          manualTitle: currentManualTitle,
+          manualBody: currentManualBody,
+          processingStatus: newProcessingStatus,
           reviewStatus: REVIEW_STATUS_BY_ACTION[input.action],
           userAnnotation: annotation,
           lastActionAt,

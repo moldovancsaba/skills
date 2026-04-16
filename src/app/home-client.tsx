@@ -1,6 +1,5 @@
 'use client';
 
-import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -12,6 +11,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
 import { Badge } from "@/components/ui/badge";
+import { LinkCard, UnifiedGrid } from "@/components/ui/app-shell";
+import { Plus, ListOrdered, Sparkles, Zap, Edit, Trash2 } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
@@ -196,28 +197,7 @@ export default function Home() {
         </div>
       </div>
 
-      {session ? (
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-[2rem] border border-border/70 bg-card/80 shadow-elevated"
-        >
-          <div className="absolute inset-0 bg-gradient-to-tr from-sky-500/15 via-orange-400/10 to-violet-500/15" />
-          <div className="relative flex items-center justify-center px-4 py-6 md:px-6 md:py-8">
-            <div className="w-full max-w-3xl rounded-[1.75rem] border border-white/20 bg-slate-950/55 px-4 py-4 text-white shadow-2xl backdrop-blur-md md:px-6">
-              <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[1.25rem] border border-white/10 bg-slate-950/30">
-                <Image
-                  src="/images/hero.png"
-                  alt="Checklist hero"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
-            </div>
-          </div>
-        </motion.section>
-      ) : null}
+
 
       {(canManageCompanies && (companies.length === 0 || showForm)) ? (
         <Card>
@@ -257,49 +237,85 @@ export default function Home() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-12">
           {Array.isArray(companies) && companies.map((c: any) => (
-            <Card key={c.id}>
-              <CardContent className="flex items-center gap-2 p-4">
-                <Button
-                  onClick={() => selectCompany(c)}
-                  variant="ghost"
-                  className="h-auto flex-1 justify-between px-0 py-0 text-left hover:bg-transparent"
-                >
-                  <div>
-                    <p className="font-medium text-lg">{c.name}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {c.industries?.length > 0 ? (
-                        c.industries.map((tag: string) => (
-                          <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[10px] bg-primary/5 text-primary border-primary/10">
-                            {tag}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">No industries set</span>
-                      )}
-                    </div>
+            <div key={c.id} className="space-y-6">
+              {/* Company Header Row */}
+              <div className="flex items-center justify-between border-b border-border/50 pb-4">
+                <div className="flex items-center gap-4">
+                  <Link href={`/${c.id}`} className="hover:opacity-80 transition-opacity">
+                    <h2 className="text-2xl font-bold tracking-tight text-foreground">{c.name}</h2>
+                  </Link>
+                  <div className="flex flex-wrap gap-1">
+                    {c.industries?.length > 0 ? (
+                      c.industries.map((tag: string) => (
+                        <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[10px] bg-primary/5 text-primary border-primary/10">
+                          {tag}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">No industries set</span>
+                    )}
                   </div>
-                  <span className="rounded bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
-                    {c.id.slice(0,8)}
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="rounded bg-muted px-2 py-1 font-mono text-[10px] text-muted-foreground uppercase mr-4">
+                    ID: {c.id.slice(0, 8)}
                   </span>
-                </Button>
-                {canManageCompanies && (
-                  <>
-                    <Button onClick={() => startEdit(c)} variant="outline" size="sm">
-                      Edit
-                    </Button>
-                    <Button onClick={() => handleDeleteCompany(c.id)} variant="destructive" size="sm">
-                      Delete
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                  {canManageCompanies && (
+                    <div className="flex gap-1">
+                      <Button onClick={() => startEdit(c)} variant="outline" size="icon" className="h-8 w-8">
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button onClick={() => handleDeleteCompany(c.id)} variant="destructive" size="icon" className="h-8 w-8">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Intelligence Cards Row */}
+              <UnifiedGrid className="md:grid-cols-4">
+                <LinkCard
+                  href={`/${c.id}/data`}
+                  icon={Plus}
+                  variant="blue"
+                  metric={c.metrics?.data ?? 0}
+                  title="Data Collection"
+                  description="Raw sources & files"
+                />
+                <LinkCard
+                  href={`/${c.id}/topics`}
+                  icon={ListOrdered}
+                  variant="amber"
+                  metric={c.metrics?.topics ?? 0}
+                  title="Topics"
+                  description="Prioritize AI focus"
+                />
+                <LinkCard
+                  href={`/${c.id}/knowmore`}
+                  icon={Sparkles}
+                  variant="green"
+                  metric={c.metrics?.knowmore ?? 0}
+                  title="Knowmore"
+                  description="Knowledge layer"
+                />
+                <LinkCard
+                  href={`/${c.id}/nba`}
+                  icon={Zap}
+                  variant="violet"
+                  metric={c.metrics?.checklist ?? 0}
+                  title="Checklist"
+                  description="High-impact actions"
+                />
+              </UnifiedGrid>
+            </div>
           ))}
           {!canManageCompanies && companies.length === 0 ? (
             <Card>
-              <CardContent className="p-6 text-sm text-muted-foreground">
+              <CardContent className="p-12 text-center text-muted-foreground italic">
                 No companies are available for this account yet.
               </CardContent>
             </Card>

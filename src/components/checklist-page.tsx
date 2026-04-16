@@ -155,7 +155,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     modifiedDescription?: string,
   ) => {
     setLoading(true);
-    await fetch("/api/feedback", {
+    const res = await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -167,12 +167,17 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
       }),
     });
 
-    resetActionForm();
-    if (company) {
-      await loadChecklist(company.id);
-    } else {
-      setLoading(false);
+    if (res.ok) {
+      // Archive or update the item in local state
+      if (action === "ACCEPT" || action === "DECLINE" || action === "MODIFY_ACCEPT") {
+        // If we are in active view, remove it. If in archived view, we could update it.
+        // For now, removing from current view is the cleanest "card-level" update.
+        setItems(prev => prev.filter(i => i.id !== itemId));
+      }
     }
+
+    resetActionForm();
+    setLoading(false);
   }, [company, loadChecklist, resetActionForm]);
 
   const toggleHashtagFilter = useCallback((tag: string) => {
@@ -193,7 +198,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     if (!company) return;
     setLoading(true);
     try {
-      await fetch("/api/hashtags/feedback", {
+      const res = await fetch("/api/hashtags/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -202,7 +207,10 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           tag,
         }),
       });
-      await loadChecklist(company.id);
+      if (res.ok) {
+        const result = await res.json();
+        setItems(prev => prev.map(i => i.id === itemId ? { ...i, hashtags: result.hashtags } : i));
+      }
     } finally {
       setLoading(false);
     }

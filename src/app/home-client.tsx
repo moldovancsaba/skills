@@ -116,13 +116,11 @@ export default function Home() {
     });
     
     if (res.ok) {
+      const updatedCompany = await res.json();
+      setCompanies(prev => prev.map(c => c.id === editingId ? updatedCompany : c));
       setFormData({ name: "", industry: "", industries: [] });
       setEditingId(null);
-      fetch("/api/companies")
-        .then(r => r.json())
-        .then(data => {
-          if (Array.isArray(data)) setCompanies(data);
-        });
+      setShowForm(false);
     } else {
       const data = await res.json();
       setError(data.error || "Failed to update company");
@@ -138,11 +136,7 @@ export default function Home() {
     });
     
     if (res.ok) {
-      fetch("/api/companies")
-        .then(r => r.json())
-        .then(data => {
-          if (Array.isArray(data)) setCompanies(data);
-        });
+      setCompanies(prev => prev.filter(c => c.id !== id));
     } else {
       const data = await res.json();
       setError(data.error || "Failed to delete company");

@@ -352,7 +352,7 @@ export default function CompanyKnowMorePage() {
     setErrorMessage(null);
 
     try {
-      await fetchJson("/api/knowmore/actions", {
+      const result = await fetchJson<{ flashcard: Flashcard }>("/api/knowmore/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -364,8 +364,17 @@ export default function CompanyKnowMorePage() {
         }),
       });
 
+      const updated = result.flashcard;
+      const isVisible = 
+        ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"].includes(updated.processingStatus) &&
+        ["ACTIVE", "STALE"].includes(updated.activityState);
+
+      if (isVisible) {
+        setFlashcards(prev => prev.map(f => f.id === flashcardId ? updated : f));
+      } else {
+        setFlashcards(prev => prev.filter(f => f.id !== flashcardId));
+      }
       closeActionForm();
-      await loadFlashcards(company.id);
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -412,8 +421,18 @@ export default function CompanyKnowMorePage() {
         }),
       });
 
+      if (input.correctionType === "HIDE" || input.correctionType === "MARK_WRONG" || input.correctionType === "SUPPRESS_SOURCE") {
+        if (input.correctionType === "SUPPRESS_SOURCE") {
+          // Suppress source affects multiple cards, so we still need a full reload here for safety
+          await loadFlashcards(company.id);
+        } else {
+          setFlashcards(prev => prev.filter(f => f.id !== input.flashcardId));
+        }
+      } else {
+        // PIN or other updates - for now reload to get new scores, or we could fetch just the card
+        await loadFlashcards(company.id);
+      }
       closeActionForm();
-      await loadFlashcards(company.id);
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -441,7 +460,7 @@ export default function CompanyKnowMorePage() {
 
     setActingId(flashcardId);
     try {
-      await fetchJson("/api/hashtags/feedback", {
+      const result = await fetchJson<{ hashtags: string[] }>("/api/hashtags/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -450,7 +469,7 @@ export default function CompanyKnowMorePage() {
           tag,
         }),
       });
-      await loadFlashcards(company.id);
+      setFlashcards(prev => prev.map(f => f.id === flashcardId ? { ...f, hashtags: result.hashtags } : f));
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error ? error.message : String(error));

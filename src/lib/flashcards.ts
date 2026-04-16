@@ -1733,8 +1733,8 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
         throw new Error("Flashcard not found");
       }
 
-      if (flashcard.status !== FlashcardStatus.ACTIVE) {
-        throw new Error("Only active flashcards can be reviewed");
+      if (flashcard.status === FlashcardStatus.ARCHIVED || flashcard.activityState === FlashcardActivityState.ARCHIVED) {
+        throw new Error("This flashcard has already been archived or declined.");
       }
 
       if (input.action === FlashcardActionType.DECLINE && !annotation) {
@@ -1819,6 +1819,14 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
           feedbackWeightDelta: clamp(flashcard.feedbackWeightDelta + delta.weight, -40, 40),
           confidence: clamp(flashcard.confidence + delta.confidence, 1, 100),
           weight: clamp(flashcard.weight + delta.weight, 1, 100),
+          activityState:
+            input.action === FlashcardActionType.DECLINE ||
+            effectiveConfidence({
+              confidence: flashcard.confidence + delta.confidence,
+              feedbackConfidenceDelta: flashcard.feedbackConfidenceDelta + delta.confidence,
+            }) <= 50
+              ? FlashcardActivityState.ARCHIVED
+              : FlashcardActivityState.ACTIVE,
           status:
             input.action === FlashcardActionType.DECLINE ||
             effectiveConfidence({
@@ -1978,6 +1986,7 @@ export async function recordFlashcardCorrection(input: FlashcardCorrectionInput)
             where: { id: flashcard.id },
             data: {
               status: FlashcardStatus.ARCHIVED,
+              activityState: FlashcardActivityState.ARCHIVED,
               reviewStatus: FlashcardReviewStatus.DECLINED,
               userAnnotation: note ?? flashcard.userAnnotation,
               lastActionAt: new Date(),
@@ -1991,6 +2000,7 @@ export async function recordFlashcardCorrection(input: FlashcardCorrectionInput)
             where: { id: flashcard.id },
             data: {
               status: FlashcardStatus.ACTIVE,
+              activityState: FlashcardActivityState.ACTIVE,
               confidence: clamp(flashcard.confidence + 10, 1, 100),
               weight: clamp(flashcard.weight + 18, 1, 100),
               feedbackConfidenceDelta: clamp(flashcard.feedbackConfidenceDelta + 10, -50, 50),
@@ -2021,6 +2031,7 @@ export async function recordFlashcardCorrection(input: FlashcardCorrectionInput)
             where: { id: { in: impacted.map((item) => item.id) } },
             data: {
               status: FlashcardStatus.ARCHIVED,
+              activityState: FlashcardActivityState.ARCHIVED,
               userAnnotation: note ?? `Suppressed source ${input.sourceName ?? input.sourceId}`,
               lastActionAt: new Date(),
             },

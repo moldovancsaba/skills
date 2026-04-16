@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

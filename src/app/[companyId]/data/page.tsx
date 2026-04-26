@@ -14,6 +14,7 @@ import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHe
 import { SourceDataCard } from "@/components/source-data-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
+import { IntelligencePulse } from "@/components/intelligence-pulse";
 import { getDashboardExpertTip } from "@/content/help";
 import React from "react";
 import {
@@ -299,6 +300,10 @@ export default function CompanyDataPage() {
           title={editingId ? "Edit Data" : "Add Data"}
           description={editingId ? "Edit the selected raw source from the list below." : "Store raw URLs, notes, and files with hashtags. Processing happens later."}
         />
+        
+        <div className="mt-2 mb-8">
+          <IntelligencePulse />
+        </div>
       </motion.div>
 
       <Card>

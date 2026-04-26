@@ -146,9 +146,19 @@ export function KnowledgeReviewCard({
             <Badge variant="secondary" className="font-mono text-[10px] tracking-wider uppercase opacity-80">
               {kindLabel(flashcard.kind as any)}
             </Badge>
-            {isSovereignResearch && (
-              <Badge variant="outline" className="border-cyan-400/40 bg-cyan-500/10 font-mono text-[10px] tracking-wider uppercase text-cyan-200">
-                Sovereign research
+            {flashcard.userAnnotation?.includes("[TRACE:") && (
+              <Badge variant="outline" className="border-zinc-500/20 bg-zinc-500/5 font-mono text-[9px] tracking-tight text-zinc-400">
+                {flashcard.userAnnotation.match(/\[TRACE:([^\]]+)\]/)?.[1] || "TRACED"}
+              </Badge>
+            )}
+            {flashcard.userAnnotation?.includes("[QUALITY:") && (
+              <Badge variant="outline" className="border-indigo-400/40 bg-indigo-500/10 font-mono text-[9px] tracking-tight text-indigo-300">
+                Q:{flashcard.userAnnotation.match(/\[QUALITY:([^\]]+)\]/)?.[1] || "0"}
+              </Badge>
+            )}
+            {flashcard.userAnnotation?.includes("[TOPIC_ID:") && (
+              <Badge variant="outline" className="border-emerald-400/40 bg-emerald-500/10 font-mono text-[9px] tracking-tight text-emerald-300">
+                STRATEGY:{flashcard.userAnnotation.match(/\[TOPIC_ID:([^\]]+)\]/)?.[1]?.substring(0, 4) || "ANCHORED"}
               </Badge>
             )}
             <div className={cn("ml-auto flex items-center gap-3 text-[10px] font-bold uppercase tracking-tighter px-2.5 py-1 rounded-md border shadow-sm", getMetricColorClasses(flashcard.impact * (flashcard.confidenceScore / 10) * flashcard.weight))}>
@@ -176,9 +186,31 @@ export function KnowledgeReviewCard({
         />
 
         {flashcard.userAnnotation && (
-          <div className={`flex items-start gap-2 rounded-lg px-4 py-3 text-sm ${flashcard.userAnnotation.includes("[JUDGE REJECTION]") ? "border border-amber-200/80 bg-amber-50/80 text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100" : "bg-zinc-400/5 text-zinc-300"}`}>
-            <MessageSquare className={`mt-0.5 h-4 w-4 shrink-0 ${flashcard.userAnnotation.includes("[JUDGE REJECTION]") ? "text-amber-600 dark:text-amber-400" : "opacity-70"}`} />
-            <p>{flashcard.userAnnotation}</p>
+          <div className={cn(
+            "flex items-start gap-2 rounded-lg px-4 py-3 text-sm",
+            flashcard.userAnnotation.includes("[JUDGE REJECTION]") 
+              ? "border border-amber-200/80 bg-amber-50/80 text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100" 
+              : flashcard.userAnnotation.includes("[HALLUCINATION")
+                ? "border border-red-500/30 bg-red-500/10 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                : "bg-zinc-400/5 text-zinc-300"
+          )}>
+            <MessageSquare className={cn(
+              "mt-0.5 h-4 w-4 shrink-0",
+              flashcard.userAnnotation.includes("[JUDGE REJECTION]") ? "text-amber-600 dark:text-amber-400" : flashcard.userAnnotation.includes("[HALLUCINATION") ? "text-red-400 animate-pulse" : "opacity-70"
+            )} />
+            <p>
+              {flashcard.userAnnotation.includes("[HALLUCINATION") 
+                ? <span className="font-bold text-red-400">HALLUCINATION DETECTED: </span> 
+                : null
+              }
+              {flashcard.userAnnotation
+                .replace(/\[TRACE:[^\]]+\]/g, '')
+                .replace(/\[QUALITY:[^\]]+\]/g, '')
+                .replace(/\[TOPIC_ID:[^\]]+\]/g, '')
+                .replace(/\[HALLUCINATION_REJECTED\]/g, '')
+                .trim()
+              }
+            </p>
           </div>
         )}
 

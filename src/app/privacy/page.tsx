@@ -32,7 +32,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-semibold mb-2">Data Storage</h2>
           <p className="text-muted-foreground">
-            Data is stored in Neon PostgreSQL. Local sync runs on mvp-factory-control 
+            Data is stored in MongoDB Atlas. Local sync runs on mvp-factory-control 
             for AI processing. We implement industry-standard security measures.
           </p>
         </section>

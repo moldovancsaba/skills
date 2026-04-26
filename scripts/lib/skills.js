@@ -39,6 +39,50 @@ const MARKETING_SKILLS = {
       "Difference: How this solution departs from status-quo alternatives."
     ].join("\n"),
     triggers: ["pitch-deck", "whitepaper", "competitor-analysis", "company-description"]
+  },
+  COMPETITOR_INTEL: {
+    id: "competitor-intel",
+    label: "Competitor Intelligence",
+    framework: [
+      "Gap Analysis: What feature or benefit are they missing?",
+      "USP Mapping: Where is our solution objectively superior?",
+      "Pricing Model: How does their pricing structure compare?",
+      "Market Share: Their estimated dominance in specific segments."
+    ].join("\n"),
+    triggers: ["competitor", "rival", "alternative", "comparison", "swot"]
+  },
+  CUSTOMER_SEGMENT: {
+    id: "customer-segment",
+    label: "Customer Segmentation & ICP",
+    framework: [
+      "Job-to-be-Done: What is the customer actually trying to achieve?",
+      "Pain Points: The specific negative outcomes they fear most.",
+      "Firmographics: Company size, industry, revenue, and geography.",
+      "Personas: Decision makers, influencers, and end-users."
+    ].join("\n"),
+    triggers: ["customer", "persona", "icp", "target-audience", "user-research"]
+  },
+  LEAD_SCORING: {
+    id: "lead-scoring",
+    label: "Lead Qualification & Scoring",
+    framework: [
+      "Intent: High-value actions (pricing page visits, demo requests).",
+      "Fit: Alignment with our Ideal Customer Profile (ICP).",
+      "Urgency: Timeframe for decision making.",
+      "Authority: Does the contact have budget and signing power?"
+    ].join("\n"),
+    triggers: ["lead", "prospect", "pipeline", "qualification", "scoring"]
+  },
+  TREND_DETECTION: {
+    id: "trend-detection",
+    label: "Market Trend & Sentiment",
+    framework: [
+      "Sentiment: Is the market moving towards or away from this topic?",
+      "Emerging Tech: New tools or standards disrupting the space.",
+      "Regulatory: Changes in law or policy affecting the industry.",
+      "Hype vs Reality: Distinguishing short-term noise from long-term shifts."
+    ].join("\n"),
+    triggers: ["trend", "forecast", "future", "shift", "prediction", "market-report"]
   }
 };
 

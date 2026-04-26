@@ -64,7 +64,7 @@ Checklist should behave like a persistent business researcher and improvement en
                                │ reads / writes
                                ▼
 ┌────────────────────────────────────────────────────────────┐
-│ Shared Neon Database                                      │
+│ MongoDB Database                                           │
 │ - source data                                             │
 │ - flashcards                                              │
 │ - NBA tasks                                               │

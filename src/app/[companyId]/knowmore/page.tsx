@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
+import { IntelligencePulse } from "@/components/intelligence-pulse";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
@@ -522,6 +523,10 @@ export default function CompanyKnowMorePage() {
           title="Knowmore"
           description={`Flashcards and knowledge slices for ${company?.name ?? "this company"}.`}
         />
+
+        <div className="mt-2 mb-8">
+          <IntelligencePulse />
+        </div>
       </motion.div>
 
       <MetricGrid>

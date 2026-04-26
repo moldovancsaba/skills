@@ -36,15 +36,22 @@ const FAILSAFE_INTERVAL = 3600000; // 1 Hour Failsafe
 const IDLE_INTERVAL = 300000;     // 5 Minute Idle Gap
 const POLLING_INTERVAL = 30000;   // 30 Seconds DB Check
 
+let isRunning = false;
+
 /**
  * Main worker loop. Executes the synthesis cycle and handles the 'Sovereign' command-and-control polling.
  */
 async function runWorkerLoop() {
+  if (isRunning) return;
+  isRunning = true;
+  
   try {
     console.log(`[SYNTHESIS] Initiating Elemental Cycle...`);
     lastCycleStartTime = Date.now();
     
     // Elemental Database Scrub (Limited batch per cycle)
+    synthesisState.stage = "MAINTENANCE";
+    await syncSynthesisStateToDb(prisma);
     await scrubDatabaseElemental(prisma);
     
     const result = await runSynthesisCycle(prisma);
@@ -90,9 +97,11 @@ async function runWorkerLoop() {
       await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
     }
 
+    isRunning = false;
     runWorkerLoop();
   } catch (err) {
     console.error(`[CRITICAL] Worker Loop Failure:`, err);
+    isRunning = false;
     setTimeout(runWorkerLoop, 60000); // Retry in 1 min on crash
   }
 }
@@ -111,7 +120,9 @@ const server = http.createServer(async (req, res) => {
         pass: progress.pass,
         lastProgressAt: progress.lastProgressAt,
         currentCompany: progress.currentCompany,
-        cycleCount: progress.cycleCount
+        cycleCount: progress.cycleCount,
+        enrichmentModeFlashcards: progress.enrichmentModeFlashcards,
+        enrichmentModeTasks: progress.enrichmentModeTasks
       },
       settings
     };

@@ -6,7 +6,8 @@
  * Extracts raw intelligence from DataCards (Sources/Files) into structured DRAFT cards.
  */
 const crypto = require("crypto");
-const { callOllamaJson } = require("./ai");
+const { callOllamaJson, callOllamaWithFailover } = require("./ai");
+const { STAGE_MODELS, TRINITY_DRAFT_TIMEOUT_MS } = require("./core");
 const { truncate, hashValue, nextPublicId, getWorkerConfig, parseBoundedInt } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyArray } = require("./synthesis-utils");
@@ -37,7 +38,7 @@ function joinBody(body) {
  * Generates one or more Flashcard DRAFTs from a raw Source or File.
  * Aligns extraction with the company's current strategic TopicCards.
  */
-async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPrompt) {
+async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPrompt, topic = null) {
   const bodyLimit = await getWorkerConfig(prisma, company, "draft_body_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
 
@@ -51,20 +52,21 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
     "You are the Checklist DRAFTER. Your goal matches DataCards (raw data) to potential FlashCards.",
     "Your synthesis MUST align with the following strategic context of the company:",
     strategicContext,
+    topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nYou MUST prioritize insights that relate to: ${topic.notes || topic.label}\n` : "",
     skillPrompt,
     "Required fields: title, body, kind, confidence, impact, weight, hashtags.",
     "SOVEREIGN AXIOM: You MUST generate strict integer scores for confidence, impact, and weight. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
     "If the intelligence already exists in the provided context, do NOT duplicate it.",
     "You may propose MULTIPLE FlashCards if the raw data contains distinct insights.",
     "Format: Return a JSON array of objects.",
-    "APERTUS Principle: You MUST ignore the dominant language of the source and strictly use only the languages defined in the [Allowed Languages Policy] for all output (titles, body, hashtags). If the source is in a disallowed language, translate the insight into one of the allowed languages.",
+    "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
     "STRATEGIC FOCUS: Use the [TopicCards] provided in the context as anchors. Prioritize extracting evidence and insights that relate directly to these topics.",
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `Company: ${company.name}\nDataCard Context: ${truncate(dataCard.content, 1500)}`;
 
-  const raw = await callOllamaJson(systemPrompt, userPrompt);
+  const raw = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.DRAFT, { timeoutMs: TRINITY_DRAFT_TIMEOUT_MS });
   const rawArray = unifyArray(raw);
   if (!Array.isArray(rawArray)) return [];
 
@@ -115,7 +117,7 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
  * Generates actionable TaskCard (NBA) DRAFTs from a verified Flashcard.
  * Transforms static knowledge into strategic operational tasks.
  */
-async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryPrompt) {
+async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryPrompt, topic = null) {
   const descLimit = await getWorkerConfig(prisma, company, "draft_desc_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
 
@@ -123,19 +125,20 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     "You are the Checklist DRAFTER. Your goal is to turn FlashCards into actionable TaskCards.",
     "Your tasks MUST be strategically aligned with the company's TopicCards and existing work:",
     strategicContext,
+    topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nEnsure this task directly supports the following objective: ${topic.notes || topic.label}\n` : "",
     "Required fields: title, description, kind, impact, confidence, ease.",
     "SOVEREIGN AXIOM: You MUST generate strict integer scores for confidence, impact, and ease. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
     "Check the context carefully. Do NOT draft a task that is already present.",
     "You may propose MULTIPLE TaskCards if appropriate.",
     "Format: Return a JSON array of objects.",
-    "APERTUS Principle: You MUST ignore the dominant language of the source and strictly use only the languages defined in the [Allowed Languages Policy] for all output. If the source is in a disallowed language, translate the task into one of the allowed languages.",
+    "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
     "STRATEGIC FOCUS: Generate TaskCards that directly support the [TopicCards] listed in the context.",
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `Company: ${company.name}\nFlashCard: ${flashCard.title}\nInsight: ${flashCard.body}`;
 
-  const raw = await callOllamaJson(systemPrompt, userPrompt);
+  const raw = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.DRAFT, { timeoutMs: TRINITY_DRAFT_TIMEOUT_MS });
   const rawArray = unifyArray(raw);
   if (!Array.isArray(rawArray)) return [];
 

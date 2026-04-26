@@ -1,4 +1,5 @@
-const { getWorkerConfig } = require("./shared");
+const { getWorkerConfig, similarity } = require("./shared");
+const { enforceLanguagePolicy } = require("./language-validator");
 
 /**
  * SOVEREIGN MAINTENANCE ENGINE
@@ -329,6 +330,125 @@ async function runMaintenance(prisma, company) {
     where: { companyId: cid, activityState: { not: "ARCHIVED" }, updatedAt: { lt: archiveThreshold } },
     data: { activityState: "ARCHIVED" }
   });
+  
+  // 3. Language Cleanup (v0.11.6)
+  const allCards = await Promise.all([
+    prisma.flashcard.findMany({ where: { companyId: cid }, take: 10 }),
+    prisma.nBAItem.findMany({ where: { companyId: cid }, take: 10 })
+  ]);
+  
+  for (const fc of allCards[0]) await enforceLanguagePolicy(prisma, fc, "FLASHCARD", company);
+  for (const tc of allCards[1]) await enforceLanguagePolicy(prisma, tc, "TASK", company);
+
+  // 4. Enrichment, Merging & Decay (v0.12.0)
+  await mergeDuplicates(prisma, cid);
+  await enrichOldestCards(prisma, company);
+  await applyFreshnessDecay(prisma, company);
+}
+
+/**
+ * Merges semantic duplicates within a company's card set.
+ * Uses a similarity threshold of 0.8 to identify potential overlaps.
+ */
+async function mergeDuplicates(prisma, cid) {
+  const threshold = 0.8;
+
+  // Flashcard Merging
+  const flashcards = await prisma.flashcard.findMany({
+    where: { companyId: cid, activityState: "ACTIVE" },
+    orderBy: { updatedAt: "desc" }
+  });
+
+  for (let i = 0; i < flashcards.length; i++) {
+    for (let j = i + 1; j < flashcards.length; j++) {
+      const f1 = flashcards[i];
+      const f2 = flashcards[j];
+      
+      if (similarity(f1.title, f2.title) > threshold) {
+        console.log(`[MAINTENANCE] Semantic match: "${f1.title}" and "${f2.title}". Merging ${f2.id} into ${f1.id}`);
+        // Re-link sources
+        await prisma.flashcardSource.updateMany({
+          where: { flashcardId: f2.id },
+          data: { flashcardId: f1.id }
+        });
+        await prisma.flashcard.delete({ where: { id: f2.id } });
+        flashcards.splice(j, 1);
+        j--;
+      }
+    }
+  }
+
+  // NBAItem Merging
+  const taskcards = await prisma.nBAItem.findMany({
+    where: { companyId: cid, activityState: "ACTIVE" },
+    orderBy: { updatedAt: "desc" }
+  });
+
+  for (let i = 0; i < taskcards.length; i++) {
+    for (let j = i + 1; j < taskcards.length; j++) {
+      const t1 = taskcards[i];
+      const t2 = taskcards[j];
+      
+      if (similarity(t1.title, t2.title) > threshold) {
+        console.log(`[MAINTENANCE] Semantic match: "${t1.title}" and "${t2.title}". Merging ${t2.id} into ${t1.id}`);
+        await prisma.nBAItem.delete({ where: { id: t2.id } });
+        taskcards.splice(j, 1);
+        j--;
+      }
+    }
+  }
+}
+
+/**
+ * Resets verified cards that are old or have low confidence to trigger re-synthesis (enrichment).
+ */
+async function enrichOldestCards(prisma, company) {
+  const cid = company.id;
+  
+  // 1. Check Thresholds
+  const [sourceCount, fileCount, flashcardCount, activeTasksCount] = await Promise.all([
+    prisma.source.count({ where: { companyId: cid } }),
+    prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
+    prisma.flashcard.count({ where: { companyId: cid } }),
+    prisma.nBAItem.count({
+      where: {
+        companyId: cid,
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] },
+        activityState: { in: ["ACTIVE", "STALE"] }
+      }
+    })
+  ]);
+
+  const totalSources = sourceCount + fileCount;
+  const flashcardRatio = totalSources > 0 ? flashcardCount / totalSources : 0;
+
+  // Enrich Flashcards if ratio hit
+  if (flashcardRatio >= 10) {
+    const toEnrich = await prisma.flashcard.findMany({
+      where: { companyId: cid, processingStatus: "VERIFIED", activityState: "ACTIVE" },
+      orderBy: [ { confidenceScore: "asc" }, { updatedAt: "asc" } ],
+      take: 2
+    });
+    
+    for (const fc of toEnrich) {
+      console.log(`[ENRICH] Recycling flashcard ${fc.id} for refinement...`);
+      await reactivateCard(prisma, "Flashcard", fc.id);
+    }
+  }
+
+  // Enrich Tasks if count hit
+  if (activeTasksCount >= 50) {
+     const toEnrich = await prisma.nBAItem.findMany({
+      where: { companyId: cid, processingStatus: "VERIFIED", activityState: "ACTIVE" },
+      orderBy: [ { iceScore: "asc" }, { updatedAt: "asc" } ],
+      take: 2
+    });
+    
+    for (const tc of toEnrich) {
+      console.log(`[ENRICH] Recycling taskcard ${tc.id} for refinement...`);
+      await reactivateCard(prisma, "NBAItem", tc.id);
+    }
+  }
 }
 
 /**
@@ -350,10 +470,58 @@ async function reactivateCard(prisma, cardType, cardId) {
   });
 }
 
+/**
+ * Recycles cards that haven't been updated in 14 days back to DRAFT.
+ */
+async function applyFreshnessDecay(prisma, company) {
+  const cid = company.id;
+  const decayDays = await getWorkerConfig(prisma, company, "freshness_decay_days", 14);
+  const decayThreshold = new Date(Date.now() - decayDays * 24 * 60 * 60 * 1000);
+
+  console.log(`[MAINTENANCE] ${company.name}: Applying freshness decay (Threshold: ${decayDays} days)...`);
+
+  // Flashcards
+  const fcDecayed = await prisma.flashcard.updateMany({
+    where: { 
+      companyId: cid, 
+      processingStatus: { in: ["VERIFIED", "ACCEPTED"] },
+      activityState: "ACTIVE",
+      updatedAt: { lt: decayThreshold }
+    },
+    data: { 
+      processingStatus: "DRAFT",
+      updatedAt: new Date(), // Reset to now so it doesn't decay again immediately
+      userAnnotation: `[MAINTENANCE]: Recycled due to freshness decay (> ${decayDays} days).`
+    }
+  });
+
+  // NBAItems
+  const tcDecayed = await prisma.nBAItem.updateMany({
+    where: { 
+      companyId: cid, 
+      processingStatus: { in: ["VERIFIED", "ACCEPTED"] },
+      activityState: "ACTIVE",
+      updatedAt: { lt: decayThreshold }
+    },
+    data: { 
+      processingStatus: "DRAFT",
+      updatedAt: new Date(),
+      userAnnotation: `[MAINTENANCE]: Recycled due to freshness decay (> ${decayDays} days).`
+    }
+  });
+
+  if (fcDecayed.count > 0 || tcDecayed.count > 0) {
+    console.log(`[MAINTENANCE] ${company.name}: Recycled ${fcDecayed.count} Flashcards and ${tcDecayed.count} Taskcards.`);
+  }
+}
+
 module.exports = {
   runMaintenance,
   reactivateCard,
   scrubDatabaseElemental,
   processUserFeedback,
-  scrubCompanyRejections
+  scrubCompanyRejections,
+  mergeDuplicates,
+  enrichOldestCards,
+  applyFreshnessDecay
 };

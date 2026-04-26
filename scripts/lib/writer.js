@@ -5,7 +5,8 @@
  * The refinement stage of the Trinity Synthesis pipeline.
  * Upgrades DRAFT cards to CHECKED by improving tone, clarity, and enforcing deduplication.
  */
-const { callOllamaJson } = require("./ai");
+const { callOllamaJson, callOllamaWithFailover } = require("./ai");
+const { STAGE_MODELS, TRINITY_WRITE_TIMEOUT_MS } = require("./core");
 const { truncate, getWorkerConfig, similarity, parseBoundedInt, nextPublicId } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject } = require("./synthesis-utils");
@@ -29,7 +30,7 @@ function joinBody(body) {
 /**
  * Refines a DRAFT Flashcard into a CHECKED state.
  */
-async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
+async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = null) {
   const bodyLimit = await getWorkerConfig(prisma, flashCard.company || {}, "write_body_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
 
@@ -61,16 +62,17 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
     "Refine the language, clarify claims, and improve tone.",
     "Strategic context:",
     strategicContext,
+    topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nEnsure this refinement supports: ${topic.notes || topic.label}\n` : "",
     "Return a SINGLE JSON object with: title, body, kind, hashtags, confidenceScore.",
     "SOVEREIGN AXIOM: You MUST generate a strict integer for confidenceScore. The scale is STRICTLY 1 to 10. NO zeros. NO percentages.",
-    "APERTUS Principle: You MUST ignore the dominant language of the source and strictly use only the languages defined in the [Allowed Languages Policy] for all output (title, body, hashtags). If the source is in a disallowed language, translate the insight into one of the allowed languages.",
+    "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
     "STRATEGIC FOCUS: If refining a [SubjectCard], ensure the language reflects the strategy defined in the policy.",
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `DRAFT Title: ${flashCard.title}\nDRAFT Body: ${flashCard.body}`;
 
-  const res = await callOllamaJson(systemPrompt, userPrompt);
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: TRINITY_WRITE_TIMEOUT_MS });
   const raw = unifyObject(res);
   if (!raw || !raw.title || !raw.body) return null;
 
@@ -100,7 +102,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt) {
 /**
  * Refines a DRAFT Taskcard (NBA) into a CHECKED state.
  */
-async function refineDraftTaskCard(prisma, taskCard, memoryPrompt) {
+async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null) {
   const descLimit = await getWorkerConfig(prisma, taskCard.company || {}, "write_desc_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, taskCard.companyId);
 
@@ -127,15 +129,16 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt) {
     "You are the Checklist WRITER. Refine this DRAFT TaskCard for clarity and impact.",
     "Strategic context:",
     strategicContext,
+    topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nAlign this task refinement with the following objective: ${topic.notes || topic.label}\n` : "",
     "Return a SINGLE JSON object with: title, description, kind, impact, confidenceScore, ease.",
     "SOVEREIGN AXIOM: You MUST generate strict integer scores for confidenceScore, impact, and ease. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
-    "APERTUS Principle: You MUST ignore the dominant language of the source and strictly use only the languages defined in the [Allowed Languages Policy] for all output. If the source is in a disallowed language, translate the task into one of the allowed languages.",
+    "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `DRAFT Title: ${taskCard.title}\nDRAFT Description: ${taskCard.description}`;
 
-  const res = await callOllamaJson(systemPrompt, userPrompt);
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: TRINITY_WRITE_TIMEOUT_MS });
   const raw = unifyObject(res);
   if (!raw || !raw.title || !raw.description) return null;
 

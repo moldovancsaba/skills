@@ -470,6 +470,10 @@ const HTML = /* html */ `<!DOCTYPE html>
              <span class="setting-key">Last Sync</span>
              <span class="setting-val" id="last-updated">—</span>
           </div>
+          <div class="setting-row">
+             <span class="setting-key">Intel Mode</span>
+             <span class="setting-val" id="intel-mode" style="color:var(--muted)">Standard</span>
+          </div>
         </div>
       </div>
 
@@ -636,8 +640,24 @@ const HTML = /* html */ `<!DOCTYPE html>
         (worker.online && worker.state === "idle") ? "block" : "none";
 
       // Stage description
-      document.getElementById("stage-description").textContent =
-        STAGE_DESC[stage] || "Awaiting target assignment...";
+      let desc = STAGE_DESC[stage] || "Awaiting target assignment...";
+      if (worker.enrichmentModeFlashcards && stage === "SCRUBBING") {
+        desc = "⚡ FLASHCARD ENRICHMENT: Suspending new drafts to refine existing cards (10x ratio reached).";
+      }
+      if (worker.enrichmentModeTasks && stage === "ASCENDING") {
+        desc = "⚡ TASK ENRICHMENT: Capacity reached (50+ items). Improving existing tasks only.";
+      }
+      document.getElementById("stage-description").textContent = desc;
+
+      // Intel Mode indicator
+      const im = document.getElementById("intel-mode");
+      if (worker.enrichmentModeFlashcards || worker.enrichmentModeTasks) {
+        im.textContent = "Enrichment";
+        im.style.color = "var(--fuchsia)";
+      } else {
+        im.textContent = "Standard";
+        im.style.color = "var(--muted)";
+      }
 
       // Guardian
       const gs = document.getElementById("guardian-status");

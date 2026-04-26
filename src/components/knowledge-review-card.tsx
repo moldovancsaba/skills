@@ -151,9 +151,12 @@ export function KnowledgeReviewCard({
                 Sovereign research
               </Badge>
             )}
-            <div className={cn("ml-auto flex items-center gap-3 text-[10px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md border", getMetricColorClasses(flashcard.confidenceScore))}>
-              <span>Impact {flashcard.impact}</span>
-              <span>Confidence {flashcard.confidenceScore}</span>
+            <div className={cn("ml-auto flex items-center gap-3 text-[10px] font-bold uppercase tracking-tighter px-2.5 py-1 rounded-md border shadow-sm", getMetricColorClasses(flashcard.impact * (flashcard.confidenceScore / 10) * flashcard.weight))}>
+              <span className="opacity-70">ICE Score</span>
+              <span className="text-sm font-black">{Math.round(flashcard.impact * (flashcard.confidenceScore / 10) * flashcard.weight)}</span>
+              <div className="h-3 w-px bg-current/20 mx-1" />
+              <span className="opacity-70">Ease</span>
+              <span className="text-sm font-black">{flashcard.weight}</span>
             </div>
           </div>
         }

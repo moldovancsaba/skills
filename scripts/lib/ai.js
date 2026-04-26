@@ -8,6 +8,7 @@
 const http = require("http");
 const { 
   OLLAMA_HOST, 
+  OLLAMA_MODEL,
   GLOBAL_OLLAMA_TIMEOUT_MS, 
   STAGE_MODELS, 
   TRINITY_DRAFT_TIMEOUT_MS, 
@@ -61,13 +62,21 @@ function normalizeHashtags(values = []) {
 
 /**
  * Identifies and extracts the first JSON block from a string.
+ * Now handles markdown code fences and cleans preamble noise.
  * 
  * @param {string} content - Raw AI output string
  * @returns {string|null} Full {JSON} block if found, else null
  */
 function extractJsonCandidate(content) {
   if (!content) return null;
-  const match = content.match(/\{[\s\S]*\}/);
+
+  // Clean markdown fences if they exist
+  let cleaned = content
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .trim();
+
+  const match = cleaned.match(/\{[\s\S]*\}/);
   return match ? match[0] : null;
 }
 
@@ -84,9 +93,13 @@ function extractJsonCandidate(content) {
 async function callOllama(messages, options = {}) {
   return queueAiInference(() => new Promise((resolve, reject) => {
     const payload = JSON.stringify({
-      model: options.model || "llama3.2:3b",
+      model: options.model || OLLAMA_MODEL || "llama3.2:3b",
       messages,
       stream: false,
+      options: {
+        num_predict: 2048,
+        temperature: 0.1, // Low temp for stable JSON
+      },
       format: options.format === "json" ? "json" : undefined,
     });
 
@@ -103,6 +116,9 @@ async function callOllama(messages, options = {}) {
         res.on("data", (chunk) => (body += chunk));
         res.on("end", () => {
           try {
+            if (res.statusCode !== 200) {
+              throw new Error(`Ollama returned status ${res.statusCode}: ${body}`);
+            }
             const data = JSON.parse(body);
             resolve(data.message?.content || "");
           } catch (err) {
@@ -141,7 +157,18 @@ async function callOllamaJson(systemPrompt, userPrompt, options = {}) {
   let candidate = extractJsonCandidate(content);
   
   if (!candidate) {
-    throw new Error("Ollama returned no extractable JSON content");
+    console.warn(`[WARN] [${options.model}] No braces found in output. Raw: ${content.slice(0, 100)}...`);
+    // Attempt recovery: Ask the model to wrap its previous thought in JSON
+    const recovery = await callOllama([
+      ...messages,
+      { role: "assistant", content: content },
+      { role: "user", content: "You failed to provide valid JSON. Return your previous answer exactly but as a single valid JSON object." }
+    ], { ...options, format: "json" });
+    
+    candidate = extractJsonCandidate(recovery);
+    if (!candidate) {
+      throw new Error(`Ollama returned no extractable JSON content for ${options.model}.`);
+    }
   }
 
   try {
@@ -151,7 +178,7 @@ async function callOllamaJson(systemPrompt, userPrompt, options = {}) {
     const repaired = await callOllama([
       {
         role: "system",
-        content: "You are a JSON Repair Expert. Fix the following BROKEN JSON payload. Return ONLY valid JSON.",
+        content: "You are a JSON Repair Expert. Fix the following BROKEN JSON payload. Return ONLY valid JSON. No preamble.",
       },
       { role: "user", content: candidate },
     ], {

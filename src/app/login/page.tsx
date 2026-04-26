@@ -1,6 +1,6 @@
 'use client';
 
-import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/ui/app-shell";
@@ -19,22 +19,21 @@ export default function LoginPage() {
         className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-[2rem] border border-border/70 bg-card/80 shadow-elevated"
       >
         <div className="absolute inset-0 bg-gradient-to-tr from-sky-500/15 via-orange-400/10 to-violet-500/15" />
-        <div className="relative flex w-full items-center justify-center px-4 py-6 md:px-6 md:py-8">
-          <div className="w-full max-w-3xl rounded-[1.75rem] border border-white/20 bg-slate-950/60 px-6 py-6 text-center text-white shadow-2xl backdrop-blur-md md:px-8">
-            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[1.25rem] border border-white/10 bg-slate-950/30">
-              <Image
-                src="/images/hero.png"
-                alt="Checklist hero"
-                fill
-                className="object-contain"
-                priority
-              />
+        <div className="relative flex w-full items-center justify-center px-4 py-12 md:px-6 md:py-16">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/40 px-8 py-12 text-center text-white shadow-2xl backdrop-blur-xl md:px-10">
+            <div className="mb-10">
+              <h1 className="text-4xl font-bold tracking-tight mb-3 bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent">
+                Checklist
+              </h1>
+              <p className="text-slate-400 font-medium">
+                Sovereign Intelligence OS
+              </p>
             </div>
 
-            <div className="mx-auto mt-6 max-w-2xl">
+            <div className="mx-auto max-w-sm">
               <Button
                 onClick={handleLogin}
-                className="mt-8 h-14 w-full text-lg font-semibold shadow-lg shadow-violet-950/30 transition-all duration-300 hover:shadow-violet-900/40"
+                className="h-14 w-full rounded-xl text-lg font-semibold shadow-lg shadow-primary/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                 size="lg"
               >
                 <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
@@ -58,8 +57,9 @@ export default function LoginPage() {
                 Continue with Google
               </Button>
 
-              <p className="mt-6 text-xs text-slate-300/80">
-                By continuing, you agree to our Terms of Service and Privacy Policy.
+              <p className="mt-8 text-xs text-slate-400/60 leading-relaxed">
+                By continuing, you agree to our <br/>
+                <Link href="/terms" className="underline hover:text-white transition-colors">Terms of Service</Link> and <Link href="/privacy" className="underline hover:text-white transition-colors">Privacy Policy</Link>.
               </p>
             </div>
           </div>

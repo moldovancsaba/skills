@@ -4,7 +4,9 @@ const { refineDraftFlashCard, refineDraftTaskCard } = require("./writer");
 const { auditCheckedFlashCard, auditCheckedTaskCard } = require("./judge");
 const { getWorkerConfig } = require("./shared");
 const { runMaintenance } = require("./maintenance");
-const { OLLAMA_MODEL } = require("./core");
+const { enforceLanguagePolicy } = require("./language-validator");
+const { OLLAMA_MODEL, STAGE_MODELS } = require("./core");
+const { generateStrategicKeywords } = require("./research");
 
 /**
  * SOVEREIGN SYNTHESIS ENGINE
@@ -21,7 +23,9 @@ var synthesisState = {
   pass: 0,
   lastProgressAt: new Date().toISOString(),
   currentCompany: null,
-  cycleCount: 0
+  cycleCount: 0,
+  enrichmentModeFlashcards: false,
+  enrichmentModeTasks: false
 };
 
 /**
@@ -50,7 +54,7 @@ async function collectGlobalWorkerSettings(prisma) {
     companyCycleCooldownMs: pollIntervalSec * 1000,
     researchHarvestBatchSize: 1,
     ollamaTimeoutMs: ollamaTimeout,
-    failsafeModel: `${OLLAMA_MODEL},llama3.2:3b`,
+    failsafeModel: `DRAFT: ${STAGE_MODELS.DRAFT.join("/")} | WRITE: ${STAGE_MODELS.WRITE.join("/")} | JUDGE: ${STAGE_MODELS.JUDGE.join("/")}`,
     failsafeTimeoutMs: 90000,
     failsafeMaxAttempts: 2,
     taskMinIceScore: await getWorkerConfig(prisma, {}, "task_min_ice", 50),
@@ -171,15 +175,57 @@ async function processCompanySynthesis(prisma, company) {
   // 1. Worker Configuration
   const passes = await getWorkerConfig(prisma, company, "mini_loop_passes", 3);
   const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
+
+  // 1.5. Mode Selection (Thresholds)
+  const [sourceCount, fileCount, flashcardCount, activeTasksCount] = await Promise.all([
+    prisma.source.count({ where: { companyId: cid } }),
+    prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
+    prisma.flashcard.count({ where: { companyId: cid } }),
+    prisma.nBAItem.count({
+      where: {
+        companyId: cid,
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] },
+        activityState: { in: ["ACTIVE", "STALE"] }
+      }
+    })
+  ]);
+
+  const totalSources = sourceCount + fileCount;
+  const flashcardRatio = totalSources > 0 ? flashcardCount / totalSources : 0;
+  
+  const enrichmentModeFlashcards = flashcardRatio >= 10;
+  const enrichmentModeTasks = activeTasksCount >= 50;
+
+  synthesisState.enrichmentModeFlashcards = enrichmentModeFlashcards;
+  synthesisState.enrichmentModeTasks = enrichmentModeTasks;
+
+  if (enrichmentModeFlashcards) console.log(`[SYNTHESIS] ${company.name}: FLASHCARD ENRICHMENT MODE ACTIVE (Ratio: ${flashcardRatio.toFixed(1)}x)`);
+  if (enrichmentModeTasks) console.log(`[SYNTHESIS] ${company.name}: TASK ENRICHMENT MODE ACTIVE (Count: ${activeTasksCount})`);
   
   synthesisState.currentCompany = company.name;
   synthesisState.lastProgressAt = new Date().toISOString();
 
   console.log(`[SYNTHESIS] ${company.name}: Starting ${passes}-pass Mini-loop.`);
 
+  // --- RESEARCH HARVEST YIELD (#112) ---
+  const strategicKeywords = await generateStrategicKeywords(prisma, company);
+  if (strategicKeywords.length > 0) {
+    console.log(`[SYNTHESIS] ${company.name}: Strategic Focus Keywords -> [${strategicKeywords.join(", ")}]`);
+  }
+
   for (let pass = 1; pass <= passes; pass++) {
     synthesisState.pass = pass;
     console.log(`[SYNTHESIS] ${company.name}: PASS ${pass}/${passes}`);
+
+    // --- STRATEGIC TOPIC SELECTION (#111) ---
+    const activeTopics = await prisma.topic.findMany({ 
+      where: { companyId: cid, active: true },
+      orderBy: { sortOrder: "asc" }
+    });
+    const topic = activeTopics.length > 0 ? activeTopics[(pass - 1) % activeTopics.length] : null;
+    if (topic) {
+      console.log(`[SYNTHESIS] ${company.name}: Strategic Focus -> [${topic.label}]`);
+    }
     
     // Step A: Teach Local Brain
     const memoryPrompt = await getHumanMemoryPrompt(prisma, company);
@@ -194,11 +240,30 @@ async function processCompanySynthesis(prisma, company) {
 
     // --- STAGE 1: DRAFTER (Sources & Files -> Flashcards) ---
     synthesisState.stage = "SCRUBBING";
+
+    if (enrichmentModeFlashcards) {
+      console.log(`[SYNTHESIS] ${company.name}: Skipping new drafts. Enrichment mode active.`);
+    } else {
     
     // Fetch both raw text sources and uploaded binary files
+    // Prioritize those that match the current topic's hashtags if available (#111)
+    const topicHashtags = topic?.hashtags || [];
+    
     const [rawSources, rawFiles] = await Promise.all([
-      prisma.source.findMany({ where: { companyId: cid }, take: orbitLimit }),
-      prisma.uploadedSourceFile.findMany({ where: { companyId: cid }, take: orbitLimit })
+      prisma.source.findMany({ 
+        where: { 
+          companyId: cid,
+          ...(topicHashtags.length > 0 ? { hashtags: { hasSome: topicHashtags } } : {})
+        }, 
+        take: orbitLimit 
+      }),
+      prisma.uploadedSourceFile.findMany({ 
+        where: { 
+          companyId: cid,
+          ...(topicHashtags.length > 0 ? { hashtags: { hasSome: topicHashtags } } : {})
+        }, 
+        take: orbitLimit 
+      })
     ]);
 
       // Normalize into Unified DataCards
@@ -234,7 +299,8 @@ async function processCompanySynthesis(prisma, company) {
       synthesisState.lastProgressAt = new Date().toISOString();
       console.log(`[SYNTHESIS] [${dc.type}] Scrubbing: ${dc.name} (${dc.id})...`);
       
-      const drafts = await draftFlashcardFromDataCard(prisma, company, dc, memoryPrompt);
+      const drafts = await draftFlashcardFromDataCard(prisma, company, dc, memoryPrompt, topic);
+      ops += drafts.length;
       if (drafts.length === 0) {
         console.log(`[WARN] Drafter returned 0 insights for ${dc.type}: ${dc.id}. Model may be refusing or content is silent.`);
       }
@@ -256,6 +322,7 @@ async function processCompanySynthesis(prisma, company) {
         ops++;
       }
     }
+    }
 
     // --- STAGE 2: WRITER & JUDGE (The Quality Pipeline) ---
     
@@ -271,16 +338,17 @@ async function processCompanySynthesis(prisma, company) {
       synthesisState.lastProgressAt = new Date().toISOString();
       console.log(`[DEBUG] Processing fc.id: ${fc.id}, status: ${fc.processingStatus}`);
       if (fc.processingStatus === "DRAFT") {
-        const refined = await refineDraftFlashCard(prisma, fc, memoryPrompt);
+        const refined = await refineDraftFlashCard(prisma, fc, memoryPrompt, topic);
         if (refined) {
           await prisma.flashcard.update({ where: { id: fc.id }, data: refined });
           ops++;
         }
       } else if (fc.processingStatus === "CHECKED") {
         synthesisState.stage = "JUDGING";
-        const audit = await auditCheckedFlashCard(prisma, fc, memoryPrompt);
+        const audit = await auditCheckedFlashCard(prisma, fc, memoryPrompt, topic);
         if (audit) {
-          await prisma.flashcard.update({ where: { id: fc.id }, data: audit });
+          const updated = await prisma.flashcard.update({ where: { id: fc.id }, data: audit });
+          await enforceLanguagePolicy(prisma, updated, "FLASHCARD", company);
           ops++;
         }
       }
@@ -298,28 +366,30 @@ async function processCompanySynthesis(prisma, company) {
       console.log(`[DEBUG] Processing tc.id: ${tc.id}, status: ${tc.processingStatus}`);
       if (tc.processingStatus === "DRAFT") {
         synthesisState.stage = "WRITING";
-        const refined = await refineDraftTaskCard(prisma, tc, memoryPrompt);
+        const refined = await refineDraftTaskCard(prisma, tc, memoryPrompt, topic);
         if (refined) {
           await prisma.nBAItem.update({ where: { id: tc.id }, data: refined });
           ops++;
         }
       } else if (tc.processingStatus === "CHECKED") {
         synthesisState.stage = "JUDGING";
-        const audit = await auditCheckedTaskCard(prisma, tc, memoryPrompt);
+        const audit = await auditCheckedTaskCard(prisma, tc, memoryPrompt, topic);
         if (audit) {
-          await prisma.nBAItem.update({ where: { id: tc.id }, data: audit });
+          const updated = await prisma.nBAItem.update({ where: { id: tc.id }, data: audit });
+          await enforceLanguagePolicy(prisma, updated, "TASK", company);
           ops++;
         }
       }
     }
 
-    // --- STAGE 3: SYNTHESIS ASCENSION (Verified Flashcards -> Draft Tasks) ---
-    synthesisState.stage = "ASCENDING";
-    const verifiedFlash = await prisma.flashcard.findMany({ 
-      where: { companyId: cid, processingStatus: "VERIFIED" },
-      orderBy: { updatedAt: "asc" }, // FOCUS: Oldest modified first
-      take: orbitLimit
-    });
+    if (enrichmentModeTasks) {
+      console.log(`[SYNTHESIS] ${company.name}: Skipping new task generation. Enrichment mode active (Limit 50).`);
+    } else {
+      const verifiedFlash = await prisma.flashcard.findMany({ 
+        where: { companyId: cid, processingStatus: "VERIFIED" },
+        orderBy: { updatedAt: "asc" }, // FOCUS: Oldest modified first
+        take: orbitLimit
+      });
     for (const vf of verifiedFlash) {
       synthesisState.lastProgressAt = new Date().toISOString();
       console.log(`[DEBUG] draftTaskcardFromFlashCard for vf.id: ${vf.id}`);
@@ -331,6 +401,7 @@ async function processCompanySynthesis(prisma, company) {
           update: { updatedAt: new Date() }
         });
         ops++;
+      }
       }
     }
   }

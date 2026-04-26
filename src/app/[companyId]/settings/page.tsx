@@ -234,8 +234,8 @@ export default function SettingsPage() {
                 <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-950/30">
                   <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Policy Enforcement</h4>
                   <p className="text-xs text-zinc-400 leading-relaxed">
-                    AI agents will strictly use only these permitted languages for <span className="text-accent underline decoration-accent/30 underline-offset-4">flashcards</span>, <span className="text-accent underline decoration-accent/30 underline-offset-4">subjectcards</span>, and <span className="text-accent underline decoration-accent/30 underline-offset-4">taskcards</span>. 
-                    If source data is provided in a disallowed language, the AI will automatically translate and synthesize the output into the permitted set.
+                    AI agents will strictly use only these permitted languages for <span className="text-accent underline decoration-accent/30 underline-offset-4">flashcards</span> and <span className="text-accent underline decoration-accent/30 underline-offset-4">taskcards</span>. 
+                    <span className="block mt-2 font-semibold text-zinc-300">Sovereign Purity Check:</span> Any content detected in a disallowed language or containing mixed-language structures will be <span className="text-red-400 font-bold underline decoration-red-400/30 underline-offset-4">deleted immediately without hesitation</span> during synthesis to ensure knowledge base integrity.
                   </p>
                 </div>
               </CardContent>

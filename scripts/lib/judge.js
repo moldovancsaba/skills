@@ -6,7 +6,8 @@
  * Audits CHECKED cards and determines if they meet the threshold for promotion to VERIFIED.
  * Rejections are demoted to DRAFT with cratered scores to sink in sorting layers.
  */
-const { callOllamaJson } = require("./ai");
+const { callOllamaJson, callOllamaWithFailover } = require("./ai");
+const { STAGE_MODELS, TRINITY_JUDGE_TIMEOUT_MS } = require("./core");
 const { getCompanyStrategicContext } = require("./context");
 const { getWorkerConfig, calculatePercentile, parseBoundedInt } = require("./shared");
 const { unifyObject } = require("./synthesis-utils");
@@ -17,7 +18,7 @@ const { unifyObject } = require("./synthesis-utils");
  * Audits a CHECKED Flashcard and determines its promotion path.
  * Uses a dynamic quality floor based on the percentile distribution of existing scores.
  */
-async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
+async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = null) {
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
 
   // 1. Identify Quality Floor (Percentile)
@@ -40,13 +41,13 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
     strategicContext,
     "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
     "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
-    "APERTUS Principle: You MUST verify that the card strictly uses the languages defined in the [Allowed Languages Policy]. If the card contains disallowed languages, you MUST REJECT it. Your reasoning and feedback MUST ALSO be in one of the allowed languages.",
+    "APERTUS Purity Principle: You MUST verify that the card is 100% monolingual and strictly uses exactly ONE of the allowed languages. If the card contains mixed languages (e.g., English title with Hungarian body) or any disallowed languages, you MUST REJECT it. Your reasoning and feedback MUST ALSO be in one of the allowed languages.",
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `Title: ${flashCard.title}\nBody: ${flashCard.body}`;
 
-  const res = await callOllamaJson(systemPrompt, userPrompt);
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.JUDGE, { timeoutMs: TRINITY_JUDGE_TIMEOUT_MS });
   const raw = unifyObject(res);
   if (!raw || !raw.decision) return { processingStatus: "CHECKED" }; 
 
@@ -63,6 +64,7 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
   }
 
   if (raw.decision === "VERIFIED" && finalScore >= threshold) {
+    console.log(`[JUDGE] [VERIFIED] fc:${flashCard.id} Score: ${finalScore}/${threshold}`);
     return { 
       processingStatus: "VERIFIED", 
       status: "VERIFIED", // Internal Sync
@@ -72,6 +74,7 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
     };
   } else {
     const reasonText = typeof raw.reason === "string" ? raw.reason : JSON.stringify(raw.reason);
+    console.log(`[JUDGE] [REJECTED] fc:${flashCard.id} Score: ${finalScore}/${threshold} Reason: ${reasonText}`);
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Internal Sync
@@ -88,7 +91,7 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt) {
  * Audits a CHECKED Taskcard (NBA) and determines its promotion path.
  * Enforces quality standards for strategic tactical recommendations.
  */
-async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
+async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt, topic = null) {
   const strategicContext = await getCompanyStrategicContext(prisma, taskCard.companyId);
 
   // Quality Floor
@@ -110,13 +113,13 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
     strategicContext,
     "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
     "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
-    "APERTUS Principle: You MUST verify that the card strictly uses the languages defined in the [Allowed Languages Policy]. If the card contains disallowed languages, you MUST REJECT it. Your reasoning and feedback MUST ALSO be in one of the allowed languages.",
+    "APERTUS Purity Principle: You MUST verify that the card is 100% monolingual and strictly uses exactly ONE of the languages defined in the [Allowed Languages Policy]. If the card contains mixed languages (e.g., English title with Hungarian body) or any disallowed languages, you MUST REJECT it. Your reasoning and feedback MUST ALSO be in one of the allowed languages.",
     memoryPrompt
   ].join("\n");
 
   const userPrompt = `Title: ${taskCard.title}\nDescription: ${taskCard.description}`;
 
-  const res = await callOllamaJson(systemPrompt, userPrompt);
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.JUDGE, { timeoutMs: TRINITY_JUDGE_TIMEOUT_MS });
   const raw = unifyObject(res);
   if (!raw || !raw.decision) return { processingStatus: "CHECKED" };
 
@@ -133,6 +136,7 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
 
   if (raw.decision === "VERIFIED" && finalScore >= threshold) {
     const ice = taskCard.impact * finalScore * taskCard.ease;
+    console.log(`[JUDGE] [VERIFIED] tc:${taskCard.id} Score: ${finalScore}/${threshold}`);
     return { 
       processingStatus: "VERIFIED", 
       status: "VERIFIED", // Internal Sync
@@ -143,6 +147,7 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt) {
     };
   } else {
     const reasonText = typeof raw.reason === "string" ? raw.reason : JSON.stringify(raw.reason);
+    console.log(`[JUDGE] [REJECTED] tc:${taskCard.id} Score: ${finalScore}/${threshold} Reason: ${reasonText}`);
     return { 
       processingStatus: "DRAFT", 
       status: "DRAFT", // Internal Sync

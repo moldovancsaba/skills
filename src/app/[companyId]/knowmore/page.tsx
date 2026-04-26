@@ -18,6 +18,8 @@ import {
   Loader2,
   Search,
   Sparkles,
+  TrendingUp,
+  ArrowUpRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -302,8 +304,8 @@ export default function CompanyKnowMorePage() {
         total: 0,
         reviewed: 0,
         avgConfidence: 0,
-        avgImpact: 0,
-        avgWeight: 0,
+        avgIceScore: 0,
+        avgEase: 0,
       };
     }
 
@@ -324,8 +326,10 @@ export default function CompanyKnowMorePage() {
       total: flashcards.length,
       reviewed: totals.reviewed,
       avgConfidence: Math.round(totals.confidence / flashcards.length),
-      avgImpact: Math.round(totals.impact / flashcards.length),
-      avgWeight: Math.round(totals.weight / flashcards.length),
+      avgIceScore: Math.round(
+        flashcards.reduce((sum, f) => sum + (f.impact * (f.confidenceScore / 10) * f.weight), 0) / flashcards.length
+      ),
+      avgEase: Math.round(totals.weight / flashcards.length),
     };
   }, [flashcards]);
 
@@ -543,11 +547,18 @@ export default function CompanyKnowMorePage() {
           detail="Confidence across the current flashcards."
         />
         <MetricCard
-          icon={Layers3}
+          icon={TrendingUp}
           iconClassName="text-emerald-500"
-          label="Average impact / weight"
-          value={`${summary.avgImpact} / ${summary.avgWeight}`}
-          detail="Current impact and weight across the active card set."
+          label="Avg ICE Score"
+          value={summary.avgIceScore}
+          detail="Priority score calculated via Impact × Confidence × Ease."
+        />
+        <MetricCard
+          icon={ArrowUpRight}
+          iconClassName="text-cyan-500"
+          label="Avg Ease"
+          value={summary.avgEase}
+          detail="Average implementation simplicity for these items."
         />
       </MetricGrid>
 

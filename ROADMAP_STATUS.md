@@ -36,4 +36,13 @@
 - [ ] **#116 Live Model Swapping**: Hot-swapping `STAGE_MODELS` via DB.
 
 ---
-*Status Update: 2026-04-27. Infrastructure Hardening Phase Complete.*
+
+## 🚀 NEXT BEST ACTIONS (NBAs)
+
+1. **Knowmore UI & Intelligence Visibility (#69, #70)**: Build the frontend dashboard to visualize the hardened knowledge loop, including the new TraceID lineage and source quality scores.
+2. **Security Infrastructure Hardening (#74, #75)**: Execute the critical security rotation and environment verification to ensure the local OS is production-secure.
+3. **AI Vertical Expansion (#52 - #61)**: Deploy the specialized marketing agents (Competitor Analysis, Lead Scoring, Segmentation) using the now-stable Trinity infrastructure.
+
+---
+*Status Update: 2026-04-27. Project Board Synchronized.*
+

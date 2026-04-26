@@ -50,13 +50,14 @@ The system runs in a continuous loop. For each cycle:
 - **Step 2: Load runtime configuration** (No hardcoded operational thresholds).
 - **Step 3: Select company** (oldest AI visit timestamp).
 - **Step 4: Pull new remote data** (DataCards, updates, feedback, moderation).
-- **Step 5: Build or refresh DataCards** (convert raw material).
-- **Step 6: Teach the local brain** (Feedback = strong learning material).
-- **Step 7: Run card-processing mini-loop** (agent pipeline).
-- **Step 8: Update ageing and expiration** (apply labels).
-- **Step 9: Push back to online database**.
-- **Step 10: Mark company processed** (update last-visited timestamp).
-- **Step 11: Move to next company**.
+- **Step 5: Teach the local brain** (Feedback = strong learning material - Fast-Path).
+- **Step 6: Research Harvest** (Topic-driven strategic search).
+- **Step 7: Build or refresh DataCards** (convert raw material).
+- **Step 8: Run card-processing mini-loop** (agent pipeline).
+- **Step 9: Update ageing and expiration** (apply labels).
+- **Step 10: Push back to online database**.
+- **Step 11: Mark company processed** (update last-visited timestamp).
+- **Step 12: Move to next company**.
 
 ---
 

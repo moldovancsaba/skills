@@ -51,13 +51,14 @@ The local layer can enrich a source using:
 The worker currently schedules work as a serial per-company cycle:
 
 1. poll the company
-2. revisit one oldest task
-3. run `researchHarvest`
-4. revisit one oldest flashcard
-5. replay one feedback slice
-6. retry one fail-safe queue slice through the secondary local model
-7. maintain one hashtag slice
-8. run one cleanup slice
+2. process user feedback and update durable memory (Fast-Path)
+3. run `researchHarvest` (Topic-driven)
+4. revisit one oldest task
+5. revisit one oldest flashcard
+6. replay one feedback slice
+7. retry one fail-safe queue slice through the secondary local model
+8. maintain one hashtag slice
+9. run one cleanup slice
 
 After a company completes that cycle, it waits for the configured company-cycle cooldown before becoming due again.
 

@@ -3,10 +3,11 @@ const { draftFlashcardFromDataCard, draftTaskcardFromFlashCard } = require("./dr
 const { refineDraftFlashCard, refineDraftTaskCard } = require("./writer");
 const { auditCheckedFlashCard, auditCheckedTaskCard } = require("./judge");
 const { getWorkerConfig } = require("./shared");
-const { runMaintenance } = require("./maintenance");
+const { runMaintenance, processUserFeedback } = require("./maintenance");
+const { updateCompanyMemory } = require("./memory");
 const { enforceLanguagePolicy } = require("./language-validator");
 const { OLLAMA_MODEL, STAGE_MODELS } = require("./core");
-const { generateStrategicKeywords } = require("./research");
+const { generateStrategicKeywords, performResearchHarvest } = require("./research");
 
 /**
  * SOVEREIGN SYNTHESIS ENGINE
@@ -25,7 +26,23 @@ var synthesisState = {
   currentCompany: null,
   cycleCount: 0,
   enrichmentModeFlashcards: false,
-  enrichmentModeTasks: false
+  enrichmentModeTasks: false,
+  // Consistency Metrics (#115)
+  metrics: {
+    totalOpsThisCycle: 0,         // Operations completed in current/last cycle
+    zeroOutputStreak: 0,          // Consecutive cycles with 0 ops (stall indicator)
+    lastNonZeroCycleAt: null,     // Timestamp of last productive cycle
+    companiesCoveredThisCycle: 0, // Companies that produced at least 1 op this cycle
+    failedCardsThisCycle: 0,      // Cards that hit errors this cycle
+    totalResearchYield: 0,        // Total new sources found by AI research
+    zeroYieldTopicStreak: 0,      // Consecutive topics with 0 research results
+    cycleHistory: []              // Last 10 cycle summaries for trend visibility
+  },
+  errorStats: {
+    attempts: 0,
+    failures: 0,
+    criticalFailureStreak: 0
+  }
 };
 
 /**
@@ -98,7 +115,9 @@ async function syncSynthesisStateToDb(prisma) {
       cycleCount: synthesisState.cycleCount,
       timestamp: new Date().toISOString(),
       researchEnabled: process.env.CHECKLIST_RESEARCH_ENABLED === "true",
-      settings
+      settings,
+      // Consistency Metrics (#115)
+      metrics: synthesisState.metrics
     };
     
     await prisma.globalSetting.upsert({
@@ -122,12 +141,21 @@ async function syncSynthesisStateToDb(prisma) {
 async function runSynthesisCycle(prisma) {
   let totalOperations = 0;
   // Fair Rotation: Oldest last-visited company first
-  // REMOVED [where: { updatedAt: { not: undefined } }] to avoid skipping newly created or un-updated companies
-  const companies = await prisma.company.findMany({
+  const rawCompanies = await prisma.company.findMany({
     orderBy: { lastAIVisited: "asc" }
   });
 
-  console.log(`[SYNTHESIS] FOUND ${companies.length} COMPANIES: ${companies.map(c => c.name).join(", ")}`);
+  // --- PRIORITY BOOST (#Scale) ---
+  // Companies with high intensity are prioritized even if visited recently.
+  const companies = rawCompanies.sort((a, b) => {
+    const aHigh = a.workerConfig?.intensity === "high";
+    const bHigh = b.workerConfig?.intensity === "high";
+    if (aHigh && !bHigh) return -1;
+    if (!aHigh && bHigh) return 1;
+    return 0; // Maintain lastAIVisited order for same intensity
+  });
+
+  console.log(`[SYNTHESIS] CYCLE #${synthesisState.cycleCount + 1}: ${companies.length} companies queued.`);
 
   synthesisState.state = "running";
   synthesisState.stage = "SCHEDULING";
@@ -139,14 +167,66 @@ async function runSynthesisCycle(prisma) {
   console.log(`[SYNTHESIS] Orbiting ${companies.length} companies (Batch Size: ${batchSize})...`);
 
   // Process a batch of companies to ensure fairness
+  // --- Consistency Metrics Tracking ---
+  const cycleStart = Date.now();
+  const perCompanyOps = {};
+  synthesisState.metrics.totalOpsThisCycle = 0;
+  synthesisState.metrics.companiesCoveredThisCycle = 0;
+  synthesisState.metrics.failedCardsThisCycle = 0;
+
   for (const company of companies.slice(0, batchSize)) {
     try {
       const ops = await processCompanySynthesis(prisma, company);
       totalOperations += ops;
+      perCompanyOps[company.name] = ops;
+      synthesisState.metrics.totalOpsThisCycle += ops;
+      if (ops > 0) synthesisState.metrics.companiesCoveredThisCycle++;
     } catch (err) {
       console.error(`[ERROR] Synthesis failure for ${company.name}:`, err.message);
+      synthesisState.errorStats.failures++;
     }
   }
+
+  // Update zero-output streak
+  if (totalOperations === 0) {
+    synthesisState.metrics.zeroOutputStreak++;
+    if (synthesisState.metrics.zeroOutputStreak >= 3) {
+      console.warn(`[CONSISTENCY] Zero-output streak: ${synthesisState.metrics.zeroOutputStreak} consecutive cycles. System may be stalled.`);
+    }
+  } else {
+    synthesisState.metrics.zeroOutputStreak = 0;
+    synthesisState.metrics.lastNonZeroCycleAt = new Date().toISOString();
+  }
+
+  // --- HEALTH AUDIT & ALERTING (#41) ---
+  const stats = synthesisState.errorStats;
+  const totalAttempts = stats.attempts + stats.failures;
+  const failureRate = totalAttempts > 0 ? stats.failures / totalAttempts : 0;
+  
+  if (failureRate > 0.15) {
+    stats.criticalFailureStreak++;
+    console.error(`[SYSTEM_ALERT] High AI failure rate: ${(failureRate * 100).toFixed(1)}% (streak: ${stats.criticalFailureStreak})`);
+  } else {
+    stats.criticalFailureStreak = 0;
+  }
+
+  // Sync Cycle History
+  const cycleRecord = {
+    cycleNumber: synthesisState.cycleCount,
+    startedAt: new Date(cycleStart).toISOString(),
+    durationMs: Date.now() - cycleStart,
+    totalOps: totalOperations,
+    failureRate: (failureRate * 100).toFixed(1) + "%",
+    companiesCovered: synthesisState.metrics.companiesCoveredThisCycle,
+    perCompanyOps
+  };
+
+  synthesisState.metrics.cycleHistory.unshift(cycleRecord);
+  if (synthesisState.metrics.cycleHistory.length > 10) synthesisState.metrics.cycleHistory.pop();
+
+  // Reset per-cycle stats
+  stats.attempts = 0;
+  stats.failures = 0;
 
   synthesisState.state = "idle";
   synthesisState.stage = "IDLE";
@@ -154,10 +234,7 @@ async function runSynthesisCycle(prisma) {
   synthesisState.currentCompany = null;
   synthesisState.lastProgressAt = new Date().toISOString();
 
-  return { 
-    workDone: totalOperations > 0, 
-    operations: totalOperations 
-  };
+  return { workDone: totalOperations > 0, operations: totalOperations };
 }
 
 /**
@@ -204,27 +281,59 @@ async function processCompanySynthesis(prisma, company) {
   
   synthesisState.currentCompany = company.name;
   synthesisState.lastProgressAt = new Date().toISOString();
+  const traceId = Math.random().toString(36).substring(2, 10).toUpperCase();
+  console.log(`[SYNTHESIS] [${traceId}] ${company.name}: Cycle initiated.`);
+
+  // --- BRAIN RECONCILIATION & DURABLE MEMORY (Fast-Path) ---
+  // We run this BEFORE synthesis so feedback received during idle is applied immediately.
+  console.log(`[SYNTHESIS] ${company.name}: Reconciling human feedback (Fast-Path)...`);
+  await processUserFeedback(prisma, company);
+  await updateCompanyMemory(prisma, company);
 
   console.log(`[SYNTHESIS] ${company.name}: Starting ${passes}-pass Mini-loop.`);
 
-  // --- RESEARCH HARVEST YIELD (#112) ---
-  const strategicKeywords = await generateStrategicKeywords(prisma, company);
-  if (strategicKeywords.length > 0) {
-    console.log(`[SYNTHESIS] ${company.name}: Strategic Focus Keywords -> [${strategicKeywords.join(", ")}]`);
-  }
+  const maxOpsPerCompany = await getWorkerConfig(prisma, company, "max_ops_per_company", 50);
 
   for (let pass = 1; pass <= passes; pass++) {
+    if (ops >= maxOpsPerCompany) {
+      console.warn(`[QUOTA EXCEEDED] ${company.name}: Hit limit of ${maxOpsPerCompany} ops. Throttling until next rotation.`);
+      break;
+    }
     synthesisState.pass = pass;
     console.log(`[SYNTHESIS] ${company.name}: PASS ${pass}/${passes}`);
 
-    // --- STRATEGIC TOPIC SELECTION (#111) ---
+    // --- STRATEGIC TOPIC SELECTION & RESEARCH (#111) ---
     const activeTopics = await prisma.topic.findMany({ 
       where: { companyId: cid, active: true },
       orderBy: { sortOrder: "asc" }
     });
     const topic = activeTopics.length > 0 ? activeTopics[(pass - 1) % activeTopics.length] : null;
+    
     if (topic) {
       console.log(`[SYNTHESIS] ${company.name}: Strategic Focus -> [${topic.label}]`);
+      
+      // --- TOPIC-DRIVEN RESEARCH HARVEST (#111, #112) ---
+      synthesisState.stage = "RESEARCHING";
+      const researchSources = await performResearchHarvest(prisma, company, topic);
+      
+      if (researchSources.length > 0) {
+        console.log(`[RESEARCH] ${company.name}: Yielded ${researchSources.length} new sources for topic [${topic.label}].`);
+        synthesisState.metrics.totalResearchYield += researchSources.length;
+        synthesisState.metrics.zeroYieldTopicStreak = 0;
+        
+        for (const rs of researchSources) {
+          const publicId = await require("./shared").nextPublicId(prisma, "Source");
+          await prisma.source.upsert({
+            where: { companyId_legacyOriginKey: { companyId: cid, legacyOriginKey: rs.metadata.url } },
+            create: { ...rs, publicId, legacyOriginKey: rs.metadata.url },
+            update: { updatedAt: new Date() }
+          });
+          ops++;
+        }
+      } else {
+        console.warn(`[RESEARCH ZERO YIELD] ${company.name}: No new evidence found for topic [${topic.label}].`);
+        synthesisState.metrics.zeroYieldTopicStreak++;
+      }
     }
     
     // Step A: Teach Local Brain
@@ -237,6 +346,14 @@ async function processCompanySynthesis(prisma, company) {
     });
     synthesisState.stage = "ORBITING";
     console.log(`[SYNTHESIS] ${company.name}: Entering Orbit...`);
+
+    // --- STAGE 0.5: JUDGE BACKLOG FLUSH (#115) ---
+    // If the company has a massive backlog of CHECKED cards, dedicate a pass to clearing them.
+    const checkedCount = await prisma.flashcard.count({ where: { companyId: cid, processingStatus: "CHECKED" } });
+    if (checkedCount > 100) {
+      console.log(`[SYNTHESIS] [BACKLOG] ${company.name}: High backlog detected (${checkedCount} cards). Initiating Judge Flush.`);
+      ops += await flushJudgeBacklog(prisma, company, memoryPrompt);
+    }
 
     // --- STAGE 1: DRAFTER (Sources & Files -> Flashcards) ---
     synthesisState.stage = "SCRUBBING";
@@ -267,37 +384,30 @@ async function processCompanySynthesis(prisma, company) {
     ]);
 
       // Normalize into Unified DataCards
+      // --- QUALITY SORTING (#53) ---
       const dataCards = [
         ...rawSources.map(s => ({ 
           id: s.id, 
           type: "SOURCE", 
           content: s.content, 
-          name: "Source Snippet" 
+          name: "Source Snippet",
+          qualityScore: s.metadata?.qualityScore || 5
         })),
-        ...rawFiles.map(f => {
-          // Robust Byte-to-Text conversion for binary files
-          let safeContent = "";
-          if (f.content) {
-            try {
-              safeContent = f.content.toString("utf8").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-            } catch (e) {
-              console.warn(`[WARN] Failed to stringify content for file ${f.id}, skipping content...`);
-            }
-          }
-          return { 
-            id: f.id, 
-            type: "FILE", 
-            content: safeContent, 
-            name: f.name 
-          };
-        })
-      ];
+        ...rawFiles.map(f => ({
+          id: f.id,
+          type: "FILE",
+          content: f.content?.toString("utf8").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") || "",
+          name: f.filename,
+          qualityScore: 8 // Uploaded files are high-intent
+        }))
+      ].sort((a, b) => b.qualityScore - a.qualityScore);
 
     console.log(`[SYNTHESIS] ${company.name}: Scrubbing ${dataCards.length} DataCards...`);
     
     for (const dc of dataCards) {
       synthesisState.lastProgressAt = new Date().toISOString();
-      console.log(`[SYNTHESIS] [${dc.type}] Scrubbing: ${dc.name} (${dc.id})...`);
+      console.log(`[SYNTHESIS] [${traceId}] [${dc.type}] Scrubbing: ${dc.name} (${dc.id}) [Quality: ${dc.qualityScore}]...`);
+      synthesisState.errorStats.attempts++;
       
       const drafts = await draftFlashcardFromDataCard(prisma, company, dc, memoryPrompt, topic);
       ops += drafts.length;
@@ -319,6 +429,17 @@ async function processCompanySynthesis(prisma, company) {
           create: { flashcardId: created.id, sourceType: dc.type, sourceId: dc.id, sourceName: dc.name },
           update: {}
         });
+
+        // --- TOPIC ANCHORING & TRACEABILITY (#StrategyDrift, #43) ---
+        const traceTag = `[TRACE:${traceId}] [QUALITY:${dc.qualityScore}]`;
+        const topicTag = topic ? `[TOPIC_ID:${topic.id}]` : "";
+        
+        await prisma.flashcard.update({
+          where: { id: created.id },
+          data: { 
+            userAnnotation: `${created.userAnnotation || ""} ${traceTag} ${topicTag}`.trim() 
+          }
+        });
         ops++;
       }
     }
@@ -334,23 +455,117 @@ async function processCompanySynthesis(prisma, company) {
       take: orbitLimit
     });
 
+    const MAX_CARD_FAILURES = 5;
+
     for (const fc of fcActive) {
       synthesisState.lastProgressAt = new Date().toISOString();
-      console.log(`[DEBUG] Processing fc.id: ${fc.id}, status: ${fc.processingStatus}`);
-      if (fc.processingStatus === "DRAFT") {
-        const refined = await refineDraftFlashCard(prisma, fc, memoryPrompt, topic);
-        if (refined) {
-          await prisma.flashcard.update({ where: { id: fc.id }, data: refined });
-          ops++;
+      // Parse failure count from annotation
+      const failureMatch = fc.userAnnotation?.match(/\[FAIL:(\d+)\]/);
+      const failureCount = failureMatch ? parseInt(failureMatch[1], 10) : 0;
+
+      // Exile card after too many consecutive AI failures
+      if (failureCount >= MAX_CARD_FAILURES) {
+        console.warn(`[DLQ] fc:${fc.id} has failed ${failureCount} times. Exiling to REVIEW.`);
+        const reason = `[DLQ] Exiled after ${MAX_CARD_FAILURES} consecutive AI failures. Requires human inspection.`;
+        await prisma.flashcard.update({
+          where: { id: fc.id },
+          data: { processingStatus: "REVIEW", userAnnotation: reason }
+        });
+        
+        await prisma.workerReport.create({
+          data: { type: "DLQ_EXILE", data: { cardId: fc.id, cardType: "FLASHCARD", failureCount, reason } }
+        });
+        continue;
+      }
+
+      try {
+        if (fc.processingStatus === "DRAFT") {
+          synthesisState.errorStats.attempts++;
+          const refined = await refineDraftFlashCard(prisma, fc, memoryPrompt, topic);
+          if (refined) {
+            // --- VERSION HISTORY (Audit Trail) ---
+            await prisma.flashcardAction.create({
+              data: {
+                flashcardId: fc.id,
+                action: "ANNOTATE",
+                annotation: "[AI:REFINED]",
+                previousTitle: fc.title,
+                previousBody: fc.body,
+                modifiedTitle: refined.title,
+                modifiedBody: refined.body,
+                actedBy: `trinity-writer:${traceId}`
+              }
+            });
+
+            // --- PRESERVE TRACEABILITY TAGS (#43) ---
+            const preservedTags = (fc.userAnnotation || "").match(/\[TRACE:[^\]]+\]|\[QUALITY:[^\]]+\]|\[TOPIC_ID:[^\]]+\]/g) || [];
+            const tagString = preservedTags.join(" ");
+
+            await prisma.flashcard.update({ 
+              where: { id: fc.id }, 
+              data: { ...refined, userAnnotation: tagString || null } 
+            });
+            ops++;
+          } else {
+            // Writer returned null — bump failure count
+            const nextCount = failureCount + 1;
+            synthesisState.errorStats.failures++;
+            await prisma.flashcard.update({ where: { id: fc.id }, data: { userAnnotation: `[FAIL:${nextCount}] Writer returned null.`, updatedAt: new Date() } });
+          }
+        } else if (fc.processingStatus === "CHECKED") {
+          synthesisState.stage = "JUDGING";
+          synthesisState.errorStats.attempts++;
+
+          // --- FACT CHECKING CONTEXT (#Hallucination) ---
+          let sourceContent = null;
+          if (fc.sourceId) {
+            const source = await prisma.source.findUnique({ where: { id: fc.sourceId } }) || 
+                           await prisma.uploadedSourceFile.findUnique({ where: { id: fc.sourceId } });
+            if (source) {
+              sourceContent = source.content?.toString() || "";
+            }
+          }
+
+          const audit = await auditCheckedFlashCard(prisma, fc, memoryPrompt, topic, sourceContent);
+          if (audit) {
+            // --- VERSION HISTORY (Audit Trail) ---
+            await prisma.flashcardAction.create({
+              data: {
+                flashcardId: fc.id,
+                action: "ANNOTATE",
+                annotation: audit.processingStatus === "VERIFIED" ? "[AI:VERIFIED]" : "[AI:REJECTED]",
+                previousTitle: fc.title,
+                previousBody: fc.body,
+                modifiedTitle: audit.title || fc.title,
+                modifiedBody: audit.body || fc.body,
+                actedBy: `trinity-judge:${traceId}`
+              }
+            });
+
+            // --- PRESERVE TRACEABILITY TAGS (#43) ---
+            const preservedTags = (fc.userAnnotation || "").match(/\[TRACE:[^\]]+\]|\[QUALITY:[^\]]+\]|\[TOPIC_ID:[^\]]+\]/g) || [];
+            const tagString = preservedTags.join(" ");
+
+            const updated = await prisma.flashcard.update({ 
+              where: { id: fc.id }, 
+              data: { ...audit, userAnnotation: (audit.userAnnotation || tagString) || null } 
+            });
+            await enforceLanguagePolicy(prisma, updated, "FLASHCARD", company);
+            ops++;
+          } else {
+            const nextCount = failureCount + 1;
+            synthesisState.errorStats.failures++;
+            await prisma.flashcard.update({ where: { id: fc.id }, data: { userAnnotation: `[FAIL:${nextCount}] Judge returned null.`, updatedAt: new Date() } });
+          }
         }
-      } else if (fc.processingStatus === "CHECKED") {
-        synthesisState.stage = "JUDGING";
-        const audit = await auditCheckedFlashCard(prisma, fc, memoryPrompt, topic);
-        if (audit) {
-          const updated = await prisma.flashcard.update({ where: { id: fc.id }, data: audit });
-          await enforceLanguagePolicy(prisma, updated, "FLASHCARD", company);
-          ops++;
-        }
+      } catch (cardErr) {
+        const nextCount = failureCount + 1;
+        synthesisState.errorStats.failures++;
+        console.warn(`[WARN] fc:${fc.id} failed (attempt ${nextCount}/${MAX_CARD_FAILURES}): ${cardErr.message}`);
+        await prisma.flashcard.update({
+          where: { id: fc.id },
+          data: { userAnnotation: `[FAIL:${nextCount}] ${cardErr.message.slice(0, 200)}`, updatedAt: new Date() }
+        });
       }
     }
 
@@ -363,22 +578,75 @@ async function processCompanySynthesis(prisma, company) {
 
     for (const tc of tcActive) {
       synthesisState.lastProgressAt = new Date().toISOString();
-      console.log(`[DEBUG] Processing tc.id: ${tc.id}, status: ${tc.processingStatus}`);
-      if (tc.processingStatus === "DRAFT") {
-        synthesisState.stage = "WRITING";
-        const refined = await refineDraftTaskCard(prisma, tc, memoryPrompt, topic);
-        if (refined) {
-          await prisma.nBAItem.update({ where: { id: tc.id }, data: refined });
-          ops++;
+      const tcFailureMatch = tc.userAnnotation?.match(/\[FAIL:(\d+)\]/);
+      const tcFailureCount = tcFailureMatch ? parseInt(tcFailureMatch[1], 10) : 0;
+
+      if (tcFailureCount >= MAX_CARD_FAILURES) {
+        console.warn(`[DLQ] tc:${tc.id} has failed ${tcFailureCount} times. Exiling to REVIEW.`);
+        const reason = `[DLQ] Exiled after ${MAX_CARD_FAILURES} consecutive AI failures. Requires human inspection.`;
+        await prisma.nBAItem.update({
+          where: { id: tc.id },
+          data: { processingStatus: "REVIEW", userAnnotation: reason }
+        });
+        
+        await prisma.workerReport.create({
+          data: { type: "DLQ_EXILE", data: { cardId: tc.id, cardType: "TASKCARD", tcFailureCount, reason } }
+        });
+        continue;
+      }
+
+      try {
+        if (tc.processingStatus === "DRAFT") {
+          synthesisState.stage = "WRITING";
+          synthesisState.errorStats.attempts++;
+          const refined = await refineDraftTaskCard(prisma, tc, memoryPrompt, topic);
+          if (refined) {
+            // Preserve tags (#43)
+            const preservedTags = (tc.userAnnotation || "").match(/\[TRACE:[^\]]+\]|\[QUALITY:[^\]]+\]|\[TOPIC_ID:[^\]]+\]/g) || [];
+            const tagString = preservedTags.join(" ");
+            await prisma.nBAItem.update({ where: { id: tc.id }, data: { ...refined, userAnnotation: tagString || null } });
+            ops++;
+          } else {
+            const nextCount = tcFailureCount + 1;
+            synthesisState.errorStats.failures++;
+            await prisma.nBAItem.update({ where: { id: tc.id }, data: { userAnnotation: `[FAIL:${nextCount}] Writer returned null.`, updatedAt: new Date() } });
+          }
+        } else if (tc.processingStatus === "CHECKED") {
+          synthesisState.stage = "JUDGING";
+          synthesisState.errorStats.attempts++;
+          
+          // --- FACT CHECKING CONTEXT ---
+          let sourceContent = null;
+          if (tc.sourceId) {
+            const source = await prisma.source.findUnique({ where: { id: tc.sourceId } }) || 
+                           await prisma.uploadedSourceFile.findUnique({ where: { id: tc.sourceId } });
+            if (source) {
+              sourceContent = source.content?.toString() || "";
+            }
+          }
+
+          const audit = await auditCheckedTaskCard(prisma, tc, memoryPrompt, topic, sourceContent);
+          if (audit) {
+            // Preserve tags (#43)
+            const preservedTags = (tc.userAnnotation || "").match(/\[TRACE:[^\]]+\]|\[QUALITY:[^\]]+\]|\[TOPIC_ID:[^\]]+\]/g) || [];
+            const tagString = preservedTags.join(" ");
+            const updated = await prisma.nBAItem.update({ where: { id: tc.id }, data: { ...audit, userAnnotation: (audit.userAnnotation || tagString) || null } });
+            await enforceLanguagePolicy(prisma, updated, "TASK", company);
+            ops++;
+          } else {
+            const nextCount = tcFailureCount + 1;
+            synthesisState.errorStats.failures++;
+            await prisma.nBAItem.update({ where: { id: tc.id }, data: { userAnnotation: `[FAIL:${nextCount}] Judge returned null.`, updatedAt: new Date() } });
+          }
         }
-      } else if (tc.processingStatus === "CHECKED") {
-        synthesisState.stage = "JUDGING";
-        const audit = await auditCheckedTaskCard(prisma, tc, memoryPrompt, topic);
-        if (audit) {
-          const updated = await prisma.nBAItem.update({ where: { id: tc.id }, data: audit });
-          await enforceLanguagePolicy(prisma, updated, "TASK", company);
-          ops++;
-        }
+      } catch (cardErr) {
+        const nextCount = tcFailureCount + 1;
+        synthesisState.errorStats.failures++;
+        console.warn(`[WARN] tc:${tc.id} failed (attempt ${nextCount}/${MAX_CARD_FAILURES}): ${cardErr.message}`);
+        await prisma.nBAItem.update({
+          where: { id: tc.id },
+          data: { userAnnotation: `[FAIL:${nextCount}] ${cardErr.message.slice(0, 200)}`, updatedAt: new Date() }
+        });
       }
     }
 
@@ -395,29 +663,92 @@ async function processCompanySynthesis(prisma, company) {
       console.log(`[DEBUG] draftTaskcardFromFlashCard for vf.id: ${vf.id}`);
       const taskDrafts = await draftTaskcardFromFlashCard(prisma, company, vf, memoryPrompt);
       for (const td of taskDrafts) {
-        await prisma.nBAItem.upsert({
+        const createdTc = await prisma.nBAItem.upsert({
           where: { companyId_fingerprint: { companyId: cid, fingerprint: td.fingerprint } },
-          create: td,
-          update: { updatedAt: new Date() }
+          create: { 
+            ...td, 
+            userAnnotation: `[TRACE:${traceId}] [TOPIC_ID:${topic?.id || "NONE"}]` 
+          },
+          update: { 
+            updatedAt: new Date(),
+            userAnnotation: `[TRACE:${traceId}] [TOPIC_ID:${topic?.id || "NONE"}]`
+          }
         });
+        
+        if (createdTc) console.log(`[SYNTHESIS] [${traceId}] Task Created: ${createdTc.id}`);
         ops++;
       }
       }
     }
   }
 
-  // Maintenance Phase
+  // Maintenance Phase — run lifecycle management
   synthesisState.stage = "MAINTENANCE";
   await runMaintenance(prisma, company);
 
   return ops;
 }
 
-module.exports = { 
+/**
+ * CLEAR JUDGE BACKLOG
+ * v0.12.2
+ * 
+ * Specifically targets and clears cards in the CHECKED state.
+ * This prevents the "Judge Bottleneck" where new insights are blocked by old audits.
+ */
+async function flushJudgeBacklog(prisma, company, memoryPrompt) {
+  const cid = company.id;
+  const backlogLimit = 20; // Clear up to 20 per flush to avoid cycle timeouts
+  let ops = 0;
+  const traceId = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+  const backlog = await prisma.flashcard.findMany({
+    where: { companyId: cid, processingStatus: "CHECKED" },
+    orderBy: { updatedAt: "asc" },
+    take: backlogLimit
+  });
+
+  if (backlog.length === 0) return 0;
+
+  for (const fc of backlog) {
+    // --- FACT CHECKING CONTEXT ---
+    let sourceContent = null;
+    if (fc.sourceId) {
+      const source = await prisma.source.findUnique({ where: { id: fc.sourceId } }) || 
+                     await prisma.uploadedSourceFile.findUnique({ where: { id: fc.sourceId } });
+      if (source) sourceContent = source.content?.toString() || "";
+    }
+
+    const audit = await auditCheckedFlashCard(prisma, fc, memoryPrompt, null, sourceContent);
+    if (audit) {
+      // --- VERSION HISTORY (Audit Trail) ---
+      await prisma.flashcardAction.create({
+        data: {
+          flashcardId: fc.id,
+          action: "ANNOTATE",
+          annotation: audit.processingStatus === "VERIFIED" ? "[AI:VERIFIED]" : "[AI:REJECTED]",
+          previousTitle: fc.title,
+          previousBody: fc.body,
+          modifiedTitle: audit.title || fc.title,
+          modifiedBody: audit.body || fc.body,
+          actedBy: `trinity-judge-flush:${traceId}`
+        }
+      });
+
+      await prisma.flashcard.update({ where: { id: fc.id }, data: { ...audit, updatedAt: new Date() } });
+      ops++;
+    }
+  }
+
+  return ops;
+}
+
+module.exports = {
   runSynthesisCycle,
   processCompanySynthesis,
   getSynthesisProgress,
   collectGlobalWorkerSettings,
   syncSynthesisStateToDb,
-  synthesisState
+  synthesisState,
+  flushJudgeBacklog
 };

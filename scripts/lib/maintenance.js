@@ -1,12 +1,16 @@
-const { getWorkerConfig, similarity } = require("./shared");
+const fs = require("fs");
+const path = require("path");
+const { getWorkerConfig, similarity, hashValue } = require("./shared");
 const { enforceLanguagePolicy } = require("./language-validator");
+const { fetchUrlContent } = require("./fetcher");
 
 /**
  * SOVEREIGN MAINTENANCE ENGINE
- * v0.11.4-STABLE
+ * v0.12.0-DURABLE
  * 
  * Manages the lifecycle and state-integrity of Flashcards and Taskcards.
  * Implements the 7/30/90 rule for card ageing and performs global data consistency scrubs.
+ * Now includes Source Freshness re-validation (#92) and Strategy Drift detection.
  */
 // --- DATA INTEGRITY ---
 
@@ -340,7 +344,12 @@ async function runMaintenance(prisma, company) {
   for (const fc of allCards[0]) await enforceLanguagePolicy(prisma, fc, "FLASHCARD", company);
   for (const tc of allCards[1]) await enforceLanguagePolicy(prisma, tc, "TASK", company);
 
-  // 4. Enrichment, Merging & Decay (v0.12.0)
+  // 4. Source Re-validation & Strategy Drift (v0.12.0)
+  await revalidateSources(prisma, company);
+  await detectStrategyDrift(prisma, company);
+  await auditConfidenceCalibration(prisma, company);
+
+  // 5. Enrichment, Merging & Decay (v0.12.0)
   await mergeDuplicates(prisma, cid);
   await enrichOldestCards(prisma, company);
   await applyFreshnessDecay(prisma, company);
@@ -515,6 +524,190 @@ async function applyFreshnessDecay(prisma, company) {
   }
 }
 
+/**
+ * RE-VALIDATE SOURCES (#92)
+ * v0.12.0
+ * 
+ * Checks for content drift in external URLs.
+ * If content changes significantly, downstream cards are recycled.
+ */
+async function revalidateSources(prisma, company) {
+  const cid = company.id;
+  const revalidationDays = await getWorkerConfig(prisma, company, "source_revalidation_days", 14);
+  const threshold = new Date(Date.now() - revalidationDays * 24 * 60 * 60 * 1000);
+
+  const agedSources = await prisma.source.findMany({
+    where: { 
+      companyId: cid, 
+      updatedAt: { lt: threshold },
+      content: { contains: "http" }
+    },
+    take: 5 // Rate limited to prevent local network saturating
+  });
+
+  if (agedSources.length === 0) return;
+
+  console.log(`[MAINTENANCE] ${company.name}: Re-validating ${agedSources.length} aged sources...`);
+
+  for (const s of agedSources) {
+    // Extract URL
+    const urlMatch = s.content.match(/https?:\/\/[^\s]+/);
+    if (!urlMatch) continue;
+    const url = urlMatch[0];
+
+    try {
+      const { content } = await fetchUrlContent(url);
+      const oldHash = s.metadata?.contentHash || hashValue(s.content);
+      const newHash = hashValue(content);
+
+      if (oldHash !== newHash) {
+        console.log(`[SOURCE DRIFT] ${s.id}: Content changed. Updating source and recycling cards.`);
+        await prisma.source.update({
+          where: { id: s.id },
+          data: { 
+            content: `${url}\n\n${content}`,
+            updatedAt: new Date(),
+            metadata: { ...(s.metadata || {}), contentHash: newHash, lastCheckedAt: new Date().toISOString() }
+          }
+        });
+
+        // Recycle linked flashcards
+        const linkedFc = await prisma.flashcardSource.findMany({ where: { sourceType: "SOURCE", sourceId: s.id } });
+        for (const link of linkedFc) {
+          await reactivateCard(prisma, "Flashcard", link.flashcardId);
+          await prisma.flashcard.update({
+            where: { id: link.flashcardId },
+            data: { userAnnotation: `[MAINTENANCE]: Recycled due to source content drift (#92).` }
+          });
+        }
+      } else {
+        // Just touch the source to reset revalidation timer
+        await prisma.source.update({
+          where: { id: s.id },
+          data: { updatedAt: new Date(), metadata: { ...(s.metadata || {}), lastCheckedAt: new Date().toISOString() } }
+        });
+      }
+    } catch (err) {
+      console.warn(`[SOURCE RE-VALIDATION] Failed for ${url}: ${err.message}`);
+    }
+  }
+}
+
+/**
+ * DETECT STRATEGY DRIFT
+ * v0.12.0
+ * 
+ * Finds cards anchored to Topics that have been updated more recently than the card itself.
+ */
+async function detectStrategyDrift(prisma, company) {
+  const cid = company.id;
+  
+  // 1. Flashcards
+  const activeFc = await prisma.flashcard.findMany({
+    where: { companyId: cid, processingStatus: "VERIFIED", activityState: "ACTIVE" },
+    select: { id: true, userAnnotation: true, updatedAt: true }
+  });
+
+  for (const fc of activeFc) {
+    const topicIdMatch = fc.userAnnotation?.match(/\[TOPIC_ID:([a-f0-9-]+)\]/);
+    if (!topicIdMatch) continue;
+    const topicId = topicIdMatch[1];
+
+    const topic = await prisma.topic.findUnique({ where: { id: topicId } });
+    if (topic && topic.updatedAt > fc.updatedAt) {
+      console.log(`[STRATEGY DRIFT] fc:${fc.id}: Topic [${topic.label}] was updated. Recycling card for re-alignment.`);
+      await reactivateCard(prisma, "Flashcard", fc.id);
+      await prisma.flashcard.update({
+        where: { id: fc.id },
+        data: { userAnnotation: `${fc.userAnnotation} [MAINTENANCE]: Recycled due to strategy drift (Topic update).`.trim() }
+      });
+    }
+  }
+
+  // 2. Taskcards
+  const activeTc = await prisma.nBAItem.findMany({
+    where: { companyId: cid, processingStatus: "VERIFIED", activityState: "ACTIVE" },
+    select: { id: true, userAnnotation: true, updatedAt: true }
+  });
+
+  for (const tc of activeTc) {
+    const topicIdMatch = tc.userAnnotation?.match(/\[TOPIC_ID:([a-f0-9-]+)\]/);
+    if (!topicIdMatch) continue;
+    const topicId = topicIdMatch[1];
+
+    const topic = await prisma.topic.findUnique({ where: { id: topicId } });
+    if (topic && topic.updatedAt > tc.updatedAt) {
+      console.log(`[STRATEGY DRIFT] tc:${tc.id}: Topic [${topic.label}] was updated. Recycling card for re-alignment.`);
+      await reactivateCard(prisma, "NBAItem", tc.id);
+      await prisma.nBAItem.update({
+        where: { id: tc.id },
+        data: { userAnnotation: `${tc.userAnnotation} [MAINTENANCE]: Recycled due to strategy drift (Topic update).`.trim() }
+      });
+    }
+  }
+}
+
+/**
+ * AUDIT CONFIDENCE CALIBRATION (#104)
+ * v0.12.0
+ * 
+ * Tracks Judge accuracy by correlating high-confidence cards with user rejections.
+ * Logs results to runtime-metrics.ndjson.
+ */
+async function auditConfidenceCalibration(prisma, company) {
+  const cid = company.id;
+  const metricsPath = path.join(__dirname, "..", "knowledge", "runtime-metrics.ndjson");
+
+  // Find recent user rejections (DECLINE/REJECT) on cards that were previously high-confidence
+  const rejections = await prisma.flashcardAction.findMany({
+    where: { 
+      flashcard: { companyId: cid },
+      action: { in: ["DECLINE", "REJECT"] },
+      createdAt: { gt: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24h
+    },
+    include: { flashcard: true }
+  });
+
+  if (rejections.length === 0) return;
+
+  let totalDrift = 0;
+  const report = {
+    type: "confidence-calibration-report",
+    company: company.name,
+    timestamp: new Date().toISOString(),
+    samples: rejections.length,
+    events: []
+  };
+
+  for (const r of rejections) {
+    const fc = r.flashcard;
+    // We look for Judge Approval in the annotation to get the original audit score
+    const approvalMatch = fc.userAnnotation?.match(/\[JUDGE APPROVED\]: Score (\d+)\/10/);
+    const judgeScore = approvalMatch ? parseInt(approvalMatch[1], 10) : fc.confidenceScore;
+    
+    // In our system, a user rejection implies a "True Score" of 0 or 1.
+    const drift = judgeScore - 1; 
+    totalDrift += drift;
+
+    report.events.push({
+      cardId: fc.id,
+      judgeScore,
+      userAction: r.action,
+      drift
+    });
+  }
+
+  report.averageDrift = totalDrift / rejections.length;
+
+  console.log(`[CALIBRATION] ${company.name}: Avg Drift is ${report.averageDrift.toFixed(2)}. (Higher = Over-confident Judge)`);
+
+  try {
+    fs.appendFileSync(metricsPath, JSON.stringify(report) + "\n");
+  } catch (err) {
+    console.warn(`[CALIBRATION] Failed to write metrics: ${err.message}`);
+  }
+}
+
 module.exports = {
   runMaintenance,
   reactivateCard,
@@ -523,5 +716,8 @@ module.exports = {
   scrubCompanyRejections,
   mergeDuplicates,
   enrichOldestCards,
-  applyFreshnessDecay
+  applyFreshnessDecay,
+  revalidateSources,
+  detectStrategyDrift,
+  auditConfidenceCalibration
 };

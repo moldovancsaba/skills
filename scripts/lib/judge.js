@@ -18,20 +18,25 @@ const { unifyObject } = require("./synthesis-utils");
  * Audits a CHECKED Flashcard and determines its promotion path.
  * Uses a dynamic quality floor based on the percentile distribution of existing scores.
  */
-async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = null) {
+async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = null, sourceContent = null) {
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
 
-  // 1. Identify Quality Floor (Percentile)
+  // 1. Identify Quality Floor (Percentile — Progressive Bootstrap)
   const percentile = await getWorkerConfig(prisma, {}, "confidence_reject_percentile", 10);
   const existingScores = (await prisma.flashcard.findMany({
     where: { companyId: flashCard.companyId, processingStatus: "VERIFIED" },
     select: { confidenceScore: true }
   })).map(f => f.confidenceScore);
 
-  let threshold = 6; // Bootstrap floor on 1-10 scale
+  let threshold;
   if (existingScores.length >= 10) {
-    threshold = calculatePercentile(existingScores, percentile);
+    threshold = calculatePercentile(existingScores, percentile); // Full percentile mode
+  } else if (existingScores.length >= 5) {
+    threshold = 4; // Mid bootstrap: permissive to allow accumulation
+  } else {
+    threshold = 3; // Early bootstrap: very permissive to seed the first cards
   }
+  console.log(`[JUDGE] fc:${flashCard.id} Quality floor: ${threshold} (n=${existingScores.length} verified)`);
 
   const systemPrompt = [
     "You are the Checklist JUDGE. Your goal is to audit FlashCards for high-quality marketing standards.",
@@ -42,7 +47,8 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = nu
     "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
     "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
     "APERTUS Purity Principle: You MUST verify that the card is 100% monolingual and strictly uses exactly ONE of the allowed languages. If the card contains mixed languages (e.g., English title with Hungarian body) or any disallowed languages, you MUST REJECT it. Your reasoning and feedback MUST ALSO be in one of the allowed languages.",
-    memoryPrompt
+    memoryPrompt,
+    sourceContent ? `### [FACT CHECK SOURCE CONTENT]\nVerify the card claims against this ground truth. Hallucinations MUST result in REJECTED:\n${sourceContent.slice(0, 5000)}` : ""
   ].join("\n");
 
   const userPrompt = `Title: ${flashCard.title}\nBody: ${flashCard.body}`;
@@ -67,22 +73,23 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = nu
     console.log(`[JUDGE] [VERIFIED] fc:${flashCard.id} Score: ${finalScore}/${threshold}`);
     return { 
       processingStatus: "VERIFIED", 
-      status: "VERIFIED", // Internal Sync
+      status: "VERIFIED",
       confidenceScore: finalScore, 
       confidence: finalScore,
-      activityState: "ACTIVE" 
+      activityState: "ACTIVE",
+      userAnnotation: `[JUDGE APPROVED]: Score ${finalScore}/10 (floor: ${threshold}). ${raw.reason ? raw.reason.slice(0, 200) : "Quality standard met."}` 
     };
   } else {
     const reasonText = typeof raw.reason === "string" ? raw.reason : JSON.stringify(raw.reason);
     console.log(`[JUDGE] [REJECTED] fc:${flashCard.id} Score: ${finalScore}/${threshold} Reason: ${reasonText}`);
     return { 
       processingStatus: "DRAFT", 
-      status: "DRAFT", // Internal Sync
-      confidenceScore: 1, // Axiom 6/7: Complete degradation
+      status: "DRAFT",
+      confidenceScore: 1,
       confidence: 1,
       weight: 1,
-      activityState: "ARCHIVED", // Hide from active lists
-      userAnnotation: `[JUDGE REJECTION]: ${reasonText || "Confidence below quality floor."}` 
+      activityState: "ARCHIVED",
+      userAnnotation: `[JUDGE REJECTED]: Score ${finalScore}/10 (floor needed: ${threshold}). ${reasonText || "Confidence below quality floor."}` 
     };
   }
 }
@@ -91,20 +98,25 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = nu
  * Audits a CHECKED Taskcard (NBA) and determines its promotion path.
  * Enforces quality standards for strategic tactical recommendations.
  */
-async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt, topic = null) {
+async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt, topic = null, sourceContent = null) {
   const strategicContext = await getCompanyStrategicContext(prisma, taskCard.companyId);
 
-  // Quality Floor
+  // Quality Floor — Progressive Bootstrap
   const percentile = await getWorkerConfig(prisma, {}, "confidence_reject_percentile", 10);
   const existingScores = (await prisma.nBAItem.findMany({
     where: { companyId: taskCard.companyId, processingStatus: "VERIFIED" },
     select: { confidenceScore: true }
   })).map(f => f.confidenceScore);
 
-  let threshold = 6;
+  let threshold;
   if (existingScores.length >= 10) {
     threshold = calculatePercentile(existingScores, percentile);
+  } else if (existingScores.length >= 5) {
+    threshold = 4;
+  } else {
+    threshold = 3;
   }
+  console.log(`[JUDGE] tc:${taskCard.id} Quality floor: ${threshold} (n=${existingScores.length} verified)`);
 
   const systemPrompt = [
     "You are the Checklist JUDGE. Audit this TaskCard for actionable quality.",
@@ -114,7 +126,8 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt, topic = null
     "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
     "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
     "APERTUS Purity Principle: You MUST verify that the card is 100% monolingual and strictly uses exactly ONE of the languages defined in the [Allowed Languages Policy]. If the card contains mixed languages (e.g., English title with Hungarian body) or any disallowed languages, you MUST REJECT it. Your reasoning and feedback MUST ALSO be in one of the allowed languages.",
-    memoryPrompt
+    memoryPrompt,
+    sourceContent ? `### [FACT CHECK SOURCE CONTENT]\nEnsure the recommendation is grounded in this data. Irrelevant or hallucinated tasks MUST be REJECTED:\n${sourceContent.slice(0, 5000)}` : ""
   ].join("\n");
 
   const userPrompt = `Title: ${taskCard.title}\nDescription: ${taskCard.description}`;
@@ -139,25 +152,26 @@ async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt, topic = null
     console.log(`[JUDGE] [VERIFIED] tc:${taskCard.id} Score: ${finalScore}/${threshold}`);
     return { 
       processingStatus: "VERIFIED", 
-      status: "VERIFIED", // Internal Sync
+      status: "VERIFIED",
       confidenceScore: finalScore, 
       confidence: finalScore,
       iceScore: Math.max(1, Math.min(1000, ice)),
-      activityState: "ACTIVE" 
+      activityState: "ACTIVE",
+      userAnnotation: `[JUDGE APPROVED]: Score ${finalScore}/10 (floor: ${threshold}). ${raw.reason ? raw.reason.slice(0, 200) : "Quality standard met."}` 
     };
   } else {
     const reasonText = typeof raw.reason === "string" ? raw.reason : JSON.stringify(raw.reason);
     console.log(`[JUDGE] [REJECTED] tc:${taskCard.id} Score: ${finalScore}/${threshold} Reason: ${reasonText}`);
     return { 
       processingStatus: "DRAFT", 
-      status: "DRAFT", // Internal Sync
-      confidenceScore: 1, // Axiom 6/7: Complete Degradation
+      status: "DRAFT",
+      confidenceScore: 1,
       confidence: 1,
       impact: 1,
       ease: 1,
       iceScore: 1,
-      activityState: "ARCHIVED", // Hide from active lists
-      userAnnotation: `[JUDGE REJECTION]: ${reasonText || "Confidence below quality floor."}`
+      activityState: "ARCHIVED",
+      userAnnotation: `[JUDGE REJECTED]: Score ${finalScore}/10 (floor needed: ${threshold}). ${reasonText || "Confidence below quality floor."}` 
     };
   }
 }

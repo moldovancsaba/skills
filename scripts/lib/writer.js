@@ -35,6 +35,8 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
 
   // 1. Internal Memory & De-duplication Check
+  // Require BOTH title AND body to be similar to avoid false positives on
+  // structured titles like "Summary: CompanyName" which share shape but not substance.
   const existing = await prisma.flashcard.findMany({
     where: { 
       companyId: flashCard.companyId,
@@ -45,15 +47,16 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
   });
 
   const duplicate = existing.find(e => 
-    similarity(e.title, flashCard.title) > 0.8 || 
+    similarity(e.title, flashCard.title) > 0.92 && 
     similarity(e.body, flashCard.body) > 0.8
   );
   if (duplicate) {
+    console.log(`[WRITER] Duplicate detected: fc:${flashCard.id} matches ${duplicate.publicId} (title sim: ${similarity(duplicate.title, flashCard.title).toFixed(2)}, body sim: ${similarity(duplicate.body, flashCard.body).toFixed(2)})`);
     return { 
       processingStatus: "DECLINED", 
       reviewStatus: "DECLINED", // Legacy Sync
       activityState: "ARCHIVED", // Hide duplicates
-      userAnnotation: `[WRITER]: Detected duplicate of ${duplicate.publicId}` 
+      userAnnotation: `[WRITER]: Detected duplicate of #${duplicate.publicId}` 
     };
   }
 
@@ -106,7 +109,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
   const descLimit = await getWorkerConfig(prisma, taskCard.company || {}, "write_desc_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, taskCard.companyId);
 
-  // De-duplication
+  // De-duplication — require BOTH title AND body to match
   const existing = await prisma.nBAItem.findMany({
     where: { 
       companyId: taskCard.companyId,
@@ -116,12 +119,17 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
     take: 30
   });
 
-  if (existing.some(e => similarity(e.title, taskCard.title) > 0.8)) {
+  const tcDuplicate = existing.find(e => 
+    similarity(e.title, taskCard.title) > 0.92 && 
+    (taskCard.description ? similarity(e.description || "", taskCard.description) > 0.8 : true)
+  );
+  if (tcDuplicate) {
+    console.log(`[WRITER] Duplicate task detected: tc:${taskCard.id} matches ${tcDuplicate.publicId}`);
     return { 
       processingStatus: "DECLINED", 
       status: "DECLINED", // Internal Sync
       activityState: "ARCHIVED", // Hide duplicates
-      userAnnotation: "[WRITER]: Duplicate task detected." 
+      userAnnotation: `[WRITER]: Duplicate task detected. Matches #${tcDuplicate.publicId}.` 
     };
   }
 

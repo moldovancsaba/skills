@@ -122,7 +122,9 @@ const server = http.createServer(async (req, res) => {
         currentCompany: progress.currentCompany,
         cycleCount: progress.cycleCount,
         enrichmentModeFlashcards: progress.enrichmentModeFlashcards,
-        enrichmentModeTasks: progress.enrichmentModeTasks
+        enrichmentModeTasks: progress.enrichmentModeTasks,
+        metrics: progress.metrics,
+        errorStats: progress.errorStats
       },
       settings
     };

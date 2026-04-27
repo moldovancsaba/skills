@@ -4,8 +4,6 @@
   "workerAlive": true,
   "restartCount": 7,
   "startedAt": 1777276000746,
-  "lastHealthAt": "2026-04-27T07:51:09.007Z",
-  "lastProgressAt": "2026-04-27T07:51:02.496Z",
-  "healthState": "running",
-  "healthStage": "WRITING"
+  "lastHealthAt": "2026-04-27T07:54:41.832Z",
+  "lastProgressAt": "2026-04-27T07:54:02.391Z"
 }

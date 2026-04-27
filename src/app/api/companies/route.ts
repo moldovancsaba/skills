@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { readAppSession } from "@/lib/auth";
 import { verifyMembership, verifySuperAdmin } from "@/lib/permissions";
 import { normalizeIndustryHashtags } from "@/lib/hashtags";
+import { validateCompanyProfile } from "@/lib/profile-validation";
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,12 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json();
     
+    // Validate Profile
+    const v = validateCompanyProfile(data);
+    if (!v.valid) {
+      return NextResponse.json({ error: "Validation failed", details: v.errors }, { status: 400 });
+    }
+
     const industries = normalizeIndustryHashtags(data.industries || (data.industry ? [data.industry] : []));
     
     const createData: any = {
@@ -84,6 +91,11 @@ export async function POST(request: NextRequest) {
       industries,
       description: data.description || null,
       targetMarket: data.targetMarket || null,
+      website: data.website || null,
+      businessModel: data.businessModel || null,
+      productCategories: data.productCategories || [],
+      demographics: data.demographics || {},
+      competitors: data.competitors || [],
       users: {
         create: {
           email: session.email,
@@ -119,6 +131,12 @@ export async function PATCH(request: NextRequest) {
 
     const data = await request.json();
     
+    // Validate Profile (Partial validation for PATCH)
+    const v = validateCompanyProfile(data);
+    if (!v.valid) {
+      return NextResponse.json({ error: "Validation failed", details: v.errors }, { status: 400 });
+    }
+
     const industries = data.industries ? normalizeIndustryHashtags(data.industries) : undefined;
     
     const company = await prisma.company.update({
@@ -129,6 +147,11 @@ export async function PATCH(request: NextRequest) {
         industries: industries || undefined,
         description: data.description || null,
         targetMarket: data.targetMarket || null,
+        website: data.website !== undefined ? data.website : undefined,
+        businessModel: data.businessModel !== undefined ? data.businessModel : undefined,
+        productCategories: data.productCategories !== undefined ? data.productCategories : undefined,
+        demographics: data.demographics !== undefined ? data.demographics : undefined,
+        competitors: data.competitors !== undefined ? data.competitors : undefined,
       },
     });
     

@@ -31,6 +31,13 @@ model Company {
   users               User[]
   communicationSettings CommunicationSettings?
   allowedLanguages    String[]              @default(["English"])
+  
+  // Profile Validation Fields
+  website             String?
+  businessModel       String?
+  productCategories   String[]              @default([])
+  demographics        Json?                 @default("{}")
+  competitors         Json?                 @default("[]")
 }
 
 

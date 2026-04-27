@@ -196,6 +196,8 @@ export function EmptyState({
   );
 }
 
+import { DashboardChart } from "@/components/dashboard-chart";
+
 type LinkCardProps = {
   href: string;
   icon: LucideIcon;
@@ -204,6 +206,7 @@ type LinkCardProps = {
   metric?: string | number;
   variant?: "blue" | "amber" | "green" | "violet" | "teal";
   className?: string;
+  chartData?: { date: string; value: number }[];
 };
 
 export function LinkCard({
@@ -214,6 +217,7 @@ export function LinkCard({
   metric,
   variant,
   className,
+  chartData,
 }: LinkCardProps) {
   const variantClasses = {
     blue: "bg-blue-500/10 border-blue-500/20 group-hover:bg-blue-500/20",
@@ -229,6 +233,14 @@ export function LinkCard({
     green: "text-green-400 bg-green-500/10",
     violet: "text-violet-400 bg-violet-500/10",
     teal: "text-teal-400 bg-teal-500/10",
+  };
+
+  const chartColors = {
+    blue: "#60a5fa",
+    amber: "#fbbf24",
+    green: "#4ade80",
+    violet: "#a78bfa",
+    teal: "#2dd4bf",
   };
 
   return (
@@ -260,10 +272,19 @@ export function LinkCard({
           }
           title={title}
         />
-        <UnifiedCardBody>
+        <UnifiedCardBody className="space-y-4">
           <UnifiedCardText className="text-zinc-400 text-sm">
             {description}
           </UnifiedCardText>
+          
+          {chartData && chartData.length > 0 && (
+            <div className="pt-2">
+              <DashboardChart 
+                data={chartData} 
+                color={variant ? chartColors[variant] : "#71717a"} 
+              />
+            </div>
+          )}
         </UnifiedCardBody>
         <UnifiedCardActions>
           <span className={cn(

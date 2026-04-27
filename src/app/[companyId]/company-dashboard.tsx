@@ -69,6 +69,8 @@ export default function CompanyDashboard() {
   const [draftDescription, setDraftDescription] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const [chartData, setChartData] = useState<any[]>([]);
+
   const loadDashboard = useCallback(async (cid: string) => {
     const safeFetch = async (url: string) => {
       try {
@@ -81,13 +83,14 @@ export default function CompanyDashboard() {
       }
     };
 
-    const [s, f, nba, knowmore, topics, members] = await Promise.all([
+    const [s, f, nba, knowmore, topics, members, analytics] = await Promise.all([
       safeFetch(`/api/sources?companyId=${cid}`),
       safeFetch(`/api/data-files?companyId=${cid}`),
       safeFetch(`/api/nba?companyId=${cid}`),
       safeFetch(`/api/knowmore?companyId=${cid}`),
       safeFetch(`/api/topics?companyId=${cid}`),
       safeFetch(`/api/companies/${cid}/members`),
+      safeFetch(`/api/analytics/counts?companyId=${cid}`),
     ]);
 
     setSources(Array.isArray(s) ? s : []);
@@ -95,6 +98,7 @@ export default function CompanyDashboard() {
     setNbaItems(Array.isArray(nba) ? nba : []);
     setTopicCount(Array.isArray(topics) ? topics.length : 0);
     setFlashcardCount(Array.isArray(knowmore) ? knowmore.length : 0);
+    setChartData(Array.isArray(analytics) ? analytics : []);
 
     const safeNBA = Array.isArray(nba) ? nba as NBAItem[] : [];
     const pendingTasks = safeNBA.filter((item) =>
@@ -248,6 +252,7 @@ export default function CompanyDashboard() {
             metric={(Array.isArray(sources) ? sources.length : 0) + fileCount}
             title={`Data Collection`}
             description="Raw sources & files"
+            chartData={chartData.map(d => ({ date: d.date, value: d.sources }))}
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
@@ -258,6 +263,7 @@ export default function CompanyDashboard() {
             metric={topicCount}
             title={`Topics`}
             description="Prioritize AI focus"
+            chartData={chartData.map(d => ({ date: d.date, value: d.topics }))}
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
@@ -268,6 +274,7 @@ export default function CompanyDashboard() {
             metric={flashcardCount}
             title={`Knowmore`}
             description="Knowledge layer"
+            chartData={chartData.map(d => ({ date: d.date, value: d.flashcards }))}
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}>
@@ -278,6 +285,7 @@ export default function CompanyDashboard() {
             metric={pendingTaskCount}
             title={`Checklist`}
             description="High-impact actions"
+            chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
           />
         </motion.div>
       </div>

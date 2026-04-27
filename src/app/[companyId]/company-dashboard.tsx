@@ -98,7 +98,8 @@ export default function CompanyDashboard() {
 
     const safeNBA = Array.isArray(nba) ? nba as NBAItem[] : [];
     const pendingTasks = safeNBA.filter((item) =>
-      ["DRAFT", "CHECKED", "VERIFIED"].includes(item.processingStatus)
+      ["DRAFT", "CHECKED", "VERIFIED"].includes(item.processingStatus) &&
+      ["ACTIVE", "STALE"].includes(item.activityState)
     );
     setPendingTaskCount(pendingTasks.length);
     setTopTasks(pendingTasks.slice(0, 3));

@@ -226,7 +226,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
       if (event.key === "r" || event.key === "R") {
         void handleRefresh();
       } else if (event.key === "a" || event.key === "A") {
-        const actionable = items.find((item) => ["VERIFIED", "DRAFT"].includes(item.processingStatus));
+        const actionable = items.find((item) => ["VERIFIED", "DRAFT", "CHECKED"].includes(item.processingStatus));
         if (actionable) {
           void handleFeedback(actionable.id, "ACCEPT");
         }

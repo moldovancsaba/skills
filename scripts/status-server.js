@@ -138,6 +138,52 @@ async function handleReanimate(res) {
   }
 }
 
+/**
+ * Handles the GET /health request.
+ * Formats the internal state for the frontend IntelligencePulse component.
+ */
+async function handleHealth(res) {
+  try {
+    const [setting, heartbeat] = await Promise.all([
+      prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
+      Promise.resolve(readHeartbeat())
+    ]);
+
+    let worker = { online: false };
+    if (setting) {
+      const data = setting.value;
+      const lastUpdate = new Date(setting.updatedAt).getTime();
+      const isStale = (Date.now() - lastUpdate) > 5 * 60 * 1000; // 5 min stale
+      worker = { online: !isStale, ...data };
+    }
+
+    const payload = {
+      status: worker.online ? "ONLINE" : "OFFLINE",
+      uptime: heartbeat?.startedAt ? (Math.floor((Date.now() - new Date(heartbeat.startedAt).getTime()) / 1000) + "s") : "0s",
+      timestamp: new Date().toISOString(),
+      metrics: {
+        total_cycles: worker.cycleCount || 0,
+        avg_cycle_duration: worker.metrics?.avg_cycle_duration || "0",
+        total_operations: worker.metrics?.total_operations || 0,
+        failure_rate: worker.metrics?.failure_rate || "0",
+        backlog: worker.backlog || { draft_cards: 0, checked_cards: 0 },
+        cycleHistory: worker.metrics?.cycleHistory || []
+      },
+      errorStats: worker.errorStats || { attempts: 0, failures: 0, rate: "0", streak: 0 }
+    };
+
+    res.writeHead(200, { 
+      "Content-Type": "application/json", 
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "no-store"
+    });
+    res.end(JSON.stringify(payload));
+  } catch (err) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "OFFLINE", error: err.message }));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // HTML dashboard
 // ---------------------------------------------------------------------------
@@ -784,6 +830,10 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.url === "/api/reanimate" && req.method === "POST") {
     handleReanimate(res);
+    return;
+  }
+  if (req.url === "/health" || req.url === "/api/health") {
+    handleHealth(res);
     return;
   }
 

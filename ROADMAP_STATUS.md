@@ -1,17 +1,14 @@
-# Sovereign Marketing OS - Hardening Roadmap Status (v0.12.6)
+# Sovereign Marketing OS - Hardening Roadmap Status (v0.12.7)
 
 ## ✅ DELIVERED THIS SESSION
 
 ### Infrastructure & Visibility
-- **Intelligence Pulse (#69, #70)**: Real-time worker health dashboard integrated into Knowmore and Data layers.
-- **Traceability UI**: End-to-end `[TRACE:ID]` and `[QUALITY:SCORE]` visibility on flashcards.
-- **Legacy Purge**: Removed all obsolete Neon Postgres references and dependencies (`pg`).
+- **Intelligence Pulse Fix (#69, #70)**: Resolved 'Offline' UI error by implementing the missing `/health` endpoint in the Status Server.
+- **Guardian Hardening**: Added Ollama service connectivity monitoring to the watchdog loop.
+- **UI/UX: Contextual Feedback Buttons**: Flashcard actions (Accept/Decline/Edit) are now color-coded for improved clarity.
 
-### AI Vertical Expansion
-- **Marketing Skill Library (#52 - #61)**: Implemented specialized frameworks for Competitor Intelligence, Customer Segmentation, Lead Scoring, and Trend Detection.
-
-### Infrastructure & Quality
-- **Hallucination Highlighting**: UI now explicitly flags judge-rejected hallucinations in red for audit.
+### Intelligence Lifecycle
+- **Stability Pass**: Increased AI inference timeouts to prevent starvation during high local load.
 
 ---
 

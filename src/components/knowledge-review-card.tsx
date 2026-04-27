@@ -215,15 +215,15 @@ export function KnowledgeReviewCard({
         )}
 
         <UnifiedCardActions className="pt-2">
-          <Button size="sm" variant="secondary" className="h-9 shadow-sm" onClick={() => onOpenAction(flashcard, "ACCEPT")} disabled={isBusy || isGenerating}>
+          <Button size="sm" className="h-9 shadow-sm bg-emerald-500 hover:bg-emerald-600 text-white border-none" onClick={() => onOpenAction(flashcard, "ACCEPT")} disabled={isBusy || isGenerating}>
             {isBusy && actionMode === "ACCEPT" && isActionOpen ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
             Accept
           </Button>
-          <Button size="sm" variant="outline" className="h-9 border-zinc-200/10 hover:bg-zinc-200/5" onClick={() => onOpenAction(flashcard, "DECLINE")} disabled={isBusy || isGenerating}>
+          <Button size="sm" variant="outline" className="h-9 border-red-500/50 hover:bg-red-500/10 hover:text-red-500 text-red-400" onClick={() => onOpenAction(flashcard, "DECLINE")} disabled={isBusy || isGenerating}>
             <X className="h-3.5 w-3.5" />
             Decline
           </Button>
-          <Button size="sm" variant="outline" className="h-9 border-zinc-200/10 hover:bg-zinc-200/5" onClick={() => onOpenAction(flashcard, "MODIFY_ACCEPT")} disabled={isBusy || isGenerating}>
+          <Button size="sm" variant="outline" className="h-9 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 text-blue-400" onClick={() => onOpenAction(flashcard, "MODIFY_ACCEPT")} disabled={isBusy || isGenerating}>
             <PencilLine className="h-3.5 w-3.5" />
             Edit
           </Button>

@@ -35,6 +35,7 @@ const STARTUP_GRACE_MS = 60_000;   // give the worker 60s to boot before checkin
 
 const RESTART_BASE_MS  = 5_000;    // 5s initial back-off
 const RESTART_MAX_MS   = 5 * 60 * 1000; // 5 min max back-off
+const OLLAMA_URL       = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
@@ -102,10 +103,23 @@ function writeHeartbeat(extra = {}) {
 // --- HEALTH MONITORING ---
 
 /**
+ * Checks if the Ollama AI server is responsive.
+ */
+function checkOllama() {
+  const url = new URL(OLLAMA_URL);
+  const req = http.get({ hostname: url.hostname, port: url.port, path: "/", timeout: 2000 }, (res) => {
+    if (res.statusCode !== 200) warn(`Ollama server returned status ${res.statusCode}`);
+  });
+  req.on("error", (e) => err(`Ollama server UNREACHABLE at ${OLLAMA_URL}: ${e.message}`));
+  req.on("timeout", () => req.destroy());
+}
+
+/**
  * Performs a health scan of the Trinity Worker.
  * Triggers a process kill if the worker is found to be stuck or unresponsive.
  */
 function pollHealth() {
+  checkOllama();
   if (!workerAlive) return;
 
   // Respect startup grace period

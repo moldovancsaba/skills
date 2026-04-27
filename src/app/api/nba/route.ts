@@ -24,6 +24,11 @@ export async function GET(request: NextRequest) {
     } else {
       where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED"] };
       where.activityState = { in: ["ACTIVE", "STALE"] };
+      // Only show tasks that are not scheduled for the future
+      where.OR = [
+        { scheduledDate: null },
+        { scheduledDate: { lte: new Date() } }
+      ];
     }
 
     const items = await prisma.nBAItem.findMany({
@@ -54,7 +59,7 @@ export async function POST(request: NextRequest) {
         processingStatus: "DRAFT",
         activityState: "ACTIVE",
         status: "PENDING", // Legacy Sync
-        scheduledDate: data.scheduledDate,
+        scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : null,
         createdBy: data.createdBy,
         appVersion: APP_VERSION,
         brainVersion: BRAIN_VERSION,
@@ -67,6 +72,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(item);
   } catch (error) {
     console.error("[API:NBA] Post failure:", error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const id = request.nextUrl.searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+    const data = await request.json();
+    const existing = await prisma.nBAItem.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const auth = await verifyMembership(request, existing.companyId);
+    if (auth.error) return auth.error;
+
+    const updated = await prisma.nBAItem.update({
+      where: { id },
+      data: {
+        title: data.title ?? existing.title,
+        description: data.description ?? existing.description,
+        processingStatus: data.processingStatus ?? existing.processingStatus,
+        activityState: data.activityState ?? existing.activityState,
+        scheduledDate: data.scheduledDate !== undefined ? (data.scheduledDate ? new Date(data.scheduledDate) : null) : existing.scheduledDate,
+        updatedAt: new Date(),
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("[API:NBA] Patch failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

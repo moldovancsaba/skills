@@ -179,6 +179,23 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     setActingId(null);
   }, [resetActionForm]);
 
+  const handlePostpone = useCallback(async (itemId: string, date: Date | undefined) => {
+    if (!date) return;
+    setActingId(itemId);
+    try {
+      const res = await fetch(`/api/nba?id=${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledDate: date }),
+      });
+      if (res.ok) {
+        setItems(prev => prev.filter(i => i.id !== itemId));
+      }
+    } finally {
+      setActingId(null);
+    }
+  }, []);
+
   const toggleHashtagFilter = useCallback((tag: string) => {
     const next = activeHashtags.includes(tag)
       ? activeHashtags.filter((item) => item !== tag)
@@ -320,6 +337,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                 onRemoveHashtag={(itemId, tag) => void removeTaskHashtag(itemId, tag)}
                 onSubmit={handleFeedback}
                 onShare={handleShare}
+                onPostpone={handlePostpone}
               />
             </motion.div>
           ))}

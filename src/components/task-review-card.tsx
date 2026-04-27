@@ -1,16 +1,17 @@
 /**
  * SOVEREIGN TASK CARD
- * v0.11.5-STABLE
+ * v0.12.8-STABLE
  * 
  * A specialized UI component for reviewing and acting upon Next Best Action (NBA) items.
  * Prioritizes the ICE Score (Impact * Confidence * Ease) as the primary sorting and quality metric.
  */
-import { Check, CheckCircle, Loader2, MessageSquare, PencilLine, Share2, X } from "lucide-react";
+import { Calendar as CalendarIcon, Check, CheckCircle, Loader2, MessageSquare, PencilLine, Share2, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormInput, FormTextarea } from "@/components/ui/form-fields";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   UnifiedCard,
   UnifiedCardActions,
@@ -44,6 +45,7 @@ type NBAItem = {
   activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
   userAnnotation?: string;
   hashtags: string[];
+  scheduledDate?: string | Date | null;
 };
 
 type TaskReviewCardProps = {
@@ -71,6 +73,7 @@ type TaskReviewCardProps = {
     modifiedDescription?: string,
   ) => void;
   onShare: (item: NBAItem) => void;
+  onPostpone?: (itemId: string, date: Date | undefined) => void;
 };
 
 export function TaskReviewCard({
@@ -92,6 +95,7 @@ export function TaskReviewCard({
   onRemoveHashtag,
   onSubmit,
   onShare,
+  onPostpone,
 }: TaskReviewCardProps) {
   const supporting = (
     <>
@@ -187,13 +191,24 @@ export function TaskReviewCard({
       <UnifiedCardFooter>
         <div className="space-y-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Intelligence controls</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-violet-500/10 hover:text-violet-400" title="Pin record as factual source">
               Pin Evidence
             </Button>
             <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-sky-500/10 hover:text-sky-400" title="Request AI re-evaluation">
               Refresh
             </Button>
+            
+            {onPostpone && (
+              <div className="flex items-center">
+                <DatePicker 
+                  placeholder="POSTPONE"
+                  className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-emerald-500/10 hover:text-emerald-400 border-none shadow-none bg-transparent"
+                  setDate={(date) => onPostpone(item.id, date)}
+                />
+              </div>
+            )}
+
             <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-orange-500/10 hover:text-orange-400" title="Move to archive">
               Archive
             </Button>

@@ -38,6 +38,7 @@ type NBAItem = {
   iceScore: number;
   processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
   activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
+  scheduledDate?: string | Date | null;
   userAnnotation?: string;
   hashtags: string[];
 };
@@ -101,9 +102,11 @@ export default function CompanyDashboard() {
     setChartData(Array.isArray(analytics) ? analytics : []);
 
     const safeNBA = Array.isArray(nba) ? nba as NBAItem[] : [];
+    const now = new Date();
     const pendingTasks = safeNBA.filter((item) =>
       ["DRAFT", "CHECKED", "VERIFIED"].includes(item.processingStatus) &&
-      ["ACTIVE", "STALE"].includes(item.activityState)
+      ["ACTIVE", "STALE"].includes(item.activityState) &&
+      (!item.scheduledDate || new Date(item.scheduledDate) <= now)
     );
     setPendingTaskCount(pendingTasks.length);
     setTopTasks(pendingTasks.slice(0, 3));

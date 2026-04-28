@@ -14,10 +14,11 @@
 
 "use strict";
 
-const { spawn } = require("child_process");
+const { spawn, execSync } = require("child_process");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
 // --- CONFIGURATION ---
 const WORKER_SCRIPT    = path.join(__dirname, "sync.js");
@@ -36,6 +37,8 @@ const STARTUP_GRACE_MS = 60_000;   // give the worker 60s to boot before checkin
 const RESTART_BASE_MS  = 5_000;    // 5s initial back-off
 const RESTART_MAX_MS   = 5 * 60 * 1000; // 5 min max back-off
 const OLLAMA_URL       = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
+const FALLBACK_MODEL   = "granite4:350m";
+const MEM_THRESHOLD_MB = 1024; // Warn if free memory < 1GB
 
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
@@ -76,6 +79,8 @@ let startedAt          = null;
 let lastProgressAt     = null;    // last value from /health
 let healthCheckTimer   = null;
 let heartbeatTimer     = null;
+let useSafeMode        = false; // If true, tells worker to use fallback model
+let resourceStats      = { freeMem: 0, totalMem: 0, loadAvg: [] };
 
 // --- HEARTBEAT ---
 
@@ -93,6 +98,8 @@ function writeHeartbeat(extra = {}) {
     startedAt,
     lastHealthAt:  new Date().toISOString(),
     lastProgressAt,
+    useSafeMode,
+    resources: resourceStats,
     ...extra,
   };
   try {
@@ -103,15 +110,88 @@ function writeHeartbeat(extra = {}) {
 // --- HEALTH MONITORING ---
 
 /**
- * Checks if the Ollama AI server is responsive.
+ * Checks if the Ollama AI server is responsive and model is loadable.
  */
 function checkOllama() {
   const url = new URL(OLLAMA_URL);
+  
+  // 1. Basic connection check
   const req = http.get({ hostname: url.hostname, port: url.port, path: "/", timeout: 2000 }, (res) => {
-    if (res.statusCode !== 200) warn(`Ollama server returned status ${res.statusCode}`);
+    if (res.statusCode !== 200) {
+      warn(`Ollama server returned status ${res.statusCode}`);
+      return;
+    }
+    
+    // 2. Advanced health check: check if the model is loadable
+    const model = process.env.OLLAMA_MODEL || "gemma3:1b";
+    const payload = JSON.stringify({ model, messages: [{ role: "user", content: "hi" }], stream: false });
+    
+    const chatReq = http.request(
+      new URL("/api/chat", OLLAMA_URL),
+      { method: "POST", headers: { "Content-Type": "application/json" }, timeout: 5000 },
+      (chatRes) => {
+        let body = "";
+        chatRes.on("data", (c) => body += c);
+        chatRes.on("end", () => {
+          if (chatRes.statusCode === 500) {
+            err(`Ollama MODEL FAILURE (500): ${body.slice(0, 100)}`);
+            if (!useSafeMode) {
+              warn("Triggering SAFE MODE (fallback to granite4:350m)");
+              useSafeMode = true;
+              restartOllama(); // Attempt service reset
+            }
+          } else if (chatRes.statusCode === 200) {
+            if (useSafeMode) log("Ollama primary model recovered. Disabling Safe Mode.");
+            useSafeMode = false;
+          }
+        });
+      }
+    );
+    chatReq.on("error", () => {});
+    chatReq.write(payload);
+    chatReq.end();
   });
+  
   req.on("error", (e) => err(`Ollama server UNREACHABLE at ${OLLAMA_URL}: ${e.message}`));
   req.on("timeout", () => req.destroy());
+}
+
+/**
+ * Monitors system resources and updates internal stats.
+ */
+function checkResources() {
+  const freeMem = os.freemem();
+  const totalMem = os.totalmem();
+  const freeMB = Math.round(freeMem / 1024 / 1024);
+  
+  resourceStats = {
+    freeMem: freeMB,
+    totalMem: Math.round(totalMem / 1024 / 1024),
+    loadAvg: os.loadavg()
+  };
+  
+  if (freeMB < MEM_THRESHOLD_MB) {
+    warn(`LOW MEMORY: ${freeMB}MB free. System may struggle.`);
+  }
+}
+
+/**
+ * Attempts to reset the Ollama service on macOS.
+ */
+function restartOllama() {
+  warn("Attempting automated Ollama service reset...");
+  try {
+    // Force kill any running ollama processes
+    execSync("pkill -9 ollama || true");
+    log("Ollama processes terminated. Waiting for restart...");
+    
+    // Guardian doesn't restart it directly as it might be an app,
+    // but clearing the process usually allows the app/service to rebound.
+    // If it's a brew service:
+    // execSync("brew services restart ollama || true");
+  } catch (e) {
+    err(`Failed to reset Ollama: ${e.message}`);
+  }
 }
 
 /**
@@ -119,6 +199,7 @@ function checkOllama() {
  * Triggers a process kill if the worker is found to be stuck or unresponsive.
  */
 function pollHealth() {
+  checkResources();
   checkOllama();
   if (!workerAlive) return;
 
@@ -208,6 +289,8 @@ function startWorker() {
     env: {
       ...process.env,
       PATH: process.env.PATH || "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+      USE_SAFE_MODE: useSafeMode ? "true" : "false",
+      FALLBACK_MODEL: FALLBACK_MODEL,
     },
     stdio: ["ignore", "pipe", "pipe"],
     detached: false,

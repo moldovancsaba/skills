@@ -1,8 +1,11 @@
-# Sovereign Marketing OS - Hardening Roadmap Status (v0.12.7)
+# Sovereign Marketing OS - Hardening Roadmap Status (v0.12.8)
 
 ## ✅ DELIVERED THIS SESSION
 
 ### Infrastructure & Visibility
+- **Automated Recovery (v0.12.8)**: Implemented "Safe Mode" watchdog. System now automatically falls back to lightweight models (`granite4:350m`) when primary inference fails.
+- **Resource Telemetry**: Guardian now monitors and logs real-time RAM usage and OS load to `guardian-heartbeat.json`.
+- **Ollama Self-Healing**: Added automated service reset (`pkill`) to clear hung model processes during critical failures.
 - **Metric Consistency Fix**: Aligned Dashboard checklist counts with the main Checklist page by enforcing consistent `activityState` filtering.
 - **API Cache Hardening**: Marked core data APIs (NBA, Sources, Data Files, Topics) as `force-dynamic` to ensure real-time accuracy across all layers.
 - **Intelligence Pulse Fix (#69, #70)**: Resolved 'Offline' UI error by implementing the missing `/health` endpoint in the Status Server.

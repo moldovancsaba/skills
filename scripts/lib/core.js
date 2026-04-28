@@ -17,11 +17,18 @@ const TRINITY_DRAFT_TIMEOUT_MS = 120_000;
 const TRINITY_WRITE_TIMEOUT_MS = 150_000;
 const TRINITY_JUDGE_TIMEOUT_MS = 120_000;
 
+const USE_SAFE_MODE = /^(1|true|yes|on)$/i.test(process.env.USE_SAFE_MODE || "");
+const FALLBACK_MODEL = process.env.FALLBACK_MODEL || "granite4:350m";
+
 const STAGE_MODELS = {
-  DRAFT: ["qwen2.5:7b", "granite4:3b"],
-  WRITE: ["granite4:3b", "llama3.2:3b"],
-  JUDGE: ["MichelRosselli/apertus:latest", "qwen2.5:7b"],
+  DRAFT: USE_SAFE_MODE ? [FALLBACK_MODEL] : ["qwen2.5:7b", "granite4:3b"],
+  WRITE: USE_SAFE_MODE ? [FALLBACK_MODEL] : ["granite4:3b", "llama3.2:3b"],
+  JUDGE: USE_SAFE_MODE ? [FALLBACK_MODEL] : ["MichelRosselli/apertus:latest", "qwen2.5:7b"],
 };
+
+if (USE_SAFE_MODE) {
+  console.log(`[CORE] 🛡️ SAFE MODE ACTIVE: Falling back to ${FALLBACK_MODEL}`);
+}
 
 const FLASHCARD_MIN_CONFIDENCE = 40;
 const FLASHCARD_MIN_IMPACT = 40;

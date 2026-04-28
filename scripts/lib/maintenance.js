@@ -71,11 +71,11 @@ async function scrubDatabaseElemental(prisma) {
       where: {
         OR: [
           { processingStatus: { notIn: validProc } },
-          { status: { not: "PENDING" } }
+          { status: { notIn: ["PENDING", "DRAFT"] } }
         ]
       },
       orderBy: { updatedAt: "asc" },
-      take: 10,
+      take: 100, // Increased batch size for faster recovery
       select: { id: true }
     });
 
@@ -83,16 +83,17 @@ async function scrubDatabaseElemental(prisma) {
       console.log(`[MAINTENANCE] Repairing ${tcToFix.length} NBAItem records...`);
       await prisma.nBAItem.updateMany({
         where: { id: { in: tcToFix.map(c => c.id) } },
-        data: { processingStatus: "CHECKED", status: "PENDING", activityState: "ACTIVE", kind: "TASK" }
+        data: { status: "PENDING", activityState: "ACTIVE", kind: "TASK" }
       });
     }
 
     // Specialized Logic: Rejection Scrub & Inconsistency Reset
+    // v0.12.3: Only archive if it's an explicit rejection or a known duplicate tag
     await prisma.nBAItem.updateMany({
       where: { 
         OR: [
           { userAnnotation: { contains: "[JUDGE REJECTION]" } },
-          { userAnnotation: { contains: "[WRITER]:" } }
+          { userAnnotation: { contains: "[WRITER]: Duplicate" } }
         ],
         activityState: { not: "ARCHIVED" }
       },
@@ -245,13 +246,13 @@ async function scrubCompanyRejections(prisma, cid) {
       companyId: cid,
       OR: [
         { userAnnotation: { contains: "[JUDGE REJECTION]" } },
-        { userAnnotation: { contains: "[WRITER]:" } }
+        { userAnnotation: { contains: "[WRITER]: Duplicate" } }
       ],
       activityState: { not: "ARCHIVED" }
     },
     data: { 
       processingStatus: "DRAFT",
-      status: "PENDING",
+      status: "DRAFT",
       activityState: "ARCHIVED" // Hide from active lists
     }
   });

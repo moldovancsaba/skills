@@ -14,11 +14,14 @@ function isLanguageAccepted(text, allowedLanguages) {
   const results = detector.detect(text, 2); // Get top 2
   if (results.length === 0) return true; // Can't detect, allow for now
 
-  const topMatch = results[0][0];
+  const topMatch = results[0][0].toLowerCase();
   const topScore = results[0][1];
 
+  // Normalize allowed list to lowercase for robust matching
+  const normalizedAllowed = allowedLanguages.map(l => l.toLowerCase());
+
   // If top match is in allowed list, it's good
-  if (allowedLanguages.includes(topMatch.toLowerCase())) return true;
+  if (normalizedAllowed.includes(topMatch)) return true;
 
   // If score is very low (< 0.2), allow it as it might be technical content or mixed
   if (topScore < 0.2) return true;

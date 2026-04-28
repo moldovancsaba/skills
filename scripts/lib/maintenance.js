@@ -376,11 +376,21 @@ async function mergeDuplicates(prisma, cid) {
       
       if (similarity(f1.title, f2.title) > threshold) {
         console.log(`[MAINTENANCE] Semantic match: "${f1.title}" and "${f2.title}". Merging ${f2.id} into ${f1.id}`);
-        // Re-link sources
-        await prisma.flashcardSource.updateMany({
-          where: { flashcardId: f2.id },
-          data: { flashcardId: f1.id }
-        });
+        // Re-link sources (carefully avoid unique constraint violations)
+        const sourcesToRelink = await prisma.flashcardSource.findMany({ where: { flashcardId: f2.id } });
+        for (const s of sourcesToRelink) {
+          try {
+            await prisma.flashcardSource.update({
+              where: { flashcardId_sourceType_sourceId: { flashcardId: f2.id, sourceType: s.sourceType, sourceId: s.sourceId } },
+              data: { flashcardId: f1.id }
+            });
+          } catch (err) {
+            // If it fails (likely due to unique constraint), just delete the duplicate link
+            await prisma.flashcardSource.delete({
+              where: { flashcardId_sourceType_sourceId: { flashcardId: s.flashcardId, sourceType: s.sourceType, sourceId: s.sourceId } }
+            });
+          }
+        }
         await prisma.flashcard.delete({ where: { id: f2.id } });
         flashcards.splice(j, 1);
         j--;

@@ -21,7 +21,14 @@ export async function GET(request: NextRequest) {
       prisma.source.count({ where: { companyId, createdAt: { lt: thirtyDaysAgo } } }),
       prisma.uploadedSourceFile.count({ where: { companyId, createdAt: { lt: thirtyDaysAgo } } }),
       prisma.topic.count({ where: { companyId, createdAt: { lt: thirtyDaysAgo } } }),
-      prisma.flashcard.count({ where: { companyId, createdAt: { lt: thirtyDaysAgo } } }),
+      prisma.flashcard.count({ 
+        where: { 
+          companyId, 
+          createdAt: { lt: thirtyDaysAgo },
+          processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+          activityState: { in: ["ACTIVE", "STALE"] }
+        } 
+      }),
       prisma.nBAItem.count({ 
         where: { 
           companyId, 
@@ -41,7 +48,15 @@ export async function GET(request: NextRequest) {
       prisma.source.findMany({ where: { companyId, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
       prisma.uploadedSourceFile.findMany({ where: { companyId, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
       prisma.topic.findMany({ where: { companyId, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-      prisma.flashcard.findMany({ where: { companyId, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
+      prisma.flashcard.findMany({ 
+        where: { 
+          companyId, 
+          createdAt: { gte: thirtyDaysAgo },
+          processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+          activityState: { in: ["ACTIVE", "STALE"] }
+        }, 
+        select: { createdAt: true } 
+      }),
       prisma.nBAItem.findMany({ 
         where: { 
           companyId, 

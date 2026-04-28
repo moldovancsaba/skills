@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       entityType !== HashtagEntityType.SOURCE &&
       entityType !== HashtagEntityType.FILE &&
       entityType !== HashtagEntityType.FLASHCARD &&
-      entityType !== HashtagEntityType.CHECKLIST &&
+      entityType !== HashtagEntityType.checklist &&
       entityType !== HashtagEntityType.TOPIC
     ) {
       return NextResponse.json({ error: "Invalid entityType" }, { status: 400 });
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const lookup =
       entityType === HashtagEntityType.FLASHCARD
         ? await prisma.flashcard.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
-        : entityType === HashtagEntityType.CHECKLIST
+        : entityType === HashtagEntityType.checklist
           ? await prisma.nBAItem.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
           : entityType === HashtagEntityType.TOPIC
             ? await prisma.topic.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         where: { id: entityId },
         data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
       });
-    } else if (entityType === HashtagEntityType.CHECKLIST) {
+    } else if (entityType === HashtagEntityType.checklist) {
       await prisma.nBAItem.update({
         where: { id: entityId },
         data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },

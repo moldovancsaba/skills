@@ -1,6 +1,6 @@
-# Sovereign Card Workflow (v0.10.0-PROPER)
+# checklist Card Workflow (v0.10.0-PROPER)
 
-This document defines the rigid architecture of the Checklist Marketing OS. Every piece of information in this system is treated as a **CARD**.
+This document defines the rigid architecture of the checklist. Every piece of information in this system is treated as a **CARD**.
 
 ## 1. The Card Hierarchy (Mapping & Lineage)
 
@@ -11,9 +11,9 @@ To ensure **Safety First** and database stability, we maintain stable model name
 | **TopicCard** | `Topic` | Defines strategic focus (PESTEL, ICP). |
 | **DataCard** | `Source` | Raw ingested information or AI web logs. |
 | **FlashCard** | `Flashcard` | Synthesized intelligence (KnowMore). |
-| **TaskCard** | `NBAItem` | Actionable checklist items (Checklist). |
+| **TaskCard** | `NBAItem` | Actionable checklist items (checklist). |
 
-## 2. The Trinity Quality Gate
+## 2. The trinity Quality Gate
 
 To ensure "Proper" and "Brutally Honest" intelligence, every card must pass through three distinct AI agents:
 
@@ -39,12 +39,12 @@ The `kind` field is an **Evolutionary Meta-Tag**.
 *   **System Enrichment**: If a new category of intelligence is discovered (e.g., `MARKET_GAP`, `CONVERSION_LEAK`), the AI is authorized to create that category name autonomously.
 *   **Greater Good**: This allows the system to growing beyond its initial code to self-organize the intelligence dashboard into new, professional groups.
 
-## 4. The Heavy Teaching Loop (Sovereign Memory)
+## 4. The Heavy Teaching Loop (checklist Memory)
 
 Every human interaction—**Accept**, **Decline**, or **Annotate**—is a high-integrity teaching signal.
 
 *   **Persistence**: Feedback is stored in `FlashcardAction` and `Feedback` history logs.
-*   **Harvesting**: The Memory Engine scavenges these history logs during every Trinity pass.
+*   **Harvesting**: The Memory Engine scavenges these history logs during every trinity pass.
 
 ## 5. Zero Hardcoding (Worker Config)
 

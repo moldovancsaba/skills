@@ -8,10 +8,11 @@ Unified component patterns for consistent, maintainable UI.
 
 ## Visual Language
 
-- Typography uses `Inter` for body copy and `Plus Jakarta Sans` for titles, key metrics, and major object labels.
-- Primary action emphasis uses `accent`, while neutral surfaces rely on `card`, `muted`, and `border`.
-- Core surfaces should feel light but structured: `rounded-lg`, `border-border/80`, and `shadow-card`.
-- Interactive object cards should use subtle elevation and border accentuation on hover rather than raw color fills.
+- Typography uses **Inter** for all UI elements, emphasizing high contrast and tight tracking (2026 Clean Initiative).
+- Design follows **Mantine v7** primitives: `Container`, `Grid`, `Stack`, `Group`, `Card`.
+- Primary action emphasis uses `blue` (Mantine primary), while strategic layers use specific color tones (`amber` for Topics, `violet` for Checklist).
+- High-intent objects use the **Unified 2026 Card Pattern**: `Card` with `withBorder`, `shadow="sm"`, and `radius="md"`.
+- Hover effects are handled via Mantine's `UnstyledButton` or group-hover transitions for lift and clarity.
 
 ## Form Components
 
@@ -102,45 +103,41 @@ Use for: All checkbox fields
 <div className="bg-card border border-border rounded-lg p-4" />
 ```
 
-## Layout and Surface Components
+## Core Layout Components (Mantine)
 
-Import from `@/components/ui/app-shell`:
-
-```tsx
-import {
-  EmptyState,
-  LinkCard,
-  MetricCard,
-  MetricGrid,
-  Notice,
-  PageHeader,
-  PageShell,
-} from "@/components/ui/app-shell";
-```
+Import from `@mantine/core` and `@/components/ui/app-shell`:
 
 ### `PageShell`
-
-Use for every route-level page container.
+The root container for all pages. Handles horizontal scaling and provides a consistent vertical `Stack`.
+- Use `width="xl"` for standard content.
+- Use `width="full"` for data-heavy dashboards.
 
 ### `PageHeader`
-
-Use for title, description, back links, and header actions.
-
-### `Notice`
-
-Use for inline status, success, warning, and error banners.
-
-### `MetricGrid` + `MetricCard`
-
-Use for numeric dashboard tiles and summary cards.
+The unified title section.
+- Supports `backHref` and `backLabel`.
+- Supports `actions` (a `Group` of buttons/controls).
 
 ### `LinkCard`
+The high-visibility navigation unit.
+- Supports `variant` colors (blue, amber, green, violet, teal).
+- Supports `metric` (high-contrast number).
+- Supports `chartData` (Mini Sparkline via `DashboardChart`).
 
-Use for dashboard navigation surfaces.
+### `SimpleGrid` / `UnifiedGrid`
+Use for all object listings.
+- Standard 3-column desktop grid for cards.
+- Mobile-first stacking (1 column).
 
-### `EmptyState`
+## Form Components (Mantine)
 
-Use for zero-data states and first-run prompts.
+We are transitioning to **Mantine Input** components:
+- `TextInput` for names/IDs.
+- `Textarea` for descriptions.
+- `Select` for status/tags.
+- `Button` for all actions.
+
+❌ **DO NOT** use legacy `shadcn/ui` or custom `FormInput` for new development.
+❌ **DO NOT** use raw CSS for shadows or borders; use Mantine's `shadow` and `radius` props.
 
 ## Unified Cards
 
@@ -186,55 +183,13 @@ Always use these for colors (defined in `globals.css`):
 | `bg-primary` | Primary buttons |
 | `text-destructive` | Error text |
 
-## Dark Mode
+## Dark/Light Mode Architecture
 
-The unified components automatically handle dark mode via CSS variables. If you encounter issues:
+The 2026 Initiative enforces a dual-mode strategy:
+1. **Dark Mode**: Primary operational mode for high-focus intelligence work.
+2. **Light Mode**: High-visibility mode for stakeholder review.
 
-1. Check `globals.css` has the base layer styling:
-```css
-@layer base {
-  input, textarea, select {
-    @apply text-foreground;
-  }
-}
-```
-
-2. Use only unified components - they include `text-foreground` class
-
-## Pages Using Unified Components
-
-| Page | File | Status |
-|------|------|--------|
-| Companies | `home-client.tsx` | ✅ Updated |
-| Global Nav | `client-nav.tsx` | ✅ Updated |
-| Company Dashboard | `[companyId]/company-dashboard.tsx` | ✅ Updated |
-| Data | `data/page.tsx` | ✅ Updated |
-| Company Data | `[companyId]/data/page.tsx` | ✅ Updated |
-| NBA Tasks | `[companyId]/nba/page.tsx` | ✅ Updated |
-| Knowmore | `[companyId]/knowmore/page.tsx` | ✅ Updated |
-| Products | `products/page.tsx` | 🔄 Pending |
-| Customers | `customers/page.tsx` | 🔄 Pending |
-| Competitors | `competitors/page.tsx` | 🔄 Pending |
-
-## Migration Guide
-
-To migrate old pages:
-
-1. Add import:
-```tsx
-import { FormInput, FormTextarea } from "@/components/ui/form-fields";
-```
-
-2. Replace:
-```tsx
-// OLD
-<input className="flex h-12 rounded-md border..." />
-
-// NEW
-<FormInput />
-```
-
-3. Remove hardcoded `className` - the unified component handles styling
+All components must use Mantine's CSS variables (`var(--mantine-color-...)`) to ensure perfect contrast in both modes.
 
 ## Testing
 
@@ -245,4 +200,4 @@ Always test in both light and dark mode:
 
 ---
 
-Last Updated: 2026-04-05
+Last Updated: 2026-04-28 (Mantine v7 Refactor)

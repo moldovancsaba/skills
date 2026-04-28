@@ -1,18 +1,18 @@
-# Checklist Integration Guide
+# checklist Integration Guide
 
-This document describes the current Checklist integration surface for external agents or automation.
+This document describes the current checklist integration surface for external agents or automation.
 
 Canonical production URL:
 
-- `https://checklist.sovereignsquad.com`
+- `https://checklist.checklistsquad.com`
 
 API base:
 
-- `https://checklist.sovereignsquad.com/api`
+- `https://checklist.checklistsquad.com/api`
 
 ## Integration Model
 
-Checklist exposes HTTP endpoints for:
+checklist exposes HTTP endpoints for:
 
 - reading company and source context
 - reading Knowmore flashcards

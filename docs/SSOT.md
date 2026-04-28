@@ -1,7 +1,7 @@
-# Checklist Product: System Operating Model (SSOT)
+# checklist Product: System Operating Model (SSOT)
 
 ## 1. Product Purpose
-This is a sovereign, continuously operating card intelligence system.
+This is a checklist, continuously operating card intelligence system.
 Its function is to turn raw user input into structured, decision-ready business knowledge with minimal or no human intervention.
 
 The system must run as a full-cycle autonomous workflow on a local AI server, synchronising with the online application and database. It must be resilient, restartable, and designed to operate reliably without manual babysitting.

@@ -1,6 +1,6 @@
-# Checklist Onboarding
+# checklist Onboarding
 
-This file documents the current operating surface of the Checklist system.
+This file documents the current operating surface of the checklist system.
 
 Do not place production credentials in this file.
 
@@ -10,7 +10,7 @@ Current release:
 
 ## Canonical Environments
 
-- production: `https://checklist.sovereignsquad.com`
+- production: `https://checklist.checklistsquad.com`
 - local development: `http://localhost:3000`
 
 If another preview domain exists, treat it as non-canonical unless explicitly documented in deployment notes.
@@ -177,11 +177,11 @@ GET  /api/webhook/trigger
 POST /api/webhook/trigger
 ```
 
-These endpoints are passive in the hosted app. They do not contact your local AI worker. The local worker must poll the shared Checklist database on its own.
+These endpoints are passive in the hosted app. They do not contact your local AI worker. The local worker must poll the shared checklist database on its own.
 
 ## ICE Scoring Contract
 
-Checklist task scoring is:
+checklist task scoring is:
 
 ```text
 Impact: 0-10
@@ -235,7 +235,7 @@ The online app is responsible for:
 
 ## Database Setup On A New Machine
 
-Checklist owns its Prisma schema in this repo:
+checklist owns its Prisma schema in this repo:
 
 - `prisma/schema.prisma`
 
@@ -245,13 +245,13 @@ The app and any local AI worker both use:
 
 If you are bringing the project up on another machine:
 
-1. add the Checklist `DATABASE_URL` and auth envs to local `.env`
+1. add the checklist `DATABASE_URL` and auth envs to local `.env`
 2. run `npm install`
 3. run `npx prisma generate`
 4. run `npx prisma db push`
 5. start the app with `npm run dev`
 
-If a local AI worker is involved, give that process the same Checklist `DATABASE_URL`, `OLLAMA_MODEL`, and either `OLLAMA_HOST` or `OLLAMA_URL`. The worker defaults to port `10005` for its own local HTTP status/process surface, but the hosted webapp must not call it directly.
+If a local AI worker is involved, give that process the same checklist `DATABASE_URL`, `OLLAMA_MODEL`, and either `OLLAMA_HOST` or `OLLAMA_URL`. The worker defaults to port `10005` for its own local HTTP status/process surface, but the hosted webapp must not call it directly.
 
 ## Documentation Rule
 

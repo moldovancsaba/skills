@@ -9,7 +9,7 @@ Status note:
 
 ## Objective
 
-Deliver a new `knowmore` experience in the online Checklist webapp that exposes AI-maintained flashcards built from:
+Deliver a new `knowmore` experience in the online checklist webapp that exposes AI-maintained flashcards built from:
 
 - user-provided data sources,
 - agent-discovered online sources,

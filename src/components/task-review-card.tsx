@@ -1,5 +1,5 @@
 /**
- * SOVEREIGN TASK CARD
+ * checklist TASK CARD
  * v0.12.8-STABLE
  * 
  * A specialized UI component for reviewing and acting upon Next Best Action (NBA) items.
@@ -7,20 +7,10 @@
  */
 import { Calendar as CalendarIcon, Check, CheckCircle, Loader2, MessageSquare, PencilLine, Share2, X } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { FormInput, FormTextarea } from "@/components/ui/form-fields";
+import { Card, Text, Badge, Button, Group, Stack, TextInput, Textarea, ActionIcon, Tooltip, rem } from "@mantine/core";
+import { useClipboard } from "@mantine/hooks";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { DatePicker } from "@/components/ui/date-picker";
-import {
-  UnifiedCard,
-  UnifiedCardActions,
-  UnifiedCardBody,
-  UnifiedCardFooter,
-  UnifiedCardHeader,
-  UnifiedCardSection,
-  UnifiedCardText,
-} from "@/components/ui/unified-card";
 import { cn } from "@/lib/utils";
 import { getIceColorClasses } from "@/lib/ice-colors";
 
@@ -97,28 +87,28 @@ export function TaskReviewCard({
   onShare,
   onPostpone,
 }: TaskReviewCardProps) {
-  const supporting = (
-    <>
-      <Badge variant="outline" className="font-mono text-[10px] tracking-wider border-zinc-200/20 text-zinc-400">
-        {item.processingStatus.toUpperCase()}
-      </Badge>
-      <Badge variant="secondary" className="font-mono text-[10px] tracking-wider border-zinc-200/20 bg-zinc-800 text-zinc-300">
-        TASK
-      </Badge>
-      <div className={cn("ml-auto flex items-center gap-3 text-[10px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md border", getIceColorClasses(item.iceScore))}>
-        <span>ICE {Math.round(item.iceScore)}</span>
-      </div>
-    </>
-  );
+  const clipboard = useClipboard({ timeout: 2000 });
+  
+  const iceColor = item.iceScore >= 70 ? "green" : item.iceScore >= 40 ? "orange" : "gray";
 
   return (
-    <UnifiedCard className={cn(item.processingStatus === "DECLINED" && "opacity-60")}>
-      <UnifiedCardHeader supporting={supporting} title={item.title} />
-      
-      <UnifiedCardBody>
-        <UnifiedCardText className="text-[0.95rem] leading-relaxed text-zinc-300/90">
+    <Card shadow="sm" padding="lg" radius="md" withBorder className={cn(item.processingStatus === "DECLINED" && "opacity-60")} bg="var(--mantine-color-dark-6)">
+      <Card.Section withBorder inheritPadding py="xs">
+        <Group justify="space-between">
+          <Group gap={7}>
+            <Badge variant="outline" color="gray" size="xs" radius="sm">{item.processingStatus.toUpperCase()}</Badge>
+            <Badge variant="filled" color="dark" size="xs" radius="sm">TASK</Badge>
+          </Group>
+          <Badge color={iceColor} variant="light" size="sm" radius="sm" fw={900}>ICE {Math.round(item.iceScore)}</Badge>
+        </Group>
+      </Card.Section>
+
+      <Stack gap="md" mt="md">
+        <Text fw={700} size="lg" lh={1.2} c="white">{item.title}</Text>
+        
+        <Text size="sm" c="dimmed" lh={1.6}>
           {item.description}
-        </UnifiedCardText>
+        </Text>
 
         <HashtagChipList
           hashtags={item.hashtags}
@@ -128,93 +118,97 @@ export function TaskReviewCard({
         />
 
         {item.userAnnotation && (
-          <div className={`flex items-start gap-2 rounded-lg px-4 py-3 text-sm ${item.userAnnotation.includes("[JUDGE REJECTION]") ? "border border-amber-200/80 bg-amber-50/80 text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100" : "bg-zinc-400/5 text-zinc-300"}`}>
-            <MessageSquare className={`mt-0.5 h-4 w-4 shrink-0 ${item.userAnnotation.includes("[JUDGE REJECTION]") ? "text-amber-600 dark:text-amber-400" : "opacity-70"}`} />
-            <p>{item.userAnnotation}</p>
-          </div>
+          <Group gap="xs" p="sm" bg="var(--mantine-color-dark-5)" style={{ borderRadius: rem(8) }}>
+            <MessageSquare size={14} style={{ marginTop: rem(2), opacity: 0.7 }} />
+            <Text size="xs" c="dimmed">{item.userAnnotation}</Text>
+          </Group>
         )}
 
-        <UnifiedCardActions className="pt-2">
-          <Button size="sm" variant="secondary" className="h-9 shadow-sm" onClick={() => onOpenAction(item, "ACCEPT")} disabled={isBusy}>
-            <Check className="h-3.5 w-3.5" />
+        <Group gap="xs" mt="sm">
+          <Button size="xs" variant="filled" color="blue" leftSection={<Check size={14} />} onClick={() => onOpenAction(item, "ACCEPT")} disabled={isBusy}>
             Accept
           </Button>
-          <Button size="sm" variant="outline" className="h-9 border-zinc-200/10 hover:bg-zinc-200/5" onClick={() => onOpenAction(item, "DECLINE")} disabled={isBusy}>
-            <X className="h-3.5 w-3.5" />
+          <Button size="xs" variant="outline" color="gray" leftSection={<X size={14} />} onClick={() => onOpenAction(item, "DECLINE")} disabled={isBusy}>
             Decline
           </Button>
-          <Button size="sm" variant="outline" className="h-9 border-zinc-200/10 hover:bg-zinc-200/5" onClick={() => onOpenAction(item, "MODIFY_ACCEPT")} disabled={isBusy}>
-            <PencilLine className="h-3.5 w-3.5" />
+          <Button size="xs" variant="outline" color="gray" leftSection={<PencilLine size={14} />} onClick={() => onOpenAction(item, "MODIFY_ACCEPT")} disabled={isBusy}>
             Edit
           </Button>
-          <Button onClick={() => onShare(item)} variant="ghost" size="sm" title="Share" className="ml-auto h-9 text-zinc-500 hover:text-white">
-            {copied ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Share2 className="h-4 w-4" />}
-            Share
+          
+          <Button 
+            ml="auto"
+            variant="subtle" 
+            size="xs" 
+            color={copied ? "green" : "gray"}
+            leftSection={copied ? <CheckCircle size={14} /> : <Share2 size={14} />}
+            onClick={() => onShare(item)}
+          >
+            {copied ? "Copied" : "Share"}
           </Button>
-        </UnifiedCardActions>
+        </Group>
 
         {isActionOpen && actionMode && (
-          <UnifiedCardSection className="space-y-4 bg-zinc-400/5 backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-200">
-            <p className="text-sm font-semibold text-white">
+          <Stack gap="sm" p="md" bg="var(--mantine-color-dark-8)" style={{ borderRadius: rem(12) }}>
+            <Text size="sm" fw={600} c="white">
               {actionMode === "DECLINE" ? "Decline this task" : actionMode === "MODIFY_ACCEPT" ? "Modify and accept this task" : "Accept this task"}
-            </p>
+            </Text>
 
             {actionMode === "MODIFY_ACCEPT" && (
-              <div className="space-y-3">
-                <FormInput label="Title" value={draftTitle} onChange={(e) => onDraftTitleChange(e.target.value)} />
-                <FormTextarea label="Description" value={draftDescription} onChange={(e) => onDraftDescriptionChange(e.target.value)} rows={3} />
-              </div>
+              <>
+                <TextInput label="Title" value={draftTitle} onChange={(e) => onDraftTitleChange(e.target.value)} size="xs" />
+                <Textarea label="Description" value={draftDescription} onChange={(e) => onDraftDescriptionChange(e.target.value)} autosize minRows={2} size="xs" />
+              </>
             )}
 
-            <FormTextarea
+            <Textarea
               label={actionMode === "DECLINE" ? "Reason" : "Comment (optional)"}
               value={annotation}
               onChange={(e) => onAnnotationChange(e.target.value)}
               placeholder="Provide context for the AI..."
+              size="xs"
+              autosize
+              minRows={2}
             />
 
-            <div className="flex gap-2">
+            <Group gap="xs">
               <Button
-                size="sm"
-                variant={actionMode === "DECLINE" ? "destructive" : "default"}
+                size="xs"
+                color={actionMode === "DECLINE" ? "red" : "blue"}
                 onClick={() => onSubmit(item.id, actionMode, annotation, actionMode === "MODIFY_ACCEPT" ? draftTitle : undefined, actionMode === "MODIFY_ACCEPT" ? draftDescription : undefined)}
                 disabled={isBusy || (actionMode === "DECLINE" && !annotation.trim()) || (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))}
+                loading={isBusy}
               >
-                {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm Action"}
+                Confirm
               </Button>
-              <Button size="sm" variant="ghost" onClick={onCloseAction} disabled={isBusy}>Cancel</Button>
-            </div>
-          </UnifiedCardSection>
+              <Button size="xs" variant="subtle" color="gray" onClick={onCloseAction} disabled={isBusy}>Cancel</Button>
+            </Group>
+          </Stack>
         )}
-      </UnifiedCardBody>
+      </Stack>
 
-      <UnifiedCardFooter>
-        <div className="space-y-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Intelligence controls</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-violet-500/10 hover:text-violet-400" title="Pin record as factual source">
-              Pin Evidence
-            </Button>
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-sky-500/10 hover:text-sky-400" title="Request AI re-evaluation">
-              Refresh
-            </Button>
+      <Card.Section withBorder inheritPadding py="xs" mt="md">
+        <Stack gap="xs">
+          <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">Intelligence controls</Text>
+          <Group gap={6}>
+            <Tooltip label="Pin record as factual source">
+              <Button size="compact-xs" variant="subtle" color="indigo" radius="xl">Pin Evidence</Button>
+            </Tooltip>
+            <Tooltip label="Request AI re-evaluation">
+              <Button size="compact-xs" variant="subtle" color="cyan" radius="xl">Refresh</Button>
+            </Tooltip>
             
             {onPostpone && (
-              <div className="flex items-center">
-                <DatePicker 
-                  placeholder="POSTPONE"
-                  className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-emerald-500/10 hover:text-emerald-400 border-none shadow-none bg-transparent"
-                  setDate={(date) => onPostpone(item.id, date)}
-                />
-              </div>
+              <DatePicker 
+                placeholder="POSTPONE"
+                className="mantine-date-picker-inline"
+                setDate={(date) => onPostpone(item.id, date)}
+              />
             )}
 
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-orange-500/10 hover:text-orange-400" title="Move to archive">
-              Archive
-            </Button>
-          </div>
-        </div>
-      </UnifiedCardFooter>
-    </UnifiedCard>
+            <Button size="compact-xs" variant="subtle" color="orange" radius="xl" ml="auto">Archive</Button>
+          </Group>
+        </Stack>
+      </Card.Section>
+    </Card>
   );
 }

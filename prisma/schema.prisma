@@ -92,13 +92,21 @@ model Flashcard {
   appVersion              String?               @default("0.8.0")
   brainVersion            String?               @default("local-brain@0.8.0")
   generatedAt             DateTime?
-  promptVersion           String?               @default("flashcard-policy@0.8.0")
+  promptVersion           String?               @default("flashcard-policy@1.4.0")
+  promptHash              String?
+  promptName              String?               @default("flashcard-generation")
+  modelName               String?               @default("granite-3.1-8b")
+  modelVersion            String?
+  temperature             Float?                @default(0.7)
+  createdByRunId          String?
+  cycleRunId              String?
   company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actions                 FlashcardAction[]
   corrections             FlashcardCorrection[]
   sources                 FlashcardSource[]
 
   @@unique([companyId, fingerprint])
+  @@index([companyId, processingStatus, cycleRunId])
 }
 
 model FlashcardAction {
@@ -182,13 +190,21 @@ model NBAItem {
   hashtagMaintainedAt DateTime?
   hashtagEvaluationPending Boolean @default(true)
   lastHashtagError   String?
-  promptVersion      String?    @default("nba-policy@0.8.0")
+  promptVersion      String?    @default("nba-policy@1.4.0")
+  promptHash         String?
+  promptName         String?    @default("nba-generation")
+  modelName          String?    @default("granite-3.1-8b")
+  modelVersion       String?
+  temperature        Float?     @default(0.7)
+  createdByRunId     String?
+  cycleRunId         String?
   feedback           Feedback[]
   fingerprint        String?
   kind               String?    @default("TASK")
   company            Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, fingerprint])
+  @@index([companyId, processingStatus, cycleRunId])
 }
 
 model HashtagFeedback {
@@ -229,6 +245,9 @@ model Source {
   companyId       String
   publicId        Int?     @unique
   content         String
+  canonicalContent String?
+  canonicalContentHash String?
+  canonicalizerVersion String?   @default("v1.4.0")
   hashtags        String[] @default([])
   hashtagMaintainedAt DateTime?
   hashtagEvaluationPending Boolean @default(true)
@@ -285,16 +304,16 @@ model WorkerReport {
 }
 
 model CommunicationSettings {
-  id           String      @id @default(uuid()) @map("_id")
-  companyId    String      @unique
-  channel      ChannelType @default(IMESSAGE)
-  handle       String?
-  isEnabled    Boolean     @default(false)
-  bridgeSecret String?     @default(uuid())
-  minIceScore  Int         @default(600)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @default(now()) @updatedAt
-  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id               String      @id @default(uuid()) @map("_id")
+  companyId        String      @unique
+  channel          ChannelType @default(IMESSAGE)
+  handle           String?
+  isEnabled        Boolean     @default(false)
+  bridgeSecretHash String?     // v1.4.0: Hashed at rest
+  minIceScore      Int         @default(600)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @default(now()) @updatedAt
+  company          Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model CreativeDraft {
@@ -523,4 +542,24 @@ enum Role {
   OWNER
   ADMIN
   MEMBER
+}
+
+model MemoryCanon {
+  id               String   @id @default(uuid()) @map("_id")
+  memoryEntryId    String   @unique
+  companyId        String
+  scope            String   // CARD | TOPIC | GLOBAL
+  sourceSignalId   String?
+  sourceSignalType String?
+  entityId         String?
+  content          String
+  weightInitial    Float    @default(1.0)
+  weightFinal      Float    @default(1.0)
+  status           String   @default("ACTIVE") // ACTIVE | SUPERSEDED | PRUNED | CONFLICT
+  supersededBy     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+  expiresAt        DateTime?
+
+  @@index([companyId, scope, weightFinal, createdAt])
 }

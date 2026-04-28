@@ -1,19 +1,19 @@
 {
-  "guardianPid": 90333,
-  "workerPid": 91218,
-  "workerAlive": true,
-  "restartCount": 580,
-  "startedAt": 1777366475104,
-  "lastHealthAt": "2026-04-28T09:09:13.067Z",
-  "lastProgressAt": "2026-04-28T09:08:49.131Z",
+  "guardianPid": 17760,
+  "workerPid": null,
+  "workerAlive": false,
+  "restartCount": 891,
+  "startedAt": 1777400431984,
+  "lastHealthAt": "2026-04-28T18:20:36.150Z",
+  "lastProgressAt": null,
   "useSafeMode": false,
   "resources": {
-    "freeMem": 191,
+    "freeMem": 110,
     "totalMem": 16384,
     "loadAvg": [
-      25.10595703125,
-      41.72314453125,
-      42.052734375
+      128.6201171875,
+      56.4990234375,
+      48.62890625
     ]
   }
 }

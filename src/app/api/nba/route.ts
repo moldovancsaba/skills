@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
 import { verifyMembership } from "@/lib/permissions";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
-import { ensureChecklistPublicIds, nextChecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
+import { ensurechecklistPublicIds, nextchecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
 export const dynamic = 'force-dynamic';
 

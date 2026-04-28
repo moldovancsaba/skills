@@ -43,7 +43,7 @@ function AuthContent() {
     <div className="flex items-center justify-center min-h-screen">
       <div className="max-w-md w-full px-4">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Checklist</h1>
+          <h1 className="text-3xl font-bold mb-2">checklist</h1>
           <p className="text-muted-foreground">Sign in to continue</p>
         </div>
 

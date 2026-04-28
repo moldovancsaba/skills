@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy - Checklist",
+  title: "Privacy Policy - checklist",
 };
 
 export default function PrivacyPage() {

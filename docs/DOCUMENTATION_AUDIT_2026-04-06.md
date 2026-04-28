@@ -1,4 +1,4 @@
-# Checklist Documentation Audit
+# checklist Documentation Audit
 
 Date: `2026-04-06`
 Scope: repository documentation versus current codebase in `src/`, `prisma/`, and `package.json`
@@ -20,7 +20,7 @@ The codebase currently presents the strongest source of truth for:
 
 - app version: `0.6.0`
 - framework: `Next.js 16.2.2`
-- app title: `Checklist Marketing OS`
+- app title: `checklist`
 - route family: `/:companyId`, `/:companyId/data`, `/:companyId/knowmore`, `/:companyId/nba`
 - current app structure: `src/app/[companyId]/...`
 
@@ -78,7 +78,7 @@ Conflicts:
 - `docs/ONBOARDING.md` points to `https://checklist.messmass.com`
 - `docs/PAPERCLIP-INTEGRATION.md` points to `https://checklist.messmass.com`
 - `RELOCATION_README.md` points to `https://checklist-narimato.vercel.app`
-- current live product used by the team is `https://checklist.sovereignsquad.com`
+- current live product used by the team is `https://checklist.checklistsquad.com`
 
 Why it matters:
 

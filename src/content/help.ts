@@ -36,11 +36,11 @@ export const manualSections: HelpSection[] = [
   {
     id: "system-model",
     title: "Understand the three system layers",
-    summary: "Checklist works best when you treat data, Knowmore, and tasks as separate jobs.",
+    summary: "checklist works best when you treat data, Knowmore, and tasks as separate jobs.",
     bullets: [
       "Data is raw source input: notes, URLs, research snippets, and uploaded files.",
       "Knowmore is the knowledge layer: flashcards generated from evidence and enrichment.",
-      "Checklist is the action layer: next-best tasks generated from company context and flashcards.",
+      "checklist is the action layer: next-best tasks generated from company context and flashcards.",
       "If the source data is weak, the flashcards and tasks will drift.",
     ],
   },
@@ -177,7 +177,7 @@ const expertTips = {
       "When declining a task, use timing language like after summer, after launch, after hiring, or revisit in Q4 instead of a vague not now.",
     whyItMatters:
       "Specific readiness signals help the AI team postpone ideas instead of treating them as permanently bad.",
-    ctaLabel: "Open Checklist",
+    ctaLabel: "Open checklist",
     ctaHref: `/${companyId}/nba`,
     samplePhrases: [
       "We will be ready for this task after the summer.",

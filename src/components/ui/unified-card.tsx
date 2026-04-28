@@ -3,7 +3,7 @@
  * v0.11.3-PRODUCTION
  * 
  * Provides a highly standardized, premium "Deep Dark" card architecture (UnifiedCard).
- * Used across Data, Topics, Knowmore, and Checklist pages to ensure a consistent, 
+ * Used across Data, Topics, Knowmore, and checklist pages to ensure a consistent, 
  * information-dense intelligence display.
  * 
  * Architecture:

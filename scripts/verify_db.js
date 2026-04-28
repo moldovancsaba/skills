@@ -5,7 +5,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 async function verify() {
   const dbUrl = process.env.DATABASE_URL || "";
   console.log("--------------------------------------------------");
-  console.log("CHECKLIST AI PIPELINE: INTELLIGENCE PROOF");
+  console.log("checklist AI PIPELINE: INTELLIGENCE PROOF");
   console.log("--------------------------------------------------");
   
   if (!dbUrl || dbUrl.includes("<username>")) {

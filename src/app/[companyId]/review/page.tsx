@@ -110,7 +110,7 @@ export default function ReviewDashboard() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center p-12 text-center border border-zinc-800 border-dashed rounded-3xl bg-zinc-900/20">
           <HardHat className="w-12 h-12 text-zinc-600 mb-4" />
           <h3 className="text-lg font-bold text-white tracking-tight">No Anomalies Detected</h3>
-          <p className="text-zinc-400 mt-2 max-w-sm">The Trinity engine is successfully grading all intelligence inside the established Axioms.</p>
+          <p className="text-zinc-400 mt-2 max-w-sm">The trinity engine is successfully grading all intelligence inside the established Axioms.</p>
         </motion.div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -2,16 +2,31 @@
  * UNIFIED PAGE ARCHITECTURE
  * v0.11.3-PRODUCTION
  * 
- * Defines standardized layout primitives for the Checklist Marketing OS.
+ * Defines standardized layout primitives for the checklist.
  * - PageShell: Handles horizontal scaling (width="full" for screen-wide dashboards).
  * - UnifiedGrid: Responsive 1/2/3-column grid for standard intelligence listings.
- * - PipelineAccentHeader: Themed headers for system layers (Data, Topics, Knowmore, Checklist).
+ * - PipelineAccentHeader: Themed headers for system layers (Data, Topics, Knowmore, checklist).
  */
 "use client";
 
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LucideIcon } from "lucide-react";
+import { 
+  Container, 
+  Title, 
+  Text, 
+  Group, 
+  Stack, 
+  SimpleGrid, 
+  Card as MantineCard, 
+  Badge as MantineBadge, 
+  UnstyledButton, 
+  rem, 
+  ActionIcon,
+  Tooltip,
+  ThemeIcon
+} from "@mantine/core";
 
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -31,6 +46,7 @@ import {
   UnifiedCardActions 
 } from "@/components/ui/unified-card";
 import { StructuredActionRow, StructuredCard, StructuredChipRow } from "@/components/ui/structured-card";
+import { DashboardChart } from "@/components/dashboard-chart";
 
 type PageShellProps = {
   children: ReactNode;
@@ -54,9 +70,11 @@ export function PageShell({
   className,
 }: PageShellProps) {
   return (
-    <div className={cn("mx-auto w-full space-y-8 px-4 py-6 md:px-8 md:py-10", widthClasses[width], className)}>
-      {children}
-    </div>
+    <Container size={width === "full" ? "100%" : width.replace("xl", "xl")} className={cn("py-6 md:py-10", className)}>
+      <Stack gap="xl">
+        {children}
+      </Stack>
+    </Container>
   );
 }
 
@@ -76,22 +94,20 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div className="space-y-2">
+    <Group justify="space-between" align="flex-end">
+      <Stack gap="xs">
         {backHref ? (
-          <Link href={backHref} className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto px-0 text-muted-foreground hover:text-foreground")}>
-            {backLabel}
-          </Link>
+          <Text component={Link} href={backHref} size="sm" c="dimmed" className="hover:underline">
+            ← {backLabel}
+          </Text>
         ) : null}
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground md:text-4xl">{title}</h1>
-          {description ? (
-            <p className="mt-2 max-w-3xl text-sm text-muted-foreground md:text-[0.95rem]">{description}</p>
-          ) : null}
-        </div>
-      </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-    </div>
+        <Title order={1} size="h1">{title}</Title>
+        {description ? (
+          <Text c="dimmed" size="sm" className="max-w-3xl">{description}</Text>
+        ) : null}
+      </Stack>
+      {actions ? <Group>{actions}</Group> : null}
+    </Group>
   );
 }
 
@@ -196,8 +212,6 @@ export function EmptyState({
   );
 }
 
-import { DashboardChart } from "@/components/dashboard-chart";
-
 type LinkCardProps = {
   href: string;
   icon: LucideIcon;
@@ -215,87 +229,70 @@ export function LinkCard({
   title,
   description,
   metric,
-  variant,
+  variant = "blue",
   className,
   chartData,
 }: LinkCardProps) {
-  const variantClasses = {
-    blue: "bg-blue-500/10 border-blue-500/20 group-hover:bg-blue-500/20",
-    amber: "bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500/20",
-    green: "bg-green-500/10 border-green-500/20 group-hover:bg-green-500/20",
-    violet: "bg-violet-500/10 border-violet-500/20 group-hover:bg-violet-500/20",
-    teal: "bg-teal-500/10 border-teal-500/20 group-hover:bg-teal-500/20",
-  };
-
-  const iconClasses = {
-    blue: "text-blue-400 bg-blue-500/10",
-    amber: "text-amber-400 bg-amber-500/10",
-    green: "text-green-400 bg-green-500/10",
-    violet: "text-violet-400 bg-violet-500/10",
-    teal: "text-teal-400 bg-teal-500/10",
-  };
-
   const chartColors = {
-    blue: "#60a5fa",
-    amber: "#fbbf24",
-    green: "#4ade80",
-    violet: "#a78bfa",
-    teal: "#2dd4bf",
+    blue: "#228be6",
+    amber: "#fab005",
+    green: "#40c057",
+    violet: "#7950f2",
+    teal: "#0ca678",
   };
 
   return (
-    <Link href={href} className={cn("group block h-full", className)}>
-      <UnifiedCard
-        className={cn(
-          "h-full transition-all duration-300",
-          variant && variantClasses[variant]
-        )}
+    <UnstyledButton 
+      component={Link} 
+      href={href} 
+      className={cn("group block h-full", className)}
+    >
+      <MantineCard 
+        shadow="sm" 
+        padding="xl" 
+        radius="md" 
+        withBorder 
+        bg="var(--mantine-color-dark-6)"
+        className="h-full transition-transform duration-200 hover:-translate-y-1"
       >
-        <UnifiedCardHeader
-          supporting={
-            <div className="flex items-center justify-between w-full">
-              <span className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                variant ? iconClasses[variant] : "bg-accent/10 text-accent group-hover:bg-accent/15"
-              )}>
-                <Icon className="h-5 w-5" />
-              </span>
-              {metric !== undefined && (
-                <span className={cn(
-                  "text-4xl font-black italic tracking-tighter opacity-80 transition-transform duration-300 group-hover:scale-110",
-                  variant ? iconClasses[variant].split(' ')[0] : "text-zinc-500"
-                )}>
-                  {metric}
-                </span>
-              )}
-            </div>
-          }
-          title={title}
-        />
-        <UnifiedCardBody className="space-y-4">
-          <UnifiedCardText className="text-zinc-400 text-sm">
-            {description}
-          </UnifiedCardText>
-          
+        <Stack gap="md" h="100%">
+          <Group justify="space-between" align="flex-start">
+            <ThemeIcon color={variant} variant="light" size="xl" radius="md">
+              <Icon size={24} />
+            </ThemeIcon>
+            {metric !== undefined && (
+              <Text fw={900} size="xl" lts={-2} c={chartColors[variant]} className="opacity-80">
+                {metric}
+              </Text>
+            )}
+          </Group>
+
+          <Stack gap={4}>
+            <Text fw={700} size="lg" c="white" lh={1.2}>
+              {title}
+            </Text>
+            <Text size="xs" c="dimmed" lineClamp={2}>
+              {description}
+            </Text>
+          </Stack>
+
           {chartData && chartData.length > 0 && (
-            <div className="pt-2">
+            <div className="mt-auto pt-2">
               <DashboardChart 
                 data={chartData} 
-                color={variant ? chartColors[variant] : "#71717a"} 
+                color={chartColors[variant]} 
               />
             </div>
           )}
-        </UnifiedCardBody>
-        <UnifiedCardActions>
-          <span className={cn(
-            buttonVariants({ variant: "ghost", size: "sm" }),
-            "h-8 px-3 text-[10px] uppercase font-bold tracking-widest border border-white/5 bg-white/5 hover:bg-white/10"
-          )}>
-            Open
-          </span>
-        </UnifiedCardActions>
-      </UnifiedCard>
-    </Link>
+
+          <Group justify="flex-end" mt="auto">
+            <Text size="xs" fw={700} tt="uppercase" lts={1} c={variant}>
+              Open Layer →
+            </Text>
+          </Group>
+        </Stack>
+      </MantineCard>
+    </UnstyledButton>
   );
 }
 

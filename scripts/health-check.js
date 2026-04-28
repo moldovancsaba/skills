@@ -1,16 +1,16 @@
 /**
- * SOVEREIGN HEALTH CHECK
+ * checklist HEALTH CHECK
  * v1.0.0
  * 
  * Diagnostic utility to verify Ollama connectivity, JSON extraction,
- * and Trinity pipeline readiness.
+ * and trinity pipeline readiness.
  */
 const { PrismaClient } = require("@prisma/client");
 const { callOllamaJson, extractJsonCandidate } = require("./lib/ai");
 const { OLLAMA_HOST, OLLAMA_MODEL } = require("./lib/core");
 
 async function runHealthCheck() {
-  console.log("--- SOVEREIGN HEALTH CHECK ---");
+  console.log("--- checklist HEALTH CHECK ---");
   console.log(`Timestamp: ${new Date().toISOString()}`);
   console.log(`Ollama Host: ${OLLAMA_HOST}`);
   console.log(`Primary Model: ${OLLAMA_MODEL}`);
@@ -53,7 +53,7 @@ async function runHealthCheck() {
     }
 
     // 4. Stage Readiness
-    console.log("\n[4/4] Trinity Stage Readiness...");
+    console.log("\n[4/4] trinity Stage Readiness...");
     const { STAGE_MODELS } = require("./lib/core");
     console.log(`>> DRAFT Models: ${STAGE_MODELS.DRAFT.join(", ")}`);
     console.log(`>> WRITE Models: ${STAGE_MODELS.WRITE.join(", ")}`);

@@ -1,5 +1,5 @@
 /**
- * SOVEREIGN DIAGNOSTIC AUDIT
+ * checklist DIAGNOSTIC AUDIT
  * v0.11.4-STABLE
  * 
  * Performs a deep health audit of the database record distribution.

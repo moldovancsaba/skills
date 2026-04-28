@@ -23,10 +23,10 @@ export default function LoginPage() {
           <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/40 px-8 py-12 text-center text-white shadow-2xl backdrop-blur-xl md:px-10">
             <div className="mb-10">
               <h1 className="text-4xl font-bold tracking-tight mb-3 bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent">
-                Checklist
+                checklist
               </h1>
               <p className="text-slate-400 font-medium">
-                Sovereign Intelligence OS
+                checklist
               </p>
             </div>
 

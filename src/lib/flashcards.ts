@@ -1,5 +1,5 @@
 /**
- * SOVEREIGN FLASHCARD ENGINE
+ * checklist FLASHCARD ENGINE
  * v0.11.4-STABLE
  * 
  * Core business logic for generating, refining, and managing Flashcards and Taskcards.

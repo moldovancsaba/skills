@@ -26,7 +26,7 @@ async function inspect() {
          const pCount = await db.collection("Product").countDocuments();
          const cCount = await db.collection("Customer").countDocuments();
          const rCount = await db.collection("Competitor").countDocuments();
-         console.log(`  └─ Found Checklist Models! [Products: ${pCount}, Customers: ${cCount}, Competitors: ${rCount}]`);
+         console.log(`  └─ Found checklist Models! [Products: ${pCount}, Customers: ${cCount}, Competitors: ${rCount}]`);
       }
     }
     console.log("--------------------------------------------------");

@@ -301,7 +301,7 @@ export default function Home() {
                   icon={Zap}
                   variant="violet"
                   metric={c.metrics?.checklist ?? 0}
-                  title="Checklist"
+                  title="checklist"
                   description="High-impact actions"
                 />
               </UnifiedGrid>

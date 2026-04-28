@@ -42,7 +42,7 @@ const pipelineItems = [
   {
     key: "checklist",
     href: (companyId: string) => `/${companyId}/nba`,
-    label: "Checklist",
+    label: "checklist",
     icon: "looks_4",
     colorClass: "pipeline-checklist",
   },
@@ -98,7 +98,7 @@ export function ClientNav() {
       <div className="flex items-center justify-between h-16 px-4 border-b border-border/50 shrink-0">
         {!isCollapsed && (
           <Link href="/" className="font-display text-lg font-bold text-foreground truncate">
-            Checklist
+            checklist
           </Link>
         )}
         <Button 
@@ -203,6 +203,25 @@ export function ClientNav() {
                 </Link>
               );
             })}
+
+            {/* Superadmin: trinity */}
+            {session?.isSuperAdmin && (
+              <Link
+                href="/intelligence"
+                className={cn(
+                  buttonVariants({ variant: pathname === "/intelligence" ? "secondary" : "ghost", size: "sm" }),
+                  "w-full justify-start gap-4 h-10 mt-2 relative group text-accent hover:text-accent",
+                  isCollapsed && "justify-center px-0 hover:bg-accent/10"
+                )}
+                title="trinity"
+              >
+                {pathname === "/intelligence" && !isCollapsed && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-accent rounded-r-md" />
+                )}
+                <span className="material-symbols-outlined text-[22px] shrink-0" aria-hidden="true">terminal</span>
+                {!isCollapsed && <span className="font-bold tracking-tight">trinity</span>}
+              </Link>
+            )}
           </div>
         )}
       </div>

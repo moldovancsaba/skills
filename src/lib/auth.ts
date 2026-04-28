@@ -142,7 +142,7 @@ export function getSsoRedirectUri() {
     return process.env.SSO_REDIRECT_URI;
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://checklist.sovereignsquad.com";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://checklist.checklistsquad.com";
   const redirectPath = process.env.SSO_REDIRECT_PATH || "/auth/callback";
   return `${baseUrl}${redirectPath}`;
 }

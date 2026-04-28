@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.sovereignsquad.checklist.guardian</string>
+    <string>com.checklistsquad.checklist.guardian</string>
 
     <key>ProgramArguments</key>
     <array>

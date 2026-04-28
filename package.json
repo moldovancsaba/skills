@@ -20,6 +20,8 @@
     "status": "node scripts/status-server.js"
   },
   "dependencies": {
+    "@mantine/core": "^7.17.8",
+    "@mantine/hooks": "^7.17.8",
     "@prisma/client": "^6.0.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -77,6 +79,8 @@
     "@types/react-dom": "^18.3.1",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.2",
+    "postcss-preset-mantine": "^1.18.0",
+    "postcss-simple-vars": "^7.0.1",
     "prisma": "^6.0.0",
     "typescript": "^5.7.0"
   },

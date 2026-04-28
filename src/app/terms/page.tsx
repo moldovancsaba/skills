@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Terms of Service - Checklist",
+  title: "Terms of Service - checklist",
 };
 
 export default function TermsPage() {
@@ -14,7 +14,7 @@ export default function TermsPage() {
         <section>
           <h2 className="font-semibold mb-2">Acceptable Use</h2>
           <p className="text-muted-foreground">
-            You agree to use Checklist only for lawful business purposes. 
+            You agree to use checklist only for lawful business purposes. 
             You are responsible for all activity under your account.
           </p>
         </section>
@@ -48,7 +48,7 @@ export default function TermsPage() {
         <section>
           <h2 className="font-semibold mb-2">Disclaimer</h2>
           <p className="text-muted-foreground">
-            Checklist provides AI-generated suggestions for marketing purposes only. 
+            checklist provides AI-generated suggestions for marketing purposes only. 
             We do not guarantee the accuracy or effectiveness of any recommendations.
           </p>
         </section>

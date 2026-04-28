@@ -4,7 +4,7 @@ import { normalizeHashtagList } from "@/lib/hashtags";
 import { nextSourcePublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 
 /**
- * SOVEREIGN SOURCE LIBRARY
+ * checklist SOURCE LIBRARY
  * v0.11.4-STABLE
  * 
  * Logic for managing DataCards (Sources). 

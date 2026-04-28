@@ -1,10 +1,10 @@
-# Checklist Local AI Pipeline
+# checklist Local AI Pipeline
 
-This document describes the current shipped behavior of the Checklist online/local AI pipeline.
+This document describes the current shipped behavior of the checklist online/local AI pipeline.
 
 ## System split
 
-Checklist has two cooperating parts:
+checklist has two cooperating parts:
 
 1. `online webapp`
    - user-facing
@@ -114,7 +114,7 @@ Some flashcards are sourced from AI-harvested public research rather than direct
 - `entityTag = "research-harvest"`
 - `metadata.origin = "research-harvest"`
 
-The Knowmore API exposes these as sovereign-research cards so the UI can render them with a distinct visual treatment.
+The Knowmore API exposes these as checklist-research cards so the UI can render them with a distinct visual treatment.
 
 ### 4. Delivery metrics
 
@@ -142,7 +142,7 @@ This lane:
 - uses high-intent query patterns (reviews, comparisons, analysis) to improve yield
 - requires externally evidenced findings before it persists anything
 - writes new raw `Source` rows with research lineage metadata
-- immediately reprocesses the affected company so those harvested rows can become flashcards and later feed Checklist generation
+- immediately reprocesses the affected company so those harvested rows can become flashcards and later feed checklist generation
 
 This keeps internet-discovered knowledge inside the same unified raw-source pipeline instead of attaching it only as transient flashcard evidence.
 
@@ -234,7 +234,7 @@ Declined flashcards are hidden from the Knowmore webapp feed.
 
 ### NBA tasks
 
-Checklist tasks support:
+checklist tasks support:
 - `ACCEPT`
 - `DECLINE`
 - `MODIFY_ACCEPT`
@@ -291,7 +291,7 @@ Task feedback is also applied back onto the linked source flashcards.
 
 ## Continuous improvement loop
 
-Checklist is evolving from a generation pipeline into an improvement pipeline.
+checklist is evolving from a generation pipeline into an improvement pipeline.
 
 The next contract is:
 

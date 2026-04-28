@@ -9,7 +9,7 @@ const testCases = [
   {
     name: "Valid Profile",
     data: {
-      website: "https://www.sovereignsquad.ai",
+      website: "https://www.checklistsquad.ai",
       businessModel: "SaaS",
       industry: "Technology",
       productCategories: ["Software"],

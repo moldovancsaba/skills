@@ -10,7 +10,7 @@ Status note:
 
 ## Objective
 
-Turn Checklist into a durable improvement system that revisits stale knowledge and stale NBA tasks over time, refreshes them with better evidence, and prioritizes work based on business value.
+Turn checklist into a durable improvement system that revisits stale knowledge and stale NBA tasks over time, refreshes them with better evidence, and prioritizes work based on business value.
 
 The most important rule is:
 
@@ -19,7 +19,7 @@ The most important rule is:
 
 ## Why This Matters
 
-Checklist already has:
+checklist already has:
 
 - raw source capture in the online app
 - a local AI worker
@@ -40,7 +40,7 @@ This program adds that missing layer.
 
 ## Target Outcome
 
-Checklist should behave like a persistent business researcher and improvement engine:
+checklist should behave like a persistent business researcher and improvement engine:
 
 1. choose the next eligible item to improve
 2. prefer the oldest modified item among eligible candidates
@@ -54,7 +54,7 @@ Checklist should behave like a persistent business researcher and improvement en
 
 ```text
 ┌────────────────────────────────────────────────────────────┐
-│ Online Checklist App                                      │
+│ Online checklist App                                      │
 │ - raw data entry                                          │
 │ - flashcard review and correction                         │
 │ - NBA task review and correction                          │
@@ -76,7 +76,7 @@ Checklist should behave like a persistent business researcher and improvement en
                                │ scheduled pull / update
                                ▼
 ┌────────────────────────────────────────────────────────────┐
-│ Local Checklist Worker                                    │
+│ Local checklist Worker                                    │
 │ - eligibility scan                                        │
 │ - oldest-modified-first selection                         │
 │ - business-value scoring                                  │
@@ -245,7 +245,7 @@ If the current schema already stores equivalent data, prefer extending it rather
 
 ## Atomic Delivery Issues
 
-The implementation is broken into the following reviewable issues in `sovereignsquad/checklist`:
+The implementation is broken into the following reviewable issues in `checklistsquad/checklist`:
 
 1. `#81` Continuous Improvement: End-to-end oldest-modified knowledge and task refresh system
 2. `#82` Continuous Improvement: Add freshness and oldest-modified selection model
@@ -297,6 +297,6 @@ The program is only complete when all of the following are true:
 
 The execution issues are intended for:
 
-- [checklist - From IDEA to LIVE](https://github.com/orgs/sovereignsquad/projects/3)
+- [checklist - From IDEA to LIVE](https://github.com/orgs/checklistsquad/projects/3)
 
 If project insertion fails from the CLI, treat it as an org-permission problem rather than a planning problem. The implementation plan remains valid and should still be tracked from the linked issues and this document.

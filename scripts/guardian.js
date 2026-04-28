@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * SOVEREIGN GUARDIAN
+ * checklist GUARDIAN
  * v0.11.4-STABLE
  * 
- * A production-grade watchdog for the Trinity Synthesis Worker (scripts/sync.js).
+ * A production-grade watchdog for the trinity Worker (scripts/sync.js).
  * Responsibilities:
  *   - Launches sync.js as a child process.
  *   - Monitors it via the /health endpoint (Port 10005).
@@ -33,6 +33,8 @@ const HEALTH_PATH      = "/health";
 const HEALTH_INTERVAL  = 30_000;   // 30s between health polls
 const STUCK_MS         = 20 * 60 * 1000;  // 20 min with no lastProgressAt change = stuck
 const STARTUP_GRACE_MS = 60_000;   // give the worker 60s to boot before checking health
+const STATUS_HEALTH_PORT = 10006;
+const STATUS_HEALTH_INTERVAL = 45_000; // Check status server every 45s
 
 const RESTART_BASE_MS  = 5_000;    // 5s initial back-off
 const RESTART_MAX_MS   = 5 * 60 * 1000; // 5 min max back-off
@@ -195,7 +197,7 @@ function restartOllama() {
 }
 
 /**
- * Performs a health scan of the Trinity Worker.
+ * Performs a health scan of the trinity Worker.
  * Triggers a process kill if the worker is found to be stuck or unresponsive.
  */
 function pollHealth() {
@@ -254,10 +256,37 @@ function pollHealth() {
   });
 }
 
+/**
+ * Actively probes the Status Server port to ensure the dashboard is live.
+ * Restarts the status server if port 10006 is unresponsive.
+ */
+function checkStatusServerHealth() {
+  const req = http.get({ hostname: "127.0.0.1", port: STATUS_HEALTH_PORT, path: "/", timeout: 5000 }, (res) => {
+    if (res.statusCode !== 200) {
+      warn(`Status server returned non-200 status: ${res.statusCode}.`);
+    }
+  });
+
+  req.on("error", (e) => {
+    warn(`STATUS SERVER UNREACHABLE on port ${STATUS_HEALTH_PORT}: ${e.message}. Re-igniting...`);
+    // Kill existing processes on that port just in case of zombies
+    try {
+      execSync(`lsof -t -i :${STATUS_HEALTH_PORT} | xargs kill -9 || true`);
+    } catch (_) {}
+    // The launchStatusServer logic in the boot section will handle the restart via the 'exit' handler
+    // but if it's already dead, we manually trigger it if needed.
+  });
+
+  req.on("timeout", () => {
+    req.destroy();
+    warn("Status server health check timed out.");
+  });
+}
+
 // --- PROCESS MANAGEMENT ---
 
 /**
- * Forcefully terminates the active Trinity Worker.
+ * Forcefully terminates the active trinity Worker.
  * Attempts SIGTERM first, followed by SIGKILL if necessary.
  * 
  * @param {string} reason - Human-readable reason for termination
@@ -272,13 +301,13 @@ function killWorker(reason) {
 }
 
 /**
- * Spawns a new Trinity Worker child process.
+ * Spawns a new trinity Worker child process.
  * Configures pipes for standard out/err and initializes exit handlers.
  */
 function startWorker() {
   if (workerProcess) return;
 
-  log(`Starting Trinity Worker (attempt #${restartCount + 1}) | back-off=${restartMs}ms`);
+  log(`Starting trinity Worker (attempt #${restartCount + 1}) | back-off=${restartMs}ms`);
   startedAt = Date.now();
   lastProgressAt = null;
   workerAlive = false;
@@ -343,7 +372,7 @@ function scheduleRestart() {
 // Boot
 // ---------------------------------------------------------------------------
 log("═══════════════════════════════════════════");
-log("  SOVEREIGN GUARDIAN STARTING");
+log("  checklist GUARDIAN STARTING");
 log(`  Watching: ${WORKER_SCRIPT}`);
 log(`  Log:      ${LOG_FILE}`);
 log(`  PID:      ${process.pid}`);
@@ -370,6 +399,9 @@ startWorker();
 
 // Periodic health poll
 healthCheckTimer = setInterval(pollHealth, HEALTH_INTERVAL);
+
+// Periodic status server health poll
+setInterval(checkStatusServerHealth, STATUS_HEALTH_INTERVAL);
 
 // Periodic heartbeat even when idle
 heartbeatTimer = setInterval(() => writeHeartbeat(), 15_000);

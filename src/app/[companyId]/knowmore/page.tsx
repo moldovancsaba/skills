@@ -96,7 +96,7 @@ type Flashcard = {
   sources: FlashcardSource[];
   actions: FlashcardAction[];
   corrections: FlashcardCorrection[];
-  isSovereignResearch?: boolean;
+  ischecklistResearch?: boolean;
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";

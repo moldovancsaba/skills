@@ -11,7 +11,7 @@ Date:
 
 ## Why this exists
 
-ChecklistSync is a multi-company local AI worker. A worker can look healthy while still under-delivering if:
+checklistSync is a multi-company local AI worker. A worker can look healthy while still under-delivering if:
 
 - startup always begins from the same company
 - restarts reset progress to the same company
@@ -22,7 +22,7 @@ This document turns that risk into a concrete scheduler contract that later impl
 
 ## Decision summary
 
-Checklist should use a `persistent rotating company cursor` with `per-company serial work`, `bounded slice sizes`, and `starvation telemetry`.
+checklist should use a `persistent rotating company cursor` with `per-company serial work`, `bounded slice sizes`, and `starvation telemetry`.
 
 That means:
 
@@ -49,7 +49,7 @@ Cons:
 - heavy companies at the top delay everyone else
 - looks healthy even when late companies are starved
 
-Checklist fit:
+checklist fit:
 - `Rejected`
 
 ### Pattern B: pure round-robin
@@ -67,7 +67,7 @@ Cons:
 - if state is not persisted, restarts still reset bias
 - equal turns do not always mean equal delivery when companies have very different backlog shapes
 
-Checklist fit:
+checklist fit:
 - `Partially accepted`
 - good base behavior, but not enough on its own
 
@@ -85,7 +85,7 @@ Cons:
 - harder to debug
 - can silently drift into favoritism if weights are not observable
 
-Checklist fit:
+checklist fit:
 - `Accepted later`
 - this should be a follow-on evolution after plain fairness is stable and measurable
 
@@ -101,16 +101,16 @@ Pros:
 - handles uneven cost per company better than plain round-robin
 
 Cons:
-- more complex than Checklist needs right now
+- more complex than checklist needs right now
 - requires stable cost accounting first
 
-Checklist fit:
+checklist fit:
 - `Future option`
 - useful only after runtime cost telemetry is trustworthy
 
-## Chosen policy for Checklist
+## Chosen policy for checklist
 
-Checklist should implement `persistent rotating round-robin first`, then layer `small fairness boosts` only after metrics prove the base contract is stable.
+checklist should implement `persistent rotating round-robin first`, then layer `small fairness boosts` only after metrics prove the base contract is stable.
 
 The chosen policy is:
 
@@ -187,7 +187,7 @@ Required health views:
 
 ## Starvation thresholds
 
-Checklist is an always-on client delivery engine. A company must not disappear behind a healthy global light.
+checklist is an always-on client delivery engine. A company must not disappear behind a healthy global light.
 
 Initial thresholds:
 
@@ -206,7 +206,7 @@ This approach is intentionally conservative:
 - strong enough to prevent restart bias
 - compatible with later weighting, decay, and business-priority policies
 
-Checklist does not need sophisticated queue theory first. It needs a fairness contract that operators can verify every day.
+checklist does not need sophisticated queue theory first. It needs a fairness contract that operators can verify every day.
 
 ## Implementation follow-through
 

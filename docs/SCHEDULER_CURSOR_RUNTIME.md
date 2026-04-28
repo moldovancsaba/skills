@@ -11,7 +11,7 @@ Date:
 
 ## What shipped
 
-ChecklistSync now persists company-cycle scheduler state in:
+checklistSync now persists company-cycle scheduler state in:
 
 - `scripts/knowledge/scheduler-state.json`
 

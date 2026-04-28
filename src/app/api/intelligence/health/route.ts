@@ -32,11 +32,17 @@ export async function GET(request: NextRequest) {
       status: isStale ? "OFFLINE" : "ONLINE",
       uptime: data.uptime || "unknown",
       timestamp: new Date(setting.updatedAt).toISOString(),
+      currentCompany: data.currentCompany || null,
+      activeTask: data.activeTask || null,
+      activeModel: data.activeModel || null,
+      stage: data.stage || "IDLE",
+      settings: data.settings || null,
       metrics: {
         total_cycles: data.cycleCount || 0,
         avg_cycle_duration: data.metrics?.avg_cycle_duration || "0",
         total_operations: data.metrics?.totalOpsThisCycle || 0,
         failure_rate: data.metrics?.failureRate || "0",
+        lastLatency: data.metrics?.lastLatency || 0,
         backlog: data.backlog || { draft_cards: 0, checked_cards: 0 },
         cycleHistory: data.metrics?.cycleHistory || []
       },

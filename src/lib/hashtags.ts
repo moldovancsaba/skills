@@ -1,5 +1,5 @@
 /**
- * SOVEREIGN HASHTAG UTILITIES
+ * checklist HASHTAG UTILITIES
  * v0.11.4-STABLE
  * 
  * Logic for sanitizing, normalizing, and filtering hashtags across the intelligence layer.

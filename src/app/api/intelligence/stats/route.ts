@@ -66,6 +66,10 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    const synthesisProgress = await prisma.globalSetting.findUnique({
+      where: { key: "core_synthesis_progress" },
+    });
+
     const stats = {
       global: {
         companies: companyCount,
@@ -86,6 +90,7 @@ export async function GET(request: NextRequest) {
         data: r.data as any,
         createdAt: r.createdAt,
       })),
+      synthesis: (synthesisProgress?.value as any) || null,
     };
 
     return NextResponse.json(stats);

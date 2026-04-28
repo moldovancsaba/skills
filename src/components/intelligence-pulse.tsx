@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, CheckCircle2, Cpu, History, Zap } from "lucide
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from 'date-fns';
 
 type HealthData = {
   status: string;
@@ -79,12 +80,13 @@ export function IntelligencePulse() {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       {/* Real-time Status */}
-      <Card className="border-border/40 bg-zinc-950/50 backdrop-blur-md">
+      <Card className="border-border/40 bg-zinc-950/50 backdrop-blur-md relative overflow-hidden group">
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         <CardHeader className="p-4 pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
               <Zap className="h-3 w-3 text-amber-400" />
-              Engine Status
+              Engine Pulse
             </CardTitle>
             <Badge variant="outline" className={cn(
               "font-mono text-[10px]",
@@ -92,43 +94,59 @@ export function IntelligencePulse() {
               isWarning ? "border-amber-500/30 bg-amber-500/10 text-amber-400" :
               "border-red-500/30 bg-red-500/10 text-red-400"
             )}>
-              {isHealthy ? "STABLE" : isWarning ? "DEGRADED" : "CRITICAL"}
+              {data.status === "ONLINE" ? "LIVE" : "OFFLINE"}
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="p-4 pt-2">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Total Operations</span>
-              <span className="font-mono text-sm font-bold text-white">{data.metrics.total_operations}</span>
+        <CardContent className="p-4 pt-2 relative">
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Active Context</span>
+                <span className="text-[10px] font-mono text-zinc-400 truncate max-w-[120px]">{(data as any).activeModel || (data as any).settings?.failsafeModel?.split('|')[0]?.split(':')[1]?.trim() || "N/A"}</span>
+              </div>
+              <p className="text-sm font-bold text-white truncate">{(data as any).currentCompany || "Idle Rotation"}</p>
+              <p className="text-[10px] text-zinc-500 italic truncate mt-0.5">
+                {(data as any).activeTask || "Waiting for signal..."}
+              </p>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Failure Rate</span>
-              <span className={cn(
-                "font-mono text-sm font-bold",
-                isHealthy ? "text-emerald-400" : isWarning ? "text-amber-400" : "text-red-400"
-              )}>{data.metrics.failure_rate}%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Avg Cycle Time</span>
-              <span className="font-mono text-sm font-bold text-zinc-300">{data.metrics.avg_cycle_duration}s</span>
+            
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Workflow Stage</span>
+                <span className="text-[10px] font-mono text-emerald-500 font-bold">{(data as any).stage}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {['RESEARCH', 'SCRUB', 'WRITE', 'JUDGE'].map((s) => (
+                  <div key={s} className={cn(
+                    "h-1 flex-1 rounded-full",
+                    (data as any).stage?.includes(s) || (s === 'SCRUB' && (data as any).stage === 'SCRUBBING')
+                      ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]" 
+                      : "bg-zinc-800"
+                  )} />
+                ))}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Backlog Intensity */}
+      {/* Throughput Intensity */}
       <Card className="border-border/40 bg-zinc-950/50 backdrop-blur-md">
         <CardHeader className="p-4 pb-2">
           <CardTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
             <Cpu className="h-3 w-3 text-blue-400" />
-            Intelligence Backlog
+            Throughput Yield
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-2">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Draft Processing</span>
+              <span className="text-xs text-zinc-400">Cycle Operations</span>
+              <span className="font-mono text-sm font-bold text-white">{data.metrics.total_operations}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-400">Backlog Volume</span>
               <div className="flex items-center gap-2">
                 <div className="h-1.5 w-16 rounded-full bg-zinc-800">
                   <div 
@@ -136,24 +154,12 @@ export function IntelligencePulse() {
                     style={{ width: `${Math.min(100, (data.metrics.backlog.draft_cards / 50) * 100)}%` }} 
                   />
                 </div>
-                <span className="font-mono text-xs font-bold text-white">{data.metrics.backlog.draft_cards}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Audit Queue (Judge)</span>
-              <div className="flex items-center gap-2">
-                <div className="h-1.5 w-16 rounded-full bg-zinc-800">
-                  <div 
-                    className="h-full rounded-full bg-emerald-500 transition-all duration-500" 
-                    style={{ width: `${Math.min(100, (data.metrics.backlog.checked_cards / 200) * 100)}%` }} 
-                  />
-                </div>
-                <span className="font-mono text-xs font-bold text-white">{data.metrics.backlog.checked_cards}</span>
+                <span className="font-mono text-xs font-bold text-white">{data.metrics.backlog.draft_cards + data.metrics.backlog.checked_cards}</span>
               </div>
             </div>
             <div className="flex items-center justify-between pt-1">
-              <span className="text-[10px] uppercase font-bold text-zinc-600">Sync Uptime</span>
-              <span className="text-[10px] font-mono text-zinc-500">{data.uptime}</span>
+              <span className="text-[10px] uppercase font-bold text-zinc-600">Last Sync</span>
+              <span className="text-[10px] font-mono text-zinc-500">{data.timestamp ? formatDistanceToNow(new Date(data.timestamp), { addSuffix: true }) : 'N/A'}</span>
             </div>
           </div>
         </CardContent>

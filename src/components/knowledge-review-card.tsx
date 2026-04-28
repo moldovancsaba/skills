@@ -63,7 +63,7 @@ type Flashcard = {
   corrections: FlashcardCorrection[];
   refreshedAt: string;
   lastActionAt: string | null;
-  isSovereignResearch?: boolean;
+  ischecklistResearch?: boolean;
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
@@ -126,11 +126,11 @@ export function KnowledgeReviewCard({
   onRemoveHashtag,
   onCorrection,
 }: Props) {
-  const isSovereignResearch = Boolean(flashcard.isSovereignResearch);
+  const ischecklistResearch = Boolean(flashcard.ischecklistResearch);
   return (
     <UnifiedCard className={cn(
       "group relative",
-      isSovereignResearch && "border-cyan-400/30 bg-[linear-gradient(180deg,rgba(14,116,144,0.16),rgba(15,23,42,0.96)_22%,rgba(15,23,42,0.98))] shadow-[0_0_0_1px_rgba(34,211,238,0.08),0_18px_48px_rgba(8,47,73,0.28)]"
+      ischecklistResearch && "border-cyan-400/30 bg-[linear-gradient(180deg,rgba(14,116,144,0.16),rgba(15,23,42,0.96)_22%,rgba(15,23,42,0.98))] shadow-[0_0_0_1px_rgba(34,211,238,0.08),0_18px_48px_rgba(8,47,73,0.28)]"
     )}>
       <UnifiedCardHeader
         supporting={

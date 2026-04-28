@@ -1,13 +1,13 @@
 /**
- * SOVEREIGN DRAFTER
+ * checklist DRAFTER
  * v0.11.4-STABLE
  * 
- * The induction stage of the Trinity Synthesis pipeline.
+ * The induction stage of the trinity pipeline.
  * Extracts raw intelligence from DataCards (Sources/Files) into structured DRAFT cards.
  */
 const crypto = require("crypto");
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
-const { STAGE_MODELS, TRINITY_DRAFT_TIMEOUT_MS } = require("./core");
+const { STAGE_MODELS, trinity_DRAFT_TIMEOUT_MS } = require("./core");
 const { truncate, hashValue, nextPublicId, getWorkerConfig, parseBoundedInt } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyArray } = require("./synthesis-utils");
@@ -49,13 +49,13 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
     : "";
 
   const systemPrompt = [
-    "You are the Checklist DRAFTER. Your goal matches DataCards (raw data) to potential FlashCards.",
+    "You are the checklist DRAFTER. Your goal matches DataCards (raw data) to potential FlashCards.",
     "Your synthesis MUST align with the following strategic context of the company:",
     strategicContext,
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nYou MUST prioritize insights that relate to: ${topic.notes || topic.label}\n` : "",
     skillPrompt,
     "Required fields: title, body, kind, confidence, impact, weight, hashtags.",
-    "SOVEREIGN AXIOM: You MUST generate strict integer scores for confidence, impact, and weight. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
+    "checklist AXIOM: You MUST generate strict integer scores for confidence, impact, and weight. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
     "If the intelligence already exists in the provided context, do NOT duplicate it.",
     "You may propose MULTIPLE FlashCards if the raw data contains distinct insights.",
     "Format: Return a JSON array of objects.",
@@ -66,7 +66,7 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
 
   const userPrompt = `Company: ${company.name}\nDataCard Context: ${truncate(dataCard.content, 1500)}`;
 
-  const raw = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.DRAFT, { timeoutMs: TRINITY_DRAFT_TIMEOUT_MS });
+  const raw = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.DRAFT, { timeoutMs: trinity_DRAFT_TIMEOUT_MS });
   const rawArray = unifyArray(raw);
   if (!Array.isArray(rawArray)) return [];
 
@@ -122,12 +122,12 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
 
   const systemPrompt = [
-    "You are the Checklist DRAFTER. Your goal is to turn FlashCards into actionable TaskCards.",
+    "You are the checklist DRAFTER. Your goal is to turn FlashCards into actionable TaskCards.",
     "Your tasks MUST be strategically aligned with the company's TopicCards and existing work:",
     strategicContext,
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nEnsure this task directly supports the following objective: ${topic.notes || topic.label}\n` : "",
     "Required fields: title, description, kind, impact, confidence, ease.",
-    "SOVEREIGN AXIOM: You MUST generate strict integer scores for confidence, impact, and ease. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
+    "checklist AXIOM: You MUST generate strict integer scores for confidence, impact, and ease. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
     "Check the context carefully. Do NOT draft a task that is already present.",
     "You may propose MULTIPLE TaskCards if appropriate.",
     "Format: Return a JSON array of objects.",
@@ -138,7 +138,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
 
   const userPrompt = `Company: ${company.name}\nFlashCard: ${flashCard.title}\nInsight: ${flashCard.body}`;
 
-  const raw = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.DRAFT, { timeoutMs: TRINITY_DRAFT_TIMEOUT_MS });
+  const raw = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.DRAFT, { timeoutMs: trinity_DRAFT_TIMEOUT_MS });
   const rawArray = unifyArray(raw);
   if (!Array.isArray(rawArray)) return [];
 

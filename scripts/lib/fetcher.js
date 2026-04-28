@@ -3,7 +3,7 @@ const http = require("http");
 const { normalizeText, truncate } = require("./shared");
 
 /**
- * SOVEREIGN FETCHER
+ * checklist FETCHER
  * v0.12.1-DURABLE
  */
 

@@ -1,182 +1,68 @@
 /**
- * SOVEREIGN JUDGE
- * v0.11.4-STABLE
- * 
- * The final quality gate of the Trinity Synthesis pipeline.
- * Audits CHECKED cards and determines if they meet the threshold for promotion to VERIFIED.
- * Rejections are demoted to DRAFT with cratered scores to sink in sorting layers.
+ * checklist JUDGE
+ * v2.0.0 — Ground Truth Edition
  */
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
-const { STAGE_MODELS, TRINITY_JUDGE_TIMEOUT_MS } = require("./core");
+const { STAGE_MODELS, trinity_JUDGE_TIMEOUT_MS } = require("./core");
 const { getCompanyStrategicContext } = require("./context");
-const { getWorkerConfig, calculatePercentile, parseBoundedInt } = require("./shared");
+const { getWorkerConfig, calculatePercentile, parseBoundedInt, canonicalSourceText } = require("./shared");
 const { unifyObject } = require("./synthesis-utils");
-
-// --- AUDITING ENGINE ---
 
 /**
  * Audits a CHECKED Flashcard and determines its promotion path.
- * Uses a dynamic quality floor based on the percentile distribution of existing scores.
+ * Implements Claim-Level Grounding (v2.0.0).
  */
-async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = null, sourceContent = null) {
+async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = null, sourceContent = null, workerContext = {}) {
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
 
-  // 1. Identify Quality Floor (Percentile — Progressive Bootstrap)
-  const percentile = await getWorkerConfig(prisma, {}, "confidence_reject_percentile", 10);
-  const existingScores = (await prisma.flashcard.findMany({
-    where: { companyId: flashCard.companyId, processingStatus: "VERIFIED" },
-    select: { confidenceScore: true }
-  })).map(f => f.confidenceScore);
-
-  let threshold;
-  if (existingScores.length >= 10) {
-    threshold = calculatePercentile(existingScores, percentile); // Full percentile mode
-  } else if (existingScores.length >= 5) {
-    threshold = 4; // Mid bootstrap: permissive to allow accumulation
-  } else {
-    threshold = 3; // Early bootstrap: very permissive to seed the first cards
-  }
-  console.log(`[JUDGE] fc:${flashCard.id} Quality floor: ${threshold} (n=${existingScores.length} verified)`);
-
   const systemPrompt = [
-    "You are the Checklist JUDGE. Your goal is to audit FlashCards for high-quality marketing standards.",
-    "Required decision: VERIFIED or REJECTED.",
-    "Criteria: Internal coherence, de-duplication, contradiction risk, hallucination check.",
-    "Strategic context:",
-    strategicContext,
-    "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
-    "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
-    "APERTUS Purity Principle: You MUST verify that the card is 100% monolingual and strictly uses exactly ONE of the allowed languages. If the card contains mixed languages (e.g., English title with Hungarian body) or any disallowed languages, you MUST REJECT it. Your reasoning and feedback MUST ALSO be in one of the allowed languages.",
+    "You are the checklist JUDGE. Audit the following FlashCard for production quality.",
+    "### [GROUNDING RULES (v2.0.0)]",
+    "Every factual claim MUST have at least one verified citation.",
+    "A citation MUST include: claim, sourceId, startOffset, endOffset, quote.",
+    "Offsets refer to the canonicalSourceText(raw).",
+    "If any claim is unsupported, decision = REJECTED.",
+    "### [VALIDATION]",
+    "- Max 160 char title, 1200 char body.",
+    "- 100% Monolingual.",
     memoryPrompt,
-    sourceContent ? `### [FACT CHECK SOURCE CONTENT]\nVerify the card claims against this ground truth. Hallucinations MUST result in REJECTED:\n${sourceContent.slice(0, 5000)}` : ""
+    sourceContent ? `SOURCE CONTENT:\n${canonicalSourceText(sourceContent)}` : ""
   ].join("\n");
 
   const userPrompt = `Title: ${flashCard.title}\nBody: ${flashCard.body}`;
-
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.JUDGE, { timeoutMs: TRINITY_JUDGE_TIMEOUT_MS });
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.JUDGE, { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
   const raw = unifyObject(res);
-  if (!raw || !raw.decision) return { processingStatus: "CHECKED" }; 
 
-  let finalScore;
-  try {
-    finalScore = parseBoundedInt(raw.confidenceScore, 1, 10);
-  } catch(e) {
-    // If the Judge refuses to score it properly, send to human review
-    return {
-      processingStatus: "REVIEW",
-      confidenceScore: 1,
-      confidence: 1
-    };
-  }
-
-  if (raw.decision === "VERIFIED" && finalScore >= threshold) {
-    console.log(`[JUDGE] [VERIFIED] fc:${flashCard.id} Score: ${finalScore}/${threshold}`);
-    return { 
-      processingStatus: "VERIFIED", 
-      status: "VERIFIED",
-      confidenceScore: finalScore, 
-      confidence: finalScore,
-      activityState: "ACTIVE",
-      userAnnotation: `[JUDGE APPROVED]: Score ${finalScore}/10 (floor: ${threshold}). ${raw.reason ? raw.reason.slice(0, 200) : "Quality standard met."}` 
-    };
-  } else {
-    const reasonText = typeof raw.reason === "string" ? raw.reason : JSON.stringify(raw.reason);
-    console.log(`[JUDGE] [REJECTED] fc:${flashCard.id} Score: ${finalScore}/${threshold} Reason: ${reasonText}`);
-    return { 
-      processingStatus: "DRAFT", 
-      status: "DRAFT",
-      confidenceScore: 1,
-      confidence: 1,
-      weight: 1,
-      activityState: "ARCHIVED",
-      userAnnotation: `[JUDGE REJECTED]: Score ${finalScore}/10 (floor needed: ${threshold}). ${reasonText || "Confidence below quality floor."}` 
-    };
-  }
-}
-
-/**
- * Audits a CHECKED Taskcard (NBA) and determines its promotion path.
- * Enforces quality standards for strategic tactical recommendations.
- */
-async function auditCheckedTaskCard(prisma, taskCard, memoryPrompt, topic = null, sourceContent = null) {
-  const strategicContext = await getCompanyStrategicContext(prisma, taskCard.companyId);
-
-  // Quality Floor — Progressive Bootstrap
-  const percentile = await getWorkerConfig(prisma, {}, "confidence_reject_percentile", 10);
-  const existingScores = (await prisma.nBAItem.findMany({
-    where: { companyId: taskCard.companyId, processingStatus: "VERIFIED" },
-    select: { confidenceScore: true }
-  })).map(f => f.confidenceScore);
-
-  let threshold;
-  if (existingScores.length >= 10) {
-    threshold = calculatePercentile(existingScores, percentile);
-  } else if (existingScores.length >= 5) {
-    threshold = 4;
-  } else {
-    threshold = 3;
-  }
-  console.log(`[JUDGE] tc:${taskCard.id} Quality floor: ${threshold} (n=${existingScores.length} verified)`);
-
-  const systemPrompt = [
-    "You are the Checklist JUDGE. Audit this TaskCard for actionable quality.",
-    "Required decision: VERIFIED or REJECTED.",
-    "Strategic context:",
-    strategicContext,
-    "Return a SINGLE JSON object with: decision, confidenceScore, reason.",
-    "SOVEREIGN AXIOM: confidenceScore MUST be a strictly integer from 1 to 10.",
-    "APERTUS Purity Principle: You MUST verify that the card is 100% monolingual and strictly uses exactly ONE of the languages defined in the [Allowed Languages Policy]. If the card contains mixed languages (e.g., English title with Hungarian body) or any disallowed languages, you MUST REJECT it. Your reasoning and feedback MUST ALSO be in one of the allowed languages.",
-    memoryPrompt,
-    sourceContent ? `### [FACT CHECK SOURCE CONTENT]\nEnsure the recommendation is grounded in this data. Irrelevant or hallucinated tasks MUST be REJECTED:\n${sourceContent.slice(0, 5000)}` : ""
-  ].join("\n");
-
-  const userPrompt = `Title: ${taskCard.title}\nDescription: ${taskCard.description}`;
-
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.JUDGE, { timeoutMs: TRINITY_JUDGE_TIMEOUT_MS });
-  const raw = unifyObject(res);
   if (!raw || !raw.decision) return { processingStatus: "CHECKED" };
 
-  let finalScore;
-  try {
-    finalScore = parseBoundedInt(raw.confidenceScore, 1, 10);
-  } catch(e) {
-    return {
-      processingStatus: "REVIEW",
-      confidenceScore: 1,
-      confidence: 1
-    };
+  // v2.0.0: Claim-Level Verification Pass
+  if (raw.decision === "VERIFIED" && sourceContent) {
+    const canonicalText = canonicalSourceText(sourceContent);
+    const claims = raw.claims || [];
+    
+    for (const claim of claims) {
+      for (const cit of (claim.citations || [])) {
+        const actual = canonicalText.substring(cit.startOffset, cit.endOffset);
+        if (actual !== cit.quote) {
+          return { processingStatus: "DRAFT", userAnnotation: `[JUDGE REJECTED]: Hallucination in claim "${claim.claim}"` };
+        }
+      }
+    }
   }
 
-  if (raw.decision === "VERIFIED" && finalScore >= threshold) {
-    const ice = taskCard.impact * finalScore * taskCard.ease;
-    console.log(`[JUDGE] [VERIFIED] tc:${taskCard.id} Score: ${finalScore}/${threshold}`);
-    return { 
-      processingStatus: "VERIFIED", 
-      status: "VERIFIED",
-      confidenceScore: finalScore, 
-      confidence: finalScore,
-      iceScore: Math.max(1, Math.min(1000, ice)),
-      activityState: "ACTIVE",
-      userAnnotation: `[JUDGE APPROVED]: Score ${finalScore}/10 (floor: ${threshold}). ${raw.reason ? raw.reason.slice(0, 200) : "Quality standard met."}` 
-    };
-  } else {
-    const reasonText = typeof raw.reason === "string" ? raw.reason : JSON.stringify(raw.reason);
-    console.log(`[JUDGE] [REJECTED] tc:${taskCard.id} Score: ${finalScore}/${threshold} Reason: ${reasonText}`);
-    return { 
-      processingStatus: "DRAFT", 
-      status: "DRAFT",
-      confidenceScore: 1,
-      confidence: 1,
-      impact: 1,
-      ease: 1,
-      iceScore: 1,
-      activityState: "ARCHIVED",
-      userAnnotation: `[JUDGE REJECTED]: Score ${finalScore}/10 (floor needed: ${threshold}). ${reasonText || "Confidence below quality floor."}` 
-    };
-  }
+  return {
+    processingStatus: raw.decision === "VERIFIED" ? "VERIFIED" : "DRAFT",
+    confidenceScore: parseBoundedInt(raw.confidenceScore, 1, 10),
+    evidence: { claims: raw.claims },
+    userAnnotation: `[v2.0.0] [JUDGE]: ${raw.reason || "Processed."}`,
+    // Provenance
+    promptName: "judge-audit",
+    promptVersion: "2.0.0",
+    modelName: STAGE_MODELS.JUDGE[0],
+    temperature: 0.1
+  };
 }
 
 module.exports = {
-  auditCheckedFlashCard,
-  auditCheckedTaskCard
+  auditCheckedFlashCard
 };

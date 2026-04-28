@@ -1,35 +1,54 @@
 /**
  * Bridge Ingress API
- * Handles authenticated external data ingestion for the Checklist Marketing OS.
- * Maps inbound messages (iMessage, WhatsApp, etc.) to Source records.
+ * v2.0.0 — Ground Truth Hardening
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { normalizeHashtagList } from "@/lib/hashtags";
 import { nextSourcePublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
+import crypto from "crypto";
 
 export const dynamic = 'force-dynamic';
+
+function verifyHmac(payload: any, signature: string, secret: string) {
+  const hmac = crypto.createHmac("sha256", secret).update(JSON.stringify(payload)).digest("hex");
+  return hmac === signature;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    const secret = data.secret || request.headers.get("x-bridge-secret");
+    const signature = request.headers.get("x-bridge-signature");
+    const timestamp = request.headers.get("x-bridge-timestamp");
+    const companyId = request.headers.get("x-company-id");
 
-    if (!secret) {
-      return NextResponse.json({ error: "Missing identity secret" }, { status: 401 });
+    if (!signature || !timestamp || !companyId) {
+      return NextResponse.json({ error: "Missing security headers (v2.0.0)" }, { status: 401 });
     }
 
-    // Identify company via bridge secret
-    const settings = await prisma.communicationSettings.findFirst({
-      where: { bridgeSecret: secret },
+    // 1. Clock Consistency: Timestamp Window (5 minutes)
+    const now = Date.now();
+    const reqTime = parseInt(timestamp, 10);
+    if (Math.abs(now - reqTime) > 5 * 60 * 1000) {
+      return NextResponse.json({ error: "Request outside 5-minute window" }, { status: 403 });
+    }
+
+    // 2. Identify and Validate Secret (v2.0.0 uses hashed secrets)
+    const settings = await prisma.communicationSettings.findUnique({
+      where: { companyId },
       include: { company: true }
     });
 
-    if (!settings || !settings.isEnabled) {
-      return NextResponse.json({ error: "Invalid or inactive bridge" }, { status: 403 });
+    if (!settings || !settings.isEnabled || !settings.bridgeSecretHash) {
+      return NextResponse.json({ error: "Bridge unavailable or misconfigured" }, { status: 403 });
     }
 
-    const companyId = settings.companyId;
+    // 3. HMAC Verification
+    // Note: In v2.0.0, we verify against the raw secret provided in a secure way 
+    // OR we use the hash as a salt. For simplicity in this LLD context:
+    if (!verifyHmac(data, signature, settings.bridgeSecretHash)) {
+      return NextResponse.json({ error: "Signature mismatch" }, { status: 401 });
+    }
+
     const content = typeof data.text === "string" ? data.text.trim() : "";
     const sender = typeof data.sender === "string" ? data.sender.trim() : "unknown-bridge";
 
@@ -37,7 +56,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Empty content ignored" }, { status: 400 });
     }
 
-    // Ingest as Source
+    // 4. Atomic Ingestion
     const created = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
       return tx.source.create({
@@ -50,7 +69,7 @@ export async function POST(request: NextRequest) {
           metadata: {
             bridgeChannel: settings.channel,
             senderVerified: settings.handle === sender,
-            rawPayload: data
+            v: "2.0.0"
           }
         },
       });
@@ -59,11 +78,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       sourceId: created.id,
-      publicId: created.publicId,
-      message: "Data ingested into Checklist memory"
+      publicId: created.publicId
     });
   } catch (error) {
     console.error("[Bridge Inbound Error]:", error);
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return NextResponse.json({ error: "Internal security failure" }, { status: 500 });
   }
 }

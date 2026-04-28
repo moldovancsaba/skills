@@ -1,8 +1,8 @@
 /**
- * SOVEREIGN AI INTERFACE
+ * checklist AI INTERFACE
  * v0.11.4-STABLE
  * 
- * Core communication layer for Ollama and the Trinity Synthesis pipeline.
+ * Core communication layer for Ollama and the trinity pipeline.
  * Handles JSON repair, model failover, and serial inference locking.
  */
 const http = require("http");
@@ -11,9 +11,9 @@ const {
   OLLAMA_MODEL,
   GLOBAL_OLLAMA_TIMEOUT_MS, 
   STAGE_MODELS, 
-  TRINITY_DRAFT_TIMEOUT_MS, 
-  TRINITY_WRITE_TIMEOUT_MS, 
-  TRINITY_JUDGE_TIMEOUT_MS,
+  trinity_DRAFT_TIMEOUT_MS, 
+  trinity_WRITE_TIMEOUT_MS, 
+  trinity_JUDGE_TIMEOUT_MS,
   queueAiInference 
 } = require("./core");
 
@@ -84,7 +84,7 @@ function extractJsonCandidate(content) {
 
 /**
  * Performs a chat completion via the local Ollama instance.
- * Automatically respects the Sovereign Serial Lock.
+ * Automatically respects the checklist Serial Lock.
  * 
  * @param {object[]} messages - Array of chat message objects
  * @param {object} options - Execution options (model, timeout, format)
@@ -216,14 +216,14 @@ async function callOllamaWithFailover(systemPrompt, userPrompt, modelList, optio
 }
 
 /**
- * Orchestrates a full 3-pass Trinity Synthesis cycle for a company.
+ * Orchestrates a full 3-pass trinity cycle for a company.
  * 
  * @param {object} company - Company database record
  * @param {object} inputContext - Contextual data for synthesis
  * @param {object} stages - Configuration for DRAFT, WRITE, and AUDIT stages
  * @returns {Promise<object>} Full synthesis result object
  */
-async function runTrinityPass(company, inputContext, stages = {}) {
+async function runtrinityPass(company, inputContext, stages = {}) {
   const result = { draft: null, synthesis: null, audit: null };
 
   if (stages.draft) {
@@ -231,7 +231,7 @@ async function runTrinityPass(company, inputContext, stages = {}) {
       stages.draft.systemPrompt,
       JSON.stringify(inputContext),
       STAGE_MODELS.DRAFT,
-      { timeoutMs: TRINITY_DRAFT_TIMEOUT_MS }
+      { timeoutMs: trinity_DRAFT_TIMEOUT_MS }
     );
   }
 
@@ -240,7 +240,7 @@ async function runTrinityPass(company, inputContext, stages = {}) {
       stages.write.systemPrompt,
       JSON.stringify({ draft: result.draft, originalContext: inputContext }),
       STAGE_MODELS.WRITE,
-      { timeoutMs: TRINITY_WRITE_TIMEOUT_MS }
+      { timeoutMs: trinity_WRITE_TIMEOUT_MS }
     );
   }
 
@@ -249,7 +249,7 @@ async function runTrinityPass(company, inputContext, stages = {}) {
       stages.audit.systemPrompt,
       JSON.stringify({ synthesis: result.synthesis, draft: result.draft }),
       STAGE_MODELS.JUDGE,
-      { timeoutMs: TRINITY_JUDGE_TIMEOUT_MS }
+      { timeoutMs: trinity_JUDGE_TIMEOUT_MS }
     );
   }
 
@@ -260,7 +260,7 @@ module.exports = {
   callOllama,
   callOllamaJson,
   callOllamaWithFailover,
-  runTrinityPass,
+  runtrinityPass,
   normalizeText,
   tokenizeText,
   normalizeHashtags,

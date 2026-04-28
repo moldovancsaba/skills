@@ -1,5 +1,5 @@
 /**
- * SOVEREIGN MARKETING SKILL LIBRARY
+ * checklist MARKETING SKILL LIBRARY
  * v0.11.4-STABLE
  * 
  * Defines specialized marketing frameworks used by the Drafter to categorize 

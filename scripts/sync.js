@@ -13,87 +13,47 @@ const DEFAULT_LOOP_INTERVAL = 600000;      // 10 minutes default
 const DEFAULT_IDLE_INTERVAL = 300000;      // 5 minutes default
 
 /**
- * SOVEREIGN TRINITY ORCHESTRATOR
+ * trinity ORCHESTRATOR
  * v0.11.4-STABLE
  * 
  * Main entry point for the background AI synthesis loop.
- * Orchestrates the recurring execution of the Trinity pipeline and serves health metrics.
+ * Orchestrates the recurring execution of the trinity pipeline and serves health metrics.
  */
-const { runSynthesisCycle, getSynthesisProgress, collectGlobalWorkerSettings, syncSynthesisStateToDb, synthesisState } = require("./lib/synthesis");
+const { runSynthesisCycle, getSynthesisProgress, collectGlobalWorkerSettings, updateProgress, synthesisState } = require("./lib/synthesis");
 const { scrubDatabaseElemental } = require("./lib/maintenance");
 
 // --- CONTINUOUS HEARTBEAT ---
-// Updates the "Last Activity" timestamp and syncs to DB for the Cloud Dashboard.
 setInterval(async () => {
   if (synthesisState) {
-    synthesisState.lastProgressAt = new Date().toISOString();
-    await syncSynthesisStateToDb(prisma);
+    await updateProgress(prisma);
   }
 }, 60000);
 
 let lastCycleStartTime = 0;
-const FAILSAFE_INTERVAL = 3600000; // 1 Hour Failsafe
-const IDLE_INTERVAL = 300000;     // 5 Minute Idle Gap
-const POLLING_INTERVAL = 30000;   // 30 Seconds DB Check
+const FAILSAFE_INTERVAL = 3600000;
+const IDLE_INTERVAL = 300000;
+const POLLING_INTERVAL = 30000;
 
 let isRunning = false;
 
-/**
- * Main worker loop. Executes the synthesis cycle and handles the 'Sovereign' command-and-control polling.
- */
 async function runWorkerLoop() {
   if (isRunning) return;
   isRunning = true;
   
   try {
-    console.log(`[SYNTHESIS] Initiating Elemental Cycle...`);
+    console.log(`[SYNTHESIS] Initiating v2.0.0 Cycle...`);
     lastCycleStartTime = Date.now();
     
-    // Elemental Database Scrub (Limited batch per cycle)
-    synthesisState.stage = "MAINTENANCE";
-    await syncSynthesisStateToDb(prisma);
+    await updateProgress(prisma, { stage: "MAINTENANCE" });
     await scrubDatabaseElemental(prisma);
     
     const result = await runSynthesisCycle(prisma);
-    await syncSynthesisStateToDb(prisma); // Post-cycle sync
+    await updateProgress(prisma); 
     
-    const cycleDuration = Date.now() - lastCycleStartTime;
-    const isFastCycle = cycleDuration < FAILSAFE_INTERVAL;
-    
-    // Logic: If fast cycle, wait 5 mins. If slow (>1h), proceed to failsafe check immediately.
-    const cooldown = isFastCycle ? IDLE_INTERVAL : 0;
-    const cooldownMins = cooldown / 60000;
-    
-    if (cooldown > 0) {
-      console.log(`[SYNTHESIS] Elemental Cycle Complete (${result.operations} ops). Resting 5-min idle...`);
-    } else {
-      console.log(`[SYNTHESIS] Long Cycle Detected (>1h). Re-evaluating failsafe immediately.`);
-    }
-    
-    // --- IDLE WATCHER LOOP (The Failsafe Watchdog) ---
-    // We poll for manual reanimates OR reaches the 1-hour failsafe threshold
-    const wakeUpAt = lastCycleStartTime + Math.max(FAILSAFE_INTERVAL, Date.now() + cooldown);
-    
-    // Wait until either IDLE cooldown ends OR 1-hour Failsafe threshold is reached
-    const targetWakeTime = isFastCycle ? (Date.now() + IDLE_INTERVAL) : (lastCycleStartTime + FAILSAFE_INTERVAL);
+    console.log(`[SYNTHESIS] Cycle Complete (${result.operations} ops). Resting...`);
 
+    const targetWakeTime = Date.now() + IDLE_INTERVAL;
     while (Date.now() < targetWakeTime) {
-      // 1. Check for Manual Reanimate Signal
-      const reanimateSignal = await prisma.globalSetting.findUnique({ where: { key: "core_synthesis_reanimate_requested_at" } });
-      if (reanimateSignal) {
-        const signalTime = new Date(reanimateSignal.value.timestamp).getTime();
-        if (signalTime > lastCycleStartTime) {
-          console.log(`[DEFIBRILLATOR] Manual reanimation pulse detected. Waking up...`);
-          break; 
-        }
-      }
-
-      // 2. Failsafe Check (Paranoia Layer)
-      if (Date.now() - lastCycleStartTime >= FAILSAFE_INTERVAL) {
-        console.log(`[WATCHDOG] 1-Hour Failsafe Interval reached. Forcing loop start.`);
-        break;
-      }
-      
       await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
     }
 
@@ -113,7 +73,7 @@ const server = http.createServer(async (req, res) => {
     const settings = await collectGlobalWorkerSettings(prisma);
 
     const health = {
-      researchEnabled: process.env.CHECKLIST_RESEARCH_ENABLED === "true",
+      researchEnabled: process.env.checklist_RESEARCH_ENABLED === "true",
       progress: {
         state: progress.state,
         stage: progress.stage,
@@ -143,6 +103,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, async () => {
-  console.log(`Sovereign Trinity Worker v${APP_VERSION} Active on Port ${PORT}`);
+  console.log(`trinity Worker v${APP_VERSION} Active on Port ${PORT}`);
   runWorkerLoop();
 });

@@ -1,7 +1,7 @@
 const { truncate } = require("./shared");
 
 /**
- * SOVEREIGN STRATEGIC CONTEXT
+ * checklist STRATEGIC CONTEXT
  * v0.11.4-STABLE
  * 
  * Orchestrates the "Strategic Stack" for AI agents.
@@ -62,7 +62,7 @@ async function getCompanyStrategicContext(prisma, companyId) {
   }
 
   if (activeTasks.length > 0) {
-    prompt += "\n[TaskCards / Existing Checklist]:\n";
+    prompt += "\n[TaskCards / Existing checklist]:\n";
     activeTasks.forEach(t => {
       prompt += `- ${t.title}: ${truncate(t.description || "", 200)}\n`;
     });

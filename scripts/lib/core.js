@@ -1,9 +1,9 @@
 /**
- * SOVEREIGN CORE CONFIGURATION
+ * checklist CORE CONFIGURATION
  * v0.11.4-STABLE
  * 
  * Global settings, timeout thresholds, and the AI Inference Serial Lock.
- * Centralized configuration for the entire Trinity Engine.
+ * Centralized configuration for the entire trinity Engine.
  */
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
@@ -13,9 +13,9 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:3b";
 
 const GLOBAL_OLLAMA_TIMEOUT_MS = 180_000;
 const FAILSAFE_TIMEOUT_MS = 300_000;
-const TRINITY_DRAFT_TIMEOUT_MS = 120_000;
-const TRINITY_WRITE_TIMEOUT_MS = 150_000;
-const TRINITY_JUDGE_TIMEOUT_MS = 120_000;
+const trinity_DRAFT_TIMEOUT_MS = 120_000;
+const trinity_WRITE_TIMEOUT_MS = 150_000;
+const trinity_JUDGE_TIMEOUT_MS = 120_000;
 
 const USE_SAFE_MODE = /^(1|true|yes|on)$/i.test(process.env.USE_SAFE_MODE || "");
 const FALLBACK_MODEL = process.env.FALLBACK_MODEL || "granite4:350m";
@@ -91,9 +91,9 @@ module.exports = {
   OLLAMA_MODEL,
   GLOBAL_OLLAMA_TIMEOUT_MS,
   FAILSAFE_TIMEOUT_MS,
-  TRINITY_DRAFT_TIMEOUT_MS,
-  TRINITY_WRITE_TIMEOUT_MS,
-  TRINITY_JUDGE_TIMEOUT_MS,
+  trinity_DRAFT_TIMEOUT_MS,
+  trinity_WRITE_TIMEOUT_MS,
+  trinity_JUDGE_TIMEOUT_MS,
   STAGE_MODELS,
   FLASHCARD_MIN_CONFIDENCE,
   FLASHCARD_MIN_IMPACT,

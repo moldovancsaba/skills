@@ -31,7 +31,11 @@ export async function GET(request: NextRequest) {
           const metadata = (source.metadata as Record<string, unknown>) || {};
           return (
             source.entityTag === "research-harvest" ||
-            (metadata && typeof metadata === "object" && metadata.origin === "research-harvest")
+            source.entityTag === "AGENT_FOUND" ||
+            (metadata && typeof metadata === "object" && (
+              metadata.origin === "research-harvest" || 
+              metadata.type === "RESEARCH_HARVEST"
+            ))
           );
         })
         .map((source) => source.id)
@@ -39,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(flashcards.map((flashcard) => ({
       ...flashcard,
-      isSovereignResearch: flashcard.sources.some((source) => source.sourceType === "SOURCE" && researchHarvestIds.has(source.sourceId)),
+      ischecklistResearch: flashcard.sources.some((source) => source.sourceType === "SOURCE" && researchHarvestIds.has(source.sourceId)),
     })), {
       headers: {
         "Cache-Control": "no-store, max-age=0",

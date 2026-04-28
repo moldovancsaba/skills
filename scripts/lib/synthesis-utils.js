@@ -1,5 +1,5 @@
 /**
- * SOVEREIGN SYNTHESIS UTILITIES
+ * checklist SYNTHESIS UTILITIES
  * v0.11.4-STABLE
  * 
  * Provides robust JSON normalization for AI-generated payloads.

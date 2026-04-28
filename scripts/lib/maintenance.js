@@ -5,7 +5,7 @@ const { enforceLanguagePolicy } = require("./language-validator");
 const { fetchUrlContent } = require("./fetcher");
 
 /**
- * SOVEREIGN MAINTENANCE ENGINE
+ * checklist MAINTENANCE ENGINE
  * v0.12.0-DURABLE
  * 
  * Manages the lifecycle and state-integrity of Flashcards and Taskcards.
@@ -16,7 +16,7 @@ const { fetchUrlContent } = require("./fetcher");
 
 /**
  * Performs a global audit of all cards to ensure status and kind alignment.
- * Fixes legacy status strings and enforces the Sovereign Kind Registry.
+ * Fixes legacy status strings and enforces the checklist Kind Registry.
  * 
  * @param {PrismaClient} prisma - Database client
  */

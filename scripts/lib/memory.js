@@ -1,7 +1,7 @@
 const { truncate } = require("./shared");
 
 /**
- * SOVEREIGN MEMORY ENGINE
+ * checklist MEMORY ENGINE
  * v0.12.0-DURABLE
  * 
  * Harvests human feedback and historical outcomes into rigid strategic constraints.
@@ -64,40 +64,55 @@ async function updateCompanyMemory(prisma, company) {
   const cid = company.id;
   const guidelines = [];
 
-  // 1. All DECLINE/REJECT/ANNOTATE actions with notes (no limit — full history)
-  const actions = await prisma.flashcardAction.findMany({
-    where: { flashcard: { companyId: cid }, action: { in: ["DECLINE", "REJECT", "ANNOTATE"] } },
-    orderBy: { createdAt: "asc" }
-  });
-  actions.forEach(a => {
-    if (a.annotation) guidelines.push(`USER REJECTED: "${a.annotation}"`);
-  });
-
-  // 2. All feedback comments (no limit)
-  const feedbacks = await prisma.feedback.findMany({
-    where: { nbaItem: { companyId: cid } },
-    orderBy: { createdAt: "asc" }
-  });
-  feedbacks.forEach(f => {
-    if (f.comment) guidelines.push(`USER FEEDBACK: "${f.comment}"`);
-  });
-
-  // 3. All corrections (no limit)
+  // 1. ENTITY SCOPE (Direct Card Corrections)
   const corrections = await prisma.flashcardCorrection.findMany({
     where: { companyId: cid },
-    orderBy: { createdAt: "asc" }
+    orderBy: { createdAt: "desc" }
   });
+  
+  const now = new Date();
+  const halfLife = await getWorkerConfig(prisma, company, "memory_half_life_days", 30);
+  const lambda = Math.log(2) / halfLife; // Blueprint v1.0.0: Corrected for 30-day half-life ≈ 0.0231
+  
   corrections.forEach(c => {
+    const ageDays = (now - new Date(c.createdAt)) / (1000 * 60 * 60 * 24);
+    if (ageDays > halfLife * 3) return; // Prune entries older than 3x half-life
+    
+    const decay = Math.exp(-lambda * ageDays);
+    const weight = (1.0 * decay).toFixed(2);
+    
+    const scope = c.flashcardId ? `[SCOPE:CARD:${c.flashcardId}]` : "[SCOPE:GLOBAL]";
     if (c.originalValue && c.correctedValue) {
-      guidelines.push(`USER CORRECTION: Change "${c.originalValue}" to "${c.correctedValue}"`);
+      guidelines.push(`${scope} [CORR:${c.id}] USER CORRECTION (Weight ${weight}): Change "${c.originalValue}" to "${c.correctedValue}"`);
     } else if (c.note) {
-      guidelines.push(`USER CORRECTION NOTE: "${c.note}"`);
+      guidelines.push(`${scope} [CORR:${c.id}] USER CORRECTION NOTE (Weight ${weight}): "${c.note}"`);
+    }
+  });
+
+  // 2. TOPIC SCOPE (Topic-linked Actions)
+  const topicActions = await prisma.flashcardAction.findMany({
+    where: { flashcard: { companyId: cid }, action: { in: ["DECLINE", "REJECT", "ANNOTATE"] } },
+    include: { flashcard: true },
+    orderBy: { createdAt: "desc" }
+  });
+  
+  topicActions.forEach(a => {
+    const ageDays = (now - new Date(a.createdAt)) / (1000 * 60 * 60 * 24);
+    if (ageDays > halfLife * 2) return; // Prune old actions
+
+    const decay = Math.exp(-lambda * ageDays);
+    const weight = (0.8 * decay).toFixed(2);
+
+    const topicIdMatch = a.flashcard.userAnnotation?.match(/\[TOPIC_ID:([^\]]+)\]/);
+    const scope = topicIdMatch ? `[SCOPE:TOPIC:${topicIdMatch[1]}]` : "[SCOPE:GLOBAL]";
+    if (a.annotation) {
+      guidelines.push(`${scope} [ACTION:${a.id}] USER FEEDBACK (Weight ${weight}): "${a.annotation}"`);
     }
   });
 
   if (guidelines.length > 0) {
     await savePersistedMemory(prisma, cid, guidelines);
-    console.log(`[MEMORY] ${company.name}: Distilled ${guidelines.length} signals into durable memory.`);
+    console.log(`[MEMORY] ${company.name}: Distilled ${guidelines.length} hierarchical signals.`);
   }
 }
 
@@ -165,13 +180,14 @@ async function getHumanMemoryPrompt(prisma, company) {
   let goldenExamples = "";
   if (acceptedFlash.length || acceptedTasks.length) {
     goldenExamples = "\n### [GOLDEN EXAMPLES / POSITIVE PATTERNS]\nThe user highly values these existing items. Follow their depth and tone:\n";
-    acceptedFlash.forEach(f => goldenExamples += `- ${f.title}: ${truncate(f.body, 200)}\n`);
-    acceptedTasks.forEach(t => goldenExamples += `- ${t.title}: ${truncate(t.description || "", 200)}\n`);
+    acceptedFlash.forEach(f => goldenExamples += `- ${f.title}: ${f.body.slice(0, 200)}...\n`);
+    acceptedTasks.forEach(t => goldenExamples += `- ${t.title}: ${(t.description || "").slice(0, 200)}...\n`);
   }
 
   return [
     "### RIGID HUMAN CONSTRAINTS (MANDATORY)",
-    `The following feedback from the owner is ABSOLUTE LAW. You MUST NOT violate these principles (${allGuidelines.length} total accumulated signals):`,
+    `The following feedback from the owner is ABSOLUTE LAW. You MUST NOT violate these principles.`,
+    `Conflict Resolution: If guidelines conflict, the most recent (highest ID/Index) takes precedence.`,
     ...allGuidelines.slice(0, 30).map(g => `- ${g}`),
     goldenExamples
   ].join("\n");

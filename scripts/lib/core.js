@@ -8,7 +8,7 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
 
-const OLLAMA_HOST = process.env.OLLAMA_HOST || process.env.OLLAMA_URL || "http://127.0.0.1:11434";
+const OLLAMA_HOST = process.env.OLLAMA_HOST || process.env.OLLAMA_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:3b";
 
 const GLOBAL_OLLAMA_TIMEOUT_MS = 180_000;
@@ -21,9 +21,9 @@ const USE_SAFE_MODE = /^(1|true|yes|on)$/i.test(process.env.USE_SAFE_MODE || "")
 const FALLBACK_MODEL = process.env.FALLBACK_MODEL || "granite4:350m";
 
 const STAGE_MODELS = {
-  DRAFT: USE_SAFE_MODE ? [FALLBACK_MODEL] : ["qwen2.5:7b", "granite4:3b"],
-  WRITE: USE_SAFE_MODE ? [FALLBACK_MODEL] : ["granite4:3b", "llama3.2:3b"],
-  JUDGE: USE_SAFE_MODE ? [FALLBACK_MODEL] : ["MichelRosselli/apertus:latest", "qwen2.5:7b"],
+  DRAFT: ["granite4:350m"],
+  WRITE: ["granite4:350m"],
+  JUDGE: ["granite4:350m"],
 };
 
 if (USE_SAFE_MODE) {

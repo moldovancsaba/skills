@@ -28,6 +28,10 @@ import {
 import { LinkCard, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
+import { getDashboardExpertTip } from "@/content/help";
+import { motion } from "framer-motion";
+import { ExpertTipCard } from "@/components/expert-tip-card";
+import { Plus, ListOrdered, Sparkles, Zap, ArrowRight } from "lucide-react";
 
 type NBAItem = {
   id: string;
@@ -366,7 +370,7 @@ export default function CompanyDashboard() {
           onClick={() => router.push(`/${companyId}/data`)}
           size="lg"
           radius="xl"
-          shadow="xl"
+          className="shadow-xl"
           color="blue"
           leftSection={<Zap size={20} />}
         >

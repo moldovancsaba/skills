@@ -19,6 +19,7 @@ import { EmptyState, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } 
 import { Button } from "@/components/ui/button";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
+import { Archive, Brain } from "lucide-react";
 
 /**
  * Representational interface for a tactical intelligence unit (Task).
@@ -40,12 +41,12 @@ interface NBAItem {
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
 
-type checklistPageProps = {
+type ChecklistPageProps = {
   companyId: string;
   archived?: boolean;
 };
 
-export function checklistPage({ companyId, archived = false }: checklistPageProps) {
+export function ChecklistPage({ companyId, archived = false }: ChecklistPageProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { company, setCompany } = useStore();

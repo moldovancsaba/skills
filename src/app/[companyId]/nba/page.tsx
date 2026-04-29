@@ -10,11 +10,11 @@
 
 import { useParams } from "next/navigation";
 
-import { checklistPage } from "@/components/checklist-page";
+import { ChecklistPage } from "@/components/checklist-page";
 
 export default function CompanyNBAPage() {
   const params = useParams();
   const companyId = params.companyId as string;
 
-  return <checklistPage companyId={companyId} />;
+  return <ChecklistPage companyId={companyId} />;
 }

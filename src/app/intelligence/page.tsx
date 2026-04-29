@@ -19,6 +19,9 @@ import {
   ExternalLink
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { Settings } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { 
   PageShell, 
@@ -66,6 +69,7 @@ interface Stats {
 }
 
 export default function IntelligencePage() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

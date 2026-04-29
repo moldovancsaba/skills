@@ -75,6 +75,46 @@ function truncate(str, length) {
   return str.slice(0, length) + "...";
 }
 
+function hashValue(val) {
+  return crypto.createHash("sha256").update(String(val)).digest("hex");
+}
+
+function similarity(s1, s2) {
+  if (!s1 || !s2) return 0;
+  const set1 = new Set(s1.toLowerCase().split(/\s+/));
+  const set2 = new Set(s2.toLowerCase().split(/\s+/));
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
+  return intersection.size / Math.max(set1.size, set2.size);
+}
+
+function tokenizeText(val) {
+  return val.toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter(t => t.length > 3);
+}
+
+function unique(arr) {
+  return [...new Set(arr)];
+}
+
+function parseBoundedInt(val, min, max) {
+  const n = parseInt(val, 10);
+  if (isNaN(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
+
+async function nextPublicId(prisma, modelName) {
+  const counterKey = `counter:${modelName.toLowerCase()}`;
+  try {
+    const counter = await prisma.publicIdCounter.upsert({
+      where: { key: counterKey },
+      create: { key: counterKey, value: 1000 },
+      update: { value: { increment: 1 } }
+    });
+    return counter.value;
+  } catch (err) {
+    return Math.floor(Math.random() * 1000000);
+  }
+}
+
 module.exports = {
   canonicalSourceText,
   generateFingerprint,
@@ -83,5 +123,11 @@ module.exports = {
   verifyHmac,
   getWorkerConfig,
   isUniqueConstraintError,
-  truncate
+  truncate,
+  hashValue,
+  similarity,
+  tokenizeText,
+  unique,
+  parseBoundedInt,
+  nextPublicId
 };

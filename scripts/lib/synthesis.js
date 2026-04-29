@@ -79,8 +79,10 @@ async function acquireLock(prisma, companyId, attempt = 1) {
   if (existing && existing.value) {
     const expiresAt = new Date(existing.value.expiresAt);
     if (expiresAt < now) {
+      console.log(`[LOCK] Cleaning up expired lock for ${companyId}`);
       await prisma.globalSetting.delete({ where: { id: existing.id } }).catch(() => {});
     } else if (existing.value.ownerId !== ownerId) {
+      console.log(`[LOCK] ${companyId} is active (Owner: ${existing.value.ownerId}). Skipping.`);
       return null; // Locked by someone else
     }
   }
@@ -220,51 +222,71 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
   const cid = company.id;
   const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
 
-  // v2.0.0: Pull unprocessed Sources (Sources with no linked Flashcards)
+  // v2.0.0: Identify Sources that have ACTIVE/DRAFT Flashcards
+  const synthesizedSourceLinks = await prisma.flashcardSource.findMany({
+    where: { 
+      sourceType: "SOURCE",
+      flashcard: { 
+        companyId: cid,
+        activityState: { in: ["ACTIVE", "STALE"] }
+      }
+    },
+    select: { sourceId: true }
+  });
+  const synthesizedIds = synthesizedSourceLinks.map(l => l.sourceId);
+
+  // Pull unprocessed Sources for this company
   const sources = await prisma.source.findMany({
     where: { 
       companyId: cid, 
-      flashcards: { none: {} } 
+      id: { notIn: synthesizedIds }
     },
     take: orbitLimit
   });
 
+  console.log(`[WRITER] ${company.name}: Found ${sources.length} unprocessed sources (already synthesized: ${synthesizedIds.length})`);
+
   for (const source of sources) {
     try {
-      const draft = await draftFlashcardFromDataCard(prisma, source, memoryPrompt, topic);
-      if (draft) {
-        const fingerprint = generateFingerprint({
-          companyId: cid,
-          entityId: source.id,
-          stage: "WRITING",
-          input: source.content
-        });
-
-        await prisma.$transaction(async (tx) => {
-          const fc = await tx.flashcard.create({
-            data: {
-              ...draft,
-              companyId: cid,
-              processingStatus: "DRAFT",
-              cycleRunId: workerContext.cycleRunId,
-              createdByRunId: workerContext.cycleRunId,
-              fingerprint,
-              createdAt: await getServerTime(prisma)
-            }
+      const drafts = await draftFlashcardFromDataCard(prisma, company, source, memoryPrompt, topic);
+      if (drafts && drafts.length > 0) {
+        for (const draft of drafts) {
+          const fingerprint = generateFingerprint({
+            companyId: cid,
+            entityId: source.id,
+            stage: "WRITING",
+            input: draft.title // Use draft title in fingerprint for uniqueness
           });
 
-          // Link the source
-          await tx.flashcardSource.create({
-            data: {
-              flashcardId: fc.id,
-              sourceId: source.id,
-              sourceType: "SOURCE",
-              sourceName: source.entityTag || "Agent Research",
-              createdAt: await getServerTime(prisma)
-            }
+          await prisma.$transaction(async (tx) => {
+            // v2.0.0: Clean draft for Prisma create
+            const { sourceId, sourceType, ...cleanDraft } = draft;
+            
+            const fc = await tx.flashcard.create({
+              data: {
+                ...cleanDraft,
+                companyId: cid,
+                processingStatus: "DRAFT",
+                cycleRunId: workerContext.cycleRunId,
+                createdByRunId: workerContext.cycleRunId,
+                fingerprint,
+                createdAt: await getServerTime(prisma)
+              }
+            });
+
+            // Link the source
+            await tx.flashcardSource.create({
+              data: {
+                flashcardId: fc.id,
+                sourceId: source.id,
+                sourceType: "SOURCE",
+                sourceName: source.entityTag || "Agent Research",
+                createdAt: await getServerTime(prisma)
+              }
+            });
           });
-        });
-        ops++;
+          ops++;
+        }
       }
     } catch (err) {
       console.error(`[WRITER] Failed source:${source.id}:`, err.message);

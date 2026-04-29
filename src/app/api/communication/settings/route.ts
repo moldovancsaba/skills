@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       const newSecret = crypto.randomUUID();
       const updated = await prisma.communicationSettings.update({
         where: { companyId },
-        data: { bridgeSecret: newSecret },
+        data: { bridgeSecretHash: newSecret },
       });
       return NextResponse.json(updated);
     }

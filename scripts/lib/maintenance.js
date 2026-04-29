@@ -809,6 +809,11 @@ async function refillChecklistFromBacklog(prisma, company) {
 
   // Promote them
   for (const task of topArchivedTasks) {
+    let cleanAnnotation = (task.userAnnotation || "")
+      .replace(/\[JUDGE REJECTION\]/g, "")
+      .replace(/\[WRITER\]: Duplicate/g, "")
+      .trim();
+
     await prisma.nBAItem.update({
       where: { id: task.id },
       data: {
@@ -816,7 +821,7 @@ async function refillChecklistFromBacklog(prisma, company) {
         processingStatus: "DRAFT",
         status: "PENDING",
         updatedAt: new Date(),
-        userAnnotation: `${task.userAnnotation || ""} [ICEBOX]: Auto-promoted to refill checklist.`.trim()
+        userAnnotation: `${cleanAnnotation} [ICEBOX]: Auto-promoted to refill checklist.`.trim()
       }
     });
   }

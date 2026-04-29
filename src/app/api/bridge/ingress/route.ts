@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing security headers (v2.0.0)" }, { status: 401 });
     }
 
-    // 1. Clock Consistency: Timestamp Window (5 minutes)
+    // 1. Clock Consistency: Timestamp Window (15 minutes)
     const now = Date.now();
     const reqTime = parseInt(timestamp, 10);
-    if (Math.abs(now - reqTime) > 5 * 60 * 1000) {
-      return NextResponse.json({ error: "Request outside 5-minute window" }, { status: 403 });
+    if (Math.abs(now - reqTime) > 15 * 60 * 1000) {
+      return NextResponse.json({ error: "Request outside 15-minute window" }, { status: 403 });
     }
 
     // 2. Identify and Validate Secret (v2.0.0 uses hashed secrets)

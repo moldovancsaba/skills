@@ -354,6 +354,9 @@ async function runMaintenance(prisma, company) {
   await mergeDuplicates(prisma, cid);
   await enrichOldestCards(prisma, company);
   await applyFreshnessDecay(prisma, company);
+
+  // 6. Backlog Auto-Promotion (Icebox Pattern)
+  await refillChecklistFromBacklog(prisma, company);
 }
 
 /**
@@ -375,14 +378,32 @@ async function mergeDuplicates(prisma, cid) {
       const f2 = flashcards[j];
       
       if (similarity(f1.title, f2.title) > threshold) {
-        console.log(`[MAINTENANCE] Semantic match: "${f1.title}" and "${f2.title}". Merging ${f2.id} into ${f1.id}`);
+        const oldest = new Date(f1.createdAt) < new Date(f2.createdAt) ? f1 : f2;
+        const newest = oldest === f1 ? f2 : f1;
+
+        console.log(`[MAINTENANCE] Semantic match: "${newest.title}" and "${oldest.title}". Keeping oldest ${oldest.id} with newest content, deleting ${newest.id}`);
+        
+        // Update oldest with newest content
+        await prisma.flashcard.update({
+          where: { id: oldest.id },
+          data: {
+            title: newest.title,
+            body: newest.body,
+            confidence: newest.confidence,
+            confidenceScore: newest.confidenceScore,
+            weight: newest.weight,
+            kind: newest.kind,
+            updatedAt: new Date()
+          }
+        });
+
         // Re-link sources (carefully avoid unique constraint violations)
-        const sourcesToRelink = await prisma.flashcardSource.findMany({ where: { flashcardId: f2.id } });
+        const sourcesToRelink = await prisma.flashcardSource.findMany({ where: { flashcardId: newest.id } });
         for (const s of sourcesToRelink) {
           try {
             await prisma.flashcardSource.update({
-              where: { flashcardId_sourceType_sourceId: { flashcardId: f2.id, sourceType: s.sourceType, sourceId: s.sourceId } },
-              data: { flashcardId: f1.id }
+              where: { flashcardId_sourceType_sourceId: { flashcardId: newest.id, sourceType: s.sourceType, sourceId: s.sourceId } },
+              data: { flashcardId: oldest.id }
             });
           } catch (err) {
             // If it fails (likely due to unique constraint), just delete the duplicate link
@@ -391,9 +412,12 @@ async function mergeDuplicates(prisma, cid) {
             });
           }
         }
-        await prisma.flashcard.delete({ where: { id: f2.id } });
-        flashcards.splice(j, 1);
-        j--;
+        await prisma.flashcard.delete({ where: { id: newest.id } });
+        
+        const newestIndex = oldest === f1 ? j : i;
+        flashcards.splice(newestIndex, 1);
+        if (newestIndex === j) j--;
+        else { i--; break; }
       }
     }
   }
@@ -410,10 +434,31 @@ async function mergeDuplicates(prisma, cid) {
       const t2 = taskcards[j];
       
       if (similarity(t1.title, t2.title) > threshold) {
-        console.log(`[MAINTENANCE] Semantic match: "${t1.title}" and "${t2.title}". Merging ${t2.id} into ${t1.id}`);
-        await prisma.nBAItem.delete({ where: { id: t2.id } });
-        taskcards.splice(j, 1);
-        j--;
+        const oldest = new Date(t1.createdAt) < new Date(t2.createdAt) ? t1 : t2;
+        const newest = oldest === t1 ? t2 : t1;
+
+        console.log(`[MAINTENANCE] Semantic match: "${newest.title}" and "${oldest.title}". Keeping oldest ${oldest.id} with newest content, deleting ${newest.id}`);
+        
+        await prisma.nBAItem.update({
+          where: { id: oldest.id },
+          data: {
+            title: newest.title,
+            description: newest.description,
+            impact: newest.impact,
+            confidence: newest.confidence,
+            confidenceScore: newest.confidenceScore,
+            ease: newest.ease,
+            iceScore: newest.iceScore,
+            updatedAt: new Date()
+          }
+        });
+
+        await prisma.nBAItem.delete({ where: { id: newest.id } });
+        
+        const newestIndex = oldest === t1 ? j : i;
+        taskcards.splice(newestIndex, 1);
+        if (newestIndex === j) j--;
+        else { i--; break; }
       }
     }
   }
@@ -719,6 +764,66 @@ async function auditConfidenceCalibration(prisma, company) {
   }
 }
 
+/**
+ * BACKLOG AUTO-PROMOTION (Icebox Pattern)
+ * If the number of active taskcards drops below a minimum threshold,
+ * pull the highest ICE scoring taskcards from the ARCHIVED state back to ACTIVE.
+ */
+async function refillChecklistFromBacklog(prisma, company) {
+  const cid = company.id;
+  const minimumActiveTasks = 10;
+  
+  const activeTasksCount = await prisma.nBAItem.count({
+    where: {
+      companyId: cid,
+      activityState: { in: ["ACTIVE", "STALE"] },
+      processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] }
+    }
+  });
+
+  if (activeTasksCount >= minimumActiveTasks) return;
+
+  const needed = minimumActiveTasks - activeTasksCount;
+  console.log(`[ICEBOX] ${company.name}: Active tasks low (${activeTasksCount}). Promoting ${needed} cards from Backlog...`);
+
+  // Find the top archived tasks by ICE score that were not explicitly declined by user
+  const topArchivedTasks = await prisma.nBAItem.findMany({
+    where: {
+      companyId: cid,
+      activityState: "ARCHIVED",
+      processingStatus: { not: "DECLINED" },
+      userAnnotation: { not: { contains: "DECLINE" } }
+    },
+    orderBy: [
+      { iceScore: "desc" },
+      { confidenceScore: "desc" },
+      { updatedAt: "desc" }
+    ],
+    take: needed
+  });
+
+  if (topArchivedTasks.length === 0) {
+    console.log(`[ICEBOX] ${company.name}: No suitable tasks found in Backlog.`);
+    return;
+  }
+
+  // Promote them
+  for (const task of topArchivedTasks) {
+    await prisma.nBAItem.update({
+      where: { id: task.id },
+      data: {
+        activityState: "ACTIVE",
+        processingStatus: "DRAFT",
+        status: "PENDING",
+        updatedAt: new Date(),
+        userAnnotation: `${task.userAnnotation || ""} [ICEBOX]: Auto-promoted to refill checklist.`.trim()
+      }
+    });
+  }
+
+  console.log(`[ICEBOX] ${company.name}: Successfully promoted ${topArchivedTasks.length} tasks.`);
+}
+
 module.exports = {
   runMaintenance,
   reactivateCard,
@@ -730,5 +835,6 @@ module.exports = {
   applyFreshnessDecay,
   revalidateSources,
   detectStrategyDrift,
-  auditConfidenceCalibration
+  auditConfidenceCalibration,
+  refillChecklistFromBacklog
 };

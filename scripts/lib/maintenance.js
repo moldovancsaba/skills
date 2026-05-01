@@ -301,7 +301,11 @@ async function runMaintenance(prisma, company) {
   await enrichOldestCards(prisma, company);
   await applyFreshnessDecay(prisma, company);
 
-  // 6. Backlog Auto-Promotion (Icebox Pattern)
+  // 6. M4.2: Trinity Background Jobs
+  await compactStructuredMemory(prisma, company);
+  await garbageCollectOrphanedSources(prisma, company);
+
+  // 7. Backlog Auto-Promotion (Frontier Selection)
   await refillChecklistFromBacklog(prisma, company);
 }
 
@@ -775,6 +779,85 @@ async function refillChecklistFromBacklog(prisma, company) {
   console.log(`[ICEBOX] ${company.name}: Successfully promoted ${topArchivedTasks.length} tasks.`);
 }
 
+
+// ---------------------------------------------------------------------------
+// M4.2: Trinity Background Jobs
+// ---------------------------------------------------------------------------
+
+/**
+ * Compacts the structured memory layer to prevent context window bloat.
+ * Prunes old, low-weight SOFT_PREFERENCE and ANTI_PATTERN lessons.
+ */
+async function compactStructuredMemory(prisma, company) {
+  const cid = company.id;
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const pruned = await prisma.memoryEntry.updateMany({
+    where: {
+      companyId: cid,
+      active: true,
+      lessonType: { in: ["SOFT_PREFERENCE", "ANTI_PATTERN"] },
+      weight: { lt: 1.2 },
+      createdAt: { lt: thirtyDaysAgo },
+    },
+    data: { active: false },
+  });
+
+  if (pruned.count > 0) {
+    console.log(`[MAINTENANCE] ${company.name}: Compacted ${pruned.count} obsolete memory entries.`);
+  }
+}
+
+/**
+ * Garbage collects old Source records that have exhausted their freshness window
+ * and have no surviving active Flashcards linked to them.
+ */
+async function garbageCollectOrphanedSources(prisma, company) {
+  const cid = company.id;
+  
+  // Find sources older than 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  
+  const oldSources = await prisma.source.findMany({
+    where: {
+      companyId: cid,
+      createdAt: { lt: thirtyDaysAgo },
+    },
+    include: {
+      flashcards: {
+        include: { flashcard: true }
+      }
+    }
+  });
+
+  let deleted = 0;
+  for (const source of oldSources) {
+    // If a source has its own freshnessWindowDays, use it
+    const window = source.freshnessWindowDays || 30;
+    const expiryDate = new Date(source.createdAt.getTime() + window * 24 * 60 * 60 * 1000);
+    
+    if (new Date() < expiryDate) continue;
+
+    // Check if any linked flashcards are still active
+    const hasActiveCards = source.flashcards.some(fs => 
+      fs.flashcard && ["ACTIVE", "STALE"].includes(fs.flashcard.activityState)
+    );
+
+    if (!hasActiveCards) {
+      // Orphaned and expired -> delete to allow fresh ingestion if found again
+      await prisma.$transaction(async (tx) => {
+        await tx.flashcardSource.deleteMany({ where: { sourceId: source.id } });
+        await tx.source.delete({ where: { id: source.id } });
+      });
+      deleted++;
+    }
+  }
+
+  if (deleted > 0) {
+    console.log(`[MAINTENANCE] ${company.name}: Garbage collected ${deleted} orphaned/expired sources.`);
+  }
+}
+
 module.exports = {
   runMaintenance,
   reactivateCard,
@@ -787,5 +870,7 @@ module.exports = {
   revalidateSources,
   detectStrategyDrift,
   auditConfidenceCalibration,
-  refillChecklistFromBacklog: frontierRefill // M3.1: now delegates to frontier.js
+  refillChecklistFromBacklog: frontierRefill, // M3.1: now delegates to frontier.js
+  compactStructuredMemory,
+  garbageCollectOrphanedSources,
 };

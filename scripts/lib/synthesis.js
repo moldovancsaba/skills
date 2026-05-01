@@ -1,7 +1,9 @@
 const { getHumanMemoryPrompt } = require("./memory");
 const { draftFlashcardFromDataCard, draftFlashcardsFromEvidenceBatch, draftTaskcardFromFlashCard } = require("./drafter");
 const { refineDraftFlashCard, refineDraftTaskCard } = require("./writer");
+const { refineNBAItemBatch } = require("./refiner");
 const { auditCheckedFlashCard, auditCheckedTaskCard } = require("./judge");
+const { evaluateNBAItemBatch } = require("./evaluator");
 const { getWorkerConfig, validateTenant, getServerTime, logTelemetry } = require("./shared");
 const { runMaintenance, processUserFeedback, scrubDatabaseElemental } = require("./maintenance");
 const { updateCompanyMemory } = require("./memory");
@@ -157,7 +159,8 @@ async function runSynthesisCycle(prisma) {
   const STAGES = [
     { name: "SCRUBBING", handler: performCompanyScrubbing },
     { name: "WRITING",   handler: performCompanyWriting },
-    { name: "JUDGING",   handler: performCompanyJudging }
+    { name: "JUDGING",   handler: performCompanyJudging },
+    { name: "ACTION",    handler: performCompanyActionGeneration } // M4.3
   ];
 
   for (const stage of STAGES) {
@@ -313,11 +316,90 @@ async function performCompanyJudging(prisma, company, memoryPrompt, topic, worke
   return ops;
 }
 
+/**
+ * M4.3: Knowledge-to-Action Pipeline
+ * Converts VERIFIED Flashcards (Knowledge) into executable TaskCards (Action).
+ * Uses Drafter (Generator), Refiner, and Evaluator pipeline.
+ */
+async function performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext) {
+  const { validateTenant, getServerTime } = require("./shared");
+  validateTenant(company.id);
+
+  let ops = 0;
+  const cid = company.id;
+  const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
+
+  // 1. Find VERIFIED Flashcards that haven't spawned actions recently
+  const knowledgeBase = await prisma.flashcard.findMany({
+    where: { 
+      companyId: cid, 
+      processingStatus: "VERIFIED",
+      activityState: "ACTIVE"
+    },
+    orderBy: { updatedAt: "desc" },
+    take: orbitLimit
+  });
+
+  if (knowledgeBase.length === 0) return 0;
+
+  console.log(`[ACTION] ${company.name}: Found ${knowledgeBase.length} VERIFIED Flashcards to mine for actions`);
+
+  for (const fc of knowledgeBase) {
+    try {
+      // Step 1: GENERATE (M2.1 Drafter)
+      const generatedCandidates = await draftTaskcardFromFlashCard(prisma, company, fc, memoryPrompt, topic);
+      if (!generatedCandidates || generatedCandidates.length === 0) continue;
+
+      // Ensure fingerprint and other default fields for generated candidates
+      const dbCandidates = await Promise.all(generatedCandidates.map(async draft => {
+        return await prisma.nBAItem.create({
+          data: {
+            ...draft,
+            cycleRunId: workerContext.cycleRunId,
+            createdAt: await getServerTime(prisma)
+          }
+        });
+      }));
+
+      // Step 2: REFINE (M2.2 Refiner)
+      const { refined, suppressed } = await refineNBAItemBatch(prisma, company, dbCandidates, memoryPrompt);
+
+      for (const r of refined) {
+        await prisma.nBAItem.update({ where: { id: r.id }, data: r });
+      }
+      for (const s of suppressed) {
+        await prisma.nBAItem.update({ where: { id: s.id }, data: s });
+      }
+
+      // Step 3: EVALUATE (M2.3 Evaluator)
+      if (refined.length > 0) {
+        await evaluateNBAItemBatch(prisma, company, refined, memoryPrompt);
+      }
+
+      ops += dbCandidates.length;
+
+      // Touch the flashcard so we don't infinitely spawn from it
+      // Actually, fingerprint dedup in draftTaskcardFromFlashCard handles duplicate prevention,
+      // but touching it is good for the LRU.
+      await prisma.flashcard.update({
+        where: { id: fc.id },
+        data: { updatedAt: new Date() }
+      });
+
+    } catch (err) {
+      console.error(`[ACTION] Failed generating from fc:${fc.id}:`, err.message);
+    }
+  }
+
+  return ops;
+}
+
 module.exports = {
   runSynthesisCycle,
   performCompanyWriting,
   performCompanyScrubbing,
   performCompanyJudging,
+  performCompanyActionGeneration,
   getSynthesisProgress,
   collectGlobalWorkerSettings,
   updateProgress,

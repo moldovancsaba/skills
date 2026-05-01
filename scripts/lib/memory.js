@@ -1,26 +1,41 @@
+/**
+ * TRINITY MEMORY ENGINE
+ * M4.1 — Structured Feedback Memory with Scoped Lessons
+ * v1.0.0 (replaces v0.12.0-DURABLE)
+ *
+ * Implements the Memory Layer from Trinity formal production definition §22.
+ *
+ * Memory is now structured, scoped, and consumable by all pipeline stages.
+ *
+ * Lesson scopes:
+ *   GLOBAL      — applies to all generation for this company
+ *   TOPIC       — applies to generation for a specific topic
+ *   ITEM_FAMILY — applies to candidates in the same versionFamilyId cluster
+ *
+ * Lesson types:
+ *   HARD_CONSTRAINT  — must NOT appear again
+ *   SOFT_PREFERENCE  — should prefer
+ *   ANTI_PATTERN     — avoid this pattern
+ *   DUPLICATE_HINT   — specific near-duplicate to suppress
+ *   SUCCESS_PATTERN  — emulate this pattern (from ACCEPT/DELIVER)
+ *
+ * All five feedback event types produce structured lessons:
+ *   DECLINE        → HARD_CONSTRAINT or ANTI_PATTERN
+ *   ACCEPT         → SOFT_PREFERENCE or SUCCESS_PATTERN
+ *   DELIVER        → SUCCESS_PATTERN (high weight)
+ *   MODIFY_ACCEPT  → corrective lesson (SOFT_PREFERENCE + correction detail)
+ *   COMMENT        → contextual SOFT_PREFERENCE
+ */
+
 const { truncate } = require("./shared");
 
-/**
- * checklist MEMORY ENGINE
- * v0.12.0-DURABLE
- * 
- * Harvests human feedback and historical outcomes into rigid strategic constraints.
- * 
- * v0.12.0 UPGRADE: Durable Memory Layer (#109)
- * ─────────────────────────────────────────────
- * Problem: Old feedback (beyond take:15) was silently dropped each cycle.
- * Solution: After every maintenance pass, all signals are distilled and persisted
- * to a GlobalSetting record keyed by `memory:${companyId}`. On the next cycle,
- * fresh signals are layered ON TOP of the persisted core — so nothing is lost.
- */
-
 const MEMORY_SETTING_PREFIX = "memory:";
-const MAX_PERSISTED_GUIDELINES = 50; // Cap the persisted set to prevent unbounded growth
+const MAX_PERSISTED_GUIDELINES = 50;
 
-/**
- * Loads the persisted memory summary for a company.
- * Returns an array of guideline strings (the accumulated canon).
- */
+// ---------------------------------------------------------------------------
+// 1. Legacy Helpers (kept for backward compat with existing callers)
+// ---------------------------------------------------------------------------
+
 async function loadPersistedMemory(prisma, companyId) {
   const key = `${MEMORY_SETTING_PREFIX}${companyId}`;
   try {
@@ -28,16 +43,10 @@ async function loadPersistedMemory(prisma, companyId) {
     if (setting?.value?.guidelines && Array.isArray(setting.value.guidelines)) {
       return setting.value.guidelines;
     }
-  } catch (e) {
-    // Silent — if GlobalSetting is unavailable, degrade gracefully
-  }
+  } catch (e) {}
   return [];
 }
 
-/**
- * Persists the distilled memory for a company to GlobalSetting.
- * Called at the end of each maintenance cycle by updateCompanyMemory().
- */
 async function savePersistedMemory(prisma, companyId, guidelines) {
   const key = `${MEMORY_SETTING_PREFIX}${companyId}`;
   const deduped = [...new Set(guidelines)].slice(0, MAX_PERSISTED_GUIDELINES);
@@ -52,35 +61,254 @@ async function savePersistedMemory(prisma, companyId, guidelines) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// 2. Lesson Distillation — converts feedback events into MemoryEntry records
+// ---------------------------------------------------------------------------
+
 /**
- * Scavenges ALL available signals (no take limit) and rebuilds the persisted memory.
- * Called from runMaintenance() after each synthesis cycle.
- * This is the "distillation pass" — it processes the entire history and saves the canon.
- * 
+ * Maps a feedback action + decline class → lesson type
+ */
+function classifyLesson(action, declineClass) {
+  if (action === "DELIVER") return "SUCCESS_PATTERN";
+  if (action === "ACCEPT")  return "SUCCESS_PATTERN";
+  if (action === "MODIFY_ACCEPT") return "SOFT_PREFERENCE";
+  if (action === "COMMENT") return "SOFT_PREFERENCE";
+  if (action !== "DECLINE") return null;
+
+  const hardClasses = ["WRONG", "IRRELEVANT", "IGNORANT_OUTPUT", "ALREADY_DONE"];
+  const antiPatterns = ["NOT_ACTIONABLE", "TOO_VAGUE", "MISSING_CONTEXT"];
+  const duplicateHints = ["DUPLICATE"];
+
+  if (hardClasses.includes(declineClass)) return "HARD_CONSTRAINT";
+  if (antiPatterns.includes(declineClass)) return "ANTI_PATTERN";
+  if (duplicateHints.includes(declineClass)) return "DUPLICATE_HINT";
+  return "SOFT_PREFERENCE"; // BAD_TIMING, LOW_PRIORITY
+}
+
+/**
+ * Builds a human-readable lesson string from a feedback event.
+ */
+function buildLessonContent(action, declineClass, item, annotation) {
+  const title = item?.title || "(unknown)";
+
+  if (action === "DELIVER") {
+    return `DELIVER SUCCESS: "${title}" was executed in reality. ${annotation ? `Comment: "${annotation}"` : ""}`.trim();
+  }
+  if (action === "ACCEPT") {
+    return `ACCEPTED: "${title}" — generate more candidates like this.`;
+  }
+  if (action === "MODIFY_ACCEPT") {
+    return `USER MODIFIED & ACCEPTED: "${title}" ${annotation ? `— correction: "${annotation}"` : ""}`.trim();
+  }
+  if (action === "COMMENT") {
+    return `USER COMMENT on "${title}": "${annotation}"`;
+  }
+  if (action === "DECLINE" && declineClass) {
+    return `DECLINED(${declineClass}): "${title}" — ${annotation || "No comment provided."}`;
+  }
+  return `FEEDBACK(${action}): "${title}"`;
+}
+
+/**
+ * Determines the scope of a lesson.
+ */
+function determineScope(item, declineClass) {
+  // ITEM_FAMILY scope if item has a versionFamilyId
+  if (item?.versionFamilyId) return { scope: "ITEM_FAMILY", itemFamilyId: item.versionFamilyId };
+  // TOPIC scope if item has hashtags (first hashtag as topic hint)
+  if (item?.hashtags?.length > 0) return { scope: "TOPIC", topicHint: item.hashtags[0] };
+  return { scope: "GLOBAL" };
+}
+
+// ---------------------------------------------------------------------------
+// 3. process_memory_updates — M4.1 core function
+// ---------------------------------------------------------------------------
+
+/**
+ * Processes all unprocessed feedback events and distills them into structured
+ * MemoryEntry records, consumable by Generator, Refiner, Evaluator, and Frontier.
+ *
  * @param {PrismaClient} prisma
  * @param {object} company
+ * @returns {number} count of new memory entries created
  */
+async function processMemoryUpdates(prisma, company) {
+  const cid = company.id;
+
+  // Load feedback events not yet turned into memory entries
+  const feedbackEvents = await prisma.feedback.findMany({
+    where: {
+      nbaItem: { companyId: cid },
+      processedByWorkerAt: { not: null }, // Only process already-handled events
+    },
+    include: { nbaItem: true },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  // Avoid re-distilling already-memorized events
+  const existingSourceIds = await prisma.memoryEntry.findMany({
+    where: { companyId: cid, sourceEventId: { in: feedbackEvents.map(f => f.id) } },
+    select: { sourceEventId: true },
+  });
+  const alreadyProcessed = new Set(existingSourceIds.map(e => e.sourceEventId));
+
+  let created = 0;
+  for (const f of feedbackEvents) {
+    if (alreadyProcessed.has(f.id)) continue;
+
+    const item = f.nbaItem;
+    const declineClass = f.declineClass || null;
+    const lessonType = classifyLesson(f.action, declineClass);
+    if (!lessonType) continue;
+
+    const lessonContent = buildLessonContent(f.action, declineClass, item, f.annotation || f.deliveryComment);
+    const { scope, topicHint, itemFamilyId } = determineScope(item, declineClass);
+
+    // Weight: DELIVER=2.0, ACCEPT=1.0, MODIFY_ACCEPT=1.2, DECLINE(hard)=1.5, DECLINE(soft)=0.8
+    const weight =
+      f.action === "DELIVER" ? 2.0 :
+      f.action === "ACCEPT" ? 1.0 :
+      f.action === "MODIFY_ACCEPT" ? 1.2 :
+      lessonType === "HARD_CONSTRAINT" ? 1.5 :
+      lessonType === "ANTI_PATTERN" ? 1.0 : 0.8;
+
+    try {
+      await prisma.memoryEntry.create({
+        data: {
+          companyId: cid,
+          scope,
+          lessonType,
+          lessonContent,
+          weight,
+          topicHint: topicHint || null,
+          itemFamilyId: itemFamilyId || null,
+          sourceEventId: f.id,
+          sourceEventType: f.action,
+        },
+      });
+      created++;
+    } catch (e) {
+      console.warn(`[MEMORY] Failed to create entry for feedback ${f.id}: ${e.message}`);
+    }
+  }
+
+  if (created > 0) {
+    console.log(`[MEMORY] ${company.name}: Distilled ${created} new structured memory entries.`);
+  }
+
+  // Also run legacy distillation for backward compat
+  await updateCompanyMemory(prisma, company);
+
+  return created;
+}
+
+// ---------------------------------------------------------------------------
+// 4. Stage-Specific Memory Retrieval
+// ---------------------------------------------------------------------------
+
+/**
+ * Retrieves a structured memory prompt for a specific pipeline stage.
+ * Each stage gets lessons relevant to its function.
+ *
+ * @param {PrismaClient} prisma
+ * @param {object} company
+ * @param {string} stage - 'GENERATOR' | 'REFINER' | 'EVALUATOR' | 'FRONTIER'
+ * @param {object} [context] - { topicHint?, itemFamilyId? }
+ * @returns {string} Formatted memory prompt
+ */
+async function getStagedMemoryPrompt(prisma, company, stage, context = {}) {
+  const cid = company.id;
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // Lesson types relevant to each stage
+  const stageLessonTypes = {
+    GENERATOR:  ["HARD_CONSTRAINT", "ANTI_PATTERN", "SUCCESS_PATTERN"],
+    REFINER:    ["DUPLICATE_HINT", "ANTI_PATTERN", "HARD_CONSTRAINT"],
+    EVALUATOR:  ["HARD_CONSTRAINT", "ANTI_PATTERN", "SOFT_PREFERENCE", "SUCCESS_PATTERN"],
+    FRONTIER:   ["SOFT_PREFERENCE", "SUCCESS_PATTERN"],
+  };
+  const relevantTypes = stageLessonTypes[stage] || stageLessonTypes.GENERATOR;
+
+  // Build OR conditions for scope
+  const scopeConditions = [
+    { scope: "GLOBAL" },
+  ];
+  if (context.topicHint) scopeConditions.push({ scope: "TOPIC", topicHint: context.topicHint });
+  if (context.itemFamilyId) scopeConditions.push({ scope: "ITEM_FAMILY", itemFamilyId: context.itemFamilyId });
+
+  const entries = await prisma.memoryEntry.findMany({
+    where: {
+      companyId: cid,
+      active: true,
+      lessonType: { in: relevantTypes },
+      OR: scopeConditions,
+      createdAt: { gte: thirtyDaysAgo },
+    },
+    orderBy: [{ weight: "desc" }, { createdAt: "desc" }],
+    take: 20,
+  });
+
+  if (entries.length === 0) {
+    // Fall back to legacy prompt
+    return getHumanMemoryPrompt(prisma, company);
+  }
+
+  const hardConstraints = entries.filter(e => e.lessonType === "HARD_CONSTRAINT");
+  const antiPatterns    = entries.filter(e => e.lessonType === "ANTI_PATTERN");
+  const successPatterns = entries.filter(e => e.lessonType === "SUCCESS_PATTERN");
+  const softPrefs       = entries.filter(e => e.lessonType === "SOFT_PREFERENCE");
+  const duplicateHints  = entries.filter(e => e.lessonType === "DUPLICATE_HINT");
+
+  const sections = [];
+  if (hardConstraints.length) {
+    sections.push("### HARD CONSTRAINTS (MUST NOT violate)");
+    sections.push(...hardConstraints.map(e => `- ${e.lessonContent}`));
+  }
+  if (antiPatterns.length) {
+    sections.push("### ANTI-PATTERNS (avoid)");
+    sections.push(...antiPatterns.map(e => `- ${e.lessonContent}`));
+  }
+  if (duplicateHints.length) {
+    sections.push("### KNOWN DUPLICATES (suppress)");
+    sections.push(...duplicateHints.map(e => `- ${e.lessonContent}`));
+  }
+  if (successPatterns.length) {
+    sections.push("### SUCCESS PATTERNS (emulate)");
+    sections.push(...successPatterns.slice(0, 5).map(e => `- ${e.lessonContent}`));
+  }
+  if (softPrefs.length) {
+    sections.push("### SOFT PREFERENCES");
+    sections.push(...softPrefs.slice(0, 5).map(e => `- ${e.lessonContent}`));
+  }
+
+  return sections.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// 5. Legacy updateCompanyMemory (kept for backward compat)
+// ---------------------------------------------------------------------------
+
 async function updateCompanyMemory(prisma, company) {
   const cid = company.id;
   const guidelines = [];
 
-  // 1. ENTITY SCOPE (Direct Card Corrections)
+  const { getWorkerConfig } = require("./shared");
   const corrections = await prisma.flashcardCorrection.findMany({
     where: { companyId: cid },
     orderBy: { createdAt: "desc" }
   });
-  
+
   const now = new Date();
   const halfLife = await getWorkerConfig(prisma, company, "memory_half_life_days", 30);
-  const lambda = Math.log(2) / halfLife; // Blueprint v1.0.0: Corrected for 30-day half-life ≈ 0.0231
-  
+  const lambda = Math.log(2) / halfLife;
+
   corrections.forEach(c => {
     const ageDays = (now - new Date(c.createdAt)) / (1000 * 60 * 60 * 24);
-    if (ageDays > halfLife * 3) return; // Prune entries older than 3x half-life
-    
+    if (ageDays > halfLife * 3) return;
     const decay = Math.exp(-lambda * ageDays);
     const weight = (1.0 * decay).toFixed(2);
-    
     const scope = c.flashcardId ? `[SCOPE:CARD:${c.flashcardId}]` : "[SCOPE:GLOBAL]";
     if (c.originalValue && c.correctedValue) {
       guidelines.push(`${scope} [CORR:${c.id}] USER CORRECTION (Weight ${weight}): Change "${c.originalValue}" to "${c.correctedValue}"`);
@@ -89,111 +317,27 @@ async function updateCompanyMemory(prisma, company) {
     }
   });
 
-  // 2. TOPIC SCOPE (Topic-linked Actions)
-  const topicActions = await prisma.flashcardAction.findMany({
-    where: { flashcard: { companyId: cid }, action: { in: ["DECLINE", "REJECT", "ANNOTATE"] } },
-    include: { flashcard: true },
-    orderBy: { createdAt: "desc" }
-  });
-  
-  topicActions.forEach(a => {
-    const ageDays = (now - new Date(a.createdAt)) / (1000 * 60 * 60 * 24);
-    if (ageDays > halfLife * 2) return; // Prune old actions
-
-    const decay = Math.exp(-lambda * ageDays);
-    const weight = (0.8 * decay).toFixed(2);
-
-    const topicIdMatch = a.flashcard.userAnnotation?.match(/\[TOPIC_ID:([^\]]+)\]/);
-    const scope = topicIdMatch ? `[SCOPE:TOPIC:${topicIdMatch[1]}]` : "[SCOPE:GLOBAL]";
-    if (a.annotation) {
-      guidelines.push(`${scope} [ACTION:${a.id}] USER FEEDBACK (Weight ${weight}): "${a.annotation}"`);
-    }
-  });
-
   if (guidelines.length > 0) {
     await savePersistedMemory(prisma, cid, guidelines);
-    console.log(`[MEMORY] ${company.name}: Distilled ${guidelines.length} hierarchical signals.`);
+    console.log(`[MEMORY] ${company.name}: Distilled ${guidelines.length} legacy signals.`);
   }
 }
 
-/**
- * Aggregates all human feedback signals into a single memory-injected prompt.
- * 
- * Strategy:
- * 1. Load PERSISTED canon (accumulated full history, never drops off)
- * 2. Layer FRESH signals on top (most recent, may overlap — deduped)
- * 3. Inject GOLDEN EXAMPLES (positive patterns to emulate)
- * 
- * @param {PrismaClient} prisma - Database client
- * @param {object} company - Company database record
- * @returns {Promise<string>} Formatted AI memory prompt
- */
+// ---------------------------------------------------------------------------
+// 6. Legacy getHumanMemoryPrompt (backward compat — calls getStagedMemoryPrompt)
+// ---------------------------------------------------------------------------
+
 async function getHumanMemoryPrompt(prisma, company) {
-  // 1. Load the persisted, accumulated memory canon
-  const persistedGuidelines = await loadPersistedMemory(prisma, company.id);
-
-  // 2. Scavenge fresh recent signals (last 15 to catch anything since last distillation)
-  const freshActions = await prisma.flashcardAction.findMany({
-    where: { flashcard: { companyId: company.id }, action: { in: ["DECLINE", "REJECT", "ANNOTATE"] } },
-    take: 15,
-    orderBy: { createdAt: "desc" }
-  });
-  const freshFeedbacks = await prisma.feedback.findMany({
-    where: { nbaItem: { companyId: company.id } },
-    take: 10,
-    orderBy: { createdAt: "desc" }
-  });
-  const freshCorrections = await prisma.flashcardCorrection.findMany({
-    where: { companyId: company.id },
-    take: 10,
-    orderBy: { createdAt: "desc" }
-  });
-
-  const freshGuidelines = [];
-  freshActions.forEach(a => { if (a.annotation) freshGuidelines.push(`USER REJECTED: "${a.annotation}"`); });
-  freshFeedbacks.forEach(f => { if (f.comment) freshGuidelines.push(`USER FEEDBACK: "${f.comment}"`); });
-  freshCorrections.forEach(c => {
-    if (c.originalValue && c.correctedValue) {
-      freshGuidelines.push(`USER CORRECTION: Change "${c.originalValue}" to "${c.correctedValue}"`);
-    }
-  });
-
-  // 3. Merge: persisted canon + fresh (deduplicated)
-  const allGuidelines = [...new Set([...persistedGuidelines, ...freshGuidelines])];
-
-  // 4. Golden Examples (most recent VERIFIED cards as positive templates)
-  const acceptedFlash = await prisma.flashcard.findMany({
-    where: { companyId: company.id, processingStatus: "VERIFIED" },
-    take: 5,
-    orderBy: { updatedAt: "desc" }
-  });
-  const acceptedTasks = await prisma.nBAItem.findMany({
-    where: { companyId: company.id, processingStatus: "VERIFIED" },
-    take: 5,
-    orderBy: { updatedAt: "desc" }
-  });
-
-  if (!allGuidelines.length && !acceptedFlash.length && !acceptedTasks.length) {
-    return "No prior human feedback detected. Focus on high-quality marketing extraction.";
-  }
-
-  let goldenExamples = "";
-  if (acceptedFlash.length || acceptedTasks.length) {
-    goldenExamples = "\n### [GOLDEN EXAMPLES / POSITIVE PATTERNS]\nThe user highly values these existing items. Follow their depth and tone:\n";
-    acceptedFlash.forEach(f => goldenExamples += `- ${f.title}: ${f.body.slice(0, 200)}...\n`);
-    acceptedTasks.forEach(t => goldenExamples += `- ${t.title}: ${(t.description || "").slice(0, 200)}...\n`);
-  }
-
-  return [
-    "### RIGID HUMAN CONSTRAINTS (MANDATORY)",
-    `The following feedback from the owner is ABSOLUTE LAW. You MUST NOT violate these principles.`,
-    `Conflict Resolution: If guidelines conflict, the most recent (highest ID/Index) takes precedence.`,
-    ...allGuidelines.slice(0, 30).map(g => `- ${g}`),
-    goldenExamples
-  ].join("\n");
+  return getStagedMemoryPrompt(prisma, company, "GENERATOR");
 }
 
 module.exports = {
+  // M4.1: Structured memory
+  processMemoryUpdates,
+  getStagedMemoryPrompt,
+  // Legacy (backward compat)
   getHumanMemoryPrompt,
-  updateCompanyMemory
+  updateCompanyMemory,
+  loadPersistedMemory,
+  savePersistedMemory,
 };

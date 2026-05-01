@@ -43,17 +43,22 @@ model Company {
 
 
 model Feedback {
-  id                  String     @id @default(uuid()) @map("_id")
+  id                  String      @id @default(uuid()) @map("_id")
   nbaItemId           String
   action              ActionType
   annotation          String?
   iceImpact           Float?
   processedByWorkerAt DateTime?
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @default(now()) @updatedAt
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @default(now()) @updatedAt
   modifiedDescription String?
   modifiedTitle       String?
-  nbaItem             NBAItem    @relation(fields: [nbaItemId], references: [id])
+  // M3.2: Typed decline classification
+  declineClass        DeclineClass?
+  // M3.3: DELIVER metadata
+  deliveryComment     String?     // High-value memory input on DELIVER
+  actorId             String?     // User who performed the action
+  nbaItem             NBAItem     @relation(fields: [nbaItemId], references: [id])
 }
 
 model Flashcard {
@@ -419,10 +424,13 @@ model User {
   @@unique([email, companyId])
 }
 
+// ActionType: M3.3 adds DELIVER as a distinct, stronger signal than ACCEPT
 enum ActionType {
   ACCEPT
   DECLINE
   MODIFY_ACCEPT
+  DELIVER    // Action confirmed executed in reality — strongest positive signal
+  COMMENT    // Neutral annotation, no disposition change
 }
 
 enum FlashcardActionType {
@@ -607,3 +615,55 @@ model MemoryCanon {
 
   @@index([companyId, scope, weightFinal, createdAt])
 }
+
+// M3.2: Typed decline classification enum (10 classes per spec §20)
+enum DeclineClass {
+  WRONG              // Factually incorrect
+  DUPLICATE          // Same idea already exists
+  TOO_VAGUE          // Not specific enough to act on → REWORK/ENRICH
+  LOW_PRIORITY       // Valid but not important enough right now
+  BAD_TIMING         // Good idea but wrong moment → DOWNRANK_ONLY
+  NOT_ACTIONABLE     // Cannot be executed by the team → REWORK/REVISE
+  MISSING_CONTEXT    // Needs more supporting information → REWORK/ENRICH
+  IRRELEVANT         // Outside company strategy
+  ALREADY_DONE       // Task already completed
+  IGNORANT_OUTPUT    // AI hallucination or confabulation
+}
+
+// M3.2: Immutable decline event audit log
+model DeclineEvent {
+  id           String       @id @default(uuid()) @map("_id")
+  nbaItemId    String
+  companyId    String
+  declineClass DeclineClass
+  comment      String?
+  actorId      String?
+  reworkRoute  String?      // ReworkRoute value if applicable
+  createdAt    DateTime     @default(now())
+
+  @@index([companyId, nbaItemId])
+  @@index([companyId, declineClass, createdAt])
+}
+
+// M4.1: Structured feedback memory with scoped lessons
+model MemoryEntry {
+  id             String   @id @default(uuid()) @map("_id")
+  companyId      String
+  scope          String   // GLOBAL | TOPIC | ITEM_FAMILY
+  lessonType     String   // HARD_CONSTRAINT | SOFT_PREFERENCE | ANTI_PATTERN | DUPLICATE_HINT | SUCCESS_PATTERN
+  lessonContent  String   // Human-readable lesson
+  weight         Float    @default(1.0)
+  topicHint      String?  // Topic label if scope=TOPIC
+  itemFamilyId   String?  // versionFamilyId if scope=ITEM_FAMILY
+  sourceEventId  String?  // FeedbackEvent ID that produced this lesson
+  sourceEventType String? // DECLINE | ACCEPT | DELIVER | MODIFY_ACCEPT | COMMENT
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  expiresAt      DateTime?
+  active         Boolean  @default(true)
+
+  @@index([companyId, scope, lessonType, weight])
+  @@index([companyId, topicHint, active])
+  @@index([companyId, itemFamilyId, active])
+}
+

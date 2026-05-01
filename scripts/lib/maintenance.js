@@ -92,8 +92,8 @@ async function scrubDatabaseElemental(prisma) {
     await prisma.nBAItem.updateMany({
       where: { 
         OR: [
-          { userAnnotation: { contains: "[JUDGE REJECTION]" } },
-          { userAnnotation: { contains: "[WRITER]: Duplicate" } }
+          { userAnnotation: { contains: "JUDGE REJECT" } },
+          { userAnnotation: { contains: "WRITER]: Duplicate" } }
         ],
         activityState: { not: "ARCHIVED" }
       },
@@ -228,8 +228,8 @@ async function scrubCompanyRejections(prisma, cid) {
     where: { 
       companyId: cid,
       OR: [
-        { userAnnotation: { contains: "[JUDGE REJECTION]" } },
-        { userAnnotation: { contains: "[WRITER]:" } }
+        { userAnnotation: { contains: "JUDGE REJECT" } },
+        { userAnnotation: { contains: "WRITER]:" } }
       ],
       activityState: { not: "ARCHIVED" }
     },
@@ -245,8 +245,8 @@ async function scrubCompanyRejections(prisma, cid) {
     where: { 
       companyId: cid,
       OR: [
-        { userAnnotation: { contains: "[JUDGE REJECTION]" } },
-        { userAnnotation: { contains: "[WRITER]: Duplicate" } }
+        { userAnnotation: { contains: "JUDGE REJECT" } },
+        { userAnnotation: { contains: "WRITER]: Duplicate" } }
       ],
       activityState: { not: "ARCHIVED" }
     },

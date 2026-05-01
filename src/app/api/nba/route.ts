@@ -24,12 +24,9 @@ export async function GET(request: NextRequest) {
     } else {
       where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED"] };
       where.activityState = { in: ["ACTIVE", "STALE"] };
-      // Only show tasks that are not scheduled for the future
-      where.OR = [
-        { scheduledDate: null },
-        { scheduledDate: { isSet: false } },
-        { scheduledDate: { lte: new Date() } }
-      ];
+      // The Frontier logic (M3.1) sets scheduledDate to surface items to the user.
+      // Items with scheduledDate = null are in the backlog and should not be shown.
+      where.scheduledDate = { lte: new Date() };
     }
 
     const items = await prisma.nBAItem.findMany({

@@ -145,10 +145,23 @@ async function selectEvidenceForGeneration(prisma, company, topicFilter = [], li
     Date.now() - (company.freshnessWindowDays || 30) * 24 * 60 * 60 * 1000
   );
 
+  const suppressedSources = await prisma.flashcardCorrection.findMany({
+    where: {
+      companyId: company.id,
+      correctionType: "SUPPRESS_SOURCE",
+    },
+    select: { sourceId: true },
+  });
+  const suppressedIds = suppressedSources.map(s => s.sourceId).filter(Boolean);
+
   const where = {
     companyId: company.id,
     createdAt: { gte: freshnessThreshold },
   };
+
+  if (suppressedIds.length > 0) {
+    where.id = { notIn: suppressedIds };
+  }
 
   // If topic hints are provided, prefer evidence that matches
   if (topicFilter.length > 0) {

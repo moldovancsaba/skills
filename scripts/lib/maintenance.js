@@ -110,7 +110,7 @@ async function processUserFeedback(prisma, company) {
 
   for (const f of pendingFeedback) {
     const item = f.nbaItem;
-    const action = f.action; // ACCEPT, DECLINE, MODIFY_ACCEPT
+    const action = f.action; // ACCEPT, DECLINE, MODIFY_ACCEPT, DELIVER
     
     // a. Axiom 6: Action Multipliers
     let newImpact = Math.max(1, Math.min(10, item.impact));
@@ -127,6 +127,9 @@ async function processUserFeedback(prisma, company) {
       newImpact = 1;
       newConf = 1;
       newEase = 1;
+    } else if (action === "DELIVER") {
+      newImpact = 10;
+      newConf = 10;
     }
 
     // b. Recalculate ICE Score Locally

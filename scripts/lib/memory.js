@@ -222,14 +222,17 @@ async function getStagedMemoryPrompt(prisma, company, stage, context = {}) {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // Lesson types relevant to each stage
+  // Lesson types relevant to each stage (aligned with synthesis.js STAGES)
   const stageLessonTypes = {
-    GENERATOR:  ["HARD_CONSTRAINT", "ANTI_PATTERN", "SUCCESS_PATTERN"],
+    WRITING:    ["HARD_CONSTRAINT", "ANTI_PATTERN", "SUCCESS_PATTERN"],
+    JUDGING:    ["HARD_CONSTRAINT", "ANTI_PATTERN", "SOFT_PREFERENCE", "SUCCESS_PATTERN"],
+    ACTION:     ["HARD_CONSTRAINT", "ANTI_PATTERN", "SUCCESS_PATTERN"],
+    SCRUBBING:  ["HARD_CONSTRAINT", "ANTI_PATTERN"],
+    GENERATOR:  ["HARD_CONSTRAINT", "ANTI_PATTERN", "SUCCESS_PATTERN"], // aliases
     REFINER:    ["DUPLICATE_HINT", "ANTI_PATTERN", "HARD_CONSTRAINT"],
     EVALUATOR:  ["HARD_CONSTRAINT", "ANTI_PATTERN", "SOFT_PREFERENCE", "SUCCESS_PATTERN"],
-    FRONTIER:   ["SOFT_PREFERENCE", "SUCCESS_PATTERN"],
   };
-  const relevantTypes = stageLessonTypes[stage] || stageLessonTypes.GENERATOR;
+  const relevantTypes = stageLessonTypes[stage] || stageLessonTypes.WRITING;
 
   // Build OR conditions for scope
   const scopeConditions = [

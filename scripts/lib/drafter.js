@@ -198,11 +198,24 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
   const activeFingerprints = await buildActiveInventoryFingerprints(prisma, company.id);
 
+  const kind = String(flashCard.kind || "").toUpperCase();
+  let tacticalGuidance = "";
+  if (kind === "SUMMARY") {
+    tacticalGuidance = "The source is a STRATEGIC SUMMARY. Generate tasks that focus on high-level operational reviews, policy updates, or strategic planning.";
+  } else if (kind === "RECOMMENDATION") {
+    tacticalGuidance = "The source is a TACTICAL RECOMMENDATION. Generate concrete, highly specific execution tasks with clear next steps.";
+  } else if (kind === "EVALUATION") {
+    tacticalGuidance = "The source is a PERFORMANCE EVALUATION. Generate corrective actions, audit tasks, or optimization steps based on the findings.";
+  } else if (kind === "RESEARCH") {
+    tacticalGuidance = "The source is RAW RESEARCH. Generate exploratory tasks, competitive intelligence reviews, or validation experiments.";
+  }
+
   const systemPrompt = [
     "You are the checklist GENERATOR (Action path). Your goal is to convert KnowledgeItems (FlashCards) into executable ActionItems (TaskCards).",
     "Your tasks MUST be strategically aligned with the company's TopicCards and existing work:",
     strategicContext,
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nEnsure this task directly supports the following objective: ${topic.notes || topic.label}\n` : "",
+    tacticalGuidance ? `\n### [TACTICAL GUIDANCE]\n${tacticalGuidance}\n` : "",
     "Required fields: title, description, kind, impact, confidence, ease, semanticTags (array of 3-5 lowercase strings).",
     "AXIOM: Strict integer scores for confidence, impact, ease. Scale: 1-10. NO zeros.",
     "ACTIONABILITY REQUIREMENT: Every task must be concretely executable by a real human in a business context.",

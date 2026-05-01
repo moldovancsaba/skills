@@ -314,6 +314,39 @@ async function refineNBAItemBatch(prisma, company, candidates, memoryPrompt) {
 }
 
 /**
+ * Runs the Refiner over a batch of generated Flashcard (KnowledgeItem) candidates.
+ */
+async function refineFlashcardBatch(prisma, company, candidates, memoryPrompt) {
+  const strategicContext = await getCompanyStrategicContext(prisma, company.id);
+  const neighborhoods = buildCandidateNeighborhoods(candidates);
+
+  const refined = [];
+  const suppressed = [];
+
+  for (const neighborhood of neighborhoods) {
+    const operation = chooseRefinementOperation(neighborhood);
+    let result;
+
+    if (operation === "MERGE") {
+      result = await mergeNeighborhood(neighborhood, strategicContext, memoryPrompt);
+    } else if (operation === "SUPPRESS_WEAK") {
+      result = await suppressWeak(neighborhood, strategicContext, memoryPrompt);
+    } else if (operation === "ENRICH") {
+      const enriched = await enrichCandidate(neighborhood[0], strategicContext, memoryPrompt);
+      result = { refined: enriched, suppressed: neighborhood.slice(1) };
+    } else {
+      const refineResult = await refineAsIs(neighborhood[0], strategicContext, memoryPrompt);
+      result = { refined: refineResult, suppressed: neighborhood.slice(1) };
+    }
+
+    refined.push(result.refined);
+    suppressed.push(...(result.suppressed || []));
+  }
+
+  return { refined, suppressed };
+}
+
+/**
  * Backward-compatible wrapper — refines a single DRAFT TaskCard (used by synthesis.js).
  * Wraps the existing writer.js behavior but writes CandidateState.REFINED.
  */
@@ -349,6 +382,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
 module.exports = {
   // M2.2: Full entropy reduction
   refineNBAItemBatch,
+  refineFlashcardBatch,
   buildCandidateNeighborhoods,
   chooseRefinementOperation,
   selectChampion,

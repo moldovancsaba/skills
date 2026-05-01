@@ -265,9 +265,30 @@ export function KnowledgeReviewCard({
             <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-sky-500/10 hover:text-sky-400" onClick={() => onCorrection({ flashcardId: flashcard.id, correctionType: "REQUEST_REFRESH" })} disabled={isBusy || isGenerating}>
               Refresh
             </Button>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-red-500/10 hover:text-red-400" onClick={() => onCorrection({ flashcardId: flashcard.id, correctionType: "MARK_WRONG" })} disabled={isBusy || isGenerating}>
+              Mark Wrong
+            </Button>
             <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-orange-500/10 hover:text-orange-400" onClick={() => onCorrection({ flashcardId: flashcard.id, correctionType: "HIDE" })} disabled={isBusy || isGenerating}>
               Archive
             </Button>
+            {flashcard.sources.map(src => (
+              <Button key={src.id} size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-zinc-500/10 hover:text-zinc-400 border border-zinc-500/10" 
+                onClick={() => {
+                  if (confirm(`Suppress all future generation from "${src.sourceName}"?`)) {
+                    onCorrection({ 
+                      flashcardId: flashcard.id, 
+                      correctionType: "SUPPRESS_SOURCE",
+                      sourceId: src.sourceId,
+                      sourceType: src.sourceType,
+                      sourceName: src.sourceName
+                    })
+                  }
+                }} 
+                disabled={isBusy || isGenerating}
+              >
+                Suppress {src.sourceName.substring(0, 8)}..
+              </Button>
+            ))}
           </div>
         </div>
         

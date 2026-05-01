@@ -17,7 +17,7 @@ const { callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, trinity_JUDGE_TIMEOUT_MS } = require("./core");
 const { getCompanyStrategicContext } = require("./context");
 const { getWorkerConfig, calculatePercentile, parseBoundedInt, canonicalSourceText } = require("./shared");
-const { unifyObject } = require("./synthesis-utils");
+const { unifyObject, unifyArray } = require("./synthesis-utils");
 const { CandidateState, ReworkRoute, toEvaluated, toRework, toSuppressed, toArchived } = require("./lifecycle");
 
 // ---------------------------------------------------------------------------
@@ -174,10 +174,15 @@ async function evaluateCandidate(candidate, comparisonPool, currentEligibleCount
  * @param {string} memoryPrompt
  * @returns {{ eligible: string[], rework: string[], suppressed: string[], archived: string[] }}
  */
+/**
+ * M4.4: Tournament-style Batch Evaluation
+ * Evaluates a batch of REFINED NBA candidates by presenting them all to the LLM
+ * at once, allowing for direct relative ranking and champion selection.
+ */
 async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
+  if (candidates.length === 0) return { eligible: [], rework: [], suppressed: [], archived: [] };
+  
   const context = await getCompanyStrategicContext(prisma, company.id);
-
-  // Count current ELIGIBLE items for starvation detection
   const currentEligibleCount = await prisma.nBAItem.count({
     where: {
       companyId: company.id,
@@ -186,62 +191,80 @@ async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
     },
   });
 
+  const isStarving = currentEligibleCount < STARVATION_THRESHOLD;
+
+  const candidateSummary = candidates.map((c, i) => 
+    `[Candidate ${i + 1}]: ${c.title}\nDescription: ${c.description || c.body || ""}\nImpact: ${c.impact}, Confidence: ${c.confidence || c.confidenceScore}, Ease: ${c.ease}`
+  ).join("\n\n---\n\n");
+
+  const systemPrompt = [
+    "You are the Trinity Evaluator performing a TOURNAMENT BATCH EVALUATION.",
+    "Assess the following candidates relative to each other and the company strategy.",
+    "Context:", context || "",
+    isStarving ? "STARVATION MODE: The eligible pool is critically small. Be permissive — borderline candidates SHOULD pass." : "",
+    "Dispositions: ELIGIBLE (ready for frontier) | REVISE (send back for rewrite) | REGENERATE (broken) | MERGE (duplicate) | SUPPRESS (dominated) | ARCHIVE (invalid)",
+    "Return a JSON array of objects: [{ id, disposition, reason, qualityScore (0-1), reworkRoute? }]",
+    "The 'id' MUST match the [Candidate X] index (e.g. 1, 2, 3...).",
+    memoryPrompt || ""
+  ].join("\n");
+
+  const userPrompt = `Candidates for evaluation:\n${candidateSummary}`;
+
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.JUDGE, { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
+  const rawArray = unifyArray(res);
+
   const results = { eligible: [], rework: [], suppressed: [], archived: [] };
 
-  for (const candidate of candidates) {
-    try {
-      const pool = candidates.filter(c => c.id !== candidate.id);
-      const eval_ = await evaluateCandidate(candidate, pool, currentEligibleCount, context, memoryPrompt);
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    const eval_ = (Array.isArray(rawArray) ? rawArray.find(r => r.id === i + 1) : null) || {
+      disposition: computeQualityScore(candidate) > 0.4 ? DISPOSITION.ELIGIBLE : DISPOSITION.ARCHIVE,
+      reason: "Fallback evaluation."
+    };
 
-      let stateUpdate;
-      if (eval_.disposition === DISPOSITION.ELIGIBLE) {
-        stateUpdate = toEvaluated({
-          qualityScore: eval_.qualityScore,
-          urgencyScore: eval_.urgencyScore,
-          freshnessScore: eval_.freshnessScore,
-          feedbackScore: eval_.feedbackScore,
-          evaluationReason: eval_.evaluationReason,
-        });
-        stateUpdate.processingStatus = "VERIFIED";
-        stateUpdate.activityState = "ACTIVE";
-        results.eligible.push(candidate.id);
+    let stateUpdate;
+    const qualityScore = eval_.qualityScore || computeQualityScore(candidate);
+    const urgencyScore = computeUrgencyScore(candidate);
+    const freshnessScore = computeFreshnessScore(candidate);
 
-      } else if (eval_.disposition === DISPOSITION.REVISE || eval_.disposition === DISPOSITION.REGENERATE || eval_.disposition === DISPOSITION.MERGE) {
-        stateUpdate = toRework(eval_.reworkRoute || ReworkRoute.REVISE, eval_.evaluationReason);
-        stateUpdate.processingStatus = "DRAFT";
-        results.rework.push(candidate.id);
-
-      } else if (eval_.disposition === DISPOSITION.SUPPRESS) {
-        stateUpdate = toSuppressed(eval_.evaluationReason);
-        stateUpdate.processingStatus = "DECLINED";
-        stateUpdate.activityState = "ARCHIVED";
-        results.suppressed.push(candidate.id);
-
-      } else {
-        // ARCHIVE
-        stateUpdate = toArchived(eval_.evaluationReason);
-        stateUpdate.processingStatus = "DECLINED";
-        stateUpdate.status = "DECLINED";
-        results.archived.push(candidate.id);
-      }
-
-      await prisma.nBAItem.update({
-        where: { id: candidate.id },
-        data: {
-          ...stateUpdate,
-          qualityScore: eval_.qualityScore,
-          urgencyScore: eval_.urgencyScore,
-          freshnessScore: eval_.freshnessScore,
-          feedbackScore: eval_.feedbackScore,
-          evaluationReason: eval_.evaluationReason,
-        },
+    if (eval_.disposition === DISPOSITION.ELIGIBLE) {
+      stateUpdate = toEvaluated({
+        qualityScore,
+        urgencyScore,
+        freshnessScore,
+        evaluationReason: eval_.reason,
       });
-    } catch (err) {
-      console.error(`[EVALUATOR] Failed candidate ${candidate.id}:`, err.message);
+      stateUpdate.processingStatus = "VERIFIED";
+      stateUpdate.activityState = "ACTIVE";
+      results.eligible.push(candidate.id);
+    } else if ([DISPOSITION.REVISE, DISPOSITION.REGENERATE, DISPOSITION.MERGE].includes(eval_.disposition)) {
+      stateUpdate = toRework(eval_.reworkRoute || ReworkRoute.REVISE, eval_.reason);
+      stateUpdate.processingStatus = "DRAFT";
+      results.rework.push(candidate.id);
+    } else if (eval_.disposition === DISPOSITION.SUPPRESS) {
+      stateUpdate = toSuppressed(eval_.reason);
+      stateUpdate.processingStatus = "DECLINED";
+      stateUpdate.activityState = "ARCHIVED";
+      results.suppressed.push(candidate.id);
+    } else {
+      stateUpdate = toArchived(eval_.reason);
+      stateUpdate.processingStatus = "DECLINED";
+      results.archived.push(candidate.id);
     }
+
+    await prisma.nBAItem.update({
+      where: { id: candidate.id },
+      data: {
+        ...stateUpdate,
+        qualityScore,
+        urgencyScore,
+        freshnessScore,
+        evaluationReason: eval_.reason,
+      }
+    });
   }
 
-  console.log(`[EVALUATOR] ${company.name}: eligible=${results.eligible.length} rework=${results.rework.length} suppressed=${results.suppressed.length} archived=${results.archived.length}`);
+  console.log(`[EVALUATOR] ${company.name}: Batch tournament complete. eligible=${results.eligible.length} total=${candidates.length}`);
   return results;
 }
 

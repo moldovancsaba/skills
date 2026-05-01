@@ -1,7 +1,6 @@
-const { getHumanMemoryPrompt } = require("./memory");
+const { processMemoryUpdates, getStagedMemoryPrompt, getHumanMemoryPrompt } = require("./memory");
 const { draftFlashcardFromDataCard, draftFlashcardsFromEvidenceBatch, draftTaskcardFromFlashCard } = require("./drafter");
-const { refineDraftFlashCard, refineDraftTaskCard } = require("./writer");
-const { refineNBAItemBatch } = require("./refiner");
+const { refineDraftFlashCard, refineDraftTaskCard, refineFlashcardBatch, refineNBAItemBatch } = require("./refiner");
 const { auditCheckedFlashCard, auditCheckedTaskCard } = require("./judge");
 const { evaluateNBAItemBatch } = require("./evaluator");
 const { getWorkerConfig, validateTenant, getServerTime, logTelemetry } = require("./shared");
@@ -151,6 +150,13 @@ async function runSynthesisCycle(prisma) {
     const lockCtx = await acquireLock(prisma, company.id);
     if (!lockCtx) continue;
 
+    // M4.1: Distill fresh feedback into structured memory entries before generation
+    try {
+      await processMemoryUpdates(prisma, company);
+    } catch (err) {
+      console.warn(`[SYNTHESIS] Memory distillation failed for ${company.name}:`, err.message);
+    }
+
     const memoryPrompt = await getHumanMemoryPrompt(prisma, company);
     batchContext.push({ company, memoryPrompt, lockCtx, lockId: lockCtx.cycleRunId, ops: 0 });
     await prisma.company.update({ where: { id: company.id }, data: { lastAIVisited: new Date() } });
@@ -168,7 +174,10 @@ async function runSynthesisCycle(prisma) {
     await updateProgress(prisma, { stage: stage.name });
 
     for (const ctx of batchContext) {
-      const ops = await stage.handler(prisma, ctx.company, ctx.memoryPrompt, null, { 
+      // M4.1: Refresh memory prompt with stage-specific lessons
+      const stagePrompt = await getStagedMemoryPrompt(prisma, ctx.company, stage.name);
+      
+      const ops = await stage.handler(prisma, ctx.company, stagePrompt, null, { 
         cycleRunId: ctx.lockId, 
         workerId: `trinity-worker:${process.pid}` 
       });
@@ -211,7 +220,7 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
   const { validateTenant, getServerTime, generateFingerprint } = require("./shared");
   validateTenant(company.id);
 
-  let ops = 0;
+  let dbFlashcards = [];
   const cid = company.id;
   const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
 
@@ -239,49 +248,61 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
       const drafts = await draftFlashcardsFromEvidenceBatch(prisma, company, batch, memoryPrompt, topic);
       if (drafts && drafts.length > 0) {
         for (const draft of drafts) {
-          const fingerprint = generateFingerprint({
+          // Temporarily store the batch sources on the draft object for linkage later
+          draft.batchSources = batch;
+          draft.fingerprint = generateFingerprint({
             companyId: cid,
             entityId: batch.map(b => b.id).join(","),
             stage: "WRITING",
             input: draft.title
           });
 
-          await prisma.$transaction(async (tx) => {
-            const { sourceId, sourceType, ...cleanDraft } = draft;
-
-            const fc = await tx.flashcard.create({
-              data: {
-                ...cleanDraft,
-                companyId: cid,
-                processingStatus: "DRAFT",
-                cycleRunId: workerContext.cycleRunId,
-                createdByRunId: workerContext.cycleRunId,
-                fingerprint: draft.fingerprint || fingerprint,
-                createdAt: await getServerTime(prisma)
-              }
-            });
-
-            // Link all evidence sources in the batch (supports many→1)
-            for (const src of batch) {
-              await tx.flashcardSource.create({
-                data: {
-                  flashcardId: fc.id,
-                  sourceId: src.id,
-                  sourceType: "SOURCE",
-                  sourceName: src.entityTag || "Agent Research",
-                  createdAt: await getServerTime(prisma)
-                }
-              }).catch(() => {}); // ignore duplicate link errors
+          // Persistent draft creation
+          const fc = await prisma.flashcard.create({
+            data: {
+              ...draft,
+              companyId: cid,
+              processingStatus: "DRAFT",
+              candidateState: CandidateState.GENERATED,
+              cycleRunId: workerContext.cycleRunId,
+              createdByRunId: workerContext.cycleRunId,
+              createdAt: await getServerTime(prisma)
             }
           });
-          ops++;
+
+          // Link sources
+          for (const src of batch) {
+            await prisma.flashcardSource.create({
+              data: {
+                flashcardId: fc.id,
+                sourceId: src.id,
+                sourceType: "SOURCE",
+                sourceName: src.entityTag || "Agent Research",
+                createdAt: await getServerTime(prisma)
+              }
+            }).catch(() => {});
+          }
+          dbFlashcards.push(fc);
         }
       }
     } catch (err) {
       console.error(`[GENERATOR] Failed batch:`, err.message);
     }
   }
-  return ops;
+
+  // M4.3: Refine the whole batch of new Flashcards
+  if (dbFlashcards.length > 1) {
+    const { refined, suppressed } = await refineFlashcardBatch(prisma, company, dbFlashcards, memoryPrompt);
+    for (const r of refined) {
+      await prisma.flashcard.update({ where: { id: r.id }, data: r });
+    }
+    for (const s of suppressed) {
+      await prisma.flashcard.update({ where: { id: s.id }, data: s });
+    }
+    console.log(`[GENERATOR] ${company.name}: Refined ${dbFlashcards.length} → ${refined.length} flashcards.`);
+  }
+
+  return dbFlashcards.length;
 }
 
 async function performCompanyJudging(prisma, company, memoryPrompt, topic, workerContext) {

@@ -53,7 +53,7 @@ type Flashcard = {
   id: string;
 };
 
-type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
 
 export default function CompanyDashboard() {
   const router = useRouter();
@@ -74,6 +74,7 @@ export default function CompanyDashboard() {
   const [annotation, setAnnotation] = useState("");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
+  const [declineClass, setDeclineClass] = useState<string>("WRONG");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [chartData, setChartData] = useState<any[]>([]);
@@ -161,6 +162,7 @@ export default function CompanyDashboard() {
     setAnnotation("");
     setDraftTitle("");
     setDraftDescription("");
+    setDeclineClass("WRONG");
   }, []);
 
   const openActionForm = useCallback((item: NBAItem, mode: ActionMode) => {
@@ -169,6 +171,7 @@ export default function CompanyDashboard() {
     setAnnotation(item.userAnnotation ?? "");
     setDraftTitle(item.title);
     setDraftDescription(item.description);
+    setDeclineClass("WRONG");
   }, []);
 
   const handleShare = useCallback(async (item: NBAItem) => {
@@ -188,20 +191,30 @@ export default function CompanyDashboard() {
     feedbackAnnotation?: string,
     modifiedTitle?: string,
     modifiedDescription?: string,
+    submittedDeclineClass?: string,
   ) => {
     if (!company) return;
 
     setLoading(true);
+    const payload: any = {
+      nbaItemId: itemId,
+      action,
+      annotation: feedbackAnnotation,
+      modifiedTitle,
+      modifiedDescription,
+    };
+
+    if (action === "DECLINE" && submittedDeclineClass) {
+      payload.declineClass = submittedDeclineClass;
+    }
+    if (action === "DELIVER") {
+      payload.deliveryComment = feedbackAnnotation;
+    }
+
     await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nbaItemId: itemId,
-        action,
-        annotation: feedbackAnnotation,
-        modifiedTitle,
-        modifiedDescription,
-      }),
+      body: JSON.stringify(payload),
     });
 
     resetActionForm();
@@ -347,6 +360,8 @@ export default function CompanyDashboard() {
                 onAnnotationChange={setAnnotation}
                 onDraftTitleChange={setDraftTitle}
                 onDraftDescriptionChange={setDraftDescription}
+                declineClass={declineClass}
+                onDeclineClassChange={setDeclineClass}
                 onToggleHashtag={() => {}}
                 onRemoveHashtag={() => {}}
                 onSubmit={handleFeedback}

@@ -58,26 +58,15 @@ export async function POST(request: NextRequest) {
         annotation: data.annotation,
         modifiedTitle: data.modifiedTitle,
         modifiedDescription: data.modifiedDescription,
+        declineClass: data.declineClass,
+        deliveryComment: data.deliveryComment,
+        actorId: request.headers.get("x-user-id") || null, // Optional tracking if we add headers later
       },
     });
     
-    // State transition ONLY (Brain work is now handled by the Local AI Server)
-    if (data.action === "ACCEPT" || data.action === "DECLINE" || data.action === "MODIFY_ACCEPT") {
-      await prisma.nBAItem.update({
-        where: { id: data.nbaItemId },
-        data: {
-          status: data.action === "DECLINE" ? "DECLINED" : "ACCEPTED",
-          processingStatus: data.action === "DECLINE" ? "DECLINED" : "ACCEPTED",
-          activityState: "ARCHIVED",
-          title: data.action === "MODIFY_ACCEPT" && data.modifiedTitle?.trim() ? data.modifiedTitle.trim() : item.title,
-          description:
-            data.action === "MODIFY_ACCEPT" && typeof data.modifiedDescription === "string"
-              ? data.modifiedDescription.trim()
-              : item.description,
-          userAnnotation: data.annotation,
-        },
-      });
-    }
+    // State transitions are now strictly deferred to the Trinity CandidateState machine
+    // (scripts/lib/feedback.js) which handles complex routing like REWORK vs ARCHIVED.
+    // The frontend UI optimistically removes the card from view to provide immediate feedback.
     
     return NextResponse.json(feedback);
   } catch (error) {

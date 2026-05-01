@@ -5,9 +5,9 @@
  * A specialized UI component for reviewing and acting upon Next Best Action (NBA) items.
  * Prioritizes the ICE Score (Impact * Confidence * Ease) as the primary sorting and quality metric.
  */
-import { Calendar as CalendarIcon, Check, CheckCircle, Loader2, MessageSquare, PencilLine, Share2, X } from "lucide-react";
+import { Calendar as CalendarIcon, Check, CheckCheck, CheckCircle, Loader2, MessageSquare, PencilLine, Share2, X } from "lucide-react";
 
-import { Card, Text, Badge, Button, Group, Stack, TextInput, Textarea, ActionIcon, Tooltip, rem } from "@mantine/core";
+import { Card, Text, Badge, Button, Group, Stack, TextInput, Textarea, ActionIcon, Tooltip, rem, Select } from "@mantine/core";
 import { useClipboard } from "@mantine/hooks";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -17,7 +17,7 @@ import { getIceColorClasses } from "@/lib/ice-colors";
 /**
  * Valid action modes for task feedback.
  */
-type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
 
 /**
  * Tactical intelligence unit representing a proposed action.
@@ -52,6 +52,8 @@ type TaskReviewCardProps = {
   onAnnotationChange: (value: string) => void;
   onDraftTitleChange: (value: string) => void;
   onDraftDescriptionChange: (value: string) => void;
+  declineClass?: string;
+  onDeclineClassChange?: (value: string) => void;
   activeHashtags: string[];
   onToggleHashtag: (tag: string) => void;
   onRemoveHashtag: (itemId: string, tag: string) => void;
@@ -61,6 +63,7 @@ type TaskReviewCardProps = {
     annotation?: string,
     modifiedTitle?: string,
     modifiedDescription?: string,
+    declineClass?: string,
   ) => void;
   onShare: (item: NBAItem) => void;
   onPostpone?: (itemId: string, date: Date | undefined) => void;
@@ -80,6 +83,8 @@ export function TaskReviewCard({
   onAnnotationChange,
   onDraftTitleChange,
   onDraftDescriptionChange,
+  declineClass,
+  onDeclineClassChange,
   activeHashtags,
   onToggleHashtag,
   onRemoveHashtag,
@@ -89,6 +94,19 @@ export function TaskReviewCard({
 }: TaskReviewCardProps) {
   const clipboard = useClipboard({ timeout: 2000 });
   
+  const DECLINE_OPTIONS = [
+    { value: "DUPLICATE", label: "Already exists (Duplicate)" },
+    { value: "ALREADY_DONE", label: "Already completed" },
+    { value: "IRRELEVANT", label: "Irrelevant to our strategy" },
+    { value: "LOW_PRIORITY", label: "Valid, but low priority right now" },
+    { value: "BAD_TIMING", label: "Good idea, but wrong timing" },
+    { value: "TOO_VAGUE", label: "Too vague (needs more detail)" },
+    { value: "MISSING_CONTEXT", label: "Missing context" },
+    { value: "NOT_ACTIONABLE", label: "Not actionable by the team" },
+    { value: "WRONG", label: "Factually incorrect" },
+    { value: "IGNORANT_OUTPUT", label: "AI Hallucination" },
+  ];
+
   const iceColor = item.iceScore >= 70 ? "green" : item.iceScore >= 40 ? "orange" : "gray";
 
   return (
@@ -125,7 +143,10 @@ export function TaskReviewCard({
         )}
 
         <Group gap="xs" mt="sm">
-          <Button size="xs" variant="filled" color="blue" leftSection={<Check size={14} />} onClick={() => onOpenAction(item, "ACCEPT")} disabled={isBusy}>
+          <Button size="xs" variant="filled" color="green" leftSection={<CheckCheck size={14} />} onClick={() => onOpenAction(item, "DELIVER")} disabled={isBusy}>
+            Delivered
+          </Button>
+          <Button size="xs" variant="light" color="blue" leftSection={<Check size={14} />} onClick={() => onOpenAction(item, "ACCEPT")} disabled={isBusy}>
             Accept
           </Button>
           <Button size="xs" variant="outline" color="gray" leftSection={<X size={14} />} onClick={() => onOpenAction(item, "DECLINE")} disabled={isBusy}>
@@ -150,7 +171,7 @@ export function TaskReviewCard({
         {isActionOpen && actionMode && (
           <Stack gap="sm" p="md" bg="var(--mantine-color-dark-8)" style={{ borderRadius: rem(12) }}>
             <Text size="sm" fw={600} c="white">
-              {actionMode === "DECLINE" ? "Decline this task" : actionMode === "MODIFY_ACCEPT" ? "Modify and accept this task" : "Accept this task"}
+              {actionMode === "DECLINE" ? "Decline this task" : actionMode === "MODIFY_ACCEPT" ? "Modify and accept this task" : actionMode === "DELIVER" ? "Mark this task as delivered" : "Accept this task"}
             </Text>
 
             {actionMode === "MODIFY_ACCEPT" && (
@@ -160,11 +181,23 @@ export function TaskReviewCard({
               </>
             )}
 
+            {actionMode === "DECLINE" && onDeclineClassChange && (
+              <Select
+                label="Decline Reason"
+                placeholder="Select a reason"
+                data={DECLINE_OPTIONS}
+                value={declineClass}
+                onChange={(val) => onDeclineClassChange(val || "WRONG")}
+                size="xs"
+                allowDeselect={false}
+              />
+            )}
+
             <Textarea
-              label={actionMode === "DECLINE" ? "Reason" : "Comment (optional)"}
+              label={actionMode === "DECLINE" ? "Additional comments (optional)" : actionMode === "DELIVER" ? "Delivery notes (optional)" : "Comment (optional)"}
               value={annotation}
               onChange={(e) => onAnnotationChange(e.target.value)}
-              placeholder="Provide context for the AI..."
+              placeholder={actionMode === "DELIVER" ? "What was the result? Help the AI learn..." : "Provide context for the AI..."}
               size="xs"
               autosize
               minRows={2}
@@ -173,9 +206,9 @@ export function TaskReviewCard({
             <Group gap="xs">
               <Button
                 size="xs"
-                color={actionMode === "DECLINE" ? "red" : "blue"}
-                onClick={() => onSubmit(item.id, actionMode, annotation, actionMode === "MODIFY_ACCEPT" ? draftTitle : undefined, actionMode === "MODIFY_ACCEPT" ? draftDescription : undefined)}
-                disabled={isBusy || (actionMode === "DECLINE" && !annotation.trim()) || (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))}
+                color={actionMode === "DECLINE" ? "red" : actionMode === "DELIVER" ? "green" : "blue"}
+                onClick={() => onSubmit(item.id, actionMode, annotation, actionMode === "MODIFY_ACCEPT" ? draftTitle : undefined, actionMode === "MODIFY_ACCEPT" ? draftDescription : undefined, declineClass)}
+                disabled={isBusy || (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))}
                 loading={isBusy}
               >
                 Confirm

@@ -39,7 +39,7 @@ interface NBAItem {
   hashtags: string[];
 }
 
-type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
 
 type ChecklistPageProps = {
   companyId: string;
@@ -57,6 +57,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const [annotation, setAnnotation] = useState("");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
+  const [declineClass, setDeclineClass] = useState<string>("WRONG");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -138,6 +139,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     setAnnotation("");
     setDraftTitle("");
     setDraftDescription("");
+    setDeclineClass("WRONG");
   }, []);
 
   const openActionForm = useCallback((item: NBAItem, mode: ActionMode) => {
@@ -146,6 +148,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     setAnnotation(item.userAnnotation ?? "");
     setDraftTitle(item.title);
     setDraftDescription(item.description);
+    setDeclineClass("WRONG");
   }, []);
 
   const handleFeedback = useCallback(async (
@@ -154,25 +157,34 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     feedbackAnnotation?: string,
     modifiedTitle?: string,
     modifiedDescription?: string,
+    submittedDeclineClass?: string,
   ) => {
     setActingId(itemId);
+    
+    const payload: any = {
+      nbaItemId: itemId,
+      action,
+      annotation: feedbackAnnotation,
+      modifiedTitle,
+      modifiedDescription,
+    };
+
+    if (action === "DECLINE" && submittedDeclineClass) {
+      payload.declineClass = submittedDeclineClass;
+    }
+    if (action === "DELIVER") {
+      payload.deliveryComment = feedbackAnnotation;
+    }
+
     const res = await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nbaItemId: itemId,
-        action,
-        annotation: feedbackAnnotation,
-        modifiedTitle,
-        modifiedDescription,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (res.ok) {
-      // Archive or update the item in local state
-      if (action === "ACCEPT" || action === "DECLINE" || action === "MODIFY_ACCEPT") {
-        setItems(prev => prev.filter(i => i.id !== itemId));
-      }
+      // Archive or update the item in local state optimistically
+      setItems(prev => prev.filter(i => i.id !== itemId));
     }
 
     resetActionForm();
@@ -342,8 +354,10 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                     onAnnotationChange={setAnnotation}
                     onDraftTitleChange={setDraftTitle}
                     onDraftDescriptionChange={setDraftDescription}
+                    declineClass={declineClass}
+                    onDeclineClassChange={setDeclineClass}
                     onToggleHashtag={toggleHashtagFilter}
-                    onRemoveHashtag={(itemId, tag) => void removeTaskHashtag(itemId, tag)}
+                    onRemoveHashtag={(itemId: string, tag: string) => void removeTaskHashtag(itemId, tag)}
                     onSubmit={handleFeedback}
                     onShare={handleShare}
                     onPostpone={handlePostpone}

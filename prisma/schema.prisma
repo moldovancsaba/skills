@@ -178,7 +178,7 @@ model NBAItem {
   status             NBAStatus  @default(PENDING) // Legacy
   userAnnotation     String?
   createdAt          DateTime   @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt          DateTime   @default(now()) @updatedAt
   scheduledDate      DateTime?
   createdBy          String?
   sourceFlashcardIds String[]   @default([])
@@ -202,9 +202,27 @@ model NBAItem {
   fingerprint        String?
   kind               String?    @default("TASK")
   company            Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Trinity Lifecycle State Machine (M1.2)
+  candidateState     CandidateState @default(GENERATED)
+  reworkRoute        ReworkRoute?
+  // Trinity Scoring dimensions (M2.3)
+  qualityScore       Float?     // absolute quality 0-1
+  urgencyScore       Float?     // time-sensitivity 0-1
+  freshnessScore     Float?     // evidence freshness 0-1
+  feedbackScore      Float?     @default(0) // cumulative feedback signal
+  evaluationReason   String?    // Evaluator's stated reason for disposition
+  rottenAt           DateTime?  // when this candidate becomes stale and needs rework
+  // Trinity Lineage (M1.3)
+  versionFamilyId    String?    // groups all versions of the same conceptual candidate
+  duplicateClusterId String?    // links semantic duplicate siblings
+  generatedFromIds   String[]   @default([]) // source evidence IDs
+  refinedFromId      String?    // the generated candidate this was refined from
 
   @@unique([companyId, fingerprint])
   @@index([companyId, processingStatus, cycleRunId])
+  @@index([companyId, candidateState, iceScore])
+  @@index([companyId, duplicateClusterId])
+  @@index([companyId, versionFamilyId])
 }
 
 model HashtagFeedback {
@@ -258,10 +276,16 @@ model Source {
   legacyOriginKey String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @default(now()) @updatedAt
+  // Trinity Evidence Model fields (M1.1)
+  sourceType      String?  @default("WEB") // WEB | UPLOAD | BRIDGE | MANUAL
+  provenance      String?  // origin URL or reference
+  topicHints      String[] @default([]) // topic label hints for Generator
+  freshnessWindowDays Int? @default(30) // how many days this evidence is considered fresh
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, publicId, createdAt])
   @@index([companyId, legacyOriginKey])
+  @@index([companyId, canonicalContentHash])
 }
 
 model Topic {
@@ -535,6 +559,26 @@ enum NBAActivityState {
   STALE
   EXPIRED
   ARCHIVED
+}
+
+// Trinity Formal Lifecycle State Machine (M1.2)
+enum CandidateState {
+  GENERATED   // Output of Generator stage
+  REFINED     // Output of Refiner stage
+  EVALUATED   // Output of Evaluator stage — eligible for frontier
+  REWORK      // Returned to pipeline for another pass
+  SUPPRESSED  // Dominated by sibling — excluded from frontier
+  DELIVERED   // Action confirmed executed in reality (stronger than ACCEPTED)
+  ARCHIVED    // Permanently removed from active pool
+}
+
+// Trinity Rework Routes (M1.2)
+enum ReworkRoute {
+  REVISE          // Rewrite for clarity or precision
+  REGENERATE      // Full regeneration from evidence
+  MERGE           // Combine with a sibling candidate
+  ENRICH          // Add supporting context or grounding
+  DOWNRANK_ONLY   // Keep in pool but lower frontier priority
 }
 
 enum Role {

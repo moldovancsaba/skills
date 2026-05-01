@@ -3,14 +3,15 @@ const path = require("path");
 const { getWorkerConfig, similarity, hashValue } = require("./shared");
 const { enforceLanguagePolicy } = require("./language-validator");
 const { fetchUrlContent } = require("./fetcher");
+const { CandidateState, toArchived, toGenerated } = require("./lifecycle");
 
 /**
  * checklist MAINTENANCE ENGINE
- * v0.12.0-DURABLE
- * 
+ * v0.13.0 — Trinity State Machine Edition
+ *
  * Manages the lifecycle and state-integrity of Flashcards and Taskcards.
- * Implements the 7/30/90 rule for card ageing and performs global data consistency scrubs.
- * Now includes Source Freshness re-validation (#92) and Strategy Drift detection.
+ * Uses the formal CandidateState machine (lifecycle.js) for all state transitions.
+ * NO annotation-string state inference. CandidateState is the single source of truth.
  */
 // --- DATA INTEGRITY ---
 
@@ -21,12 +22,12 @@ const { fetchUrlContent } = require("./fetcher");
  * @param {PrismaClient} prisma - Database client
  */
 async function scrubDatabaseElemental(prisma) {
-  console.log(`[MAINTENANCE] Scrubbing oldest entries (Elemental Mode)...`);
-  
+  console.log(`[MAINTENANCE] Scrubbing DB integrity (Trinity State Machine v0.13.0)...`);
+
   const validKinds = ["SUMMARY", "EXPLANATION", "COMPARISON", "NEWS", "CONCLUSION", "EVALUATION", "OPINION", "JUDGMENT", "RECOMMENDATION", "RESEARCH", "FORECAST", "STOCK", "GOSSIP", "PRICE"];
   const validProc = ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "DECLINED"];
 
-  // 1. Flashcards (Batch Scrub)
+  // 1. Flashcards (Batch Scrub — fix invalid processingStatus)
   try {
     const fcToFix = await prisma.flashcard.findMany({
       where: {
@@ -48,61 +49,33 @@ async function scrubDatabaseElemental(prisma) {
         data: { processingStatus: "CHECKED", status: "ACTIVE", activityState: "ACTIVE", kind: "SUMMARY" }
       });
     }
-
-    // Specialized Logic: Rejection Scrub
-    await prisma.flashcard.updateMany({
-      where: { 
-        userAnnotation: { contains: "[JUDGE REJECTION]" },
-        activityState: { not: "ARCHIVED" }
-      },
-      data: { 
-        processingStatus: "DRAFT",
-        status: "DRAFT",
-        activityState: "ARCHIVED"
-      }
-    });
   } catch (e) {
     console.warn(`[MAINTENANCE] Flashcard scrub partially failed: ${e.message}`);
   }
 
-  // 2. NBA Items (Batch Scrub)
+  // 2. NBA Items — fix invalid legacy statuses only.
+  // NOTE: State transitions are now handled by the CandidateState lifecycle machine.
+  //       Annotation-string inference has been removed. Never infer state from userAnnotation.
   try {
     const tcToFix = await prisma.nBAItem.findMany({
       where: {
         OR: [
           { processingStatus: { notIn: validProc } },
-          { status: { notIn: ["PENDING", "DRAFT"] } }
+          { status: { notIn: ["PENDING", "DRAFT", "ACCEPTED", "DECLINED", "COMPLETED", "VERIFIED", "EXPIRED", "ARCHIVED", "CHECKED"] } }
         ]
       },
       orderBy: { updatedAt: "asc" },
-      take: 100, // Increased batch size for faster recovery
+      take: 100,
       select: { id: true }
     });
 
     if (tcToFix.length > 0) {
-      console.log(`[MAINTENANCE] Repairing ${tcToFix.length} NBAItem records...`);
+      console.log(`[MAINTENANCE] Repairing ${tcToFix.length} NBAItem records with invalid legacy status...`);
       await prisma.nBAItem.updateMany({
         where: { id: { in: tcToFix.map(c => c.id) } },
         data: { status: "PENDING", activityState: "ACTIVE", kind: "TASK" }
       });
     }
-
-    // Specialized Logic: Rejection Scrub & Inconsistency Reset
-    // v0.12.3: Only archive if it's an explicit rejection or a known duplicate tag
-    await prisma.nBAItem.updateMany({
-      where: { 
-        OR: [
-          { userAnnotation: { contains: "JUDGE REJECT" } },
-          { userAnnotation: { contains: "WRITER]: Duplicate" } }
-        ],
-        activityState: { not: "ARCHIVED" }
-      },
-      data: { 
-        processingStatus: "DRAFT",
-        status: "DRAFT",
-        activityState: "ARCHIVED"
-      }
-    });
   } catch (e) {
     console.warn(`[MAINTENANCE] Taskcard scrub partially failed: ${e.message}`);
   }
@@ -216,49 +189,14 @@ async function processUserFeedback(prisma, company) {
 
 /**
  * SCRUB COMPANY REJECTIONS
- * v0.11.5
- * 
- * Specifically targets and corrects cards that were rejected by the judge but
- * remain in an inconsistent processingStatus (e.g. VERIFIED).
- * Also cleans up [object Object] anomalies in annotations.
+ * v0.13.0 — Trinity State Machine Edition
+ *
+ * Cleans up annotation cosmetic anomalies only.
+ * State transitions are owned by the CandidateState lifecycle machine.
+ * Annotation-string state inference has been permanently removed.
  */
 async function scrubCompanyRejections(prisma, cid) {
-  // 1. Flashcards Scrub
-  await prisma.flashcard.updateMany({
-    where: { 
-      companyId: cid,
-      OR: [
-        { userAnnotation: { contains: "JUDGE REJECT" } },
-        { userAnnotation: { contains: "WRITER]:" } }
-      ],
-      activityState: { not: "ARCHIVED" }
-    },
-    data: { 
-      processingStatus: "DRAFT",
-      status: "ACTIVE",
-      activityState: "ARCHIVED" // Hide from active lists
-    }
-  });
-
-  // 2. NBA Item Scrub (The "ICE 1 Fix")
-  await prisma.nBAItem.updateMany({
-    where: { 
-      companyId: cid,
-      OR: [
-        { userAnnotation: { contains: "JUDGE REJECT" } },
-        { userAnnotation: { contains: "WRITER]: Duplicate" } }
-      ],
-      activityState: { not: "ARCHIVED" }
-    },
-    data: { 
-      processingStatus: "DRAFT",
-      status: "DRAFT",
-      activityState: "ARCHIVED" // Hide from active lists
-    }
-  });
-
-  // 3. Stringification Cleanup (Fix [object Object])
-  // This is more complex for updateMany, but we can target the common pattern.
+  // Stringification Cleanup (Fix [object Object]) — cosmetic only
   const objectObjectItems = await prisma.nBAItem.findMany({
     where: { companyId: cid, userAnnotation: { contains: "[object Object]" } },
     select: { id: true, userAnnotation: true }

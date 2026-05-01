@@ -4,6 +4,7 @@ const { getWorkerConfig, similarity, hashValue } = require("./shared");
 const { enforceLanguagePolicy } = require("./language-validator");
 const { fetchUrlContent } = require("./fetcher");
 const { CandidateState, toArchived, toGenerated } = require("./lifecycle");
+const { recomputeFrontier, refillChecklistFromBacklog: frontierRefill } = require("./frontier");
 
 /**
  * checklist MAINTENANCE ENGINE
@@ -180,6 +181,13 @@ async function processUserFeedback(prisma, company) {
         iceImpact: (action === "DECLINE") ? -1 : 1 
       }
     });
+  }
+
+  // M3.1: Recompute frontier after all feedback has been processed
+  try {
+    await recomputeFrontier(prisma, company);
+  } catch (e) {
+    console.warn(`[BRAIN] Frontier recompute after feedback failed: ${e.message}`);
   }
 
   return pendingFeedback.length;
@@ -779,5 +787,5 @@ module.exports = {
   revalidateSources,
   detectStrategyDrift,
   auditConfidenceCalibration,
-  refillChecklistFromBacklog
+  refillChecklistFromBacklog: frontierRefill // M3.1: now delegates to frontier.js
 };

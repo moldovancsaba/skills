@@ -1,9 +1,17 @@
 /**
- * checklist DRAFTER
- * v0.11.4-STABLE
- * 
- * The induction stage of the trinity pipeline.
- * Extracts raw intelligence from DataCards (Sources/Files) into structured DRAFT cards.
+ * TRINITY GENERATOR (Drafter)
+ * M2.1 — Multi-Cardinality Synthesis & Coverage Optimization
+ * v0.13.0
+ *
+ * Implements the Generator stage from the Trinity formal production definition §8.
+ *
+ * Key changes from v0.11.4:
+ *   - Supports all four evidence cardinalities: 1→1, 1→many, many→1, many→many
+ *   - Evidence batching by topic hints (via evidence.js)
+ *   - Pre-persistence dedup against active inventory
+ *   - Writes CandidateState.GENERATED and lineage fields (generatedFromIds, versionFamilyId)
+ *   - Attaches semanticTags[] and sourceRefs[] to each candidate
+ *   - Optimizes for coverage (recall) not polish
  */
 const crypto = require("crypto");
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
@@ -11,12 +19,11 @@ const { STAGE_MODELS, trinity_DRAFT_TIMEOUT_MS } = require("./core");
 const { truncate, hashValue, nextPublicId, getWorkerConfig, parseBoundedInt } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyArray } = require("./synthesis-utils");
+const { CandidateState, toGenerated } = require("./lifecycle");
+const { computeInitialFreshnessScore } = require("./evidence");
 
 // --- UTILITIES ---
 
-/**
- * Normalizes complex AI-returned body content into a professional string.
- */
 function joinBody(body) {
   if (typeof body === "string") return body;
   if (Array.isArray(body)) {
@@ -32,131 +39,205 @@ function joinBody(body) {
   return String(body);
 }
 
-// --- DRAFTING ENGINE ---
+// ---------------------------------------------------------------------------
+// Active-inventory dedup guard
+// Pre-persistence check: skip candidates with identical fingerprints to what
+// already exists in the ACTIVE candidate pool. Generator is allowed to be
+// prolific — but not careless (§8.6).
+// ---------------------------------------------------------------------------
+async function buildActiveInventoryFingerprints(prisma, companyId) {
+  const active = await prisma.nBAItem.findMany({
+    where: {
+      companyId,
+      activityState: { in: ["ACTIVE", "STALE"] },
+    },
+    select: { fingerprint: true, title: true },
+  });
+  const set = new Set();
+  for (const item of active) {
+    if (item.fingerprint) set.add(item.fingerprint);
+    if (item.title) set.add(item.title.toLowerCase().slice(0, 80));
+  }
+  return set;
+}
+
+// ---------------------------------------------------------------------------
+// 1. Flashcard Generator (KnowledgeItem generation from EvidenceUnit batch)
+// Supports 1→many and many→1 cardinalities via evidence batch context.
+// ---------------------------------------------------------------------------
 
 /**
- * Generates one or more Flashcard DRAFTs from a raw Source or File.
- * Aligns extraction with the company's current strategic TopicCards.
+ * Generates one or more Flashcard DRAFTs from a batch of EvidenceUnits.
+ * Writes CandidateState.GENERATED and generatedFromIds[] lineage.
+ *
+ * @param {PrismaClient} prisma
+ * @param {object} company
+ * @param {Source[]} evidenceBatch - One or more source records (supports multi-cardinality)
+ * @param {string} memoryPrompt
+ * @param {object|null} topic
+ * @returns {object[]} Draft flashcard records ready for prisma.flashcard.create
  */
 async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPrompt, topic = null) {
+  // Legacy single-source call — wrap in batch
+  return draftFlashcardsFromEvidenceBatch(prisma, company, [dataCard], memoryPrompt, topic);
+}
+
+async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, memoryPrompt, topic = null) {
   const bodyLimit = await getWorkerConfig(prisma, company, "draft_body_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
+  const activeFingerprints = await buildActiveInventoryFingerprints(prisma, company.id);
 
   const { getSkillForSource } = require("./skills");
-  const skill = getSkillForSource(dataCard);
-  const skillPrompt = skill 
+  const skill = getSkillForSource(evidenceBatch[0]);
+  const skillPrompt = skill
     ? `\n### [SPECIALIZED SKILL ACTIVATED: ${skill.label}]\nYou MUST apply the following marketing framework to this synthesis:\n${skill.framework}\n`
     : "";
 
+  // Build combined evidence context for multi-cardinality synthesis
+  const evidenceContext = evidenceBatch.map((e, i) =>
+    `[Evidence ${i + 1}]${e.entityTag ? ` (${e.entityTag})` : ""}: ${truncate(e.canonicalContent || e.content, 800)}`
+  ).join("\n\n---\n\n");
+
+  const isGrouped = evidenceBatch.length > 1;
+
   const systemPrompt = [
-    "You are the checklist DRAFTER. Your goal matches DataCards (raw data) to potential FlashCards.",
+    "You are the checklist GENERATOR (formerly Drafter). Your goal is to extract intelligence from evidence into structured KnowledgeItems (FlashCards).",
     "Your synthesis MUST align with the following strategic context of the company:",
     strategicContext,
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nYou MUST prioritize insights that relate to: ${topic.notes || topic.label}\n` : "",
     skillPrompt,
-    "Required fields: title, body, kind, confidence, impact, weight, hashtags.",
-    "checklist AXIOM: You MUST generate strict integer scores for confidence, impact, and weight. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
-    "If the intelligence already exists in the provided context, do NOT duplicate it.",
-    "You may propose MULTIPLE FlashCards if the raw data contains distinct insights.",
+    isGrouped
+      ? `\nYou are processing ${evidenceBatch.length} RELATED evidence units simultaneously. Look for CROSS-EVIDENCE insights — patterns, correlations, or compound conclusions that only emerge when considering all evidence together. You MUST emit at least one cross-evidence candidate if one exists.`
+      : "\nYou are processing one evidence unit. Extract all distinct insights — you may emit MULTIPLE KnowledgeItems if the evidence contains distinct insights.",
+    "Required fields per item: title, body, kind, confidence, impact, weight, semanticTags (array of 3-5 lowercase hashtag strings).",
+    "AXIOM: Strict integer scores for confidence, impact, weight. Scale: 1-10. NO zeros. NO percentages.",
+    "COVERAGE OVER POLISH: Prefer extracting more distinct insights over perfecting fewer. The Refiner will handle compression.",
+    "Do NOT duplicate insights already in the active knowledge base. If the insight exists, skip it.",
     "Format: Return a JSON array of objects.",
-    "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
-    "STRATEGIC FOCUS: Use the [TopicCards] provided in the context as anchors. Prioritize extracting evidence and insights that relate directly to these topics.",
+    "APERTUS Purity: Each card must be 100% monolingual in an allowed language. Translate if needed.",
     memoryPrompt
   ].join("\n");
 
-  const userPrompt = `Company: ${company.name}\nDataCard Context: ${truncate(dataCard.content, 1500)}`;
+  const userPrompt = `Company: ${company.name}\n\nEvidence:\n${evidenceContext}`;
 
   const raw = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.DRAFT, { timeoutMs: trinity_DRAFT_TIMEOUT_MS });
   const rawArray = unifyArray(raw);
   if (!Array.isArray(rawArray)) return [];
 
   const drafts = [];
-  for (const raw of rawArray) {
-    if (!raw.title || !raw.body) continue;
+  const evidenceIds = evidenceBatch.map(e => e.id);
+  const versionFamilyId = crypto.randomUUID(); // shared across multi-output batch
+
+  for (const item of rawArray) {
+    if (!item.title || !item.body) continue;
+
+    // Pre-persistence dedup against active inventory
+    const titleKey = String(item.title).toLowerCase().slice(0, 80);
+    if (activeFingerprints.has(titleKey)) continue;
+
     const publicId = await nextPublicId(prisma, "Flashcard");
-    
     let confidence, impact, weight;
     let procStatus = "DRAFT";
-    
+
     try {
-      confidence = parseBoundedInt(raw.confidence, 1, 10);
-      impact = parseBoundedInt(raw.impact, 1, 10);
-      weight = parseBoundedInt(raw.weight, 1, 10);
+      confidence = parseBoundedInt(item.confidence, 1, 10);
+      impact = parseBoundedInt(item.impact, 1, 10);
+      weight = parseBoundedInt(item.weight, 1, 10);
     } catch (e) {
-      // Axiom 2: Human Review Circuit
       confidence = 1; impact = 1; weight = 1;
       procStatus = "REVIEW";
     }
-    
+
+    const freshnessScore = computeInitialFreshnessScore(evidenceBatch[0]);
+    const fingerprint = hashValue(`GEN:FC:${company.id}:${evidenceBatch.map(e => e.id).join(",")}:${item.title}`);
+
     drafts.push({
       id: crypto.randomUUID(),
       publicId,
       companyId: company.id,
-      title: truncate(raw.title, 160),
-      body: truncate(joinBody(raw.body), bodyLimit),
-      confidenceScore: confidence, // Reusing confidenceScore as strict 1-10 metric
-      confidence: confidence,
-      impact: impact,
-      weight: weight,
+      title: truncate(item.title, 160),
+      body: truncate(joinBody(item.body), bodyLimit),
+      confidenceScore: confidence,
+      confidence,
+      impact,
+      weight,
       processingStatus: procStatus,
       activityState: "ACTIVE",
-      status: "ACTIVE", 
-      reviewStatus: "PENDING", 
-      kind: String(raw.kind || "SUMMARY").toUpperCase(), 
-      hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : [],
-      fingerprint: hashValue(`EVO:FC:${company.id}:${dataCard.id}:${raw.title}`),
-      createdBy: "drafter-agent",
-      sourceId: dataCard.id,
-      sourceType: dataCard.type
+      status: "ACTIVE",
+      reviewStatus: "PENDING",
+      kind: String(item.kind || "SUMMARY").toUpperCase(),
+      hashtags: Array.isArray(item.semanticTags) ? item.semanticTags.slice(0, 5) :
+                Array.isArray(item.hashtags) ? item.hashtags.slice(0, 5) : [],
+      fingerprint,
+      createdBy: "generator-agent",
+      // Trinity M2.1: lineage fields
+      generatedFromIds: evidenceIds,
+      versionFamilyId,
+      candidateState: CandidateState.GENERATED,
+      freshnessScore,
+      feedbackScore: 0,
+      // Legacy source linking (for backward compat)
+      sourceId: evidenceBatch[0].id,
+      sourceType: "SOURCE",
     });
   }
   return drafts;
 }
 
+// ---------------------------------------------------------------------------
+// 2. TaskCard Generator (ActionItem generation from KnowledgeItem)
+// Implements the Knowledge-to-Action path from Trinity §25.
+// Writes CandidateState.GENERATED and sourceFlashcardIds[] lineage.
+// ---------------------------------------------------------------------------
+
 /**
- * Generates actionable TaskCard (NBA) DRAFTs from a verified Flashcard.
- * Transforms static knowledge into strategic operational tasks.
+ * Generates actionable TaskCard DRAFTs from a verified Flashcard (KnowledgeItem).
  */
 async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryPrompt, topic = null) {
   const descLimit = await getWorkerConfig(prisma, company, "draft_desc_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
+  const activeFingerprints = await buildActiveInventoryFingerprints(prisma, company.id);
 
   const systemPrompt = [
-    "You are the checklist DRAFTER. Your goal is to turn FlashCards into actionable TaskCards.",
+    "You are the checklist GENERATOR (Action path). Your goal is to convert KnowledgeItems (FlashCards) into executable ActionItems (TaskCards).",
     "Your tasks MUST be strategically aligned with the company's TopicCards and existing work:",
     strategicContext,
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nEnsure this task directly supports the following objective: ${topic.notes || topic.label}\n` : "",
-    "Required fields: title, description, kind, impact, confidence, ease.",
-    "checklist AXIOM: You MUST generate strict integer scores for confidence, impact, and ease. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
+    "Required fields: title, description, kind, impact, confidence, ease, semanticTags (array of 3-5 lowercase strings).",
+    "AXIOM: Strict integer scores for confidence, impact, ease. Scale: 1-10. NO zeros.",
+    "ACTIONABILITY REQUIREMENT: Every task must be concretely executable by a real human in a business context.",
     "Check the context carefully. Do NOT draft a task that is already present.",
-    "You may propose MULTIPLE TaskCards if appropriate.",
+    "You may propose MULTIPLE TaskCards if one KnowledgeItem implies multiple distinct actions.",
     "Format: Return a JSON array of objects.",
-    "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
-    "STRATEGIC FOCUS: Generate TaskCards that directly support the [TopicCards] listed in the context.",
+    "APERTUS Purity: Each card must be 100% monolingual. Translate if needed.",
     memoryPrompt
   ].join("\n");
 
-  const userPrompt = `Company: ${company.name}\nFlashCard: ${flashCard.title}\nInsight: ${flashCard.body}`;
+  const userPrompt = `Company: ${company.name}\nKnowledgeItem Title: ${flashCard.title}\nKnowledgeItem Body: ${truncate(flashCard.body || flashCard.generatedBody || "", 1000)}`;
 
   const raw = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.DRAFT, { timeoutMs: trinity_DRAFT_TIMEOUT_MS });
   const rawArray = unifyArray(raw);
   if (!Array.isArray(rawArray)) return [];
 
   const drafts = [];
-  for (const raw of rawArray) {
-    if (!raw.title || !raw.description) continue;
-    const publicId = await nextPublicId(prisma, "NBAItem");
+  const versionFamilyId = crypto.randomUUID();
 
+  for (const item of rawArray) {
+    if (!item.title || !item.description) continue;
+
+    const titleKey = String(item.title).toLowerCase().slice(0, 80);
+    if (activeFingerprints.has(titleKey)) continue;
+
+    const publicId = await nextPublicId(prisma, "NBAItem");
     let confidence, impact, ease, iceScore;
     let procStatus = "DRAFT";
-    
+
     try {
-      confidence = parseBoundedInt(raw.confidence, 1, 10);
-      impact = parseBoundedInt(raw.impact, 1, 10);
-      ease = parseBoundedInt(raw.ease, 1, 10);
+      confidence = parseBoundedInt(item.confidence, 1, 10);
+      impact = parseBoundedInt(item.impact, 1, 10);
+      ease = parseBoundedInt(item.ease, 1, 10);
       iceScore = impact * confidence * ease;
     } catch (e) {
-      // Axiom 2: Human Review Circuit
       confidence = 1; impact = 1; ease = 1; iceScore = 1;
       procStatus = "REVIEW";
     }
@@ -165,19 +246,25 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       id: crypto.randomUUID(),
       publicId,
       companyId: company.id,
-      title: truncate(raw.title, 160),
-      description: truncate(joinBody(raw.description), descLimit),
-      kind: String(raw.kind || "TASK").toUpperCase(),
-      impact: impact,
+      title: truncate(item.title, 160),
+      description: truncate(joinBody(item.description), descLimit),
+      kind: String(item.kind || "TASK").toUpperCase(),
+      impact,
       confidenceScore: confidence,
-      confidence: confidence, // syncing both for legacy columns
-      ease: ease,
-      iceScore: iceScore,
+      confidence,
+      ease,
+      iceScore,
       processingStatus: procStatus,
       activityState: "ACTIVE",
-      status: "PENDING", 
-      createdBy: "drafter-agent",
-      fingerprint: hashValue(`EVO:TC:${company.id}:${flashCard.id}:${raw.title}`)
+      status: "PENDING",
+      createdBy: "generator-agent",
+      fingerprint: hashValue(`GEN:TC:${company.id}:${flashCard.id}:${item.title}`),
+      // Trinity M2.1: lineage
+      sourceFlashcardIds: [flashCard.id],
+      versionFamilyId,
+      candidateState: CandidateState.GENERATED,
+      feedbackScore: 0,
+      generatedFromIds: [flashCard.id],
     });
   }
   return drafts;
@@ -185,5 +272,6 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
 
 module.exports = {
   draftFlashcardFromDataCard,
-  draftTaskcardFromFlashCard
+  draftFlashcardsFromEvidenceBatch,
+  draftTaskcardFromFlashCard,
 };

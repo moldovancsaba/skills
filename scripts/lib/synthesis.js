@@ -1,5 +1,5 @@
 const { getHumanMemoryPrompt } = require("./memory");
-const { draftFlashcardFromDataCard, draftTaskcardFromFlashCard } = require("./drafter");
+const { draftFlashcardFromDataCard, draftFlashcardsFromEvidenceBatch, draftTaskcardFromFlashCard } = require("./drafter");
 const { refineDraftFlashCard, refineDraftTaskCard } = require("./writer");
 const { auditCheckedFlashCard, auditCheckedTaskCard } = require("./judge");
 const { getWorkerConfig, validateTenant, getServerTime, logTelemetry } = require("./shared");
@@ -8,6 +8,7 @@ const { updateCompanyMemory } = require("./memory");
 const { enforceLanguagePolicy } = require("./language-validator");
 const { OLLAMA_MODEL, STAGE_MODELS } = require("./core");
 const { generateStrategicKeywords, performResearchHarvest } = require("./research");
+const { ingestEvidenceUnit, selectEvidenceForGeneration, buildEvidenceBatches } = require("./evidence");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
@@ -179,34 +180,23 @@ async function runSynthesisCycle(prisma) {
 }
 
 async function performCompanyScrubbing(prisma, company, memoryPrompt, topic, workerContext) {
-  const { canonicalSourceText, getServerTime } = require("./shared");
   const results = await performResearchHarvest(prisma, company, topic);
   let ops = 0;
 
   for (const r of results) {
     try {
-      const canonicalContent = canonicalSourceText(r.content);
-      const canonicalContentHash = crypto.createHash("sha256").update(canonicalContent).digest("hex");
-
-      // v2.0.0: Deduplication check
-      const existing = await prisma.source.findFirst({
-        where: { companyId: company.id, canonicalContentHash }
+      // M1.1: Use canonical evidence ingestion with hash dedup
+      const { isDuplicate } = await ingestEvidenceUnit(prisma, {
+        companyId: company.id,
+        content: r.content,
+        provenance: r.provenance || r.url || null,
+        sourceType: r.sourceType || "WEB",
+        topicHints: r.topicHints || (topic ? [topic.label] : []),
+        freshnessWindowDays: r.freshnessWindowDays || 30,
+        metadata: r.metadata || {},
+        entityTag: r.entityTag || null,
       });
-
-      if (existing) continue;
-
-      await prisma.$transaction(async (tx) => {
-        await tx.source.create({
-          data: {
-            ...r,
-            canonicalContent,
-            canonicalContentHash,
-            canonicalizerVersion: "v2.0.0",
-            createdAt: await getServerTime(prisma)
-          }
-        });
-      });
-      ops++;
+      if (!isDuplicate) ops++;
     } catch (err) {
       console.error(`[SCRUBBER] Failed to ingest result:`, err.message);
     }
@@ -222,46 +212,40 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
   const cid = company.id;
   const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
 
-  // v2.0.0: Identify Sources that have ACTIVE/DRAFT Flashcards
+  // M2.1: Use evidence.js for source selection with topic-hint filtering
+  const topicFilter = topic ? [topic.label] : [];
+  const sources = await selectEvidenceForGeneration(prisma, company, topicFilter, orbitLimit * 3);
+
+  // Filter to unprocessed sources only (no active flashcard linked)
   const synthesizedSourceLinks = await prisma.flashcardSource.findMany({
-    where: { 
+    where: {
       sourceType: "SOURCE",
-      flashcard: { 
-        companyId: cid,
-        activityState: { in: ["ACTIVE", "STALE"] }
-      }
+      flashcard: { companyId: cid, activityState: { in: ["ACTIVE", "STALE"] } }
     },
     select: { sourceId: true }
   });
-  const synthesizedIds = synthesizedSourceLinks.map(l => l.sourceId);
+  const synthesizedIds = new Set(synthesizedSourceLinks.map(l => l.sourceId));
+  const unprocessed = sources.filter(s => !synthesizedIds.has(s.id));
 
-  // Pull unprocessed Sources for this company
-  const sources = await prisma.source.findMany({
-    where: { 
-      companyId: cid, 
-      id: { notIn: synthesizedIds }
-    },
-    take: orbitLimit
-  });
+  // M2.1: Build evidence batches for multi-cardinality synthesis
+  const batches = buildEvidenceBatches(unprocessed, 3);
+  console.log(`[GENERATOR] ${company.name}: ${unprocessed.length} unprocessed sources → ${batches.length} evidence batches`);
 
-  console.log(`[WRITER] ${company.name}: Found ${sources.length} unprocessed sources (already synthesized: ${synthesizedIds.length})`);
-
-  for (const source of sources) {
+  for (const batch of batches.slice(0, orbitLimit)) {
     try {
-      const drafts = await draftFlashcardFromDataCard(prisma, company, source, memoryPrompt, topic);
+      const drafts = await draftFlashcardsFromEvidenceBatch(prisma, company, batch, memoryPrompt, topic);
       if (drafts && drafts.length > 0) {
         for (const draft of drafts) {
           const fingerprint = generateFingerprint({
             companyId: cid,
-            entityId: source.id,
+            entityId: batch.map(b => b.id).join(","),
             stage: "WRITING",
-            input: draft.title // Use draft title in fingerprint for uniqueness
+            input: draft.title
           });
 
           await prisma.$transaction(async (tx) => {
-            // v2.0.0: Clean draft for Prisma create
             const { sourceId, sourceType, ...cleanDraft } = draft;
-            
+
             const fc = await tx.flashcard.create({
               data: {
                 ...cleanDraft,
@@ -269,27 +253,29 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
                 processingStatus: "DRAFT",
                 cycleRunId: workerContext.cycleRunId,
                 createdByRunId: workerContext.cycleRunId,
-                fingerprint,
+                fingerprint: draft.fingerprint || fingerprint,
                 createdAt: await getServerTime(prisma)
               }
             });
 
-            // Link the source
-            await tx.flashcardSource.create({
-              data: {
-                flashcardId: fc.id,
-                sourceId: source.id,
-                sourceType: "SOURCE",
-                sourceName: source.entityTag || "Agent Research",
-                createdAt: await getServerTime(prisma)
-              }
-            });
+            // Link all evidence sources in the batch (supports many→1)
+            for (const src of batch) {
+              await tx.flashcardSource.create({
+                data: {
+                  flashcardId: fc.id,
+                  sourceId: src.id,
+                  sourceType: "SOURCE",
+                  sourceName: src.entityTag || "Agent Research",
+                  createdAt: await getServerTime(prisma)
+                }
+              }).catch(() => {}); // ignore duplicate link errors
+            }
           });
           ops++;
         }
       }
     } catch (err) {
-      console.error(`[WRITER] Failed source:${source.id}:`, err.message);
+      console.error(`[GENERATOR] Failed batch:`, err.message);
     }
   }
   return ops;

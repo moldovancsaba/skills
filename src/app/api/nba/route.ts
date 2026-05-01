@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       // Only show tasks that are not scheduled for the future
       where.OR = [
         { scheduledDate: null },
+        { scheduledDate: { isSet: false } },
         { scheduledDate: { lte: new Date() } }
       ];
     }

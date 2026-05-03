@@ -7,6 +7,7 @@
  */
 import { useState } from "react";
 import { Calendar as CalendarIcon, Check, CheckCheck, CheckCircle, Loader2, MessageSquare, PencilLine, Share2, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { Card, Text, Badge, Button, Group, Stack, TextInput, Textarea, ActionIcon, Tooltip, rem, Select, Drawer, Loader, Divider, Paper, Alert } from "@mantine/core";
 import { useClipboard } from "@mantine/hooks";
@@ -14,6 +15,7 @@ import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { DatePicker } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
 import { getIceColorClasses } from "@/lib/ice-colors";
+import { TraceViewer } from "@/components/trace-viewer";
 
 /**
  * Valid action modes for task feedback.
@@ -94,24 +96,6 @@ export function TaskReviewCard({
   onPostpone,
 }: TaskReviewCardProps) {
   const [traceOpen, setTraceOpen] = useState(false);
-  const [traceData, setTraceData] = useState<any>(null);
-  const [loadingTrace, setLoadingTrace] = useState(false);
-
-  const fetchTrace = async () => {
-    setTraceOpen(true);
-    if (traceData) return;
-    setLoadingTrace(true);
-    try {
-      const res = await fetch(`/api/nba/trace?id=${item.id}`);
-      const data = await res.json();
-      setTraceData(data);
-    } catch (e) {
-      console.error("Failed to fetch trace:", e);
-    } finally {
-      setLoadingTrace(false);
-    }
-  };
-
   const clipboard = useClipboard({ timeout: 2000 });
   
   const DECLINE_OPTIONS = [
@@ -250,7 +234,7 @@ export function TaskReviewCard({
               <Button size="compact-xs" variant="subtle" color="cyan" radius="xl">Refresh</Button>
             </Tooltip>
             <Tooltip label="View intelligence lineage">
-              <Button size="compact-xs" variant="subtle" color="violet" radius="xl" onClick={fetchTrace}>View Trace</Button>
+              <Button size="compact-xs" variant="subtle" color="violet" radius="xl" onClick={() => setTraceOpen(true)}>View Trace</Button>
             </Tooltip>
             
             {onPostpone && (
@@ -265,72 +249,15 @@ export function TaskReviewCard({
           </Group>
         </Stack>
       </Card.Section>
-      <Drawer
-        opened={traceOpen}
-        onClose={() => setTraceOpen(false)}
-        title={<Text fw={900} size="xl">Intelligence Trace</Text>}
-        position="right"
-        size="md"
-        padding="xl"
-        styles={{
-          header: { background: "var(--mantine-color-dark-7)" },
-          content: { background: "var(--mantine-color-dark-8)" }
-        }}
-      >
-        <Stack gap="xl">
-          <div>
-            <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed" mb="xs">Tactical Unit</Text>
-            <Text fw={700} size="lg" c="white">{item.title}</Text>
-          </div>
 
-          <Divider color="dark.4" />
-
-          {loadingTrace ? (
-            <Group justify="center" py="xl">
-              <Loader size="sm" color="violet" />
-              <Text size="sm" c="dimmed">Reconstructing lineage tree...</Text>
-            </Group>
-          ) : traceData?.trace?.length > 0 ? (
-            traceData.trace.map((step: any, idx: number) => (
-              <Paper key={step.flashcard.id} p="md" radius="md" bg="dark.6" withBorder>
-                <Stack gap="md">
-                  <div>
-                    <Badge size="xs" color="violet" mb={4}>Evidence Point {idx + 1}</Badge>
-                    <Text fw={700} size="sm" c="white">{step.flashcard.title}</Text>
-                    <Text size="xs" c="dimmed" mt={4} lineClamp={3}>{step.flashcard.content}</Text>
-                  </div>
-                  
-                  <Divider color="dark.5" variant="dashed" />
-
-                  <div>
-                    <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed" mb="xs">Original Sources</Text>
-                    <Stack gap="xs">
-                      {step.evidence.map((ev: any) => (
-                        <Group key={ev.id} gap="xs">
-                          <Badge size="xs" variant="dot" color={ev.type === "FILE" ? "blue" : "indigo"}>
-                            {ev.type}
-                          </Badge>
-                          <Text size="xs" c="white" truncate flex={1}>{ev.name}</Text>
-                          <Text size="xs" c="dimmed" fs="italic">via {ev.provenance}</Text>
-                        </Group>
-                      ))}
-                    </Stack>
-                  </div>
-                </Stack>
-              </Paper>
-            ))
-          ) : (
-             <Text size="sm" c="dimmed" ta="center" py="xl">No lineage data available for this item.</Text>
-          )}
-
-          <Alert variant="light" color="violet" mt="xl">
-            <Text size="xs">
-              Trace visualization shows the semantic path from raw data to this proposal.
-              Sovereign Trinity maintains full provenance for every autonomous decision.
-            </Text>
-          </Alert>
-        </Stack>
-      </Drawer>
+      <AnimatePresence>
+        {traceOpen && (
+          <TraceViewer 
+            versionFamilyId={(item as any).versionFamilyId || item.id} 
+            onClose={() => setTraceOpen(false)} 
+          />
+        )}
+      </AnimatePresence>
     </Card>
   );
 }

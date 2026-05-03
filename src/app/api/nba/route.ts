@@ -111,10 +111,9 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    // Reactive Frontier Recompute
-    const { triggerFrontierRecompute } = require("../../../../../scripts/lib/frontier");
-    await triggerFrontierRecompute(prisma, existing.companyId);
-
+    // NOTE: The Kanban column update is immediately persisted to the database.
+    // The local Trinity Guardian worker detects the change on its next synthesis
+    // cycle and autonomously recomputes the frontier. No server-side trigger needed.
     return NextResponse.json(updated);
   } catch (error) {
     console.error("[API:NBA] Patch failure:", error);

@@ -1,80 +1,79 @@
 # 🌌 Sovereign checklist (Marketing OS)
+> **The Autonomous Recurrent Intelligence Layer for Strategic Marketing.**
 
-> **The Standalone Decentralized Intelligence Layer for Strategic Marketing.**
+**v1.2.0: Recurrent Kanban Release**
 
-**checklist** is a high-performance, private-first autonomous intelligence system. It bridges the gap between raw market evidence and executive strategy by leveraging a unique **Local AI Authoritative Architecture**. This ensures data sovereignty while providing access to state-of-the-art AI reasoning without external cloud processing of proprietary logic.
+**checklist** is a high-performance, private-first autonomous intelligence system. It implements the **Recurrent-Depth Transformer (RDT)** philosophy at the agent level, bridging the gap between raw market evidence and executive strategy through iterative self-refinement.
 
 ---
 
 ## 🏛️ Core Philosophy: Total Independence
-Unlike traditional SaaS tools that ingest your proprietary data into a central cloud, **checklist** operates as a hardened, standalone strategic asset.
+**checklist** operates as a hardened, standalone strategic asset, enforcing data sovereignty through local inference.
 
-1.  **Local Authority (Trinity Engine)**: All deep reasoning, ICE scoring, and knowledge synthesis occur on **your private infrastructure** via Ollama. No proprietary data is processed by external Sovereign/Nexus services.
-2.  **Inventory Guard (Hard Bottlenecking)**: The engine enforces a strict **100-card limit** per organization. Once the checklist inventory reaches 100 active items, autonomous synthesis pauses to prevent resource overflow and cognitive clutter.
-3.  **Language Purity**: Strict organization-level language policies ensure the knowledge base remains 100% monolingual or adheres to specific approved languages. Disallowed content is purged automatically during synthesis.
+1.  **Recurrent Reasoning (RDT Engine)**: The Drafter agent now processes intelligence in three computational phases (**Prelude, Recurrence, Coda**), anchoring every loop with raw evidence injection to prevent hallucination.
+2.  **Tactical Kanban Orchestration**: A 5-column tactical board (**Idea Bank → Roadmap → Backlog → Todo → Checklist**) automatically organizes tasks based on multi-factor ICE scoring (Impact, Confidence, Ease).
+3.  **Strategic Learning**: The system harvests manual "Hard Feedback" from the Kanban board. When you drag a card to a high-priority position, the AI learns your tactical intent and steers future generations toward those themes.
 
 ---
 
-## 🌪️ The AI Trinity Pipeline
-Strategic synthesis is governed by a three-pass autonomous loop, enforcing strict mathematical boundaries (Axioms).
+## 🌪️ The AI Trinity Pipeline (v1.2.0)
+Strategic synthesis is governed by a recurrent multi-pass loop, enforcing strict mathematical boundaries.
 
-| Agent | Pass | Role & Objective |
+| Agent | Architecture | Role & Objective |
 | :--- | :--- | :--- |
-| **DRAFTER** | Pass 1 | **Evidence Extraction**: Scrubs raw sources, transcripts, and files to identify atomic insights and predict initial 1-10 metrics. |
-| **WRITER** | Pass 2 | **Strategic Synthesis**: Refines language, eliminates duplicates, and strictly calculates the **ICE Priority Score** (Impact × Confidence × Ease). |
-| **JUDGE** | Pass 3 | **Quality Audit**: Hardens the knowledge layer by rejecting low-confidence items and enforcing a statistical quality floor. |
+| **DRAFTER** | **Recurrent RDT** | **Evidence Extraction**: Performs 3-pass iterative reasoning over raw sources to extract atomic strategic insights. |
+| **WRITER** | **Strategic Refiner** | **Synthesis**: Refines language, eliminates semantic duplicates, and strictly calculates the **ICE Priority Score**. |
+| **JUDGE** | **Tournament Voter** | **Quality Audit**: Performs multi-model consensus judging to reject low-confidence items and ensure 100% language purity. |
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## 📋 Tactical Horizons (Kanban)
+The system automatically distributes taskcards across five tactical horizons based on their **ICE Score**:
 
-*   **Intelligence Layer**: Local `Ollama` running specialized agent models (`qwen2.5:7b`, `gemma3:1b`).
-*   **Frontend**: Next.js 16 (App Router) + React 18 + Mantine UI + TailwindCSS.
-*   **Styling**: Theme-aware "Aesthetic Premium" tokens with dynamic contrast support for Light/Dark modes.
-*   **Persistence**: Prisma + MongoDB Atlas (Decoupled command-and-control).
-*   **Security**: Secret-protected Ingest API (`verifyIngestSecret`) for programmatic data entry.
+*   **NOW (Checklist)**: ICE ≥ 700. The active frontier for immediate execution.
+*   **NEXT (Todo)**: ICE ≥ 500. High-value tasks ready for the next sprint.
+*   **SOONER (Backlog)**: ICE ≥ 250. Validated insights awaiting tactical capacity.
+*   **LATER (Roadmap)**: ICE ≥ 100. Long-term strategic possibilities.
+*   **SOMEDAY (Idea Bank)**: ICE < 100. Raw seeds and low-priority concepts.
 
 ---
 
-## 🚀 Deployment & Operations
+## 🛠️ Technological Foundation
+*   **Intelligence**: Local `Ollama` stack with RDT-simulation loops.
+*   **Frontend**: Next.js 16 (App Router) + Mantine UI (SSR-Safe Tactical Board).
+*   **Learning**: Context-aware priority harvesting (Strategic Context v2.0).
+*   **Persistence**: Prisma + MongoDB Atlas + Periodic Guardian Orchestration.
 
-### 1. Prerequisites
-*   Node.js v20+
-*   MongoDB Atlas Connection String
-*   Ollama (installed on private local infrastructure)
+---
 
-### 2. Environment Configuration
-Create a `.env` file:
+## 🚀 Operations & Deployment
+
+### 1. Environment Configuration
+Create a `.env` file with your private infrastructure details:
 ```bash
 DATABASE_URL="mongodb+srv://..."
 INGEST_SECRET="your-secure-token"
 OLLAMA_URL="http://localhost:11434"
 ```
 
-### 3. Setup & Installation
+### 2. Ignition
 ```bash
-git clone https://github.com/sovereignsquad/checklist.git
-cd checklist
-npm install
-npm run db:push
-```
+# Initialize the database
+npx prisma db push
 
-### 4. Running the System
-Start the web dashboard:
-```bash
+# Start the dashboard
 npm run dev
-```
 
-Ignite the **Guardian Watchdog** (handles the Trinity Engine background loop):
-```bash
+# Ignite the Guardian Watchdog (Trinity Engine)
 npm run guardian
 ```
 
 ---
 
 ## 🗺️ Product Roadmap
-*   [x] **v0.12.0**: Trinity Hardening & Sovereign Pulse implementation.
-*   [x] **v0.14.0**: Production Hardening, 100-Card Bottlenecking, and Standalone Decoupling.
-*   [ ] **v1.0.0**: Multi-agent tournament judging & Executive Summary synthesis.
+*   [x] **v0.14.0**: Production Hardening & Standalone Decoupling.
+*   [x] **v1.0.0**: Multi-agent tournament judging & Executive Summary synthesis.
+*   [x] **v1.2.0**: **Recurrent Kanban Intelligence & Strategic Learning.**
+*   [ ] **v1.4.0**: Recursive Deliberation (Multi-pass Evaluator) & Autonomous Budget Forecasting.
 
-*Built with precision for the Sovereign Marketing OS.*
+*Built for the Sovereign Marketing Executive.*

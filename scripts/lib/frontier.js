@@ -1,21 +1,20 @@
 /**
- * TRINITY FRONTIER SELECTOR
- * M3.1 — Top-3 with Multi-Factor Scoring and Three-Tier Fallback
- * v1.0.0
+ * TRINITY FRONTIER ORCHESTRATOR
+ * M3.1 — 5-Horizon Kanban Distribution & Manual Priority Harvesting
+ * v1.2.0-PRODUCTION
  *
- * Implements the recompute_frontier function from Trinity formal production definition §15.
+ * Implements the recomputeFrontier function from Trinity formal production definition §15.
+ * 
+ * Orchestrates taskcards across 5 tactical horizons based on ICE thresholds (§24):
+ *   - CHECKLIST: ICE >= 700 (max 3, unless manual)
+ *   - TODO:      ICE >= 500
+ *   - BACKLOG:   ICE >= 250
+ *   - ROADMAP:   ICE >= 100
+ *   - IDEABANK:  ICE < 100
  *
- * The Frontier is the bounded surface of at most 3 items surfaced to the user.
- * Selection uses a multi-factor scoring function:
- *   frontierScore = stateWeight × qualityWeight × urgencyWeight × freshnessWeight × feedbackWeight × priorityWeight
- *
- * Three-tier fallback (§15.5):
- *   Tier 1: EVALUATED candidates
- *   Tier 2: REFINED candidates (if tier 1 is insufficient)
- *   Tier 3: GENERATED candidates (if tier 2 is insufficient)
- *
- * MANDATORY (§24): Frontier MUST NOT be empty when any eligible candidates exist.
- * MANDATORY: Duplicate cluster siblings MUST NOT appear simultaneously.
+ * Manual Priority (§24.5):
+ *   User-defined drags set sortOrder < 0. These are "Hard Anchors" that override 
+ *   ICE thresholds and force the candidate to the CHECKLIST/TODO horizons.
  */
 const { CandidateState } = require("./lifecycle");
 

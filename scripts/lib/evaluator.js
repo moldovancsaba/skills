@@ -1,7 +1,7 @@
 /**
  * TRINITY EVALUATOR
- * M2.3 — Relative Comparison Pool Scoring & Starvation-Safe Disposition
- * v0.14.0-PRODUCTION (Hardened)
+ * M2.3 — Tournament Consensus Judging & Strategic Steering
+ * v1.2.0-PRODUCTION
  */
 const { callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, trinity_JUDGE_TIMEOUT_MS, queueAiInference } = require("./core");

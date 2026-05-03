@@ -2,10 +2,11 @@ const { truncate } = require("./shared");
 
 /**
  * checklist STRATEGIC CONTEXT
- * v0.11.4-STABLE
+ * v1.2.0-PRODUCTION
  * 
  * Orchestrates the "Strategic Stack" for AI agents.
- * Aggregates TopicCards, recent verified Flashcards, and active TaskCards into a unified context prompt.
+ * Harvests user-defined tactical priorities from the Kanban board (sortOrder < 0)
+ * to steer the Trinity pipeline towards user-indicated focus areas.
  */
 /**
  * Builds a comprehensive strategic prompt containing the company's focus, recent insights, and existing tasks.

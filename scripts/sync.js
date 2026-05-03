@@ -14,10 +14,13 @@ const DEFAULT_IDLE_INTERVAL = 300000;      // 5 minutes default
 
 /**
  * trinity ORCHESTRATOR
- * v0.11.4-STABLE
+ * v1.2.0-PRODUCTION
  * 
  * Main entry point for the background AI synthesis loop.
- * Orchestrates the recurring execution of the trinity pipeline and serves health metrics.
+ * Orchestrates the recurring execution of the Trinity pipeline:
+ *   1. DRAFTER: Recurrent RDT Evidence Extraction
+ *   2. WRITER: Strategic Synthesis & ICE Calculation
+ *   3. JUDGE: Tournament Consensus & Strategic Learning
  */
 const { runSynthesisCycle, getSynthesisProgress, collectGlobalWorkerSettings, updateProgress, synthesisState } = require("./lib/synthesis");
 const { scrubDatabaseElemental } = require("./lib/maintenance");

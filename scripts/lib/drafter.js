@@ -1,17 +1,17 @@
 /**
  * TRINITY GENERATOR (Drafter)
- * M2.1 — Multi-Cardinality Synthesis & Coverage Optimization
- * v0.13.0
+ * M2.1 — Multi-Cardinality Synthesis & Recurrent Depth Transformer (RDT)
+ * v1.2.0-PRODUCTION
  *
  * Implements the Generator stage from the Trinity formal production definition §8.
+ * Refactored into a Multi-Phase Recurrent Agent loop inspired by the OpenMythos RDT philosophy.
  *
- * Key changes from v0.11.4:
- *   - Supports all four evidence cardinalities: 1→1, 1→many, many→1, many→many
- *   - Evidence batching by topic hints (via evidence.js)
- *   - Pre-persistence dedup against active inventory
- *   - Writes CandidateState.GENERATED and lineage fields (generatedFromIds, versionFamilyId)
- *   - Attaches semanticTags[] and sourceRefs[] to each candidate
- *   - Optimizes for coverage (recall) not polish
+ * Key changes since v1.0.0:
+ *   - Recurrent Synthesis: 3-phase computational loop (Prelude, Recurrence, Coda).
+ *   - Input Injection (§217): Re-injects raw evidence in every loop to prevent drift.
+ *   - Strategic Learning: Harvests user-defined Kanban priorities from context.js.
+ *   - Cardinality Support: 1→1, 1→many, many→1, many→many.
+ *   - Lineage Preservation: versionFamilyId and generatedFromIds tracking.
  */
 const crypto = require("crypto");
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
@@ -129,7 +129,10 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
   let currentDraftsRaw = null;
   let finalDraftsArray = [];
 
-  // --- RECURRENT SYNTHESIS LOOP (Phase 4 / Mythos RDT Logic) ---
+  // --- RECURRENT SYNTHESIS LOOP (Mythos RDT Logic §315) ---
+  // We simulate "Recurrent Depth" by iterating the model over its own latent 
+  // draft. This allows for deeper reasoning while remaining grounded via 
+  // continuous input injection.
   for (let loop = 0; loop < maxLoops; loop++) {
     const isFirstLoop = loop === 0;
     

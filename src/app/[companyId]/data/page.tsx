@@ -299,8 +299,6 @@ export default function CompanyDataPage() {
           title={editingId ? "Edit Data" : "Add Data"}
           description={editingId ? "Edit the selected raw source from the list below." : "Store raw URLs, notes, and files with hashtags. Processing happens later."}
         />
-        
-        </div>
       </motion.div>
 
       <Card>

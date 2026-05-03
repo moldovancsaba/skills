@@ -522,8 +522,6 @@ export default function CompanyKnowMorePage() {
           title="Knowmore"
           description={`Flashcards and knowledge slices for ${company?.name ?? "this company"}.`}
         />
-
-        </div>
       </motion.div>
 
       <MetricGrid>

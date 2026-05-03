@@ -66,6 +66,7 @@ export default function CompanyDashboard() {
   const [isOwner, setIsOwner] = useState(false);
   const [topTasks, setTopTasks] = useState<NBAItem[]>([]);
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
+  const [tacticalCount, setTacticalCount] = useState(0);
   const [flashcardCount, setFlashcardCount] = useState(0);
   const [fileCount, setFileCount] = useState(0);
   const [topicCount, setTopicCount] = useState(0);
@@ -95,7 +96,7 @@ export default function CompanyDashboard() {
     const [s, f, nba, knowmore, topics, members, analytics] = await Promise.all([
       safeFetch(`/api/sources?companyId=${cid}`),
       safeFetch(`/api/data-files?companyId=${cid}`),
-      safeFetch(`/api/nba?companyId=${cid}`),
+      safeFetch(`/api/nba?companyId=${cid}&all=true`),
       safeFetch(`/api/knowmore?companyId=${cid}`),
       safeFetch(`/api/topics?companyId=${cid}`),
       safeFetch(`/api/companies/${cid}/members`),
@@ -111,13 +112,19 @@ export default function CompanyDashboard() {
 
     const safeNBA = Array.isArray(nba) ? nba as NBAItem[] : [];
     const now = new Date();
-    const pendingTasks = safeNBA.filter((item) =>
-      ["DRAFT", "CHECKED", "VERIFIED"].includes(item.processingStatus) &&
+    
+    // Unified Tactical Logic (§24): 
+    // - Tactical Count is the total inventory of active candidates
+    // - Pending Task (Checklist) count is ONLY items in the CHECKLIST column
+    const checklistTasks = safeNBA.filter((item) =>
+      item.kanbanColumn === "CHECKLIST" &&
       ["ACTIVE", "STALE"].includes(item.activityState) &&
       (!item.scheduledDate || new Date(item.scheduledDate) <= now)
     );
-    setPendingTaskCount(pendingTasks.length);
-    setTopTasks(pendingTasks.slice(0, 3));
+    
+    setTacticalCount(safeNBA.length);
+    setPendingTaskCount(checklistTasks.length);
+    setTopTasks(checklistTasks.slice(0, 3));
 
     // Get current user session to determine role
     const sessionRes = await fetch("/api/auth/session");
@@ -273,7 +280,7 @@ export default function CompanyDashboard() {
         />
       </motion.div>
 
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md" mb="xl">
+      <SimpleGrid cols={{ base: 1, sm: 2, md: 5 }} spacing="md" mb="xl">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <LinkCard
             href={`/${companyId}/data`}
@@ -313,8 +320,19 @@ export default function CompanyDashboard() {
             icon={Zap}
             variant="violet"
             metric={pendingTaskCount}
-            title="checklist"
-            description="High-impact actions"
+            title="Checklist"
+            description="Active 'Now' tasks"
+            chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
+          />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
+          <LinkCard
+            href={`/${companyId}/tactical`}
+            icon={ListOrdered}
+            variant="cyan"
+            metric={tacticalCount}
+            title="Tactical Board"
+            description="5-horizon orchestration"
             chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
           />
         </motion.div>

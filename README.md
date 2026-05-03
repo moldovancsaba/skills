@@ -1,17 +1,17 @@
-# 🌌 Sovereign Marketing OS
+# 🌌 Sovereign checklist (Marketing OS)
 
-> **The Decentralized Intelligence Layer for Strategic Marketing.**
+> **The Standalone Decentralized Intelligence Layer for Strategic Marketing.**
 
-Sovereign Marketing OS is a high-performance, private-first autonomous intelligence system. It bridges the gap between raw market evidence and executive strategy by leveraging a unique **Online/Local split-architecture**. This ensures data sovereignty while providing access to state-of-the-art AI reasoning.
+**checklist** is a high-performance, private-first autonomous intelligence system. It bridges the gap between raw market evidence and executive strategy by leveraging a unique **Local AI Authoritative Architecture**. This ensures data sovereignty while providing access to state-of-the-art AI reasoning without external cloud processing of proprietary logic.
 
 ---
 
-## 🏛️ Core Philosophy: Sovereign Mode
-Unlike traditional SaaS tools that ingest your proprietary data into a central cloud, Sovereign Marketing OS treats your data as a protected strategic asset.
+## 🏛️ Core Philosophy: Total Independence
+Unlike traditional SaaS tools that ingest your proprietary data into a central cloud, **checklist** operates as a hardened, standalone strategic asset.
 
-1.  **Passive Ingress**: The cloud-side web interface captures signals and intent without processing proprietary logic in the cloud.
-2.  **Local Authority (Trinity Engine)**: All deep reasoning, ICE scoring, and knowledge synthesis occur on **your private infrastructure** (Local AI).
-3.  **The Pulse**: A real-time, one-way bridge synchronizes the state of your local intelligence engine to the cloud dashboard, providing total transparency without exposing your network.
+1.  **Local Authority (Trinity Engine)**: All deep reasoning, ICE scoring, and knowledge synthesis occur on **your private infrastructure** via Ollama. No proprietary data is processed by external Sovereign/Nexus services.
+2.  **Inventory Guard (Hard Bottlenecking)**: The engine enforces a strict **100-card limit** per organization. Once the checklist inventory reaches 100 active items, autonomous synthesis pauses to prevent resource overflow and cognitive clutter.
+3.  **Language Purity**: Strict organization-level language policies ensure the knowledge base remains 100% monolingual or adheres to specific approved languages. Disallowed content is purged automatically during synthesis.
 
 ---
 
@@ -21,71 +21,60 @@ Strategic synthesis is governed by a three-pass autonomous loop, enforcing stric
 | Agent | Pass | Role & Objective |
 | :--- | :--- | :--- |
 | **DRAFTER** | Pass 1 | **Evidence Extraction**: Scrubs raw sources, transcripts, and files to identify atomic insights and predict initial 1-10 metrics. |
-| **WRITER** | Pass 2 | **Strategic Synthesis**: Refines language, eliminates duplicates, and strictly calculates the **ICE Priority Score**. |
+| **WRITER** | Pass 2 | **Strategic Synthesis**: Refines language, eliminates duplicates, and strictly calculates the **ICE Priority Score** (Impact × Confidence × Ease). |
 | **JUDGE** | Pass 3 | **Quality Audit**: Hardens the knowledge layer by rejecting low-confidence items and enforcing a statistical quality floor. |
-
----
-
-## 💎 Core Axioms (The Rules of Intelligence)
-*   **Mathematical Merit**: No item is promoted without a calculated ICE Score (Impact × Confidence × Ease).
-*   **Default Skepticism**: New entities start with a "Quality Floor" check. If the Judge cannot verify the value, the item remains in **Review**.
-*   **Human-in-the-loop**: High-ambiguity data is routed to the **Review Stage**, where human operators provide the "ground truth" that the engine uses to learn.
-*   **Provenance**: Every flashcard and task is linked back to its original source material, ensuring verifiable intelligence.
-*   **Synthesis Guardrails**: 
-    *   **Knowmore (10x Ratio)**: Flashcard generation is suspended in favor of enrichment if the card-to-source ratio exceeds 10x.
-    *   **Checklist (50 Limit)**: Task generation pivots to refinement/merging once an organization has more than 50 active items.
-
-#### Organization Language Governance
-The system enforces strict linguistic boundaries based on organization policy (`allowedLanguages`). Trinity agents detect the content language using `languagedetect`. Any card generated in a disallowed language is **deleted immediately** to ensure knowledge base purity. For multi-lingual organizations, APERTUS principles apply only within the scope of approved languages.
 
 ---
 
 ## 🛠️ Architecture & Tech Stack
 
-*   **Intelligence Layer**: Local `Ollama` running specialized agent models (Drafter, Writer, Judge).
-*   **Frontend**: Next.js 16 (App Router) + React 18 + TailwindCSS.
-*   **Design**: Unified "Deep Dark" aesthetics with dynamic ICE color mapping.
+*   **Intelligence Layer**: Local `Ollama` running specialized agent models (`qwen2.5:7b`, `gemma3:1b`).
+*   **Frontend**: Next.js 16 (App Router) + React 18 + Mantine UI + TailwindCSS.
+*   **Styling**: Theme-aware "Aesthetic Premium" tokens with dynamic contrast support for Light/Dark modes.
 *   **Persistence**: Prisma + MongoDB Atlas (Decoupled command-and-control).
+*   **Security**: Secret-protected Ingest API (`verifyIngestSecret`) for programmatic data entry.
 
 ---
 
 ## 🚀 Deployment & Operations
 
 ### 1. Prerequisites
-*   Node.js v18+
+*   Node.js v20+
 *   MongoDB Atlas Connection String
 *   Ollama (installed on private local infrastructure)
 
-### 2. Setup & Installation
+### 2. Environment Configuration
+Create a `.env` file:
+```bash
+DATABASE_URL="mongodb+srv://..."
+INGEST_SECRET="your-secure-token"
+OLLAMA_URL="http://localhost:11434"
+```
+
+### 3. Setup & Installation
 ```bash
 git clone https://github.com/sovereignsquad/checklist.git
 cd checklist
 npm install
-```
-
-### 3. Database Sync
-```bash
-# Push schema to your MongoDB instance
 npm run db:push
-npm run db:generate
 ```
 
-### 4. Igniting the Engine
+### 4. Running the System
 Start the web dashboard:
 ```bash
 npm run dev
 ```
 
-In a separate terminal, ignite the local **Trinity Engine** background loop:
+Ignite the **Guardian Watchdog** (handles the Trinity Engine background loop):
 ```bash
-npm run background
+npm run guardian
 ```
 
 ---
 
 ## 🗺️ Product Roadmap
-*   [x] **v0.11.0**: Sovereign Pulse implementation & Trinity Hardening.
-*   [ ] **v0.12.0**: Advanced Multi-Tenant signal ingestion & Predictive Industry Tagging.
-*   [ ] **v1.0.0**: Fully autonomous executive summary generation.
+*   [x] **v0.12.0**: Trinity Hardening & Sovereign Pulse implementation.
+*   [x] **v0.14.0**: Production Hardening, 100-Card Bottlenecking, and Standalone Decoupling.
+*   [ ] **v1.0.0**: Multi-agent tournament judging & Executive Summary synthesis.
 
-*Built with precision by Sovereign Squad.*
+*Built with precision for the Sovereign Marketing OS.*

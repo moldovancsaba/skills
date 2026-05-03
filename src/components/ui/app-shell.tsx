@@ -1,6 +1,6 @@
 /**
  * UNIFIED PAGE ARCHITECTURE
- * v0.11.3-PRODUCTION
+ * v0.14.0-PRODUCTION (Hardened)
  * 
  * Defines standardized layout primitives for the checklist.
  * - PageShell: Handles horizontal scaling (width="full" for screen-wide dashboards).

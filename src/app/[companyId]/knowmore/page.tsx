@@ -1,6 +1,6 @@
 /**
  * KNOWMORE INTELLIGENCE PAGE
- * v0.11.3-PRODUCTION
+ * v0.14.0-PRODUCTION (Hardened)
  * 
  * Implements Unified Page Architecture:
  * - PageShell: Full-Width Layout

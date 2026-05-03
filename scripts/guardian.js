@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
  * checklist GUARDIAN
- * v0.11.4-STABLE
+ * v0.14.0-PRODUCTION (Hardened)
  * 
  * A production-grade watchdog for the trinity Worker (scripts/sync.js).
  * Responsibilities:
  *   - Launches sync.js as a child process.
  *   - Monitors it via the /health endpoint (Port 10005).
- *   - Detects crashes, hangs (stuck in a stage for > STUCK_MS), and exits.
+ *   - Detects crashes, hangs, and resource leaks.
  *   - Auto-restarts with exponential back-off (max 5 min).
  *   - Logs everything to logs/guardian.log with timestamps.
  */

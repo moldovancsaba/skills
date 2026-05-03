@@ -469,6 +469,29 @@ heartbeatTimer = setInterval(() => writeHeartbeat(), 15_000);
 // Periodic command bridge check (Phase 2)
 commandTimer = setInterval(pollCommands, 20_000); 
 
+// Periodic Kanban Orchestration (§24 — ICE-threshold redistribution)
+// Runs every 10 minutes. Re-evaluates all companies and redistributes
+// taskcards across the 5 tactical horizons based on current ICE scores.
+const KANBAN_RECOMPUTE_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+async function recomputeAllKanbanBoards() {
+  try {
+    const { recomputeFrontier } = require("./lib/frontier");
+    const companies = await prisma.company.findMany({ select: { id: true, name: true } });
+    log(`[KANBAN] Recomputing tactical boards for ${companies.length} company/companies...`);
+    for (const company of companies) {
+      await recomputeFrontier(prisma, company);
+    }
+    log(`[KANBAN] Tactical board recompute complete.`);
+  } catch (e) {
+    err(`[KANBAN] Recompute failed: ${e.message}`);
+  }
+}
+
+setInterval(recomputeAllKanbanBoards, KANBAN_RECOMPUTE_INTERVAL);
+// Also run once at startup after a short grace period
+setTimeout(recomputeAllKanbanBoards, 30_000);
+
 // Graceful self-shutdown
 process.on("SIGTERM", () => {
   log("Guardian received SIGTERM. Shutting down worker.");

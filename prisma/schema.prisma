@@ -222,7 +222,7 @@ model NBAItem {
   duplicateClusterId String?    // links semantic duplicate siblings
   generatedFromIds   String[]   @default([]) // source evidence IDs
   refinedFromId      String?    // the generated candidate this was refined from
-  kanbanColumn       NBAKanbanColumn @default(BACKLOG)
+  kanbanColumn       NBAKanbanColumn @default(IDEABANK)
   sortOrder          Float      @default(0)
 
   @@unique([companyId, fingerprint])

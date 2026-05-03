@@ -188,26 +188,55 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   // 5. Global Rank by frontier score descending
   deduplicated.sort((a, b) => b._frontierScore - a._frontierScore);
 
-  // 6. Multi-Column Distribution (§24)
-  // CHECKLIST: Top 3 (or configured MAX)
-  // TODO: Next 5
-  // BACKLOG: Next 15
-  // ROADMAP: Next 50
-  // IDEABANK: Remainder
-  
-  const checklist = deduplicated.slice(0, FRONTIER_MAX_SIZE);
-  const todo = deduplicated.slice(FRONTIER_MAX_SIZE, FRONTIER_MAX_SIZE + 5);
-  const backlog = deduplicated.slice(FRONTIER_MAX_SIZE + 5, FRONTIER_MAX_SIZE + 20);
-  const roadmap = deduplicated.slice(FRONTIER_MAX_SIZE + 20, FRONTIER_MAX_SIZE + 70);
-  const ideabank = deduplicated.slice(FRONTIER_MAX_SIZE + 70);
+  // ---------------------------------------------------------------------------
+  // 6. ICE-Threshold Column Distribution (§24)
+  // ---------------------------------------------------------------------------
+  // Cards earn their column by ICE score. Higher ICE = closer to execution.
+  // Thresholds are intentional gates — a card must improve to advance.
+  //
+  //   CHECKLIST  : ICE >= 700 (hard-capped at FRONTIER_MAX_SIZE = 3)
+  //   TODO       : ICE >= 500
+  //   BACKLOG    : ICE >= 250
+  //   ROADMAP    : ICE >= 100
+  //   IDEABANK   : ICE <  100  (default holding pen for all new cards)
 
-  const columnMap = [
-    { items: checklist, column: "CHECKLIST" },
-    { items: todo, column: "TODO" },
-    { items: backlog, column: "BACKLOG" },
-    { items: roadmap, column: "ROADMAP" },
-    { items: ideabank, column: "IDEABANK" }
+  const ICE_THRESHOLD = {
+    CHECKLIST: 700,
+    TODO:      500,
+    BACKLOG:   250,
+    ROADMAP:   100,
+  };
+
+  const columnMap: { items: typeof deduplicated; column: string }[] = [
+    { items: [], column: "CHECKLIST" },
+    { items: [], column: "TODO" },
+    { items: [], column: "BACKLOG" },
+    { items: [], column: "ROADMAP" },
+    { items: [], column: "IDEABANK" },
   ];
+
+  for (const item of deduplicated) {
+    const ice = item.iceScore || 0;
+
+    // Respect user-set hard priority (sortOrder < 0) — always surface to CHECKLIST
+    if (item.sortOrder < 0) {
+      if (columnMap[0].items.length < FRONTIER_MAX_SIZE) {
+        columnMap[0].items.push(item);
+      } else {
+        columnMap[1].items.push(item); // overflow to TODO
+      }
+    } else if (ice >= ICE_THRESHOLD.CHECKLIST && columnMap[0].items.length < FRONTIER_MAX_SIZE) {
+      columnMap[0].items.push(item);
+    } else if (ice >= ICE_THRESHOLD.TODO) {
+      columnMap[1].items.push(item);
+    } else if (ice >= ICE_THRESHOLD.BACKLOG) {
+      columnMap[2].items.push(item);
+    } else if (ice >= ICE_THRESHOLD.ROADMAP) {
+      columnMap[3].items.push(item);
+    } else {
+      columnMap[4].items.push(item);
+    }
+  }
 
   console.log(`[KANBAN] ${company.name}: Orchestrating ${deduplicated.length} items across 5 columns.`);
 

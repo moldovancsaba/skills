@@ -100,12 +100,18 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
 
   const isGrouped = evidenceBatch.length > 1;
 
+  const hasCrm = evidenceBatch.some(e => e.sourceType === "CRM");
+  const crmGuidance = hasCrm
+    ? `\n### [CRM CONTEXT HARVESTING ACTIVATED]\nYou are processing high-fidelity CRM data. You MUST look for customer-specific pain points, product adoption signals, or competitor mentions in the data blobs. Be extremely specific with customer entity names and proprietary product IDs if they are present.`
+    : "";
+
   const systemPrompt = [
     "You are the checklist GENERATOR (formerly Drafter). Your goal is to extract intelligence from evidence into structured KnowledgeItems (FlashCards).",
     "Your synthesis MUST align with the following strategic context of the company:",
     strategicContext,
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nYou MUST prioritize insights that relate to: ${topic.notes || topic.label}\n` : "",
     skillPrompt,
+    crmGuidance,
     isGrouped
       ? `\nYou are processing ${evidenceBatch.length} RELATED evidence units simultaneously. Look for CROSS-EVIDENCE insights — patterns, correlations, or compound conclusions that only emerge when considering all evidence together. You MUST emit at least one cross-evidence candidate if one exists.`
       : "\nYou are processing one evidence unit. Extract all distinct insights — you may emit MULTIPLE KnowledgeItems if the evidence contains distinct insights.",

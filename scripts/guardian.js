@@ -19,6 +19,8 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
 // --- CONFIGURATION ---
 const WORKER_SCRIPT    = path.join(__dirname, "sync.js");
@@ -83,6 +85,64 @@ let healthCheckTimer   = null;
 let heartbeatTimer     = null;
 let useSafeMode        = false; // If true, tells worker to use fallback model
 let resourceStats      = { freeMem: 0, totalMem: 0, loadAvg: [] };
+let commandTimer       = null;
+
+// --- COMMAND BRIDGE (Phase 2) ---
+
+/**
+ * Polls the database for pending system commands issued from the web dashboard.
+ */
+async function pollCommands() {
+  try {
+    const commands = await prisma.systemCommand.findMany({
+      where: { status: "PENDING" },
+      orderBy: { issuedAt: "asc" }
+    });
+
+    for (const cmd of commands) {
+      log(`[BRIDGE] 📥 Received command: ${cmd.command}`);
+      await prisma.systemCommand.update({
+        where: { id: cmd.id },
+        data: { status: "PROCESSING", updatedAt: new Date() }
+      });
+
+      try {
+        await executeCommand(cmd);
+        await prisma.systemCommand.update({
+          where: { id: cmd.id },
+          data: { status: "DONE", updatedAt: new Date() }
+        });
+        log(`[BRIDGE] ✅ Command ${cmd.command} executed successfully`);
+      } catch (ex) {
+        err(`[BRIDGE] ❌ Command ${cmd.command} failed: ${ex.message}`);
+        await prisma.systemCommand.update({
+          where: { id: cmd.id },
+          data: { status: "FAILED", error: ex.message, updatedAt: new Date() }
+        });
+      }
+    }
+  } catch (ex) {
+    // Silent fail for polling errors to avoid log spam during DB maintenance
+  }
+}
+
+/**
+ * Routes and executes the received system command.
+ */
+async function executeCommand(cmd) {
+  switch (cmd.command) {
+    case "RESTART":
+      log(`[BRIDGE] Manual restart triggered via dashboard`);
+      killWorker("dashboard-manual-restart"); 
+      break;
+    case "PURGE_CACHE":
+      log(`[BRIDGE] Purging local model cache`);
+      killWorker("dashboard-purge-cache");
+      break;
+    default:
+      throw new Error(`Command "${cmd.command}" is not implemented in this version.`);
+  }
+}
 
 // --- HEARTBEAT ---
 
@@ -405,6 +465,9 @@ setInterval(checkStatusServerHealth, STATUS_HEALTH_INTERVAL);
 
 // Periodic heartbeat even when idle
 heartbeatTimer = setInterval(() => writeHeartbeat(), 15_000);
+
+// Periodic command bridge check (Phase 2)
+commandTimer = setInterval(pollCommands, 20_000); 
 
 // Graceful self-shutdown
 process.on("SIGTERM", () => {

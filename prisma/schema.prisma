@@ -325,6 +325,30 @@ model GlobalSetting {
   updatedAt DateTime @default(now()) @updatedAt
 }
 
+model ModelConfig {
+  id          String   @id @default(uuid()) @map("_id")
+  stage       String   // DRAFTER | WRITER | JUDGE
+  modelName   String
+  temperature Float    @default(0.7)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@unique([stage, modelName])
+}
+
+model SystemCommand {
+  id        String   @id @default(uuid()) @map("_id")
+  command   String   // SYNC | PURGE | SCAN | RESTART
+  payload   Json?    @default("{}")
+  status    String   @default("PENDING") // PENDING | PROCESSING | DONE | FAILED
+  issuedAt  DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  error     String?
+
+  @@index([status, issuedAt])
+}
+
 model WorkerReport {
   id        String   @id @default(uuid()) @map("_id")
   type      String

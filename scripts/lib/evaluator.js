@@ -1,20 +1,10 @@
 /**
  * TRINITY EVALUATOR
  * M2.3 — Relative Comparison Pool Scoring & Starvation-Safe Disposition
- * v1.0.0
- *
- * Implements the Evaluator stage from the Trinity formal production definition §10.
- *
- * The Evaluator receives the post-Refiner candidate set and produces:
- *   - A disposition for each candidate (6 options per spec §10.3)
- *   - Full score set: qualityScore, urgencyScore, freshnessScore, feedbackScore
- *   - Starvation-safe fallback (§10.7): when pool is starving, marginal candidates pass
- *
- * This replaces the Judge's binary VERIFIED/REJECTED with a continuous disposition system.
- * The original auditCheckedFlashCard is preserved as a backward-compatible wrapper.
+ * v0.14.0-PRODUCTION (Hardened)
  */
 const { callOllamaWithFailover } = require("./ai");
-const { STAGE_MODELS, trinity_JUDGE_TIMEOUT_MS } = require("./core");
+const { STAGE_MODELS, trinity_JUDGE_TIMEOUT_MS, queueAiInference } = require("./core");
 const { getCompanyStrategicContext } = require("./context");
 const { truncate, hashValue, getWorkerConfig, parseBoundedInt, getStageModels } = require("./shared");
 const { unifyObject, unifyArray } = require("./synthesis-utils");
@@ -93,27 +83,54 @@ function computeRelativeDominance(candidate, pool) {
 // ---------------------------------------------------------------------------
 
 /**
- * Core Evaluator: produces a disposition for a single candidate relative to its pool.
- *
- * @param {object} candidate
- * @param {object[]} comparisonPool - Other REFINED candidates for the same company
- * @param {number} currentEligibleCount - Current count of ELIGIBLE items in inventory
- * @param {string} context - Strategic context string
- * @param {string} memoryPrompt
- * @returns {{ disposition, qualityScore, urgencyScore, freshnessScore, feedbackScore, evaluationReason, reworkRoute? }}
+ * M3.4: Tournament Consensus Voter (Phase 5)
+ * Resolves a majority disposition from multiple model assessments.
  */
-async function evaluateCandidate(candidate, comparisonPool, currentEligibleCount, context, memoryPrompt) {
+function resolveConsensus(votes, fallbackDisposition = DISPOSITION.ARCHIVE) {
+  if (!votes || votes.length === 0) return { disposition: fallbackDisposition, reason: "No votes received." };
+  
+  const counts = {};
+  votes.forEach(v => {
+    const d = v.disposition || fallbackDisposition;
+    counts[d] = (counts[d] || 0) + 1;
+  });
+
+  // Majority rule
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const winner = sorted[0][0];
+
+  // Find the winner's data
+  const winVote = votes.find(v => v.disposition === winner) || votes[0];
+  
+  return {
+    disposition: winner,
+    reason: `[Consensus: ${sorted[0][1]}/${votes.length}] ${winVote.reason || ""}`,
+    reworkRoute: winVote.reworkRoute || null
+  };
+}
+
+/**
+ * Core Evaluator: produces a disposition for a single candidate relative to its pool.
+ * Enhanced with Phase 5 Tournament Consensus.
+ *
+ * @param {PrismaClient} prisma
+ * @param {object} company
+ * @param {object} candidate
+ * @param {object[]} comparisonPool
+ * @param {number} currentEligibleCount
+ * @param {string} context
+ * @param {string} memoryPrompt
+ */
+async function evaluateCandidate(prisma, company, candidate, comparisonPool, currentEligibleCount, context, memoryPrompt) {
   const qualityScore = computeQualityScore(candidate);
   const urgencyScore = computeUrgencyScore(candidate);
   const freshnessScore = computeFreshnessScore(candidate);
   const feedbackScore = candidate.feedbackScore || 0;
   const relativeDominance = computeRelativeDominance(candidate, comparisonPool);
 
-  // Starvation-safe fallback: if eligible pool is critically small, be permissive
   const isStarving = currentEligibleCount < STARVATION_THRESHOLD;
   const fallbackEligible = isStarving && qualityScore >= FALLBACK_QUALITY_THRESHOLD;
 
-  // Use LLM for disposition on borderline cases
   const systemPrompt = [
     "You are the Trinity Evaluator. Assess this candidate's fitness for the active checklist.",
     "Context:", context || "",
@@ -131,20 +148,28 @@ async function evaluateCandidate(candidate, comparisonPool, currentEligibleCount
 
   const userPrompt = `Title: ${candidate.title}\nDescription: ${candidate.description || candidate.body || ""}`;
 
-  const modelList = await getStageModels(prisma, "JUDGE", company);
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
-  const raw = unifyObject(res);
+  // NBA 5: Tournament Judging - Fetch specialized models
+  const judgeModels = await getStageModels(prisma, "JUDGE", company);
+  
+  // Call up to 2 models for tournament consensus (Phase 5)
+  const votes = [];
+  const modelLimit = Math.min(judgeModels.length, 2);
+  
+  for (let i = 0; i < modelLimit; i++) {
+    const res = await callOllamaWithFailover(systemPrompt, userPrompt, [judgeModels[i]], { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
+    const parsed = unifyObject(res);
+    if (parsed && parsed.disposition) votes.push(parsed);
+  }
 
-  let disposition = raw?.disposition || DISPOSITION.ARCHIVE;
-  const reason = raw?.reason || "No reason provided";
-  const reworkRoute = raw?.reworkRoute || null;
+  let { disposition, reason, reworkRoute } = resolveConsensus(votes, DISPOSITION.ARCHIVE);
 
   // Override: starvation fallback takes precedence over conservative Evaluator
   if (fallbackEligible && (disposition === DISPOSITION.ARCHIVE || disposition === DISPOSITION.SUPPRESS)) {
     disposition = DISPOSITION.ELIGIBLE;
+    reason = `[Starvation Fallback] ${reason}`;
   }
 
-  // Validate disposition
+  // Final validation
   if (!Object.values(DISPOSITION).includes(disposition)) {
     disposition = qualityScore >= 0.4 ? DISPOSITION.ELIGIBLE : DISPOSITION.ARCHIVE;
   }

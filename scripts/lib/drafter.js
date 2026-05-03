@@ -105,7 +105,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
     ? `\n### [CRM CONTEXT HARVESTING ACTIVATED]\nYou are processing high-fidelity CRM data. You MUST look for customer-specific pain points, product adoption signals, or competitor mentions in the data blobs. Be extremely specific with customer entity names and proprietary product IDs if they are present.`
     : "";
 
-  const systemPrompt = [
+  const systemPromptBase = [
     "You are the checklist GENERATOR (formerly Drafter). Your goal is to extract intelligence from evidence into structured KnowledgeItems (FlashCards).",
     "Your synthesis MUST align with the following strategic context of the company:",
     strategicContext,
@@ -124,18 +124,48 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
     memoryPrompt
   ].join("\n");
 
-  const userPrompt = `Company: ${company.name}\n\nEvidence:\n${evidenceContext}`;
-
   const modelList = await getStageModels(prisma, "DRAFT", company);
-  const raw = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: trinity_DRAFT_TIMEOUT_MS });
-  const rawArray = unifyArray(raw);
-  if (!Array.isArray(rawArray)) return [];
+  const maxLoops = await getWorkerConfig(prisma, company, "recurrent_draft_loops", 2);
+  let currentDraftsRaw = null;
+  let finalDraftsArray = [];
+
+  // --- RECURRENT SYNTHESIS LOOP (Phase 4 / Mythos RDT Logic) ---
+  for (let loop = 0; loop < maxLoops; loop++) {
+    const isFirstLoop = loop === 0;
+    
+    // Loop-Index Prompting (§315)
+    let loopGuidance = "";
+    if (loop === 0) loopGuidance = "\n### [PHASE 1: PRELUDE - INITIAL EXTRACTION]\nFocus on high-recall extraction of all distinct intelligence points from the evidence.";
+    if (loop === 1) loopGuidance = "\n### [PHASE 2: RECURRENCE - STRATEGIC DEPTH]\nReview your previous draft. Deepen the reasoning. Are there strategic implications for marketing or sales that you missed? Refine the 'body' and 'impact' fields.";
+    if (loop === 2) loopGuidance = "\n### [PHASE 3: CODA - COHERENCE & PRUNING]\nFinal polish. Ensure each KnowledgeItem is distinct, actionable, and 100% aligned with the company strategy. Merge duplicates.";
+
+    const loopSystemPrompt = systemPromptBase + loopGuidance;
+
+    // Input Injection (§217): We ALWAYS re-inject the raw evidence to prevent drift
+    let loopUserPrompt = `Company: ${company.name}\n\n[INPUT INJECTION: RAW EVIDENCE]\n${evidenceContext}`;
+    
+    if (!isFirstLoop && currentDraftsRaw) {
+      loopUserPrompt += `\n\n[CURRENT STATE: PREVIOUS DRAFT]\n${JSON.stringify(currentDraftsRaw, null, 2)}\n\n[TASK] Improve and refine the previous draft based on the Phase Guidance above. Return the FULL updated JSON array.`;
+    }
+
+    const raw = await callOllamaWithFailover(loopSystemPrompt, loopUserPrompt, modelList, { timeoutMs: trinity_DRAFT_TIMEOUT_MS });
+    const loopArray = unifyArray(raw);
+
+    if (Array.isArray(loopArray) && loopArray.length > 0) {
+      currentDraftsRaw = loopArray;
+      finalDraftsArray = loopArray;
+    } else if (isFirstLoop) {
+      // If the first loop fails to yield anything, we stop early
+      return [];
+    }
+    // Halting Condition: If we got nothing new in a refinement loop, we can keep the previous best
+  }
 
   const drafts = [];
   const evidenceIds = evidenceBatch.map(e => e.id);
   const versionFamilyId = crypto.randomUUID(); // shared across multi-output batch
 
-  for (const item of rawArray) {
+  for (const item of finalDraftsArray) {
     if (!item.title || !item.body) continue;
 
     // Pre-persistence dedup against active inventory

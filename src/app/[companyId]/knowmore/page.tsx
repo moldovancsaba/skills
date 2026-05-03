@@ -36,7 +36,6 @@ import {
 } from "@/components/ui/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
-import { IntelligencePulse } from "@/components/intelligence-pulse";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
@@ -512,7 +511,7 @@ export default function CompanyKnowMorePage() {
         <PipelineAccentHeader
           activeKey="knowmore"
           title="Knowmore"
-          icon="looks_3"
+          icon="auto_awesome"
           toneClassName="text-green-600"
           borderClassName="border-green-500/20"
           backgroundClassName="bg-green-500/10"
@@ -524,8 +523,6 @@ export default function CompanyKnowMorePage() {
           description={`Flashcards and knowledge slices for ${company?.name ?? "this company"}.`}
         />
 
-        <div className="mt-2 mb-8">
-          <IntelligencePulse />
         </div>
       </motion.div>
 

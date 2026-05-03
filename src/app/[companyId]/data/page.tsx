@@ -14,7 +14,6 @@ import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHe
 import { SourceDataCard } from "@/components/source-data-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
-import { IntelligencePulse } from "@/components/intelligence-pulse";
 import { getDashboardExpertTip } from "@/content/help";
 import React from "react";
 import {
@@ -289,7 +288,7 @@ export default function CompanyDataPage() {
         <PipelineAccentHeader
           activeKey="data"
           title="Data"
-          icon="looks_one"
+          icon="database"
           toneClassName="text-blue-600"
           borderClassName="border-blue-500/20"
           backgroundClassName="bg-blue-500/10"
@@ -301,8 +300,6 @@ export default function CompanyDataPage() {
           description={editingId ? "Edit the selected raw source from the list below." : "Store raw URLs, notes, and files with hashtags. Processing happens later."}
         />
         
-        <div className="mt-2 mb-8">
-          <IntelligencePulse />
         </div>
       </motion.div>
 

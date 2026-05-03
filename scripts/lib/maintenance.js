@@ -308,8 +308,9 @@ async function runMaintenance(prisma, company) {
   await compactStructuredMemory(prisma, company);
   await garbageCollectOrphanedSources(prisma, company);
 
-  // 7. Backlog Auto-Promotion (Frontier Selection)
-  await refillChecklistFromBacklog(prisma, company);
+  // 7. M3.1: Autonomous Frontier Layer (v0.13.0)
+  // Recomputes the Top-3 visible items based on quality, urgency, and candidate state.
+  await recomputeFrontier(prisma, company);
 }
 
 /**
@@ -716,72 +717,6 @@ async function auditConfidenceCalibration(prisma, company) {
     console.warn(`[CALIBRATION] Failed to write metrics: ${err.message}`);
   }
 }
-
-/**
- * BACKLOG AUTO-PROMOTION (Icebox Pattern)
- * If the number of active taskcards drops below a minimum threshold,
- * pull the highest ICE scoring taskcards from the ARCHIVED state back to ACTIVE.
- */
-async function refillChecklistFromBacklog(prisma, company) {
-  const cid = company.id;
-  const minimumActiveTasks = 10;
-  
-  const activeTasksCount = await prisma.nBAItem.count({
-    where: {
-      companyId: cid,
-      activityState: { in: ["ACTIVE", "STALE"] },
-      processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] }
-    }
-  });
-
-  if (activeTasksCount >= minimumActiveTasks) return;
-
-  const needed = minimumActiveTasks - activeTasksCount;
-  console.log(`[ICEBOX] ${company.name}: Active tasks low (${activeTasksCount}). Promoting ${needed} cards from Backlog...`);
-
-  // Find the top archived tasks by ICE score that were not explicitly declined by user
-  const topArchivedTasks = await prisma.nBAItem.findMany({
-    where: {
-      companyId: cid,
-      activityState: "ARCHIVED",
-      processingStatus: { not: "DECLINED" },
-      userAnnotation: { not: { contains: "DECLINE" } }
-    },
-    orderBy: [
-      { iceScore: "desc" },
-      { confidenceScore: "desc" },
-      { updatedAt: "desc" }
-    ],
-    take: needed
-  });
-
-  if (topArchivedTasks.length === 0) {
-    console.log(`[ICEBOX] ${company.name}: No suitable tasks found in Backlog.`);
-    return;
-  }
-
-  // Promote them
-  for (const task of topArchivedTasks) {
-    let cleanAnnotation = (task.userAnnotation || "")
-      .replace(/\[JUDGE REJECTION\]/g, "")
-      .replace(/\[WRITER\]: Duplicate/g, "")
-      .trim();
-
-    await prisma.nBAItem.update({
-      where: { id: task.id },
-      data: {
-        activityState: "ACTIVE",
-        processingStatus: "DRAFT",
-        status: "PENDING",
-        updatedAt: new Date(),
-        userAnnotation: `${cleanAnnotation} [ICEBOX]: Auto-promoted to refill checklist.`.trim()
-      }
-    });
-  }
-
-  console.log(`[ICEBOX] ${company.name}: Successfully promoted ${topArchivedTasks.length} tasks.`);
-}
-
 
 // ---------------------------------------------------------------------------
 // M4.2: Trinity Background Jobs

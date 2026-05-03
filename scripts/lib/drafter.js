@@ -16,7 +16,7 @@
 const crypto = require("crypto");
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, trinity_DRAFT_TIMEOUT_MS } = require("./core");
-const { truncate, hashValue, nextPublicId, getWorkerConfig, parseBoundedInt } = require("./shared");
+const { truncate, hashValue, nextPublicId, getWorkerConfig, parseBoundedInt, getStageModels } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyArray } = require("./synthesis-utils");
 const { CandidateState, toGenerated } = require("./lifecycle");
@@ -120,7 +120,8 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
 
   const userPrompt = `Company: ${company.name}\n\nEvidence:\n${evidenceContext}`;
 
-  const raw = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.DRAFT, { timeoutMs: trinity_DRAFT_TIMEOUT_MS });
+  const modelList = await getStageModels(prisma, "DRAFT", company);
+  const raw = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: trinity_DRAFT_TIMEOUT_MS });
   const rawArray = unifyArray(raw);
   if (!Array.isArray(rawArray)) return [];
 
@@ -228,8 +229,9 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
 
   const userPrompt = `Company: ${company.name}\nKnowledgeItem Title: ${flashCard.title}\nKnowledgeItem Body: ${truncate(flashCard.body || flashCard.generatedBody || "", 1000)}`;
 
-  const raw = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.DRAFT, { timeoutMs: trinity_DRAFT_TIMEOUT_MS });
-  const rawArray = unifyArray(raw);
+  const modelList = await getStageModels(prisma, "WRITE", company);
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const rawArray = unifyArray(res);
   if (!Array.isArray(rawArray)) return [];
 
   const drafts = [];

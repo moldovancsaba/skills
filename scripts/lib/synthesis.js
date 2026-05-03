@@ -10,6 +10,7 @@ const { enforceLanguagePolicy } = require("./language-validator");
 const { OLLAMA_MODEL, STAGE_MODELS } = require("./core");
 const { generateStrategicKeywords, performResearchHarvest } = require("./research");
 const { ingestEvidenceUnit, selectEvidenceForGeneration, buildEvidenceBatches } = require("./evidence");
+const { recomputeFrontier } = require("./frontier");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
@@ -363,6 +364,21 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
 
   if (knowledgeBase.length === 0) return 0;
 
+  // M3.1: Bottleneck Guard (§14.2)
+  // Ensure we don't overwhelm the user or VRAM by generating beyond the 100-card active limit.
+  const activeCount = await prisma.nBAItem.count({
+    where: { 
+      companyId: cid, 
+      activityState: { in: ["ACTIVE", "STALE"] },
+      processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] }
+    }
+  });
+
+  if (activeCount >= 100) {
+    console.log(`[BOTTLENECK] ${company.name}: Task inventory at limit (${activeCount}/100). Pausing generation.`);
+    return 0;
+  }
+
   console.log(`[ACTION] ${company.name}: Found ${knowledgeBase.length} VERIFIED Flashcards to mine for actions`);
 
   for (const fc of knowledgeBase) {
@@ -400,8 +416,6 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
       ops += dbCandidates.length;
 
       // Touch the flashcard so we don't infinitely spawn from it
-      // Actually, fingerprint dedup in draftTaskcardFromFlashCard handles duplicate prevention,
-      // but touching it is good for the LRU.
       await prisma.flashcard.update({
         where: { id: fc.id },
         data: { updatedAt: new Date() }
@@ -412,7 +426,60 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
     }
   }
 
+  // M3.1: Candidate Backlog Sweeper
+  await processCandidateBacklog(prisma, company, memoryPrompt);
+
+  // M3.1: Immediate Frontier Re-alignment
+  // Ensure that new (and potentially higher-scored) candidates are surfaced immediately.
+  await recomputeFrontier(prisma, company, workerContext.cycleRunId);
+
   return ops;
+}
+
+/**
+ * M3.1: Candidate Backlog Sweeper
+ * Finds TaskCards that are stuck in GENERATED or REFINED states and pushes
+ * them through the Refiner and Evaluator.
+ */
+async function processCandidateBacklog(prisma, company, memoryPrompt) {
+  const cid = company.id;
+
+  // 1. Process REFINED candidates that need EVALUATION
+  const refined = await prisma.nBAItem.findMany({
+    where: { 
+      companyId: cid, 
+      candidateState: CandidateState.REFINED,
+      activityState: "ACTIVE"
+    },
+    take: 10
+  });
+
+  if (refined.length > 0) {
+    console.log(`[BACKLOG] ${company.name}: Found ${refined.length} REFINED items needing EVALUATION.`);
+    await evaluateNBAItemBatch(prisma, company, refined, memoryPrompt);
+  }
+
+  // 2. Process GENERATED candidates that need REFINEMENT
+  const generated = await prisma.nBAItem.findMany({
+    where: { 
+      companyId: cid, 
+      candidateState: CandidateState.GENERATED,
+      activityState: "ACTIVE"
+    },
+    take: 10
+  });
+
+  if (generated.length > 0) {
+    console.log(`[BACKLOG] ${company.name}: Found ${generated.length} GENERATED items needing REFINEMENT.`);
+    const { refined: newRefined, suppressed } = await refineNBAItemBatch(prisma, company, generated, memoryPrompt);
+    
+    for (const r of newRefined) await prisma.nBAItem.update({ where: { id: r.id }, data: r });
+    for (const s of suppressed) await prisma.nBAItem.update({ where: { id: s.id }, data: s });
+    
+    if (newRefined.length > 0) {
+      await evaluateNBAItemBatch(prisma, company, newRefined, memoryPrompt);
+    }
+  }
 }
 
 module.exports = {

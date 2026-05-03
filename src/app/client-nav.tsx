@@ -15,14 +15,14 @@ const pipelineItems = [
     key: "data",
     href: (companyId: string) => `/${companyId}/data`,
     label: "Data",
-    icon: "looks_one",
+    icon: "database",
     colorClass: "pipeline-data",
   },
   {
     key: "topics",
     href: (companyId: string) => `/${companyId}/topics`,
     label: "Topics",
-    icon: "looks_two",
+    icon: "list_alt",
     colorClass: "pipeline-topics",
   },
   {
@@ -36,14 +36,14 @@ const pipelineItems = [
     key: "knowmore",
     href: (companyId: string) => `/${companyId}/knowmore`,
     label: "Knowmore",
-    icon: "looks_3",
+    icon: "auto_awesome",
     colorClass: "pipeline-knowmore",
   },
   {
     key: "checklist",
     href: (companyId: string) => `/${companyId}/nba`,
     label: "checklist",
-    icon: "looks_4",
+    icon: "checklist",
     colorClass: "pipeline-checklist",
   },
 ];
@@ -204,24 +204,6 @@ export function ClientNav() {
               );
             })}
 
-            {/* Superadmin: trinity */}
-            {session?.isSuperAdmin && (
-              <Link
-                href="/intelligence"
-                className={cn(
-                  buttonVariants({ variant: pathname === "/intelligence" ? "secondary" : "ghost", size: "sm" }),
-                  "w-full justify-start gap-4 h-10 mt-2 relative group text-accent hover:text-accent",
-                  isCollapsed && "justify-center px-0 hover:bg-accent/10"
-                )}
-                title="trinity"
-              >
-                {pathname === "/intelligence" && !isCollapsed && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-accent rounded-r-md" />
-                )}
-                <span className="material-symbols-outlined text-[22px] shrink-0" aria-hidden="true">terminal</span>
-                {!isCollapsed && <span className="font-bold tracking-tight">trinity</span>}
-              </Link>
-            )}
           </div>
         )}
       </div>

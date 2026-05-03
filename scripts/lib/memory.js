@@ -200,7 +200,54 @@ async function processMemoryUpdates(prisma, company) {
   // Also run legacy distillation for backward compat
   await updateCompanyMemory(prisma, company);
 
+  // M4.4: Distill #crm-context signals into strategic lessons
+  await distillContextSignals(prisma, company);
+
   return created;
+}
+
+/**
+ * M4.4: Strategic Context Distillation
+ * Scans for unprocessed #crm-context sources and converts them into GLOBAL success patterns.
+ */
+async function distillContextSignals(prisma, company) {
+  const cid = company.id;
+
+  const sources = await prisma.source.findMany({
+    where: {
+      companyId: cid,
+      hashtags: { has: "crm-context" },
+      // Check if already distilled (we use legacyOriginKey as a marker or just search memoryEntry)
+    },
+    take: 20
+  });
+
+  const alreadyDistilled = await prisma.memoryEntry.findMany({
+    where: { companyId: cid, lessonType: "SUCCESS_PATTERN" },
+    select: { lessonContent: true }
+  });
+  const distilledContents = new Set(alreadyDistilled.map(e => e.lessonContent));
+
+  for (const s of sources) {
+    const lessonContent = `STRATEGIC CONTEXT: ${s.content.replace(/\n/g, " | ")}`;
+    if (distilledContents.has(lessonContent)) continue;
+
+    try {
+      await prisma.memoryEntry.create({
+        data: {
+          companyId: cid,
+          scope: "GLOBAL",
+          lessonType: "SUCCESS_PATTERN",
+          lessonContent,
+          weight: 1.8, // High weight for CRM signals
+          active: true
+        }
+      });
+      console.log(`[MEMORY] Distilled CRM context signal: ${s.id}`);
+    } catch (e) {
+      console.warn(`[MEMORY] Failed to distill context signal ${s.id}: ${e.message}`);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

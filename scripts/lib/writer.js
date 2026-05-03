@@ -7,7 +7,7 @@
  */
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, trinity_WRITE_TIMEOUT_MS } = require("./core");
-const { truncate, getWorkerConfig, similarity, parseBoundedInt, nextPublicId } = require("./shared");
+const { truncate, hashValue, getWorkerConfig, parseBoundedInt, getStageModels } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject } = require("./synthesis-utils");
 
@@ -75,7 +75,8 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
 
   const userPrompt = `DRAFT Title: ${flashCard.title}\nDRAFT Body: ${flashCard.body}`;
 
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const modelList = await getStageModels(prisma, "WRITE", company);
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
   const raw = unifyObject(res);
   if (!raw || !raw.title || !raw.body) return null;
 

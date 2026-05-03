@@ -288,7 +288,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           <PipelineAccentHeader
             activeKey="checklist"
             title="checklist"
-            icon="looks_4"
+            icon="checklist"
             toneClassName="text-violet-600"
             borderClassName="border-violet-500/20"
             backgroundClassName="bg-violet-500/10"

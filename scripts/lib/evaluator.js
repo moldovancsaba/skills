@@ -16,7 +16,7 @@
 const { callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, trinity_JUDGE_TIMEOUT_MS } = require("./core");
 const { getCompanyStrategicContext } = require("./context");
-const { getWorkerConfig, calculatePercentile, parseBoundedInt, canonicalSourceText } = require("./shared");
+const { truncate, hashValue, getWorkerConfig, parseBoundedInt, getStageModels } = require("./shared");
 const { unifyObject, unifyArray } = require("./synthesis-utils");
 const { CandidateState, ReworkRoute, toEvaluated, toRework, toSuppressed, toArchived } = require("./lifecycle");
 
@@ -131,7 +131,8 @@ async function evaluateCandidate(candidate, comparisonPool, currentEligibleCount
 
   const userPrompt = `Title: ${candidate.title}\nDescription: ${candidate.description || candidate.body || ""}`;
 
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.JUDGE, { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
+  const modelList = await getStageModels(prisma, "JUDGE", company);
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
   const raw = unifyObject(res);
 
   let disposition = raw?.disposition || DISPOSITION.ARCHIVE;
@@ -210,7 +211,11 @@ async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
 
   const userPrompt = `Candidates for evaluation:\n${candidateSummary}`;
 
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.JUDGE, { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
+  // NBA 5: Tournament Judging - Fetch specialized judge model if configured
+  const tournamentJudge = await getWorkerConfig(prisma, company, "tournament_judge_model", null);
+  const judgeModels = tournamentJudge ? [tournamentJudge, ...STAGE_MODELS.JUDGE] : await getStageModels(prisma, "JUDGE", company);
+
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, judgeModels, { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
   const rawArray = unifyArray(res);
 
   const results = { eligible: [], rework: [], suppressed: [], archived: [] };

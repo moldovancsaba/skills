@@ -19,7 +19,7 @@
  */
 const { callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, trinity_WRITE_TIMEOUT_MS } = require("./core");
-const { truncate, getWorkerConfig, similarity, parseBoundedInt, nextPublicId } = require("./shared");
+const { truncate, hashValue, getWorkerConfig, getStageModels, similarity, parseBoundedInt, nextPublicId } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject, unifyArray } = require("./synthesis-utils");
 const { CandidateState, toRefined, toSuppressed } = require("./lifecycle");
@@ -138,7 +138,8 @@ async function mergeNeighborhood(neighborhood, context, memoryPrompt) {
 
   const userPrompt = `Candidates to merge:\n${combinedContext}`;
 
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const modelList = await getStageModels(prisma, "WRITE", company);
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
   const raw = unifyObject(res);
 
   if (!raw || !raw.title) return { refined: champion, suppressed: neighborhood.filter(c => c.id !== champion.id) };

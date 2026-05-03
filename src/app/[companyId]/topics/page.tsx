@@ -167,7 +167,7 @@ export default function CompanyTopicsPage() {
       <PipelineAccentHeader
         activeKey="topics"
         title="Topics"
-        icon="looks_two"
+        icon="list_alt"
         toneClassName="text-orange-600"
         borderClassName="border-orange-500/20"
         backgroundClassName="bg-orange-500/10"

@@ -26,6 +26,23 @@ const STAGE_MODELS = {
   JUDGE: ["granite4:350m"],
 };
 
+/**
+ * M3.1: Hot-Swappable Model Resolver
+ * Returns the prioritized model list for a given pipeline stage.
+ */
+async function getStageModels(prisma, stage, company = null) {
+  if (USE_SAFE_MODE) return [FALLBACK_MODEL];
+  
+  const { getWorkerConfig } = require("./shared");
+  const key = `model_${stage.toLowerCase()}`;
+  const val = await getWorkerConfig(prisma, company, key, null);
+  
+  if (val && typeof val === "string") return [val];
+  if (Array.isArray(val)) return val;
+  
+  return STAGE_MODELS[stage] || [FALLBACK_MODEL];
+}
+
 if (USE_SAFE_MODE) {
   console.log(`[CORE] 🛡️ SAFE MODE ACTIVE: Falling back to ${FALLBACK_MODEL}`);
 }
@@ -100,5 +117,6 @@ module.exports = {
   FLASHCARD_MIN_WEIGHT,
   TASK_MIN_ICE_SCORE,
   queueAiInference,
-  envFlag
+  envFlag,
+  getStageModels
 };

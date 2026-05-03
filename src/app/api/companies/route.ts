@@ -49,7 +49,9 @@ export async function GET(request: NextRequest) {
       const pendingNbaCount = await prisma.nBAItem.count({
         where: {
           companyId: c.id,
-          processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] }
+          processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] },
+          activityState: { in: ["ACTIVE", "STALE"] },
+          scheduledDate: { lte: new Date() }
         }
       });
       return {

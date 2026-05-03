@@ -94,20 +94,28 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <Group justify="space-between" align="flex-end">
-      <Stack gap="xs">
+    <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
+      <div className="space-y-1.5">
         {backHref ? (
-          <Text component={Link} href={backHref} size="sm" c="dimmed" className="hover:underline">
-            ← {backLabel}
-          </Text>
+          <Link 
+            href={backHref} 
+            className="group inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-accent transition-colors mb-2"
+          >
+            <span className="material-symbols-outlined text-[14px] transition-transform group-hover:-translate-x-1">arrow_back</span>
+            {backLabel}
+          </Link>
         ) : null}
-        <Title order={1} size="h1">{title}</Title>
+        <h1 className="text-3xl md:text-4xl font-black tracking-tight text-foreground leading-[1.1]">
+          {title}
+        </h1>
         {description ? (
-          <Text c="dimmed" size="sm" className="max-w-3xl">{description}</Text>
+          <p className="text-sm md:text-base text-muted-foreground/70 max-w-2xl font-medium leading-relaxed italic">
+            {description}
+          </p>
         ) : null}
-      </Stack>
-      {actions ? <Group>{actions}</Group> : null}
-    </Group>
+      </div>
+      {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
+    </div>
   );
 }
 

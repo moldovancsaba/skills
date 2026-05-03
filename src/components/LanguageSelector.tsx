@@ -114,7 +114,7 @@ export function LanguageSelector({ selectedIds, onChange, disabled }: LanguageSe
 
   return (
     <div className="space-y-4" ref={containerRef}>
-      <div className="flex flex-wrap gap-2 min-h-12 p-3 rounded-xl border bg-zinc-950/50 backdrop-blur-md border-zinc-800 focus-within:border-accent/50 transition-all duration-300">
+      <div className="flex flex-wrap gap-2 min-h-12 p-3 rounded-xl border bg-background/50 backdrop-blur-md border-border focus-within:border-accent/50 transition-all duration-300">
         <AnimatePresence>
           {selectedLanguages.map(lang => (
             <motion.div
@@ -144,7 +144,7 @@ export function LanguageSelector({ selectedIds, onChange, disabled }: LanguageSe
         <input
           type="text"
           placeholder={selectedLanguages.length === 0 ? "Search languages..." : ""}
-          className="flex-1 min-w-[120px] bg-transparent border-none outline-none text-sm placeholder:text-zinc-600"
+          className="flex-1 min-w-[120px] bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground/50"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -161,7 +161,7 @@ export function LanguageSelector({ selectedIds, onChange, disabled }: LanguageSe
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 shadow-2xl backdrop-blur-xl"
+            className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-popover shadow-2xl backdrop-blur-xl"
             style={{ width: containerRef.current?.offsetWidth }}
           >
             <div className="p-1">
@@ -173,7 +173,7 @@ export function LanguageSelector({ selectedIds, onChange, disabled }: LanguageSe
                       key={lang.id}
                       className={cn(
                         "w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-left transition-all",
-                        isSelected ? "bg-accent/10 text-accent" : "hover:bg-zinc-900 text-zinc-400"
+                        isSelected ? "bg-accent/10 text-accent" : "hover:bg-accent/5 text-muted-foreground"
                       )}
                       onClick={() => toggleLanguage(lang)}
                     >

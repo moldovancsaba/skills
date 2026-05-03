@@ -164,24 +164,41 @@ export function ClientNav() {
                   key={item.key}
                   href={item.href(company.id)}
                   className={cn(
-                    buttonVariants({ variant: isActive ? "secondary" : "ghost", size: "sm" }),
-                    "w-full justify-start gap-4 h-10 relative group",
-                    isCollapsed && "justify-center px-0 hover:bg-zinc-800/50"
+                    "flex items-center gap-4 px-3 py-2 rounded-xl transition-all duration-200 group relative",
+                    isActive 
+                      ? "bg-accent/10 text-accent shadow-sm shadow-accent/5" 
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                    isCollapsed && "justify-center px-0"
                   )}
                   title={item.label}
                 >
                   {isActive && !isCollapsed && (
-                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-foreground rounded-r-md" />
+                     <motion.div 
+                       layoutId="active-nav-bg"
+                       className="absolute inset-0 bg-accent/5 rounded-xl -z-10"
+                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                     />
                   )}
-                  <span className={cn("material-symbols-outlined text-[22px] shrink-0", item.colorClass, isActive && "scale-110 transition-transform")} aria-hidden="true">
+                  <span className={cn(
+                    "material-symbols-outlined text-[22px] shrink-0 transition-all duration-300", 
+                    isActive ? "fill-1 scale-110" : "opacity-70 group-hover:opacity-100",
+                    item.colorClass
+                  )} aria-hidden="true">
                     {item.icon}
                   </span>
-                  {!isCollapsed && <span className={cn("font-medium transition-colors", isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{item.label}</span>}
+                  {!isCollapsed && (
+                    <span className={cn(
+                      "font-semibold text-sm tracking-tight transition-colors",
+                      isActive ? "text-foreground" : "text-muted-foreground"
+                    )}>
+                      {item.label}
+                    </span>
+                  )}
                 </Link>
               );
             })}
 
-            {/* Settings - always at bottom of nav section */}
+            {/* Settings */}
             {bottomItems.map((item) => {
               const isActive = pathname.includes(item.key);
               return (
@@ -189,17 +206,19 @@ export function ClientNav() {
                   key={item.key}
                   href={item.href(company.id)}
                   className={cn(
-                    buttonVariants({ variant: isActive ? "secondary" : "ghost", size: "sm" }),
-                    "w-full justify-start gap-4 h-10 mt-2 relative group",
-                    isCollapsed && "justify-center px-0 hover:bg-zinc-800/50"
+                    "flex items-center gap-4 px-3 py-2 rounded-xl transition-all duration-200 group mt-4",
+                    isActive 
+                      ? "bg-accent/10 text-accent" 
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                    isCollapsed && "justify-center px-0"
                   )}
                   title={item.label}
                 >
-                  {isActive && !isCollapsed && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-foreground rounded-r-md" />
-                  )}
-                  <SettingsIcon className={cn("h-[22px] w-[22px] shrink-0", item.colorClass, isActive && "text-foreground")} />
-                  {!isCollapsed && <span className={cn("font-medium transition-colors", isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{item.label}</span>}
+                  <SettingsIcon className={cn(
+                    "h-5 w-5 shrink-0 transition-all", 
+                    isActive ? "text-accent" : "opacity-70 group-hover:opacity-100"
+                  )} />
+                  {!isCollapsed && <span className="font-semibold text-sm tracking-tight">{item.label}</span>}
                 </Link>
               );
             })}

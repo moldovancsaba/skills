@@ -142,18 +142,39 @@ export function ClientNav() {
               )}
             </div>
 
-            {/* Dashboard Link - Now with requested space_dashboard icon */}
+            {/* Dashboard Link */}
             <Link
               href={`/${company.id}`}
               className={cn(
-                buttonVariants({ variant: pathname === `/${company.id}` ? "secondary" : "ghost", size: "sm" }),
-                "w-full justify-start gap-4 h-10",
-                isCollapsed && "justify-center px-0 hover:bg-zinc-800/50"
+                "flex items-center gap-4 px-3 py-2 rounded-xl transition-all duration-200 group relative",
+                pathname === `/${company.id}` 
+                  ? "bg-accent/10 text-accent shadow-sm shadow-accent/5" 
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                isCollapsed && "justify-center px-0"
               )}
               title="Dashboard"
             >
-              <span className="material-symbols-outlined text-[22px] text-zinc-400 shrink-0" aria-hidden="true">space_dashboard</span>
-              {!isCollapsed && <span className="font-medium">Dashboard</span>}
+              {pathname === `/${company.id}` && !isCollapsed && (
+                <motion.div 
+                  layoutId="active-nav-bg"
+                  className="absolute inset-0 bg-accent/5 rounded-xl -z-10"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className={cn(
+                "material-symbols-outlined text-[22px] shrink-0 transition-all duration-300", 
+                pathname === `/${company.id}` ? "fill-1 scale-110 text-zinc-400" : "text-zinc-400 opacity-70 group-hover:opacity-100"
+              )} aria-hidden="true">
+                space_dashboard
+              </span>
+              {!isCollapsed && (
+                <span className={cn(
+                  "font-semibold text-sm tracking-tight transition-colors",
+                  pathname === `/${company.id}` ? "text-foreground" : "text-muted-foreground"
+                )}>
+                  Dashboard
+                </span>
+              )}
             </Link>
 
             {/* Pipeline Links */}

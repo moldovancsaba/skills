@@ -223,14 +223,14 @@ export default function CompanyDashboard() {
     setLoading(false);
   }, [company, loadDashboard, resetActionForm]);
 
-  const handlePostpone = useCallback(async (itemId: string, date: Date | undefined) => {
-    if (!date || !company) return;
+  const handlePostpone = useCallback(async (itemId: string, column: string) => {
+    if (!column || !company) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/nba?id=${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduledDate: date }),
+        body: JSON.stringify({ kanbanColumn: column }),
       });
       if (res.ok) {
         await loadDashboard(company.id);

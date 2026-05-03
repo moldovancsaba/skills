@@ -65,7 +65,11 @@ function computeFrontierScore(candidate) {
   // Priority boost for explicitly topic-pinned or high-ICE items
   const priorityWeight = candidate.iceScore >= 500 ? 1.1 : 1.0;
 
-  return stateWeight * qualityWeight * urgencyWeight * freshnessWeight * feedbackWeight * priorityWeight;
+  // Kanban Manual Priority Override (§24)
+  // userPriority is represented by sortOrder. If sortOrder < 0, it acts as a massive boost.
+  const userPriorityMultiplier = candidate.sortOrder < 0 ? Math.abs(candidate.sortOrder) * 10 : 1.0;
+
+  return stateWeight * qualityWeight * urgencyWeight * freshnessWeight * feedbackWeight * priorityWeight * userPriorityMultiplier;
 }
 
 function computeImpliedFreshness(candidate) {
@@ -148,19 +152,17 @@ async function loadEligibleCandidates(prisma, companyId) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Main Frontier Computation
+// 5. Main Frontier & Kanban Orchestration
 // ---------------------------------------------------------------------------
 
 /**
- * Computes and persists the frontier for a company.
- * Returns the list of NBAItem IDs that are now on the frontier.
- *
- * This function replaces refillChecklistFromBacklog.
+ * Computes and persists the tactical distribution (Kanban) for a company.
+ * Reorganizes all eligible items into IDEABANK, ROADMAP, BACKLOG, TODO, and CHECKLIST.
  *
  * @param {PrismaClient} prisma
  * @param {object} company
  * @param {string} [cycleRunId]
- * @returns {string[]} IDs of items now on the frontier
+ * @returns {string[]} IDs of items now on the CHECKLIST
  */
 async function recomputeFrontier(prisma, company, cycleRunId = null) {
   const companyId = company.id;
@@ -169,60 +171,70 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   const all = await loadEligibleCandidates(prisma, companyId);
 
   if (all.length === 0) {
-    console.log(`[FRONTIER] ${company.name}: No eligible candidates found.`);
+    console.log(`[KANBAN] ${company.name}: No eligible candidates found.`);
     return [];
   }
 
-  // 2. Attach frontier scores
+  // 2. Attach scores
   const scored = all.map(c => ({ ...c, _frontierScore: computeFrontierScore(c) }));
 
   // 3. Remove rotten items (unless they are the last resort)
   const fresh = scored.filter(c => !isRotten(c));
-  const pool = fresh.length > 0 ? fresh : scored; // fallback: allow rotten if nothing else
+  const pool = fresh.length > 0 ? fresh : scored;
 
   // 4. Collapse duplicate clusters
   const deduplicated = collapseDuplicateClusters(pool);
 
-  // 5. Sort by frontier score descending
+  // 5. Global Rank by frontier score descending
   deduplicated.sort((a, b) => b._frontierScore - a._frontierScore);
 
-  // 6. Three-tier fallback selection
-  let frontier = [];
-  for (const state of [CandidateState.EVALUATED, CandidateState.REFINED, CandidateState.GENERATED]) {
-    if (frontier.length >= FRONTIER_MAX_SIZE) break;
-    const tierCandidates = deduplicated.filter(c => c.candidateState === state);
-    const needed = FRONTIER_MAX_SIZE - frontier.length;
-    frontier = frontier.concat(tierCandidates.slice(0, needed));
-  }
+  // 6. Multi-Column Distribution (§24)
+  // CHECKLIST: Top 3 (or configured MAX)
+  // TODO: Next 5
+  // BACKLOG: Next 15
+  // ROADMAP: Next 50
+  // IDEABANK: Remainder
+  
+  const checklist = deduplicated.slice(0, FRONTIER_MAX_SIZE);
+  const todo = deduplicated.slice(FRONTIER_MAX_SIZE, FRONTIER_MAX_SIZE + 5);
+  const backlog = deduplicated.slice(FRONTIER_MAX_SIZE + 5, FRONTIER_MAX_SIZE + 20);
+  const roadmap = deduplicated.slice(FRONTIER_MAX_SIZE + 20, FRONTIER_MAX_SIZE + 70);
+  const ideabank = deduplicated.slice(FRONTIER_MAX_SIZE + 70);
 
-  console.log(`[FRONTIER] ${company.name}: Selected ${frontier.length} items (max ${FRONTIER_MAX_SIZE}). Pool size: ${deduplicated.length}.`);
+  const columnMap = [
+    { items: checklist, column: "CHECKLIST" },
+    { items: todo, column: "TODO" },
+    { items: backlog, column: "BACKLOG" },
+    { items: roadmap, column: "ROADMAP" },
+    { items: ideabank, column: "IDEABANK" }
+  ];
 
-  // 7. Mark selected items as scheduled (surface them)
-  const frontierIds = frontier.map(c => c.id);
+  console.log(`[KANBAN] ${company.name}: Orchestrating ${deduplicated.length} items across 5 columns.`);
 
-  // Remove scheduledDate from items no longer on frontier
-  await prisma.nBAItem.updateMany({
-    where: {
-      companyId,
-      scheduledDate: { not: null },
-      id: { notIn: frontierIds },
-      activityState: { in: ["ACTIVE", "STALE"] },
-    },
-    data: { scheduledDate: null },
-  });
-
-  // Set scheduledDate on frontier items (makes them visible to the NBA API)
-  for (const item of frontier) {
-    await prisma.nBAItem.update({
-      where: { id: item.id },
-      data: {
-        scheduledDate: new Date(),
-        cycleRunId: cycleRunId || item.cycleRunId,
-      },
+  // 7. Persist Column State
+  for (const group of columnMap) {
+    if (group.items.length === 0) continue;
+    
+    const ids = group.items.map(i => i.id);
+    
+    // Update column and clearing scheduledDate if not in CHECKLIST
+    await prisma.nBAItem.updateMany({
+      where: { id: { in: ids } },
+      data: { 
+        kanbanColumn: group.column,
+        scheduledDate: group.column === "CHECKLIST" ? new Date() : null,
+        cycleRunId: cycleRunId || undefined
+      }
     });
+
+    // Handle sortOrder for manual overrides - only reset if it was 0
+    // We don't want to wipe the user's "hard feedback"
   }
 
-  return frontierIds;
+  // Final cleanup for items no longer eligible (e.g. archived)
+  // Handled byprisma query filters in loadEligibleCandidates
+
+  return checklist.map(i => i.id);
 }
 
 /**

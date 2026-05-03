@@ -20,6 +20,7 @@
     "status": "node scripts/status-server.js"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@mantine/core": "^7.17.8",
     "@mantine/hooks": "^7.17.8",
     "@prisma/client": "^6.0.0",

@@ -36,9 +36,23 @@ async function getCompanyStrategicContext(prisma, companyId) {
     orderBy: { updatedAt: "desc" }
   });
 
-  // 3. Load Active Tasks (To avoid duplication)
+  // 3. Load Active Tasks & Manual Priorities (§24 - Strategic Learning)
+  const prioritizedTasks = await prisma.nBAItem.findMany({
+    where: { 
+      companyId, 
+      sortOrder: { lt: 0 },
+      activityState: { in: ["ACTIVE", "STALE"] }
+    },
+    take: 10,
+    orderBy: { sortOrder: "asc" } // highest priority (most negative) first
+  });
+
   const activeTasks = await prisma.nBAItem.findMany({
-    where: { companyId, processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] } },
+    where: { 
+      companyId, 
+      kanbanColumn: { in: ["CHECKLIST", "TODO"] },
+      activityState: { in: ["ACTIVE", "STALE"] }
+    },
     take: 10,
     orderBy: { updatedAt: "desc" }
   });
@@ -54,6 +68,14 @@ async function getCompanyStrategicContext(prisma, companyId) {
     });
   }
 
+  if (prioritizedTasks.length > 0) {
+    prompt += "\n[USER-DEFINED PRIORITIES / HARD FEEDBACK]:\n";
+    prompt += "The user has explicitly prioritized these items manually. FOCUS ON THESE THEMES:\n";
+    prioritizedTasks.forEach(t => {
+      prompt += `- [HIGH PRIORITY] ${t.title}: ${truncate(t.description || "", 200)} (Tags: ${t.hashtags.join(", ")})\n`;
+    });
+  }
+
   if (recentInsights.length > 0) {
     prompt += "\n[FlashCards / Verified Intelligence]:\n";
     recentInsights.forEach(i => {
@@ -62,7 +84,7 @@ async function getCompanyStrategicContext(prisma, companyId) {
   }
 
   if (activeTasks.length > 0) {
-    prompt += "\n[TaskCards / Existing checklist]:\n";
+    prompt += "\n[TaskCards / Current Tactical Pipeline]:\n";
     activeTasks.forEach(t => {
       prompt += `- ${t.title}: ${truncate(t.description || "", 200)}\n`;
     });

@@ -36,6 +36,7 @@ type NBAItem = {
   iceScore: number;
   processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
   activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
+  kanbanColumn: "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
   userAnnotation?: string;
   hashtags: string[];
   scheduledDate?: string | Date | null;
@@ -69,7 +70,7 @@ type TaskReviewCardProps = {
     declineClass?: string,
   ) => void;
   onShare: (item: NBAItem) => void;
-  onPostpone?: (itemId: string, date: Date | undefined) => void;
+  onPostpone?: (itemId: string, column: string) => void;
 };
 
 export function TaskReviewCard({
@@ -238,10 +239,20 @@ export function TaskReviewCard({
             </Tooltip>
             
             {onPostpone && (
-              <DatePicker 
-                placeholder="POSTPONE"
-                className="mantine-date-picker-inline"
-                setDate={(date) => onPostpone(item.id, date)}
+              <Select
+                placeholder="POSTPONE TO..."
+                size="compact-xs"
+                variant="subtle"
+                color="orange"
+                radius="xl"
+                data={[
+                  { value: "IDEABANK", label: "Idea Bank (Someday)" },
+                  { value: "ROADMAP", label: "Roadmap (Later)" },
+                  { value: "BACKLOG", label: "Backlog (Sooner)" },
+                  { value: "TODO", label: "Next" },
+                ]}
+                onChange={(val) => val && onPostpone(item.id, val)}
+                styles={{ input: { width: rem(140), height: rem(22), minHeight: rem(22) } }}
               />
             )}
 

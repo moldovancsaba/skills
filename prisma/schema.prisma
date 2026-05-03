@@ -222,12 +222,23 @@ model NBAItem {
   duplicateClusterId String?    // links semantic duplicate siblings
   generatedFromIds   String[]   @default([]) // source evidence IDs
   refinedFromId      String?    // the generated candidate this was refined from
+  kanbanColumn       NBAKanbanColumn @default(BACKLOG)
+  sortOrder          Float      @default(0)
 
   @@unique([companyId, fingerprint])
   @@index([companyId, processingStatus, cycleRunId])
   @@index([companyId, candidateState, iceScore])
   @@index([companyId, duplicateClusterId])
   @@index([companyId, versionFamilyId])
+  @@index([companyId, kanbanColumn, sortOrder])
+}
+
+enum NBAKanbanColumn {
+  IDEABANK
+  ROADMAP
+  BACKLOG
+  TODO
+  CHECKLIST
 }
 
 model HashtagFeedback {

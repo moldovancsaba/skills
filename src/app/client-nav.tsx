@@ -41,6 +41,13 @@ const pipelineItems = [
     colorClass: "pipeline-knowmore",
   },
   {
+    key: "tactical",
+    href: (companyId: string) => `/${companyId}/tactical`,
+    label: "Tactical",
+    icon: "view_kanban",
+    colorClass: "text-blue-500",
+  },
+  {
     key: "checklist",
     href: (companyId: string) => `/${companyId}/nba`,
     label: "checklist",

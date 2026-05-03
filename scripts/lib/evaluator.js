@@ -133,7 +133,12 @@ async function evaluateCandidate(prisma, company, candidate, comparisonPool, cur
 
   const systemPrompt = [
     "You are the Trinity Evaluator. Assess this candidate's fitness for the active checklist.",
-    "Context:", context || "",
+    "### [STRATEGIC ALIGNMENT]",
+    "Review the 'USER-DEFINED PRIORITIES' in the context below. These are the user's manual tactical goals.",
+    "If this candidate matches a high-priority user theme or tag, you MUST favor an ELIGIBLE disposition and increase the qualityScore.",
+    "### [CONTEXT]", 
+    context || "",
+    "### [SCORING SIGNALS]",
     "Scoring: qualityScore=" + qualityScore.toFixed(2) +
       ", urgencyScore=" + urgencyScore.toFixed(2) +
       ", freshnessScore=" + freshnessScore.toFixed(2) +
@@ -226,7 +231,11 @@ async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
   const systemPrompt = [
     "You are the Trinity Evaluator performing a TOURNAMENT BATCH EVALUATION.",
     "Assess the following candidates relative to each other and the company strategy.",
-    "Context:", context || "",
+    "### [TACTICAL ALIGNMENT]",
+    "Review the 'USER-DEFINED PRIORITIES' in the context. These reflect the user's manual planning intent.",
+    "Candidates that align with these manually prioritized themes MUST be ranked higher and given ELIGIBLE status.",
+    "### [CONTEXT]",
+    context || "",
     isStarving ? "STARVATION MODE: The eligible pool is critically small. Be permissive — borderline candidates SHOULD pass." : "",
     "Dispositions: ELIGIBLE (ready for frontier) | REVISE (send back for rewrite) | REGENERATE (broken) | MERGE (duplicate) | SUPPRESS (dominated) | ARCHIVE (invalid)",
     "Return a JSON array of objects: [{ id, disposition, reason, qualityScore (0-1), reworkRoute? }]",

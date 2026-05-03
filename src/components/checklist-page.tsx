@@ -35,6 +35,7 @@ interface NBAItem {
   iceScore: number;
   processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
   activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
+  kanbanColumn: "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
   userAnnotation?: string;
   hashtags: string[];
 }
@@ -191,14 +192,13 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     setActingId(null);
   }, [resetActionForm]);
 
-  const handlePostpone = useCallback(async (itemId: string, date: Date | undefined) => {
-    if (!date) return;
+  const handlePostpone = useCallback(async (itemId: string, column: string) => {
     setActingId(itemId);
     try {
       const res = await fetch(`/api/nba?id=${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scheduledDate: date }),
+        body: JSON.stringify({ kanbanColumn: column }),
       });
       if (res.ok) {
         setItems(prev => prev.filter(i => i.id !== itemId));

@@ -10,13 +10,20 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
   const isArchived = request.nextUrl.searchParams.get("archived") === "true";
+  const showAll = request.nextUrl.searchParams.get("all") === "true";
+  const kanbanColumn = request.nextUrl.searchParams.get("kanbanColumn");
+  
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
   
   try {
     const where: any = { companyId: companyId as string };
 
-    if (isArchived) {
+    if (showAll) {
+      // Return everything active for the Kanban board
+      where.activityState = { in: ["ACTIVE", "STALE"] };
+      where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED"] };
+    } else if (isArchived) {
       where.OR = [
         { activityState: "ARCHIVED" },
         { processingStatus: { in: ["ACCEPTED", "DECLINED"] } }
@@ -24,9 +31,13 @@ export async function GET(request: NextRequest) {
     } else {
       where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED"] };
       where.activityState = { in: ["ACTIVE", "STALE"] };
-      // The Frontier logic (M3.1) sets scheduledDate to surface items to the user.
-      // Items with scheduledDate = null are in the backlog and should not be shown.
+      // Unified Tactical Logic (§24): Checklist only shows what is in the CHECKLIST column
+      where.kanbanColumn = "CHECKLIST";
       where.scheduledDate = { lte: new Date() };
+    }
+
+    if (kanbanColumn) {
+      where.kanbanColumn = kanbanColumn;
     }
 
     const items = await prisma.nBAItem.findMany({
@@ -93,10 +104,16 @@ export async function PATCH(request: NextRequest) {
         description: data.description ?? existing.description,
         processingStatus: data.processingStatus ?? existing.processingStatus,
         activityState: data.activityState ?? existing.activityState,
+        kanbanColumn: data.kanbanColumn ?? existing.kanbanColumn,
+        sortOrder: data.sortOrder ?? existing.sortOrder,
         scheduledDate: data.scheduledDate !== undefined ? (data.scheduledDate ? new Date(data.scheduledDate) : null) : existing.scheduledDate,
         updatedAt: new Date(),
       },
     });
+
+    // Reactive Frontier Recompute
+    const { triggerFrontierRecompute } = require("../../../../../scripts/lib/frontier");
+    await triggerFrontierRecompute(prisma, existing.companyId);
 
     return NextResponse.json(updated);
   } catch (error) {

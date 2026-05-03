@@ -44,6 +44,7 @@ type NBAItem = {
   iceScore: number;
   processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
   activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
+  kanbanColumn: "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
   scheduledDate?: string | Date | null;
   userAnnotation?: string;
   hashtags: string[];

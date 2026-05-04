@@ -1,18 +1,14 @@
 export function getIceColorClasses(iceScore: number): string {
-  if (iceScore <= 50) return "text-red-400 bg-red-500/10 border-red-500/20";
-  if (iceScore <= 125) return "text-orange-400 bg-orange-500/10 border-orange-500/20";
-  if (iceScore <= 250) return "text-yellow-400 bg-yellow-500/10 border-yellow-500/20";
-  if (iceScore <= 500) return "text-blue-400 bg-blue-500/10 border-blue-500/20";
-  return "text-green-400 bg-green-500/10 border-green-500/20";
+  if (iceScore <= 50) return "text-[hsl(var(--color-low))] bg-[hsl(var(--color-low)/0.1)] border-[hsl(var(--color-low)/0.2)]";
+  if (iceScore <= 125) return "text-[hsl(var(--color-medium))] bg-[hsl(var(--color-medium)/0.1)] border-[hsl(var(--color-medium)/0.2)]";
+  if (iceScore <= 250) return "text-[hsl(var(--color-medium))] bg-[hsl(var(--color-medium)/0.1)] border-[hsl(var(--color-medium)/0.2)]";
+  if (iceScore <= 500) return "text-[hsl(var(--color-execution))] bg-[hsl(var(--color-execution)/0.1)] border-[hsl(var(--color-execution)/0.2)]";
+  return "text-[hsl(var(--color-high))] bg-[hsl(var(--color-high)/0.1)] border-[hsl(var(--color-high)/0.2)]";
 }
 
 export function getMetricColorClasses(metricTotal: number): string {
-  // Equivalent 1-10 mapping (e.g. Impact + Confidence = 2 to 20 range)
-  // Scaling bounds proportionally to max 1000
-  // Instead of an ICE product, just map a simple 1-10 scale
-  if (metricTotal <= 1) return "text-red-400 bg-red-500/10 border-red-500/20";
-  if (metricTotal <= 3) return "text-orange-400 bg-orange-500/10 border-orange-500/20";
-  if (metricTotal <= 5) return "text-yellow-400 bg-yellow-500/10 border-yellow-500/20";
-  if (metricTotal <= 7) return "text-blue-400 bg-blue-500/10 border-blue-500/20";
-  return "text-green-400 bg-green-500/10 border-green-500/20";
+  if (metricTotal <= 50) return "text-[hsl(var(--color-low))] bg-[hsl(var(--color-low)/0.1)] border-[hsl(var(--color-low)/0.2)]";
+  if (metricTotal <= 150) return "text-[hsl(var(--color-medium))] bg-[hsl(var(--color-medium)/0.1)] border-[hsl(var(--color-medium)/0.2)]";
+  if (metricTotal <= 400) return "text-[hsl(var(--color-execution))] bg-[hsl(var(--color-execution)/0.1)] border-[hsl(var(--color-execution)/0.2)]";
+  return "text-[hsl(var(--color-high))] bg-[hsl(var(--color-high)/0.1)] border-[hsl(var(--color-high)/0.2)]";
 }

@@ -24,10 +24,54 @@ const fontDisplay = Plus_Jakarta_Sans({
 });
 
 const theme = createTheme({
-  primaryColor: "orange", // To match the Amber theme
-  fontFamily: "Inter, sans-serif",
+  primaryColor: "orange",
+  fontFamily: "var(--font-body), sans-serif",
+  fontFamilyMonospace: "Monaco, Courier, monospace",
   headings: {
-    fontFamily: "Plus Jakarta Sans, sans-serif",
+    fontFamily: "var(--font-display), sans-serif",
+    fontWeight: "800",
+  },
+  defaultRadius: "md",
+  white: "#fff",
+  black: "#0a0a0a",
+  colors: {
+    // Semantic colors mapping to our design system
+    brand: [
+      "#fff8e1", "#ffecb3", "#ffe082", "#ffd54f", "#ffca28",
+      "#ffc107", "#ffb300", "#ffa000", "#ff8f00", "#ff6f00"
+    ],
+    strategy: [
+      "#f3e5f5", "#e1bee7", "#ce93d8", "#ba68c8", "#ab47bc",
+      "#9c27b0", "#8e24aa", "#7b1fa2", "#6a1b9a", "#4a148c"
+    ],
+    knowledge: [
+      "#e8f5e9", "#c8e6c9", "#a5d6a7", "#81c784", "#66bb6a",
+      "#4caf50", "#43a047", "#388e3c", "#2e7d32", "#1b5e20"
+    ],
+    execution: [
+      "#e3f2fd", "#bbdefb", "#90caf9", "#64b5f6", "#42a5f5",
+      "#2196f3", "#1e88e5", "#1976d2", "#1565c0", "#0d47a1"
+    ],
+  },
+  components: {
+    Button: {
+      defaultProps: {
+        radius: "md",
+        fw: 700,
+      },
+    },
+    Badge: {
+      defaultProps: {
+        radius: "sm",
+        variant: "light",
+      },
+    },
+    Card: {
+      defaultProps: {
+        radius: "lg",
+        withBorder: true,
+      },
+    },
   },
 });
 

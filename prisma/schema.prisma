@@ -114,6 +114,7 @@ model Flashcard {
   cycleRunId              String?
   intelligenceType        IntelligenceType      @default(INTERNAL)
   lastAuditedAt           DateTime?
+  iceScore                Float                 @default(0)
   company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actions                 FlashcardAction[]
   corrections             FlashcardCorrection[]
@@ -213,6 +214,7 @@ model Goalcard {
   generatedAt             DateTime?
   intelligenceType        IntelligenceType      @default(INTERNAL)
   lastAuditedAt           DateTime?
+  iceScore                Float                 @default(0)
   company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actions                 GoalcardAction[]
   corrections             GoalcardCorrection[]

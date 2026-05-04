@@ -18,24 +18,28 @@ import {
   Globe,
   Languages
 } from "lucide-react";
+import { 
+  Card, 
+  Text, 
+  Title, 
+  Switch, 
+  Slider, 
+  Button, 
+  TextInput, 
+  Select, 
+  Group, 
+  Stack, 
+  Badge, 
+  Divider, 
+  ActionIcon, 
+  Tooltip, 
+  ThemeIcon,
+  Box,
+  SimpleGrid
+} from "@mantine/core";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { LanguageSelector } from "@/components/LanguageSelector";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { toast } from "@/components/ui/use-toast";
-import { motion } from "framer-motion";
 
 type CommunicationSettings = {
   isEnabled: boolean;
@@ -149,227 +153,206 @@ export default function SettingsPage() {
     toast({ title: "Copied", description: "Copied to clipboard." });
   };
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>;
-  if (!settings) return <div className="flex min-h-screen items-center justify-center"><p>Error: Settings not found.</p></div>;
+  if (loading) return <Box p="xl" ta="center"><Text>Loading OS configuration...</Text></Box>;
+  if (!settings) return <Box p="xl" ta="center"><Text c="red">Error: Settings context not found.</Text></Box>;
 
   return (
-    <PageShell width="xl">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <PageHeader 
-          title="Communication Settings" 
-          description="Manage AI alerts and the two-way communication bridge."
-          backHref={`/${companyId}`}
-        />
-      </motion.div>
+    <PageShell width="lg">
+      <PageHeader 
+        title="Communication Settings" 
+        description="Manage AI alerts and the two-way communication bridge."
+        backHref={`/${companyId}`}
+      />
 
-      <div className="grid gap-8 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-12">
-          {/* Global Alerting Control */}
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card className="border-accent/10 bg-accent/5 backdrop-blur-md">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-accent" />
-                    Alerting Layer
-                  </CardTitle>
-                  <CardDescription className="text-muted-foreground/80">Enable or disable automated AI discoveries and task alerts.</CardDescription>
-                </div>
-                <Switch 
-                  checked={settings.isEnabled} 
-                  onCheckedChange={(checked) => saveSettings({ isEnabled: checked })}
+      <Stack gap="xl">
+        {/* Global Alerting Control */}
+        <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
+          <Group justify="space-between">
+            <Stack gap={4}>
+              <Group gap="sm">
+                <ThemeIcon variant="light" color="brand" size="md">
+                  <Bell size={18} />
+                </ThemeIcon>
+                <Title order={3} size="h4">Alerting Layer</Title>
+              </Group>
+              <Text size="sm" c="dimmed">Enable or disable automated AI discoveries and task alerts.</Text>
+            </Stack>
+            <Switch 
+              size="lg"
+              checked={settings.isEnabled} 
+              onChange={(e) => saveSettings({ isEnabled: e.currentTarget.checked })}
+              disabled={saving}
+            />
+          </Group>
+        </Card>
+
+        {/* Organization Settings */}
+        <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
+          <Stack gap="lg">
+            <Group justify="space-between" align="flex-start">
+              <Stack gap={4}>
+                <Group gap="sm">
+                  <ThemeIcon variant="light" color="brand" size="md">
+                    <Languages size={18} />
+                  </ThemeIcon>
+                  <Title order={3} size="h4">Language Management</Title>
+                </Group>
+                <Text size="sm" c="dimmed">Define which languages the AI is allowed to use for intelligence synthesis.</Text>
+              </Stack>
+              <Badge variant="light" color="brand" size="sm">
+                {companySettings?.allowedLanguages.length || 0} Enabled
+              </Badge>
+            </Group>
+
+            <LanguageSelector 
+              selectedIds={companySettings?.allowedLanguages || []}
+              onChange={(ids) => {
+                if (companySettings) {
+                  setCompanySettings({ ...companySettings, allowedLanguages: ids });
+                }
+              }}
+              disabled={saving}
+            />
+
+            <Group justify="flex-end">
+              <Button 
+                color="brand"
+                onClick={() => saveCompanySettings({ allowedLanguages: companySettings?.allowedLanguages })}
+                disabled={saving || !companySettings}
+                loading={saving}
+              >
+                Apply Language Policy
+              </Button>
+            </Group>
+
+            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed" mb="xs">Policy Enforcement</Text>
+              <Text size="xs" c="dimmed" lh={1.6}>
+                AI agents will strictly use only these permitted languages for flashcards and taskcards. 
+                checklist Purity Check: Any content detected in a disallowed language or containing mixed-language structures will be deleted immediately during synthesis.
+              </Text>
+            </Box>
+          </Stack>
+        </Card>
+
+        <SimpleGrid cols={{ base: 1, md: 2 }} gap="lg">
+          {/* Channel Configuration */}
+          <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
+            <Stack gap="md">
+              <Group gap="sm">
+                <ThemeIcon variant="light" color="gray" size="md">
+                  <Smartphone size={18} />
+                </ThemeIcon>
+                <Title order={3} size="h5">Notification Channel</Title>
+              </Group>
+              <Select 
+                label="Channel"
+                value={settings.channel} 
+                onChange={(val) => saveSettings({ channel: val || "EMAIL" })}
+                disabled={saving}
+                data={[
+                  { value: "IMESSAGE", label: "iMessage" },
+                  { value: "WHATSAPP", label: "WhatsApp" },
+                  { value: "EMAIL", label: "Email" },
+                  { value: "WEBHOOK", label: "Webhook" },
+                ]}
+              />
+              <TextInput 
+                label="Contact Handle / URL"
+                value={settings.handle || ""} 
+                onChange={(e) => setSettings({ ...settings, handle: e.currentTarget.value })}
+                placeholder={settings.channel === 'EMAIL' ? 'email@example.com' : '+123456789'}
+                rightSection={
+                  <Button variant="subtle" size="xs" onClick={() => saveSettings({ handle: settings.handle })}>Save</Button>
+                }
+                rightSectionWidth={60}
+              />
+            </Stack>
+          </Card>
+
+          {/* Threshold Configuration */}
+          <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
+            <Stack gap="md">
+              <Group gap="sm">
+                <ThemeIcon variant="light" color="gray" size="md">
+                  <ShieldCheck size={18} />
+                </ThemeIcon>
+                <Title order={3} size="h5">Sensitivity & Priority</Title>
+              </Group>
+              <Stack gap="xs">
+                <Group justify="space-between">
+                  <Text size="sm" fw={700}>Minimum ICE Score</Text>
+                  <Text size="sm" ff="monospace" c="brand" fw={900}>{settings.minIceScore}</Text>
+                </Group>
+                <Slider 
+                  value={settings.minIceScore} 
+                  min={0} 
+                  max={1000} 
+                  step={10} 
+                  onChange={(val) => setSettings({ ...settings, minIceScore: val })}
+                  onChangeEnd={(val) => saveSettings({ minIceScore: val })}
                   disabled={saving}
+                  color="brand"
                 />
-              </CardHeader>
-            </Card>
-          </motion.div>
+                <Text size="xs" c="dimmed" tt="uppercase" lts={1}>
+                  Higher score = Fewer, higher-quality notifications.
+                </Text>
+              </Stack>
+            </Stack>
+          </Card>
+        </SimpleGrid>
 
-          {/* Organization Settings */}
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-            <Card className="border-accent/10 bg-accent/5 backdrop-blur-md relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-8 opacity-5">
-                <Globe className="h-32 w-32" />
-              </div>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-accent/10">
-                    <Languages className="h-5 w-5 text-accent" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">Language Management</CardTitle>
-                    <CardDescription className="text-muted-foreground/80">Define which languages the AI is allowed to use for intelligence synthesis.</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6 relative z-10">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-semibold text-foreground/80">Allowed Languages</Label>
-                    <Badge variant="outline" className="text-[10px] uppercase tracking-tighter border-accent/20 bg-accent/5">
-                      {companySettings?.allowedLanguages.length || 0} Enabled
-                    </Badge>
-                  </div>
-                  
-                  <LanguageSelector 
-                    selectedIds={companySettings?.allowedLanguages || []}
-                    onChange={(ids) => {
-                      if (companySettings) {
-                        setCompanySettings({ ...companySettings, allowedLanguages: ids });
-                      }
-                    }}
-                    disabled={saving}
-                  />
-                  
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={() => saveCompanySettings({ allowedLanguages: companySettings?.allowedLanguages })}
-                      disabled={saving || !companySettings}
-                      className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs uppercase tracking-widest shadow-lg shadow-accent/20"
-                    >
-                      {saving ? "Saving..." : "Apply Language Policy"}
-                    </Button>
-                  </div>
-                </div>
+        {/* Two-Way Bridge Security */}
+        <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
+          <Stack gap="md">
+            <Group gap="sm">
+              <ThemeIcon variant="light" color="gray" size="md">
+                <Key size={18} />
+              </ThemeIcon>
+              <Title order={3} size="h5">Communication Bridge API</Title>
+            </Group>
+            <Text size="sm" c="dimmed">Use this key to send data into checklist memory from external scripts.</Text>
+            
+            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <Group justify="space-between">
+                <Text ff="monospace" size="sm" style={{ wordBreak: "break-all" }}>
+                  {showSecret ? settings.bridgeSecret : "•".repeat(36)}
+                </Text>
+                <Group gap="xs">
+                  <ActionIcon variant="subtle" color="gray" onClick={() => setShowSecret(!showSecret)}>
+                    {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </ActionIcon>
+                  <ActionIcon variant="subtle" color="gray" onClick={() => copyToClipboard(settings.bridgeSecret)}>
+                    <Copy size={16} />
+                  </ActionIcon>
+                  <ActionIcon variant="subtle" color="gray" onClick={regenerateSecret} loading={saving}>
+                    <RefreshCcw size={16} />
+                  </ActionIcon>
+                </Group>
+              </Group>
+            </Box>
 
-                <div className="p-5 rounded-2xl border border-accent/10 bg-background/50 backdrop-blur-sm">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-3">Policy Enforcement</h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    AI agents will strictly use only these permitted languages for <span className="text-foreground font-medium underline decoration-accent/30 underline-offset-4">flashcards</span> and <span className="text-foreground font-medium underline decoration-accent/30 underline-offset-4">taskcards</span>. 
-                    <span className="block mt-3 font-bold text-foreground/90">checklist Purity Check:</span> Any content detected in a disallowed language or containing mixed-language structures will be <span className="text-destructive font-bold underline decoration-destructive/30 underline-offset-4 uppercase tracking-tight">deleted immediately</span> during synthesis to ensure knowledge base integrity.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Channel Configuration */}
-            <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}>
-              <Card className="h-full">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-muted-foreground" />
-                    Notification Channel
-                  </CardTitle>
-                  <CardDescription>Choose where the AI sends high-impact alerts.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Channel</Label>
-                    <Select 
-                      value={settings.channel} 
-                      onValueChange={(val) => saveSettings({ channel: val })}
-                      disabled={saving}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="IMESSAGE">iMessage</SelectItem>
-                        <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
-                        <SelectItem value="EMAIL">Email</SelectItem>
-                        <SelectItem value="WEBHOOK">Webhook</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Contact Handle / URL</Label>
-                    <div className="flex gap-2">
-                      <Input 
-                        value={settings.handle || ""} 
-                        onChange={(e) => setSettings({ ...settings, handle: e.target.value })}
-                        placeholder={settings.channel === 'EMAIL' ? 'email@example.com' : '+123456789'}
-                      />
-                      <Button variant="outline" size="sm" onClick={() => saveSettings({ handle: settings.handle })}>Save</Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Threshold Configuration */}
-            <motion.div initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-              <Card className="h-full">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5 text-muted-foreground" />
-                    Sensitivity & Priority
-                  </CardTitle>
-                  <CardDescription>Only items meeting this threshold will trigger a notification.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label>Minimum ICE Score</Label>
-                      <span className="text-sm font-mono font-bold text-accent">{settings.minIceScore}</span>
-                    </div>
-                    <Slider 
-                      value={[settings.minIceScore]} 
-                      min={0} 
-                      max={1000} 
-                      step={10} 
-                      onValueChange={(val) => setSettings({ ...settings, minIceScore: val[0] })}
-                      onValueCommit={(val) => saveSettings({ minIceScore: val[0] })}
-                      disabled={saving}
-                    />
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Higher score = Fewer, higher-quality notifications.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
-
-          {/* Two-Way Bridge Security */}
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Key className="h-5 w-5 text-muted-foreground" />
-                  Communication Bridge API
-                </CardTitle>
-                <CardDescription>Use this key to send data into checklist memory from external scripts.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-lg border bg-muted/30 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1 truncate font-mono text-sm">
-                      {showSecret ? settings.bridgeSecret : "•".repeat(36)}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button variant="ghost" size="icon" onClick={() => setShowSecret(!showSecret)}>
-                        {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => copyToClipboard(settings.bridgeSecret)}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={regenerateSecret} disabled={saving}>
-                        <RefreshCcw className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase text-muted-foreground">Endpoint</Label>
-                    <div className="flex items-center gap-2 rounded-md border bg-muted/10 p-2 text-xs font-mono">
-                       {typeof window !== 'undefined' ? window.location.origin : ''}/api/bridge/ingress
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase text-muted-foreground">Example Payload</Label>
-                    <div className="rounded-md border bg-muted/80 p-2 text-[10px] font-mono text-muted">
-                      {`{ "secret": "...", "sender": "+123", "text": "New market insight..." }`}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </div>
+            <SimpleGrid cols={{ base: 1, md: 2 }} gap="md">
+              <Stack gap={4}>
+                <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">Endpoint</Text>
+                <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", backgroundColor: "rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.03)" }}>
+                  <Text ff="monospace" size="xs">
+                    {typeof window !== 'undefined' ? window.location.origin : ''}/api/bridge/ingress
+                  </Text>
+                </Box>
+              </Stack>
+              <Stack gap={4}>
+                <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">Example Payload</Text>
+                <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", backgroundColor: "rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.03)" }}>
+                  <Text ff="monospace" size="xs">
+                    {`{ "secret": "...", "sender": "+123", "text": "New insight..." }`}
+                  </Text>
+                </Box>
+              </Stack>
+            </SimpleGrid>
+          </Stack>
+        </Card>
+      </Stack>
     </PageShell>
   );
 }

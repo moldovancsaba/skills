@@ -65,12 +65,20 @@ const COLUMNS: {
   description: string;
   accent: string;
 }[] = [
-  { key: "IDEABANK",  label: "Idea Bank", description: "Someday · ICE < 100",  accent: "#6b7280" },
-  { key: "ROADMAP",   label: "Roadmap",   description: "Later · ICE ≥ 100",    accent: "#06b6d4" },
-  { key: "BACKLOG",   label: "Backlog",   description: "Sooner · ICE ≥ 250",   accent: "#3b82f6" },
-  { key: "TODO",      label: "Next",      description: "Soon · ICE ≥ 500",     accent: "#8b5cf6" },
-  { key: "CHECKLIST", label: "Now",       description: "Active · ICE ≥ 700",   accent: "#f97316" },
+  { key: "IDEABANK",  label: "Idea Bank", description: "Someday · ICE < 100",  accent: "var(--mantine-color-gray-6)" },
+  { key: "ROADMAP",   label: "Roadmap",   description: "Later · ICE ≥ 100",    accent: "var(--mantine-color-cyan-6)" },
+  { key: "BACKLOG",   label: "Backlog",   description: "Sooner · ICE ≥ 250",   accent: "var(--mantine-color-blue-6)" },
+  { key: "TODO",      label: "Next",      description: "Soon · ICE ≥ 500",     accent: "var(--mantine-color-violet-6)" },
+  { key: "CHECKLIST", label: "Now",       description: "Active · ICE ≥ 700",   accent: "var(--mantine-color-orange-6)" },
 ];
+
+const chartColors: Record<string, string> = {
+  blue: "var(--mantine-color-blue-6)",
+  amber: "var(--mantine-color-yellow-6)",
+  green: "var(--mantine-color-green-6)",
+  violet: "var(--mantine-color-violet-6)",
+  teal: "var(--mantine-color-teal-6)",
+};
 
 const COLUMN_OPTIONS = [
   { value: "IDEABANK",  label: "Idea Bank (Someday)" },
@@ -130,7 +138,7 @@ function CardDetailModal({
       overlayProps={{ blur: 4, opacity: 0.6 }}
       styles={{
         content: { 
-          background: "#111111",
+          background: "var(--mantine-color-dark-8)",
           border: "1px solid var(--mantine-color-dark-4)",
         }
       }}
@@ -158,9 +166,9 @@ function CardDetailModal({
         {/* ICE Scores */}
         <Group grow gap="xs">
           {[
-            { label: "Impact",     value: item.impact,     color: "#f97316" },
-            { label: "Confidence", value: item.confidence, color: "#06b6d4" },
-            { label: "Ease",       value: item.ease,       color: "#8b5cf6" },
+            { label: "Impact",     value: item.impact,     color: "var(--mantine-color-orange-6)" },
+            { label: "Confidence", value: item.confidence, color: "var(--mantine-color-cyan-6)" },
+            { label: "Ease",       value: item.ease,       color: "var(--mantine-color-violet-6)" },
           ].map(s => (
             <Paper key={s.label} p="sm" radius="md" withBorder ta="center" bg="var(--mantine-color-dark-7)">
               <Text size="xl" fw={900} style={{ color: s.color }}>{s.value}</Text>

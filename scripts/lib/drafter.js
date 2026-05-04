@@ -223,6 +223,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       versionFamilyId,
       candidateState: CandidateState.GENERATED,
       freshnessScore,
+      iceScore: impact * (confidence / 10) * weight,
       feedbackScore: 0,
       // Legacy source linking (for backward compat)
       sourceId: evidenceBatch[0].id,
@@ -315,7 +316,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       confidenceScore: confidence,
       confidence,
       ease,
-      iceScore,
+      iceScore: impact * (confidence / 10) * ease * 10, // Normalized to 1-1000 scale
       processingStatus: procStatus,
       activityState: "ACTIVE",
       status: "PENDING",

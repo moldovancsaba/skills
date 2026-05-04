@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Sovereign Global Styles - Vanilla CSS Foundation */
+/* Mantine styles are imported in layout.tsx */
 
 @layer base {
   :root {
@@ -43,6 +42,19 @@
     --shadow-card: 0 2px 4px rgba(0,0,0,0.02), 0 1px 0 rgba(0,0,0,0.02);
     --shadow-card-hover: 0 10px 20px -5px rgba(0,0,0,0.04), 0 8px 8px -5px rgba(0,0,0,0.02);
     --shadow-elevated: 0 20px 40px -15px rgba(0,0,0,0.1);
+    
+    /* ARCHITECTURAL LAYER TOKENS */
+    --color-knowledge: 160 84% 39%; /* Emerald */
+    --color-strategy: 160 84% 39%; /* Emerald (Primary Strategic) */
+    --color-execution: 217 91% 60%; /* Blue */
+    --color-market: 38 92% 50%; /* Amber */
+    --color-quality: 255 70% 65%; /* Indigo/Purple */
+    --color-research: 188 86% 53%; /* Cyan */
+
+    /* METRIC TOKENS */
+    --color-low: 0 84% 60%; /* Red */
+    --color-medium: 38 92% 50%; /* Amber/Orange */
+    --color-high: 160 84% 39%; /* Green */
   }
 
   .dark {
@@ -155,23 +167,23 @@
   }
 
   .pipeline-accent-data {
-    background-image: linear-gradient(90deg, rgb(96 165 250), rgb(37 99 235));
+    background-image: linear-gradient(90deg, hsl(210 40% 96%), hsl(210 40% 80%));
   }
 
   .pipeline-accent-topics {
-    background-image: linear-gradient(90deg, rgb(251 146 60), rgb(234 88 12));
+    background-image: linear-gradient(90deg, hsl(38 92% 60%), hsl(38 92% 40%));
   }
 
   .pipeline-accent-knowmore {
-    background-image: linear-gradient(90deg, rgb(74 222 128), rgb(22 163 74));
+    background-image: linear-gradient(90deg, hsl(var(--color-knowledge) / 0.8), hsl(var(--color-knowledge)));
   }
 
   .pipeline-accent-goals {
-    background-image: linear-gradient(90deg, rgb(16 185 129), rgb(4 120 87));
+    background-image: linear-gradient(90deg, hsl(var(--color-strategy) / 0.8), hsl(var(--color-strategy)));
   }
 
   .pipeline-accent-checklist {
-    background-image: linear-gradient(90deg, rgb(196 181 253), rgb(147 51 234));
+    background-image: linear-gradient(90deg, hsl(var(--color-execution) / 0.8), hsl(var(--color-execution)));
   }
 
   .input {

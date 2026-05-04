@@ -1,7 +1,5 @@
-import { FileUp, Link2, Pencil, ScrollText, Trash2, MessageSquare } from "lucide-react";
-
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { FileUp, Pencil, ScrollText, Trash2, Pin, RefreshCw, Archive } from "lucide-react";
+import { Badge, Button, Group, Stack, Text, Divider, Tooltip, Box } from "@mantine/core";
 import { 
   UnifiedCard, 
   UnifiedCardHeader, 
@@ -10,9 +8,6 @@ import {
   UnifiedCardActions,
   UnifiedCardFooter 
 } from "@/components/ui/unified-card";
-import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
-import { cn } from "@/lib/utils";
-import { getIceColorClasses } from "@/lib/ice-colors";
 
 type DataType = "source" | "file";
 
@@ -53,32 +48,11 @@ export function SourceDataCard({
   const Icon = typeIcon[type];
   const isCompetitor = intelligenceType === "COMPETITOR";
 
-  const badges = (
-    <>
-      <Badge variant="outline" className="font-mono text-[10px] tracking-wider border-zinc-200/20 text-zinc-400">
-        DATACARD
-      </Badge>
-      <Badge 
-        variant="secondary" 
-        className={cn(
-          "font-mono text-[10px] tracking-wider border-zinc-200/20 gap-1 capitalize",
-          isCompetitor ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : "bg-zinc-800 text-zinc-300"
-        )}
-      >
-        {isCompetitor ? "Competitor" : "Internal"}
-      </Badge>
-      <Badge variant="secondary" className="font-mono text-[10px] tracking-wider border-zinc-200/20 bg-zinc-800 text-zinc-300 gap-1 capitalize">
-        <Icon className="h-3 w-3" />
-        {type}
-      </Badge>
-      <div className={cn("ml-auto flex items-center gap-3 text-[10px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md border", getIceColorClasses(iceScore))}>
-        <span title="Data stage default minimum requirement.">ICE {iceScore}</span>
-      </div>
-      <div className="text-[10px] font-mono text-zinc-500">
-        #{publicId || id.slice(0, 8)}
-      </div>
-    </>
-  );
+  const getICEColor = (score: number) => {
+    if (score > 500) return "green";
+    if (score > 250) return "orange";
+    return "red";
+  };
 
   const lines = name.split("\n");
   const firstLine = lines[0].trim();
@@ -87,69 +61,103 @@ export function SourceDataCard({
 
   return (
     <UnifiedCard>
-      <UnifiedCardHeader supporting={badges} title={displayTitle} />
+      <UnifiedCardHeader 
+        supporting={
+          <Group gap="xs">
+            <Badge variant="outline" color="gray" size="sm" tt="uppercase" fw={800}>
+              Datacard
+            </Badge>
+            <Badge 
+              variant="light" 
+              color={isCompetitor ? "orange" : "gray"} 
+              size="xs" 
+              tt="uppercase"
+            >
+              {isCompetitor ? "Competitor" : "Internal"}
+            </Badge>
+            <Badge variant="light" color="gray" size="xs" tt="uppercase" leftSection={<Icon size={10} />}>
+              {type}
+            </Badge>
+            
+            <Group gap={4} ml="auto">
+              <Badge size="sm" radius="sm" color={getICEColor(iceScore)} variant="filled">
+                ICE {iceScore}
+              </Badge>
+              <Text size="xs" ff="monospace" c="dimmed">
+                #{publicId || id.slice(0, 8)}
+              </Text>
+            </Group>
+          </Group>
+        } 
+        title={displayTitle} 
+      />
       
       <UnifiedCardBody>
         {bodyText && (
-          <UnifiedCardText className="line-clamp-4 whitespace-pre-wrap">
+          <UnifiedCardText>
             {bodyText}
           </UnifiedCardText>
         )}
 
-        <HashtagChipList hashtags={hashtags} activeTags={activeHashtags} onToggle={onToggleHashtag} />
+        <Group gap={4} wrap="wrap">
+          {hashtags.map(tag => (
+            <Badge 
+              key={tag} 
+              variant={activeHashtags.includes(tag) ? "filled" : "outline"}
+              color="gray"
+              size="xs"
+              style={{ cursor: "pointer" }}
+              onClick={() => onToggleHashtag?.(tag)}
+            >
+              #{tag}
+            </Badge>
+          ))}
+        </Group>
 
         <UnifiedCardActions>
-          {onStartEdit ? (
-            <Button onClick={onStartEdit} variant="secondary" size="sm" className="h-9">
-              <Pencil className="h-3.5 w-3.5" />
+          {onStartEdit && (
+            <Button variant="filled" color="gray" size="sm" leftSection={<Pencil size={14} />} onClick={onStartEdit}>
               Edit
             </Button>
-          ) : null}
-          <Button onClick={onDelete} variant="outline" size="sm" className="h-9 border-zinc-200/10 text-zinc-400 hover:text-destructive hover:bg-destructive/10">
-            <Trash2 className="h-3.5 w-3.5" />
+          )}
+          <Button variant="outline" color="red" size="sm" leftSection={<Trash2 size={14} />} onClick={onDelete}>
             Delete
           </Button>
         </UnifiedCardActions>
       </UnifiedCardBody>
 
       <UnifiedCardFooter>
-        <div className="space-y-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Intelligence controls</p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-violet-500/10 hover:text-violet-400">
-              Pin Evidence
-            </Button>
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-sky-500/10 hover:text-sky-400">
-              Refresh
-            </Button>
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-orange-500/10 hover:text-orange-400">
-              Archive
-            </Button>
-          </div>
-        </div>
+        <Stack gap="sm">
+          <Text size="xs" fw={800} tt="uppercase" style={{ letterSpacing: 1 }} c="dimmed">Intelligence Controls</Text>
+          <Group gap="xs" wrap="wrap">
+            <Tooltip label="Pin relevant evidence">
+              <Button variant="subtle" size="compact-xs" color="gray" leftSection={<Pin size={12} />}>
+                Pin
+              </Button>
+            </Tooltip>
+            <Tooltip label="Refresh knowledge">
+              <Button variant="subtle" size="compact-xs" color="gray" leftSection={<RefreshCw size={12} />}>
+                Refresh
+              </Button>
+            </Tooltip>
+            <Tooltip label="Archive intelligence">
+              <Button variant="subtle" size="compact-xs" color="gray" leftSection={<Archive size={12} />}>
+                Archive
+              </Button>
+            </Tooltip>
+          </Group>
 
-        {onConvert && (
-          <div className="border-t border-zinc-200/5 pt-3 mt-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Convert research into</p>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight border-zinc-500/20 text-zinc-400 hover:text-white" 
-                onClick={() => onConvert(id, "KNOWLEDGE")}
-              >
-                Knowledge
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300" 
-                onClick={() => onConvert(id, "GOAL")}
-              >
-                Goal
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300" 
-                onClick={() => onConvert(id, "TASK")}
-              >
-                Task
-              </Button>
-            </div>
-          </div>
-        )}
+          {onConvert && (
+            <>
+              <Divider my="xs" label="Convert Research Into" labelPosition="center" />
+              <Group gap="xs" justify="center">
+                <Button variant="outline" size="compact-xs" color="knowledge" onClick={() => onConvert(id, "KNOWLEDGE")}>Knowledge</Button>
+                <Button variant="outline" size="compact-xs" color="strategy" onClick={() => onConvert(id, "GOAL")}>Goal</Button>
+                <Button variant="outline" size="compact-xs" color="execution" onClick={() => onConvert(id, "TASK")}>Task</Button>
+              </Group>
+            </>
+          )}
+        </Stack>
       </UnifiedCardFooter>
     </UnifiedCard>
   );

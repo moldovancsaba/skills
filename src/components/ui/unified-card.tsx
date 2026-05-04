@@ -1,16 +1,5 @@
-/**
- * UNIFIED DESIGN SYSTEM: SINGULAR CARD UI
- * v0.14.0-PRODUCTION (Hardened)
- */
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, Stack, Group, Title, Text, Box } from "@mantine/core";
 
 type UnifiedCardProps = {
   children: ReactNode;
@@ -19,10 +8,17 @@ type UnifiedCardProps = {
 
 export function UnifiedCard({ children, className }: UnifiedCardProps) {
   return (
-    <Card className={cn(
-      "overflow-hidden border-zinc-200/10 bg-zinc-950/40 shadow-card transition-[transform,box-shadow,border-color] duration-300 hover:border-accent/20 hover:shadow-card-hover",
-      className
-    )}>
+    <Card 
+      shadow="sm" 
+      padding="xl" 
+      radius="lg" 
+      withBorder 
+      className={className}
+      style={{
+        backgroundColor: "var(--mantine-color-dark-8)",
+        transition: "transform 0.2s ease, box-shadow 0.2s ease"
+      }}
+    >
       {children}
     </Card>
   );
@@ -33,7 +29,6 @@ type UnifiedCardHeaderProps = {
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
-  className?: string;
 };
 
 export function UnifiedCardHeader({
@@ -41,44 +36,72 @@ export function UnifiedCardHeader({
   title,
   description,
   actions,
-  className,
 }: UnifiedCardHeaderProps) {
   return (
-    <div className={cn("px-6 pt-6 pb-2 space-y-4", className)}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-4 flex-1">
-          {supporting ? <div className="flex flex-wrap items-center gap-2">{supporting}</div> : null}
-          <div className="space-y-2">
-            <h3 className="font-display text-[1.45rem] font-bold leading-tight tracking-tight text-white">{title}</h3>
-            {description ? <p className="text-[0.95rem] leading-relaxed text-zinc-400">{description}</p> : null}
-          </div>
-        </div>
-        {actions ? <div className="shrink-0">{actions}</div> : null}
-      </div>
-    </div>
+    <Stack gap="md" mb="md">
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
+        <Stack gap="sm" style={{ flex: 1 }}>
+          {supporting && <Group gap="xs" wrap="wrap">{supporting}</Group>}
+          <Stack gap={4}>
+            <Title order={3} size="h3" style={{ lineHeight: 1.2 }}>
+              {title}
+            </Title>
+            {description && (
+              <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+                {description}
+              </Text>
+            )}
+          </Stack>
+        </Stack>
+        {actions && <Box>{actions}</Box>}
+      </Group>
+    </Stack>
   );
 }
 
 export function UnifiedCardBody({ children, className }: UnifiedCardProps) {
-  return <div className={cn("px-6 py-4 space-y-4", className)}>{children}</div>;
+  return <Stack gap="md" className={className}>{children}</Stack>;
 }
 
 export function UnifiedCardText({ children, className }: UnifiedCardProps) {
-  return <p className={cn("text-[0.925rem] leading-relaxed text-zinc-300/90", className)}>{children}</p>;
+  return (
+    <Text size="sm" style={{ lineHeight: 1.6, opacity: 0.9 }} className={className}>
+      {children}
+    </Text>
+  );
 }
 
 export function UnifiedCardSection({ children, className }: UnifiedCardProps) {
-  return <div className={cn("rounded-xl border border-zinc-200/5 bg-zinc-400/5 p-4", className)}>{children}</div>;
+  return (
+    <Box 
+      p="md" 
+      style={{ 
+        backgroundColor: "rgba(255,255,255,0.03)", 
+        borderRadius: "var(--mantine-radius-md)",
+        border: "1px solid rgba(255,255,255,0.05)" 
+      }} 
+      className={className}
+    >
+      {children}
+    </Box>
+  );
 }
 
 export function UnifiedCardActions({ children, className }: UnifiedCardProps) {
-  return <div className={cn("flex flex-wrap gap-2 pt-2", className)}>{children}</div>;
+  return <Group gap="sm" mt="md" className={className}>{children}</Group>;
 }
 
 export function UnifiedCardFooter({ children, className }: UnifiedCardProps) {
   return (
-    <div className={cn("border-t border-zinc-200/5 bg-zinc-900/20 px-6 py-5", className)}>
+    <Card.Section 
+      withBorder 
+      inheritPadding 
+      py="md" 
+      mt="xl" 
+      style={{ backgroundColor: "rgba(0,0,0,0.15)" }}
+      className={className}
+    >
       {children}
-    </div>
+    </Card.Section>
   );
 }

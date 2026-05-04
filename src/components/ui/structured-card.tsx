@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-
-import { cn } from "@/lib/utils";
+import { Group, Stack } from "@mantine/core";
 import { 
   UnifiedCard, 
   UnifiedCardHeader, 
@@ -25,16 +24,16 @@ export function StructuredCard({ chips, title, body, actions, details, className
       <UnifiedCardBody>
         {body ? <UnifiedCardText>{body}</UnifiedCardText> : null}
         {actions ? <UnifiedCardActions>{actions}</UnifiedCardActions> : null}
-        {details ? <div className="pt-2">{details}</div> : null}
+        {details ? <Stack gap="xs" mt="xs">{details}</Stack> : null}
       </UnifiedCardBody>
     </UnifiedCard>
   );
 }
 
 export function StructuredChipRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex flex-wrap items-center gap-2", className)}>{children}</div>;
+  return <Group gap="xs" wrap="wrap" className={className}>{children}</Group>;
 }
 
 export function StructuredActionRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex flex-wrap gap-2", className)}>{children}</div>;
+  return <Group gap="sm" wrap="wrap" className={className}>{children}</Group>;
 }

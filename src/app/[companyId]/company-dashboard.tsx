@@ -1,11 +1,3 @@
-/**
- * COMPANY DASHBOARD PAGE
- * v0.14.0-PRODUCTION (Hardened)
- * 
- * Implements Unified Page Architecture:
- * - PageShell: Full-Width Layout
- * - UnifiedGrid: 3-Column Desktop Display for checklist preview
- */
 'use client';
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -13,7 +5,6 @@ import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { 
-  Container, 
   SimpleGrid, 
   Stack, 
   Group, 
@@ -21,15 +12,13 @@ import {
   Text, 
   Button as MantineButton, 
   Loader, 
-  rem, 
-  ActionIcon,
-  Tooltip
+  Box,
+  Center
 } from "@mantine/core";
-import { LinkCard, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
+import { LinkCard, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
-import { motion } from "framer-motion";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { Plus, ListOrdered, Sparkles, Zap, ArrowRight } from "lucide-react";
 
@@ -48,10 +37,6 @@ type NBAItem = {
   scheduledDate?: string | Date | null;
   userAnnotation?: string;
   hashtags: string[];
-};
-
-type Flashcard = {
-  id: string;
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
@@ -82,58 +67,35 @@ export default function CompanyDashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
 
   const loadDashboard = useCallback(async (cid: string) => {
-    const safeFetch = async (url: string) => {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Fetch failed: ${url} status ${res.status}`);
-        return await res.json();
-      } catch (e) {
-        console.error(e);
-        return [];
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/companies/${cid}/dashboard`);
+      if (!res.ok) throw new Error("Failed to load dashboard summary");
+      
+      const data = await res.json();
+      
+      setCompany(data.company);
+      setSources(Array.isArray(data.sources) ? data.sources : []);
+      setFileCount(data.counts.files);
+      setTopicCount(data.counts.topics);
+      setFlashcardCount(data.counts.flashcards);
+      setTacticalCount(data.counts.nbaItems);
+      setPendingTaskCount(data.counts.pendingTasks);
+      setTopTasks(data.topTasks);
+      setChartData(data.analytics);
+      
+      const sessionRes = await fetch("/api/auth/session");
+      if (sessionRes.ok) {
+        const session = await sessionRes.json();
+        const myMembership = Array.isArray(data.members) ? data.members.find((m: any) => m.email === session.email) : null;
+        setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
       }
-    };
-
-    const [s, f, nba, knowmore, topics, members, analytics] = await Promise.all([
-      safeFetch(`/api/sources?companyId=${cid}`),
-      safeFetch(`/api/data-files?companyId=${cid}`),
-      safeFetch(`/api/nba?companyId=${cid}&all=true`),
-      safeFetch(`/api/knowmore?companyId=${cid}`),
-      safeFetch(`/api/topics?companyId=${cid}`),
-      safeFetch(`/api/companies/${cid}/members`),
-      safeFetch(`/api/analytics/counts?companyId=${cid}`),
-    ]);
-
-    setSources(Array.isArray(s) ? s : []);
-    setFileCount(Array.isArray(f) ? f.length : 0);
-    setNbaItems(Array.isArray(nba) ? nba : []);
-    setTopicCount(Array.isArray(topics) ? topics.length : 0);
-    setFlashcardCount(Array.isArray(knowmore) ? knowmore.length : 0);
-    setChartData(Array.isArray(analytics) ? analytics : []);
-
-    const safeNBA = Array.isArray(nba) ? nba as NBAItem[] : [];
-    const now = new Date();
-    
-    // Unified Tactical Logic (§24): 
-    // - Tactical Count is the total inventory of active candidates
-    // - Pending Task (Checklist) count is ONLY items in the CHECKLIST column
-    const checklistTasks = safeNBA.filter((item) =>
-      item.kanbanColumn === "CHECKLIST" &&
-      ["ACTIVE", "STALE"].includes(item.activityState) &&
-      (!item.scheduledDate || new Date(item.scheduledDate) <= now)
-    );
-    
-    setTacticalCount(safeNBA.length);
-    setPendingTaskCount(checklistTasks.length);
-    setTopTasks(checklistTasks.slice(0, 3));
-
-    // Get current user session to determine role
-    const sessionRes = await fetch("/api/auth/session");
-    if (sessionRes.ok) {
-      const session = await sessionRes.json();
-      const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
-      setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
+    } catch (err) {
+      console.error("[DASHBOARD] Sync failure:", err);
+    } finally {
+      setLoading(false);
     }
-  }, [setSources, setNbaItems]);
+  }, [setCompany, setSources, setNbaItems]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -141,10 +103,7 @@ export default function CompanyDashboard() {
     const fetchCompany = async (cid: string) => {
       try {
         const companies = await fetch(`/api/companies`).then((res) => res.json());
-        if (!Array.isArray(companies)) {
-          console.error("Invalid companies response:", companies);
-          return;
-        }
+        if (!Array.isArray(companies)) return;
         const found = companies.find((c: any) => c.id === cid);
         if (!found) {
           router.push("/");
@@ -212,12 +171,8 @@ export default function CompanyDashboard() {
       modifiedDescription,
     };
 
-    if (action === "DECLINE" && submittedDeclineClass) {
-      payload.declineClass = submittedDeclineClass;
-    }
-    if (action === "DELIVER") {
-      payload.deliveryComment = feedbackAnnotation;
-    }
+    if (action === "DECLINE" && submittedDeclineClass) payload.declineClass = submittedDeclineClass;
+    if (action === "DELIVER") payload.deliveryComment = feedbackAnnotation;
 
     await fetch("/api/feedback", {
       method: "POST",
@@ -239,9 +194,7 @@ export default function CompanyDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kanbanColumn: column }),
       });
-      if (res.ok) {
-        await loadDashboard(company.id);
-      }
+      if (res.ok) await loadDashboard(company.id);
     } finally {
       setLoading(false);
     }
@@ -249,12 +202,16 @@ export default function CompanyDashboard() {
 
   if (loading) {
     return (
-      <Container size="xl" py={100}>
-        <Stack align="center" gap="md">
-          <Loader color="blue" />
-          <Text size="sm" c="dimmed">Initializing checklist Context...</Text>
-        </Stack>
-      </Container>
+      <PageShell width="full">
+        <Center style={{ minHeight: "60vh" }}>
+          <Stack align="center" gap="md">
+            <Loader color="brand" size="xl" variant="bars" />
+            <Text size="sm" fw={800} tt="uppercase" lts={1} c="dimmed">
+              Synchronizing Intelligence...
+            </Text>
+          </Stack>
+        </Center>
+      </PageShell>
     );
   }
 
@@ -271,100 +228,85 @@ export default function CompanyDashboard() {
 
   return (
     <PageShell width="full">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <PageHeader
-          title={company?.name ?? "Company"}
-          description="Integrated intelligence layers: Data, Topics, Knowmore, and checklist."
-          backHref={companyCount > 1 ? "/" : undefined}
-          backLabel="Switch company"
-        />
-      </motion.div>
+      <PageHeader
+        title={company?.name ?? "Organization"}
+        description="Autonomous Intelligence OS: Integrated Data, Strategy, and Execution layers."
+        backHref={companyCount > 1 ? "/" : undefined}
+        backLabel="Switch company"
+      />
 
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 5 }} spacing="md" mb="xl">
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <LinkCard
-            href={`/${companyId}/data`}
-            icon={Plus}
-            variant="blue"
-            metric={(Array.isArray(sources) ? sources.length : 0) + fileCount}
-            title="Data Collection"
-            description="Raw sources & files"
-            chartData={chartData.map(d => ({ date: d.date, value: d.sources }))}
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <LinkCard
-            href={`/${companyId}/topics`}
-            icon={ListOrdered}
-            variant="amber"
-            metric={topicCount}
-            title="Topics"
-            description="Prioritize AI focus"
-            chartData={chartData.map(d => ({ date: d.date, value: d.topics }))}
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-          <LinkCard
-            href={`/${companyId}/knowmore`}
-            icon={Sparkles}
-            variant="green"
-            metric={flashcardCount}
-            title="Knowmore"
-            description="Knowledge layer"
-            chartData={chartData.map(d => ({ date: d.date, value: d.flashcards }))}
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }}>
-          <LinkCard
-            href={`/${companyId}/nba`}
-            icon={Zap}
-            variant="violet"
-            metric={pendingTaskCount}
-            title="Checklist"
-            description="Active 'Now' tasks"
-            chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}>
-          <LinkCard
-            href={`/${companyId}/tactical`}
-            icon={ListOrdered}
-            variant="teal"
-            metric={tacticalCount}
-            title="Tactical Board"
-            description="5-horizon orchestration"
-            chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
-          />
-        </motion.div>
+      <SimpleGrid cols={{ base: 1, sm: 2, md: 5 }} spacing="lg" mb={40}>
+        <LinkCard
+          href={`/${companyId}/data`}
+          icon={Plus}
+          variant="blue"
+          metric={safeSources.length + fileCount}
+          title="Data Ingress"
+          description="Source harvesting & processing"
+          chartData={chartData.map(d => ({ date: d.date, value: d.sources }))}
+        />
+        <LinkCard
+          href={`/${companyId}/topics`}
+          icon={ListOrdered}
+          variant="indigo"
+          metric={topicCount}
+          title="Topic Synthesis"
+          description="Strategic focus prioritization"
+          chartData={chartData.map(d => ({ date: d.date, value: d.topics }))}
+        />
+        <LinkCard
+          href={`/${companyId}/knowmore`}
+          icon={Sparkles}
+          variant="knowledge"
+          metric={flashcardCount}
+          title="Knowmore"
+          description="Contextual memory layer"
+          chartData={chartData.map(d => ({ date: d.date, value: d.flashcards }))}
+        />
+        <LinkCard
+          href={`/${companyId}/nba`}
+          icon={Zap}
+          variant="strategy"
+          metric={pendingTaskCount}
+          title="Strategic Goals"
+          description="High-confidence task generation"
+          chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
+        />
+        <LinkCard
+          href={`/${companyId}/tactical`}
+          icon={ListOrdered}
+          variant="execution"
+          metric={tacticalCount}
+          title="Tactical Board"
+          description="Operational task orchestration"
+          chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
+        />
       </SimpleGrid>
 
-      <Stack gap="xl">
-        <Group justify="space-between" align="flex-end">
-          <div>
-            <Title order={3} size="h4" fw={700}>Top strategic intelligence</Title>
-            <Text size="sm" c="dimmed">High-impact tasks generated by the trinity engine.</Text>
-          </div>
-          <MantineButton 
-            variant="subtle" 
-            color="gray" 
-            size="xs" 
-            component={Link} 
-            href={`/${companyId}/nba`}
-            rightSection={<ArrowRight size={14} />}
-          >
-            Open full checklist
-          </MantineButton>
-        </Group>
-
-        <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="lg">
-          {topTasks.map((task, index) => (
-            <motion.div
-              key={task.id}
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.03 }}
+      <Stack gap={40}>
+        <Stack gap="md">
+          <Group justify="space-between" align="flex-end">
+            <Box>
+              <Title order={2} size="h3" fw={900} lts={-0.5}>Generated Intelligence</Title>
+              <Text size="sm" c="dimmed">Top-priority strategic goals synthesized by the Trinity engine.</Text>
+            </Box>
+            <MantineButton 
+              variant="subtle" 
+              color="gray" 
+              size="xs" 
+              component={Link} 
+              href={`/${companyId}/nba`}
+              rightSection={<ArrowRight size={14} />}
+              fw={700}
             >
+              Open Full Checklist
+            </MantineButton>
+          </Group>
+
+          <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="xl">
+            {topTasks.map((task) => (
               <TaskReviewCard
+                key={task.id}
                 item={task}
                 isActionOpen={actionItemId === task.id && actionMode !== null}
                 actionMode={actionMode}
@@ -387,30 +329,26 @@ export default function CompanyDashboard() {
                 onShare={handleShare}
                 onPostpone={handlePostpone}
               />
-            </motion.div>
-          ))}
-          
-          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: topTasks.length * 0.03 }}>
+            ))}
+            
             <ExpertTipCard tip={tip} />
-          </motion.div>
-          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: (topTasks.length + 1) * 0.03 }}>
             <MemberList companyId={companyId} isOwner={isOwner} />
-          </motion.div>
-        </SimpleGrid>
+          </SimpleGrid>
+        </Stack>
       </Stack>
 
-      <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8" style={{ zIndex: 100 }}>
+      <Box style={{ position: "fixed", bottom: rem(32), right: rem(32), zIndex: 100 }}>
         <MantineButton
           onClick={() => router.push(`/${companyId}/data`)}
           size="lg"
           radius="xl"
-          className="shadow-xl"
-          color="blue"
-          leftSection={<Zap size={20} />}
+          color="brand"
+          leftSection={<Plus size={20} />}
+          style={{ boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}
         >
-          Quick Add
+          Add Intelligence
         </MantineButton>
-      </div>
+      </Box>
     </PageShell>
   );
 }

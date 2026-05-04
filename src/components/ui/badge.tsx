@@ -1,29 +1,37 @@
+"use client";
+
 import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import { Badge as MantineBadge, type BadgeProps as MantineBadgeProps } from "@mantine/core";
 
-import { cn } from "@/lib/utils";
+export interface BadgeProps extends MantineBadgeProps {}
 
-const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-  {
-    variants: {
-      variant: {
-        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
-        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
-  },
-);
+function Badge({ variant = "filled", color, ...props }: BadgeProps) {
+  // Map Shadcn variants to Mantine variants
+  const variantMap: Record<string, string> = {
+    default: "filled",
+    secondary: "light",
+    destructive: "filled",
+    outline: "outline",
+  };
 
-export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
+  const colorMap: Record<string, string> = {
+    destructive: "red",
+    default: "brand",
+    secondary: "gray",
+  };
 
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+  return (
+    <MantineBadge
+      variant={(variantMap[variant as string] || variant) as any}
+      color={(colorMap[variant as string] || color || "brand") as any}
+      radius="sm"
+      size="sm"
+      styles={{
+        root: { textTransform: "none", fontWeight: 700 }
+      }}
+      {...props}
+    />
+  );
 }
 
-export { Badge, badgeVariants };
+export { Badge };

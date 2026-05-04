@@ -1,6 +1,7 @@
 "use client";
 
 import { Line, LineChart, ResponsiveContainer, YAxis, XAxis, Tooltip } from "recharts";
+import { useMantineTheme, Box, Paper, Text } from "@mantine/core";
 
 type ChartData = {
   date: string;
@@ -12,17 +13,20 @@ type DashboardChartProps = {
   color?: string;
 };
 
-export function DashboardChart({ data, color = "#8884d8" }: DashboardChartProps) {
+export function DashboardChart({ data, color }: DashboardChartProps) {
+  const theme = useMantineTheme();
+  const strokeColor = color || theme.colors.brand[6];
+
   if (!data || data.length === 0) return null;
 
   return (
-    <div className="h-16 w-full opacity-50 group-hover:opacity-100 transition-opacity duration-500">
+    <Box h={64} w="100%" style={{ opacity: 0.6, transition: "opacity 0.3s ease" }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
           <Line
             type="monotone"
             dataKey="value"
-            stroke={color}
+            stroke={strokeColor}
             strokeWidth={2}
             dot={false}
             animationDuration={1500}
@@ -33,9 +37,17 @@ export function DashboardChart({ data, color = "#8884d8" }: DashboardChartProps)
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
                 return (
-                  <div className="rounded-md bg-zinc-900/90 border border-white/10 px-2 py-1 text-[10px] font-bold text-white shadow-xl backdrop-blur-sm">
-                    {payload[0].value}
-                  </div>
+                  <Paper 
+                    p={4} 
+                    radius="xs" 
+                    withBorder 
+                    style={{ 
+                      backgroundColor: "rgba(0,0,0,0.8)", 
+                      backdropFilter: "blur(4px)" 
+                    }}
+                  >
+                    <Text size="xs" fw={700} lts={1}>{payload[0].value}</Text>
+                  </Paper>
                 );
               }
               return null;
@@ -43,6 +55,6 @@ export function DashboardChart({ data, color = "#8884d8" }: DashboardChartProps)
           />
         </LineChart>
       </ResponsiveContainer>
-    </div>
+    </Box>
   );
 }

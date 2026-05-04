@@ -97,6 +97,7 @@ type Flashcard = {
   corrections: FlashcardCorrection[];
   ischecklistResearch?: boolean;
   intelligenceType: "INTERNAL" | "COMPETITOR";
+  iceScore: number;
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "CONVERT";
@@ -167,11 +168,11 @@ function reviewStatusLabel(processingStatus: Flashcard["processingStatus"]) {
 function reviewStatusClasses(processingStatus: Flashcard["processingStatus"]) {
   switch (processingStatus) {
     case "ACCEPTED":
-      return "border-transparent bg-green-100 text-green-700";
+      return "border-[hsl(var(--color-high)/0.2)] bg-[hsl(var(--color-high)/0.1)] text-[hsl(var(--color-high))]";
     case "DECLINED":
-      return "border-transparent bg-red-100 text-red-700";
+      return "border-[hsl(var(--color-low)/0.2)] bg-[hsl(var(--color-low)/0.1)] text-[hsl(var(--color-low))]";
     case "VERIFIED":
-      return "border-transparent bg-violet-100 text-violet-700";
+      return "border-[hsl(var(--color-quality)/0.2)] bg-[hsl(var(--color-quality)/0.1)] text-[hsl(var(--color-quality))]";
     case "DRAFT":
     case "CHECKED":
       return "border-input bg-background text-foreground";

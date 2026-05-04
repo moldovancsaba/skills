@@ -1,11 +1,8 @@
 "use client";
 
 import { Hash, X } from "lucide-react";
-
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge, Group, ActionIcon, UnstyledButton } from "@mantine/core";
 import { displayHashtag, normalizeHashtagList } from "@/lib/hashtags";
-import { cn } from "@/lib/utils";
 
 type Props = {
   hashtags: string[];
@@ -30,70 +27,46 @@ export function HashtagChipList({
   }
 
   return (
-    <div className={cn("flex flex-wrap gap-2", className)}>
+    <Group gap={6} wrap="wrap" className={className}>
       {tags.map((tag) => {
         const isActive = active.has(tag);
-        const chip = (
-          <Badge
-            variant={isActive ? "default" : "outline"}
-            className={cn(
-              "gap-1 rounded-full px-3 py-1 font-medium",
-              onToggle ? "cursor-pointer" : "",
+        
+        return (
+          <Group key={tag} gap={2} align="center">
+            <UnstyledButton 
+              onClick={() => onToggle?.(tag)}
+              disabled={!onToggle}
+              style={{ cursor: onToggle ? "pointer" : "default" }}
+            >
+              <Badge
+                variant={isActive ? "filled" : "light"}
+                color="gray"
+                size="sm"
+                radius="sm"
+                leftSection={<Hash size={10} />}
+                style={{ 
+                  textTransform: "none",
+                  fontWeight: 600
+                }}
+              >
+                {displayHashtag(tag)}
+              </Badge>
+            </UnstyledButton>
+            
+            {onRemove && (
+              <ActionIcon 
+                size="xs" 
+                variant="subtle" 
+                color="red" 
+                onClick={() => onRemove(tag)}
+                radius="xl"
+              >
+                <X size={10} />
+              </ActionIcon>
             )}
-          >
-            <Hash className="h-3 w-3" />
-            {displayHashtag(tag)}
-          </Badge>
+          </Group>
         );
-
-        if (onToggle && onRemove) {
-          return (
-            <div key={tag} className="flex items-center gap-1">
-              <button type="button" onClick={() => onToggle(tag)} className="contents">
-                {chip}
-              </button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 rounded-full"
-                onClick={() => onRemove(tag)}
-                aria-label={`Remove ${tag}`}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </div>
-          );
-        }
-
-        if (onRemove) {
-          return (
-            <div key={tag} className="flex items-center gap-1">
-              {chip}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 rounded-full"
-                onClick={() => onRemove(tag)}
-                aria-label={`Remove ${tag}`}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </div>
-          );
-        }
-
-        if (onToggle) {
-          return (
-            <button key={tag} type="button" onClick={() => onToggle(tag)} className="contents">
-              {chip}
-            </button>
-          );
-        }
-
-        return <div key={tag}>{chip}</div>;
       })}
-    </div>
+    </Group>
   );
 }

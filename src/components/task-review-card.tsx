@@ -15,6 +15,7 @@ import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { cn } from "@/lib/utils";
 import { getIceColorClasses } from "@/lib/ice-colors";
 import { TraceViewer } from "@/components/trace-viewer";
+import { stripTechnicalMetadata } from "@/lib/ui-utils";
 
 /**
  * Valid action modes for task feedback.
@@ -126,10 +127,12 @@ export function TaskReviewCard({
       </Card.Section>
 
       <Stack gap="md" mt="md">
-        <Text fw={700} size="lg" lh={1.2} c="white">{item.title}</Text>
+        <Text fw={700} size="lg" lh={1.2} c="white">
+          {stripTechnicalMetadata(item.title)}
+        </Text>
         
         <Text size="sm" c="dimmed" lh={1.6}>
-          {item.description}
+          {stripTechnicalMetadata(item.description)}
         </Text>
 
         <HashtagChipList

@@ -10,6 +10,16 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { 
+  Stack, 
+  Group, 
+  Text, 
+  Card,
+  Badge as MantineBadge,
+  ActionIcon,
+  Tooltip
+} from "@mantine/core";
 import { GripVertical, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -25,7 +35,6 @@ import {
 } from "@/components/ui/unified-card";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 type Topic = {
   id: string;
@@ -177,47 +186,55 @@ export default function CompanyTopicsPage() {
         </Notice>
       ) : null}
 
-      <UnifiedCard className="mb-8">
-        <UnifiedCardHeader title="Add New Research Topic" />
-        <UnifiedCardBody className="space-y-4">
-          <div className="flex gap-2">
+      <Card radius="md" withBorder p="xl" mb="xl">
+        <Stack gap="md">
+          <Text size="sm" fw={800} tt="uppercase" lts={1} c="dimmed">Identify New Intelligence Frontier</Text>
+          <Group gap="md" align="flex-end">
             <FormInput
-              label="Topic Label"
+              label="Strategic Topic Label"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="e.g., market landscape analysis, pricing strategy, trending..."
+              placeholder="e.g., market landscape analysis, pricing strategy..."
+              style={{ flex: 1 }}
             />
             <Button 
               type="button" 
-              className="self-end h-10 px-6 font-bold uppercase tracking-widest text-[10px]" 
               onClick={() => void addTopic()}
+              size="md"
+              leftSection={<Plus size={16} />}
             >
-              <Plus className="h-4 w-4" />
-              Add Topic
+              Add Focus Topic
             </Button>
-          </div>
-        </UnifiedCardBody>
-      </UnifiedCard>
+          </Group>
+        </Stack>
+      </Card>
 
-      <div className="mb-4">
-        <h2 className="text-lg font-bold tracking-tight text-white">Focus topics ({orderedTopics.length})</h2>
-        <p className="text-sm text-zinc-500">Drag to reorder or use the buttons below.</p>
-      </div>
+      <Stack gap="sm" mb="lg">
+        <Group gap="sm">
+          <Text size="xl" fw={900} lts={-0.5}>Strategic Focus Hierarchy</Text>
+          <Badge variant="light" color="gray" radius="sm">{orderedTopics.length} Units</Badge>
+        </Group>
+        <Text size="sm" c="dimmed" fw={500}>
+          Drag to reorder prioritization. Top-level topics receive maximum synthesis yield.
+        </Text>
+      </Stack>
 
       <UnifiedGrid>
         {orderedTopics.map((topic, index) => {
           const badges = (
-            <>
-              <Badge variant="outline" className="font-mono text-[10px] tracking-wider border-zinc-200/20 text-zinc-400">
+            <Group gap={6}>
+              <Badge variant="outline" color="gray" size="xs" styles={{ label: { fontFamily: 'monospace', letterSpacing: 1 } }}>
                 {index + 1}
               </Badge>
-              <Badge variant="secondary" className={cn(
-                "font-mono text-[10px] tracking-wider border-zinc-200/20",
-                topic.active ? "bg-green-500/10 text-green-400" : "bg-zinc-800 text-zinc-500"
-              )}>
+              <Badge 
+                variant="light" 
+                color={topic.active ? "green" : "gray"} 
+                size="xs"
+                styles={{ label: { fontFamily: 'monospace', letterSpacing: 1 } }}
+              >
                 {topic.active ? "ACTIVE" : "PAUSED"}
               </Badge>
-            </>
+            </Group>
           );
 
           return (
@@ -238,15 +255,12 @@ export default function CompanyTopicsPage() {
                 setDraggingId(null);
               }}
               onDragEnd={() => setDraggingId(null)}
-              className={cn(
-                "group cursor-grab active:cursor-grabbing",
-                draggingId === topic.id && "opacity-60"
-              )}
+              className={`group cursor-grab active:cursor-grabbing ${draggingId === topic.id ? "opacity-60" : ""}`}
             >
               <UnifiedCard>
                 <UnifiedCardHeader 
                   supporting={badges} 
-                  title={topic.label} 
+                  title={stripTechnicalMetadata(topic.label)} 
                 />
                 
                 <UnifiedCardBody>

@@ -157,16 +157,60 @@ export function MetricCard({
   color = "brand",
 }: MetricCardProps) {
   return (
-    <Card p="lg" radius="md" withBorder bg="var(--mantine-color-dark-8)">
-      <Stack gap="md">
-        <ThemeIcon variant="light" color={color} size="xl" radius="md">
-          <Icon size={20} />
-        </ThemeIcon>
+    <Card 
+      radius="lg" 
+      p="xl" 
+      withBorder 
+      style={{ 
+        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.05)',
+        position: 'relative',
+        overflow: 'hidden',
+        height: '100%'
+      }}
+    >
+      <Box 
+        style={{ 
+          position: 'absolute', 
+          top: -20, 
+          right: -20, 
+          width: 100, 
+          height: 100, 
+          borderRadius: '50%', 
+          background: `var(--mantine-color-${color}-filled)`, 
+          opacity: 0.05, 
+          filter: 'blur(40px)' 
+        }} 
+      />
+      
+      <Stack gap="xl">
+        <Group justify="space-between" align="flex-start">
+          <ThemeIcon 
+            variant="gradient" 
+            gradient={{ from: `${color}.6`, to: `${color}.9`, deg: 45 }}
+            radius="md" 
+            size="xl"
+            style={{ boxShadow: `0 4px 15px var(--mantine-color-${color}-9)` }}
+          >
+            <Icon size={20} />
+          </ThemeIcon>
+          
+          <Text size="xs" c="dimmed" fw={800} tt="uppercase" lts={1.5} opacity={0.6}>
+            {label}
+          </Text>
+        </Group>
+
         <Stack gap={4}>
-          <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">{label}</Text>
-          <Title order={4} size="h2" fw={900}>{value}</Title>
+          <Text size="36px" fw={900} lts={-1.5} style={{ lineHeight: 1 }}>
+            {value}
+          </Text>
+          {detail && (
+            <Text size="xs" c={color} fw={700} mt={4} opacity={0.8} tt="uppercase" lts={1}>
+              {detail}
+            </Text>
+          )}
         </Stack>
-        {detail && <Text size="xs" c="dimmed">{detail}</Text>}
       </Stack>
     </Card>
   );
@@ -234,39 +278,68 @@ export function LinkCard({
       component={Link} 
       href={href} 
       className={className}
-      style={{ display: "block", height: "100%" }}
+      style={{ display: "block", height: "100%", textDecoration: 'none' }}
     >
       <Card 
-        shadow="sm" 
-        padding="xl" 
         radius="lg" 
+        p="xl" 
         withBorder 
-        bg="var(--mantine-color-dark-8)"
-        style={{ height: "100%", transition: "transform 0.2s ease" }}
+        className="link-card-hardened"
+        style={{ 
+          height: '100%',
+          backgroundColor: 'rgba(255, 255, 255, 0.02)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          cursor: 'pointer',
+          overflow: 'hidden',
+          position: 'relative'
+        }}
       >
-        <Stack gap="md" h="100%">
-          <Group justify="space-between" align="flex-start">
-            <ThemeIcon color={variant} variant="light" size="xl" radius="md">
-              <Icon size={24} />
+        <Box 
+          style={{ 
+            position: 'absolute', 
+            top: -40, 
+            right: -40, 
+            width: 140, 
+            height: 140, 
+            borderRadius: '50%', 
+            background: `var(--mantine-color-${variant}-filled)`, 
+            opacity: 0.04, 
+            filter: 'blur(60px)',
+            pointerEvents: 'none'
+          }} 
+        />
+
+        <Stack gap="xl" h="100%" style={{ position: 'relative', zIndex: 1 }}>
+          <Group justify="space-between" align="center">
+            <ThemeIcon 
+              variant="gradient" 
+              gradient={{ from: `${variant}.6`, to: `${variant}.9`, deg: 45 }}
+              radius="md" 
+              size="xl"
+              style={{ boxShadow: `0 4px 20px var(--mantine-color-${variant}-9)` }}
+            >
+              <Icon size={20} />
             </ThemeIcon>
             {metric !== undefined && (
-              <Text fw={900} size="xl" lts={-2} c={variant} opacity={0.8}>
+              <Text fw={900} size="24px" lts={-1} c={variant} opacity={0.8}>
                 {metric}
               </Text>
             )}
           </Group>
 
-          <Stack gap={4}>
-            <Text fw={800} size="lg" lh={1.2}>
+          <Stack gap={6}>
+            <Text fw={900} size="xl" lh={1.1} lts={-0.5} c="white">
               {title}
             </Text>
-            <Text size="xs" c="dimmed" lineClamp={2}>
+            <Text size="xs" c="dimmed" lineClamp={2} fw={600} opacity={0.7}>
               {description}
             </Text>
           </Stack>
 
           {chartData && chartData.length > 0 && (
-            <Box mt="auto" pt="sm">
+            <Box mt="auto" pt="lg" style={{ filter: 'grayscale(0.5) contrast(1.2)' }}>
               <DashboardChart 
                 data={chartData} 
                 color={`var(--mantine-color-${variant}-6)`} 
@@ -274,13 +347,21 @@ export function LinkCard({
             </Box>
           )}
 
-          <Group justify="flex-end" mt="auto">
-            <Text size="xs" fw={800} tt="uppercase" lts={1} c={variant}>
-              Open Layer →
+          <Group justify="flex-end" mt="auto" pt="md">
+            <Text size="10px" fw={900} tt="uppercase" lts={2} c={variant} opacity={0.5}>
+              Access Layer →
             </Text>
           </Group>
         </Stack>
       </Card>
+      <style jsx global>{`
+        .link-card-hardened:hover {
+          background-color: rgba(255, 255, 255, 0.05) !important;
+          transform: translateY(-6px);
+          border-color: rgba(255, 255, 255, 0.1) !important;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+      `}</style>
     </UnstyledButton>
   );
 }

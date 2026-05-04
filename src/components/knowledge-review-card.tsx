@@ -1,5 +1,6 @@
 import { Check, Loader2, MessageSquare, PencilLine, X, Pin, RefreshCw, AlertCircle, Archive } from "lucide-react";
 import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip } from "@mantine/core";
+import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import {
   UnifiedCard,
   UnifiedCardActions,
@@ -179,12 +180,12 @@ export function KnowledgeReviewCard({
             </Group>
           </Group>
         }
-        title={flashcard.title}
+        title={stripTechnicalMetadata(flashcard.title)}
       />
 
       <UnifiedCardBody>
         <UnifiedCardText>
-          {flashcard.body}
+          {stripTechnicalMetadata(flashcard.body)}
         </UnifiedCardText>
 
         <Group gap={4}>

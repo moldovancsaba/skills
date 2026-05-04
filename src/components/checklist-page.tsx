@@ -14,12 +14,12 @@ import { useStore } from "@/lib/store";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Container, Grid, Title, Text, Button as MantineButton, Group, Loader, Stack, ActionIcon, rem } from "@mantine/core";
+import { Group, Loader, Stack, Title, Text } from "@mantine/core";
 import { EmptyState, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
 import { Button } from "@/components/ui/button";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
-import { Archive, Brain } from "lucide-react";
+import { Archive, Brain, RefreshCw } from "lucide-react";
 
 /**
  * Representational interface for a tactical intelligence unit (Task).
@@ -270,47 +270,54 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
 
   if (loading) {
     return (
-      <Container size="xl" py={100}>
-        <Stack align="center" gap="md">
-          <Loader color="blue" />
-          <Text size="sm" c="dimmed">Decrypting tactical intelligence...</Text>
+      <PageShell width="full">
+        <Stack align="center" gap="md" py={100}>
+          <Loader color="brand" size="xl" variant="bars" />
+          <Text size="sm" fw={800} tt="uppercase" lts={1} c="dimmed">Decrypting tactical intelligence...</Text>
         </Stack>
-      </Container>
+      </PageShell>
     );
   }
 
   const filteredItems = items.filter((item) => matchesAllHashtags(item.hashtags, activeHashtags));
 
   return (
-    <Container size="xl" py="xl">
+    <PageShell width="full">
       <Stack gap="xl">
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-          <Group justify="space-between" align="flex-end" mt="md">
-            <div>
-              <Title order={2} fw={900} lts={-1}>{archived ? "Archived checklist" : "checklist"}</Title>
-              <Text size="sm" c="dimmed">{filteredItems.length} {archived ? "archived" : "pending"} units detected</Text>
-            </div>
-            <Group gap="xs">
+          <Group justify="space-between" align="center" mt="md">
+            <Stack gap={0}>
+              <Text size="xs" fw={800} tt="uppercase" lts={2} c="brand">
+                {archived ? "Archive" : "Active Intelligence"}
+              </Text>
+              <Title order={1} fw={900} lts={-1.5} size="36px">
+                {archived ? "Archived Units" : "CHECKLIST"}
+              </Title>
+              <Text size="sm" c="dimmed" fw={600}>
+                {filteredItems.length} units detected on this tactical layer
+              </Text>
+            </Stack>
+
+            <Group gap="sm">
               {archived ? (
-                <MantineButton variant="subtle" color="gray" size="xs" component={Link} href={`/${companyId}/nba`}>
-                  Open Active checklist
-                </MantineButton>
+                <Button variant="light" color="gray" component={Link} href={`/${companyId}/nba`}>
+                  Open Active Checklist
+                </Button>
               ) : (
-                <>
-                  <MantineButton 
+                <Group gap="xs">
+                  <Button 
                     onClick={handleRefresh} 
-                    variant="subtle" 
+                    variant="light" 
                     color="gray" 
-                    size="xs" 
                     loading={loading}
-                    leftSection={!loading && <Loader size={14} />}
+                    leftSection={<RefreshCw size={14} />}
                   >
                     Refresh
-                  </MantineButton>
-                  <MantineButton variant="subtle" color="gray" size="xs" component={Link} href={`/${companyId}/nba_archived`} leftSection={<Archive size={14} />}>
+                  </Button>
+                  <Button variant="light" color="gray" component={Link} href={`/${companyId}/nba_archived`} leftSection={<Archive size={14} />}>
                     Show Archived
-                  </MantineButton>
-                </>
+                  </Button>
+                </Group>
               )}
             </Group>
           </Group>
@@ -323,43 +330,42 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
             description={activeHashtags.length > 0 ? "Try clearing hashtag filters." : archived ? "Accepted, declined, and AI-filtered items will appear here." : "Add data to get AI-powered suggestions."}
           />
         ) : (
-          <Grid gutter="lg">
+          <UnifiedGrid>
             {filteredItems.map((item, index) => (
-              <Grid.Col key={item.id} span={{ base: 12, md: 6, lg: 4 }}>
-                <motion.div
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                >
-                  <TaskReviewCard
-                    item={item}
-                    isActionOpen={actionItemId === item.id && actionMode !== null}
-                    actionMode={actionMode}
-                    isBusy={actingId === item.id}
-                    copied={copiedId === item.id}
-                    annotation={annotation}
-                    draftTitle={draftTitle}
-                    draftDescription={draftDescription}
-                    activeHashtags={activeHashtags}
-                    onOpenAction={openActionForm}
-                    onCloseAction={resetActionForm}
-                    onAnnotationChange={setAnnotation}
-                    onDraftTitleChange={setDraftTitle}
-                    onDraftDescriptionChange={setDraftDescription}
-                    declineClass={declineClass}
-                    onDeclineClassChange={setDeclineClass}
-                    onToggleHashtag={toggleHashtagFilter}
-                    onRemoveHashtag={(itemId: string, tag: string) => void removeTaskHashtag(itemId, tag)}
-                    onSubmit={handleFeedback}
-                    onShare={handleShare}
-                    onPostpone={handlePostpone}
-                  />
-                </motion.div>
-              </Grid.Col>
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+              >
+                <TaskReviewCard
+                  item={item}
+                  isActionOpen={actionItemId === item.id && actionMode !== null}
+                  actionMode={actionMode}
+                  isBusy={actingId === item.id}
+                  copied={copiedId === item.id}
+                  annotation={annotation}
+                  draftTitle={draftTitle}
+                  draftDescription={draftDescription}
+                  activeHashtags={activeHashtags}
+                  onOpenAction={openActionForm}
+                  onCloseAction={resetActionForm}
+                  onAnnotationChange={setAnnotation}
+                  onDraftTitleChange={setDraftTitle}
+                  onDraftDescriptionChange={setDraftDescription}
+                  declineClass={declineClass}
+                  onDeclineClassChange={setDeclineClass}
+                  onToggleHashtag={toggleHashtagFilter}
+                  onRemoveHashtag={(itemId: string, tag: string) => void removeTaskHashtag(itemId, tag)}
+                  onSubmit={handleFeedback}
+                  onShare={handleShare}
+                  onPostpone={handlePostpone}
+                />
+              </motion.div>
             ))}
-          </Grid>
+          </UnifiedGrid>
         )}
       </Stack>
-    </Container>
+    </PageShell>
   );
 }

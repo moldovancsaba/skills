@@ -1,5 +1,6 @@
 import { FileUp, Pencil, ScrollText, Trash2, Pin, RefreshCw, Archive } from "lucide-react";
 import { Badge, Button, Group, Stack, Text, Divider, Tooltip, Box } from "@mantine/core";
+import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { 
   UnifiedCard, 
   UnifiedCardHeader, 
@@ -55,9 +56,9 @@ export function SourceDataCard({
   };
 
   const lines = name.split("\n");
-  const firstLine = lines[0].trim();
+  const firstLine = stripTechnicalMetadata(lines[0]);
   const displayTitle = firstLine.length > 80 ? firstLine.slice(0, 80) + "..." : firstLine;
-  const bodyText = lines.slice(1).join("\n").trim();
+  const bodyText = stripTechnicalMetadata(lines.slice(1).join("\n"));
 
   return (
     <UnifiedCard>

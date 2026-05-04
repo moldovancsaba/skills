@@ -4,10 +4,20 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { 
+  Stack, 
+  Group, 
+  Text, 
+  SegmentedControl, 
+  FileButton, 
+  Card,
+  ScrollArea,
+  Box,
+  Divider
+} from "@mantine/core";
 import { FileUp, Plus, CheckCircle, ScrollText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
@@ -348,90 +358,116 @@ export default function CompanyDataPage() {
         />
       </motion.div>
 
-      <Card id="data-form-container">
-        <CardContent className="space-y-4 p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <Card id="data-form-container" radius="md" withBorder>
+        <Stack gap="md" p="xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {editingId ? (
               <Notice title="Editing Selected Source">
-                You are editing an existing source in the top form. Save changes here or cancel to return to add mode.
+                You are editing an existing source. Save changes or cancel to return to add mode.
               </Notice>
             ) : null}
+
             <FormTextarea
+              label="Evidence Details"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Paste a URL, type a source name, or write notes..."
-              className="min-h-[120px] text-base resize-y"
-              rows={5}
+              minRows={5}
+              size="md"
             />
 
-            {!editingId ? (
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">Files</label>
-                <input
-                  type="file"
-                  multiple
-                  onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
-                  className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
-                />
-                {selectedFiles.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedFiles.map((file) => (
-                      <Badge key={`${file.name}-${file.size}`} variant="secondary" className="rounded-full">
+            {!editingId && (
+              <Stack gap="xs">
+                <Text size="sm" fw={600}>Evidence Files</Text>
+                <Group gap="sm">
+                  <FileButton 
+                    onChange={(files) => setSelectedFiles(prev => [...prev, ...Array.from(files)])} 
+                    accept="*" 
+                    multiple
+                  >
+                    {(props) => (
+                      <Button {...props} variant="light" color="brand" leftSection={<FileUp size={16} />}>
+                        Choose Files
+                      </Button>
+                    )}
+                  </FileButton>
+                  
+                  {selectedFiles.length > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      color="red" 
+                      size="xs" 
+                      onClick={() => setSelectedFiles([])}
+                    >
+                      Clear ({selectedFiles.length})
+                    </Button>
+                  )}
+                </Group>
+
+                {selectedFiles.length > 0 && (
+                  <Group gap={6} mt="xs">
+                    {selectedFiles.map((file, idx) => (
+                      <Badge 
+                        key={`${file.name}-${idx}`} 
+                        variant="dot" 
+                        color="brand"
+                        radius="sm"
+                        styles={{ label: { textTransform: 'none' } }}
+                      >
                         {file.name}
                       </Badge>
                     ))}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+                  </Group>
+                )}
+              </Stack>
+            )}
 
             <HashtagInput
               value={hashtags}
               onChange={setHashtags}
               suggestions={hashtagSuggestions}
-              label="Hashtags (Attribute)"
-              placeholder="Add hashtags like #soccer, #academy, #pricing, #performance"
+              label="Strategic Taxonomy (Hashtags)"
+              placeholder="Add hashtags like #pricing, #competitor, #product"
             />
 
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-foreground">Intelligence Focus</label>
-              <div className="flex gap-2">
-                {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
-                  <Badge
-                    key={type}
-                    variant={intelligenceType === type ? "default" : "outline"}
-                    className={cn(
-                      "cursor-pointer px-4 py-1.5 text-xs transition-all",
-                      intelligenceType === type 
-                        ? (type === "COMPETITOR" ? "bg-amber-600 hover:bg-amber-700" : "bg-blue-600 hover:bg-blue-700")
-                        : "hover:bg-accent"
-                    )}
-                    onClick={() => setIntelligenceType(type)}
-                  >
-                    {type === "INTERNAL" ? "My Company" : "Market / Competitor"}
-                  </Badge>
-                ))}
-              </div>
-              <p className="text-[10px] text-muted-foreground">
+            <Stack gap="xs">
+              <Text size="sm" fw={600}>Intelligence Focus</Text>
+              <SegmentedControl
+                value={intelligenceType}
+                onChange={(value) => setIntelligenceType(value as any)}
+                data={[
+                  { label: 'My Company', value: 'INTERNAL' },
+                  { label: 'Market / Competitor', value: 'COMPETITOR' },
+                ]}
+                color={intelligenceType === 'INTERNAL' ? 'blue' : 'orange'}
+                fullWidth
+                size="md"
+                radius="md"
+              />
+              <Text size="xs" c="dimmed">
                 {intelligenceType === "INTERNAL" 
                   ? "Insights about your own product, operations, and performance." 
-                  : "Insights about market competitors and industry benchmarks. These are managed separately."}
-              </p>
-            </div>
+                  : "Insights about market competitors and industry benchmarks. Managed separately."}
+              </Text>
+            </Stack>
 
-            <div className="flex justify-end gap-2">
-              {editingId ? (
-                <Button type="button" variant="ghost" onClick={cancelEdit}>
+            <Group justify="flex-end" gap="md" mt="xl">
+              {editingId && (
+                <Button variant="subtle" color="gray" onClick={cancelEdit}>
                   Cancel
                 </Button>
-              ) : null}
-              <Button type="submit" disabled={(!input.trim() && selectedFiles.length === 0) || !company}>
-                <Plus className="w-4 h-4" />
-                {editingId ? "Save changes" : "Add data"}
+              )}
+              <Button 
+                type="submit" 
+                size="md"
+                disabled={(!input.trim() && selectedFiles.length === 0) || !company}
+                leftSection={editingId ? undefined : <Plus size={18} />}
+              >
+                {editingId ? "Save Changes" : "Hardened Ingest"}
               </Button>
-            </div>
+            </Group>
           </form>
-        </CardContent>
+        </Stack>
       </Card>
 
       {saved && (
@@ -451,56 +487,72 @@ export default function CompanyDataPage() {
       ) : null}
 
       <MetricGrid>
-        <MetricCard icon={ScrollText} label="Sources" value={sources.length} />
-        <MetricCard icon={FileUp} label="Files" value={items.filter((item) => item.type === "file").length} />
+        <MetricCard 
+          icon={ScrollText} 
+          label="Total Sources" 
+          value={sources.length} 
+          detail="Ingested Evidence"
+          color="blue"
+        />
+        <MetricCard 
+          icon={FileUp} 
+          label="Uploaded Files" 
+          value={items.filter((item) => item.type === "file").length} 
+          detail="Direct Assets"
+          color="teal"
+        />
       </MetricGrid>
 
-      <div>
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
-          <h2 className="text-lg font-bold tracking-tight text-white">
-            All Data ({filteredItems.length}{activeHashtags.length > 0 || listIntelligenceFilter !== "ALL" ? ` of ${items.length}` : ""})
-          </h2>
+      <Stack gap="xl">
+        <Group justify="space-between" align="center">
+          <Group gap="sm">
+            <Text size="xl" fw={900} lts={-0.5}>All Evidence</Text>
+            <Badge variant="light" color="gray" radius="sm">
+              {filteredItems.length} {activeHashtags.length > 0 || listIntelligenceFilter !== "ALL" ? `of ${items.length}` : ""}
+            </Badge>
+          </Group>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <Group gap="sm">
             {/* Focus Filter */}
-            <div className="bg-zinc-900/50 p-1 rounded-lg border border-white/5 flex gap-1">
+            <Group gap={4} p={4} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
               {(["ALL", "INTERNAL", "COMPETITOR"] as const).map((type) => (
                 <Button
                   key={type}
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "h-8 px-4 text-xs font-bold uppercase tracking-tight transition-all",
-                    listIntelligenceFilter === type 
-                      ? (type === "COMPETITOR" ? "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30" : (type === "INTERNAL" ? "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30" : "bg-white/10 text-white"))
-                      : "text-muted-foreground hover:text-white"
-                  )}
+                  variant={listIntelligenceFilter === type ? "light" : "subtle"}
+                  size="compact-xs"
+                  color={listIntelligenceFilter === type 
+                    ? (type === "COMPETITOR" ? "orange" : (type === "INTERNAL" ? "blue" : "gray"))
+                    : "gray"
+                  }
+                  px="md"
+                  h={28}
+                  styles={{ label: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 } }}
                   onClick={() => setListIntelligenceFilter(type)}
                 >
-                  {type === "ALL" ? "All Focus" : type === "INTERNAL" ? "My Company" : "Competitors"}
+                  {type === "ALL" ? "All" : type === "INTERNAL" ? "Internal" : "Market"}
                 </Button>
               ))}
-            </div>
+            </Group>
 
             {/* Sort Controls */}
-            <div className="bg-zinc-900/50 p-1 rounded-lg border border-white/5 flex gap-1">
+            <Group gap={4} p={4} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
               {(["CREATED", "UPDATED", "ICE"] as const).map((sort) => (
                 <Button
                   key={sort}
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "h-8 px-4 text-xs font-bold uppercase tracking-tight transition-all",
-                    sortBy === sort ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"
-                  )}
+                  variant={sortBy === sort ? "light" : "subtle"}
+                  size="compact-xs"
+                  color="gray"
+                  px="md"
+                  h={28}
+                  styles={{ label: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 } }}
                   onClick={() => setSortBy(sort)}
                 >
-                  {sort === "CREATED" ? "Created" : sort === "UPDATED" ? "Updated" : "ICE"}
+                  {sort}
                 </Button>
               ))}
-            </div>
-          </div>
-        </div>
+            </Group>
+          </Group>
+        </Group>
         {filteredItems.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data yet. Add your first item above.</p>
         ) : (
@@ -555,7 +607,7 @@ export default function CompanyDataPage() {
             })}
           </UnifiedGrid>
         )}
-      </div>
+      </Stack>
     </PageShell>
   );
 }

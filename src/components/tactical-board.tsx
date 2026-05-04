@@ -104,6 +104,8 @@ function CardDetailModal({
     <Modal
       opened={opened}
       onClose={onClose}
+      centered
+      withinPortal
       title={
         <Group gap="sm">
           <Text fw={800} size="lg" style={{ letterSpacing: "-0.02em" }}>
@@ -265,6 +267,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }, [fetchItems]);
 
   const handleOpenCard = (item: NBAItem) => {
+    console.log("[KANBAN] Opening card:", item.id);
     setSelectedItem(item);
     openModal();
   };
@@ -404,7 +407,11 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                   p="sm"
                                   radius="md"
                                   withBorder
-                                  onClick={() => handleOpenCard(item)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleOpenCard(item);
+                                  }}
                                   style={{
                                     background: snapshot.isDragging
                                       ? "var(--mantine-color-dark-5)"

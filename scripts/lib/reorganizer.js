@@ -121,7 +121,13 @@ async function reorganizeCard(prisma, card, sourceLayer, targetLayer) {
     } else if (sType === "GOALCARD") {
       await prisma.goalcard.update({ where: { id: card.id }, data: { activityState: "ARCHIVED" } });
     } else if (sType === "TASKCARD") {
-      await prisma.nBAItem.update({ where: { id: card.id }, data: { status: "ARCHIVED" } });
+      await prisma.nBAItem.update({ 
+        where: { id: card.id }, 
+        data: { 
+          activityState: "ARCHIVED",
+          status: "ARCHIVED" 
+        } 
+      });
     }
 
     console.log(`[REORGANIZER] ✅ Migration successful. New ID: ${createdItem.id}`);

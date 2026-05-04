@@ -128,7 +128,10 @@ export async function POST(req: Request) {
     } else if (sourceType === "TASKCARD") {
       await prisma.nBAItem.update({
         where: { id: sourceId },
-        data: { status: "ARCHIVED" }
+        data: { 
+          activityState: "ARCHIVED",
+          status: "ARCHIVED" // Keeping legacy for safety
+        }
       });
     } else if (sourceType === "SOURCE") {
       await prisma.source.delete({

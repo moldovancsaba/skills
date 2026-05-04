@@ -40,9 +40,35 @@ The system automatically distributes taskcards across five tactical horizons bas
 
 ## 🛠️ Technological Foundation
 *   **Intelligence**: Local `Ollama` stack with RDT-simulation loops.
-*   **Frontend**: Next.js 16 (App Router) + Mantine UI (SSR-Safe Tactical Board).
+*   **Frontend**: Next.js 16 (App Router) + Mantine UI.
 *   **Learning**: Context-aware priority harvesting (Strategic Context v2.0).
 *   **Persistence**: Prisma + MongoDB Atlas + Periodic Guardian Orchestration.
+
+---
+
+## 📐 Technical Standards & UI Architecture
+To maintain the premium "Sovereign" experience and ensure system stability, follow these architectural constraints:
+
+### 1. Viewport-Constrained Layout (No Double Scrolls)
+Complex interfaces like the **Tactical Board** must use a fixed-viewport architecture:
+- Outer containers should use `height: calc(100vh - 80px)` and `overflow: hidden`.
+- Independent scrolling must be handled by inner semantic blocks (e.g., Kanban columns).
+- **NEVER** allow the global page scroll to compete with internal board scrolls.
+
+### 2. Client-Side Orchestration (No Iframes)
+The system uses **Dynamic Imports (`ssr: false`)** to manage browser-only libraries like `@hello-pangea/dnd`. 
+- This is **NOT an iframe**. It is a standard React lazy-loading mechanism.
+- Iframes are strictly forbidden to maintain SEO, performance, and security parity across the OS.
+
+### 3. Modal & Overlay Z-Index
+Modals rendered over complex interactive surfaces (DnD, Charts) must:
+- Use `withinPortal: true` (standard Mantine behavior).
+- Use an explicit `zIndex` of `3000` or higher to clear all interaction layers.
+
+### 4. Design System Tokens
+All `LinkCard` components must strictly use valid design tokens:
+- **Allowed Variants**: `blue`, `amber`, `green`, `violet`, `teal`.
+- **Customization**: Do not use ad-hoc color strings (like `cyan`) that break the TypeScript build.
 
 ---
 

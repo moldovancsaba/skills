@@ -37,10 +37,27 @@ interface DataItem {
   description?: string;
   intelligenceType?: "INTERNAL" | "COMPETITOR";
   createdAt: string;
+  updatedAt: string;
+  iceScore?: number;
 }
 
-function sortDataItems(items: DataItem[]) {
+function sortDataItems(items: DataItem[], sortBy: "ICE" | "CREATED" | "UPDATED") {
   return [...items].sort((left, right) => {
+    if (sortBy === "ICE") {
+      const leftIce = left.iceScore ?? 50;
+      const rightIce = right.iceScore ?? 50;
+      if (leftIce !== rightIce) return rightIce - leftIce;
+    }
+
+    if (sortBy === "UPDATED") {
+      return right.updatedAt.localeCompare(left.updatedAt);
+    }
+
+    if (sortBy === "CREATED") {
+      return right.createdAt.localeCompare(left.createdAt);
+    }
+
+    // Default: Public ID or Created At
     const leftPublicId = left.publicId ?? Number.MAX_SAFE_INTEGER;
     const rightPublicId = right.publicId ?? Number.MAX_SAFE_INTEGER;
 
@@ -48,7 +65,7 @@ function sortDataItems(items: DataItem[]) {
       return leftPublicId - rightPublicId;
     }
 
-    return left.createdAt.localeCompare(right.createdAt);
+    return right.createdAt.localeCompare(left.createdAt);
   });
 }
 
@@ -73,6 +90,8 @@ export default function CompanyDataPage() {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
   const [intelligenceType, setIntelligenceType] = useState<"INTERNAL" | "COMPETITOR">("INTERNAL");
+  const [listIntelligenceFilter, setListIntelligenceFilter] = useState<"ALL" | "INTERNAL" | "COMPETITOR">("ALL");
+  const [sortBy, setSortBy] = useState<"ICE" | "CREATED" | "UPDATED">("CREATED");
 
   const loadAllData = useCallback(async (cid: string) => {
     const [s, f] = await Promise.all([
@@ -81,10 +100,10 @@ export default function CompanyDataPage() {
     ]);
     setSources(s);
     
-    const all = sortDataItems([
+    const all = [
       ...s.map((x: any) => ({ ...x, name: x.content, type: "source" as DataType })),
       ...f.map((x: any) => ({ ...x, type: "file" as DataType })),
-    ]);
+    ];
     setItems(all);
     setLoading(false);
   }, [setSources]);
@@ -283,7 +302,13 @@ export default function CompanyDataPage() {
     loadAllData(company.id);
   };
 
-  const filteredItems = items.filter((item) => matchesAllHashtags(item.hashtags ?? [], activeHashtags));
+  const filteredItems = items.filter((item) => {
+    const matchesHashtags = matchesAllHashtags(item.hashtags ?? [], activeHashtags);
+    const matchesIntelligence = listIntelligenceFilter === "ALL" || item.intelligenceType === listIntelligenceFilter;
+    return matchesHashtags && matchesIntelligence;
+  });
+
+  const sortedItems = sortDataItems(filteredItems, sortBy);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
@@ -416,14 +441,56 @@ export default function CompanyDataPage() {
       </MetricGrid>
 
       <div>
-        <h2 className="text-lg font-bold tracking-tight text-white mb-4">
-          All Data ({filteredItems.length}{activeHashtags.length > 0 ? ` of ${items.length}` : ""})
-        </h2>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
+          <h2 className="text-lg font-bold tracking-tight text-white">
+            All Data ({filteredItems.length}{activeHashtags.length > 0 || listIntelligenceFilter !== "ALL" ? ` of ${items.length}` : ""})
+          </h2>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Focus Filter */}
+            <div className="bg-zinc-900/50 p-1 rounded-lg border border-white/5 flex gap-1">
+              {(["ALL", "INTERNAL", "COMPETITOR"] as const).map((type) => (
+                <Button
+                  key={type}
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-8 px-4 text-xs font-bold uppercase tracking-tight transition-all",
+                    listIntelligenceFilter === type 
+                      ? (type === "COMPETITOR" ? "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30" : (type === "INTERNAL" ? "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30" : "bg-white/10 text-white"))
+                      : "text-muted-foreground hover:text-white"
+                  )}
+                  onClick={() => setListIntelligenceFilter(type)}
+                >
+                  {type === "ALL" ? "All Focus" : type === "INTERNAL" ? "My Company" : "Competitors"}
+                </Button>
+              ))}
+            </div>
+
+            {/* Sort Controls */}
+            <div className="bg-zinc-900/50 p-1 rounded-lg border border-white/5 flex gap-1">
+              {(["CREATED", "UPDATED", "ICE"] as const).map((sort) => (
+                <Button
+                  key={sort}
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-8 px-4 text-xs font-bold uppercase tracking-tight transition-all",
+                    sortBy === sort ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white"
+                  )}
+                  onClick={() => setSortBy(sort)}
+                >
+                  {sort === "CREATED" ? "Created" : sort === "UPDATED" ? "Updated" : "ICE"}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
         {filteredItems.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data yet. Add your first item above.</p>
         ) : (
           <UnifiedGrid>
-            {filteredItems.map((item, index) => {
+            {sortedItems.map((item, index) => {
               const tip = getDashboardExpertTip({
                 companyId,
                 productCount: sources.length,
@@ -443,6 +510,7 @@ export default function CompanyDataPage() {
                     type={item.type}
                     intelligenceType={item.intelligenceType}
                     hashtags={item.hashtags ?? []}
+                    iceScore={item.iceScore}
                     onStartEdit={() => startEdit(item)}
                     onDelete={() => deleteItem(item)}
                     activeHashtags={activeHashtags}

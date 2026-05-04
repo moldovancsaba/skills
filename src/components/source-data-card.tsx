@@ -23,6 +23,7 @@ type SourceDataCardProps = {
   type: DataType;
   intelligenceType?: "INTERNAL" | "COMPETITOR";
   hashtags: string[];
+  iceScore?: number;
   onStartEdit?: () => void;
   onDelete: () => void;
   activeHashtags?: string[];
@@ -41,6 +42,7 @@ export function SourceDataCard({
   type,
   intelligenceType,
   hashtags,
+  iceScore = 50,
   onStartEdit,
   onDelete,
   activeHashtags = [],
@@ -67,8 +69,8 @@ export function SourceDataCard({
         <Icon className="h-3 w-3" />
         {type}
       </Badge>
-      <div className={cn("ml-auto flex items-center gap-3 text-[10px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md border", getIceColorClasses(50))}>
-        <span title="Data stage default minimum requirement.">ICE 50</span>
+      <div className={cn("ml-auto flex items-center gap-3 text-[10px] font-bold uppercase tracking-tighter px-2 py-0.5 rounded-md border", getIceColorClasses(iceScore))}>
+        <span title="Data stage default minimum requirement.">ICE {iceScore}</span>
       </div>
       <div className="text-[10px] font-mono text-zinc-500">
         #{publicId || id.slice(0, 8)}
@@ -76,9 +78,12 @@ export function SourceDataCard({
     </>
   );
 
+  const firstLine = name.split("\n")[0].trim();
+  const displayTitle = firstLine.length > 80 ? firstLine.slice(0, 80) + "..." : firstLine;
+
   return (
     <UnifiedCard>
-      <UnifiedCardHeader supporting={badges} title={name.length > 80 ? name.slice(0, 80) + "..." : name} />
+      <UnifiedCardHeader supporting={badges} title={displayTitle} />
       
       <UnifiedCardBody>
         <UnifiedCardText className="line-clamp-4 whitespace-pre-wrap">

@@ -435,6 +435,8 @@ export default function CompanyDataPage() {
 
               return (
                 <React.Fragment key={item.id}>
+                  <SourceDataCard
+                    id={item.id}
                     publicId={item.publicId}
                     name={item.name}
                     type={item.type}

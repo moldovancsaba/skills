@@ -100,7 +100,7 @@ type Flashcard = {
   intelligenceType: "INTERNAL" | "COMPETITOR";
 };
 
-type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "CONVERT";
 
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
@@ -145,6 +145,8 @@ function actionLabel(action: FlashcardAction["action"] | ActionMode) {
       return "Declined";
     case "MODIFY_ACCEPT":
       return "Modified + accepted";
+    case "CONVERT":
+      return "Converted";
   }
 }
 

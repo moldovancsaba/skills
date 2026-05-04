@@ -34,6 +34,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader } from "@/components/ui/app-shell";
+import { Trash2 } from "lucide-react";
 
 type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
@@ -254,7 +255,7 @@ function CardDetailModal({
 
         <Divider mt="xl" />
         <Group justify="flex-end">
-            <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => onDelete(item.id)}>
+            <Button variant="light" color="red" leftSection={<Trash2 size={16} />} onClick={() => onDelete(item.id)}>
               Archive Card
             </Button>
             <Button variant="filled" color="orange" onClick={onClose}>

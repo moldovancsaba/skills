@@ -305,7 +305,7 @@ export function LinkCard({
 }
 
 type PipelineAccentHeaderProps = {
-  activeKey: "data" | "topics" | "knowmore" | "checklist";
+  activeKey: "data" | "topics" | "knowmore" | "goals" | "checklist";
   title: string;
   icon: string;
   toneClassName: string;

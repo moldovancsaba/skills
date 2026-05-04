@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     } else if (sourceType === "TASKCARD") {
       sourceData = await prisma.nBAItem.findUnique({
         where: { id: sourceId },
-        include: { sources: true, feedback: true }
+        include: { feedback: true }
       });
     } else if (sourceType === "SOURCE") {
       sourceData = await prisma.source.findUnique({
@@ -72,24 +72,25 @@ export async function POST(req: Request) {
         }
       });
     } else if (targetType === "TASKCARD") {
+      const generatedFromIds = sourceData.sources ? sourceData.sources.map((s: any) => s.sourceId) : 
+                               sourceData.generatedFromIds ? sourceData.generatedFromIds : [];
       createdItem = await prisma.nBAItem.create({
         data: {
           companyId: baseData.companyId,
           title: baseData.title,
           description: baseData.body,
-          priority: "MEDIUM",
           status: "PENDING",
           confidence: baseData.confidence,
           impact: baseData.impact,
-          weight: baseData.weight,
+          ease: baseData.weight,
           hashtags: baseData.hashtags,
-          intelligenceType: baseData.intelligenceType,
+          generatedFromIds: generatedFromIds,
         }
       });
     }
 
     // 3. Migrate Sources (Lineage)
-    if (sourceData.sources && sourceData.sources.length > 0) {
+    if (sourceData.sources && sourceData.sources.length > 0 && targetType !== "TASKCARD") {
       for (const s of sourceData.sources) {
         if (targetType === "FLASHCARD") {
           await prisma.flashcardSource.create({
@@ -104,15 +105,6 @@ export async function POST(req: Request) {
           await prisma.goalcardSource.create({
             data: {
               goalcardId: createdItem.id,
-              sourceType: s.sourceType,
-              sourceId: s.sourceId,
-              sourceName: s.sourceName || "Original Source",
-            }
-          }).catch(() => {});
-        } else if (targetType === "TASKCARD") {
-          await prisma.nBAItemSource.create({
-            data: {
-              nbaItemId: createdItem.id,
               sourceType: s.sourceType,
               sourceId: s.sourceId,
               sourceName: s.sourceName || "Original Source",
@@ -139,9 +131,8 @@ export async function POST(req: Request) {
         data: { status: "ARCHIVED" }
       });
     } else if (sourceType === "SOURCE") {
-      await prisma.source.update({
-        where: { id: sourceId },
-        data: { status: "ARCHIVED" }
+      await prisma.source.delete({
+        where: { id: sourceId }
       });
     }
 

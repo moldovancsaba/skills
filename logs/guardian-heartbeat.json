@@ -4,16 +4,18 @@
   "workerAlive": true,
   "restartCount": 1,
   "startedAt": 1777814177739,
-  "lastHealthAt": "2026-05-04T14:22:14.157Z",
-  "lastProgressAt": "2026-05-04T14:21:39.063Z",
+  "lastHealthAt": "2026-05-04T14:27:53.747Z",
+  "lastProgressAt": "2026-05-04T14:27:39.243Z",
   "useSafeMode": false,
   "resources": {
-    "freeMem": 182,
+    "freeMem": 177,
     "totalMem": 16384,
     "loadAvg": [
-      2.07177734375,
-      2.046875,
-      1.9208984375
+      4.15087890625,
+      2.931640625,
+      2.32080078125
     ]
-  }
+  },
+  "healthState": "idle",
+  "healthStage": "MAINTENANCE"
 }

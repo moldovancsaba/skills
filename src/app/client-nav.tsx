@@ -81,12 +81,38 @@ export function ClientNav() {
   const { company } = useStore();
   const { isDark, toggle } = useTheme();
   const [session, setSession] = useState<any>(null);
+  const [counts, setCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetch("/api/auth/session")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setSession(data));
   }, []);
+
+  useEffect(() => {
+    if (!company?.id) return;
+    
+    const fetchCounts = async () => {
+      try {
+        const res = await fetch(`/api/companies/${company.id}/dashboard`);
+        if (res.ok) {
+          const data = await res.json();
+          setCounts({
+            data: (data.sources?.length || 0) + (data.counts?.files || 0),
+            topics: data.counts?.topics || 0,
+            knowmore: data.counts?.flashcards || 0,
+            nba: data.counts?.pendingTasks || 0
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch nav counts:", err);
+      }
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000); // Sync every 30s
+    return () => clearInterval(interval);
+  }, [company?.id]);
 
   const handleLogout = () => {
     window.location.href = "/api/auth/logout?returnTo=/login";
@@ -145,7 +171,16 @@ export function ClientNav() {
                       <item.icon size={14} />
                     </ThemeIcon>
                   }
-                  rightSection={<ChevronRight size={14} strokeOpacity={0.5} />}
+                  rightSection={
+                    <Group gap={4}>
+                      {counts[item.key] !== undefined && (
+                        <Badge size="xs" variant="light" color={item.color} circle fw={900}>
+                          {counts[item.key]}
+                        </Badge>
+                      )}
+                      <ChevronRight size={14} strokeOpacity={0.5} />
+                    </Group>
+                  }
                   onClick={() => router.push(item.href(company.id))}
                   active={pathname.includes(item.key)}
                   variant="subtle"
@@ -208,7 +243,7 @@ export function ClientNav() {
                       </Avatar>
                       <Box style={{ flex: 1, overflow: 'hidden' }}>
                         <Text size="xs" fw={900} truncate>{session.name}</Text>
-                        <Text size="10px" c="dimmed" truncate>v0.14.0-hardened</Text>
+                        <Text size="10px" c="dimmed" truncate>v0.15.0-hardened</Text>
                       </Box>
                     </Group>
                     <ChevronDown size={14} />

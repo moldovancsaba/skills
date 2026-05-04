@@ -39,6 +39,7 @@ export function SourceDataCard({
   publicId,
   name,
   type,
+  intelligenceType,
   hashtags,
   onStartEdit,
   onDelete,

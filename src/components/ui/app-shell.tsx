@@ -99,6 +99,7 @@ type NoticeProps = {
   children: ReactNode;
   icon?: LucideIcon;
   variant?: "default" | "destructive";
+  className?: string;
 };
 
 export function Notice({
@@ -106,9 +107,11 @@ export function Notice({
   children,
   icon: Icon,
   variant = "default",
+  className,
 }: NoticeProps) {
   return (
     <Alert 
+      className={className}
       variant="light" 
       color={variant === "destructive" ? "red" : "brand"} 
       title={title} 
@@ -122,7 +125,7 @@ export function Notice({
 
 export function MetricGrid({ children }: { children: ReactNode }) {
   return (
-    <SimpleGrid cols={{ base: 1, md: 3 }} gap="md">
+    <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
       {children}
     </SimpleGrid>
   );
@@ -130,7 +133,7 @@ export function MetricGrid({ children }: { children: ReactNode }) {
 
 export function UnifiedGrid({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} gap="lg" className={className}>
+    <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="lg" className={className}>
       {children}
     </SimpleGrid>
   );
@@ -167,6 +170,14 @@ export function MetricCard({
   );
 }
 
+type EmptyStateProps = {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  primaryAction?: ReactNode;
+  secondaryAction?: ReactNode;
+};
+
 export function EmptyState({
   icon: Icon,
   title,
@@ -182,7 +193,7 @@ export function EmptyState({
         </ThemeIcon>
         <Stack gap={4}>
           <Title order={3}>{title}</Title>
-          <Text size="sm" c="dimmed" maxW={400} mx="auto">
+          <Text size="sm" c="dimmed" maw={400} mx="auto">
             {description}
           </Text>
         </Stack>
@@ -194,6 +205,17 @@ export function EmptyState({
     </Card>
   );
 }
+
+type LinkCardProps = {
+  href: string;
+  icon: LucideIcon | string;
+  title: string;
+  description: string;
+  metric?: string | number;
+  variant?: string;
+  className?: string;
+  chartData?: any[];
+};
 
 export function LinkCard({
   href,
@@ -282,7 +304,7 @@ export function PipelineAccentHeader({
 
   return (
     <Stack gap="md" mb="xl">
-      <SimpleGrid cols={{ base: 4, md: 5 }} gap="xs">
+      <SimpleGrid cols={{ base: 4, md: 5 }} spacing="xs">
         {segments.map((segment) => (
           <Box 
             key={segment.key}

@@ -46,7 +46,7 @@ FormTextarea.displayName = "FormTextarea";
 // UNIFIED SELECT
 interface FormSelectProps extends React.ComponentPropsWithoutRef<typeof Select> {}
 
-export const FormSelect = React.forwardRef<HTMLButtonElement, FormSelectProps>(
+export const FormSelect = React.forwardRef<HTMLInputElement, FormSelectProps>(
   ({ ...props }, ref) => {
     return (
       <Select

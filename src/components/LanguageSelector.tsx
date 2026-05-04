@@ -1,13 +1,14 @@
 "use client";
 
 import React from "react";
-import { MultiSelect, Group, Text, Box, rem } from "@mantine/core";
+import { MultiSelect, Group, Text, Box, rem, Stack } from "@mantine/core";
 import { Globe, Check } from "lucide-react";
 
 export type Language = {
   id: string;
   label: string;
   nativeName: string;
+  value: string;
 };
 
 export const LANGUAGES: Language[] = [
@@ -61,7 +62,7 @@ export const LANGUAGES: Language[] = [
   { id: "el", label: "Greek", nativeName: "Ελληνικά" },
   { id: "sv", label: "Swedish", nativeName: "Svenska" },
   { id: "fi", label: "Finnish", nativeName: "Suomi" },
-].map(l => ({ ...l, value: l.label })); // Use label as value for consistency with prompt logic
+].map(l => ({ ...l, value: l.id })) as Language[];
 
 interface LanguageSelectorProps {
   selectedIds: string[];

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Badge as MantineBadge, type BadgeProps as MantineBadgeProps } from "@mantine/core";
 
-export interface BadgeProps extends MantineBadgeProps {}
+export interface BadgeProps extends MantineBadgeProps, Omit<React.ComponentPropsWithoutRef<"div">, "style" | "color"> {}
 
 function Badge({ variant = "filled", color, ...props }: BadgeProps) {
   // Map Shadcn variants to Mantine variants

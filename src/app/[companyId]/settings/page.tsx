@@ -235,7 +235,7 @@ export default function SettingsPage() {
           </Stack>
         </Card>
 
-        <SimpleGrid cols={{ base: 1, md: 2 }} gap="lg">
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           {/* Channel Configuration */}
           <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
             <Stack gap="md">
@@ -332,7 +332,7 @@ export default function SettingsPage() {
               </Group>
             </Box>
 
-            <SimpleGrid cols={{ base: 1, md: 2 }} gap="md">
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               <Stack gap={4}>
                 <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">Endpoint</Text>
                 <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", backgroundColor: "rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.03)" }}>

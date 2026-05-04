@@ -87,7 +87,7 @@ type Props = {
   activeHashtags: string[];
   onToggleHashtag: (tag: string) => void;
   onRemoveHashtag: (flashcardId: string, tag: string) => void;
-  onCorrection: (input: {
+  onCorrection?: (input: {
     flashcardId: string;
     correctionType: FlashcardCorrection["correctionType"];
     sourceType?: FlashcardSource["sourceType"];
@@ -279,26 +279,13 @@ export function KnowledgeReviewCard({
         )}
       </UnifiedCardBody>
 
-                      sourceType: src.sourceType,
-                      sourceName: src.sourceName
-                    })
-                  }
-                }} 
-                disabled={isBusy || isGenerating}
-              >
-                Suppress {src.sourceName.substring(0, 8)}..
-              </Button>
-          </div>
-        )}
-        
-        {flashcard.actions && flashcard.actions.length > 0 && (
-          <div className="border-t border-zinc-200/5 pt-3">
-            <p className="text-[10px] text-zinc-500">
-              Last seen {new Date(flashcard.refreshedAt).toLocaleDateString()}
-            </p>
-          </div>
-        )}
-      </UnifiedCardFooter>
+      {flashcard.refreshedAt && (
+        <UnifiedCardFooter>
+          <Text size="xs" c="dimmed">
+            Last seen {new Date(flashcard.refreshedAt).toLocaleDateString()}
+          </Text>
+        </UnifiedCardFooter>
+      )}
     </UnifiedCard>
   );
 }

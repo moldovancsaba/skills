@@ -22,8 +22,8 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Group, TextInput, Button as MantineButton, Box } from "@mantine/core";
 import {
   EmptyState,
   MetricCard,
@@ -549,70 +549,77 @@ export default function CompanyKnowMorePage() {
       <MetricGrid>
         <MetricCard
           icon={Database}
-          iconClassName="text-blue-500"
+          color="blue"
           label="Knowledge cards"
           value={summary.total}
           detail="Derived from your structured source data."
         />
         <MetricCard
           icon={Sparkles}
-          iconClassName="text-amber-500"
+          color="orange"
           label="Reviewed cards"
           value={summary.reviewed}
           detail="Cards that already carry user feedback back into the system."
         />
         <MetricCard
           icon={Brain}
-          iconClassName="text-violet-500"
+          color="violet"
           label="Average confidence"
           value={`${summary.avgConfidence}%`}
           detail="Confidence across the current flashcards."
         />
         <MetricCard
           icon={TrendingUp}
-          iconClassName="text-emerald-500"
+          color="green"
           label="Avg ICE Score"
           value={summary.avgIceScore}
           detail="Priority score calculated via Impact × Confidence × Ease."
         />
         <MetricCard
           icon={ArrowUpRight}
-          iconClassName="text-cyan-500"
+          color="cyan"
           label="Avg Ease"
           value={summary.avgEase}
           detail="Average implementation simplicity for these items."
         />
       </MetricGrid>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search knowledge..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="bg-zinc-900/50 p-1 rounded-lg border border-white/5 flex gap-1 mr-4">
+      <Group justify="space-between" align="center">
+        <TextInput 
+          placeholder="Search knowledge slices..." 
+          leftSection={<Search size={16} />}
+          value={searchQuery} 
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ flex: 1, maxWidth: 400 }}
+          radius="md"
+        />
+        <Group gap="xs">
+          <Box 
+            p={4} 
+            style={{ 
+              borderRadius: "var(--mantine-radius-md)",
+              backgroundColor: "rgba(0,0,0,0.2)",
+              border: "1px solid rgba(255,255,255,0.05)",
+              display: "flex",
+              gap: 4
+            }}
+          >
             {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
-              <Button
+              <MantineButton
                 key={type}
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "h-8 px-4 text-xs font-bold uppercase tracking-tight transition-all",
-                  intelligenceFilter === type 
-                    ? (type === "COMPETITOR" ? "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30" : "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30")
-                    : "text-muted-foreground hover:text-white"
-                )}
+                variant={intelligenceFilter === type ? "light" : "subtle"}
+                color={intelligenceFilter === type ? (type === "COMPETITOR" ? "orange" : "brand") : "gray"}
+                size="xs"
+                h={32}
+                fw={800}
+                tt="uppercase"
+                lts={1}
                 onClick={() => setIntelligenceFilter(type)}
               >
                 {type === "INTERNAL" ? "My Company" : "The Market"}
-              </Button>
+              </MantineButton>
             ))}
-          </div>
+          </Box>
           {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
             <Badge
               key={kind}
@@ -623,8 +630,8 @@ export default function CompanyKnowMorePage() {
               {kind === "ALL" ? "All types" : kindLabel(kind as Flashcard["kind"])}
             </Badge>
           ))}
-        </div>
-      </div>
+        </Group>
+      </Group>
 
       {filteredFlashcards.length === 0 ? (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -682,10 +689,8 @@ export default function CompanyKnowMorePage() {
                     actionComment={actionComment}
                     editedTitle={editedTitle}
                     editedBody={editedBody}
-                    reviewStatusClasses={reviewStatusClasses}
                     reviewStatusLabel={reviewStatusLabel}
                     kindLabel={kindLabel}
-                    sourceLabel={sourceLabel}
                     actionLabel={actionLabel}
                     onOpenAction={openActionForm}
                     onCloseAction={closeActionForm}
@@ -697,7 +702,7 @@ export default function CompanyKnowMorePage() {
                     onToggleHashtag={toggleHashtagFilter}
                     onRemoveHashtag={(flashcardId, tag) => void removeFlashcardHashtag(flashcardId, tag)}
                     onCorrection={(input) => void handleCorrection(input)}
-                    onConvert={handleConvert}
+                    onConvert={(type) => handleConvert(flashcard.id, type)}
                   />
                 </motion.div>
 

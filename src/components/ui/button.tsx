@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Button as MantineButton, type ButtonProps as MantineButtonProps } from "@mantine/core";
 
-export interface ButtonProps extends MantineButtonProps {
+export interface ButtonProps extends MantineButtonProps, Omit<React.ComponentPropsWithoutRef<"button">, "style" | "color"> {
   asChild?: boolean;
 }
 

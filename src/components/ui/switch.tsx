@@ -3,7 +3,11 @@
 import * as React from "react";
 import { Switch as MantineSwitch, type SwitchProps as MantineSwitchProps } from "@mantine/core";
 
-const Switch = React.forwardRef<HTMLInputElement, MantineSwitchProps>(
+interface SwitchProps extends MantineSwitchProps {
+  onCheckedChange?: (checked: boolean) => void;
+}
+
+const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
   ({ checked, onCheckedChange, onChange, ...props }, ref) => {
     return (
       <MantineSwitch

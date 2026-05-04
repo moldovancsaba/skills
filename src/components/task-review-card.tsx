@@ -12,7 +12,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, Text, Badge, Button, Group, Stack, TextInput, Textarea, ActionIcon, Tooltip, rem, Select, Drawer, Loader, Divider, Paper, Alert } from "@mantine/core";
 import { useClipboard } from "@mantine/hooks";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
-import { DatePicker } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
 import { getIceColorClasses } from "@/lib/ice-colors";
 import { TraceViewer } from "@/components/trace-viewer";

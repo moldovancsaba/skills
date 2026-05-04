@@ -19,8 +19,8 @@ import {
   Target,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Group, TextInput } from "@mantine/core";
 import {
   EmptyState,
   MetricCard,
@@ -260,16 +260,20 @@ export default function CompanyGoalsPage() {
       </motion.div>
 
       <MetricGrid>
-        <MetricCard icon={Target} iconClassName="text-emerald-500" label="Active goals" value={goals.length} detail="Strategic objectives being tracked." />
-        <MetricCard icon={TrendingUp} iconClassName="text-blue-500" label="Goal Alignment" value="85%" detail="Alignment with current market research." />
+        <MetricCard icon={Target} color="green" label="Active goals" value={goals.length} detail="Strategic objectives being tracked." />
+        <MetricCard icon={TrendingUp} color="blue" label="Goal Alignment" value="85%" detail="Alignment with current market research." />
       </MetricGrid>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search goals..." className="pl-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-        </div>
-      </div>
+      <Group justify="space-between" align="center">
+        <TextInput 
+          placeholder="Search goals..." 
+          leftSection={<Search size={16} />}
+          value={searchQuery} 
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ flex: 1, maxWidth: 400 }}
+          radius="md"
+        />
+      </Group>
 
       {filteredGoals.length === 0 ? (
         <EmptyState icon={Target} title="No strategic goals found" description="Goals represent what your company wants to become. They are derived from research or created manually." />
@@ -287,13 +291,19 @@ export default function CompanyGoalsPage() {
                 actionComment={actionComment}
                 editedTitle={editedTitle}
                 editedBody={editedBody}
-                reviewStatusClasses={reviewStatusClasses}
                 reviewStatusLabel={reviewStatusLabel}
                 kindLabel={kindLabel}
-                sourceLabel={sourceLabel}
                 actionLabel={actionLabel}
-                onOpenAction={() => {}}
-                onCloseAction={() => {}}
+                onOpenAction={(fc, mode) => {
+                  setActiveGoalId(fc.id);
+                  setActionMode(mode);
+                  setEditedTitle(fc.title);
+                  setEditedBody(fc.body);
+                }}
+                onCloseAction={() => {
+                  setActiveGoalId(null);
+                  setActionMode(null);
+                }}
                 onActionCommentChange={setActionComment}
                 onEditedTitleChange={setEditedTitle}
                 onEditedBodyChange={setEditedBody}
@@ -301,8 +311,7 @@ export default function CompanyGoalsPage() {
                 activeHashtags={activeHashtags}
                 onToggleHashtag={() => {}}
                 onRemoveHashtag={() => {}}
-                onCorrection={() => {}}
-                onConvert={handleConvert}
+                onConvert={(type) => handleConvert(goal.id, type)}
               />
             </motion.div>
           ))}

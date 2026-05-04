@@ -103,7 +103,7 @@ function CardDetailModal({
       opened={opened}
       onClose={onClose}
       centered
-      withinPortal
+      withinPortal={false}
       zIndex={3000}
       title={
         <Group gap="sm">

@@ -10,6 +10,7 @@
 - **Autonomous Auditor**: Background agent periodically probes all cards for taxonomy purity.
 - **Automated Reorganizer**: System now self-heals by migrating misclassified items across layers without human intervention.
 - **Purity Guardrails**: Enforced strict separation between observations, intentions, and tactical moves.
+- **Move-Only Conversion**: Hardened manual recataloging to ensure source cards are archived after conversion, preventing intelligence duplication.
 
 ### Infrastructure & Lifecycle
 - **Manual Re-ignition**: Implemented dashboard-level "Reanimate" button to trigger autonomous engine restarts.

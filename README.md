@@ -40,8 +40,11 @@ The system automatically distributes taskcards across five tactical horizons bas
 
 ## 🛠️ Technological Foundation
 *   **Intelligence**: Local `Ollama` stack with RDT-simulation loops.
-*   **Architecture**: **Tri-Layer Intelligence** (Knowledge, Strategy, Execution) with automated routing.
-*   **Self-Healing**: **SCI (Self-Correcting Intelligence)** layer via Auditor/Reorganizer background cycles.
+*   **Architecture: Tri-Layer Intelligence**:
+    *   **Knowledge (Knowmore)**: The foundation. Durable flashcards storing facts and insights about the company and market.
+    *   **Strategy (Goals)**: The steering layer. High-level strategic goals that prioritize tactical outcomes.
+    *   **Execution (Tactical)**: The delivery layer. Atomic tasks organized by ICE scores for immediate action.
+*   **Self-Healing**: **SCI (Self-Correcting Intelligence)** layer via Auditor/Reorganizer background cycles (20-minute heartbeat).
 *   **Frontend**: Next.js 16 (App Router) + Mantine UI.
 *   **Learning**: Context-aware priority harvesting (Strategic Context v2.0).
 *   **Persistence**: Prisma + MongoDB Atlas + Periodic Guardian Orchestration.

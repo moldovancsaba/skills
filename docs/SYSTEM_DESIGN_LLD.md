@@ -222,5 +222,25 @@ the system enforces the tri-layer architecture through a self-healing loop.
 - **integrity**: preserves lineage (`generatedFromIds`) and maps scores across different layer schemas.
 - **cleanup**: archives the original item after a successful migration to prevent duplicates.
 
+## 20. intelligence conversion & recataloging
+
+the system allows manual recataloging between layers to ensure human-in-the-loop oversight of the tri-layer taxonomy.
+
+### 20.1 the "move" principle (non-duplication)
+intelligence units MUST NOT be duplicated during conversion. 
+- every conversion is an atomic **MOVE** operation.
+- the source record MUST be set to `activityState: ARCHIVED` (or deleted) immediately upon successful creation of the target record.
+- this ensures that an insight exists in exactly one layer at any given time, preventing "intelligence ghosts" or pipeline noise.
+
+### 20.2 layer schema mapping
+| from | to | primary mapping logic |
+|------|----|----------------------|
+| Knowledge | Goal | kind: RECOMMENDATION → kind: GOAL. preserves ICE scores. |
+| Knowledge | Task | kind: ACTION → status: PENDING, kanban: IDEABANK. |
+| Goal | Knowledge | preserves title/body. maps to kind: SUMMARY. |
+| Goal | Task | maps to kanban: ROADMAP. preserves ICE scores. |
+| Task | Knowledge | preserves title/description. maps to kind: SUMMARY. |
+| Task | Goal | maps to kind: GOAL. preserves ICE scores. |
+
 ---
 *checklist / trinity v2.1.0 — self-correcting tri-layer intelligence specification*

@@ -103,12 +103,12 @@ function CardDetailModal({
       opened={opened}
       onClose={onClose}
       centered
-      withinPortal={false}
-      zIndex={9999}
+      withinPortal
+      zIndex={3000}
       title={
         <Group gap="sm">
-          <Text fw={800} size="lg" c="white">
-            DEBUG: #{item?.publicId ?? "—"} · Task Card
+          <Text fw={800} size="lg" style={{ letterSpacing: "-0.02em" }}>
+            #{item?.publicId ?? "—"} · Task Card
           </Text>
           {col && (
             <Badge
@@ -122,23 +122,20 @@ function CardDetailModal({
       }
       size="xl"
       radius="lg"
-      overlayProps={{ blur: 4, opacity: 0.5 }}
+      overlayProps={{ blur: 4, opacity: 0.6 }}
       styles={{
         content: { 
-          border: "5px solid red", 
-          minHeight: "500px",
-          background: "#1A1B1E",
-          color: "white"
+          background: "#111111",
+          border: "1px solid var(--mantine-color-dark-4)",
         }
       }}
     >
       {!item ? (
         <Center py="xl">
-          <Loader variant="dots" color="red" />
-          <Text c="red" ml="md">DEBUG: ITEM IS NULL</Text>
+          <Loader variant="dots" color="orange" />
         </Center>
       ) : (
-        <Stack gap="md" pt="xs" style={{ minHeight: "500px" }}>
+        <Stack gap="md" pt="xs">
         {/* Title */}
         <Text fw={700} size="xl" style={{ lineHeight: 1.3 }}>
           {item.title}

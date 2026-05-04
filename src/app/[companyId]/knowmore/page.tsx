@@ -401,6 +401,28 @@ export default function CompanyKnowMorePage() {
     loadFlashcards,
   ]);
 
+  const handleConvert = useCallback(async (id: string, targetType: string) => {
+    if (!company) return;
+    setActingId(id);
+    try {
+      await fetchJson("/api/intelligence/convert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceId: id,
+          sourceType: "FLASHCARD",
+          targetType: targetType === "GOAL" ? "GOALCARD" : targetType === "TASK" ? "TASKCARD" : "FLASHCARD",
+          companyId: company.id
+        })
+      });
+      setFlashcards(prev => prev.filter(f => f.id !== id));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setActingId(null);
+    }
+  }, [company]);
+
   const handleCorrection = useCallback(async (input: {
     flashcardId: string;
     correctionType: FlashcardCorrection["correctionType"];
@@ -681,6 +703,7 @@ export default function CompanyKnowMorePage() {
                     onToggleHashtag={toggleHashtagFilter}
                     onRemoveHashtag={(flashcardId, tag) => void removeFlashcardHashtag(flashcardId, tag)}
                     onCorrection={(input) => void handleCorrection(input)}
+                    onConvert={handleConvert}
                   />
                 </motion.div>
 

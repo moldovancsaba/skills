@@ -28,6 +28,7 @@ type SourceDataCardProps = {
   onDelete: () => void;
   activeHashtags?: string[];
   onToggleHashtag?: (tag: string) => void;
+  onConvert?: (id: string, targetType: "KNOWLEDGE" | "GOAL" | "TASK") => void;
 };
 
 const typeIcon = {
@@ -47,6 +48,7 @@ export function SourceDataCard({
   onDelete,
   activeHashtags = [],
   onToggleHashtag,
+  onConvert,
 }: SourceDataCardProps) {
   const Icon = typeIcon[type];
   const isCompetitor = intelligenceType === "COMPETITOR";
@@ -121,6 +123,29 @@ export function SourceDataCard({
             </Button>
           </div>
         </div>
+
+        {onConvert && (
+          <div className="border-t border-zinc-200/5 pt-3 mt-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Convert research into</p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight border-zinc-500/20 text-zinc-400 hover:text-white" 
+                onClick={() => onConvert(id, "KNOWLEDGE")}
+              >
+                Knowledge
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300" 
+                onClick={() => onConvert(id, "GOAL")}
+              >
+                Goal
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300" 
+                onClick={() => onConvert(id, "TASK")}
+              >
+                Task
+              </Button>
+            </div>
+          </div>
+        )}
       </UnifiedCardFooter>
     </UnifiedCard>
   );

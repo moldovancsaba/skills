@@ -34,6 +34,13 @@ const pipelineItems = [
     colorClass: "text-amber-500", // Visual distinction for human review
   },
   {
+    key: "goals",
+    href: (companyId: string) => `/${companyId}/goals`,
+    label: "Goals",
+    icon: "target",
+    colorClass: "text-emerald-500",
+  },
+  {
     key: "knowmore",
     href: (companyId: string) => `/${companyId}/knowmore`,
     label: "Knowmore",

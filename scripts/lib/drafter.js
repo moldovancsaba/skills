@@ -106,22 +106,27 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
     : "";
 
   const systemPromptBase = [
-    "You are the checklist GENERATOR (formerly Drafter). Your goal is to extract intelligence from evidence into structured KnowledgeItems (FlashCards).",
+    "You are the checklist GENERATOR (formerly Drafter). Your goal is to extract intelligence from evidence into structured cards.",
     "Your synthesis MUST align with the following strategic context of the company:",
     strategicContext,
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nYou MUST prioritize insights that relate to: ${topic.notes || topic.label}\n` : "",
     skillPrompt,
     crmGuidance,
     isGrouped
-      ? `\nYou are processing ${evidenceBatch.length} RELATED evidence units simultaneously. Look for CROSS-EVIDENCE insights — patterns, correlations, or compound conclusions that only emerge when considering all evidence together. You MUST emit at least one cross-evidence candidate if one exists.`
-      : "\nYou are processing one evidence unit. Extract all distinct insights — you may emit MULTIPLE KnowledgeItems if the evidence contains distinct insights.",
-    "Required fields per item: title, body, kind, confidence, impact, weight, semanticTags (array of 3-5 lowercase hashtag strings).",
+      ? `\nYou are processing ${evidenceBatch.length} RELATED evidence units simultaneously. Look for CROSS-EVIDENCE insights. You MUST emit at least one cross-evidence candidate if one exists.`
+      : "\nYou are processing one evidence unit. Extract all distinct insights.",
+    "### [CATALOGING AXIOM]",
+    "You MUST classify every insight into one of these categories based on the content's nature relative to the company identity:",
+    "  - 'FLASHCARD': Fact, capability, current state, or research finding (What the company IS or DOES).",
+    "  - 'GOALCARD': Strategic objective, milestone, or aspirational state (What the company WANTS TO BECOME/ACHIEVE).",
+    "  - 'TASKCARD': Specific actionable directive or execution step (What the company MUST DO).",
+    "Example: For a tech company, 'Achieve Social Media Dominance' is a GOALCARD. For a marketing agency, it is a FLASHCARD (Capability).",
+    "\nRequired fields per item: title, body, category, kind, confidence, impact, weight, semanticTags (array of 3-5 lowercase hashtag strings).",
     "AXIOM: Strict integer scores for confidence, impact, weight. Scale: 1-10. NO zeros. NO percentages.",
-    "COVERAGE OVER POLISH: Prefer extracting more distinct insights over perfecting fewer. The Refiner will handle compression.",
-    "Do NOT duplicate insights already in the active knowledge base. If the insight exists, skip it.",
-    "Required field [intelligenceType]: Categorize as 'INTERNAL' if the insight is about the company's own operations/performance, or 'COMPETITOR' if it is about market competitors, industry benchmarks, or external threats.",
+    "COVERAGE OVER POLISH: Prefer extracting more distinct insights over perfecting fewer.",
+    "Required field [intelligenceType]: Categorize as 'INTERNAL' if the insight is about the company's own operations/performance, or 'COMPETITOR' if it is about market competitors or industry benchmarks.",
     "Format: Return a JSON array of objects.",
-    "APERTUS Purity: Each card must be 100% monolingual in an allowed language. Translate if needed.",
+    "APERTUS Purity: Each card must be 100% monolingual in an allowed language.",
     memoryPrompt
   ].join("\n");
 
@@ -206,6 +211,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       activityState: "ACTIVE",
       status: "ACTIVE",
       reviewStatus: "PENDING",
+      category: String(item.category || "FLASHCARD").toUpperCase(),
       kind: String(item.kind || "SUMMARY").toUpperCase(),
       hashtags: Array.isArray(item.semanticTags) ? item.semanticTags.slice(0, 5) :
                 Array.isArray(item.hashtags) ? item.hashtags.slice(0, 5) : [],

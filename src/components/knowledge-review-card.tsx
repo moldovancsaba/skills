@@ -67,7 +67,9 @@ type Flashcard = {
   intelligenceType: "INTERNAL" | "COMPETITOR";
 };
 
-type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "CONVERT";
+
+type IntelligenceType = "KNOWLEDGE" | "GOAL" | "TASK";
 
 type Props = {
   flashcard: Flashcard;
@@ -100,6 +102,8 @@ type Props = {
     sourcePublicId?: number | null;
     sourceName?: string;
   }) => void;
+  cardType?: IntelligenceType;
+  onConvert?: (flashcardId: string, targetType: IntelligenceType) => void;
 };
 
 export function KnowledgeReviewCard({
@@ -126,6 +130,8 @@ export function KnowledgeReviewCard({
   onToggleHashtag,
   onRemoveHashtag,
   onCorrection,
+  cardType = "KNOWLEDGE",
+  onConvert,
 }: Props) {
   const ischecklistResearch = Boolean(flashcard.ischecklistResearch);
   return (
@@ -136,15 +142,23 @@ export function KnowledgeReviewCard({
       <UnifiedCardHeader
         supporting={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className={cn("font-mono text-[10px] tracking-wider", reviewStatusClasses(flashcard.processingStatus))}>
-              {flashcard.processingStatus.toUpperCase()}
+            <Badge variant="outline" className={cn(
+              "font-mono text-[10px] tracking-wider", 
+              cardType === "GOAL" ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5" :
+              cardType === "TASK" ? "border-blue-500/30 text-blue-400 bg-blue-500/5" :
+              reviewStatusClasses(flashcard.processingStatus)
+            )}>
+              {cardType === "GOAL" ? "STRATEGIC GOAL" : cardType === "TASK" ? "TACTICAL TASK" : "KNOWLEDGE"}
             </Badge>
             {flashcard.activityState !== "ACTIVE" && (
               <Badge variant="destructive" className="font-mono text-[10px] tracking-wider uppercase opacity-80">
                 {flashcard.activityState}
               </Badge>
             )}
-            <Badge variant="secondary" className="font-mono text-[10px] tracking-wider uppercase opacity-80">
+            <Badge variant="secondary" className="font-mono text-[10px] tracking-wider uppercase opacity-80 gap-1">
+              <span className="material-symbols-outlined text-[12px]">
+                {cardType === "GOAL" ? "target" : cardType === "TASK" ? "checklist" : "auto_awesome"}
+              </span>
               {kindLabel(flashcard.kind as any)}
             </Badge>
             <Badge 
@@ -301,6 +315,35 @@ export function KnowledgeReviewCard({
             ))}
           </div>
         </div>
+        
+        {onConvert && (
+          <div className="border-t border-zinc-200/5 pt-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Convert intelligence</p>
+            <div className="flex flex-wrap gap-2">
+              {cardType !== "KNOWLEDGE" && (
+                <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight border-zinc-500/20 text-zinc-400 hover:text-white" 
+                  onClick={() => onConvert(flashcard.id, "KNOWLEDGE")}
+                >
+                  To Knowledge
+                </Button>
+              )}
+              {cardType !== "GOAL" && (
+                <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300" 
+                  onClick={() => onConvert(flashcard.id, "GOAL")}
+                >
+                  To Strategic Goal
+                </Button>
+              )}
+              {cardType !== "TASK" && (
+                <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300" 
+                  onClick={() => onConvert(flashcard.id, "TASK")}
+                >
+                  To Tactical Task
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
         
         {flashcard.actions.length > 0 && (
           <div className="border-t border-zinc-200/5 pt-3">

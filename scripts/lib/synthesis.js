@@ -249,43 +249,89 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
       const drafts = await draftFlashcardsFromEvidenceBatch(prisma, company, batch, memoryPrompt, topic);
       if (drafts && drafts.length > 0) {
         for (const draft of drafts) {
-          // Temporarily store the batch sources on the draft object for linkage later
-          draft.batchSources = batch;
-          draft.fingerprint = generateFingerprint({
-            companyId: cid,
-            entityId: batch.map(b => b.id).join(","),
-            stage: "WRITING",
-            input: draft.title
-          });
+          const { category, ...cleanDraft } = draft;
+          let createdItem;
 
-          // Persistent draft creation
-          const fc = await prisma.flashcard.create({
-            data: {
-              ...draft,
-              companyId: cid,
-              processingStatus: "DRAFT",
-              candidateState: CandidateState.GENERATED,
-              cycleRunId: workerContext.cycleRunId,
-              createdByRunId: workerContext.cycleRunId,
-              createdAt: await getServerTime(prisma)
-            }
-          });
-
-          // Link sources
-          for (const src of batch) {
-            await prisma.flashcardSource.create({
+          if (category === "GOALCARD") {
+            createdItem = await prisma.goalcard.create({
               data: {
-                flashcardId: fc.id,
-                sourceId: src.id,
-                sourceType: "SOURCE",
-                sourceName: src.entityTag || "Agent Research",
+                ...cleanDraft,
+                companyId: cid,
+                processingStatus: "DRAFT",
+                cycleRunId: workerContext.cycleRunId,
                 createdAt: await getServerTime(prisma)
               }
-            }).catch(() => {});
+            });
+            // Link sources to Goalcard
+            for (const src of batch) {
+              await prisma.goalcardSource.create({
+                data: {
+                  goalcardId: createdItem.id,
+                  sourceId: src.id,
+                  sourceType: "SOURCE",
+                  sourceName: src.entityTag || "Agent Research",
+                  createdAt: await getServerTime(prisma)
+                }
+              }).catch(() => {});
+            }
+          } else if (category === "TASKCARD") {
+            createdItem = await prisma.nBAItem.create({
+              data: {
+                companyId: cid,
+                title: cleanDraft.title,
+                description: cleanDraft.body,
+                priority: "MEDIUM",
+                status: "PENDING",
+                confidence: cleanDraft.confidence,
+                impact: cleanDraft.impact,
+                weight: cleanDraft.weight,
+                hashtags: cleanDraft.hashtags,
+                intelligenceType: cleanDraft.intelligenceType,
+                cycleRunId: workerContext.cycleRunId,
+              }
+            });
+            // Link sources to TaskCard
+            for (const src of batch) {
+              await prisma.nBAItemSource.create({
+                data: {
+                  nbaItemId: createdItem.id,
+                  sourceId: src.id,
+                  sourceType: "SOURCE",
+                  sourceName: src.entityTag || "Agent Research",
+                }
+              }).catch(() => {});
+            }
+          } else {
+            // Default: FLASHCARD
+            createdItem = await prisma.flashcard.create({
+              data: {
+                ...cleanDraft,
+                companyId: cid,
+                processingStatus: "DRAFT",
+                candidateState: CandidateState.GENERATED,
+                cycleRunId: workerContext.cycleRunId,
+                createdByRunId: workerContext.cycleRunId,
+                createdAt: await getServerTime(prisma)
+              }
+            });
+
+            // Link sources to Flashcard
+            for (const src of batch) {
+              await prisma.flashcardSource.create({
+                data: {
+                  flashcardId: createdItem.id,
+                  sourceId: src.id,
+                  sourceType: "SOURCE",
+                  sourceName: src.entityTag || "Agent Research",
+                  createdAt: await getServerTime(prisma)
+                }
+              }).catch(() => {});
+            }
+            dbFlashcards.push(createdItem);
           }
-          dbFlashcards.push(fc);
         }
       }
+  }
     } catch (err) {
       console.error(`[GENERATOR] Failed batch:`, err.message);
     }

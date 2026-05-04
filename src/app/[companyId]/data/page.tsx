@@ -304,6 +304,27 @@ export default function CompanyDataPage() {
     loadAllData(company.id);
   };
 
+  const handleConvert = async (id: string, targetType: string) => {
+    if (!company) return;
+    try {
+      const res = await fetch("/api/intelligence/convert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceId: id,
+          sourceType: "SOURCE",
+          targetType: targetType === "KNOWLEDGE" ? "FLASHCARD" : targetType === "GOAL" ? "GOALCARD" : "TASKCARD",
+          companyId: company.id
+        })
+      });
+      if (res.ok) {
+        loadAllData(company.id);
+      }
+    } catch (err) {
+      console.error("Conversion failed:", err);
+    }
+  };
+
   const filteredItems = items.filter((item) => {
     const matchesHashtags = matchesAllHashtags(item.hashtags ?? [], activeHashtags);
     const matchesIntelligence = listIntelligenceFilter === "ALL" || item.intelligenceType === listIntelligenceFilter;
@@ -517,6 +538,7 @@ export default function CompanyDataPage() {
                     onDelete={() => deleteItem(item)}
                     activeHashtags={activeHashtags}
                     onToggleHashtag={toggleHashtagFilter}
+                    onConvert={handleConvert}
                   />
 
                   {/* Inject Expert Tip and Team Members at 3rd place (index 1 is after 2nd item) */}

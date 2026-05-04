@@ -87,11 +87,15 @@ function CardDetailModal({
   opened,
   onClose,
   onMove,
+  onDelete,
+  onConvert,
 }: {
   item: NBAItem | null;
   opened: boolean;
   onClose: () => void;
   onMove: (itemId: string, column: string) => void;
+  onDelete: (id: string) => void;
+  onConvert: (id: string, targetType: "KNOWLEDGE" | "GOAL") => void;
 }) {
   const col = item ? COLUMNS.find(c => c.key === item.kanbanColumn) : null;
 
@@ -234,6 +238,30 @@ function CardDetailModal({
           />
         </Group>
 
+        {/* Conversion Controls */}
+        <Divider label="Cataloging Controls" labelPosition="center" mt="xl" />
+        <Stack gap="xs" mt="xs">
+          <Text size="xs" ta="center" c="dimmed">Recatalog this intelligence unit if it belongs in a different layer.</Text>
+          <Group justify="center">
+            <Button variant="outline" color="violet" size="xs" onClick={() => onConvert(item.id, "KNOWLEDGE")}>
+              Move to Knowledge
+            </Button>
+            <Button variant="outline" color="emerald" size="xs" onClick={() => onConvert(item.id, "GOAL")}>
+              Move to Strategic Goal
+            </Button>
+          </Group>
+        </Stack>
+
+        <Divider mt="xl" />
+        <Group justify="flex-end">
+            <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => onDelete(item.id)}>
+              Archive Card
+            </Button>
+            <Button variant="filled" color="orange" onClick={onClose}>
+              Done
+            </Button>
+        </Group>
+
         {/* Timestamps */}
         <Text size="xs" c="dimmed" ta="right">
           Created {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"} ·
@@ -251,7 +279,7 @@ function CardDetailModal({
 export function TacticalBoard({ companyId }: { companyId: string }) {
   const [items, setItems] = useState<NBAItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState<NBAItem | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
 
   const fetchItems = useCallback(async () => {
@@ -275,9 +303,36 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
     return () => clearInterval(interval);
   }, [fetchItems]);
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to archive this task?")) return;
+    await fetch(`/api/nba?id=${id}`, { method: "DELETE" });
+    setItems(prev => prev.filter(i => i.id !== id));
+    setDetailId(null);
+  };
+
+  const handleConvert = async (id: string, targetType: "KNOWLEDGE" | "GOAL") => {
+    try {
+      const res = await fetch("/api/intelligence/convert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceId: id,
+          sourceType: "TASKCARD",
+          targetType: targetType === "KNOWLEDGE" ? "FLASHCARD" : "GOALCARD",
+          companyId
+        })
+      });
+      if (res.ok) {
+        setItems(prev => prev.filter(i => i.id !== id));
+        setDetailId(null);
+      }
+    } catch (err) {
+      console.error("Conversion failed:", err);
+    }
+  };
+
   const handleOpenCard = (item: NBAItem) => {
-    console.log("[KANBAN] Opening card:", item.id);
-    setSelectedItem(item);
+    setDetailId(item.id);
     openModal();
   };
 
@@ -290,9 +345,6 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
           : i
       )
     );
-    if (selectedItem?.id === itemId) {
-      setSelectedItem(prev => prev ? { ...prev, kanbanColumn: column as NBAKanbanColumn } : null);
-    }
     try {
       await fetch(`/api/nba?id=${itemId}`, {
         method: "PATCH",
@@ -302,7 +354,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
     } catch {
       fetchItems();
     }
-  }, [fetchItems, selectedItem]);
+  }, [fetchItems]);
 
   const onDragEnd = useCallback(async (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -334,10 +386,12 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
       </div>
 
       <CardDetailModal
-        item={selectedItem}
+        item={detailId ? items.find(i => i.id === detailId) || null : null}
         opened={modalOpened}
-        onClose={closeModal}
+        onClose={() => { closeModal(); setDetailId(null); }}
         onMove={handleMoveItem}
+        onDelete={handleDelete}
+        onConvert={handleConvert}
       />
 
       <DragDropContext onDragEnd={onDragEnd}>

@@ -23,6 +23,8 @@ model Company {
   hashtagMaintenanceEvents HashtagMaintenanceEvent[]
   nbaItems            NBAItem[]
   sources             Source[]
+  goalcards           Goalcard[]
+  goalcardCorrections GoalcardCorrection[]
   topics              Topic[]
   uploadedSourceFiles UploadedSourceFile[]
   creativeDrafts      CreativeDraft[]
@@ -173,6 +175,104 @@ model FlashcardSource {
   @@unique([flashcardId, sourceType, sourceId])
   @@index([sourceType, sourceId])
 }
+
+model Goalcard {
+  id                      String                @id @default(uuid()) @map("_id")
+  publicId                Int?                  @unique
+  companyId               String
+  title                   String
+  body                    String
+  confidence              Int                   @default(50)
+  impact                  Int                   @default(5)
+  weight                  Int                   @default(5)
+  processingStatus        GoalcardProcessingStatus @default(DRAFT)
+  activityState           GoalcardActivityState    @default(ACTIVE)
+  confidenceScore         Float                 @default(50)
+  createdBy               String?               @default("classifier-agent")
+  refreshedAt             DateTime              @default(now())
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @default(now()) @updatedAt
+  generatedBody           String?
+  generatedTitle          String?
+  lastActionAt            DateTime?
+  manualBody              String?
+  manualTitle             String?
+  userAnnotation          String?
+  hashtags                String[]               @default([])
+  hashtagMaintainedAt     DateTime?
+  hashtagEvaluationPending Boolean              @default(true)
+  lastHashtagError        String?
+  evidence                Json?
+  feedbackConfidenceDelta Int                   @default(0)
+  feedbackWeightDelta     Int                   @default(0)
+  fingerprint             String?
+  kind                    String                @default("GOAL")
+  appVersion              String?               @default("0.14.0")
+  brainVersion            String?               @default("local-brain@0.14.0")
+  generatedAt             DateTime?
+  intelligenceType        IntelligenceType      @default(INTERNAL)
+  company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actions                 GoalcardAction[]
+  corrections             GoalcardCorrection[]
+  sources                 GoalcardSource[]
+
+  @@unique([companyId, fingerprint])
+  @@index([companyId, processingStatus])
+}
+
+model GoalcardAction {
+  id            String              @id @default(uuid()) @map("_id")
+  goalcardId    String
+  action        GoalcardActionType
+  annotation    String?
+  previousTitle String?
+  previousBody  String?
+  modifiedTitle String?
+  modifiedBody  String?
+  actedBy       String?             @default("webapp-user")
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @default(now()) @updatedAt
+  goalcard      Goalcard            @relation(fields: [goalcardId], references: [id], onDelete: Cascade)
+
+  @@index([goalcardId, createdAt])
+}
+
+model GoalcardCorrection {
+  id             String                  @id @default(uuid()) @map("_id")
+  companyId      String
+  goalcardId     String?
+  sourceType     FlashcardSourceType?
+  sourceId       String?
+  sourcePublicId Int?
+  sourceName     String?
+  correctionType FlashcardCorrectionType
+  note           String?
+  actedBy        String?                 @default("webapp-user")
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @default(now()) @updatedAt
+  company        Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  goalcard       Goalcard?               @relation(fields: [goalcardId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([goalcardId, createdAt])
+  @@index([sourceType, sourceId])
+}
+
+model GoalcardSource {
+  id             String              @id @default(uuid()) @map("_id")
+  goalcardId     String
+  sourceType     FlashcardSourceType
+  sourceId       String
+  sourceName     String
+  relationRole   FlashcardSourceRole @default(PRIMARY)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @default(now()) @updatedAt
+  goalcard       Goalcard            @relation(fields: [goalcardId], references: [id], onDelete: Cascade)
+
+  @@unique([goalcardId, sourceType, sourceId])
+  @@index([sourceType, sourceId])
+}
+
 
 model NBAItem {
   id                 String     @id @default(uuid()) @map("_id")
@@ -483,6 +583,14 @@ enum FlashcardActionType {
   MODIFY_ACCEPT
 }
 
+enum GoalcardActionType {
+  ACCEPT
+  DECLINE
+  REJECT
+  ANNOTATE
+  MODIFY_ACCEPT
+}
+
 enum FlashcardCorrectionType {
   HIDE
   MARK_WRONG
@@ -605,6 +713,22 @@ enum NBAProcessingStatus {
 }
 
 enum NBAActivityState {
+  ACTIVE
+  STALE
+  EXPIRED
+  ARCHIVED
+}
+
+enum GoalcardProcessingStatus {
+  DRAFT
+  CHECKED
+  VERIFIED
+  ACCEPTED
+  DECLINED
+  REVIEW
+}
+
+enum GoalcardActivityState {
   ACTIVE
   STALE
   EXPIRED

@@ -325,6 +325,7 @@ export function PipelineAccentHeader({
     { key: "data", className: "pipeline-accent-data" },
     { key: "topics", className: "pipeline-accent-topics" },
     { key: "knowmore", className: "pipeline-accent-knowmore" },
+    { key: "goals", className: "pipeline-accent-goals text-emerald-500" },
     { key: "checklist", className: "pipeline-accent-checklist" },
   ] as const;
 

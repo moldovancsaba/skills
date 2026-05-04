@@ -319,11 +319,13 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }
 
   return (
-    <PageShell width="full">
-      <PageHeader
-        title="Tactical Board"
-        description="AI-orchestrated 5-horizon planning. Drag to set hard priority anchors. Click any card to view details."
-      />
+    <div style={{ height: "calc(100vh - 80px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ padding: "1.5rem 2rem 0 2rem" }}>
+        <PageHeader
+          title="Tactical Board"
+          description="AI-orchestrated 5-horizon planning. Drag to set hard priority anchors. Click any card to view details."
+        />
+      </div>
 
       <CardDetailModal
         item={selectedItem}
@@ -335,12 +337,14 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
       <DragDropContext onDragEnd={onDragEnd}>
         <div
           style={{
+            flex: 1,
             display: "grid",
-            gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(240px, 1fr))`,
-            gap: rem(12),
+            gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(280px, 1fr))`,
+            gap: rem(16),
             alignItems: "start",
             overflowX: "auto",
-            paddingBottom: rem(24),
+            overflowY: "hidden",
+            padding: "1rem 2rem 2rem 2rem",
           }}
         >
           {COLUMNS.map((col) => {
@@ -382,8 +386,8 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       style={{
-                        minHeight: 80,
-                        maxHeight: "calc(100vh - 310px)",
+                        minHeight: 100,
+                        maxHeight: "calc(100vh - 280px)",
                         overflowY: "auto",
                         borderRadius: rem(12),
                         padding: rem(4),
@@ -464,6 +468,6 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
           })}
         </div>
       </DragDropContext>
-    </PageShell>
+    </div>
   );
 }

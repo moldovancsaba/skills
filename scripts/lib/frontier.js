@@ -206,7 +206,7 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
     ROADMAP:   100,
   };
 
-  const columnMap: { items: typeof deduplicated; column: string }[] = [
+  const columnMap = [
     { items: [], column: "CHECKLIST" },
     { items: [], column: "TODO" },
     { items: [], column: "BACKLOG" },

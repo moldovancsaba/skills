@@ -295,7 +295,7 @@ export function KnowledgeReviewCard({
             <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-orange-500/10 hover:text-orange-400" onClick={() => onCorrection({ flashcardId: flashcard.id, correctionType: "HIDE" })} disabled={isBusy || isGenerating}>
               Archive
             </Button>
-            {flashcard.sources.map(src => (
+            {flashcard.sources?.map(src => (
               <Button key={src.id} size="sm" variant="ghost" className="h-7 px-2 text-[10px] uppercase font-bold tracking-tight text-white/70 hover:bg-zinc-500/10 hover:text-zinc-400 border border-zinc-500/10" 
                 onClick={() => {
                   if (confirm(`Suppress all future generation from "${src.sourceName}"?`)) {
@@ -345,7 +345,7 @@ export function KnowledgeReviewCard({
           </div>
         )}
         
-        {flashcard.actions.length > 0 && (
+        {flashcard.actions && flashcard.actions.length > 0 && (
           <div className="border-t border-zinc-200/5 pt-3">
             <p className="text-[10px] text-zinc-500">
               Last seen {new Date(flashcard.refreshedAt).toLocaleDateString()}

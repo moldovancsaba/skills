@@ -15,7 +15,7 @@ import { GripVertical, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormInput } from "@/components/ui/form-fields";
-import { Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
+import { Notice, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
 import { 
   UnifiedCard, 
   UnifiedCardHeader, 
@@ -164,14 +164,6 @@ export default function CompanyTopicsPage() {
 
   return (
     <PageShell width="full">
-      <PipelineAccentHeader
-        activeKey="topics"
-        title="Topics"
-        icon="list_alt"
-        toneClassName="text-orange-600"
-        borderClassName="border-orange-500/20"
-        backgroundClassName="bg-orange-500/10"
-      />
       <PageHeader
         backHref={`/${companyId}`}
         backLabel="Back"

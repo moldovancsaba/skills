@@ -1,27 +1,33 @@
-# Sovereign Marketing OS - Hardening Roadmap Status (v0.12.8)
+# Sovereign Marketing OS - Hardening Roadmap Status (v1.4.0)
 
-## ✅ DELIVERED THIS SESSION
+## ✅ DELIVERED THIS SESSION (v1.4.0)
 
-### Infrastructure & Visibility
-- **Automated Recovery (v0.12.8)**: Implemented "Safe Mode" watchdog. System now automatically falls back to lightweight models (`granite4:350m`) when primary inference fails.
-- **Resource Telemetry**: Guardian now monitors and logs real-time RAM usage and OS load to `guardian-heartbeat.json`.
-- **Ollama Self-Healing**: Added automated service reset (`pkill`) to clear hung model processes during critical failures.
-- **Metric Consistency Fix**: Aligned Dashboard checklist counts with the main Checklist page by enforcing consistent `activityState` filtering.
-- **API Cache Hardening**: Marked core data APIs (NBA, Sources, Data Files, Topics) as `force-dynamic` to ensure real-time accuracy across all layers.
-- **Intelligence Pulse Fix (#69, #70)**: Resolved 'Offline' UI error by implementing the missing `/health` endpoint in the Status Server.
-- **Guardian Hardening**: Added Ollama service connectivity monitoring to the watchdog loop.
-- **UI/UX: Contextual Feedback Buttons**: Flashcard actions (Accept/Decline/Edit) are now color-coded for improved clarity.
+### Architectural Integrity (Tri-Layer)
+- **Tri-Layer Intelligence Stack**: Formalized Knowledge (Flashcards), Strategy (Goals), and Execution (Tasks) as discrete, isolated strategic layers.
+- **Automated Routing**: Generator now intelligently routes new insights to the correct layer based on content intent.
 
-### Intelligence Lifecycle
-- **Stability Pass**: Increased AI inference timeouts to prevent starvation during high local load.
+### Self-Correcting Intelligence (SCI)
+- **Autonomous Auditor**: Background agent periodically probes all cards for taxonomy purity.
+- **Automated Reorganizer**: System now self-heals by migrating misclassified items across layers without human intervention.
+- **Purity Guardrails**: Enforced strict separation between observations, intentions, and tactical moves.
+
+### Infrastructure & Lifecycle
+- **Manual Re-ignition**: Implemented dashboard-level "Reanimate" button to trigger autonomous engine restarts.
+- **Guardian Heartbeat**: Watchdog now monitors the SCI audit cycle and maintains dashboard observability via the Status Server (10006).
+- **Process Hardening**: Resolved EADDRINUSE port collisions and syntax-related worker crashes.
+
+### Documentation
+- **Formal Spec v2.1.0**: Updated "Trinity Formal Production Definition" with SCI and Tri-Layer specifications.
+- **LLD Update**: Integrated self-healing logic into the Low Level Design.
+- **README v1.4.0**: Comprehensive update reflecting the new autonomous architecture.
 
 ---
 
 ## 🚀 COMPLETED NEXT BEST ACTIONS (NBAs)
 
-1. **Knowmore UI & Intelligence Visibility (#69, #70)** [DELIVERED]
-2. **Neon Legacy Purge & Security Alignment** [DELIVERED]
-3. **AI Vertical Expansion (#52 - #61)** [DELIVERED]
+1. **Tri-Layer Implementation & Purity Audit** [DELIVERED]
+2. **Autonomous SCI Self-Healing Layer** [DELIVERED]
+3. **Manual Re-ignition & Watchdog Hardening** [DELIVERED]
 
 ---
 
@@ -30,12 +36,11 @@
 ### Source Diversity
 - [ ] **#73 API/webhook ingestion**: Direct programmatic intake.
 - [ ] **#74 CRM integrations**: External context harvesting.
-- [ ] **#75 Social feeds / Email signals**: Harvesting trends/sentiment.
 
-### Infrastructure Expansion
-- [ ] **#45 Trace Visualization**: UI layer for request lineage.
-- [ ] **#116 Live Model Swapping**: Hot-swapping `STAGE_MODELS` via DB.
+### Advanced Intelligence
+- [ ] **v1.6.0 Recursive Deliberation**: Multi-pass tournament judging for high-stakes decisions.
+- [ ] **Autonomous Budgeting**: Fiscal forecasting based on tactical execution velocity.
 
 ---
-*Status Update: 2026-04-27. Project Board Synchronized.*
+*Status Update: 2026-05-04. Project Board Synchronized (v1.4.0 Architecture Release).*
 

@@ -94,6 +94,18 @@ async function handleSaveSettings(req, res) {
   });
 }
 
+async function handleReanimate(res) {
+  try {
+    const signalPath = path.join(__dirname, "..", "logs", "restart.signal");
+    fs.writeFileSync(signalPath, JSON.stringify({ ts: new Date().toISOString(), requestedBy: "dashboard" }));
+    res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+    res.end(JSON.stringify({ success: true, message: "Restart signal sent to Guardian." }));
+  } catch (e) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: false, error: e.message }));
+  }
+}
+
 // --- HTML VIEW (2026 CLEAN) ---
 
 const HTML = `<!DOCTYPE html>

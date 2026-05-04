@@ -1,7 +1,7 @@
 # 🌌 Sovereign checklist (Marketing OS)
 > **The Autonomous Recurrent Intelligence Layer for Strategic Marketing.**
 
-**v1.2.0: Recurrent Kanban Release**
+**v1.4.0: Sovereign Intelligence Architecture**
 
 **checklist** is a high-performance, private-first autonomous intelligence system. It implements the **Recurrent-Depth Transformer (RDT)** philosophy at the agent level, bridging the gap between raw market evidence and executive strategy through iterative self-refinement.
 
@@ -22,8 +22,8 @@ Strategic synthesis is governed by a recurrent multi-pass loop, enforcing strict
 | Agent | Architecture | Role & Objective |
 | :--- | :--- | :--- |
 | **DRAFTER** | **Recurrent RDT** | **Evidence Extraction**: Performs 3-pass iterative reasoning over raw sources to extract atomic strategic insights. |
-| **WRITER** | **Strategic Refiner** | **Synthesis**: Refines language, eliminates semantic duplicates, and strictly calculates the **ICE Priority Score**. |
-| **JUDGE** | **Tournament Voter** | **Quality Audit**: Performs multi-model consensus judging to reject low-confidence items and ensure 100% language purity. |
+| **WRITER** | **Strategic Refiner** | **Synthesis**: Refines language, eliminates semantic duplicates, and routes items to the correct **Tri-Layer** bucket (Knowledge, Strategy, Execution). |
+| **JUDGE** | **Tournament Voter** | **Quality Audit**: Performs multi-model consensus judging to ensure 100% language purity and architectural integrity. |
 
 ---
 
@@ -40,6 +40,8 @@ The system automatically distributes taskcards across five tactical horizons bas
 
 ## 🛠️ Technological Foundation
 *   **Intelligence**: Local `Ollama` stack with RDT-simulation loops.
+*   **Architecture**: **Tri-Layer Intelligence** (Knowledge, Strategy, Execution) with automated routing.
+*   **Self-Healing**: **SCI (Self-Correcting Intelligence)** layer via Auditor/Reorganizer background cycles.
 *   **Frontend**: Next.js 16 (App Router) + Mantine UI.
 *   **Learning**: Context-aware priority harvesting (Strategic Context v2.0).
 *   **Persistence**: Prisma + MongoDB Atlas + Periodic Guardian Orchestration.
@@ -99,7 +101,8 @@ npm run guardian
 ## 🗺️ Product Roadmap
 *   [x] **v0.14.0**: Production Hardening & Standalone Decoupling.
 *   [x] **v1.0.0**: Multi-agent tournament judging & Executive Summary synthesis.
-*   [x] **v1.2.0**: **Recurrent Kanban Intelligence & Strategic Learning.**
-*   [ ] **v1.4.0**: Recursive Deliberation (Multi-pass Evaluator) & Autonomous Budget Forecasting.
+*   [x] **v1.2.0**: Recurrent Kanban Intelligence & Strategic Learning.
+*   [x] **v1.4.0**: **Sovereign Intelligence Architecture (Tri-Layer & SCI).**
+*   [ ] **v1.6.0**: Recursive Deliberation (Multi-pass Evaluator) & Autonomous Budget Forecasting.
 
 *Built for the Sovereign Marketing Executive.*

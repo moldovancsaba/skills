@@ -11,6 +11,7 @@ const { OLLAMA_MODEL, STAGE_MODELS } = require("./core");
 const { generateStrategicKeywords, performResearchHarvest } = require("./research");
 const { ingestEvidenceUnit, selectEvidenceForGeneration, buildEvidenceBatches } = require("./evidence");
 const { recomputeFrontier } = require("./frontier");
+const { CandidateState } = require("./lifecycle");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
@@ -321,7 +322,6 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
           }
         }
       }
-  }
     } catch (err) {
       console.error(`[GENERATOR] Failed batch:`, err.message);
     }

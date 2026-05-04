@@ -31,7 +31,6 @@ import {
   Notice,
   PageHeader,
   PageShell,
-  PipelineAccentHeader,
   UnifiedGrid,
 } from "@/components/ui/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -538,14 +537,6 @@ export default function CompanyKnowMorePage() {
           </Notice>
         )}
 
-        <PipelineAccentHeader
-          activeKey="knowmore"
-          title="Knowmore"
-          icon="auto_awesome"
-          toneClassName="text-green-600"
-          borderClassName="border-green-500/20"
-          backgroundClassName="bg-green-500/10"
-        />
         <PageHeader
           backHref={`/${companyId}`}
           backLabel="Back"

@@ -28,7 +28,6 @@ import {
   Notice,
   PageHeader,
   PageShell,
-  PipelineAccentHeader,
   UnifiedGrid,
 } from "@/components/ui/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -247,14 +246,6 @@ export default function CompanyGoalsPage() {
     <PageShell width="full">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
         {errorMessage && <Notice variant="destructive" className="mb-4">{errorMessage}</Notice>}
-        <PipelineAccentHeader
-          activeKey="goals"
-          title="Strategic Goals"
-          icon="target"
-          toneClassName="text-emerald-600"
-          borderClassName="border-emerald-500/20"
-          backgroundClassName="bg-emerald-500/10"
-        />
         <PageHeader
           backHref={`/${companyId}`}
           backLabel="Back"

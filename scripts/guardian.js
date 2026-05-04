@@ -30,16 +30,23 @@ const LOG_FILE         = path.join(LOG_DIR, "guardian.log");
 const HEARTBEAT_FILE   = path.join(LOG_DIR, "guardian-heartbeat.json");
 const MAX_LOG_LINES    = 10_000;
 
-const HEALTH_PORT      = 10005;
-const HEALTH_PATH      = "/health";
-const HEALTH_INTERVAL  = 30_000;   // 30s between health polls
-const STUCK_MS         = 20 * 60 * 1000;  // 20 min with no lastProgressAt change = stuck
-const STARTUP_GRACE_MS = 60_000;   // give the worker 60s to boot before checking health
-const STATUS_HEALTH_PORT = 10006;
-const STATUS_HEALTH_INTERVAL = 45_000; // Check status server every 45s
+const HEALTH_PORT             = 10005;
+const STATUS_HEALTH_PORT      = 10006;
+const HEALTH_PATH             = "/health";
+const STUCK_MS                = 15 * 60 * 1000; // 15 min without progress = stuck
+const STARTUP_GRACE_MS        = 60 * 1000;      // 1 min grace
+const RESTART_BASE_MS         = 5000;
+const RESTART_MAX_MS          = 60000;
+const HEALTH_INTERVAL         = 30000;          // 30s check
+const STATUS_HEALTH_INTERVAL  = 15000;          // 15s check
+const SCI_AUDIT_INTERVAL      = 20 * 60 * 1000; // 20 min audit cycle
 
-const RESTART_BASE_MS  = 5_000;    // 5s initial back-off
-const RESTART_MAX_MS   = 5 * 60 * 1000; // 5 min max back-off
+/**
+ * SCI (Self-Correcting Intelligence) State
+ * Tracks the autonomous audit heartbeat.
+ */
+let lastAuditAt = 0;
+
 const OLLAMA_URL       = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 const FALLBACK_MODEL   = "granite4:350m";
 const MEM_THRESHOLD_MB = 1024; // Warn if free memory < 1GB
@@ -462,6 +469,53 @@ healthCheckTimer = setInterval(pollHealth, HEALTH_INTERVAL);
 
 // Periodic status server health poll
 setInterval(checkStatusServerHealth, STATUS_HEALTH_INTERVAL);
+
+/**
+ * Checks for a restart signal file from the status server.
+ */
+function checkRestartSignal() {
+  const signalPath = path.join(__dirname, "..", "logs", "restart.signal");
+  if (fs.existsSync(signalPath)) {
+    warn("RESTART SIGNAL DETECTED. Re-igniting trinity engine...");
+    try { fs.unlinkSync(signalPath); } catch (_) {}
+    killWorker("Manual restart requested via dashboard");
+  }
+}
+
+// Watch for restart signals every 5s
+setInterval(checkRestartSignal, 5000);
+
+/**
+ * SCI (Self-Correcting Intelligence) Loop
+ * Periodically audits the entire intelligence inventory for architectural purity.
+ */
+async function runSCIAudit() {
+  log("─────────────────────────────────────────────────────────────────────────");
+  log("  SCI HEARTBEAT: Starting Intelligence Taxonomy Audit...");
+  log("─────────────────────────────────────────────────────────────────────────");
+  
+  const { exec } = require("child_process");
+  const node = process.execPath;
+  const auditScript = path.join(__dirname, "sci-audit.js");
+  
+  exec(`${node} ${auditScript}`, (error, stdout, stderr) => {
+    if (error) {
+      err(`[SCI] Audit failed: ${error.message}`);
+      return;
+    }
+    if (stderr) warn(`[SCI] Audit warnings: ${stderr}`);
+    if (stdout) {
+      const lines = stdout.split("\n").filter(Boolean);
+      lines.forEach(l => log(`[SCI] ${l}`));
+    }
+    log(`[SCI] Audit cycle completed at ${new Date().toISOString()}`);
+  });
+}
+
+// Trigger SCI Audit every 20 minutes
+setInterval(runSCIAudit, SCI_AUDIT_INTERVAL);
+// Also trigger one 30 seconds after boot to ensure early health
+setTimeout(runSCIAudit, 30000);
 
 // Periodic heartbeat even when idle
 heartbeatTimer = setInterval(() => writeHeartbeat(), 15_000);

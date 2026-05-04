@@ -17,6 +17,14 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "desc" },
     include: {
       sources: true,
+      actions: {
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      },
+      corrections: {
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }
     }
   });
 

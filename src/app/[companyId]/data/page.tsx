@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
-import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
+import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
 import { SourceDataCard } from "@/components/source-data-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
@@ -340,14 +340,6 @@ export default function CompanyDataPage() {
   return (
     <PageShell width="full">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <PipelineAccentHeader
-          activeKey="data"
-          title="Data"
-          icon="database"
-          toneClassName="text-blue-600"
-          borderClassName="border-blue-500/20"
-          backgroundClassName="bg-blue-500/10"
-        />
         <PageHeader
           backHref={`/${companyId}`}
           backLabel="Back"

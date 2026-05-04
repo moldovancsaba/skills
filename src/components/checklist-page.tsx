@@ -15,7 +15,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Container, Grid, Title, Text, Button as MantineButton, Group, Loader, Stack, ActionIcon, rem } from "@mantine/core";
-import { EmptyState, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
+import { EmptyState, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
 import { Button } from "@/components/ui/button";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
@@ -285,14 +285,6 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     <Container size="xl" py="xl">
       <Stack gap="xl">
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-          <PipelineAccentHeader
-            activeKey="checklist"
-            title="checklist"
-            icon="checklist"
-            toneClassName="text-violet-600"
-            borderClassName="border-violet-500/20"
-            backgroundClassName="bg-violet-500/10"
-          />
           <Group justify="space-between" align="flex-end" mt="md">
             <div>
               <Title order={2} fw={900} lts={-1}>{archived ? "Archived checklist" : "checklist"}</Title>

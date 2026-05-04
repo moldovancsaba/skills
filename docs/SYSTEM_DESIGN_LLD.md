@@ -208,5 +208,19 @@ the following tests MUST pass in CI/CD:
 - tenant isolation breach.
 - memory conflict precedence.
 
+## 19. architectural integrity (the guardian sci)
+
+the system enforces the tri-layer architecture through a self-healing loop.
+
+### 19.1 the Auditor (scripts/lib/auditor.js)
+- **frequency**: runs every 20 minutes via `guardian.js`.
+- **logic**: performs a zero-shot classification of all active cards.
+- **detection**: flags items that belong in a different intelligence layer (e.g., a strategic goal in the tactical task list).
+
+### 19.2 the Reorganizer (scripts/lib/reorganizer.js)
+- **action**: handles the automated migration of flagged items.
+- **integrity**: preserves lineage (`generatedFromIds`) and maps scores across different layer schemas.
+- **cleanup**: archives the original item after a successful migration to prevent duplicates.
+
 ---
-*checklist / trinity v2.0.0 — ground truth specification*
+*checklist / trinity v2.1.0 — self-correcting tri-layer intelligence specification*

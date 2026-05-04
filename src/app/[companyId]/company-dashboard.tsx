@@ -329,7 +329,7 @@ export default function CompanyDashboard() {
           <LinkCard
             href={`/${companyId}/tactical`}
             icon={ListOrdered}
-            variant="cyan"
+            variant="teal"
             metric={tacticalCount}
             title="Tactical Board"
             description="5-horizon orchestration"

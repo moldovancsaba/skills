@@ -80,17 +80,21 @@ export function SourceDataCard({
     </>
   );
 
-  const firstLine = name.split("\n")[0].trim();
+  const lines = name.split("\n");
+  const firstLine = lines[0].trim();
   const displayTitle = firstLine.length > 80 ? firstLine.slice(0, 80) + "..." : firstLine;
+  const bodyText = lines.slice(1).join("\n").trim();
 
   return (
     <UnifiedCard>
       <UnifiedCardHeader supporting={badges} title={displayTitle} />
       
       <UnifiedCardBody>
-        <UnifiedCardText className="line-clamp-4 whitespace-pre-wrap">
-          {name}
-        </UnifiedCardText>
+        {bodyText && (
+          <UnifiedCardText className="line-clamp-4 whitespace-pre-wrap">
+            {bodyText}
+          </UnifiedCardText>
+        )}
 
         <HashtagChipList hashtags={hashtags} activeTags={activeHashtags} onToggle={onToggleHashtag} />
 

@@ -265,7 +265,7 @@ export default function CompanyDataPage() {
     setIntelligenceType(item.intelligenceType ?? "INTERNAL");
     setSelectedFiles([]);
     setTimeout(() => {
-      document.getElementById("data-form-container")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }, 100);
   };
 

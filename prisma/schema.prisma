@@ -113,6 +113,7 @@ model Flashcard {
   createdByRunId          String?
   cycleRunId              String?
   intelligenceType        IntelligenceType      @default(INTERNAL)
+  lastAuditedAt           DateTime?
   company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actions                 FlashcardAction[]
   corrections             FlashcardCorrection[]
@@ -211,6 +212,7 @@ model Goalcard {
   brainVersion            String?               @default("local-brain@0.14.0")
   generatedAt             DateTime?
   intelligenceType        IntelligenceType      @default(INTERNAL)
+  lastAuditedAt           DateTime?
   company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actions                 GoalcardAction[]
   corrections             GoalcardCorrection[]
@@ -298,6 +300,7 @@ model NBAItem {
   brainVersion       String?    @default("local-brain@0.8.0")
   generatedAt        DateTime?
   hashtags           String[]   @default([])
+  lastAuditedAt      DateTime?
   hashtagMaintainedAt DateTime?
   hashtagEvaluationPending Boolean @default(true)
   lastHashtagError   String?

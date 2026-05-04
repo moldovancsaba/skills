@@ -469,10 +469,63 @@ heartbeatTimer = setInterval(() => writeHeartbeat(), 15_000);
 // Periodic command bridge check (Phase 2)
 commandTimer = setInterval(pollCommands, 20_000); 
 
-// Periodic Kanban Orchestration (§24 — ICE-threshold redistribution)
-// Runs every 10 minutes. Re-evaluates all companies and redistributes
-// taskcards across the 5 tactical horizons based on current ICE scores.
+// Periodic Kanban Orchestration
 const KANBAN_RECOMPUTE_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+// Periodic Intelligence Audit (SCI Layer §M4.1)
+// Runs every 20 minutes. Audits a batch of cards for taxonomy purity.
+const AUDIT_INTERVAL = 20 * 60 * 1000; 
+
+async function auditIntelligenceJob() {
+  try {
+    const { auditCardTaxonomy } = require("./lib/auditor");
+    const { reorganizeCard } = require("./lib/reorganizer");
+    const companies = await prisma.company.findMany({ select: { id: true, name: true } });
+
+    log(`[AUDITOR] Starting Tri-Layer taxonomy audit for ${companies.length} company/companies...`);
+
+    for (const company of companies) {
+      // Audit a batch of 5 cards per type per run to avoid OOM or timeout
+      const flashcards = await prisma.flashcard.findMany({
+        where: { companyId: company.id, activityState: "ACTIVE", lastAuditedAt: null },
+        take: 5
+      });
+      const goalcards = await prisma.goalcard.findMany({
+        where: { companyId: company.id, activityState: "ACTIVE", lastAuditedAt: null },
+        take: 5
+      });
+      const taskcards = await prisma.nBAItem.findMany({
+        where: { companyId: company.id, status: "PENDING", lastAuditedAt: null },
+        take: 5
+      });
+
+      const allCards = [
+        ...flashcards.map(c => ({ ...c, layer: "KNOWLEDGE" })),
+        ...goalcards.map(c => ({ ...c, layer: "GOAL" })),
+        ...taskcards.map(c => ({ ...c, layer: "TASK" }))
+      ];
+
+      for (const card of allCards) {
+        log(`[AUDITOR] Auditing ${card.layer} card: ${card.title.slice(0, 40)}...`);
+        const result = await auditCardTaxonomy(prisma, company, card, card.layer);
+        
+        if (result && result.isMismatch && result.confidence >= 7) {
+          warn(`[AUDITOR] 🚩 MISMATCH FOUND: Card ${card.id} should be ${result.suggestedLayer} (Reason: ${result.reasoning})`);
+          await reorganizeCard(prisma, card, card.layer, result.suggestedLayer);
+        }
+
+        // Update lastAuditedAt to prevent re-auditing same items in next run
+        const now = new Date();
+        if (card.layer === "KNOWLEDGE") await prisma.flashcard.update({ where: { id: card.id }, data: { lastAuditedAt: now } });
+        if (card.layer === "GOAL") await prisma.goalcard.update({ where: { id: card.id }, data: { lastAuditedAt: now } });
+        if (card.layer === "TASK") await prisma.nBAItem.update({ where: { id: card.id }, data: { lastAuditedAt: now } });
+      }
+    }
+    log(`[AUDITOR] Taxonomy audit job complete.`);
+  } catch (e) {
+    err(`[AUDITOR] Audit job failed: ${e.message}`);
+  }
+}
 
 async function recomputeAllKanbanBoards() {
   try {
@@ -489,8 +542,11 @@ async function recomputeAllKanbanBoards() {
 }
 
 setInterval(recomputeAllKanbanBoards, KANBAN_RECOMPUTE_INTERVAL);
+setInterval(auditIntelligenceJob, AUDIT_INTERVAL);
+
 // Also run once at startup after a short grace period
 setTimeout(recomputeAllKanbanBoards, 30_000);
+setTimeout(auditIntelligenceJob, 60_000);
 
 // Graceful self-shutdown
 process.on("SIGTERM", () => {

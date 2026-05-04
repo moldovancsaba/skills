@@ -64,6 +64,7 @@ type Flashcard = {
   refreshedAt: string;
   lastActionAt: string | null;
   ischecklistResearch?: boolean;
+  intelligenceType: "INTERNAL" | "COMPETITOR";
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
@@ -145,6 +146,15 @@ export function KnowledgeReviewCard({
             )}
             <Badge variant="secondary" className="font-mono text-[10px] tracking-wider uppercase opacity-80">
               {kindLabel(flashcard.kind as any)}
+            </Badge>
+            <Badge 
+              variant="secondary" 
+              className={cn(
+                "font-mono text-[10px] tracking-wider uppercase",
+                flashcard.intelligenceType === "COMPETITOR" ? "bg-amber-500/20 text-amber-500 border border-amber-500/20" : "opacity-80"
+              )}
+            >
+              {flashcard.intelligenceType === "COMPETITOR" ? "The Market" : "Internal"}
             </Badge>
             {flashcard.userAnnotation?.includes("[TRACE:") && (
               <Badge variant="outline" className="border-zinc-500/20 bg-zinc-500/5 font-mono text-[9px] tracking-tight text-zinc-400">

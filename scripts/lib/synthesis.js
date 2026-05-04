@@ -275,32 +275,22 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
               }).catch(() => {});
             }
           } else if (category === "TASKCARD") {
+            const sourceIds = batch.map(src => src.id);
             createdItem = await prisma.nBAItem.create({
               data: {
                 companyId: cid,
                 title: cleanDraft.title,
                 description: cleanDraft.body,
-                priority: "MEDIUM",
                 status: "PENDING",
                 confidence: cleanDraft.confidence,
                 impact: cleanDraft.impact,
-                weight: cleanDraft.weight,
+                ease: cleanDraft.weight,
                 hashtags: cleanDraft.hashtags,
-                intelligenceType: cleanDraft.intelligenceType,
                 cycleRunId: workerContext.cycleRunId,
+                generatedFromIds: sourceIds,
+                candidateState: "GENERATED",
               }
             });
-            // Link sources to TaskCard
-            for (const src of batch) {
-              await prisma.nBAItemSource.create({
-                data: {
-                  nbaItemId: createdItem.id,
-                  sourceId: src.id,
-                  sourceType: "SOURCE",
-                  sourceName: src.entityTag || "Agent Research",
-                }
-              }).catch(() => {});
-            }
           } else {
             // Default: FLASHCARD
             createdItem = await prisma.flashcard.create({

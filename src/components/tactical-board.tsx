@@ -93,9 +93,7 @@ function CardDetailModal({
   onClose: () => void;
   onMove: (itemId: string, column: string) => void;
 }) {
-  if (!item) return null;
-
-  const col = COLUMNS.find(c => c.key === item.kanbanColumn);
+  const col = item ? COLUMNS.find(c => c.key === item.kanbanColumn) : null;
 
   const fmt = (n: number | null | undefined) =>
     n != null ? `${Math.round(n * 100)}%` : "—";
@@ -106,28 +104,32 @@ function CardDetailModal({
       onClose={onClose}
       centered
       withinPortal
+      zIndex={3000}
       title={
         <Group gap="sm">
           <Text fw={800} size="lg" style={{ letterSpacing: "-0.02em" }}>
-            #{item.publicId ?? "—"} · Task Card
+            #{item?.publicId ?? "—"} · Task Card
           </Text>
-          <Badge
-            size="sm"
-            style={{ backgroundColor: `${col?.accent}22`, color: col?.accent }}
-          >
-            {col?.label}
-          </Badge>
+          {col && (
+            <Badge
+              size="sm"
+              style={{ backgroundColor: `${col.accent}22`, color: col.accent }}
+            >
+              {col.label}
+            </Badge>
+          )}
         </Group>
       }
       size="xl"
       radius="lg"
       overlayProps={{ blur: 4 }}
-      styles={{
-        content: { background: "var(--mantine-color-dark-8)" },
-        header:  { background: "var(--mantine-color-dark-8)", borderBottom: "1px solid var(--mantine-color-dark-5)" },
-      }}
     >
-      <Stack gap="md" pt="xs">
+      {!item ? (
+        <Center py="xl">
+          <Loader variant="dots" />
+        </Center>
+      ) : (
+        <Stack gap="md" pt="xs">
         {/* Title */}
         <Text fw={700} size="xl" style={{ lineHeight: 1.3 }}>
           {item.title}
@@ -231,7 +233,8 @@ function CardDetailModal({
           Created {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"} ·
           Updated {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : "—"}
         </Text>
-      </Stack>
+        </Stack>
+      )}
     </Modal>
   );
 }

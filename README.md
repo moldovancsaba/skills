@@ -51,29 +51,30 @@ The system automatically distributes taskcards across five tactical horizons bas
 
 ---
 
-## 📐 Technical Standards & UI Architecture
+## 📐 Technical Standards & Design System
 To maintain the premium experience and ensure system stability, follow these architectural constraints:
 
-### 1. Viewport-Constrained Layout (No Double Scrolls)
-Complex interfaces like the **Tactical Board** must use a fixed-viewport architecture:
-- Outer containers should use `height: calc(100vh - 80px)` and `overflow: hidden`.
-- Independent scrolling must be handled by inner semantic blocks (e.g., Kanban columns).
-- **NEVER** allow the global page scroll to compete with internal board scrolls.
+### 1. Mantine-First Mandate
+The repository enforces a strict Mantine-native architecture. 
+- **NO Tailwind Utilities**: Do not use ad-hoc Tailwind classes for layout or styling. 
+- **Component Primitives**: Always use Mantine `Stack`, `Group`, `Box`, `Paper`, and `Card` for structural layout.
+- **Visual Consistency**: All components must adhere to the hardened design tokens (glassmorphism, vibrant gradients, and blur filters).
 
-### 2. Client-Side Orchestration (No Iframes)
-The system uses **Dynamic Imports (`ssr: false`)** to manage browser-only libraries like `@hello-pangea/dnd`. 
-- This is **NOT an iframe**. It is a standard React lazy-loading mechanism.
-- Iframes are strictly forbidden to maintain SEO, performance, and security parity across the OS.
+### 2. Unified Grid Architecture
+All strategic and tactical layers must implement the `UnifiedGrid` and `PageShell` patterns found in `@/components/ui/app-shell`.
+- **`PageShell`**: Standardized viewport-aware container.
+- **`UnifiedGrid`**: Automatic 3-column desktop / 1-column mobile responsive grid.
 
-### 3. Modal & Overlay Z-Index
-Modals rendered over complex interactive surfaces (DnD, Charts) must:
-- Use `withinPortal: true` (standard Mantine behavior).
-- Use an explicit `zIndex` of `3000` or higher to clear all interaction layers.
+### 3. Intelligence Clarity (Metadata Filtering)
+End-user displays must be purged of technical trace information.
+- **Filtering Utility**: Always wrap user-facing text (titles, descriptions, labels) in the `stripTechnicalMetadata()` utility from `@/lib/ui-utils`.
+- **Markers Purged**: `[TRACE:...]` and `[TOPIC_ID:...]` are strictly technical metadata and must remain invisible to the end user.
 
-### 4. Design System Tokens
-All `LinkCard` components must strictly use valid design tokens:
-- **Allowed Variants**: `blue`, `amber`, `green`, `violet`, `teal`.
-- **Customization**: Do not use ad-hoc color strings (like `cyan`) that break the TypeScript build.
+### 4. Premium Design System Tokens
+All interactive surfaces must use the hardened design language:
+- **Glassmorphism**: Use `backdropFilter: 'blur(10px)'` with low-opacity white backgrounds (`rgba(255, 255, 255, 0.02)`) and `1px` borders.
+- **Gradients**: Leverage Mantine's `gradient` variant for `ThemeIcon` and `Button` to ensure a high-yield aesthetic.
+- **Allowed Colors**: `blue`, `brand`, `indigo`, `knowledge`, `strategy`, `execution`, `orange`.
 
 ---
 

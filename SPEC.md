@@ -4,13 +4,13 @@
 
 Checklist is an active production web application with local-AI-assisted enrichment and recommendation generation.
 
-Current release baseline:
+Checklist release baseline:
 
-- app version: `v0.14.0`
+- app version: `v0.15.0`
 - framework: `Next.js 16.2.2 (Turbopack)`
 - product title: `CHECKLIST`
 - canonical production URL: `https://checklist.sovereignsquad.com`
-- local AI version: `CHECKLIST Trinity v0.14.0`
+- local AI version: `CHECKLIST Trinity v0.15.0`
 
 ## Product Definition
 
@@ -54,14 +54,29 @@ The system is designed so the online app remains usable even when the local AI l
 | `/faq` | FAQ |
 | `/privacy` | privacy policy |
 
+## Design System & UI Architecture (Hardened)
+
+The system enforces a strict **Mantine-First** architectural mandate to ensure visual premium and build-time stability.
+
+1. **Mantine-Native Primitives**
+   - 100% of UI layout must be constructed using native Mantine components (`Stack`, `Group`, `Grid`, `SimpleGrid`).
+   - Manual Tailwind utility classes are strictly prohibited to prevent architectural entropy.
+2. **Unified Page Architecture**
+   - Every primary intelligence layer must use the `PageShell` and `UnifiedGrid` wrappers.
+   - Layouts must be viewport-aware and responsive by design.
+3. **Intelligence Clarity (Metadata Purge)**
+   - All user-facing intelligence (Titles, Descriptions, Labels) must be processed via the `stripTechnicalMetadata()` utility.
+   - Technical markers like `[TRACE:...]` or `[TOPIC_ID:...]` are strictly internal and must never be rendered in the presentation layer.
+
 ## Architecture
 
 ```text
 Online webapp (Vercel)
 - Next.js 16 app router
 - Prisma + MongoDB Atlas
-- **Passive Ingress**: UI captures user 'Intent' (title/description).
+- **Mantine-First UI**: Standardized on Mantine 7 primitives.
 - **Axiomatic Enforcement**: Core interface color layers strictly bound to 1-10 thresholds.
+- **Metadata Filtering**: Hardened presentation layer for pure intelligence visibility.
 
 Shared persistence (MongoDB Atlas)
 - The 'Bridge' between Human Reality and AI Strategy.
@@ -103,9 +118,10 @@ When any of these change, update docs in the same change set:
 - API surface
 - database contract
 - online/local workflow
-- design-system grammar
+- design-system grammar (Mantine-First Mandate)
+- metadata filtering standards
 
 ## Document Status
 
-Status: current (v0.12.0)
-Last updated: `2026-04-16`
+Status: current (v0.15.0)
+Last updated: `2026-05-04`

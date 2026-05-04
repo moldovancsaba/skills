@@ -100,6 +100,7 @@ Build Marketing Skill IDEABANK that:
 - [x] Fair Orbit Rotation & AI Resilience
 - [x] Intelligence Specialization: Positive Feedback Replay
 - [x] Skill Selection Logic (CRO, SEO, Strategy)
+- [x] Production Hardening (Mantine-First & Metadata Filtering)
 - [ ] Skills available in IDEABANK (Phase 2)
 - [ ] Skill can be triggered by user command
 - [ ] Skill generates relevant NBA

@@ -1,34 +1,28 @@
-# CHECKLIST - Hardening Roadmap Status (v1.4.0)
+# CHECKLIST - Hardening Roadmap Status (v0.15.0)
 
-## ✅ DELIVERED THIS SESSION (v1.4.0)
+## ✅ DELIVERED THIS SESSION (v0.15.0)
 
-### Architectural Integrity (Tri-Layer)
-- **Tri-Layer Intelligence Stack**: Formalized Knowledge (Flashcards), Strategy (Goals), and Execution (Tasks) as discrete, isolated strategic layers.
-- **Automated Routing**: Generator now intelligently routes new insights to the correct layer based on content intent.
+### UI Hardening & Unification (Mantine-First)
+- **Mantine-First Restoration**: Purged 100% of legacy Tailwind utility classes and Shadcn fragments from core pages (Data Ingress, Topics, Tactical Board).
+- **Premium Design Unification**: Hardened `MetricCard` and `LinkCard` with high-yield glassmorphism, vibrant gradients, and sophisticated micro-animations.
+- **Unified Architecture**: Standardized strategic and tactical layers using the `PageShell` and `UnifiedGrid` patterns for total structural consistency.
 
-### Self-Correcting Intelligence (SCI)
-- **Autonomous Auditor**: Background agent periodically probes all cards for taxonomy purity.
-- **Automated Reorganizer**: System now self-heals by migrating misclassified items across layers without human intervention.
-- **Purity Guardrails**: Enforced strict separation between observations, intentions, and tactical moves.
-- **Move-Only Conversion**: Hardened manual recataloging to ensure source cards are archived after conversion, preventing intelligence duplication.
+### Intelligence Clarity & Purity
+- **Global Metadata Filter**: Implemented `stripTechnicalMetadata()` utility to purge `[TRACE:...]` and `[TOPIC_ID:...]` markers from all end-user cards.
+- **Taxonomy Hardening**: Applied the metadata filter across `TaskReviewCard`, `SourceDataCard`, and `KnowledgeReviewCard`, ensuring a purely strategic interface for executive operators.
 
-### Infrastructure & Lifecycle
-- **Manual Re-ignition**: Implemented dashboard-level "Reanimate" button to trigger autonomous engine restarts.
-- **Guardian Heartbeat**: Watchdog now monitors the SCI audit cycle and maintains dashboard observability via the Status Server (10006).
-- **Process Hardening**: Resolved EADDRINUSE port collisions and syntax-related worker crashes.
-
-### Documentation
-- **Formal Spec v2.1.0**: Updated "Trinity Formal Production Definition" with SCI and Tri-Layer specifications.
-- **LLD Update**: Integrated self-healing logic into the Low Level Design.
-- **README v1.4.0**: Comprehensive update reflecting the new autonomous architecture.
+### Technical Foundations
+- **Build-Time Stability**: Validated 100% stable `next build` across the new Mantine architecture.
+- **Versioning**: Bumped repository to v0.15.0, reflecting the hardened, production-ready state.
+- **Documentation Sync**: Synchronized `README.md`, `brain.md`, and technical specs with the new Mantine-First methodology.
 
 ---
 
 ## 🚀 COMPLETED NEXT BEST ACTIONS (NBAs)
 
-1. **Tri-Layer Implementation & Purity Audit** [DELIVERED]
-2. **Autonomous SCI Self-Healing Layer** [DELIVERED]
-3. **Manual Re-ignition & Watchdog Hardening** [DELIVERED]
+1. **Mantine-First UI Restoration & Unification** [DELIVERED]
+2. **Global Metadata Filtering Implementation** [DELIVERED]
+3. **Production Build Validation & Branding Sync** [DELIVERED]
 
 ---
 
@@ -43,5 +37,5 @@
 - [ ] **Autonomous Budgeting**: Fiscal forecasting based on tactical execution velocity.
 
 ---
-*Status Update: 2026-05-04. Project Board Synchronized (v1.4.0 Architecture Release).*
+*Status Update: 2026-05-04. Project Board Synchronized (v0.15.0 Architecture Release).*
 

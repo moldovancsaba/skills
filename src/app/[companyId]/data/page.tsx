@@ -34,6 +34,7 @@ interface DataItem {
   aiClusters?: string[];
   entityTag?: string | null;
   description?: string;
+  intelligenceType?: "INTERNAL" | "COMPETITOR";
   createdAt: string;
 }
 
@@ -70,6 +71,7 @@ export default function CompanyDataPage() {
   const [fileCount, setFileCount] = useState(0);
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
+  const [intelligenceType, setIntelligenceType] = useState<"INTERNAL" | "COMPETITOR">("INTERNAL");
 
   const loadAllData = useCallback(async (cid: string) => {
     const [s, f] = await Promise.all([
@@ -183,6 +185,7 @@ export default function CompanyDataPage() {
             content: input,
             name: input,
             hashtags: normalizedHashtags,
+            intelligenceType,
           }),
         });
         if (!response.ok) {
@@ -212,6 +215,7 @@ export default function CompanyDataPage() {
             companyId: company.id,
             content: input,
             hashtags: normalizedHashtags,
+            intelligenceType,
           }),
         });
         if (!response.ok) {
@@ -238,6 +242,7 @@ export default function CompanyDataPage() {
     setEditingId(item.id);
     setInput(item.name);
     setHashtags(item.hashtags ?? []);
+    setIntelligenceType(item.intelligenceType ?? "INTERNAL");
     setSelectedFiles([]);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -246,6 +251,7 @@ export default function CompanyDataPage() {
     setEditingId(null);
     setInput("");
     setHashtags([]);
+    setIntelligenceType("INTERNAL");
     setSelectedFiles([]);
   };
 
@@ -346,6 +352,32 @@ export default function CompanyDataPage() {
               placeholder="Add hashtags like #soccer, #academy, #pricing, #performance"
             />
 
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground">Intelligence Focus</label>
+              <div className="flex gap-2">
+                {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
+                  <Badge
+                    key={type}
+                    variant={intelligenceType === type ? "default" : "outline"}
+                    className={cn(
+                      "cursor-pointer px-4 py-1.5 text-xs transition-all",
+                      intelligenceType === type 
+                        ? (type === "COMPETITOR" ? "bg-amber-600 hover:bg-amber-700" : "bg-blue-600 hover:bg-blue-700")
+                        : "hover:bg-accent"
+                    )}
+                    onClick={() => setIntelligenceType(type)}
+                  >
+                    {type === "INTERNAL" ? "My Company" : "Market / Competitor"}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                {intelligenceType === "INTERNAL" 
+                  ? "Insights about your own product, operations, and performance." 
+                  : "Insights about market competitors and industry benchmarks. These are managed separately."}
+              </p>
+            </div>
+
             <div className="flex justify-end gap-2">
               {editingId ? (
                 <Button type="button" variant="ghost" onClick={cancelEdit}>
@@ -403,11 +435,10 @@ export default function CompanyDataPage() {
 
               return (
                 <React.Fragment key={item.id}>
-                  <SourceDataCard
-                    id={item.id}
                     publicId={item.publicId}
                     name={item.name}
                     type={item.type}
+                    intelligenceType={item.intelligenceType}
                     hashtags={item.hashtags ?? []}
                     onStartEdit={() => startEdit(item)}
                     onDelete={() => deleteItem(item)}

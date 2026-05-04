@@ -119,6 +119,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
     "AXIOM: Strict integer scores for confidence, impact, weight. Scale: 1-10. NO zeros. NO percentages.",
     "COVERAGE OVER POLISH: Prefer extracting more distinct insights over perfecting fewer. The Refiner will handle compression.",
     "Do NOT duplicate insights already in the active knowledge base. If the insight exists, skip it.",
+    "Required field [intelligenceType]: Categorize as 'INTERNAL' if the insight is about the company's own operations/performance, or 'COMPETITOR' if it is about market competitors, industry benchmarks, or external threats.",
     "Format: Return a JSON array of objects.",
     "APERTUS Purity: Each card must be 100% monolingual in an allowed language. Translate if needed.",
     memoryPrompt
@@ -208,6 +209,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       kind: String(item.kind || "SUMMARY").toUpperCase(),
       hashtags: Array.isArray(item.semanticTags) ? item.semanticTags.slice(0, 5) :
                 Array.isArray(item.hashtags) ? item.hashtags.slice(0, 5) : [],
+      intelligenceType: String(item.intelligenceType || "INTERNAL").toUpperCase() === "COMPETITOR" ? "COMPETITOR" : "INTERNAL",
       fingerprint,
       createdBy: "generator-agent",
       // Trinity M2.1: lineage fields

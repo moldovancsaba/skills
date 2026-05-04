@@ -356,7 +356,8 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
     where: { 
       companyId: cid, 
       processingStatus: "VERIFIED",
-      activityState: "ACTIVE"
+      activityState: "ACTIVE",
+      intelligenceType: "INTERNAL"
     },
     orderBy: { updatedAt: "desc" },
     take: orbitLimit

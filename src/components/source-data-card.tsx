@@ -21,6 +21,7 @@ type SourceDataCardProps = {
   publicId: number | null;
   name: string;
   type: DataType;
+  intelligenceType?: "INTERNAL" | "COMPETITOR";
   hashtags: string[];
   onStartEdit?: () => void;
   onDelete: () => void;
@@ -45,11 +46,21 @@ export function SourceDataCard({
   onToggleHashtag,
 }: SourceDataCardProps) {
   const Icon = typeIcon[type];
+  const isCompetitor = intelligenceType === "COMPETITOR";
 
   const badges = (
     <>
       <Badge variant="outline" className="font-mono text-[10px] tracking-wider border-zinc-200/20 text-zinc-400">
         DATACARD
+      </Badge>
+      <Badge 
+        variant="secondary" 
+        className={cn(
+          "font-mono text-[10px] tracking-wider border-zinc-200/20 gap-1 capitalize",
+          isCompetitor ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : "bg-zinc-800 text-zinc-300"
+        )}
+      >
+        {isCompetitor ? "Competitor" : "Internal"}
       </Badge>
       <Badge variant="secondary" className="font-mono text-[10px] tracking-wider border-zinc-200/20 bg-zinc-800 text-zinc-300 gap-1 capitalize">
         <Icon className="h-3 w-3" />

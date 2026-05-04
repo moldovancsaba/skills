@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
           entityTag: typeof data.entityTag === "string" && data.entityTag.trim() ? data.entityTag.trim() : null,
           aiClusters: normalizeHashtagList(data.aiClusters),
           metadata: data.metadata ?? null,
+          intelligenceType: data.intelligenceType === "COMPETITOR" ? "COMPETITOR" : "INTERNAL",
         },
       });
     }, TRANSACTION_SETTINGS);
@@ -91,6 +92,7 @@ export async function PATCH(request: NextRequest) {
             : existing.entityTag,
         aiClusters: data.aiClusters !== undefined ? normalizeHashtagList(data.aiClusters) : existing.aiClusters,
         metadata: data.metadata !== undefined ? data.metadata : existing.metadata,
+        intelligenceType: data.intelligenceType === "COMPETITOR" || data.intelligenceType === "INTERNAL" ? data.intelligenceType : existing.intelligenceType,
       },
     });
 

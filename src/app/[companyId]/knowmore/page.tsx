@@ -96,6 +96,7 @@ type Flashcard = {
   actions: FlashcardAction[];
   corrections: FlashcardCorrection[];
   ischecklistResearch?: boolean;
+  intelligenceType: "INTERNAL" | "COMPETITOR";
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
@@ -199,6 +200,7 @@ export default function CompanyKnowMorePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterKind, setFilterKind] = useState<Flashcard["kind"] | "ALL">("ALL");
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
+  const [intelligenceFilter, setIntelligenceFilter] = useState<"INTERNAL" | "COMPETITOR">("INTERNAL");
   const { sources, setSources } = useStore();
   const [isOwner, setIsOwner] = useState(false);
   const [fileCount, setFileCount] = useState(0);
@@ -294,12 +296,15 @@ export default function CompanyKnowMorePage() {
         card.body.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesKind = filterKind === "ALL" || card.kind === filterKind;
       const matchesTags = matchesAllHashtags(card.hashtags, activeHashtags);
-      return matchesSearch && matchesKind && matchesTags;
+      const matchesIntelligence = card.intelligenceType === intelligenceFilter;
+      return matchesSearch && matchesKind && matchesTags && matchesIntelligence;
     });
-  }, [activeHashtags, flashcards, searchQuery, filterKind]);
+  }, [activeHashtags, flashcards, searchQuery, filterKind, intelligenceFilter]);
 
   const summary = useMemo(() => {
-    if (flashcards.length === 0) {
+    const visibleCards = flashcards.filter(f => f.intelligenceType === intelligenceFilter);
+
+    if (visibleCards.length === 0) {
       return {
         total: 0,
         reviewed: 0,
@@ -309,7 +314,7 @@ export default function CompanyKnowMorePage() {
       };
     }
 
-    const totals = flashcards.reduce(
+    const totals = visibleCards.reduce(
       (acc, flashcard) => {
         acc.confidence += flashcard.confidenceScore;
         acc.impact += flashcard.impact;
@@ -323,15 +328,15 @@ export default function CompanyKnowMorePage() {
     );
 
     return {
-      total: flashcards.length,
+      total: visibleCards.length,
       reviewed: totals.reviewed,
-      avgConfidence: Math.round(totals.confidence / flashcards.length),
+      avgConfidence: Math.round(totals.confidence / visibleCards.length),
       avgIceScore: Math.round(
-        flashcards.reduce((sum, f) => sum + (f.impact * (f.confidenceScore / 10) * f.weight), 0) / flashcards.length
+        visibleCards.reduce((sum, f) => sum + (f.impact * (f.confidenceScore / 10) * f.weight), 0) / visibleCards.length
       ),
-      avgEase: Math.round(totals.weight / flashcards.length),
+      avgEase: Math.round(totals.weight / visibleCards.length),
     };
-  }, [flashcards]);
+  }, [flashcards, intelligenceFilter]);
 
   const handleActionSubmit = useCallback(async (flashcardId: string) => {
     if (!company || !actionMode) {
@@ -573,6 +578,24 @@ export default function CompanyKnowMorePage() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="bg-zinc-900/50 p-1 rounded-lg border border-white/5 flex gap-1 mr-4">
+            {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
+              <Button
+                key={type}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-8 px-4 text-xs font-bold uppercase tracking-tight transition-all",
+                  intelligenceFilter === type 
+                    ? (type === "COMPETITOR" ? "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30" : "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30")
+                    : "text-muted-foreground hover:text-white"
+                )}
+                onClick={() => setIntelligenceFilter(type)}
+              >
+                {type === "INTERNAL" ? "My Company" : "The Market"}
+              </Button>
+            ))}
+          </div>
           {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
             <Badge
               key={kind}

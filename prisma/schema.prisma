@@ -61,6 +61,11 @@ model Feedback {
   nbaItem             NBAItem     @relation(fields: [nbaItemId], references: [id])
 }
 
+enum IntelligenceType {
+  INTERNAL
+  COMPETITOR
+}
+
 model Flashcard {
   id                      String                @id @default(uuid()) @map("_id")
   publicId                Int?                  @unique
@@ -105,6 +110,7 @@ model Flashcard {
   temperature             Float?                @default(0.7)
   createdByRunId          String?
   cycleRunId              String?
+  intelligenceType        IntelligenceType      @default(INTERNAL)
   company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actions                 FlashcardAction[]
   corrections             FlashcardCorrection[]
@@ -297,6 +303,7 @@ model Source {
   provenance      String?  // origin URL or reference
   topicHints      String[] @default([]) // topic label hints for Generator
   freshnessWindowDays Int? @default(30) // how many days this evidence is considered fresh
+  intelligenceType    IntelligenceType @default(INTERNAL)
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, publicId, createdAt])

@@ -107,7 +107,7 @@ export function ClientNav() {
       <AppShellSection component={ScrollArea} grow mx="-md" px="md">
         <Stack gap="xs">
           <NavLink
-            label="Sovereign Portfolio"
+            label="Global Portfolio"
             leftSection={<LayoutDashboard size={20} />}
             onClick={() => router.push("/")}
             active={pathname === "/"}

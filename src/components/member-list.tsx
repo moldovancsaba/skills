@@ -128,7 +128,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                 <Group gap="xs" align="flex-end">
                   <Box style={{ flex: 1 }}>
                     <FormInput
-                      placeholder="operator@sovereign.os"
+                      placeholder="operator@checklist.os"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       type="email"

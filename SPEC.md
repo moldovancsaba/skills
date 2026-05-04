@@ -6,11 +6,11 @@ Checklist is an active production web application with local-AI-assisted enrichm
 
 Current release baseline:
 
-- app version: `v0.12.0`
-- framework: `Next.js 16.2.2`
-- product title: `Checklist Marketing OS`
+- app version: `v0.14.0`
+- framework: `Next.js 16.2.2 (Turbopack)`
+- product title: `CHECKLIST`
 - canonical production URL: `https://checklist.sovereignsquad.com`
-- local AI version: `Sovereign Trinity v0.12.0`
+- local AI version: `CHECKLIST Trinity v0.14.0`
 
 ## Product Definition
 
@@ -77,7 +77,7 @@ Local AI Layer (The Trinity - Authoritative Engine)
 
 ## Current Tech Stack
 
-- Frontend: `Next.js 16.2.2`, `React 18`, `Tailwind`, `shadcn-ui`
+- Frontend: `Next.js 16.2.2`, `React 18`, `Mantine 7`
 - Database: `MongoDB Atlas` via `Prisma`
 - Local AI: `Ollama`
 - Auth: environment-configured OAuth/OIDC-style SSO with PKCE support

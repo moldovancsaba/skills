@@ -4,7 +4,7 @@ Collecting marketing skills from the ecosystem to power our AI-driven marketing 
 
 ## Objective
 
-Build a comprehensive marketing skill library that transforms into NBA (Next Best Action) recommendations for users. Integrate marketingskills from coreyhaines31/marketingskills and other sources into our Checklist Marketing OS.
+Build a comprehensive marketing skill library that transforms into NBA (Next Best Action) recommendations for users. Integrate marketingskills from coreyhaines31/marketingskills and other sources into our CHECKLIST.
 
 ## Unified Context
 
@@ -95,7 +95,7 @@ Build Marketing Skill IDEABANK that:
 - [ ] product-marketing-context - Context document
 
 ## Acceptance Checks
-- [x] Sovereign Trinity Engine (Drafter, Writer, Judge) Operational
+- [x] CHECKLIST Trinity Engine (Drafter, Writer, Judge) Operational
 - [x] Passive Ingress Architecture (Thin Webapp / Authoritative Worker)
 - [x] Fair Orbit Rotation & AI Resilience
 - [x] Intelligence Specialization: Positive Feedback Replay

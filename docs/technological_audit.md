@@ -3,9 +3,9 @@
 ## 1. Core Architecture
 The system follows a **Private-First, Local-Authoritative** architecture. 
 
-*   **Standalone Mode**: checklist is now decoupled from the broader Sovereign/Nexus ecosystem. All background logic and synthesis triggers are self-contained.
+*   **Standalone Mode**: checklist is now decoupled from legacy ecosystems. All background logic and synthesis triggers are self-contained.
 *   **Dual-Layer Stack**:
-    *   **Dashboard (L1)**: Next.js 16 / React 18 / Mantine / Tailwind. Handles visibility and user interaction.
+    *   **Dashboard (L1)**: Next.js 16 / React 18 / Mantine. Handles visibility and user interaction.
     *   **Engine (L2)**: Node.js / Ollama / Prisma / MongoDB. Handles autonomous synthesis and memory management.
 
 ## 2. The Trinity Synthesis Pipeline

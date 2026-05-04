@@ -1,14 +1,14 @@
-# 🌌 Sovereign checklist (Marketing OS)
+# 🌌 CHECKLIST
 > **The Autonomous Recurrent Intelligence Layer for Strategic Marketing.**
 
-**v1.4.0: Sovereign Intelligence Architecture**
+**v1.4.0: CHECKLIST Intelligence Architecture**
 
-**checklist** is a high-performance, private-first autonomous intelligence system. It implements the **Recurrent-Depth Transformer (RDT)** philosophy at the agent level, bridging the gap between raw market evidence and executive strategy through iterative self-refinement.
+**CHECKLIST** is a high-performance, private-first autonomous intelligence system. It implements the **Recurrent-Depth Transformer (RDT)** philosophy at the agent level, bridging the gap between raw market evidence and executive strategy through iterative self-refinement.
 
 ---
 
 ## 🏛️ Core Philosophy: Total Independence
-**checklist** operates as a hardened, standalone strategic asset, enforcing data sovereignty through local inference.
+**CHECKLIST** operates as a hardened, standalone strategic asset, enforcing data sovereignty through local inference.
 
 1.  **Recurrent Reasoning (RDT Engine)**: The Drafter agent now processes intelligence in three computational phases (**Prelude, Recurrence, Coda**), anchoring every loop with raw evidence injection to prevent hallucination.
 2.  **Tactical Kanban Orchestration**: A 5-column tactical board (**Idea Bank → Roadmap → Backlog → Todo → Checklist**) automatically organizes tasks based on multi-factor ICE scoring (Impact, Confidence, Ease).
@@ -52,7 +52,7 @@ The system automatically distributes taskcards across five tactical horizons bas
 ---
 
 ## 📐 Technical Standards & UI Architecture
-To maintain the premium "Sovereign" experience and ensure system stability, follow these architectural constraints:
+To maintain the premium experience and ensure system stability, follow these architectural constraints:
 
 ### 1. Viewport-Constrained Layout (No Double Scrolls)
 Complex interfaces like the **Tactical Board** must use a fixed-viewport architecture:
@@ -105,7 +105,7 @@ npm run guardian
 *   [x] **v0.14.0**: Production Hardening & Standalone Decoupling.
 *   [x] **v1.0.0**: Multi-agent tournament judging & Executive Summary synthesis.
 *   [x] **v1.2.0**: Recurrent Kanban Intelligence & Strategic Learning.
-*   [x] **v1.4.0**: **Sovereign Intelligence Architecture (Tri-Layer & SCI).**
+*   [x] **v1.4.0**: **CHECKLIST Intelligence Architecture (Tri-Layer & SCI).**
 *   [ ] **v1.6.0**: Recursive Deliberation (Multi-pass Evaluator) & Autonomous Budget Forecasting.
 
-*Built for the Sovereign Marketing Executive.*
+*Built for the Executive Marketing Operator.*

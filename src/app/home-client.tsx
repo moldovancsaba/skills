@@ -181,7 +181,7 @@ export default function Home() {
       <Stack gap="xl">
         <Group justify="space-between" align="center">
           <PageHeader 
-            title="Sovereign Portfolio" 
+            title="Global Portfolio" 
             description="Select an intelligence unit to operate." 
           />
           {session && (

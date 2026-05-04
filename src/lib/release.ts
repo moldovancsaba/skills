@@ -1,5 +1,5 @@
 /**
- * Sovereign Marketing OS Release Configuration
+ * CHECKLIST Release Configuration
  * Hardened version - Client Safe
  */
 

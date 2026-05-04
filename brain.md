@@ -1,6 +1,6 @@
-# SOVEREIGN BRAIN: Memory & Strategic Alignment
+# CHECKLIST BRAIN: Memory & Strategic Alignment
 
-This file serves as the long-term cognitive anchor for Antigravity (the AI assistant) to ensure continuity, minimize "dumb" mistakes, and maintain strict adherence to the Sovereign Marketing OS architecture.
+This file serves as the long-term cognitive anchor for Antigravity (the AI assistant) to ensure continuity, minimize "dumb" mistakes, and maintain strict adherence to the CHECKLIST architecture.
 
 ## 🧠 Core Axioms
 1. **APERTUS Purity**: 100% monolingual content. No mixed-language cards. Delete without hesitation if violated.
@@ -9,7 +9,7 @@ This file serves as the long-term cognitive anchor for Antigravity (the AI assis
 4. **Threshold-Based Synthesis**: Pivot to enrichment if ratios exceed 10x (Flashcards) or capacity exceeds 50 (Tasks).
 
 ## 🛠️ Operational State
-- **Current Milestone**: v0.11.4 (Hardening & Language Policy)
+- **Current Milestone**: v0.14.0 (UI Hardening)
 - **Database**: Prisma + MongoDB Atlas.
 - **AI Stack**: Local Ollama (llama3.2:3b).
 - **Security**: Google Auth + Multi-Tenant isolation.

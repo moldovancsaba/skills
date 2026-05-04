@@ -264,7 +264,9 @@ export default function CompanyDataPage() {
     setHashtags(item.hashtags ?? []);
     setIntelligenceType(item.intelligenceType ?? "INTERNAL");
     setSelectedFiles([]);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => {
+      document.getElementById("data-form-container")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   const cancelEdit = () => {
@@ -333,7 +335,7 @@ export default function CompanyDataPage() {
         />
       </motion.div>
 
-      <Card>
+      <Card id="data-form-container">
         <CardContent className="space-y-4 p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             {editingId ? (

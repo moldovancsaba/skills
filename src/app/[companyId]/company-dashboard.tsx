@@ -10,12 +10,12 @@ import {
   Group, 
   Title, 
   Text, 
-  Button as MantineButton, 
   Loader, 
   Box,
   Center,
   rem
 } from "@mantine/core";
+import { Button } from "@/components/ui/button";
 import { LinkCard, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
@@ -291,17 +291,17 @@ export default function CompanyDashboard() {
               <Title order={2} size="h3" fw={900} lts={-0.5}>Generated Intelligence</Title>
               <Text size="sm" c="dimmed">Top-priority strategic goals synthesized by the Trinity engine.</Text>
             </Box>
-            <MantineButton 
-              variant="subtle" 
-              color="gray" 
-              size="xs" 
-              component={Link} 
-              href={`/${companyId}/nba`}
-              rightSection={<ArrowRight size={14} />}
-              fw={700}
-            >
-              Open Full Checklist
-            </MantineButton>
+            <Link href={`/${companyId}/nba`} style={{ textDecoration: 'none' }}>
+              <Button 
+                variant="subtle" 
+                color="gray" 
+                size="xs" 
+                rightSection={<ArrowRight size={14} />}
+                fw={700}
+              >
+                Open Full Checklist
+              </Button>
+            </Link>
           </Group>
 
           <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="xl">
@@ -339,7 +339,7 @@ export default function CompanyDashboard() {
       </Stack>
 
       <Box style={{ position: "fixed", bottom: rem(32), right: rem(32), zIndex: 100 }}>
-        <MantineButton
+        <Button
           onClick={() => router.push(`/${companyId}/data`)}
           size="lg"
           radius="xl"
@@ -348,7 +348,7 @@ export default function CompanyDashboard() {
           style={{ boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}
         >
           Add Intelligence
-        </MantineButton>
+        </Button>
       </Box>
     </PageShell>
   );

@@ -1,3 +1,5 @@
+'use client';
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LucideIcon, ArrowLeft } from "lucide-react";
@@ -273,7 +275,7 @@ export function LinkCard({
           )}
 
           <Group justify="flex-end" mt="auto">
-            <Text size="xs" fw={800} tt="uppercase" lts={1} color={variant}>
+            <Text size="xs" fw={800} tt="uppercase" lts={1} c={variant}>
               Open Layer →
             </Text>
           </Group>

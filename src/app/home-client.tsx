@@ -1,18 +1,30 @@
 'use client';
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { useStore } from "@/lib/store";
-import { motion } from "framer-motion";
+import { 
+  Stack, 
+  Group, 
+  Text, 
+  Title, 
+  ActionIcon, 
+  Tooltip, 
+  Divider, 
+  Box, 
+  SimpleGrid, 
+  Loader, 
+  Alert,
+  ThemeIcon
+} from "@mantine/core";
+import { Plus, ListOrdered, Sparkles, Zap, Edit, Trash2, HelpCircle, LogIn, AlertCircle, Database, Target, ListTodo } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHeader, PageShell } from "@/components/ui/app-shell";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
-import { Badge } from "@/components/ui/badge";
-import { LinkCard, UnifiedGrid } from "@/components/ui/app-shell";
-import { Plus, ListOrdered, Sparkles, Zap, Edit, Trash2 } from "lucide-react";
+import { LinkCard, UnifiedGrid, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useStore } from "@/lib/store";
+import { useTheme } from "@/lib/theme-provider";
+import { useState, useEffect, useCallback } from "react";
 
 export default function Home() {
   const router = useRouter();
@@ -154,176 +166,209 @@ export default function Home() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
+    return (
+      <Box style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
+        <Stack align="center" gap="md" w="100%">
+          <Loader color="brand" size="lg" />
+          <Text size="sm" fw={700} c="dimmed">Hardening OS Infrastructure...</Text>
+        </Stack>
+      </Box>
+    );
   }
 
   return (
     <PageShell width="7xl">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center justify-between mb-2">
-          <PageHeader title="Select Company" />
+      <Stack gap="xl">
+        <Group justify="space-between" align="center">
+          <PageHeader 
+            title="Sovereign Portfolio" 
+            description="Select an intelligence unit to operate." 
+          />
           {session && (
-            <Badge variant="outline" className="px-3 py-1 bg-primary/5 text-primary border-primary/20 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-[11px] font-medium lowercase">Logged in as {session.email}</span>
+            <Badge 
+              variant="dot" 
+              color="brand" 
+              size="lg" 
+              radius="md"
+              styles={{ root: { backgroundColor: 'var(--mantine-color-dark-6)', border: '1px solid var(--mantine-color-dark-4)' } }}
+            >
+              System Operator: {session.email}
             </Badge>
           )}
-        </div>
-      </motion.div>
+        </Group>
 
-      {error && (
-        <div className="mb-4 p-4 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20">
-          <p className="font-semibold">Error</p>
-          <p>{error}</p>
-        </div>
-      )}
+        {error && (
+          <Alert icon={<AlertCircle size={16} />} title="Synchronization Failure" color="red" radius="md" variant="light">
+            {error}
+          </Alert>
+        )}
 
-      <div className="flex justify-end">
-        <div className="flex items-center gap-4">
-          <Link href="/faq" className="text-sm text-muted-foreground hover:text-foreground">
-            FAQ
-          </Link>
-          {!session ? (
-            <Link href="/auth" className="text-sm text-muted-foreground hover:text-foreground">
-              Sign in with SSO
-            </Link>
-          ) : null}
-        </div>
-      </div>
-
-
-
-      {(canManageCompanies && (companies.length === 0 || showForm)) ? (
-        <Card>
-          <CardContent className="p-6">
-            <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany} className="space-y-4">
-              <FormInput
-                name="name"
-                label="Company Name"
-                value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
-                placeholder="Enter company name"
-                required
-              />
-              <HashtagMultiSelect
-                label="Industries"
-                placeholder="Search or add industry tags (e.g. #saas, #ai)"
-                selected={formData.industries}
-                onChange={industries => setFormData({...formData, industries})}
-                suggestions={suggestedIndustries}
-                error={undefined}
-              />
-              <div className="flex gap-2">
-                <Button type="submit">
-                  {editingId ? "Update" : "Create"} Company
-                </Button>
-                {editingId && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => { setEditingId(null); setFormData({ name: "", industry: "", industries: [] }); setShowForm(false); }}
-                  >
-                    Cancel
-                  </Button>
-                )}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-12">
-          {Array.isArray(companies) && companies.map((c: any) => (
-            <div key={c.id} className="space-y-6">
-              {/* Company Header Row */}
-              <div className="flex items-center justify-between border-b border-border/50 pb-4">
-                <div className="flex items-center gap-4">
-                  <Link href={`/${c.id}`} className="hover:opacity-80 transition-opacity">
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground">{c.name}</h2>
-                  </Link>
-                  <div className="flex flex-wrap gap-1">
-                    {c.industries?.length > 0 ? (
-                      c.industries.map((tag: string) => (
-                        <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[10px] bg-primary/5 text-primary border-primary/10">
-                          {tag}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground italic">No industries set</span>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <span className="rounded bg-muted px-2 py-1 font-mono text-[10px] text-muted-foreground uppercase mr-4">
-                    ID: {c.id.slice(0, 8)}
-                  </span>
-                  {canManageCompanies && (
-                    <div className="flex gap-1">
-                      <Button onClick={() => startEdit(c)} variant="outline" size="icon" className="h-8 w-8">
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button onClick={() => handleDeleteCompany(c.id)} variant="destructive" size="icon" className="h-8 w-8">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Intelligence Cards Row */}
-              <UnifiedGrid className="md:grid-cols-4">
-                <LinkCard
-                  href={`/${c.id}/data`}
-                  icon={Plus}
-                  variant="blue"
-                  metric={c.metrics?.data ?? 0}
-                  title="Data Collection"
-                  description="Raw sources & files"
-                />
-                <LinkCard
-                  href={`/${c.id}/topics`}
-                  icon={ListOrdered}
-                  variant="amber"
-                  metric={c.metrics?.topics ?? 0}
-                  title="Topics"
-                  description="Prioritize AI focus"
-                />
-                <LinkCard
-                  href={`/${c.id}/knowmore`}
-                  icon={Sparkles}
-                  variant="green"
-                  metric={c.metrics?.knowmore ?? 0}
-                  title="Knowmore"
-                  description="Knowledge layer"
-                />
-                <LinkCard
-                  href={`/${c.id}/nba`}
-                  icon={Zap}
-                  variant="violet"
-                  metric={c.metrics?.checklist ?? 0}
-                  title="checklist"
-                  description="High-impact actions"
-                />
-              </UnifiedGrid>
-            </div>
-          ))}
-          {!canManageCompanies && companies.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center text-muted-foreground italic">
-                No companies are available for this account yet.
-              </CardContent>
-            </Card>
-          ) : null}
-        </div>
-      )}
-
-      {canManageCompanies && (
-        <div className="pt-4 border-t">
-          <Button onClick={() => setShowForm(true)} variant="link" className="px-0">
-            + Create new company
+        <Group justify="flex-end" gap="lg">
+          <Button 
+            variant="subtle" 
+            color="gray" 
+            size="compact-sm" 
+            leftSection={<HelpCircle size={14} />}
+            onClick={() => router.push("/faq")}
+          >
+            Intelligence FAQ
           </Button>
-        </div>
-      )}
+          {!session && (
+            <Button 
+              variant="light" 
+              color="indigo" 
+              size="compact-sm" 
+              leftSection={<LogIn size={14} />}
+              onClick={() => router.push("/auth")}
+            >
+              Sign in with SSO
+            </Button>
+          )}
+        </Group>
+
+        {(canManageCompanies && (companies.length === 0 || showForm)) ? (
+          <Card p="xl">
+            <Stack gap="lg">
+              <Title order={3}>{editingId ? "Modify Intelligence Unit" : "Initialize New Unit"}</Title>
+              <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany}>
+                <Stack gap="md">
+                  <FormInput
+                    name="name"
+                    label="Company Name"
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    placeholder="Enter company name"
+                    required
+                  />
+                  <HashtagMultiSelect
+                    label="Strategic Industries"
+                    placeholder="Search or add industry tags (e.g. #saas, #ai)"
+                    selected={formData.industries}
+                    onChange={industries => setFormData({...formData, industries})}
+                    suggestions={suggestedIndustries}
+                    error={undefined}
+                  />
+                  <Group gap="sm" mt="lg">
+                    <Button type="submit" color="brand" leftSection={<Plus size={16} />}>
+                      {editingId ? "Synchronize" : "Initialize"} Unit
+                    </Button>
+                    <Button
+                      variant="subtle"
+                      color="gray"
+                      onClick={() => { setEditingId(null); setFormData({ name: "", industry: "", industries: [] }); setShowForm(false); }}
+                    >
+                      Cancel
+                    </Button>
+                  </Group>
+                </Stack>
+              </form>
+            </Stack>
+          </Card>
+        ) : (
+          <Stack gap={48}>
+            {Array.isArray(companies) && companies.map((c: any) => (
+              <Box key={c.id}>
+                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)', paddingBottom: 'var(--mantine-spacing-md)' }}>
+                  <Stack gap={4}>
+                    <Group gap="sm">
+                      <Title 
+                        order={2} 
+                        size="h2" 
+                        fw={900} 
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => router.push(`/${c.id}`)}
+                      >
+                        {c.name}
+                      </Title>
+                      <Group gap={6}>
+                        {c.industries?.map((tag: string) => (
+                          <Badge key={tag} variant="outline" color="brand" size="xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </Group>
+                    </Group>
+                    <Text size="xs" ff="monospace" c="dimmed" tt="uppercase" lts={1}>
+                      UNIT ID: {c.id.slice(0, 8)}
+                    </Text>
+                  </Stack>
+                  
+                  {canManageCompanies && (
+                    <Group gap="xs">
+                      <Tooltip label="Edit Unit">
+                        <ActionIcon onClick={() => startEdit(c)} variant="light" color="gray" size="lg">
+                          <Edit size={18} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Purge Unit">
+                        <ActionIcon onClick={() => handleDeleteCompany(c.id)} variant="light" color="red" size="lg">
+                          <Trash2 size={18} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  )}
+                </Group>
+
+                <UnifiedGrid className="md:grid-cols-4">
+                  <LinkCard
+                    href={`/${c.id}/data`}
+                    icon={Database}
+                    variant="gray"
+                    metric={c.metrics?.data ?? 0}
+                    title="Data Ingress"
+                    description="Raw sources & harvesting"
+                  />
+                  <LinkCard
+                    href={`/${c.id}/topics`}
+                    icon={ListTodo}
+                    variant="indigo"
+                    metric={c.metrics?.topics ?? 0}
+                    title="Topics"
+                    description="Prioritize AI synthesis"
+                  />
+                  <LinkCard
+                    href={`/${c.id}/knowmore`}
+                    icon={Sparkles}
+                    variant="knowledge"
+                    metric={c.metrics?.knowmore ?? 0}
+                    title="Knowmore"
+                    description="Intelligence knowledge layer"
+                  />
+                  <LinkCard
+                    href={`/${c.id}/nba`}
+                    icon={Zap}
+                    variant="brand"
+                    metric={c.metrics?.checklist ?? 0}
+                    title="checklist"
+                    description="High-impact strategic actions"
+                  />
+                </UnifiedGrid>
+              </Box>
+            ))}
+
+            {!canManageCompanies && companies.length === 0 && (
+              <Card p="xl" radius="lg" withBorder ta="center" bg="var(--mantine-color-dark-8)">
+                <Text size="sm" c="dimmed" fs="italic">
+                  No intelligence units are currently provisioned for this account.
+                </Text>
+              </Card>
+            )}
+          </Stack>
+        )}
+
+        {canManageCompanies && !showForm && (
+          <Box pt="xl" style={{ borderTop: '1px solid var(--mantine-color-dark-6)' }}>
+            <Button 
+              onClick={() => setShowForm(true)} 
+              variant="subtle" 
+              color="brand"
+              leftSection={<Plus size={16} />}
+            >
+              Provision New Intelligence Unit
+            </Button>
+          </Box>
+        )}
+      </Stack>
     </PageShell>
   );
 }

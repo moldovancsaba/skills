@@ -6,7 +6,7 @@ import { ClientNav } from "./client-nav";
 import { Footer } from "./footer";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { CookieBanner } from "@/lib/cookie-consent";
-import { MantineProvider, createTheme } from "@mantine/core";
+import { AppShell, AppShellMain, MantineProvider, createTheme } from "@mantine/core";
 
 export const metadata: Metadata = {
   title: "checklist",
@@ -97,14 +97,24 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,600,1,0"
         />
       </head>
-      <body className={`${fontBody.variable} ${fontDisplay.variable} h-screen flex font-body overflow-hidden`}>
+      <body className={`${fontBody.variable} ${fontDisplay.variable} font-body`}>
         <MantineProvider theme={theme} defaultColorScheme="dark">
           <ThemeProvider>
-            <ClientNav />
-            <div className="flex-1 flex flex-col h-full overflow-y-auto min-w-0 bg-background relative">
-              <main className="flex-1 shrink-0">{children}</main>
-              <Footer />
-            </div>
+            <AppShell
+              padding="0"
+              navbar={{ width: 280, breakpoint: 'sm' }}
+              styles={{
+                main: { background: 'var(--mantine-color-dark-9)' }
+              }}
+            >
+              <ClientNav />
+              <AppShellMain>
+                <div className="h-screen flex flex-col overflow-y-auto">
+                  <main className="flex-1 shrink-0">{children}</main>
+                  <Footer />
+                </div>
+              </AppShellMain>
+            </AppShell>
             <CookieBanner />
           </ThemeProvider>
         </MantineProvider>

@@ -5,10 +5,12 @@ import { Button as MantineButton, type ButtonProps as MantineButtonProps } from 
 
 export interface ButtonProps extends MantineButtonProps, Omit<React.ComponentPropsWithoutRef<"button">, "style" | "color"> {
   asChild?: boolean;
+  component?: any;
+  href?: string;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = "filled", size = "sm", ...props }, ref) => {
+const Button = React.forwardRef<any, ButtonProps>(
+  ({ variant = "filled", size = "sm", component, ...props }, ref) => {
     // Map Shadcn variants to Mantine variants
     const variantMap: Record<string, string> = {
       default: "filled",
@@ -27,6 +29,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <MantineButton
         ref={ref}
+        component={component}
         variant={(variantMap[variant as string] || variant) as any}
         color={(colorMap[variant as string] || "brand") as any}
         size={size === "default" ? "sm" : (size as any)}

@@ -2,18 +2,18 @@
   "guardianPid": 73504,
   "workerPid": null,
   "workerAlive": false,
-  "restartCount": 1370,
-  "startedAt": 1777922566554,
-  "lastHealthAt": "2026-05-04T19:22:46.654Z",
+  "restartCount": 2356,
+  "startedAt": 1777927596730,
+  "lastHealthAt": "2026-05-04T20:46:36.828Z",
   "lastProgressAt": null,
   "useSafeMode": false,
   "resources": {
-    "freeMem": 2461,
+    "freeMem": 1899,
     "totalMem": 16384,
     "loadAvg": [
-      3.408203125,
-      3.41259765625,
-      2.9638671875
+      2.0966796875,
+      2.896484375,
+      2.55126953125
     ]
   },
   "exitCode": 1,

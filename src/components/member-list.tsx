@@ -1,16 +1,27 @@
 'use client';
 
-import { useState, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
+import { 
+  Stack, 
+  Group, 
+  Text, 
+  Avatar, 
+  ActionIcon, 
+  Tooltip, 
+  Badge, 
+  Box, 
+  ThemeIcon,
+  Loader,
+  Transition
+} from "@mantine/core";
 import { 
   UnifiedCard, 
   UnifiedCardHeader, 
-  UnifiedCardBody, 
-  UnifiedCardActions 
+  UnifiedCardBody 
 } from "@/components/ui/unified-card";
 import { FormInput } from "@/components/ui/form-fields";
-import { Users, UserPlus, Trash2, Shield, User as UserIcon } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Users, UserPlus, Trash2, Shield, User as UserIcon, Mail } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 
 export function MemberList({ companyId, isOwner }: { companyId: string; isOwner: boolean }) {
   const [members, setMembers] = useState<any[]>([]);
@@ -81,89 +92,116 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
     }
   };
 
-  if (loading) return <div className="animate-pulse h-48 bg-zinc-900/40 rounded-xl border border-zinc-800" />;
+  if (loading) {
+    return (
+      <UnifiedCard className="h-full">
+        <Stack align="center" justify="center" h={200}>
+          <Loader color="brand" size="sm" />
+          <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={1}>Syncing Permissions...</Text>
+        </Stack>
+      </UnifiedCard>
+    );
+  }
 
   return (
     <UnifiedCard className="h-full">
       <UnifiedCardHeader
         supporting={
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800/40 text-zinc-400">
-              <Users className="h-4 w-4" />
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Access Control</span>
-          </div>
+          <Group gap="xs">
+            <ThemeIcon variant="light" color="gray" size="lg" radius="md">
+              <Users size={18} />
+            </ThemeIcon>
+            <Badge variant="outline" color="gray" size="sm" tt="uppercase" fw={800}>
+              Access Control
+            </Badge>
+          </Group>
         }
-        title="Team Members"
-        description="Invite users by email to collaborate on this company."
+        title="Intelligence Team"
+        description="Manage secure access to this intelligence unit."
       />
 
-      <UnifiedCardBody className="space-y-6">
-        {isOwner && (
-          <form onSubmit={handleInvite} className="flex gap-2">
-            <FormInput
-              placeholder="team@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              required
-              className="flex-1 bg-zinc-900/60 border-zinc-800"
-            />
-            <Button type="submit" disabled={inviting} variant="secondary" className="gap-2 shrink-0">
-              <UserPlus className="h-4 w-4" />
-              Invite
-            </Button>
-          </form>
-        )}
-
-        {error && (
-          <p className="text-xs text-red-400">{error}</p>
-        )}
-
-        <div className="space-y-2">
-          <AnimatePresence mode="popLayout">
-            {members.map((member) => (
-              <motion.div
-                key={member.id}
-                layout
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="flex items-center justify-between p-2.5 rounded-lg border border-zinc-800 bg-zinc-900/20"
-              >
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-8 h-8 rounded-full bg-zinc-800/60 flex items-center justify-center shrink-0">
-                    <UserIcon className="h-4 w-4 text-zinc-400" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-zinc-200 truncate">{member.email}</p>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <Shield className={`h-3 w-3 ${member.role === 'OWNER' ? 'text-amber-500' : 'text-zinc-500'}`} />
-                        <span className="text-[9px] uppercase tracking-wider font-bold text-zinc-500">
-                          {member.role === 'OWNER' ? 'ADMIN' : 'MEMBER'}
-                        </span>
-                      </div>
-                      <span className={`text-[9px] uppercase tracking-wider font-bold ${member.acceptedAt ? 'text-green-500/80' : 'text-zinc-600'}`}>
-                        {member.acceptedAt ? "ACTIVE" : "PENDING"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {isOwner && member.role !== 'OWNER' && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemove(member.id)}
-                    className="h-8 w-8 text-zinc-600 hover:text-red-400 transition-colors shrink-0"
+      <UnifiedCardBody>
+        <Stack gap="xl">
+          {isOwner && (
+            <form onSubmit={handleInvite}>
+              <Stack gap="xs">
+                <Group gap="xs" align="flex-end">
+                  <Box style={{ flex: 1 }}>
+                    <FormInput
+                      placeholder="operator@sovereign.os"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      type="email"
+                      required
+                    />
+                  </Box>
+                  <Button 
+                    type="submit" 
+                    loading={inviting} 
+                    color="brand" 
+                    leftSection={<UserPlus size={16} />}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    Invite
                   </Button>
-                )}
-              </motion.div>
+                </Group>
+                {error && <Text size="xs" c="red" fw={700}>{error}</Text>}
+              </Stack>
+            </form>
+          )}
+
+          <Stack gap="sm">
+            {members.map((member) => (
+              <Box 
+                key={member.id}
+                p="sm" 
+                style={{ 
+                  borderRadius: "var(--mantine-radius-md)",
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.05)"
+                }}
+              >
+                <Group justify="space-between" wrap="nowrap">
+                  <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
+                    <Avatar radius="xl" size="md" color={member.role === 'OWNER' ? 'brand' : 'gray'}>
+                      {member.email[0].toUpperCase()}
+                    </Avatar>
+                    <Box style={{ flex: 1, minWidth: 0 }}>
+                      <Text size="sm" fw={700} truncate>{member.email}</Text>
+                      <Group gap="xs">
+                        <Group gap={4}>
+                          <Shield size={12} color={member.role === 'OWNER' ? 'var(--mantine-color-brand-6)' : 'var(--mantine-color-gray-6)'} />
+                          <Text size="10px" fw={800} tt="uppercase" lts={1} c="dimmed">
+                            {member.role === 'OWNER' ? 'Admin' : 'Member'}
+                          </Text>
+                        </Group>
+                        <Badge 
+                          size="xs" 
+                          variant="dot" 
+                          color={member.acceptedAt ? "green" : "gray"}
+                        >
+                          {member.acceptedAt ? "Active" : "Pending"}
+                        </Badge>
+                      </Group>
+                    </Box>
+                  </Group>
+
+                  {isOwner && member.role !== 'OWNER' && (
+                    <Tooltip label="Revoke Access">
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        onClick={() => handleRemove(member.id)}
+                        size="lg"
+                      >
+                        <Trash2 size={18} />
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                </Group>
+              </Box>
             ))}
-          </AnimatePresence>
-        </div>
+          </Stack>
+        </Stack>
       </UnifiedCardBody>
     </UnifiedCard>
   );

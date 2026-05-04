@@ -41,6 +41,7 @@ import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { useStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import React from "react";
 
 type Company = {

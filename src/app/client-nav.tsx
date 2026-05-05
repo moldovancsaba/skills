@@ -259,7 +259,6 @@ export function ClientNav() {
                       </Avatar>
                       <Box style={{ flex: 1, overflow: 'hidden' }}>
                         <Text size="xs" fw={900} truncate>{session.name}</Text>
-                        <Text size="10px" c="dimmed" truncate>v{APP_VERSION}</Text>
                       </Box>
                     </Group>
                     <ChevronDown size={14} />

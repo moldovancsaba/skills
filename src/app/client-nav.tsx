@@ -15,7 +15,8 @@ import {
   Divider, 
   UnstyledButton,
   ScrollArea,
-  ThemeIcon
+  ThemeIcon,
+  Badge
 } from "@mantine/core";
 import { 
   ChevronRight, 

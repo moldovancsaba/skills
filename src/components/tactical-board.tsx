@@ -31,6 +31,8 @@ import {
   rem,
   Select,
   Button,
+  Box,
+  ScrollArea,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader } from "@/components/ui/app-shell";
@@ -385,7 +387,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: 'var(--mantine-color-body)' }}>
+    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: 'var(--mantine-color-body)' }}>
 
       <CardDetailModal
         item={detailId ? items.find(i => i.id === detailId) || null : null}
@@ -397,133 +399,148 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
       />
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div
-          style={{
-            flex: 1,
-            display: "grid",
-            gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(280px, 1fr))`,
-            gap: rem(16),
-            alignItems: "start",
-            overflowX: "auto",
-            overflowY: "hidden",
-            padding: "1rem 2rem 2rem 2rem",
-          }}
+        <Box 
+          style={{ flex: 1, overflowX: "auto", overflowY: "hidden" }}
+          p="xl"
         >
-          {COLUMNS.map((col) => {
-            const colItems = items
-              .filter(i => i.kanbanColumn === col.key)
-              .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+          <Group 
+            wrap="nowrap" 
+            align="flex-start" 
+            gap="md" 
+            h="100%"
+          >
+            {COLUMNS.map((col) => {
+              const colItems = items
+                .filter(i => i.kanbanColumn === col.key)
+                .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
-            return (
-              <Stack key={col.key} gap="sm" style={{ minWidth: 280, height: "100%" }}>
-                {/* Column Header */}
-                <Paper
-                  p="sm"
-                  radius="md"
-                  withBorder
-                  style={{
-                    borderTop: `3px solid ${col.accent}`,
-                  }}
+              return (
+                <Stack 
+                  key={col.key} 
+                  gap="sm" 
+                  w={300} 
+                  h="100%"
+                  style={{ flexShrink: 0 }}
                 >
-                  <Group justify="space-between">
-                    <Stack gap={2}>
-                      <Text fw={800} size="sm" style={{ color: col.accent, letterSpacing: "-0.01em" }}>
-                        {col.label}
-                      </Text>
-                      <Text size="xs" c="dimmed">{col.description}</Text>
-                    </Stack>
-                    <Badge
-                      size="sm"
-                      style={{ backgroundColor: `${col.accent}22`, color: col.accent }}
-                    >
-                      {colItems.length}
-                    </Badge>
-                  </Group>
-                </Paper>
-
-                {/* Droppable — plain div required for correct DnD ref binding */}
-                <Droppable droppableId={col.key}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      style={{
-                        flex: 1,
-                        minHeight: 100,
-                        overflowY: "auto",
-                        borderRadius: rem(12),
-                        padding: rem(4),
-                        border: snapshot.isDraggingOver
-                          ? `1.5px dashed ${col.accent}`
-                          : "1.5px dashed transparent",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      <Stack gap="xs">
-                        {colItems.map((item, index) => (
-                          <Draggable key={item.id} draggableId={item.id} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                style={{ ...provided.draggableProps.style }}
-                              >
-                                <Paper
-                                  p="sm"
-                                  radius="md"
-                                  withBorder
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    handleOpenCard(item);
-                                  }}
-                                  style={{
-                                    boxShadow: snapshot.isDragging
-                                      ? "0 16px 40px rgba(0,0,0,0.5)"
-                                      : "none",
-                                    cursor: snapshot.isDragging ? "grabbing" : "pointer",
-                                    borderColor: snapshot.isDragging
-                                      ? col.accent
-                                      : "transparent",
-                                    transform: snapshot.isDragging ? "rotate(1.5deg)" : "none",
-                                    transition: "box-shadow 0.15s ease, background 0.15s ease",
-                                    userSelect: "none",
-                                  }}
-                                >
-                                  <Stack gap={6}>
-                                    <Text size="xs" fw={700} lineClamp={2} style={{ lineHeight: 1.35 }}>
-                                      {item.title}
-                                    </Text>
-                                    {item.description && (
-                                      <Text size="xs" c="dimmed" lineClamp={2} style={{ lineHeight: 1.4 }}>
-                                        {item.description}
-                                      </Text>
-                                    )}
-                                    <Group justify="space-between" mt={2}>
-                                      <Badge size="xs" variant="dot" color={item.impact >= 8 ? "red" : item.impact >= 5 ? "yellow" : "gray"}>
-                                        {item.candidateState}
-                                      </Badge>
-                                      <Text size="xs" fw={900} style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
-                                        {Math.round(item.iceScore)}
-                                      </Text>
-                                    </Group>
-                                  </Stack>
-                                </Paper>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
+                  {/* Column Header */}
+                  <Paper
+                    p="sm"
+                    radius="md"
+                    withBorder
+                    style={{
+                      borderTop: `3px solid ${col.accent}`,
+                      flexShrink: 0
+                    }}
+                  >
+                    <Group justify="space-between" wrap="nowrap">
+                      <Stack gap={2} style={{ overflow: 'hidden' }}>
+                        <Text fw={800} size="sm" style={{ color: col.accent, letterSpacing: "-0.01em" }} truncate>
+                          {col.label}
+                        </Text>
+                        <Text size="xs" c="dimmed" truncate>{col.description}</Text>
                       </Stack>
-                    </div>
-                  )}
-                </Droppable>
-              </Stack>
-            );
-          })}
-        </div>
+                      <Badge
+                        size="sm"
+                        variant="light"
+                        color={col.accent}
+                        style={{ backgroundColor: `${col.accent}22`, color: col.accent }}
+                      >
+                        {colItems.length}
+                      </Badge>
+                    </Group>
+                  </Paper>
+
+                  {/* Droppable — plain div is required here for provided.innerRef and provided.droppableProps */}
+                  <Droppable droppableId={col.key}>
+                    {(provided, snapshot) => (
+                      <Box
+                        component="div"
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        style={{
+                          flex: 1,
+                          minHeight: 100,
+                          borderRadius: 'var(--mantine-radius-md)',
+                          border: snapshot.isDraggingOver
+                            ? `1.5px dashed ${col.accent}`
+                            : "1.5px dashed transparent",
+                          backgroundColor: snapshot.isDraggingOver
+                            ? `${col.accent}0d`
+                            : "transparent",
+                          transition: "all 0.15s ease",
+                          display: 'flex',
+                          flexDirection: 'column'
+                        }}
+                      >
+                        <ScrollArea offsetScrollbars style={{ flex: 1 }}>
+                          <Stack gap="xs" p={4}>
+                            {colItems.map((item, index) => (
+                              <Draggable key={item.id} draggableId={item.id} index={index}>
+                                {(provided, snapshot) => (
+                                  <Box
+                                    component="div"
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    style={{ ...provided.draggableProps.style }}
+                                  >
+                                    <Paper
+                                      p="sm"
+                                      radius="md"
+                                      withBorder
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        handleOpenCard(item);
+                                      }}
+                                      style={{
+                                        boxShadow: snapshot.isDragging
+                                          ? "0 16px 40px rgba(0,0,0,0.5)"
+                                          : "none",
+                                        cursor: snapshot.isDragging ? "grabbing" : "pointer",
+                                        borderColor: snapshot.isDragging
+                                          ? col.accent
+                                          : "transparent",
+                                        transform: snapshot.isDragging ? "rotate(1.5deg)" : "none",
+                                        transition: "box-shadow 0.15s ease, background 0.15s ease",
+                                        userSelect: "none",
+                                      }}
+                                    >
+                                      <Stack gap={6}>
+                                        <Text size="xs" fw={700} lineClamp={2} style={{ lineHeight: 1.35 }}>
+                                          {item.title}
+                                        </Text>
+                                        {item.description && (
+                                          <Text size="xs" c="dimmed" lineClamp={2} style={{ lineHeight: 1.4 }}>
+                                            {item.description}
+                                          </Text>
+                                        )}
+                                        <Group justify="space-between" mt={2} wrap="nowrap">
+                                          <Badge size="xs" variant="dot" color={item.impact >= 8 ? "red" : item.impact >= 5 ? "yellow" : "gray"}>
+                                            {item.candidateState}
+                                          </Badge>
+                                          <Text size="xs" fw={900} style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
+                                            {Math.round(item.iceScore)}
+                                          </Text>
+                                        </Group>
+                                      </Stack>
+                                    </Paper>
+                                  </Box>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </Stack>
+                        </ScrollArea>
+                      </Box>
+                    )}
+                  </Droppable>
+                </Stack>
+              );
+            })}
+          </Group>
+        </Box>
       </DragDropContext>
-    </div>
+    </Box>
   );
 }

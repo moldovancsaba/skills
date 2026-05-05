@@ -1,6 +1,6 @@
 "use client";
 
-import { Hash, X } from "lucide-react";
+import { IconHash as Hash, IconX as X } from "@tabler/icons-react";
 import { Badge, Group, ActionIcon, UnstyledButton } from "@mantine/core";
 import { displayHashtag, normalizeHashtagList } from "@/lib/hashtags";
 

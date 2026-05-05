@@ -7,18 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Brain,
-  Database,
-  Layers3,
-  Search,
-  Sparkles,
-  TrendingUp,
-  ArrowUpRight,
-  Target,
-  LayoutList,
-  Filter
-} from "lucide-react";
+import { IconBrain as Brain, IconDatabase as Database, IconLayersIntersect as Layers3, IconSearch as Search, IconSparkles as Sparkles, IconTrendingUp as TrendingUp, IconArrowUpRight as ArrowUpRight, IconTarget as Target, IconLayoutList as LayoutList, IconFilter as Filter } from "@tabler/icons-react";
 import { 
   Badge, 
   Button, 
@@ -241,7 +230,7 @@ export default function CompanyGoalsPage() {
         <PipelineAccentHeader 
           activeKey="goals" 
           title="Strategic Goals" 
-          icon="target" 
+          icon={Target} 
         />
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
 

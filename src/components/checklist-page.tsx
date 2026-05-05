@@ -31,7 +31,7 @@ import {
 import { EmptyState, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
-import { Archive, Brain, RefreshCw, ArrowRight } from "lucide-react";
+import { IconArchive as Archive, IconBrain as Brain, IconRefresh as RefreshCw, IconArrowRight as ArrowRight, IconListCheck as ListTodo } from "@tabler/icons-react";
 
 /**
  * Representational interface for a tactical intelligence unit (Task).
@@ -301,7 +301,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         <PipelineAccentHeader 
           activeKey="nba" 
           title="Checklist" 
-          icon="fact_check" 
+          icon={ListTodo} 
         />
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
           <Group justify="space-between" align="center">

@@ -24,7 +24,7 @@ import {
   ActionIcon,
   Transition
 } from "@mantine/core";
-import { FileUp, Plus, CheckCircle, ScrollText, ListFilter, SortAsc, Users, Edit2, Info } from "lucide-react";
+import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconFileText as ScrollText, IconFilter as ListFilter, IconSortAscending as SortAsc, IconUsers as Users, IconPencil as Edit2, IconInfoCircle as Info, IconDatabase as Database } from "@tabler/icons-react";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
@@ -349,7 +349,7 @@ export default function CompanyDataPage() {
         <PipelineAccentHeader 
           activeKey="data" 
           title="Data Ingress" 
-          icon="database" 
+          icon={Database} 
         />
         <Card radius="lg" withBorder p="xl">
           <form onSubmit={handleSubmit}>

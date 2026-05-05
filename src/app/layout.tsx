@@ -91,10 +91,6 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,600,1,0"
-        />
         <ColorSchemeScript defaultColorScheme="auto" />
       </head>
       <body className={`${fontBody.variable} ${fontDisplay.variable} font-body`}>

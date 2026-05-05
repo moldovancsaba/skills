@@ -38,7 +38,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader, PipelineAccentHeader } from "@/components/ui/app-shell";
-import { Trash2, ExternalLink, Target, Cpu, RefreshCw, Layers } from "lucide-react";
+import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconCpu as Cpu, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard } from "@tabler/icons-react";
 
 type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
@@ -451,7 +451,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
         <PipelineAccentHeader 
           activeKey="tactical" 
           title="Tactical Board" 
-          icon="dashboard" 
+          icon={LayoutDashboard} 
         />
           <Group 
             wrap="nowrap" 

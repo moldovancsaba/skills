@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { usePathname, useRouter } from "next/navigation";
-import { FileUp, Plus, CheckCircle, ScrollText, Info, FileText, Trash2, Edit2 } from "lucide-react";
+import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconFileText as ScrollText, IconInfoCircle as Info, IconFileText as FileText, IconTrash as Trash2, IconPencil as Edit2 } from "@tabler/icons-react";
 import { 
   Stack, 
   Group, 

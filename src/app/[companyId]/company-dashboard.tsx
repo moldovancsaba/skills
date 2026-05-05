@@ -24,7 +24,7 @@ import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
-import { Plus, ListOrdered, Sparkles, Zap, ArrowRight, Target, LayoutDashboard, Database, TrendingUp, Brain, Rocket, ClipboardList } from "lucide-react";
+import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconTrendingUp as TrendingUp, IconBrain as Brain, IconRocket as Rocket, IconClipboardList as ClipboardList } from "@tabler/icons-react";
 
 type NBAItem = {
   id: string;

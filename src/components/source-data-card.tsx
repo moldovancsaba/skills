@@ -1,4 +1,4 @@
-import { FileUp, Pencil, ScrollText, Trash2, Pin, RefreshCw, Archive } from "lucide-react";
+import { IconFileUpload as FileUp, IconPencil as Pencil, IconFileText as ScrollText, IconTrash as Trash2, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Divider, Tooltip, Box } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { 

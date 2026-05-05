@@ -1,5 +1,4 @@
 import { motion } from "framer-motion";
-import { LucideIcon } from "lucide-react";
 import { Paper, Text, Group, Stack, rem } from "@mantine/core";
 
 interface MetricCardProps {
@@ -7,7 +6,7 @@ interface MetricCardProps {
   value: string;
   change?: string;
   changeType?: "positive" | "negative" | "neutral";
-  icon: LucideIcon;
+  icon: any;
   delay?: number;
 }
 

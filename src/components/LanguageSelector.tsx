@@ -2,7 +2,7 @@
 
 import React from "react";
 import { MultiSelect, Group, Text, Box, rem, Stack } from "@mantine/core";
-import { Globe, Check } from "lucide-react";
+import { IconGlobe as Globe, IconCheck as Check } from "@tabler/icons-react";
 
 export type Language = {
   id: string;

@@ -2,22 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { 
-  Bell, 
-  ShieldCheck, 
-  Key, 
-  Settings as SettingsIcon, 
-  Copy, 
-  RefreshCcw, 
-  Eye, 
-  EyeOff,
-  MessageSquare,
-  Mail,
-  Smartphone,
-  Webhook,
-  Globe,
-  Languages
-} from "lucide-react";
+import { IconBell as Bell, IconShieldCheck as ShieldCheck, IconKey as Key, IconSettings as SettingsIcon, IconCopy as Copy, IconRefresh as RefreshCcw, IconEye as Eye, IconEyeOff as EyeOff, IconMessage2 as MessageSquare, IconMail as Mail, IconDeviceMobile as Smartphone, IconWebhook as Webhook, IconGlobe as Globe, IconLanguage as Languages } from "@tabler/icons-react";
 import { 
   Card, 
   Text, 

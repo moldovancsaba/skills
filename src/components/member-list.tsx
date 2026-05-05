@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/unified-card";
 import { FormInput } from "@/components/ui/form-fields";
 import { Button } from "@mantine/core";
-import { Users, UserPlus, Trash2, Shield, User as UserIcon, Mail } from "lucide-react";
+import { IconUsers as Users, IconUserPlus as UserPlus, IconTrash as Trash2, IconShield as Shield, IconUser as UserIcon, IconMail as Mail } from "@tabler/icons-react";
 import { useState, useEffect, useCallback } from "react";
 
 export function MemberList({ companyId, isOwner }: { companyId: string; isOwner: boolean }) {
@@ -94,7 +94,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
 
   if (loading) {
     return (
-      <UnifiedCard className="h-full">
+      <UnifiedCard style={{ height: '100%' }}>
         <Stack align="center" justify="center" h={200}>
           <Loader color="brand" size="sm" variant="bars" />
           <Text size="xs" fw={900} c="dimmed" tt="uppercase" lts={1}>Syncing Permissions...</Text>
@@ -104,7 +104,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
   }
 
   return (
-    <UnifiedCard className="h-full">
+    <UnifiedCard style={{ height: '100%' }}>
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">

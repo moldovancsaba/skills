@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { Container, Title, Text, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
-import { ShieldCheck, FileText, Cpu, Activity, AlertTriangle, RefreshCw } from "lucide-react";
+import { IconShieldCheck as ShieldCheck, IconFileText as FileText, IconCpu as Cpu, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconRefresh as RefreshCw } from "@tabler/icons-react";
 
 export const metadata: Metadata = {
   title: "Terms of Service - checklist OS",

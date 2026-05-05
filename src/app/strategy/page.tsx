@@ -10,7 +10,7 @@ import {
   ThemeIcon, 
   rem 
 } from "@mantine/core";
-import { Info, Target, TrendingUp, Users, DollarSign } from "lucide-react";
+import { IconInfoCircle as Info, IconTarget as Target, IconTrendingUp as TrendingUp, IconUsers as Users, IconCurrencyDollar as DollarSign } from "@tabler/icons-react";
 import { PageHeader, PageShell, MetricGrid } from "@/components/ui/app-shell";
 
 export default function StrategyPage() {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { HardHat, Save, AlertCircle, Info } from "lucide-react";
+import { IconHelmet as HardHat, IconDeviceFloppy as Save, IconAlertCircle as AlertCircle, IconInfoCircle as Info } from "@tabler/icons-react";
 
 import { 
   Button, 
@@ -122,7 +122,7 @@ export default function ReviewDashboard() {
         <PipelineAccentHeader 
           activeKey="review" 
           title="Review Gateway" 
-          icon="hard_hat" 
+          icon={HardHat} 
         />
         {items.length === 0 ? (
           <Center h={rem(400)}>

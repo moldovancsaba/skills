@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CircleHelp, Lightbulb, ArrowLeft, HelpCircle, FileText } from "lucide-react";
+import { IconBook as BookOpen, IconHelpCircle as CircleHelp, IconBulb as Lightbulb, IconArrowLeft as ArrowLeft, IconHelpCircle as HelpCircle, IconFileText as FileText } from "@tabler/icons-react";
 import { faqItems, manualSections } from "@/content/help";
 import { 
   Accordion, 

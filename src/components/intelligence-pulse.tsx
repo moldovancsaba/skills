@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, CheckCircle2, Cpu, History, Zap } from "lucide-react";
+import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCircleCheck as CheckCircle2, IconCpu as Cpu, IconHistory as History, IconBolt as Zap } from "@tabler/icons-react";
 import { 
   Card, 
   Stack, 

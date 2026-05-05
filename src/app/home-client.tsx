@@ -16,7 +16,7 @@ import {
   Badge,
   Card
 } from "@mantine/core";
-import { Plus, Sparkles, Edit, Trash2, HelpCircle, LogIn, AlertCircle, Database, Target, ListTodo, LayoutDashboard } from "lucide-react";
+import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListTodo, IconLayoutDashboard as LayoutDashboard } from "@tabler/icons-react";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
 import { LinkCard, UnifiedGrid, PageShell } from "@/components/ui/app-shell";

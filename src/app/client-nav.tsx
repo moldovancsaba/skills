@@ -19,23 +19,7 @@ import {
   Badge,
   Button
 } from "@mantine/core";
-import {
-  ChevronRight,
-  Sun,
-  Moon,
-  LogOut,
-  User as UserIcon,
-  Settings as SettingsIcon,
-  LayoutDashboard,
-  Database,
-  ListTodo,
-  CheckCircle2,
-  Target,
-  Sparkles,
-  Zap,
-  ChevronDown,
-  HardHat
-} from "lucide-react";
+import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListTodo, IconCircleCheck as CheckCircle2, IconTarget as Target, IconSparkles as Sparkles, IconBolt as Zap, IconChevronDown as ChevronDown, IconHelmet as HardHat } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";

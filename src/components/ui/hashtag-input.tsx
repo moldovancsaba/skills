@@ -1,7 +1,7 @@
 "use client";
 
 import { TagsInput, rem } from "@mantine/core";
-import { Hash } from "lucide-react";
+import { IconHash as Hash } from "@tabler/icons-react";
 import { normalizeHashtag } from "@/lib/hashtags";
 
 type HashtagInputProps = {

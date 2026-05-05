@@ -1,7 +1,7 @@
 "use client";
 
 import { Group, Text, ThemeIcon, rem } from "@mantine/core";
-import { Sparkles } from "lucide-react";
+import { IconSparkles as Sparkles } from "@tabler/icons-react";
 import Link from "next/link";
 
 export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {

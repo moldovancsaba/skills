@@ -1,4 +1,4 @@
-import { Check, MessageSquare, PencilLine, X, Pin, RefreshCw, AlertCircle, Archive } from "lucide-react";
+import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconAlertCircle as AlertCircle, IconArchive as Archive } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import {

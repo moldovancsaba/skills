@@ -10,7 +10,5 @@ module.exports = {
         'mantine-breakpoint-xl': '88em',
       },
     },
-    tailwindcss: {},
-    autoprefixer: {},
   },
 };

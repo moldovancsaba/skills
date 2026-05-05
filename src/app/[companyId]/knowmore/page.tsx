@@ -11,17 +11,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Brain,
-  Database,
-  Layers3,
-  Search,
-  Sparkles,
-  TrendingUp,
-  ArrowUpRight,
-  LayoutList,
-  Filter
-} from "lucide-react";
+import { IconBrain as Brain, IconDatabase as Database, IconLayersIntersect as Layers3, IconSearch as Search, IconSparkles as Sparkles, IconTrendingUp as TrendingUp, IconArrowUpRight as ArrowUpRight, IconLayoutList as LayoutList, IconFilter as Filter } from "@tabler/icons-react";
 import { 
   Badge, 
   Button, 
@@ -439,7 +429,7 @@ export default function CompanyKnowMorePage() {
         <PipelineAccentHeader 
           activeKey="knowmore" 
           title="Knowmore" 
-          icon="psychology" 
+          icon={Sparkles} 
         />
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
 

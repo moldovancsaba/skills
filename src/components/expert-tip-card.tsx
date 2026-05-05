@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Lightbulb, Sparkles } from "lucide-react";
+import { IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconSparkles as Sparkles } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Box, ThemeIcon, Alert, rem } from "@mantine/core";
 
 import type { ExpertTip } from "@/content/help";
@@ -16,7 +16,7 @@ type ExpertTipCardProps = {
 
 export function ExpertTipCard({ tip }: ExpertTipCardProps) {
   return (
-    <UnifiedCard className="h-full">
+    <UnifiedCard style={{ height: '100%' }}>
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">

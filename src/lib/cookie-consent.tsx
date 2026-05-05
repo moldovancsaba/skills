@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { IconCheck as Check } from "@tabler/icons-react";
 
 type ConsentSettings = {
   essential: boolean;

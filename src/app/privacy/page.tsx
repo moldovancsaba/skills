@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { Container, Title, Text, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
-import { Shield, Database, Lock, Eye, Mail } from "lucide-react";
+import { IconShield as Shield, IconDatabase as Database, IconLock as Lock, IconEye as Eye, IconMail as Mail } from "@tabler/icons-react";
 
 export const metadata: Metadata = {
   title: "Privacy Policy - checklist OS",

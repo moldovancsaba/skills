@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { LucideIcon, ArrowLeft } from "lucide-react";
+import { IconArrowLeft as ArrowLeft } from "@tabler/icons-react";
 import { 
   Container, 
   Title, 
@@ -101,7 +101,7 @@ export function PageHeader({
 type NoticeProps = {
   title?: string;
   children: ReactNode;
-  icon?: LucideIcon;
+  icon?: any;
   variant?: "default" | "destructive";
   className?: string;
 };
@@ -168,7 +168,7 @@ export function UnifiedGrid({
 }
 
 type MetricCardProps = {
-  icon: LucideIcon;
+  icon: any;
   label: string;
   value: ReactNode;
   detail?: ReactNode;
@@ -243,7 +243,7 @@ export function MetricCard({
 }
 
 type EmptyStateProps = {
-  icon: LucideIcon;
+  icon: any;
   title: string;
   description?: string;
   primaryAction?: ReactNode;
@@ -280,7 +280,7 @@ export function EmptyState({
 
 type LinkCardProps = {
   href: string;
-  icon: LucideIcon | string;
+  icon: any;
   title: string;
   description?: string;
   metric?: string | number;
@@ -346,11 +346,7 @@ export function LinkCard({
               size="xl"
               style={{ boxShadow: `0 4px 20px var(--mantine-color-${variant}-9)` }}
             >
-              {typeof Icon === 'string' ? (
-                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>{Icon}</span>
-              ) : (
-                <Icon size={20} />
-              )}
+              <Icon size={20} />
             </ThemeIcon>
             {metric !== undefined && (
               <Text fw={900} size="24px" lts={-1} color={variant} opacity={0.8}>
@@ -399,11 +395,11 @@ export function LinkCard({
 export function PipelineAccentHeader({
   activeKey,
   title,
-  icon,
+  icon: Icon,
 }: {
   activeKey: string;
   title: string;
-  icon: string;
+  icon: any;
 }) {
   const segments = [
     { key: "data", color: "blue" },
@@ -435,7 +431,7 @@ export function PipelineAccentHeader({
       </SimpleGrid>
       <Group gap="sm">
         <ThemeIcon variant="light" color={activeColor} size="lg" radius="md">
-          <span className="material-symbols-outlined" style={{ fontSize: 20 }}>{icon}</span>
+          <Icon size={20} />
         </ThemeIcon>
         <Title order={2} size="h3" fw={900} tt="uppercase" lts={1}>{title}</Title>
       </Group>

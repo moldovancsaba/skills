@@ -6,20 +6,7 @@
  * Unified with PageShell and UnifiedCard architecture.
  */
 import { useState } from "react";
-import { 
-  Calendar as CalendarIcon, 
-  Check, 
-  CheckCheck, 
-  CheckCircle, 
-  MessageSquare, 
-  PencilLine, 
-  Share2, 
-  X,
-  History,
-  Pin,
-  RefreshCw,
-  Archive
-} from "lucide-react";
+import { IconCalendar as CalendarIcon, IconCheck as Check, IconChecks as CheckCheck, IconCircleCheck as CheckCircle, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconShare as Share2, IconX as X, IconHistory as History, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";
 import { 
   Card, 
   Text, 

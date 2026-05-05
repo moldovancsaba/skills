@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState, useRef } from "react";
-import { X, Plus, Search, Check, Hash } from "lucide-react";
+import { IconX as X, IconPlus as Plus, IconSearch as Search, IconCheck as Check, IconHash as Hash } from "@tabler/icons-react";
 import { 
   Stack, 
   Text, 

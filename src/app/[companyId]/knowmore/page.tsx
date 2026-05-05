@@ -1,6 +1,6 @@
 /**
  * KNOWMORE INTELLIGENCE PAGE
- * v0.14.0-PRODUCTION (Hardened)
+ * v0.15.0-HARDENED
  * 
  * Implements Unified Page Architecture:
  * - PageShell: Full-Width Layout
@@ -10,16 +10,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Brain,
   Database,
   Layers3,
-  Loader2,
   Search,
   Sparkles,
   TrendingUp,
   ArrowUpRight,
+  LayoutList,
+  Filter
 } from "lucide-react";
 import { 
   Badge, 
@@ -32,7 +33,11 @@ import {
   Loader, 
   Center,
   Text,
-  ActionIcon
+  ActionIcon,
+  Title,
+  Card,
+  rem,
+  ThemeIcon
 } from "@mantine/core";
 import {
   EmptyState,
@@ -112,65 +117,21 @@ type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "CONVERT";
 
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
-
-  if (!response.ok) {
-    let message = `Request failed: ${response.status}`;
-
-    try {
-      const data = await response.json();
-      if (typeof data?.error === "string") {
-        message = data.error;
-      }
-    } catch {
-      // Ignore JSON parsing failures and keep the HTTP-level message.
-    }
-
-    throw new Error(message);
-  }
-
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
   return response.json() as Promise<T>;
-}
-
-function sourceLabel(sourceType: FlashcardSource["sourceType"]) {
-  switch (sourceType) {
-    case "SOURCE":
-    case "PRODUCT":
-    case "CUSTOMER":
-    case "COMPETITOR":
-      return "Source";
-    case "FILE":
-      return "File";
-    case "AGENT_FOUND":
-      return "Agent";
-  }
 }
 
 function actionLabel(action: FlashcardAction["action"] | ActionMode) {
   switch (action) {
-    case "ACCEPT":
-      return "Accepted";
-    case "DECLINE":
-      return "Declined";
-    case "MODIFY_ACCEPT":
-      return "Modified + accepted";
-    case "CONVERT":
-      return "Converted";
+    case "ACCEPT": return "Accepted";
+    case "DECLINE": return "Declined";
+    case "MODIFY_ACCEPT": return "Modified + accepted";
+    case "CONVERT": return "Converted";
   }
 }
 
 function reviewStatusLabel(processingStatus: Flashcard["processingStatus"]) {
-  switch (processingStatus) {
-    case "DRAFT":
-      return "Draft";
-    case "CHECKED":
-      return "Checked";
-    case "VERIFIED":
-      return "Verified";
-    case "ACCEPTED":
-      return "Accepted";
-    case "DECLINED":
-      return "Declined";
-  }
+  return processingStatus.charAt(0).toUpperCase() + processingStatus.slice(1).toLowerCase();
 }
 
 function kindLabel(kind: Flashcard["kind"]) {
@@ -202,9 +163,7 @@ export default function CompanyKnowMorePage() {
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
 
   const loadFlashcards = useCallback(async (cid: string) => {
-    const cards = await fetchJson<Flashcard[]>(
-      `/api/knowmore?companyId=${encodeURIComponent(cid)}`,
-    );
+    const cards = await fetchJson<Flashcard[]>(`/api/knowmore?companyId=${encodeURIComponent(cid)}`);
     setFlashcards(cards);
   }, []);
 
@@ -223,7 +182,6 @@ export default function CompanyKnowMorePage() {
       setCompany(found);
       await loadFlashcards(found.id);
 
-      // Fetch additional context for the Expert Tip and Member List
       const [s, f, nba, members, sessionRes] = await Promise.all([
         fetch(`/api/sources?companyId=${cid}`).then((res) => res.json()),
         fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
@@ -250,6 +208,19 @@ export default function CompanyKnowMorePage() {
     }
   }, [loadFlashcards, router, setSources]);
 
+  useEffect(() => {
+    if (companyId) loadPage(companyId);
+  }, [companyId, loadPage]);
+
+  useEffect(() => {
+    const syncFromLocation = () => {
+      setActiveHashtags(parseHashtagFilterParam(new URLSearchParams(window.location.search).get("tags")));
+    };
+    syncFromLocation();
+    window.addEventListener("popstate", syncFromLocation);
+    return () => window.removeEventListener("popstate", syncFromLocation);
+  }, []);
+
   const closeActionForm = useCallback(() => {
     setActiveFlashcardId(null);
     setActionMode(null);
@@ -267,28 +238,9 @@ export default function CompanyKnowMorePage() {
     setEditedBody(flashcard.body);
   }, []);
 
-  useEffect(() => {
-    if (!companyId) {
-      return;
-    }
-
-    void loadPage(companyId);
-  }, [companyId, loadPage]);
-
-  useEffect(() => {
-    const syncFromLocation = () => {
-      setActiveHashtags(parseHashtagFilterParam(new URLSearchParams(window.location.search).get("tags")));
-    };
-    syncFromLocation();
-    window.addEventListener("popstate", syncFromLocation);
-    return () => window.removeEventListener("popstate", syncFromLocation);
-  }, []);
-
   const filteredFlashcards = useMemo(() => {
     return flashcards.filter((card) => {
-      const matchesSearch =
-        card.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        card.body.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = card.title.toLowerCase().includes(searchQuery.toLowerCase()) || card.body.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesKind = filterKind === "ALL" || card.kind === filterKind;
       const matchesTags = matchesAllHashtags(card.hashtags, activeHashtags);
       const matchesIntelligence = card.intelligenceType === intelligenceFilter;
@@ -298,57 +250,38 @@ export default function CompanyKnowMorePage() {
 
   const summary = useMemo(() => {
     const visibleCards = flashcards.filter(f => f.intelligenceType === intelligenceFilter);
+    if (visibleCards.length === 0) return { total: 0, reviewed: 0, avgConfidence: 0, avgIceScore: 0, avgEase: 0 };
 
-    if (visibleCards.length === 0) {
-      return {
-        total: 0,
-        reviewed: 0,
-        avgConfidence: 0,
-        avgIceScore: 0,
-        avgEase: 0,
-      };
-    }
-
-    const totals = visibleCards.reduce(
-      (acc, flashcard) => {
-        acc.confidence += flashcard.confidenceScore;
-        acc.impact += flashcard.impact;
-        acc.weight += flashcard.weight;
-        if (["ACCEPTED", "DECLINED"].includes(flashcard.processingStatus)) {
-          acc.reviewed += 1;
-        }
-        return acc;
-      },
-      { confidence: 0, impact: 0, weight: 0, reviewed: 0 },
-    );
+    const totals = visibleCards.reduce((acc, fc) => {
+      acc.confidence += fc.confidenceScore;
+      acc.impact += fc.impact;
+      acc.weight += fc.weight;
+      if (["ACCEPTED", "DECLINED"].includes(fc.processingStatus)) acc.reviewed += 1;
+      return acc;
+    }, { confidence: 0, impact: 0, weight: 0, reviewed: 0 });
 
     return {
       total: visibleCards.length,
       reviewed: totals.reviewed,
       avgConfidence: Math.round(totals.confidence / visibleCards.length),
-      avgIceScore: Math.round(
-        visibleCards.reduce((sum, f) => sum + (f.impact * (f.confidenceScore / 10) * f.weight), 0) / visibleCards.length
-      ),
+      avgIceScore: Math.round(visibleCards.reduce((sum, f) => sum + (f.impact * (f.confidenceScore / 10) * f.weight), 0) / visibleCards.length),
       avgEase: Math.round(totals.weight / visibleCards.length),
     };
   }, [flashcards, intelligenceFilter]);
 
   const handleActionSubmit = useCallback(async (flashcardId: string) => {
-    if (!company || !actionMode) {
-      return;
-    }
-
+    if (!company || !actionMode) return;
     const trimmedComment = actionComment.trim();
     const trimmedTitle = editedTitle.trim();
     const trimmedBody = editedBody.trim();
 
     if (actionMode === "DECLINE" && !trimmedComment) {
-      setErrorMessage("Decline requires a comment so the system can learn from it.");
+      setErrorMessage("Decline requires a comment for system calibration.");
       return;
     }
 
     if (actionMode === "MODIFY_ACCEPT" && (!trimmedTitle || !trimmedBody)) {
-      setErrorMessage("Modify and accept requires both a title and a body.");
+      setErrorMessage("Modification requires both a title and a body.");
       return;
     }
 
@@ -369,9 +302,7 @@ export default function CompanyKnowMorePage() {
       });
 
       const updated = result.flashcard;
-      const isVisible = 
-        ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"].includes(updated.processingStatus) &&
-        ["ACTIVE", "STALE"].includes(updated.activityState);
+      const isVisible = ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"].includes(updated.processingStatus) && ["ACTIVE", "STALE"].includes(updated.activityState);
 
       if (isVisible) {
         setFlashcards(prev => prev.map(f => f.id === flashcardId ? updated : f));
@@ -380,20 +311,11 @@ export default function CompanyKnowMorePage() {
       }
       closeActionForm();
     } catch (error) {
-      console.error(error);
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setActingId(null);
     }
-  }, [
-    actionComment,
-    actionMode,
-    closeActionForm,
-    company,
-    editedBody,
-    editedTitle,
-    loadFlashcards,
-  ]);
+  }, [actionComment, actionMode, closeActionForm, company, editedBody, editedTitle]);
 
   const handleConvert = useCallback(async (id: string, targetType: string) => {
     if (!company) return;
@@ -425,10 +347,7 @@ export default function CompanyKnowMorePage() {
     sourcePublicId?: number | null;
     sourceName?: string;
   }) => {
-    if (!company) {
-      return;
-    }
-
+    if (!company) return;
     setActingId(input.flashcardId);
     setErrorMessage(null);
 
@@ -447,20 +366,17 @@ export default function CompanyKnowMorePage() {
         }),
       });
 
-      if (input.correctionType === "HIDE" || input.correctionType === "MARK_WRONG" || input.correctionType === "SUPPRESS_SOURCE") {
+      if (["HIDE", "MARK_WRONG", "SUPPRESS_SOURCE"].includes(input.correctionType)) {
         if (input.correctionType === "SUPPRESS_SOURCE") {
-          // Suppress source affects multiple cards, so we still need a full reload here for safety
           await loadFlashcards(company.id);
         } else {
           setFlashcards(prev => prev.filter(f => f.id !== input.flashcardId));
         }
       } else {
-        // PIN or other updates - for now reload to get new scores, or we could fetch just the card
         await loadFlashcards(company.id);
       }
       closeActionForm();
     } catch (error) {
-      console.error(error);
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setActingId(null);
@@ -468,278 +384,195 @@ export default function CompanyKnowMorePage() {
   }, [closeActionForm, company, loadFlashcards]);
 
   const toggleHashtagFilter = useCallback((tag: string) => {
-    const next = activeHashtags.includes(tag)
-      ? activeHashtags.filter((item) => item !== tag)
-      : [...activeHashtags, tag];
+    const next = activeHashtags.includes(tag) ? activeHashtags.filter((item) => item !== tag) : [...activeHashtags, tag];
     const nextSearch = new URLSearchParams(window.location.search);
-    if (next.length > 0) {
-      nextSearch.set("tags", stringifyHashtagFilterParam(next));
-    } else {
-      nextSearch.delete("tags");
-    }
+    if (next.length > 0) nextSearch.set("tags", stringifyHashtagFilterParam(next));
+    else nextSearch.delete("tags");
     setActiveHashtags(next);
     router.replace(`${pathname}${nextSearch.toString() ? `?${nextSearch.toString()}` : ""}`, { scroll: false });
   }, [activeHashtags, pathname, router]);
 
   const removeFlashcardHashtag = useCallback(async (flashcardId: string, tag: string) => {
     if (!company) return;
-
     setActingId(flashcardId);
     try {
       const result = await fetchJson<{ hashtags: string[] }>("/api/hashtags/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityType: "FLASHCARD",
-          entityId: flashcardId,
-          tag,
-        }),
+        body: JSON.stringify({ entityType: "FLASHCARD", entityId: flashcardId, tag }),
       });
       setFlashcards(prev => prev.map(f => f.id === flashcardId ? { ...f, hashtags: result.hashtags } : f));
     } catch (error) {
-      console.error(error);
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setActingId(null);
     }
-  }, [company, loadFlashcards]);
+  }, [company]);
 
   if (loading) {
     return (
       <PageShell width="full">
-        <Stack gap="xl">
-          <Skeleton h={40} w={200} radius="md" />
-          <Skeleton h={20} w={400} radius="md" />
-          <MetricGrid cols={{ base: 1, sm: 2, md: 5 }}>
-            <Skeleton h={140} radius="lg" />
-            <Skeleton h={140} radius="lg" />
-            <Skeleton h={140} radius="lg" />
-            <Skeleton h={140} radius="lg" />
-            <Skeleton h={140} radius="lg" />
-          </MetricGrid>
-          <UnifiedGrid>
-            <Skeleton h={300} radius="lg" />
-            <Skeleton h={300} radius="lg" />
-            <Skeleton h={300} radius="lg" />
-          </UnifiedGrid>
-        </Stack>
+        <Center h="100vh">
+          <Stack align="center" gap="md">
+            <Loader size="xl" variant="bars" color="brand" />
+            <Text size="sm" fw={900} tt="uppercase" lts={2} c="dimmed">Synchronizing Contextual Memory...</Text>
+          </Stack>
+        </Center>
       </PageShell>
     );
   }
 
+  const tip = getDashboardExpertTip({
+    companyId,
+    productCount: sources.length,
+    customerCount: 0,
+    competitorCount: 0,
+    fileCount,
+    flashcardCount: flashcards.length,
+    pendingTaskCount,
+  });
+
   return (
     <PageShell width="full">
-      {errorMessage && (
-        <Notice variant="destructive" className="mb-4">
-          {errorMessage}
-        </Notice>
-      )}
+      <PageHeader 
+        title="Contextual Intelligence Layer"
+        description={`Synthesized memory and strategic evaluations for ${company?.name}.`}
+      />
 
-      <MetricGrid cols={{ base: 1, sm: 2, md: 5 }}>
-        <MetricCard
-          icon={Database}
-          color="blue"
-          label="Knowledge cards"
-          value={summary.total}
-          detail="Derived from your structured source data."
-        />
-        <MetricCard
-          icon={Sparkles}
-          color="orange"
-          label="Reviewed cards"
-          value={summary.reviewed}
-          detail="Cards that already carry user feedback back into the system."
-        />
-        <MetricCard
-          icon={Brain}
-          color="violet"
-          label="Average confidence"
-          value={`${summary.avgConfidence}%`}
-          detail="Confidence across the current flashcards."
-        />
-        <MetricCard
-          icon={TrendingUp}
-          color="green"
-          label="Avg ICE Score"
-          value={summary.avgIceScore}
-          detail="Priority score calculated via Impact × Confidence × Ease."
-        />
-        <MetricCard
-          icon={ArrowUpRight}
-          color="cyan"
-          label="Avg Ease"
-          value={summary.avgEase}
-          detail="Average implementation simplicity for these items."
-        />
-      </MetricGrid>
+      <Stack gap="xl">
+        {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
 
-      <Stack gap="lg">
-        <Group justify="space-between" align="center">
-          <TextInput 
-            placeholder="Search knowledge slices..." 
-            leftSection={<Search size={16} />}
-            value={searchQuery} 
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ flex: 1, maxWidth: 400 }}
-            radius="md"
-          />
-          <Group gap="xs">
-            <Box 
-              p={4} 
-              style={{ 
-                borderRadius: "var(--mantine-radius-md)",
-                backgroundColor: "rgba(0,0,0,0.2)",
-                border: "1px solid rgba(255,255,255,0.05)",
-                display: "flex",
-                gap: 4
-              }}
-            >
-              {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
-                <Button
-                  key={type}
-                  variant={intelligenceFilter === type ? "light" : "subtle"}
-                  color={intelligenceFilter === type ? (type === "COMPETITOR" ? "orange" : "brand") : "gray"}
-                  size="xs"
-                  h={32}
-                  fw={800}
-                  tt="uppercase"
-                  lts={1}
-                  onClick={() => setIntelligenceFilter(type)}
-                >
-                  {type === "INTERNAL" ? "My Company" : "The Market"}
-                </Button>
-              ))}
-            </Box>
-            <Box 
-              p={4} 
-              style={{ 
-                borderRadius: "var(--mantine-radius-md)",
-                backgroundColor: "rgba(0,0,0,0.2)",
-                border: "1px solid rgba(255,255,255,0.05)",
-                display: "flex",
-                gap: 4
-              }}
-            >
-              {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
-                <Button
-                  key={kind}
-                  variant={filterKind === kind ? "light" : "subtle"}
-                  color={filterKind === kind ? "brand" : "gray"}
-                  size="xs"
-                  h={32}
-                  fw={800}
-                  tt="uppercase"
-                  lts={1}
-                  onClick={() => setFilterKind(kind)}
-                >
-                  {kind === "ALL" ? "All" : kindLabel(kind as Flashcard["kind"])}
-                </Button>
-              ))}
-            </Box>
+        <MetricGrid cols={{ base: 1, sm: 2, md: 5 }}>
+          <MetricCard icon={Database} color="blue" label="Knowledge Units" value={summary.total} detail="Derived evidence" />
+          <MetricCard icon={Sparkles} color="orange" label="Feedback Yield" value={summary.reviewed} detail="Calibrated units" />
+          <MetricCard icon={Brain} color="violet" label="Confidence" value={`${summary.avgConfidence}%`} detail="System certainty" />
+          <MetricCard icon={TrendingUp} color="green" label="Avg ICE" value={summary.avgIceScore} detail="Strategic priority" />
+          <MetricCard icon={ArrowUpRight} color="cyan" label="Avg Ease" value={summary.avgEase} detail="Implementation path" />
+        </MetricGrid>
+
+        <Stack gap="lg">
+          <Group justify="space-between" align="center">
+            <TextInput 
+              placeholder="Search knowledge units..." 
+              leftSection={<Search size={16} />}
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ flex: 1, maxWidth: 400 }}
+              radius="md"
+              size="md"
+            />
+            <Group gap="xs">
+              <Group gap={4} p={4} style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: "var(--mantine-color-dark-8)", border: "1px solid var(--mantine-color-dark-4)" }}>
+                {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
+                  <Button
+                    key={type}
+                    variant={intelligenceFilter === type ? "light" : "subtle"}
+                    color={intelligenceFilter === type ? (type === "COMPETITOR" ? "orange" : "brand") : "gray"}
+                    size="compact-xs"
+                    h={30}
+                    px="md"
+                    fw={900}
+                    tt="uppercase"
+                    lts={1}
+                    onClick={() => setIntelligenceFilter(type)}
+                  >
+                    {type === "INTERNAL" ? "Unit" : "Market"}
+                  </Button>
+                ))}
+              </Group>
+              <Group gap={4} p={4} style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: "var(--mantine-color-dark-8)", border: "1px solid var(--mantine-color-dark-4)" }}>
+                {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
+                  <Button
+                    key={kind}
+                    variant={filterKind === kind ? "light" : "subtle"}
+                    color={filterKind === kind ? "brand" : "gray"}
+                    size="compact-xs"
+                    h={30}
+                    px="md"
+                    fw={900}
+                    tt="uppercase"
+                    lts={1}
+                    onClick={() => setFilterKind(kind)}
+                  >
+                    {kind === "ALL" ? "All" : kindLabel(kind as Flashcard["kind"])}
+                  </Button>
+                ))}
+              </Group>
+            </Group>
           </Group>
-        </Group>
 
-      {filteredFlashcards.length === 0 ? (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-          <EmptyState
-            icon={Sparkles}
-            title={searchQuery || filterKind !== "ALL" || activeHashtags.length > 0 ? "No matching knowledge cards" : "Add source data to seed the knowledge layer"}
-            description={searchQuery || filterKind !== "ALL" || activeHashtags.length > 0 ? "Try adjusting your search or filter to find what you're looking for." : "Knowmore reads from durable flashcard storage. As soon as source data exists, bootstrap flashcards appear here."}
-            primaryAction={
-              searchQuery || filterKind !== "ALL" || activeHashtags.length > 0 ? (
-                <Button onClick={() => {
-                  setSearchQuery("");
-                  setFilterKind("ALL");
-                  const nextSearch = new URLSearchParams(window.location.search);
-                  nextSearch.delete("tags");
-                  setActiveHashtags([]);
-                  router.replace(`${pathname}${nextSearch.toString() ? `?${nextSearch.toString()}` : ""}`, { scroll: false });
-                }}>Clear filters</Button>
-              ) : (
-                <Button 
-                  onClick={() => router.push(`/${companyId}/data`)}
-                  variant="filled"
-                  color="brand"
-                >
-                  Open Data
-                </Button>
-              )
-            }
-          />
-        </motion.div>
-      ) : (
-        <UnifiedGrid>
-          {filteredFlashcards.map((flashcard, index) => {
-            const isActionOpen = activeFlashcardId === flashcard.id && actionMode !== null;
-            const isBusy = actingId === flashcard.id;
+          {filteredFlashcards.length === 0 ? (
+            <Center h={rem(400)}>
+              <Card radius="lg" withBorder p={rem(60)} ta="center" style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }}>
+                <Stack align="center" gap="xl">
+                  <ThemeIcon variant="light" color="gray" size={64} radius="xl">
+                    <Brain size={32} />
+                  </ThemeIcon>
+                  <Stack gap="xs">
+                    <Title order={3} fw={900} lts={-0.5}>Memory Layer Silent</Title>
+                    <Text size="sm" c="dimmed" maw={400} mx="auto" fw={500}>
+                      {searchQuery || filterKind !== "ALL" || activeHashtags.length > 0 
+                        ? "No knowledge units match the current strategic filters."
+                        : "The memory layer is awaiting evidence unit ingress to begin synthesis."}
+                    </Text>
+                  </Stack>
+                </Stack>
+              </Card>
+            </Center>
+          ) : (
+            <UnifiedGrid>
+              <AnimatePresence mode="popLayout">
+                {filteredFlashcards.map((flashcard, index) => {
+                  const isActionOpen = activeFlashcardId === flashcard.id && actionMode !== null;
+                  const isBusy = actingId === flashcard.id;
+                  return (
+                    <React.Fragment key={flashcard.id}>
+                      <motion.div
+                        layout
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.98 }}
+                        transition={{ delay: index * 0.03 }}
+                      >
+                        <KnowledgeReviewCard
+                          flashcard={flashcard}
+                          isActionOpen={isActionOpen}
+                          actionMode={actionMode}
+                          isBusy={isBusy}
+                          isGenerating={false}
+                          actionComment={actionComment}
+                          editedTitle={editedTitle}
+                          editedBody={editedBody}
+                          reviewStatusLabel={reviewStatusLabel}
+                          kindLabel={kindLabel}
+                          actionLabel={actionLabel}
+                          onOpenAction={openActionForm}
+                          onCloseAction={closeActionForm}
+                          onActionCommentChange={setActionComment}
+                          onEditedTitleChange={setEditedTitle}
+                          onEditedBodyChange={setEditedBody}
+                          onSubmit={(flashcardId) => void handleActionSubmit(flashcardId)}
+                          activeHashtags={activeHashtags}
+                          onToggleHashtag={toggleHashtagFilter}
+                          onRemoveHashtag={(flashcardId, tag) => void removeFlashcardHashtag(flashcardId, tag)}
+                          onCorrection={(input) => void handleCorrection(input)}
+                          onConvert={(type) => handleConvert(flashcard.id, type)}
+                        />
+                      </motion.div>
 
-            const tip = getDashboardExpertTip({
-              companyId,
-              productCount: sources.length,
-              customerCount: 0,
-              competitorCount: 0,
-              fileCount,
-              flashcardCount: flashcards.length,
-              pendingTaskCount,
-            });
-
-            return (
-              <React.Fragment key={flashcard.id}>
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.04 }}
-                >
-                  <KnowledgeReviewCard
-                    flashcard={flashcard}
-                    isActionOpen={isActionOpen}
-                    actionMode={actionMode}
-                    isBusy={isBusy}
-                    isGenerating={false}
-                    actionComment={actionComment}
-                    editedTitle={editedTitle}
-                    editedBody={editedBody}
-                    reviewStatusLabel={reviewStatusLabel}
-                    kindLabel={kindLabel}
-                    actionLabel={actionLabel}
-                    onOpenAction={openActionForm}
-                    onCloseAction={closeActionForm}
-                    onActionCommentChange={setActionComment}
-                    onEditedTitleChange={setEditedTitle}
-                    onEditedBodyChange={setEditedBody}
-                    onSubmit={(flashcardId) => void handleActionSubmit(flashcardId)}
-                    activeHashtags={activeHashtags}
-                    onToggleHashtag={toggleHashtagFilter}
-                    onRemoveHashtag={(flashcardId, tag) => void removeFlashcardHashtag(flashcardId, tag)}
-                    onCorrection={(input) => void handleCorrection(input)}
-                    onConvert={(type) => handleConvert(flashcard.id, type)}
-                  />
-                </motion.div>
-
-                {/* Inject Expert Tip and Team Members at 3rd place (index 1 is after 2nd item) */}
-                {index === 1 && (
-                  <React.Fragment>
-                    <motion.div 
-                      key="expert-tip"
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                    >
-                      <ExpertTipCard tip={tip} />
-                    </motion.div>
-                    <motion.div 
-                      key="member-list"
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                    >
-                      <MemberList companyId={companyId} isOwner={isOwner} />
-                    </motion.div>
-                  </React.Fragment>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </UnifiedGrid>
-      )}
+                      {index === 1 && (
+                        <>
+                          <ExpertTipCard tip={tip} />
+                          <MemberList companyId={companyId} isOwner={isOwner} />
+                        </>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </AnimatePresence>
+            </UnifiedGrid>
+          )}
+        </Stack>
       </Stack>
     </PageShell>
   );

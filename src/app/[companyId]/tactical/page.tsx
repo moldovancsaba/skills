@@ -1,10 +1,8 @@
 /**
  * TACTICAL BOARD PAGE
- * v1.1.0
+ * v1.1.0-HARDENED
  * 
  * Dynamic import with ssr:false is REQUIRED for @hello-pangea/dnd.
- * The library uses browser-only APIs (pointer events, DOM refs) that
- * crash during Next.js server-side rendering.
  */
 'use client';
 
@@ -18,9 +16,11 @@ const TacticalBoard = dynamic(
     ssr: false,
     loading: () => (
       <Center h="100vh">
-        <Stack align="center" gap="sm">
-          <Loader size="lg" variant="dots" color="orange" />
-          <Text c="dimmed" size="sm">Loading Tactical Board...</Text>
+        <Stack align="center" gap="md">
+          <Loader size="xl" variant="bars" color="brand" />
+          <Text size="sm" fw={800} tt="uppercase" lts={1} c="dimmed">
+            Initializing Tactical Board...
+          </Text>
         </Stack>
       </Center>
     ),

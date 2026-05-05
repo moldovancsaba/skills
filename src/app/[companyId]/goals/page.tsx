@@ -1,22 +1,23 @@
 /**
  * STRATEGIC GOALS PAGE
- * v0.14.0-PRODUCTION
+ * v0.15.0-HARDENED
  */
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Brain,
   Database,
   Layers3,
-  Loader2,
   Search,
   Sparkles,
   TrendingUp,
   ArrowUpRight,
   Target,
+  LayoutList,
+  Filter
 } from "lucide-react";
 import { 
   Badge, 
@@ -28,7 +29,11 @@ import {
   Loader, 
   Center,
   Text,
-  Title
+  Title,
+  Card,
+  rem,
+  ThemeIcon,
+  Box
 } from "@mantine/core";
 import {
   EmptyState,
@@ -70,17 +75,6 @@ type FlashcardAction = {
   createdAt: string;
 };
 
-type FlashcardCorrection = {
-  id: string;
-  correctionType: "HIDE" | "MARK_WRONG" | "PIN" | "REQUEST_REFRESH" | "SUPPRESS_SOURCE";
-  note: string | null;
-  sourceType: FlashcardSource["sourceType"] | null;
-  sourceId: string | null;
-  sourcePublicId: number | null;
-  sourceName: string | null;
-  createdAt: string;
-};
-
 type Goalcard = {
   id: string;
   publicId: number | null;
@@ -98,7 +92,6 @@ type Goalcard = {
   refreshedAt: string;
   sources: FlashcardSource[];
   actions: FlashcardAction[];
-  corrections: FlashcardCorrection[];
   intelligenceType: "INTERNAL" | "COMPETITOR";
   iceScore: number;
 };
@@ -107,19 +100,8 @@ type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "CONVERT";
 
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
-  if (!response.ok) {
-    let message = `Request failed: ${response.status}`;
-    try {
-      const data = await response.json();
-      if (typeof data?.error === "string") message = data.error;
-    } catch {}
-    throw new Error(message);
-  }
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
   return response.json() as Promise<T>;
-}
-
-function sourceLabel(sourceType: FlashcardSource["sourceType"]) {
-  return "Source";
 }
 
 function actionLabel(action: FlashcardAction["action"] | ActionMode) {
@@ -142,7 +124,6 @@ function kindLabel(kind: string) {
 export default function CompanyGoalsPage() {
   const router = useRouter();
   const params = useParams();
-  const pathname = usePathname();
   const companyId = params.companyId as string;
   const [company, setCompany] = useState<Company | null>(null);
   const [goals, setGoals] = useState<Goalcard[]>([]);
@@ -156,7 +137,7 @@ export default function CompanyGoalsPage() {
   const [actingId, setActingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
-  const { setSources, sources } = useStore();
+  const { sources } = useStore();
   const [isOwner, setIsOwner] = useState(false);
 
   const loadGoals = useCallback(async (cid: string) => {
@@ -164,39 +145,41 @@ export default function CompanyGoalsPage() {
     setGoals(data);
   }, []);
 
-  const loadPage = useCallback(async (cid: string) => {
-    setLoading(true);
-    setErrorMessage(null);
-    try {
-      const companies = await fetchJson<Company[]>("/api/companies");
-      const found = companies.find((item) => item.id === cid);
-      if (!found) {
-        router.push("/");
-        return;
-      }
-      setCompany(found);
-      await loadGoals(found.id);
-
-      const [members, sessionRes] = await Promise.all([
-        fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
-        fetch("/api/auth/session")
-      ]);
-
-      if (sessionRes.ok) {
-        const session = await sessionRes.json();
-        const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
-        setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
-      }
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setLoading(false);
-    }
-  }, [loadGoals, router]);
-
   useEffect(() => {
-    if (companyId) loadPage(companyId);
-  }, [companyId, loadPage]);
+    if (!companyId) return;
+
+    const loadPage = async (cid: string) => {
+      setLoading(true);
+      setErrorMessage(null);
+      try {
+        const companies = await fetchJson<Company[]>("/api/companies");
+        const found = companies.find((item) => item.id === cid);
+        if (!found) {
+          router.push("/");
+          return;
+        }
+        setCompany(found);
+        await loadGoals(found.id);
+
+        const [members, sessionRes] = await Promise.all([
+          fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
+          fetch("/api/auth/session")
+        ]);
+
+        if (sessionRes.ok) {
+          const session = await sessionRes.json();
+          const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
+          setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPage(companyId);
+  }, [companyId, loadGoals, router]);
 
   const filteredGoals = useMemo(() => {
     return goals.filter((goal) => {
@@ -228,90 +211,136 @@ export default function CompanyGoalsPage() {
     }
   }, [company]);
 
-  const handleActionSubmit = useCallback(async (id: string) => {
-    // Basic CRUD for Goalcard actions if needed
-  }, []);
-
   if (loading) {
     return (
       <PageShell width="full">
-        <Stack gap="xl">
-          <Skeleton h={40} w={200} radius="md" />
-          <Skeleton h={20} w={400} radius="md" />
-          <MetricGrid>
-            <Skeleton h={140} radius="lg" />
-            <Skeleton h={140} radius="lg" />
-          </MetricGrid>
-          <UnifiedGrid>
-            <Skeleton h={300} radius="lg" />
-            <Skeleton h={300} radius="lg" />
-          </UnifiedGrid>
-        </Stack>
+        <Center h="100vh">
+          <Stack align="center" gap="md">
+            <Loader size="xl" variant="bars" color="brand" />
+            <Text size="sm" fw={900} tt="uppercase" lts={2} c="dimmed">Synchronizing Strategic Goals...</Text>
+          </Stack>
+        </Center>
       </PageShell>
     );
   }
 
+  const tip = getDashboardExpertTip({
+    companyId,
+    productCount: sources.length,
+    customerCount: 0,
+    competitorCount: 0,
+    fileCount: 0,
+    flashcardCount: 0,
+    pendingTaskCount: goals.length,
+  });
+
   return (
     <PageShell width="full">
+      <PageHeader 
+        title="Strategic Objectives"
+        description={`Defining the aspirational frontier for ${company?.name}.`}
+      />
+
       <Stack gap="xl">
-        {errorMessage && <Notice variant="destructive" className="mb-4">{errorMessage}</Notice>}
+        {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
 
         <MetricGrid>
-          <MetricCard icon={Target} color="green" label="Active goals" value={goals.length} detail="Strategic objectives being tracked." />
-          <MetricCard icon={TrendingUp} color="blue" label="Goal Alignment" value="85%" detail="Alignment with current market research." />
+          <MetricCard 
+            icon={Target} 
+            color="green" 
+            label="Active Goals" 
+            value={goals.length} 
+            detail="Objectives under management" 
+          />
+          <MetricCard 
+            icon={TrendingUp} 
+            color="blue" 
+            label="Synthesis Yield" 
+            value="85%" 
+            detail="Market research alignment" 
+          />
         </MetricGrid>
 
         <Group justify="space-between" align="center">
           <TextInput 
-            placeholder="Search goals..." 
+            placeholder="Search objectives..." 
             leftSection={<Search size={16} />}
             value={searchQuery} 
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ flex: 1, maxWidth: 400 }}
             radius="md"
+            size="md"
           />
+          <Group gap="sm">
+            <Button variant="light" color="gray" leftSection={<Filter size={16} />} size="sm" radius="md">Filters</Button>
+          </Group>
         </Group>
 
         {filteredGoals.length === 0 ? (
-          <EmptyState icon={Target} title="No strategic goals found" description="Goals represent what your company wants to become. They are derived from research or created manually." />
+          <Center h={rem(400)}>
+            <Card radius="lg" withBorder p={rem(60)} ta="center" style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }}>
+              <Stack align="center" gap="xl">
+                <ThemeIcon variant="light" color="gray" size={64} radius="xl">
+                  <LayoutList size={32} />
+                </ThemeIcon>
+                <Stack gap="xs">
+                  <Title order={3} fw={900} lts={-0.5}>No Strategic Goals Identified</Title>
+                  <Text size="sm" c="dimmed" maw={400} mx="auto" fw={500}>
+                    Goals represent the aspirational future of the organization. They are synthesized from evidence units or established manually.
+                  </Text>
+                </Stack>
+              </Stack>
+            </Card>
+          </Center>
         ) : (
           <UnifiedGrid>
-            {filteredGoals.map((goal, index) => (
-              <motion.div key={goal.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
-                <KnowledgeReviewCard
-                  flashcard={goal as any}
-                  cardType="GOAL"
-                  isActionOpen={activeGoalId === goal.id}
-                  actionMode={actionMode}
-                  isBusy={actingId === goal.id}
-                  isGenerating={false}
-                  actionComment={actionComment}
-                  editedTitle={editedTitle}
-                  editedBody={editedBody}
-                  reviewStatusLabel={reviewStatusLabel}
-                  kindLabel={kindLabel}
-                  actionLabel={actionLabel}
-                  onOpenAction={(fc, mode) => {
-                    setActiveGoalId(fc.id);
-                    setActionMode(mode);
-                    setEditedTitle(fc.title);
-                    setEditedBody(fc.body);
-                  }}
-                  onCloseAction={() => {
-                    setActiveGoalId(null);
-                    setActionMode(null);
-                  }}
-                  onActionCommentChange={setActionComment}
-                  onEditedTitleChange={setEditedTitle}
-                  onEditedBodyChange={setEditedBody}
-                  onSubmit={handleActionSubmit}
-                  activeHashtags={activeHashtags}
-                  onToggleHashtag={() => {}}
-                  onRemoveHashtag={() => {}}
-                  onConvert={(type) => handleConvert(goal.id, type)}
-                />
-              </motion.div>
-            ))}
+            <AnimatePresence mode="popLayout">
+              {filteredGoals.map((goal, index) => (
+                <motion.div 
+                  key={goal.id} 
+                  layout
+                  initial={{ opacity: 0, scale: 0.98 }} 
+                  animate={{ opacity: 1, scale: 1 }} 
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ delay: index * 0.03 }}
+                >
+                  <KnowledgeReviewCard
+                    flashcard={goal as any}
+                    cardType="GOAL"
+                    isActionOpen={activeGoalId === goal.id}
+                    actionMode={actionMode}
+                    isBusy={actingId === goal.id}
+                    isGenerating={false}
+                    actionComment={actionComment}
+                    editedTitle={editedTitle}
+                    editedBody={editedBody}
+                    reviewStatusLabel={reviewStatusLabel}
+                    kindLabel={kindLabel}
+                    actionLabel={actionLabel}
+                    onOpenAction={(fc, mode) => {
+                      setActiveGoalId(fc.id);
+                      setActionMode(mode);
+                      setEditedTitle(fc.title);
+                      setEditedBody(fc.body);
+                    }}
+                    onCloseAction={() => {
+                      setActiveGoalId(null);
+                      setActionMode(null);
+                    }}
+                    onActionCommentChange={setActionComment}
+                    onEditedTitleChange={setEditedTitle}
+                    onEditedBodyChange={setEditedBody}
+                    onSubmit={() => {}}
+                    activeHashtags={activeHashtags}
+                    onToggleHashtag={() => {}}
+                    onRemoveHashtag={() => {}}
+                    onConvert={(type) => handleConvert(goal.id, type)}
+                  />
+                </motion.div>
+              ))}
+              <ExpertTipCard tip={tip} />
+              <MemberList companyId={companyId} isOwner={isOwner} />
+            </AnimatePresence>
           </UnifiedGrid>
         )}
       </Stack>

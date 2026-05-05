@@ -13,15 +13,18 @@ import {
   Loader, 
   Box,
   Center,
-  rem
+  rem,
+  Button,
+  ActionIcon,
+  Tooltip,
+  ThemeIcon
 } from "@mantine/core";
-import { Button } from "@/components/ui/button";
 import { LinkCard, PageHeader, PageShell, MetricGrid } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
-import { Plus, ListOrdered, Sparkles, Zap, ArrowRight, Target, LayoutDashboard } from "lucide-react";
+import { Plus, ListOrdered, Sparkles, Zap, ArrowRight, Target, LayoutDashboard, Database, TrendingUp, Brain, Rocket, ClipboardList } from "lucide-react";
 
 type NBAItem = {
   id: string;
@@ -56,7 +59,6 @@ export default function CompanyDashboard() {
   const [flashcardCount, setFlashcardCount] = useState(0);
   const [fileCount, setFileCount] = useState(0);
   const [topicCount, setTopicCount] = useState(0);
-  const [companyCount, setCompanyCount] = useState(0);
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
   const [actionItemId, setActionItemId] = useState<string | null>(null);
   const [annotation, setAnnotation] = useState("");
@@ -64,7 +66,6 @@ export default function CompanyDashboard() {
   const [draftDescription, setDraftDescription] = useState("");
   const [declineClass, setDeclineClass] = useState<string>("WRONG");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
   const [chartData, setChartData] = useState<any[]>([]);
 
   const loadDashboard = useCallback(async (cid: string) => {
@@ -96,7 +97,7 @@ export default function CompanyDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [setCompany, setSources, setNbaItems]);
+  }, [setCompany, setSources]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -111,7 +112,6 @@ export default function CompanyDashboard() {
           return;
         }
 
-        setCompanyCount(companies.length);
         setCompany(found);
         await loadDashboard(found.id);
       } catch (error) {
@@ -205,10 +205,10 @@ export default function CompanyDashboard() {
     return (
       <PageShell width="full">
         <Center style={{ minHeight: "60vh" }}>
-          <Stack align="center" gap="md">
+          <Stack align="center" gap="xl">
             <Loader color="brand" size="xl" variant="bars" />
-            <Text size="sm" fw={800} tt="uppercase" lts={1} c="dimmed">
-              Synchronizing Intelligence...
+            <Text size="sm" fw={900} tt="uppercase" lts={2} c="dimmed">
+              Synchronizing Intelligence Stream...
             </Text>
           </Stack>
         </Center>
@@ -229,38 +229,38 @@ export default function CompanyDashboard() {
 
   return (
     <PageShell width="full">
-      <MetricGrid cols={{ base: 1, sm: 2, md: 5 }} mb={40}>
+      <MetricGrid cols={{ base: 1, sm: 2, md: 5 }} mb={rem(60)}>
         <LinkCard
           href={`/${companyId}/data`}
-          icon={Plus}
+          icon={Database}
           variant="blue"
           metric={safeSources.length + fileCount}
           title="Data Ingress"
-          description="Source harvesting & processing"
+          description="Evidence harvesting & enrichment"
           chartData={chartData.map(d => ({ date: d.date, value: d.sources }))}
         />
         <LinkCard
           href={`/${companyId}/topics`}
-          icon={ListOrdered}
+          icon={TrendingUp}
           variant="indigo"
           metric={topicCount}
           title="Topic Synthesis"
-          description="Strategic focus prioritization"
+          description="Strategic focus orchestration"
           chartData={chartData.map(d => ({ date: d.date, value: d.topics }))}
         />
         <LinkCard
           href={`/${companyId}/knowmore`}
-          icon={Sparkles}
-          variant="knowledge"
+          icon={Brain}
+          variant="teal"
           metric={flashcardCount}
-          title="Knowmore"
-          description="Contextual memory layer"
+          title="Context Layer"
+          description="Long-term memory synthesis"
           chartData={chartData.map(d => ({ date: d.date, value: d.flashcards }))}
         />
         <LinkCard
           href={`/${companyId}/goals`}
-          icon={Target}
-          variant="strategy"
+          icon={Rocket}
+          variant="violet"
           metric={pendingTaskCount}
           title="Strategic Goals"
           description="High-confidence task generation"
@@ -268,8 +268,8 @@ export default function CompanyDashboard() {
         />
         <LinkCard
           href={`/${companyId}/tactical`}
-          icon={LayoutDashboard}
-          variant="execution"
+          icon={ClipboardList}
+          variant="cyan"
           metric={tacticalCount}
           title="Tactical Board"
           description="Operational task orchestration"
@@ -277,24 +277,27 @@ export default function CompanyDashboard() {
         />
       </MetricGrid>
 
-      <Stack gap={40}>
-        <Stack gap="md">
+      <Stack gap={rem(60)}>
+        <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
             <Box>
-              <Title order={2} size="h3" fw={900} lts={-0.5}>Generated Intelligence</Title>
-              <Text size="sm" c="dimmed">Top-priority strategic goals synthesized by the Trinity engine.</Text>
+              <Title order={2} size="h2" fw={900} lts={-1}>Synthesized Intelligence</Title>
+              <Text size="md" c="dimmed" fw={500}>Top-priority strategic goals derived by the autonomous Trinity engine.</Text>
             </Box>
-            <Link href={`/${companyId}/nba`} style={{ textDecoration: 'none' }}>
-              <Button 
-                variant="subtle" 
-                color="gray" 
-                size="xs" 
-                rightSection={<ArrowRight size={14} />}
-                fw={700}
-              >
-                Open Full Checklist
-              </Button>
-            </Link>
+            <Button 
+              component={Link}
+              href={`/${companyId}/nba`}
+              variant="light" 
+              color="gray" 
+              size="sm" 
+              radius="md"
+              rightSection={<ArrowRight size={16} />}
+              fw={800}
+              tt="uppercase"
+              lts={1}
+            >
+              Open Global Protocol
+            </Button>
           </Group>
 
           <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="xl">
@@ -331,14 +334,20 @@ export default function CompanyDashboard() {
         </Stack>
       </Stack>
 
-      <Box style={{ position: "fixed", bottom: rem(32), right: rem(32), zIndex: 100 }}>
+      <Box style={{ position: "fixed", bottom: rem(40), right: rem(40), zIndex: 100 }}>
         <Button
           onClick={() => router.push(`/${companyId}/data`)}
           size="lg"
           radius="xl"
           color="brand"
-          leftSection={<Plus size={20} />}
-          style={{ boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}
+          leftSection={<Plus size={22} />}
+          fw={900}
+          tt="uppercase"
+          lts={1.5}
+          style={{ 
+            boxShadow: "0 15px 35px rgba(0,0,0,0.4)",
+            border: "1px solid rgba(255,255,255,0.1)"
+          }}
         >
           Add Intelligence
         </Button>

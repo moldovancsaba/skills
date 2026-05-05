@@ -298,7 +298,7 @@ export default function Home() {
                   )}
                 </Group>
 
-                <UnifiedGrid className="md:grid-cols-5">
+                <UnifiedGrid cols={{ base: 1, sm: 2, md: 5 }}>
                   <LinkCard
                     href={`/${c.id}/data`}
                     icon={Database}

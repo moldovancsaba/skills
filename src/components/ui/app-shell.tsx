@@ -134,9 +134,17 @@ export function MetricGrid({ children }: { children: ReactNode }) {
   );
 }
 
-export function UnifiedGrid({ children, className }: { children: ReactNode; className?: string }) {
+export function UnifiedGrid({ 
+  children, 
+  className,
+  cols = { base: 1, md: 2, xl: 3 }
+}: { 
+  children: ReactNode; 
+  className?: string;
+  cols?: any;
+}) {
   return (
-    <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="lg" className={className}>
+    <SimpleGrid cols={cols} spacing="lg" className={className}>
       {children}
     </SimpleGrid>
   );

@@ -164,7 +164,7 @@ export function ClientNav() {
         <Stack gap="xs">
           {/* Global Portfolio and Intelligence Unit divider removed per user request */}
           
-          {company ? (
+          {(company && pathname !== '/') ? (
             <Stack gap={4}>
               <NavLink
                 label={company.name}

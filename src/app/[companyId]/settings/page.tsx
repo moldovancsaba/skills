@@ -39,7 +39,7 @@ import {
 } from "@mantine/core";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { LanguageSelector } from "@/components/LanguageSelector";
-import { toast } from "@/components/ui/use-toast";
+import { notifications } from "@mantine/notifications";
 
 type CommunicationSettings = {
   isEnabled: boolean;
@@ -101,10 +101,10 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setSettings(await res.json());
-        toast({ title: "Settings saved", description: "Communication preferences updated successfully." });
+        notifications.show({ title: "Settings saved", message: "Communication preferences updated successfully." });
       }
     } catch (error) {
-      toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+      notifications.show({ title: "Error", message: "Failed to save settings.", color: "red" });
     } finally {
       setSaving(false);
     }
@@ -121,10 +121,10 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setCompanySettings(await res.json());
-        toast({ title: "Organization saved", description: "Language and organization settings updated." });
+        notifications.show({ title: "Organization saved", message: "Language and organization settings updated." });
       }
     } catch (error) {
-      toast({ title: "Error", description: "Failed to save organization settings.", variant: "destructive" });
+      notifications.show({ title: "Error", message: "Failed to save organization settings.", color: "red" });
     } finally {
       setSaving(false);
     }
@@ -139,10 +139,10 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setSettings(await res.json());
-        toast({ title: "Secret regenerated", description: "A new Bridge API Key has been issued." });
+        notifications.show({ title: "Secret regenerated", message: "A new Bridge API Key has been issued." });
       }
     } catch (error) {
-      toast({ title: "Error", description: "Failed to regenerate secret.", variant: "destructive" });
+      notifications.show({ title: "Error", message: "Failed to regenerate secret.", color: "red" });
     } finally {
       setSaving(false);
     }
@@ -150,7 +150,7 @@ export default function SettingsPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copied", description: "Copied to clipboard." });
+    notifications.show({ title: "Copied", message: "Copied to clipboard." });
   };
 
   if (loading) return <Box p="xl" ta="center"><Text>Loading OS configuration...</Text></Box>;

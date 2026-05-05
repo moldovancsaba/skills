@@ -228,7 +228,7 @@ export function KnowledgeReviewCard({
           <Button 
             variant="filled" 
             color={getCardColor()} 
-            leftSection={isBusy && actionMode === "ACCEPT" ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+            leftSection={isBusy && actionMode === "ACCEPT" ? <Loader size={16} color="white" /> : <Check size={16} />}
             onClick={() => onOpenAction(flashcard, "ACCEPT")}
             disabled={isBusy || isGenerating}
           >

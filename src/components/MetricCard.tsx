@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { LucideIcon } from "lucide-react";
+import { Paper, Text, Group, Stack, rem } from "@mantine/core";
 
 interface MetricCardProps {
   label: string;
@@ -11,10 +12,10 @@ interface MetricCardProps {
 }
 
 const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon, delay = 0 }: MetricCardProps) => {
-  const changeColors = {
-    positive: "text-success",
-    negative: "text-destructive",
-    neutral: "text-muted-foreground",
+  const getChangeColor = () => {
+    if (changeType === "positive") return "green";
+    if (changeType === "negative") return "red";
+    return "dimmed";
   };
 
   return (
@@ -22,18 +23,38 @@ const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon, 
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: delay * 0.06 }}
-      className="bg-card border border-border rounded-lg p-5 shadow-sm"
+      style={{ height: '100%' }}
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <Icon className="w-4 h-4 text-muted-foreground" />
-      </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-2xl font-bold text-foreground">{value}</span>
-        {change && (
-          <span className={`text-xs font-medium ${changeColors[changeType]}`}>{change}</span>
-        )}
-      </div>
+      <Paper
+        p="md"
+        radius="lg"
+        withBorder
+        style={{
+          height: '100%',
+          backgroundColor: 'light-dark(white, var(--mantine-color-dark-7))',
+          boxShadow: 'var(--mantine-shadow-xs)',
+        }}
+      >
+        <Stack gap="xs">
+          <Group justify="space-between" wrap="nowrap">
+            <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">
+              {label}
+            </Text>
+            <Icon size={16} style={{ opacity: 0.5 }} />
+          </Group>
+          
+          <Group align="baseline" gap="sm">
+            <Text size="xl" fw={900} style={{ fontSize: rem(24) }}>
+              {value}
+            </Text>
+            {change && (
+              <Text size="xs" fw={800} c={getChangeColor()}>
+                {change}
+              </Text>
+            )}
+          </Group>
+        </Stack>
+      </Paper>
     </motion.div>
   );
 };

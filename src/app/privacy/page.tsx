@@ -18,7 +18,7 @@ export default function PrivacyPage() {
             <Title order={1} fw={900} lts={-1}>Privacy Policy</Title>
           </Group>
           <Text size="xs" fw={800} tt="uppercase" lts={2} c="dimmed" ml={rem(44)}>
-            PROTOCOL v0.15.0-HARDENED • LAST SYNC: APRIL 2025
+            PROTOCOL v0.15.2-HARDENED • LAST SYNC: MAY 2025
           </Text>
         </Box>
 

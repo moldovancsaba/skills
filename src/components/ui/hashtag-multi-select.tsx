@@ -184,11 +184,13 @@ export function HashtagMultiSelect({
                         handleAddTag(suggestion);
                       }}
                       p="xs"
-                      style={{
+                      style={(theme) => ({
                         borderRadius: 'var(--mantine-radius-md)',
                         transition: 'background 0.2s ease',
-                      }}
-                      className="hover:bg-brand-light/10"
+                        '&:hover': {
+                          backgroundColor: 'light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))',
+                        }
+                      })}
                     >
                       <Group justify="space-between">
                         <Group gap="xs">
@@ -209,13 +211,15 @@ export function HashtagMultiSelect({
                         handleAddTag(inputValue);
                       }}
                       p="xs"
-                      style={{
+                      style={(theme) => ({
                         borderRadius: 'var(--mantine-radius-md)',
                         borderTop: '1px solid var(--mantine-color-dark-4)',
                         marginTop: rem(2),
-                        paddingTop: rem(8)
-                      }}
-                      className="hover:bg-brand-light/10"
+                        paddingTop: rem(8),
+                        '&:hover': {
+                          backgroundColor: 'light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))',
+                        }
+                      })}
                     >
                       <Group gap="xs">
                         <ThemeIcon variant="light" color="brand" size="sm" radius="xl">

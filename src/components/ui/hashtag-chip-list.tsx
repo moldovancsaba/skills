@@ -9,7 +9,6 @@ type Props = {
   activeTags?: string[];
   onToggle?: (tag: string) => void;
   onRemove?: (tag: string) => void;
-  className?: string;
 };
 
 export function HashtagChipList({
@@ -17,7 +16,6 @@ export function HashtagChipList({
   activeTags = [],
   onToggle,
   onRemove,
-  className,
 }: Props) {
   const tags = normalizeHashtagList(hashtags);
   const active = new Set(normalizeHashtagList(activeTags));
@@ -27,7 +25,7 @@ export function HashtagChipList({
   }
 
   return (
-    <Group gap={6} wrap="wrap" className={className}>
+    <Group gap={6} wrap="wrap">
       {tags.map((tag) => {
         const isActive = active.has(tag);
         

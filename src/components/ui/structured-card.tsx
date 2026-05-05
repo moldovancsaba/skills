@@ -14,12 +14,11 @@ type StructuredCardProps = {
   body?: ReactNode;
   actions?: ReactNode;
   details?: ReactNode;
-  className?: string;
 };
 
-export function StructuredCard({ chips, title, body, actions, details, className }: StructuredCardProps) {
+export function StructuredCard({ chips, title, body, actions, details }: StructuredCardProps) {
   return (
-    <UnifiedCard className={className}>
+    <UnifiedCard>
       <UnifiedCardHeader supporting={chips} title={title} />
       <UnifiedCardBody>
         {body ? <UnifiedCardText>{body}</UnifiedCardText> : null}
@@ -30,10 +29,10 @@ export function StructuredCard({ chips, title, body, actions, details, className
   );
 }
 
-export function StructuredChipRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <Group gap="xs" wrap="wrap" className={className}>{children}</Group>;
+export function StructuredChipRow({ children }: { children: ReactNode }) {
+  return <Group gap="xs" wrap="wrap">{children}</Group>;
 }
 
-export function StructuredActionRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <Group gap="sm" wrap="wrap" className={className}>{children}</Group>;
+export function StructuredActionRow({ children }: { children: ReactNode }) {
+  return <Group gap="sm" wrap="wrap">{children}</Group>;
 }

@@ -28,19 +28,16 @@ import { DashboardChart } from "@/components/dashboard-chart";
 type PageShellProps = {
   children: ReactNode;
   width?: "md" | "lg" | "xl" | "2xl" | "5xl" | "7xl" | "full";
-  className?: string;
 };
 
 export function PageShell({
   children,
   width = "xl",
-  className,
 }: PageShellProps) {
   return (
     <Container 
       size={width === "full" ? "100%" : width} 
       py="xl"
-      className={className}
     >
       <Stack gap="xl">
         {children}
@@ -103,7 +100,6 @@ type NoticeProps = {
   children: ReactNode;
   icon?: any;
   variant?: "default" | "destructive";
-  className?: string;
 };
 
 export function Notice({
@@ -111,24 +107,14 @@ export function Notice({
   children,
   icon: Icon,
   variant = "default",
-  className,
 }: NoticeProps) {
   return (
     <Alert 
-      className={className}
       variant="light" 
       color={variant === "destructive" ? "red" : "brand"} 
       title={title} 
       icon={Icon && <Icon size={16} />}
       radius="md"
-      styles={{
-        title: { 
-          fontWeight: 900, 
-          textTransform: 'uppercase', 
-          letterSpacing: rem(1), 
-          fontSize: rem(10) 
-        }
-      }}
     >
       <Text size="sm" fw={500}>{children}</Text>
     </Alert>
@@ -153,15 +139,13 @@ export function MetricGrid({
 
 export function UnifiedGrid({ 
   children, 
-  className,
   cols = { base: 1, md: 2, xl: 3 }
 }: { 
   children: ReactNode; 
-  className?: string;
   cols?: any;
 }) {
   return (
-    <SimpleGrid cols={cols} spacing="lg" className={className}>
+    <SimpleGrid cols={cols} spacing="lg">
       {children}
     </SimpleGrid>
   );
@@ -187,37 +171,16 @@ export function MetricCard({
       radius="lg" 
       p="xl" 
       withBorder 
-      style={{ 
-        backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.02))',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))',
-        position: 'relative',
-        overflow: 'hidden',
-        height: '100%'
-      }}
+      shadow="xs"
     >
-      <Box 
-        style={{ 
-          position: 'absolute', 
-          top: -20, 
-          right: -20, 
-          width: 100, 
-          height: 100, 
-          borderRadius: '50%', 
-          background: `var(--mantine-color-${color}-filled)`, 
-          opacity: 0.05, 
-          filter: 'blur(40px)' 
-        }} 
-      />
       
       <Stack gap="xl">
         <Group justify="space-between" align="flex-start">
           <ThemeIcon 
-            variant="gradient" 
-            gradient={{ from: `${color}.6`, to: `${color}.9`, deg: 45 }}
+            variant="light" 
+            color={color}
             radius="md" 
             size="xl"
-            style={{ boxShadow: `0 4px 15px var(--mantine-color-${color}-9)` }}
           >
             <Icon size={20} />
           </ThemeIcon>
@@ -285,7 +248,6 @@ type LinkCardProps = {
   description?: string;
   metric?: string | number;
   variant?: string;
-  className?: string;
   chartData?: any[];
 };
 
@@ -296,55 +258,28 @@ export function LinkCard({
   description,
   metric,
   variant = "blue",
-  className,
   chartData,
 }: LinkCardProps) {
   return (
     <UnstyledButton 
       component={Link} 
       href={href} 
-      className={className}
       style={{ display: "block", height: "100%", textDecoration: 'none' }}
     >
       <Card 
         radius="lg" 
         p="xl" 
         withBorder 
-        className="link-card-hardened"
-        style={{ 
-          height: '100%',
-          backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.02))',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          cursor: 'pointer',
-          overflow: 'hidden',
-          position: 'relative'
-        }}
+        shadow="sm"
       >
-        <Box 
-          style={{ 
-            position: 'absolute', 
-            top: -40, 
-            right: -40, 
-            width: 140, 
-            height: 140, 
-            borderRadius: '50%', 
-            background: `var(--mantine-color-${variant}-filled)`, 
-            opacity: 0.04, 
-            filter: 'blur(60px)',
-            pointerEvents: 'none'
-          }} 
-        />
 
         <Stack gap="xl" h="100%" style={{ position: 'relative', zIndex: 1 }}>
           <Group justify="space-between" align="center">
             <ThemeIcon 
-              variant="gradient" 
-              gradient={{ from: `${variant}.6`, to: `${variant}.9`, deg: 45 }}
+              variant="light" 
+              color={variant}
               radius="md" 
               size="xl"
-              style={{ boxShadow: `0 4px 20px var(--mantine-color-${variant}-9)` }}
             >
               <Icon size={20} />
             </ThemeIcon>
@@ -380,14 +315,6 @@ export function LinkCard({
           </Group>
         </Stack>
       </Card>
-      <style jsx global>{`
-        .link-card-hardened:hover {
-          background-color: light-dark(rgba(0, 0, 0, 0.04), rgba(255, 255, 255, 0.05)) !important;
-          transform: translateY(-6px);
-          border-color: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1)) !important;
-          box-shadow: 0 20px 40px light-dark(rgba(0,0,0,0.08), rgba(0,0,0,0.4));
-        }
-      `}</style>
     </UnstyledButton>
   );
 }
@@ -422,9 +349,7 @@ export function PipelineAccentHeader({
             h={6} 
             style={{ 
               borderRadius: 3,
-              backgroundColor: segment.key === activeKey ? `var(--mantine-color-${activeColor}-6)` : 'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4))',
-              boxShadow: segment.key === activeKey ? `0 0 10px var(--mantine-color-${activeColor}-9)` : "none",
-              transition: 'all 0.3s ease'
+              backgroundColor: segment.key === activeKey ? `var(--mantine-color-${activeColor}-filled)` : 'var(--mantine-color-gray-2)',
             }}
           />
         ))}

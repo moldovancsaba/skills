@@ -1,6 +1,6 @@
 {
   "name": "checklist-os",
-  "version": "0.15.0-HARDENED",
+  "version": "0.15.2-HARDENED",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -23,6 +23,7 @@
     "@hello-pangea/dnd": "^18.0.1",
     "@mantine/core": "^7.17.8",
     "@mantine/hooks": "^7.17.8",
+    "@mantine/notifications": "^7.17.8",
     "@prisma/client": "^6.0.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

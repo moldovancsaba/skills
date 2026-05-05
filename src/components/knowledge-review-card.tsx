@@ -1,5 +1,5 @@
-import { Check, Loader2, MessageSquare, PencilLine, X, Pin, RefreshCw, AlertCircle, Archive } from "lucide-react";
-import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem } from "@mantine/core";
+import { Check, MessageSquare, PencilLine, X, Pin, RefreshCw, AlertCircle, Archive } from "lucide-react";
+import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import {
   UnifiedCard,

@@ -39,6 +39,7 @@ import {
   rem,
   ThemeIcon
 } from "@mantine/core";
+import { useTheme } from "@/lib/theme-provider";
 import {
   EmptyState,
   MetricCard,
@@ -46,6 +47,7 @@ import {
   Notice,
   PageHeader,
   PageShell,
+  PipelineAccentHeader,
   UnifiedGrid,
 } from "@/components/ui/app-shell";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
@@ -158,6 +160,7 @@ export default function CompanyKnowMorePage() {
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
   const [intelligenceFilter, setIntelligenceFilter] = useState<"INTERNAL" | "COMPETITOR">("INTERNAL");
   const { sources, setSources } = useStore();
+  const { isDark } = useTheme();
   const [isOwner, setIsOwner] = useState(false);
   const [fileCount, setFileCount] = useState(0);
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
@@ -434,12 +437,12 @@ export default function CompanyKnowMorePage() {
 
   return (
     <PageShell width="full">
-      <PageHeader 
-        title="Contextual Intelligence Layer"
-        description={`Synthesized memory and strategic evaluations for ${company?.name}.`}
-      />
-
       <Stack gap="xl">
+        <PipelineAccentHeader 
+          activeKey="knowmore" 
+          title="Contextual Intelligence Layer" 
+          icon="psychology" 
+        />
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
 
         <MetricGrid cols={{ base: 1, sm: 2, md: 5 }}>
@@ -462,7 +465,11 @@ export default function CompanyKnowMorePage() {
               size="md"
             />
             <Group gap="xs">
-              <Group gap={4} p={4} style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: "var(--mantine-color-dark-8)", border: "1px solid var(--mantine-color-dark-4)" }}>
+              <Group gap={4} p={4} style={{ 
+                borderRadius: "var(--mantine-radius-md)", 
+                backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-1)', 
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` 
+              }}>
                 {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
                   <Button
                     key={type}
@@ -480,7 +487,11 @@ export default function CompanyKnowMorePage() {
                   </Button>
                 ))}
               </Group>
-              <Group gap={4} p={4} style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: "var(--mantine-color-dark-8)", border: "1px solid var(--mantine-color-dark-4)" }}>
+              <Group gap={4} p={4} style={{ 
+                borderRadius: "var(--mantine-radius-md)", 
+                backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-1)', 
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` 
+              }}>
                 {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
                   <Button
                     key={kind}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Lightbulb, Sparkles } from "lucide-react";
-import { Badge, Button, Group, Stack, Text, Box, ThemeIcon, Alert } from "@mantine/core";
+import { Badge, Button, Group, Stack, Text, Box, ThemeIcon, Alert, rem } from "@mantine/core";
 
 import type { ExpertTip } from "@/content/help";
 import { 
@@ -40,17 +40,28 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
           variant="light"
           radius="md"
           styles={{
-            title: { fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }
+            title: { 
+              fontSize: "10px", 
+              fontWeight: 900, 
+              textTransform: "uppercase", 
+              letterSpacing: "1px",
+              color: 'light-dark(var(--mantine-color-brand-9), var(--mantine-color-brand-4))'
+            },
+            message: {
+              fontWeight: 500,
+              lineHeight: 1.6
+            },
+            root: {
+              border: `1px solid light-dark(rgba(255, 165, 0, 0.2), rgba(255, 165, 0, 0.1))`
+            }
           }}
         >
-          <Text size="sm" style={{ lineHeight: 1.5 }}>
-            {tip.whyItMatters}
-          </Text>
+          {tip.whyItMatters}
         </Alert>
 
         {tip.samplePhrases && tip.samplePhrases.length > 0 && (
           <Stack gap="xs">
-            <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">Suggested Phrasing</Text>
+            <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Suggested Phrasing</Text>
             <Stack gap={6}>
               {tip.samplePhrases.map((phrase) => (
                 <Box 
@@ -58,11 +69,11 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
                   p="xs" 
                   style={{ 
                     borderRadius: "var(--mantine-radius-sm)",
-                    backgroundColor: "rgba(0,0,0,0.15)",
-                    border: "1px solid rgba(255,255,255,0.05)"
+                    backgroundColor: 'light-dark(rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.2))',
+                    border: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`
                   }}
                 >
-                  <Text size="xs" fs="italic" c="dimmed">“{phrase}”</Text>
+                  <Text size="xs" fs="italic" c="dimmed" fw={500}>“{phrase}”</Text>
                 </Box>
               ))}
             </Stack>

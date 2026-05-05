@@ -30,6 +30,7 @@ export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setCompany, setSources } = useStore();
+  const { isDark } = useTheme();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -210,7 +211,7 @@ export default function Home() {
         </Group>
 
         {(canManageCompanies && (companies.length === 0 || showForm)) ? (
-          <Card p="xl">
+          <Card p="xl" radius="lg" withBorder style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)' }}>
             <Stack gap="lg">
               <Title order={3}>{editingId ? "Modify Intelligence Unit" : "Initialize New Unit"}</Title>
               <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany}>
@@ -251,7 +252,7 @@ export default function Home() {
           <Stack gap={48}>
             {Array.isArray(companies) && companies.map((c: any) => (
               <Box key={c.id}>
-                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)', paddingBottom: 'var(--mantine-spacing-md)' }}>
+                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: `1px solid ${isDark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-2)'}`, paddingBottom: 'var(--mantine-spacing-md)' }}>
                   <Stack gap={4}>
                     <Group gap="sm">
                       <Title 
@@ -343,7 +344,7 @@ export default function Home() {
             ))}
 
             {!canManageCompanies && companies.length === 0 && (
-              <Card p="xl" radius="lg" withBorder ta="center" bg="var(--mantine-color-dark-8)">
+              <Card p="xl" radius="lg" withBorder style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)' }}>
                 <Text size="sm" c="dimmed" fs="italic">
                   No intelligence units are currently provisioned for this account.
                 </Text>
@@ -353,7 +354,7 @@ export default function Home() {
         )}
 
         {canManageCompanies && !showForm && (
-          <Box pt="xl" style={{ borderTop: '1px solid var(--mantine-color-dark-6)' }}>
+          <Box pt="xl" style={{ borderTop: `1px solid ${isDark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-2)'}` }}>
             <Button 
               onClick={() => setShowForm(true)} 
               variant="subtle" 

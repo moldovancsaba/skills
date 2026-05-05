@@ -1,6 +1,6 @@
 "use client";
 
-import { TagsInput } from "@mantine/core";
+import { TagsInput, rem } from "@mantine/core";
 import { Hash } from "lucide-react";
 import { normalizeHashtag } from "@/lib/hashtags";
 
@@ -17,12 +17,11 @@ export function HashtagInput({
   onChange,
   suggestions = [],
   label = "Hashtags",
-  placeholder = "Add hashtags...",
+  placeholder = "Add strategic anchors...",
 }: HashtagInputProps) {
   
   const handleAdd = (val: string[]) => {
     const normalized = val.map(tag => normalizeHashtag(tag)).filter(Boolean) as string[];
-    // Ensure unique and hashtag-formatted
     onChange(Array.from(new Set(normalized)));
   };
 
@@ -38,10 +37,25 @@ export function HashtagInput({
       splitChars={[',', ' ', '|']}
       maxTags={15}
       radius="md"
-      styles={{
-        input: { backgroundColor: "rgba(0,0,0,0.2)" },
-        pill: { backgroundColor: "var(--mantine-color-dark-6)", fontWeight: 700 }
-      }}
+      styles={(theme) => ({
+        input: { 
+          backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03))',
+          border: `1px solid light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1))`,
+          minHeight: rem(42)
+        },
+        label: { 
+          fontWeight: 700, 
+          marginBottom: rem(4),
+          fontSize: theme.fontSizes.sm,
+          color: 'light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-2))'
+        },
+        pill: { 
+          backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6))',
+          color: 'light-dark(black, white)',
+          fontWeight: 800,
+          border: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.1))`
+        }
+      })}
     />
   );
 }

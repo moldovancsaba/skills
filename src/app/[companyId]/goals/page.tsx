@@ -42,6 +42,7 @@ import {
   Notice,
   PageHeader,
   PageShell,
+  PipelineAccentHeader,
   UnifiedGrid,
 } from "@/components/ui/app-shell";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
@@ -236,12 +237,12 @@ export default function CompanyGoalsPage() {
 
   return (
     <PageShell width="full">
-      <PageHeader 
-        title="Strategic Objectives"
-        description={`Defining the aspirational frontier for ${company?.name}.`}
-      />
-
       <Stack gap="xl">
+        <PipelineAccentHeader 
+          activeKey="goals" 
+          title="Strategic Objectives" 
+          icon="target" 
+        />
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
 
         <MetricGrid>

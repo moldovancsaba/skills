@@ -1,30 +1,60 @@
 /**
  * checklist TASK CARD
- * v0.12.8-STABLE
+ * v0.15.0-HARDENED
  * 
- * A specialized UI component for reviewing and acting upon Next Best Action (NBA) items.
- * Prioritizes the ICE Score (Impact * Confidence * Ease) as the primary sorting and quality metric.
+ * Refactored to pure Mantine-ONLY design system.
+ * Unified with PageShell and UnifiedCard architecture.
  */
 import { useState } from "react";
-import { Calendar as CalendarIcon, Check, CheckCheck, CheckCircle, Loader2, MessageSquare, PencilLine, Share2, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-
-import { Card, Text, Badge, Button, Group, Stack, TextInput, Textarea, ActionIcon, Tooltip, rem, Select, Drawer, Loader, Divider, Paper, Alert } from "@mantine/core";
+import { 
+  Calendar as CalendarIcon, 
+  Check, 
+  CheckCheck, 
+  CheckCircle, 
+  Loader2, 
+  MessageSquare, 
+  PencilLine, 
+  Share2, 
+  X,
+  History,
+  Pin,
+  RefreshCw,
+  Archive
+} from "lucide-react";
+import { 
+  Card, 
+  Text, 
+  Badge, 
+  Button, 
+  Group, 
+  Stack, 
+  TextInput, 
+  Textarea, 
+  ActionIcon, 
+  Tooltip, 
+  rem, 
+  Select, 
+  Loader, 
+  Divider, 
+  Box,
+  ThemeIcon
+} from "@mantine/core";
 import { useClipboard } from "@mantine/hooks";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
-import { cn } from "@/lib/utils";
-import { getIceColorClasses } from "@/lib/ice-colors";
 import { TraceViewer } from "@/components/trace-viewer";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { 
+  UnifiedCard, 
+  UnifiedCardHeader, 
+  UnifiedCardBody, 
+  UnifiedCardText, 
+  UnifiedCardActions, 
+  UnifiedCardFooter,
+  UnifiedCardSection
+} from "@/components/ui/unified-card";
 
-/**
- * Valid action modes for task feedback.
- */
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
 
-/**
- * Tactical intelligence unit representing a proposed action.
- */
 type NBAItem = {
   id: string;
   publicId: number | null;
@@ -97,7 +127,6 @@ export function TaskReviewCard({
   onPostpone,
 }: TaskReviewCardProps) {
   const [traceOpen, setTraceOpen] = useState(false);
-  const clipboard = useClipboard({ timeout: 2000 });
   
   const DECLINE_OPTIONS = [
     { value: "DUPLICATE", label: "Already exists (Duplicate)" },
@@ -115,26 +144,25 @@ export function TaskReviewCard({
   const iceColor = item.iceScore >= 70 ? "green" : item.iceScore >= 40 ? "orange" : "gray";
 
   return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder className={cn(item.processingStatus === "DECLINED" && "opacity-60")} bg="var(--mantine-color-dark-6)">
-      <Card.Section withBorder inheritPadding py="xs">
-        <Group justify="space-between">
-          <Group gap={7}>
-            <Badge variant="outline" color="gray" size="xs" radius="sm">{item.processingStatus.toUpperCase()}</Badge>
-            <Badge variant="filled" color="dark" size="xs" radius="sm">TASK</Badge>
+    <UnifiedCard style={{ opacity: item.processingStatus === "DECLINED" ? 0.6 : 1 }}>
+      <UnifiedCardHeader
+        supporting={
+          <Group justify="space-between" wrap="nowrap" style={{ width: '100%' }}>
+            <Group gap={7}>
+              <Badge variant="outline" color="gray" size="xs" radius="sm" fw={800}>{item.processingStatus}</Badge>
+              <Badge variant="filled" color="execution" size="xs" radius="sm" fw={900}>TASK</Badge>
+            </Group>
+            <Badge color={iceColor} variant="light" size="sm" radius="sm" fw={900}>ICE {Math.round(item.iceScore)}</Badge>
           </Group>
-          <Badge color={iceColor} variant="light" size="sm" radius="sm" fw={900}>ICE {Math.round(item.iceScore)}</Badge>
-        </Group>
-      </Card.Section>
+        }
+        title={stripTechnicalMetadata(item.title)}
+      />
 
-      <Stack gap="md" mt="md">
-        <Text fw={700} size="lg" lh={1.2} c="white">
-          {stripTechnicalMetadata(item.title)}
-        </Text>
-        
-        <Text size="sm" c="dimmed" lh={1.6}>
+      <UnifiedCardBody>
+        <UnifiedCardText>
           {stripTechnicalMetadata(item.description)}
-        </Text>
-
+        </UnifiedCardText>
+        
         <HashtagChipList
           hashtags={item.hashtags}
           activeTags={activeHashtags}
@@ -143,24 +171,51 @@ export function TaskReviewCard({
         />
 
         {item.userAnnotation && (
-          <Group gap="xs" p="sm" bg="var(--mantine-color-dark-5)" style={{ borderRadius: rem(8) }}>
-            <MessageSquare size={14} style={{ marginTop: rem(2), opacity: 0.7 }} />
-            <Text size="xs" c="dimmed">{item.userAnnotation}</Text>
-          </Group>
+          <Box 
+            p="sm" 
+            style={{ 
+              borderRadius: rem(8),
+              backgroundColor: 'light-dark(rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.2))',
+              borderLeft: "4px solid var(--mantine-color-blue-6)"
+            }}
+          >
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+              <MessageSquare size={14} style={{ marginTop: rem(2), opacity: 0.7 }} />
+              <Text size="xs" c="dimmed" fw={500}>{item.userAnnotation}</Text>
+            </Group>
+          </Box>
         )}
 
-        <Group gap="xs" mt="sm">
-          <Button size="xs" variant="filled" color="green" leftSection={<CheckCheck size={14} />} onClick={() => onOpenAction(item, "DELIVER")} disabled={isBusy}>
+        <UnifiedCardActions>
+          <Button 
+            size="xs" 
+            variant="filled" 
+            color="green" 
+            leftSection={<CheckCheck size={14} />} 
+            onClick={() => onOpenAction(item, "DELIVER")} 
+            disabled={isBusy}
+          >
             Delivered
           </Button>
-          <Button size="xs" variant="light" color="blue" leftSection={<Check size={14} />} onClick={() => onOpenAction(item, "ACCEPT")} disabled={isBusy}>
+          <Button 
+            size="xs" 
+            variant="light" 
+            color="blue" 
+            leftSection={<Check size={14} />} 
+            onClick={() => onOpenAction(item, "ACCEPT")} 
+            disabled={isBusy}
+          >
             Accept
           </Button>
-          <Button size="xs" variant="outline" color="gray" leftSection={<X size={14} />} onClick={() => onOpenAction(item, "DECLINE")} disabled={isBusy}>
+          <Button 
+            size="xs" 
+            variant="outline" 
+            color="red" 
+            leftSection={<X size={14} />} 
+            onClick={() => onOpenAction(item, "DECLINE")} 
+            disabled={isBusy}
+          >
             Decline
-          </Button>
-          <Button size="xs" variant="outline" color="gray" leftSection={<PencilLine size={14} />} onClick={() => onOpenAction(item, "MODIFY_ACCEPT")} disabled={isBusy}>
-            Edit
           </Button>
           
           <Button 
@@ -173,104 +228,106 @@ export function TaskReviewCard({
           >
             {copied ? "Copied" : "Share"}
           </Button>
-        </Group>
+        </UnifiedCardActions>
 
         {isActionOpen && actionMode && (
-          <Stack gap="sm" p="md" bg="var(--mantine-color-dark-8)" style={{ borderRadius: rem(12) }}>
-            <Text size="sm" fw={600} c="white">
-              {actionMode === "DECLINE" ? "Decline this task" : actionMode === "MODIFY_ACCEPT" ? "Modify and accept this task" : actionMode === "DELIVER" ? "Mark this task as delivered" : "Accept this task"}
-            </Text>
+          <UnifiedCardSection>
+            <Stack gap="sm">
+              <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">
+                {actionMode === "DECLINE" ? "Decline Task" : actionMode === "MODIFY_ACCEPT" ? "Modify & Accept" : actionMode === "DELIVER" ? "Mark Delivered" : "Accept Task"}
+              </Text>
 
-            {actionMode === "MODIFY_ACCEPT" && (
-              <>
-                <TextInput label="Title" value={draftTitle} onChange={(e) => onDraftTitleChange(e.target.value)} size="xs" />
-                <Textarea label="Description" value={draftDescription} onChange={(e) => onDraftDescriptionChange(e.target.value)} autosize minRows={2} size="xs" />
-              </>
-            )}
+              {actionMode === "MODIFY_ACCEPT" && (
+                <Stack gap="sm">
+                  <TextInput label="Title" value={draftTitle} onChange={(e) => onDraftTitleChange(e.target.value)} size="xs" radius="md" />
+                  <Textarea label="Description" value={draftDescription} onChange={(e) => onDraftDescriptionChange(e.target.value)} autosize minRows={2} size="xs" radius="md" />
+                </Stack>
+              )}
 
-            {actionMode === "DECLINE" && onDeclineClassChange && (
-              <Select
-                label="Decline Reason"
-                placeholder="Select a reason"
-                data={DECLINE_OPTIONS}
-                value={declineClass}
-                onChange={(val) => onDeclineClassChange(val || "WRONG")}
+              {actionMode === "DECLINE" && onDeclineClassChange && (
+                <Select
+                  label="Decline Reason"
+                  placeholder="Select a reason"
+                  data={DECLINE_OPTIONS}
+                  value={declineClass}
+                  onChange={(val) => onDeclineClassChange(val || "WRONG")}
+                  size="xs"
+                  radius="md"
+                  allowDeselect={false}
+                />
+              )}
+
+              <Textarea
+                label="Strategic Feedback"
+                value={annotation}
+                onChange={(e) => onAnnotationChange(e.target.value)}
+                placeholder="Provide context for system calibration..."
                 size="xs"
-                allowDeselect={false}
+                radius="md"
+                autosize
+                minRows={2}
               />
-            )}
 
-            <Textarea
-              label={actionMode === "DECLINE" ? "Additional comments (optional)" : actionMode === "DELIVER" ? "Delivery notes (optional)" : "Comment (optional)"}
-              value={annotation}
-              onChange={(e) => onAnnotationChange(e.target.value)}
-              placeholder={actionMode === "DELIVER" ? "What was the result? Help the AI learn..." : "Provide context for the AI..."}
-              size="xs"
-              autosize
-              minRows={2}
-            />
-
-            <Group gap="xs">
-              <Button
-                size="xs"
-                color={actionMode === "DECLINE" ? "red" : actionMode === "DELIVER" ? "green" : "blue"}
-                onClick={() => onSubmit(item.id, actionMode, annotation, actionMode === "MODIFY_ACCEPT" ? draftTitle : undefined, actionMode === "MODIFY_ACCEPT" ? draftDescription : undefined, declineClass)}
-                disabled={isBusy || (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))}
-                loading={isBusy}
-              >
-                Confirm
-              </Button>
-              <Button size="xs" variant="subtle" color="gray" onClick={onCloseAction} disabled={isBusy}>Cancel</Button>
-            </Group>
-          </Stack>
+              <Group gap="xs">
+                <Button
+                  size="xs"
+                  color={actionMode === "DECLINE" ? "red" : actionMode === "DELIVER" ? "green" : "blue"}
+                  onClick={() => onSubmit(item.id, actionMode, annotation, actionMode === "MODIFY_ACCEPT" ? draftTitle : undefined, actionMode === "MODIFY_ACCEPT" ? draftDescription : undefined, declineClass)}
+                  disabled={isBusy || (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))}
+                  loading={isBusy}
+                >
+                  Confirm
+                </Button>
+                <Button size="xs" variant="subtle" color="gray" onClick={onCloseAction} disabled={isBusy}>Cancel</Button>
+              </Group>
+            </Stack>
+          </UnifiedCardSection>
         )}
-      </Stack>
+      </UnifiedCardBody>
 
-      <Card.Section withBorder inheritPadding py="xs" mt="md">
+      <UnifiedCardFooter>
         <Stack gap="xs">
-          <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">Intelligence controls</Text>
+          <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Intelligence controls</Text>
           <Group gap={6}>
-            <Tooltip label="Pin record as factual source">
-              <Button size="compact-xs" variant="subtle" color="indigo" radius="xl">Pin Evidence</Button>
+            <Tooltip label="Pin relevant evidence">
+              <Button size="compact-xs" variant="subtle" color="gray" leftSection={<Pin size={12} />}>Pin</Button>
             </Tooltip>
-            <Tooltip label="Request AI re-evaluation">
-              <Button size="compact-xs" variant="subtle" color="cyan" radius="xl">Refresh</Button>
+            <Tooltip label="Request re-evaluation">
+              <Button size="compact-xs" variant="subtle" color="gray" leftSection={<RefreshCw size={12} />}>Refresh</Button>
             </Tooltip>
-            <Tooltip label="View intelligence lineage">
-              <Button size="compact-xs" variant="subtle" color="violet" radius="xl" onClick={() => setTraceOpen(true)}>View Trace</Button>
+            <Tooltip label="View synthesis trace">
+              <Button size="compact-xs" variant="subtle" color="violet" leftSection={<History size={12} />} onClick={() => setTraceOpen(true)}>Trace</Button>
             </Tooltip>
             
             {onPostpone && (
               <Select
-                placeholder="POSTPONE TO..."
+                placeholder="POSTPONE..."
                 size="compact-xs"
                 variant="subtle"
                 color="orange"
                 radius="xl"
                 data={[
-                  { value: "IDEABANK", label: "Idea Bank (Someday)" },
-                  { value: "ROADMAP", label: "Roadmap (Later)" },
-                  { value: "BACKLOG", label: "Backlog (Sooner)" },
+                  { value: "IDEABANK", label: "Idea Bank" },
+                  { value: "ROADMAP", label: "Roadmap" },
+                  { value: "BACKLOG", label: "Backlog" },
                   { value: "TODO", label: "Next" },
                 ]}
                 onChange={(val) => val && onPostpone(item.id, val)}
-                styles={{ input: { width: rem(140), height: rem(22), minHeight: rem(22) } }}
+                styles={{ input: { width: rem(100), fontSize: '10px', fontWeight: 800 } }}
               />
             )}
 
-            <Button size="compact-xs" variant="subtle" color="orange" radius="xl" ml="auto">Archive</Button>
+            <Button size="compact-xs" variant="subtle" color="gray" leftSection={<Archive size={12} />} ml="auto">Archive</Button>
           </Group>
         </Stack>
-      </Card.Section>
+      </UnifiedCardFooter>
 
-      <AnimatePresence>
-        {traceOpen && (
-          <TraceViewer 
-            versionFamilyId={(item as any).versionFamilyId || item.id} 
-            onClose={() => setTraceOpen(false)} 
-          />
-        )}
-      </AnimatePresence>
-    </Card>
+      {traceOpen && (
+        <TraceViewer 
+          versionFamilyId={(item as any).versionFamilyId || item.id} 
+          onClose={() => setTraceOpen(false)} 
+        />
+      )}
+    </UnifiedCard>
   );
 }

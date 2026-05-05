@@ -21,7 +21,7 @@ import {
   ThemeIcon,
   rem
 } from "@mantine/core";
-import { PageHeader, PageShell } from "@/components/ui/app-shell";
+import { PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardActions } from "@/components/ui/unified-card";
 
 export default function ReviewDashboard() {
@@ -117,12 +117,12 @@ export default function ReviewDashboard() {
 
   return (
     <PageShell width="full">
-      <PageHeader 
-        title="Anomaly Correction Layer"
-        description="Review and grade intelligence units flagged for manual verification."
-      />
-
       <Stack gap="xl">
+        <PipelineAccentHeader 
+          activeKey="review" 
+          title="Anomaly Correction Layer" 
+          icon="hard_hat" 
+        />
         {items.length === 0 ? (
           <Center h={rem(400)}>
             <Card radius="lg" withBorder p={rem(60)} ta="center" style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }}>
@@ -185,7 +185,7 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
         />
         <UnifiedCardBody>
           <Stack gap="lg">
-            <Box p="md" style={{ background: 'rgba(0,0,0,0.1)', borderRadius: 'var(--mantine-radius-md)', border: '1px solid var(--mantine-color-dark-4)' }}>
+            <Box p="md" style={{ background: 'light-dark(rgba(0,0,0,0.03), rgba(0,0,0,0.2))', borderRadius: 'var(--mantine-radius-md)', border: '1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4))' }}>
               <Text size="sm" c="dimmed" lineClamp={4} fw={500}>
                 {item.body || item.description}
               </Text>

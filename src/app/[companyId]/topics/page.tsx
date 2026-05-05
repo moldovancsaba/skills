@@ -32,7 +32,7 @@ import {
   ThemeIcon
 } from "@mantine/core";
 import { GripVertical, Plus, Trash2, ArrowUp, ArrowDown, Info, LayoutList } from "lucide-react";
-import { Notice, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
+import { Notice, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { 
   UnifiedCard, 
   UnifiedCardHeader, 
@@ -176,12 +176,12 @@ export default function CompanyTopicsPage() {
 
   return (
     <PageShell width="full">
-      <PageHeader 
-        title="Strategic Focus Units"
-        description={`Defining intelligence frontiers for ${company?.name}.`}
-      />
-
       <Stack gap="xl">
+        <PipelineAccentHeader 
+          activeKey="topics" 
+          title="Strategic Focus Units" 
+          icon="target" 
+        />
         {message && (
           <Notice title="Protocol Updated">
             {message}

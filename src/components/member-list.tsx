@@ -11,7 +11,7 @@ import {
   Box, 
   ThemeIcon,
   Loader,
-  Transition
+  rem
 } from "@mantine/core";
 import { 
   UnifiedCard, 
@@ -19,7 +19,7 @@ import {
   UnifiedCardBody 
 } from "@/components/ui/unified-card";
 import { FormInput } from "@/components/ui/form-fields";
-import { Button } from "@/components/ui/button";
+import { Button } from "@mantine/core";
 import { Users, UserPlus, Trash2, Shield, User as UserIcon, Mail } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 
@@ -96,8 +96,8 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
     return (
       <UnifiedCard className="h-full">
         <Stack align="center" justify="center" h={200}>
-          <Loader color="brand" size="sm" />
-          <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={1}>Syncing Permissions...</Text>
+          <Loader color="brand" size="sm" variant="bars" />
+          <Text size="xs" fw={900} c="dimmed" tt="uppercase" lts={1}>Syncing Permissions...</Text>
         </Stack>
       </UnifiedCard>
     );
@@ -133,6 +133,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                       onChange={(e) => setEmail(e.target.value)}
                       type="email"
                       required
+                      size="sm"
                     />
                   </Box>
                   <Button 
@@ -140,11 +141,12 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                     loading={inviting} 
                     color="brand" 
                     leftSection={<UserPlus size={16} />}
+                    size="sm"
                   >
                     Invite
                   </Button>
                 </Group>
-                {error && <Text size="xs" c="red" fw={700}>{error}</Text>}
+                {error && <Text size="xs" c="red" fw={900}>{error}</Text>}
               </Stack>
             </form>
           )}
@@ -156,21 +158,21 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                 p="sm" 
                 style={{ 
                   borderRadius: "var(--mantine-radius-md)",
-                  backgroundColor: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.05)"
+                  backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03))',
+                  border: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`
                 }}
               >
                 <Group justify="space-between" wrap="nowrap">
                   <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
-                    <Avatar radius="xl" size="md" color={member.role === 'OWNER' ? 'brand' : 'gray'}>
+                    <Avatar radius="xl" size="md" color={member.role === 'OWNER' ? 'brand' : 'gray'} variant="light">
                       {member.email[0].toUpperCase()}
                     </Avatar>
                     <Box style={{ flex: 1, minWidth: 0 }}>
-                      <Text size="sm" fw={700} truncate>{member.email}</Text>
+                      <Text size="sm" fw={800} truncate>{member.email}</Text>
                       <Group gap="xs">
                         <Group gap={4}>
                           <Shield size={12} color={member.role === 'OWNER' ? 'var(--mantine-color-brand-6)' : 'var(--mantine-color-gray-6)'} />
-                          <Text size="10px" fw={800} tt="uppercase" lts={1} c="dimmed">
+                          <Text size="10px" fw={900} tt="uppercase" lts={1} c="dimmed">
                             {member.role === 'OWNER' ? 'Admin' : 'Member'}
                           </Text>
                         </Group>
@@ -178,6 +180,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                           size="xs" 
                           variant="dot" 
                           color={member.acceptedAt ? "green" : "gray"}
+                          fw={800}
                         >
                           {member.acceptedAt ? "Active" : "Pending"}
                         </Badge>

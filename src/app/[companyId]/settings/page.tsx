@@ -38,6 +38,7 @@ import {
   SimpleGrid
 } from "@mantine/core";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
+import { useTheme } from "@/lib/theme-provider";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { toast } from "@/components/ui/use-toast";
 
@@ -58,6 +59,7 @@ type CompanySettings = {
 export default function SettingsPage() {
   const params = useParams();
   const router = useRouter();
+  const { isDark } = useTheme();
   const companyId = params.companyId as string;
 
   const [settings, setSettings] = useState<CommunicationSettings | null>(null);
@@ -161,7 +163,7 @@ export default function SettingsPage() {
 
       <Stack gap="xl">
         {/* Global Alerting Control */}
-        <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
+        <Card p="xl" radius="md" withBorder style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)' }}>
           <Group justify="space-between">
             <Stack gap={4}>
               <Group gap="sm">
@@ -182,7 +184,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Organization Settings */}
-        <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
+        <Card p="xl" radius="md" withBorder style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)' }}>
           <Stack gap="lg">
             <Group justify="space-between" align="flex-start">
               <Stack gap={4}>
@@ -220,7 +222,7 @@ export default function SettingsPage() {
               </Button>
             </Group>
 
-            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: isDark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.03)", border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}>
               <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed" mb="xs">Policy Enforcement</Text>
               <Text size="xs" c="dimmed" lh={1.6}>
                 AI agents will strictly use only these permitted languages for flashcards and taskcards. 
@@ -232,7 +234,7 @@ export default function SettingsPage() {
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           {/* Channel Configuration */}
-          <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
+          <Card p="xl" radius="md" withBorder style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)' }}>
             <Stack gap="md">
               <Group gap="sm">
                 <ThemeIcon variant="light" color="gray" size="md">
@@ -266,7 +268,7 @@ export default function SettingsPage() {
           </Card>
 
           {/* Threshold Configuration */}
-          <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
+          <Card p="xl" radius="md" withBorder style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)' }}>
             <Stack gap="md">
               <Group gap="sm">
                 <ThemeIcon variant="light" color="gray" size="md">
@@ -298,7 +300,7 @@ export default function SettingsPage() {
         </SimpleGrid>
 
         {/* Two-Way Bridge Security */}
-        <Card p="xl" radius="md" withBorder bg="var(--mantine-color-dark-8)">
+        <Card p="xl" radius="md" withBorder style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)' }}>
           <Stack gap="md">
             <Group gap="sm">
               <ThemeIcon variant="light" color="gray" size="md">
@@ -308,7 +310,7 @@ export default function SettingsPage() {
             </Group>
             <Text size="sm" c="dimmed">Use this key to send data into checklist memory from external scripts.</Text>
             
-            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: isDark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.03)", border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}>
               <Group justify="space-between">
                 <Text ff="monospace" size="sm" style={{ wordBreak: "break-all" }}>
                   {showSecret ? settings.bridgeSecret : "•".repeat(36)}

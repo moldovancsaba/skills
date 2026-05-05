@@ -19,7 +19,8 @@ import {
   Anchor,
   Box,
   Alert,
-  SimpleGridProps
+  SimpleGridProps,
+  rem
 } from "@mantine/core";
 
 import { DashboardChart } from "@/components/dashboard-chart";
@@ -121,8 +122,16 @@ export function Notice({
       title={title} 
       icon={Icon && <Icon size={16} />}
       radius="md"
+      styles={{
+        title: { 
+          fontWeight: 900, 
+          textTransform: 'uppercase', 
+          letterSpacing: rem(1), 
+          fontSize: rem(10) 
+        }
+      }}
     >
-      {children}
+      <Text size="sm" fw={500}>{children}</Text>
     </Alert>
   );
 }
@@ -181,7 +190,7 @@ export function MetricCard({
       p="xl" 
       withBorder 
       style={{ 
-        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.03)',
+        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
         backdropFilter: 'blur(10px)',
         border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
         position: 'relative',
@@ -215,7 +224,7 @@ export function MetricCard({
             <Icon size={20} />
           </ThemeIcon>
           
-          <Text size="xs" c="dimmed" fw={800} tt="uppercase" lts={1.5} opacity={0.6}>
+          <Text size="xs" c="dimmed" fw={900} tt="uppercase" lts={1.5} opacity={0.6}>
             {label}
           </Text>
         </Group>
@@ -225,7 +234,7 @@ export function MetricCard({
             {value}
           </Text>
           {detail && (
-            <Text size="xs" c={color} fw={700} mt={4} opacity={0.8} tt="uppercase" lts={1}>
+            <Text size="xs" c={color} fw={800} mt={4} opacity={0.8} tt="uppercase" lts={1}>
               {detail}
             </Text>
           )}
@@ -251,14 +260,14 @@ export function EmptyState({
   secondaryAction,
 }: EmptyStateProps) {
   return (
-    <Card p="xl" radius="lg" withBorder style={{ borderStyle: "dashed" }} ta="center">
+    <Card p="xl" radius="lg" withBorder style={{ borderStyle: "dashed", backgroundColor: 'transparent' }} ta="center">
       <Stack align="center" gap="md">
         <ThemeIcon variant="light" color="gray" size={64} radius="xl">
           <Icon size={32} />
         </ThemeIcon>
         <Stack gap={4}>
-          <Title order={3}>{title}</Title>
-          <Text size="sm" c="dimmed" maw={400} mx="auto">
+          <Title order={3} fw={900}>{title}</Title>
+          <Text size="sm" c="dimmed" maw={400} mx="auto" fw={500}>
             {description}
           </Text>
         </Stack>
@@ -307,7 +316,7 @@ export function LinkCard({
         className="link-card-hardened"
         style={{ 
           height: '100%',
-          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.03)',
+          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
           backdropFilter: 'blur(10px)',
           border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -340,17 +349,21 @@ export function LinkCard({
               size="xl"
               style={{ boxShadow: `0 4px 20px var(--mantine-color-${variant}-9)` }}
             >
-              <Icon size={20} />
+              {typeof Icon === 'string' ? (
+                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>{Icon}</span>
+              ) : (
+                <Icon size={20} />
+              )}
             </ThemeIcon>
             {metric !== undefined && (
-              <Text fw={900} size="24px" lts={-1} c={variant} opacity={0.8}>
+              <Text fw={900} size="24px" lts={-1} color={variant} opacity={0.8}>
                 {metric}
               </Text>
             )}
           </Group>
 
           <Stack gap={6}>
-            <Text fw={900} size="xl" lh={1.1} lts={-0.5} c="white">
+            <Text fw={900} size="xl" lh={1.1} lts={-0.5}>
               {title}
             </Text>
             <Text size="xs" c="dimmed" lineClamp={2} fw={600} opacity={0.7}>
@@ -359,7 +372,7 @@ export function LinkCard({
           </Stack>
 
           {chartData && chartData.length > 0 && (
-            <Box mt="auto" pt="lg" style={{ filter: 'grayscale(0.5) contrast(1.2)' }}>
+            <Box mt="auto" pt="lg" style={{ filter: isDark ? 'grayscale(0.5) contrast(1.2)' : 'grayscale(0.2) contrast(1.1)' }}>
               <DashboardChart 
                 data={chartData} 
                 color={`var(--mantine-color-${variant}-6)`} 
@@ -368,7 +381,7 @@ export function LinkCard({
           )}
 
           <Group justify="flex-end" mt="auto" pt="md">
-            <Text size="10px" fw={900} tt="uppercase" lts={2} c={variant} opacity={0.5}>
+            <Text size="10px" fw={900} tt="uppercase" lts={2} color={variant} opacity={0.7}>
               Access Layer →
             </Text>
           </Group>
@@ -376,10 +389,10 @@ export function LinkCard({
       </Card>
       <style jsx global>{`
         .link-card-hardened:hover {
-          background-color: ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'} !important;
+          background-color: ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'} !important;
           transform: translateY(-6px);
           border-color: ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'} !important;
-          box-shadow: 0 20px 40px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.1)'};
+          box-shadow: 0 20px 40px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.08)'};
         }
       `}</style>
     </UnstyledButton>
@@ -395,6 +408,7 @@ export function PipelineAccentHeader({
   title: string;
   icon: string;
 }) {
+  const { isDark } = useTheme();
   const segments = [
     { key: "data", color: "blue" },
     { key: "topics", color: "indigo" },
@@ -402,21 +416,23 @@ export function PipelineAccentHeader({
     { key: "goals", color: "violet" },
     { key: "nba", color: "blue" },
     { key: "tactical", color: "cyan" },
+    { key: "review", color: "orange" },
   ];
 
   const activeColor = segments.find(s => s.key === activeKey)?.color || "brand";
 
   return (
     <Stack gap="md" mb="xl">
-      <SimpleGrid cols={{ base: 4, md: 5 }} spacing="xs">
+      <SimpleGrid cols={{ base: 7 }} spacing="xs">
         {segments.map((segment) => (
           <Box 
             key={segment.key}
             h={6} 
             style={{ 
               borderRadius: 3,
-              backgroundColor: segment.key === activeKey ? `var(--mantine-color-${activeColor}-6)` : "var(--mantine-color-dark-4)",
-              boxShadow: segment.key === activeKey ? `0 0 10px var(--mantine-color-${activeColor}-9)` : "none"
+              backgroundColor: segment.key === activeKey ? `var(--mantine-color-${activeColor}-6)` : (isDark ? "var(--mantine-color-dark-4)" : "var(--mantine-color-gray-2)"),
+              boxShadow: segment.key === activeKey ? `0 0 10px var(--mantine-color-${activeColor}-9)` : "none",
+              transition: 'all 0.3s ease'
             }}
           />
         ))}

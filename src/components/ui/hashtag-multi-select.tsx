@@ -1,11 +1,23 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, useRef } from "react";
-import { X, Plus, Search, Check } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { useState, useRef } from "react";
+import { X, Plus, Search, Check, Hash } from "lucide-react";
+import { 
+  Stack, 
+  Text, 
+  Box, 
+  Badge, 
+  Group, 
+  ActionIcon, 
+  ScrollArea, 
+  UnstyledButton,
+  Transition,
+  rem,
+  TextInput,
+  ThemeIcon
+} from "@mantine/core";
+import { useClickOutside } from "@mantine/hooks";
 import { normalizeHashtag } from "@/lib/hashtags";
 
 interface HashtagMultiSelectProps {
@@ -19,7 +31,7 @@ interface HashtagMultiSelectProps {
 
 export function HashtagMultiSelect({
   label,
-  placeholder = "Search or add tags...",
+  placeholder = "Search or establish focus...",
   selected,
   onChange,
   suggestions = [],
@@ -27,10 +39,9 @@ export function HashtagMultiSelect({
 }: HashtagMultiSelectProps) {
   const [inputValue, setInputValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useClickOutside(() => setIsOpen(false));
 
-  // Filter suggestions based on input
   const filteredSuggestions = suggestions.filter(
     (s) => 
       s.toLowerCase().includes(inputValue.toLowerCase()) && 
@@ -41,16 +52,6 @@ export function HashtagMultiSelect({
     inputValue.trim() !== "" && 
     !suggestions.some(s => s.toLowerCase() === normalizeHashtag(inputValue)) && 
     !selected.includes(normalizeHashtag(inputValue) || "");
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleAddTag = (tag: string) => {
     const normalized = normalizeHashtag(tag);
@@ -76,58 +77,73 @@ export function HashtagMultiSelect({
   };
 
   return (
-    <div className="space-y-2" ref={containerRef}>
+    <Stack gap={4} ref={containerRef}>
       {label && (
-        <label className="text-sm font-medium text-foreground">
+        <Text size="sm" fw={700} c="dimmed" tt="uppercase" lts={1}>
           {label}
-        </label>
+        </Text>
       )}
       
-      <div 
-        className={cn(
-          "relative min-h-[42px] w-full rounded-lg border border-input bg-background/50 backdrop-blur-sm px-3 py-1.5 transition-all focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary",
-          error && "border-destructive focus-within:ring-destructive/20",
-          isOpen && "border-primary"
-        )}
+      <Box 
+        pos="relative"
         onClick={() => {
           setIsOpen(true);
           inputRef.current?.focus();
         }}
+        style={{
+          minHeight: rem(42),
+          borderRadius: 'var(--mantine-radius-md)',
+          border: `1px solid ${error ? 'var(--mantine-color-red-filled)' : isOpen ? 'var(--mantine-color-brand-filled)' : 'var(--mantine-color-dark-4)'}`,
+          backgroundColor: 'rgba(0,0,0,0.2)',
+          padding: '4px 12px',
+          transition: 'all 0.2s ease',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: rem(6),
+          alignItems: 'center'
+        }}
       >
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <AnimatePresence>
-            {selected.map((tag) => (
-              <motion.div
-                key={tag}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.15 }}
-              >
-                <Badge 
-                  variant="secondary" 
-                  className="pl-2.5 pr-1.5 py-1 flex items-center gap-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors"
+        <Group gap={6}>
+          {selected.map((tag) => (
+            <Badge 
+              key={tag}
+              variant="light" 
+              color="brand"
+              size="md"
+              radius="sm"
+              fw={900}
+              tt="none"
+              rightSection={
+                <ActionIcon 
+                  size="xs" 
+                  color="brand" 
+                  variant="transparent"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveTag(tag);
+                  }}
                 >
-                  <span className="text-xs font-semibold">{tag}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveTag(tag);
-                    }}
-                    className="rounded-full hover:bg-primary/20 p-0.5 transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                  <X size={10} />
+                </ActionIcon>
+              }
+            >
+              {tag}
+            </Badge>
+          ))}
 
           <input
             ref={inputRef}
             type="text"
-            className="flex-1 min-w-[120px] bg-transparent border-none outline-none text-sm p-0 placeholder:text-muted-foreground"
+            style={{
+              flex: 1,
+              minWidth: rem(120),
+              backgroundColor: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: 'white',
+              fontSize: 'var(--mantine-font-size-sm)',
+              padding: '4px 0'
+            }}
             placeholder={selected.length === 0 ? placeholder : ""}
             value={inputValue}
             onChange={(e) => {
@@ -137,54 +153,88 @@ export function HashtagMultiSelect({
             onFocus={() => setIsOpen(true)}
             onKeyDown={handleKeyDown}
           />
-        </div>
+        </Group>
 
-        {/* Predictive Suggestions Dropdown */}
-        <AnimatePresence>
-          {isOpen && (filteredSuggestions.length > 0 || showAddNew) && (
-            <motion.div
-              initial={{ opacity: 0, y: 4, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.95 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-border/50 bg-background/95 backdrop-blur-xl p-1 shadow-2xl"
+        <Transition mounted={isOpen && (filteredSuggestions.length > 0 || showAddNew)} transition="pop-top-left" duration={200} timingFunction="ease">
+          {(styles) => (
+            <Box 
+              style={{
+                ...styles,
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                zIndex: 1000,
+                marginTop: rem(8),
+                borderRadius: 'var(--mantine-radius-lg)',
+                border: '1px solid var(--mantine-color-dark-4)',
+                backgroundColor: 'rgba(20, 20, 20, 0.95)',
+                backdropFilter: 'blur(16px)',
+                padding: rem(4),
+                boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+              }}
             >
-              <div className="max-h-[240px] overflow-y-auto scrollbar-hide">
-                {filteredSuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddTag(suggestion);
-                    }}
-                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-primary/10 transition-colors group"
-                  >
-                    <span className="font-medium text-foreground group-hover:text-primary">{suggestion}</span>
-                    <Check className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))}
-                
-                {showAddNew && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddTag(inputValue);
-                    }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-primary/10 text-primary transition-colors border-t border-border/50 mt-1 pt-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Add new industry: <span className="font-bold underline">{normalizeHashtag(inputValue)}</span></span>
-                  </button>
-                )}
-              </div>
-            </motion.div>
+              <ScrollArea.Autosize mah={240}>
+                <Stack gap={2}>
+                  {filteredSuggestions.map((suggestion) => (
+                    <UnstyledButton
+                      key={suggestion}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddTag(suggestion);
+                      }}
+                      p="xs"
+                      style={{
+                        borderRadius: 'var(--mantine-radius-md)',
+                        transition: 'background 0.2s ease',
+                      }}
+                      className="hover:bg-brand-light/10"
+                    >
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <ThemeIcon variant="transparent" color="brand" size="xs">
+                            <Hash size={14} />
+                          </ThemeIcon>
+                          <Text size="sm" fw={600}>{suggestion}</Text>
+                        </Group>
+                        <Check size={14} color="var(--mantine-color-brand-filled)" style={{ opacity: 0.6 }} />
+                      </Group>
+                    </UnstyledButton>
+                  ))}
+                  
+                  {showAddNew && (
+                    <UnstyledButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddTag(inputValue);
+                      }}
+                      p="xs"
+                      style={{
+                        borderRadius: 'var(--mantine-radius-md)',
+                        borderTop: '1px solid var(--mantine-color-dark-4)',
+                        marginTop: rem(2),
+                        paddingTop: rem(8)
+                      }}
+                      className="hover:bg-brand-light/10"
+                    >
+                      <Group gap="xs">
+                        <ThemeIcon variant="light" color="brand" size="sm" radius="xl">
+                          <Plus size={14} />
+                        </ThemeIcon>
+                        <Text size="sm" fw={800} c="brand">
+                          Add Focus: <Text span fw={900} td="underline">{normalizeHashtag(inputValue)}</Text>
+                        </Text>
+                      </Group>
+                    </UnstyledButton>
+                  )}
+                </Stack>
+              </ScrollArea.Autosize>
+            </Box>
           )}
-        </AnimatePresence>
-      </div>
+        </Transition>
+      </Box>
       
-      {error && <p className="text-xs text-destructive mt-1 font-medium">{error}</p>}
-    </div>
+      {error && <Text size="xs" c="red" fw={700} mt={2}>{error}</Text>}
+    </Stack>
   );
 }

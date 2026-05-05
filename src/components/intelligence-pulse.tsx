@@ -2,15 +2,34 @@
 
 import { useEffect, useState } from "react";
 import { Activity, AlertTriangle, CheckCircle2, Cpu, History, Zap } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { 
+  Card, 
+  Stack, 
+  Group, 
+  Text, 
+  Badge, 
+  Box, 
+  SimpleGrid, 
+  ThemeIcon,
+  rem,
+  Progress,
+  Tooltip,
+  Center,
+  Loader
+} from "@mantine/core";
 import { formatDistanceToNow } from 'date-fns';
 
 type HealthData = {
   status: string;
   uptime: string;
   timestamp: string;
+  stage?: string;
+  currentCompany?: string;
+  activeTask?: string;
+  activeModel?: string;
+  settings?: {
+    failsafeModel?: string;
+  };
   metrics: {
     total_cycles: number;
     avg_cycle_duration: string;
@@ -60,151 +79,178 @@ export function IntelligencePulse() {
   }, []);
 
   if (loading) return null;
+
   if (!data || data.status === "OFFLINE") {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-red-200">
-        <AlertTriangle className="h-5 w-5 text-red-400" />
-        <div className="text-sm">
-          <p className="font-bold">Intelligence Engine Offline</p>
-          <p className="opacity-70">The background worker is not responding. Knowledge synthesis is paused.</p>
-        </div>
-      </div>
+      <Card radius="lg" withBorder style={{ backgroundColor: 'rgba(250, 82, 82, 0.05)', borderColor: 'rgba(250, 82, 82, 0.2)' }}>
+        <Group gap="md" wrap="nowrap">
+          <ThemeIcon color="red" variant="light" size="xl" radius="md">
+            <AlertTriangle size={24} />
+          </ThemeIcon>
+          <Stack gap={2}>
+            <Text fw={900} size="sm" c="red" tt="uppercase" lts={1}>Intelligence Engine Offline</Text>
+            <Text size="xs" c="dimmed" fw={500}>The background worker is not responding. Strategic synthesis is currently paused.</Text>
+          </Stack>
+        </Group>
+      </Card>
     );
   }
 
   const failRate = parseFloat(data.metrics.failure_rate);
   const isHealthy = failRate < 10;
   const isWarning = failRate >= 10 && failRate < 20;
-  const isCritical = failRate >= 20;
+  const statusColor = isHealthy ? "green" : isWarning ? "orange" : "red";
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
       {/* Real-time Status */}
-      <Card className="border-border/40 bg-zinc-950/50 backdrop-blur-md relative overflow-hidden group">
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-        <CardHeader className="p-4 pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
-              <Zap className="h-3 w-3 text-amber-400" />
-              Engine Pulse
-            </CardTitle>
-            <Badge variant="outline" className={cn(
-              "font-mono text-[10px]",
-              isHealthy ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" :
-              isWarning ? "border-amber-500/30 bg-amber-500/10 text-amber-400" :
-              "border-red-500/30 bg-red-500/10 text-red-400"
-            )}>
-              {data.status === "ONLINE" ? "LIVE" : "OFFLINE"}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 pt-2 relative">
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Active Context</span>
-                <span className="text-[10px] font-mono text-zinc-400 truncate max-w-[120px]">{(data as any).activeModel || (data as any).settings?.failsafeModel?.split('|')[0]?.split(':')[1]?.trim() || "N/A"}</span>
-              </div>
-              <p className="text-sm font-bold text-white truncate">{(data as any).currentCompany || "Idle Rotation"}</p>
-              <p className="text-[10px] text-zinc-500 italic truncate mt-0.5">
-                {(data as any).activeTask || "Waiting for signal..."}
-              </p>
-            </div>
+      <Card radius="lg" withBorder p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
+        <Stack gap="md">
+          <Group justify="space-between">
+            <Group gap="xs">
+              <ThemeIcon variant="transparent" color="orange" size="sm">
+                <Zap size={14} />
+              </ThemeIcon>
+              <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed">Engine Pulse</Text>
+            </Group>
+            <Badge variant="dot" color={statusColor} size="xs" fw={900}>LIVE</Badge>
+          </Group>
+
+          <Stack gap="sm">
+            <Box>
+              <Group justify="space-between" mb={2}>
+                <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Active Context</Text>
+                <Text size="xs" ff="monospace" c="dimmed" truncate maw={120}>
+                  {data.activeModel || data.settings?.failsafeModel?.split('|')[0]?.split(':')[1]?.trim() || "TRINITY-V1"}
+                </Text>
+              </Group>
+              <Text size="sm" fw={800} c="white" truncate>{data.currentCompany || "Idle Rotation"}</Text>
+              <Text size="xs" c="dimmed" fs="italic" truncate mt={2}>
+                {data.activeTask || "Scanning for signal..."}
+              </Text>
+            </Box>
             
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Workflow Stage</span>
-                <span className="text-[10px] font-mono text-emerald-500 font-bold">{(data as any).stage}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                {['RESEARCH', 'SCRUB', 'WRITE', 'JUDGE'].map((s) => (
-                  <div key={s} className={cn(
-                    "h-1 flex-1 rounded-full",
-                    (data as any).stage?.includes(s) || (s === 'SCRUB' && (data as any).stage === 'SCRUBBING')
-                      ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]" 
-                      : "bg-zinc-800"
-                  )} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </CardContent>
+            <Box>
+              <Group justify="space-between" mb={4}>
+                <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Workflow Stage</Text>
+                <Text size="xs" fw={900} c="green" tt="uppercase">{data.stage || "IDLE"}</Text>
+              </Group>
+              <Group gap={4} grow>
+                {['RESEARCH', 'SCRUB', 'WRITE', 'JUDGE'].map((s) => {
+                  const isActive = data.stage?.includes(s) || (s === 'SCRUB' && data.stage === 'SCRUBBING');
+                  return (
+                    <Box 
+                      key={s} 
+                      h={rem(4)} 
+                      style={{ 
+                        borderRadius: rem(2),
+                        backgroundColor: isActive ? 'var(--mantine-color-orange-filled)' : 'var(--mantine-color-dark-4)',
+                        boxShadow: isActive ? '0 0 8px rgba(245,158,11,0.4)' : 'none',
+                        transition: 'all 0.3s ease'
+                      }} 
+                    />
+                  );
+                })}
+              </Group>
+            </Box>
+          </Stack>
+        </Stack>
       </Card>
 
-      {/* Throughput Intensity */}
-      <Card className="border-border/40 bg-zinc-950/50 backdrop-blur-md">
-        <CardHeader className="p-4 pb-2">
-          <CardTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
-            <Cpu className="h-3 w-3 text-blue-400" />
-            Throughput Yield
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-2">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Cycle Operations</span>
-              <span className="font-mono text-sm font-bold text-white">{data.metrics.total_operations}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Backlog Volume</span>
-              <div className="flex items-center gap-2">
-                <div className="h-1.5 w-16 rounded-full bg-zinc-800">
-                  <div 
-                    className="h-full rounded-full bg-blue-500 transition-all duration-500" 
-                    style={{ width: `${Math.min(100, (data.metrics.backlog.draft_cards / 50) * 100)}%` }} 
-                  />
-                </div>
-                <span className="font-mono text-xs font-bold text-white">{data.metrics.backlog.draft_cards + data.metrics.backlog.checked_cards}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[10px] uppercase font-bold text-zinc-600">Last Sync</span>
-              <span className="text-[10px] font-mono text-zinc-500">{data.timestamp ? formatDistanceToNow(new Date(data.timestamp), { addSuffix: true }) : 'N/A'}</span>
-            </div>
-          </div>
-        </CardContent>
+      {/* Throughput Yield */}
+      <Card radius="lg" withBorder p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
+        <Stack gap="md">
+          <Group gap="xs">
+            <ThemeIcon variant="transparent" color="blue" size="sm">
+              <Cpu size={14} />
+            </ThemeIcon>
+            <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed">Throughput Yield</Text>
+          </Group>
+
+          <Stack gap="sm">
+            <Group justify="space-between">
+              <Text size="xs" fw={700} c="dimmed">Cycle Operations</Text>
+              <Text size="sm" ff="monospace" fw={900}>{data.metrics.total_operations}</Text>
+            </Group>
+            
+            <Box>
+              <Group justify="space-between" mb={4}>
+                <Text size="xs" fw={700} c="dimmed">Backlog Volume</Text>
+                <Text size="xs" ff="monospace" fw={900}>{data.metrics.backlog.draft_cards + data.metrics.backlog.checked_cards}</Text>
+              </Group>
+              <Progress 
+                value={Math.min(100, ((data.metrics.backlog.draft_cards + data.metrics.backlog.checked_cards) / 50) * 100)} 
+                size="xs" 
+                color="blue" 
+                radius="xl"
+              />
+            </Box>
+
+            <Group justify="space-between" mt="auto">
+              <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Last Sync</Text>
+              <Text size="xs" ff="monospace" c="dimmed">
+                {data.timestamp ? formatDistanceToNow(new Date(data.timestamp), { addSuffix: true }) : 'N/A'}
+              </Text>
+            </Group>
+          </Stack>
+        </Stack>
       </Card>
 
-      {/* Cycle History */}
-      <Card className="border-border/40 bg-zinc-950/50 backdrop-blur-md">
-        <CardHeader className="p-4 pb-2">
-          <CardTitle className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500">
-            <History className="h-3 w-3 text-violet-400" />
-            Recent Performance
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-2">
+      {/* Recent Performance */}
+      <Card radius="lg" withBorder p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
+        <Stack gap="md" h="100%">
+          <Group gap="xs">
+            <ThemeIcon variant="transparent" color="violet" size="sm">
+              <History size={14} />
+            </ThemeIcon>
+            <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed">Performance History</Text>
+          </Group>
+
           {data.metrics.cycleHistory && data.metrics.cycleHistory.length > 0 ? (
-            <div className="flex h-16 items-end gap-1.5 pt-2">
+            <Group align="flex-end" gap={4} wrap="nowrap" style={{ flex: 1, minHeight: rem(60) }}>
               {data.metrics.cycleHistory.slice(-10).map((cycle, i) => {
                 const height = Math.max(10, Math.min(100, (cycle.ops / 10) * 100));
                 const fail = parseFloat(cycle.failRate);
+                const barColor = fail < 10 ? "var(--mantine-color-green-filled)" : fail < 20 ? "var(--mantine-color-orange-filled)" : "var(--mantine-color-red-filled)";
                 return (
-                  <div 
+                  <Tooltip 
                     key={i} 
-                    className={cn(
-                      "flex-1 rounded-t-sm transition-all hover:opacity-80",
-                      fail < 10 ? "bg-emerald-500/40" : fail < 20 ? "bg-amber-500/40" : "bg-red-500/40"
-                    )}
-                    style={{ height: `${height}%` }}
-                    title={`Cycle: ${cycle.ops} ops, ${cycle.failRate}% fail`}
-                  />
+                    label={`Cycle: ${cycle.ops} ops, ${cycle.failRate}% fail`}
+                    position="top"
+                    withArrow
+                  >
+                    <Box 
+                      style={{ 
+                        flex: 1, 
+                        height: `${height}%`,
+                        backgroundColor: barColor,
+                        opacity: 0.4,
+                        borderRadius: '2px 2px 0 0',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                      onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
+                    />
+                  </Tooltip>
                 );
               })}
-            </div>
+            </Group>
           ) : (
-            <div className="flex h-16 items-center justify-center text-[10px] text-zinc-600 italic">
-              Initializing history...
-            </div>
+            <Center h={rem(60)}>
+              <Text size="xs" c="dimmed" fs="italic">Initializing history stream...</Text>
+            </Center>
           )}
-          <div className="mt-2 flex items-center justify-between text-[9px] font-bold uppercase tracking-tight text-zinc-500">
-            <span>Last 10 Cycles</span>
-            <span className="flex items-center gap-1">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Success
-            </span>
-          </div>
-        </CardContent>
+
+          <Group justify="space-between" mt="auto">
+            <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Last 10 Cycles</Text>
+            <Group gap={6}>
+              <Box h={6} w={6} style={{ borderRadius: '50%', backgroundColor: 'var(--mantine-color-green-filled)' }} />
+              <Text size="xs" fw={800} c="dimmed" tt="uppercase" lts={0.5}>Success</Text>
+            </Group>
+          </Group>
+        </Stack>
       </Card>
-    </div>
+    </SimpleGrid>
   );
 }

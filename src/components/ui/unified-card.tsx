@@ -1,5 +1,8 @@
+'use client';
+
 import type { ReactNode, CSSProperties } from "react";
-import { Card, Stack, Group, Title, Text, Box } from "@mantine/core";
+import { Card, Stack, Group, Title, Text, Box, rem } from "@mantine/core";
+import { useTheme } from "@/lib/theme-provider";
 
 type UnifiedCardProps = {
   children: ReactNode;
@@ -9,6 +12,7 @@ type UnifiedCardProps = {
 };
 
 export function UnifiedCard({ children, className, style, mt }: UnifiedCardProps) {
+  const { isDark } = useTheme();
   return (
     <Card 
       shadow="sm" 
@@ -18,7 +22,7 @@ export function UnifiedCard({ children, className, style, mt }: UnifiedCardProps
       className={className}
       mt={mt}
       style={{
-        backgroundColor: "var(--mantine-color-dark-8)",
+        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.01)',
         transition: "transform 0.2s ease, box-shadow 0.2s ease",
         ...style
       }}
@@ -51,7 +55,7 @@ export function UnifiedCardHeader({
               {title}
             </Title>
             {description && (
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+              <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }} fw={500}>
                 {description}
               </Text>
             )}
@@ -69,20 +73,21 @@ export function UnifiedCardBody({ children, className, style, mt }: UnifiedCardP
 
 export function UnifiedCardText({ children, className, style, mt }: UnifiedCardProps) {
   return (
-    <Text size="sm" style={{ lineHeight: 1.6, opacity: 0.9, ...style }} className={className} mt={mt}>
+    <Text size="sm" style={{ lineHeight: 1.6, ...style }} className={className} mt={mt} fw={500}>
       {children}
     </Text>
   );
 }
 
 export function UnifiedCardSection({ children, className, style, mt }: UnifiedCardProps) {
+  const { isDark } = useTheme();
   return (
     <Box 
       p="md" 
       style={{ 
-        backgroundColor: "rgba(255,255,255,0.03)", 
+        backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", 
         borderRadius: "var(--mantine-radius-md)",
-        border: "1px solid rgba(255,255,255,0.05)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
         ...style 
       }} 
       className={className}
@@ -98,13 +103,17 @@ export function UnifiedCardActions({ children, className, style, mt }: UnifiedCa
 }
 
 export function UnifiedCardFooter({ children, className, style, mt }: UnifiedCardProps) {
+  const { isDark } = useTheme();
   return (
     <Card.Section 
       withBorder 
       inheritPadding 
       py="md" 
       mt={mt || "xl"} 
-      style={{ backgroundColor: "rgba(0,0,0,0.15)", ...style }}
+      style={{ 
+        backgroundColor: isDark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.03)", 
+        ...style 
+      }}
       className={className}
     >
       {children}

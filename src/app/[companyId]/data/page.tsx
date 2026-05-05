@@ -24,8 +24,9 @@ import {
   ActionIcon,
   Transition
 } from "@mantine/core";
+import { useTheme } from "@/lib/theme-provider";
 import { FileUp, Plus, CheckCircle, ScrollText, ListFilter, SortAsc, Users, Edit2, Info } from "lucide-react";
-import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
+import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { SourceDataCard } from "@/components/source-data-card";
@@ -91,6 +92,7 @@ export default function CompanyDataPage() {
   const companyId = params.companyId as string;
   
   const { company, setCompany, sources, setSources } = useStore();
+  const { isDark } = useTheme();
   const [input, setInput] = useState("");
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -345,12 +347,12 @@ export default function CompanyDataPage() {
 
   return (
     <PageShell width="full">
-      <PageHeader 
-        title={editingId ? "Edit Evidence" : "Data Harvesting"}
-        description={`Centralized intelligence unit for ${company?.name}.`}
-      />
-
       <Stack gap="xl">
+        <PipelineAccentHeader 
+          activeKey="data" 
+          title="Data Ingress" 
+          icon="database" 
+        />
         <Card radius="lg" withBorder p="xl">
           <form onSubmit={handleSubmit}>
             <Stack gap="lg">
@@ -473,7 +475,10 @@ export default function CompanyDataPage() {
             </Group>
 
             <Group gap="sm">
-              <Group gap={4} p={4} style={{ backgroundColor: 'var(--mantine-color-dark-8)', borderRadius: 8 }}>
+              <Group gap={4} p={4} style={{ 
+                backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-1)', 
+                borderRadius: 8 
+              }}>
                 {(["ALL", "INTERNAL", "COMPETITOR"] as const).map((type) => (
                   <Button
                     key={type}
@@ -491,7 +496,10 @@ export default function CompanyDataPage() {
                 ))}
               </Group>
 
-              <Group gap={4} p={4} style={{ backgroundColor: 'var(--mantine-color-dark-8)', borderRadius: 8 }}>
+              <Group gap={4} p={4} style={{ 
+                backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-1)', 
+                borderRadius: 8 
+              }}>
                 {(["CREATED", "UPDATED", "ICE"] as const).map((sort) => (
                   <Button
                     key={sort}

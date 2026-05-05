@@ -1,5 +1,5 @@
 import { Check, Loader2, MessageSquare, PencilLine, X, Pin, RefreshCw, AlertCircle, Archive } from "lucide-react";
-import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip } from "@mantine/core";
+import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import {
   UnifiedCard,
@@ -173,7 +173,7 @@ export function KnowledgeReviewCard({
             </Badge>
 
             <Group gap={4} ml="auto">
-              <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ letterSpacing: 1 }}>ICE Score</Text>
+              <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ letterSpacing: 1 }}>ICE</Text>
               <Badge size="lg" radius="sm" color={getICEColor(flashcard.iceScore)} variant="filled">
                 {Math.round(flashcard.iceScore)}
               </Badge>
@@ -208,13 +208,16 @@ export function KnowledgeReviewCard({
             p="md" 
             style={{ 
               borderRadius: "var(--mantine-radius-md)",
-              backgroundColor: "rgba(0,0,0,0.2)",
-              borderLeft: "4px solid var(--mantine-color-brand-6)"
+              backgroundColor: 'light-dark(rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.2))',
+              borderLeft: `4px solid var(--mantine-color-brand-6)`,
+              borderTop: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`,
+              borderRight: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`,
+              borderBottom: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`
             }}
           >
             <Group gap="xs" align="flex-start" wrap="nowrap">
               <MessageSquare size={16} style={{ marginTop: 4, opacity: 0.6 }} />
-              <Text size="sm" style={{ fontStyle: "italic", lineHeight: 1.5 }}>
+              <Text size="sm" style={{ fontStyle: "italic", lineHeight: 1.5 }} fw={500}>
                 {flashcard.userAnnotation}
               </Text>
             </Group>
@@ -254,25 +257,26 @@ export function KnowledgeReviewCard({
         {isActionOpen && actionMode && (
           <UnifiedCardSection>
             <Stack gap="md">
-              <Text fw={700} size="sm">{actionLabel(actionMode)}</Text>
+              <Text fw={900} size="xs" tt="uppercase" lts={1} c="dimmed">{actionLabel(actionMode)}</Text>
               
               {actionMode === "MODIFY_ACCEPT" && (
                 <Stack gap="sm">
-                  <TextInput label="Title" value={editedTitle} onChange={(e) => onEditedTitleChange(e.target.value)} />
-                  <Textarea label="Body" value={editedBody} onChange={(e) => onEditedBodyChange(e.target.value)} minRows={3} />
+                  <TextInput label="Title" value={editedTitle} onChange={(e) => onEditedTitleChange(e.target.value)} radius="md" />
+                  <Textarea label="Body" value={editedBody} onChange={(e) => onEditedBodyChange(e.target.value)} minRows={3} radius="md" />
                 </Stack>
               )}
               
               <Textarea
-                label="Feedback"
-                placeholder="Why this action? Help the AI learn..."
+                label="Strategic Feedback"
+                placeholder="Why this action? Help the AI calibrate..."
                 value={actionComment}
                 onChange={(e) => onActionCommentChange(e.target.value)}
                 minRows={2}
+                radius="md"
               />
               
               <Group gap="xs">
-                <Button size="sm" onClick={() => onSubmit(flashcard.id)} loading={isBusy}>Confirm</Button>
+                <Button size="sm" onClick={() => onSubmit(flashcard.id)} loading={isBusy}>Confirm Action</Button>
                 <Button size="sm" variant="subtle" color="gray" onClick={onCloseAction} disabled={isBusy}>Cancel</Button>
               </Group>
             </Stack>
@@ -282,8 +286,8 @@ export function KnowledgeReviewCard({
 
       {flashcard.refreshedAt && (
         <UnifiedCardFooter>
-          <Text size="xs" c="dimmed">
-            Last seen {new Date(flashcard.refreshedAt).toLocaleDateString()}
+          <Text size="xs" c="dimmed" fw={700} tt="uppercase" lts={0.5}>
+            Last Synthesis: {new Date(flashcard.refreshedAt).toLocaleDateString()}
           </Text>
         </UnifiedCardFooter>
       )}

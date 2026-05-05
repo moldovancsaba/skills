@@ -16,10 +16,13 @@ Unified component patterns for a premium, production-ready strategic intelligenc
 - **Glassmorphism**: Primary surfaces use `backdropFilter: 'blur(10px)'` with low-opacity backgrounds (`rgba(255, 255, 255, 0.02)`) and `1px` borders for a premium, high-yield aesthetic.
 - **Vibrant Gradients**: Leveraging Mantine's `gradient` variant for `LinkCard`, `MetricCard`, and primary buttons to ensure visual excellence.
 - **Layers**: 
-  - **Knowledge**: `violet`
-  - **Strategy**: `blue` / `indigo`
-  - **Execution**: `green` / `execution`
-  - **Alerts**: `orange` / `red`
+  - **Data Ingress**: `blue`
+  - **Topic Synthesis**: `indigo`
+  - **Knowmore**: `teal`
+  - **Strategic Goals**: `violet`
+  - **Checklist**: `blue`
+  - **Tactical Board**: `cyan`
+  - **Alerts/Review**: `orange`
 
 ## Intelligence Clarity (Metadata Filtering)
 

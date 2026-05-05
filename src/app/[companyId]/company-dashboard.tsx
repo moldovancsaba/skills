@@ -21,7 +21,7 @@ import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
-import { Plus, ListOrdered, Sparkles, Zap, ArrowRight } from "lucide-react";
+import { Plus, ListOrdered, Sparkles, Zap, ArrowRight, Target, LayoutDashboard } from "lucide-react";
 
 type NBAItem = {
   id: string;
@@ -265,8 +265,8 @@ export default function CompanyDashboard() {
           chartData={chartData.map(d => ({ date: d.date, value: d.flashcards }))}
         />
         <LinkCard
-          href={`/${companyId}/nba`}
-          icon={Zap}
+          href={`/${companyId}/goals`}
+          icon={Target}
           variant="strategy"
           metric={pendingTaskCount}
           title="Strategic Goals"
@@ -275,7 +275,7 @@ export default function CompanyDashboard() {
         />
         <LinkCard
           href={`/${companyId}/tactical`}
-          icon={ListOrdered}
+          icon={LayoutDashboard}
           variant="execution"
           metric={tacticalCount}
           title="Tactical Board"

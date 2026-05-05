@@ -32,7 +32,8 @@ import {
   Target,
   Sparkles,
   Zap,
-  ChevronDown
+  ChevronDown,
+  HardHat
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
@@ -47,32 +48,56 @@ const pipelineItems = [
     href: (companyId: string) => `/${companyId}/data`,
     label: "Data Ingress",
     icon: Database,
-    color: "gray",
-    description: "Raw harvesting"
+    color: "blue",
+    description: "Source harvesting & processing"
   },
   {
     key: "topics",
     href: (companyId: string) => `/${companyId}/topics`,
-    label: "Topics",
+    label: "Topic Synthesis",
     icon: ListTodo,
     color: "indigo",
-    description: "Prioritization"
+    description: "Strategic focus prioritization"
   },
   {
     key: "knowmore",
     href: (companyId: string) => `/${companyId}/knowmore`,
-    label: "Knowledge",
+    label: "Knowmore",
     icon: Sparkles,
-    color: "knowledge",
-    description: "AI synthesis"
+    color: "teal",
+    description: "Contextual memory layer"
+  },
+  {
+    key: "goals",
+    href: (companyId: string) => `/${companyId}/goals`,
+    label: "Strategic Goals",
+    icon: Target,
+    color: "violet",
+    description: "High-confidence task generation"
   },
   {
     key: "nba",
     href: (companyId: string) => `/${companyId}/nba`,
     label: "Checklist",
-    icon: Zap,
-    color: "brand",
-    description: "Strategic actions"
+    icon: ListTodo,
+    color: "blue",
+    description: "Active intelligence items"
+  },
+  {
+    key: "tactical",
+    href: (companyId: string) => `/${companyId}/tactical`,
+    label: "Tactical Board",
+    icon: LayoutDashboard,
+    color: "cyan",
+    description: "Operational task orchestration"
+  },
+  {
+    key: "review",
+    href: (companyId: string) => `/${companyId}/review`,
+    label: "Review Gateway",
+    icon: HardHat,
+    color: "orange",
+    description: "Resolve scoring anomalies"
   },
 ];
 
@@ -102,7 +127,10 @@ export function ClientNav() {
             data: (data.sources?.length || 0) + (data.counts?.files || 0),
             topics: data.counts?.topics || 0,
             knowmore: data.counts?.flashcards || 0,
-            nba: data.counts?.pendingTasks || 0
+            goals: data.counts?.goals || 0,
+            nba: data.counts?.checklistCount || 0,
+            tactical: data.counts?.nbaItems || 0,
+            review: data.counts?.reviewCount || 0
           });
         }
       } catch (err) {

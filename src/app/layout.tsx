@@ -10,7 +10,7 @@ import { AppShell, AppShellMain, MantineProvider, createTheme } from "@mantine/c
 
 export const metadata: Metadata = {
   title: "checklist",
-  description: "AI-powered marketing operating system",
+  description: "AI-powered strategic intelligence system",
 };
 
 const fontBody = Inter({

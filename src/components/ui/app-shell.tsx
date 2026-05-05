@@ -376,11 +376,12 @@ export function PipelineAccentHeader({
   icon: string;
 }) {
   const segments = [
-    { key: "data", color: "gray" },
+    { key: "data", color: "blue" },
     { key: "topics", color: "indigo" },
-    { key: "knowmore", color: "knowledge" },
-    { key: "goals", color: "strategy" },
-    { key: "checklist", color: "execution" },
+    { key: "knowmore", color: "teal" },
+    { key: "goals", color: "violet" },
+    { key: "nba", color: "blue" },
+    { key: "tactical", color: "cyan" },
   ];
 
   const activeColor = segments.find(s => s.key === activeKey)?.color || "brand";

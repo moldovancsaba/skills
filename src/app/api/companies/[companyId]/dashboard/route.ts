@@ -21,14 +21,17 @@ export async function GET(
     const now = new Date();
     
     // 1. Parallel Batch Query for Metadata
-    const [company, members, sourcesCount, filesCount, topicsCount, knowmoreCount, nbaItemsCount] = await Promise.all([
+    const [company, members, sourcesCount, filesCount, topicsCount, knowmoreCount, goalsCount, nbaItemsCount, reviewCountFc, reviewCountNba] = await Promise.all([
       prisma.company.findUnique({ where: { id: cid } }),
       prisma.user.findMany({ where: { companyId: cid } }),
       prisma.source.count({ where: { companyId: cid } }),
       prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
       prisma.topic.count({ where: { companyId: cid } }),
       prisma.flashcard.count({ where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE"] } } }),
+      prisma.goalcard.count({ where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE"] } } }),
       prisma.nBAItem.count({ where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE"] } } }),
+      prisma.flashcard.count({ where: { companyId: cid, processingStatus: "REVIEW" } }),
+      prisma.nBAItem.count({ where: { companyId: cid, processingStatus: "REVIEW" } }),
     ]);
 
     // 2. Fetch Top Tasks (Checklist)
@@ -97,8 +100,10 @@ export async function GET(
         files: filesCount,
         topics: topicsCount,
         flashcards: knowmoreCount,
+        goals: goalsCount,
         nbaItems: nbaItemsCount,
-        pendingTasks: topTasks.length
+        checklistCount: topTasks.length,
+        reviewCount: reviewCountFc + reviewCountNba
       },
       topTasks,
       analytics: history,

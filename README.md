@@ -1,5 +1,5 @@
 # 🌌 CHECKLIST
-> **The Autonomous Recurrent Intelligence Layer for Strategic Marketing.**
+> **The Autonomous Recurrent Intelligence Layer for Strategic Intelligence.**
 
 **v0.15.0-HARDENED: Production Architecture**
 
@@ -74,7 +74,7 @@ End-user displays must be purged of technical trace information.
 All interactive surfaces must use the hardened design language:
 - **Glassmorphism**: Use `backdropFilter: 'blur(10px)'` with low-opacity white backgrounds (`rgba(255, 255, 255, 0.02)`) and `1px` borders.
 - **Gradients**: Leverage Mantine's `gradient` variant for `ThemeIcon` and `Button` to ensure a high-yield aesthetic.
-- **Allowed Colors**: `blue`, `brand`, `indigo`, `knowledge`, `strategy`, `execution`, `orange`.
+- **Allowed Colors**: `blue`, `indigo`, `teal`, `violet`, `cyan`, `orange`, `brand`.
 
 ---
 
@@ -109,4 +109,4 @@ npm run guardian
 *   [ ] **v1.2.0**: Recurrent Kanban Intelligence & Strategic Learning.
 *   [ ] **v1.4.0**: Recursive Deliberation (Multi-pass Evaluator) & Autonomous Budget Forecasting.
 
-*Built for the Executive Marketing Operator.*
+*Built for the Strategic Operator.*

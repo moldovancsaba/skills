@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { Container, Title, Text, Stack, Box, Divider } from "@mantine/core";
 
 export const metadata: Metadata = {
   title: "Terms of Service - checklist",
@@ -6,61 +7,75 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <div className="max-w-3xl mx-auto py-12 px-4">
-      <h1 className="text-3xl font-bold mb-6">Terms of Service</h1>
-      <p className="text-sm text-muted-foreground mb-8">Last updated: April 2025</p>
+    <Container size="sm" py="xl">
+      <Stack gap="xl">
+        <Box>
+          <Title order={1} mb="xs">Terms of Service</Title>
+          <Text size="sm" c="dimmed">Last updated: April 2025</Text>
+        </Box>
 
-      <div className="space-y-6 text-sm">
-        <section>
-          <h2 className="font-semibold mb-2">Acceptable Use</h2>
-          <p className="text-muted-foreground">
-            You agree to use checklist only for lawful business purposes. 
-            You are responsible for all activity under your account.
-          </p>
-        </section>
+        <Stack gap="lg">
+          <Box>
+            <Title order={2} size="h4" mb={4}>Acceptable Use</Title>
+            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+              You agree to use checklist only for lawful business purposes. 
+              You are responsible for all activity under your account.
+            </Text>
+          </Box>
 
-        <section>
-          <h2 className="font-semibold mb-2">Data Ownership</h2>
-          <p className="text-muted-foreground">
-            You retain ownership of all data you input. By using our service, 
-            you grant us permission to process your data to provide AI-generated 
-            recommendations.
-          </p>
-        </section>
+          <Divider variant="dotted" />
 
-        <section>
-          <h2 className="font-semibold mb-2">AI Service</h2>
-          <p className="text-muted-foreground">
-            Our AI generates marketing recommendations based on your data. 
-            Recommendations are suggestions only - you are responsible for evaluating 
-            and implementing them.
-          </p>
-        </section>
+          <Box>
+            <Title order={2} size="h4" mb={4}>Data Ownership</Title>
+            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+              You retain ownership of all data you input. By using our service, 
+              you grant us permission to process your data to provide AI-generated 
+              recommendations.
+            </Text>
+          </Box>
 
-        <section>
-          <h2 className="font-semibold mb-2">Service Availability</h2>
-          <p className="text-muted-foreground">
-            We strive to keep the service available 24/7 but do not guarantee 
-            uptime. The local AI sync runs every 5 minutes.
-          </p>
-        </section>
+          <Divider variant="dotted" />
 
-        <section>
-          <h2 className="font-semibold mb-2">Disclaimer</h2>
-          <p className="text-muted-foreground">
-            checklist provides AI-generated suggestions for marketing purposes only. 
-            We do not guarantee the accuracy or effectiveness of any recommendations.
-          </p>
-        </section>
+          <Box>
+            <Title order={2} size="h4" mb={4}>AI Service</Title>
+            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+              Our AI generates marketing recommendations based on your data. 
+              Recommendations are suggestions only - you are responsible for evaluating 
+              and implementing them.
+            </Text>
+          </Box>
 
-        <section>
-          <h2 className="font-semibold mb-2">Changes to Terms</h2>
-          <p className="text-muted-foreground">
-            We may update these terms at any time. Continued use constitutes 
-            acceptance of updated terms.
-          </p>
-        </section>
-      </div>
-    </div>
+          <Divider variant="dotted" />
+
+          <Box>
+            <Title order={2} size="h4" mb={4}>Service Availability</Title>
+            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+              We strive to keep the service available 24/7 but do not guarantee 
+              uptime. The local AI sync runs every 5 minutes.
+            </Text>
+          </Box>
+
+          <Divider variant="dotted" />
+
+          <Box>
+            <Title order={2} size="h4" mb={4}>Disclaimer</Title>
+            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+              checklist provides AI-generated suggestions for marketing purposes only. 
+              We do not guarantee the accuracy or effectiveness of any recommendations.
+            </Text>
+          </Box>
+
+          <Divider variant="dotted" />
+
+          <Box>
+            <Title order={2} size="h4" mb={4}>Changes to Terms</Title>
+            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
+              We may update these terms at any time. Continued use constitutes 
+              acceptance of updated terms.
+            </Text>
+          </Box>
+        </Stack>
+      </Stack>
+    </Container>
   );
 }

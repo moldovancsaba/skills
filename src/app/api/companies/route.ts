@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
             uploadedSourceFiles: true,
             topics: true,
             flashcards: true,
+            goalcards: true,
             nbaItems: true,
           }
         },
@@ -44,8 +45,51 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Post-process to fix the "Pending" count as Prisma _count doesn't support nested filters well in some providers
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
     const enrichedCompanies = await Promise.all(companies.map(async (c) => {
+      const [sources, files, topics, flashcards, goals, nbaItems] = await Promise.all([
+        prisma.source.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
+        prisma.uploadedSourceFile.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
+        prisma.topic.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
+        prisma.flashcard.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
+        prisma.goalcard.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
+        prisma.nBAItem.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
+      ]);
+
+      const [bSources, bFiles, bTopics, bFlashcards, bGoals, bNBA] = await Promise.all([
+        prisma.source.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
+        prisma.uploadedSourceFile.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
+        prisma.topic.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
+        prisma.flashcard.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
+        prisma.goalcard.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
+        prisma.nBAItem.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
+      ]);
+
+      const history = [];
+      let curS = bSources + bFiles;
+      let curT = bTopics;
+      let curK = bFlashcards;
+      let curG = bGoals;
+      let curN = bNBA;
+
+      for (let i = 0; i <= 30; i++) {
+        const d = new Date(thirtyDaysAgo);
+        d.setDate(d.getDate() + i);
+        const dayStr = d.toISOString().split('T')[0];
+
+        curS += sources.filter(s => s.createdAt.toISOString().split('T')[0] === dayStr).length;
+        curS += files.filter(f => f.createdAt.toISOString().split('T')[0] === dayStr).length;
+        curT += topics.filter(t => t.createdAt.toISOString().split('T')[0] === dayStr).length;
+        curK += flashcards.filter(f => f.createdAt.toISOString().split('T')[0] === dayStr).length;
+        curG += goals.filter(g => g.createdAt.toISOString().split('T')[0] === dayStr).length;
+        curN += nbaItems.filter(n => n.createdAt.toISOString().split('T')[0] === dayStr).length;
+
+        history.push({ date: dayStr, sources: curS, topics: curT, flashcards: curK, goals: curG, nba: curN });
+      }
+
       const pendingNbaCount = await prisma.nBAItem.count({
         where: {
           companyId: c.id,
@@ -54,14 +98,18 @@ export async function GET(request: NextRequest) {
           scheduledDate: { lte: new Date() }
         }
       });
+
       return {
         ...c,
         metrics: {
           data: (c._count.sources || 0) + (c._count.uploadedSourceFiles || 0),
           topics: c._count.topics || 0,
           knowmore: c._count.flashcards || 0,
-          checklist: pendingNbaCount
-        }
+          goals: c._count.goalcards || 0,
+          checklist: pendingNbaCount,
+          tactical: c._count.nbaItems || 0
+        },
+        analytics: history
       };
     }));
 

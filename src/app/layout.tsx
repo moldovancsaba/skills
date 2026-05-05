@@ -3,7 +3,6 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "@mantine/core/styles.css";
 import "./globals.css";
 import { ClientNav } from "./client-nav";
-import { Footer } from "./footer";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { CookieBanner } from "@/lib/cookie-consent";
 import { AppShell, AppShellMain, MantineProvider, createTheme, ColorSchemeScript } from "@mantine/core";
@@ -110,10 +109,7 @@ export default function RootLayout({
             >
               <ClientNav />
               <AppShellMain>
-                <div className="h-screen flex flex-col overflow-y-auto">
-                  <main className="flex-1 shrink-0">{children}</main>
-                  <Footer />
-                </div>
+                {children}
               </AppShellMain>
             </AppShell>
             <CookieBanner />

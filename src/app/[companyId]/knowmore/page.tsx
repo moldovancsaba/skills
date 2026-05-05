@@ -529,20 +529,11 @@ export default function CompanyKnowMorePage() {
 
   return (
     <PageShell width="full">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        {errorMessage && (
-          <Notice variant="destructive" className="mb-4">
-            {errorMessage}
-          </Notice>
-        )}
-
-        <PageHeader
-          backHref={`/${companyId}`}
-          backLabel="Back"
-          title="Knowmore"
-          description={`Flashcards and knowledge slices for ${company?.name ?? "this company"}.`}
-        />
-      </motion.div>
+      {errorMessage && (
+        <Notice variant="destructive" className="mb-4">
+          {errorMessage}
+        </Notice>
+      )}
 
       <MetricGrid>
         <MetricCard

@@ -229,13 +229,6 @@ export default function CompanyDashboard() {
 
   return (
     <PageShell width="full">
-      <PageHeader
-        title={company?.name ?? "Organization"}
-        description="Autonomous Intelligence OS: Integrated Data, Strategy, and Execution layers."
-        backHref={companyCount > 1 ? "/" : undefined}
-        backLabel="Switch company"
-      />
-
       <SimpleGrid cols={{ base: 1, sm: 2, md: 5 }} spacing="lg" mb={40}>
         <LinkCard
           href={`/${companyId}/data`}

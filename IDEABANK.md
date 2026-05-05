@@ -1,98 +1,74 @@
-# IDEABANK: Marketing Skills Integration
+# IDEABANK: Strategic Skills Integration
 
-Collecting marketing skills from the ecosystem to power our AI-driven marketing operating system.
+Collecting high-yield strategic skills from the ecosystem to power our AI-driven strategic intelligence operating system.
 
 ## Objective
 
-Build a comprehensive marketing skill library that transforms into NBA (Next Best Action) recommendations for users. Integrate marketingskills from coreyhaines31/marketingskills and other sources into our CHECKLIST.
+Build a comprehensive strategic skill library that transforms into NBA (Next Best Action) recommendations for operators. Integrate proven playbooks from industry leaders into our CHECKLIST.
 
 ## Unified Context
 
-Our Marketing OS currently generates NBA items from user-uploaded data (products, customers, competitors) via Paperclip agents. Adding a skill library will enable:
+Our Strategic Intelligence OS currently generates NBA items from user-provided data (products, customers, competitors) via autonomous agents. Adding a skill library will enable:
 
-1. **Skill-triggered NBAs**: When user uploads data, system matches relevant skills to generate actions
-2. **Guided Workflows**: Users can invoke skills directly to get step-by-step marketing guidance
-3. **Quality Templates**: Every marketing task uses best-practice frameworks from proven skills
+1. **Skill-triggered NBAs**: When data is synchronized, the system matches relevant skills to generate actions.
+2. **Guided Workflows**: Operators can invoke skills directly to get step-by-step strategic guidance.
+3. **Quality Templates**: Every task uses best-practice frameworks from proven high-performance skills.
 
 ## Problem
 
 Current gaps:
-- No marketing expertise in the system beyond generic AI
-- Users get generic advice, not specialized frameworks
-- Skills are not connected to user data/context
+- Generic AI advice without specialized strategic frameworks.
+- Skills not yet fully connected to organizational context.
 
 ## Goal
 
-Build Marketing Skill IDEABANK that:
-- Adds core skills to our system (SEO, CRO, Copywriting, Email, etc.)
-- Creates skill-to-NBA mapping
-- Enables user-triggered skill workflows
+Build Strategic Skill IDEABANK that:
+- Adds core skills to our system (SEO, CRO, Strategy, Growth, etc.)
+- Creates skill-to-NBA mapping.
+- Enables operator-triggered skill workflows.
 
 ## Scope
 
 ### In Scope
-- Integration with coreyhaines31/marketingskills (30+ skills)
-- Skill-to-NBA conversion rules
-- User-invokable skill commands
-- Skill context injection
+- Integration with external high-yield skill repositories.
+- Skill-to-NBA conversion rules.
+- Operator-invokable skill commands.
+- Skill context injection.
 
 ### Out of Scope
-- Paperclip agent setup (covered in Phase 5)
-- Local sync (covered in Phase 6)
+- Direct local sync (covered in Phase 6).
 
 ## Skills to Integrate
 
-### Conversion Optimization
-- [ ] page-cro - Any marketing page optimization
-- [ ] signup-flow-cro - Registration flows
-- [ ] onboarding-cro - Post-signup activation
-- [ ] form-cro - Lead capture forms
-- [ ] popup-cro - Modals and overlays
-- [ ] paywall-upgrade-cro - In-app upgrades
+### Conversion Optimization (CRO)
+- [ ] page-cro - Strategic page optimization.
+- [ ] signup-flow-cro - Registration flows.
+- [ ] onboarding-cro - Post-signup activation.
 
-### Content & Copy
-- [ ] copywriting - Marketing page copy
-- [ ] copy-editing - Edit existing copy
-- [ ] cold-email - B2B cold outreach
-- [ ] email-sequence - Automated flows
-- [ ] social-content - Social media
+### Content & Communication
+- [ ] communication-strategy - High-impact copy and outreach.
+- [ ] email-sequence - Automated strategic flows.
 
-### SEO & Discovery
-- [ ] seo-audit - Technical SEO
-- [ ] ai-seo - AI search optimization
-- [ ] programmatic-seo - Scaled pages
-- [ ] site-architecture - Page hierarchy
-- [ ] competitor-alternatives - Comparison pages
-- [ ] schema-markup - Structured data
+### Market Discovery (SEO)
+- [ ] seo-audit - Technical discovery.
+- [ ] ai-seo - AI search optimization.
+- [ ] site-architecture - Strategic hierarchy.
 
 ### Paid & Distribution
-- [ ] paid-ads - Google, Meta, LinkedIn
-- [ ] ad-creative - Bulk creative
+- [ ] distribution-strategy - Targeted channel growth.
 
-### Measurement
-- [ ] analytics-tracking - Event tracking
-- [ ] ab-test-setup - Experiments
+### Measurement & Retention
+- [ ] analytics-tracking - Performance event tracking.
+- [ ] churn-prevention - Lifecycle preservation.
 
-### Retention
-- [ ] churn-prevention - Cancel flows, dunning
+### Growth & Strategy
+- [ ] growth-levers - Strategic marketing tools.
+- [ ] launch-strategy - High-yield product launches.
+- [ ] pricing-strategy - Strategic pricing models.
 
-### Growth
-- [ ] free-tool-strategy - Marketing tools
-- [ ] referral-program - Referral/affiliate
-
-### Strategy
-- [ ] marketing-ideas - 140 SaaS ideas
-- [ ] marketing-psychology - Mental models
-- [ ] launch-strategy - Product launches
-- [ ] pricing-strategy - Pricing
-
-### Sales
-- [ ] revops - Lead lifecycle
-- [ ] sales-enablement - Sales collateral
-
-### Research
-- [ ] customer-research - VOC, personas
-- [ ] product-marketing-context - Context document
+### Operations & Research
+- [ ] customer-research - VOC, personas.
+- [ ] strategic-context - High-level context orchestration.
 
 ## Acceptance Checks
 - [x] CHECKLIST Trinity Engine (Drafter, Writer, Judge) Operational
@@ -102,20 +78,15 @@ Build Marketing Skill IDEABANK that:
 - [x] Skill Selection Logic (CRO, SEO, Strategy)
 - [x] Production Hardening (Mantine-First & Metadata Filtering)
 - [ ] Skills available in IDEABANK (Phase 2)
-- [ ] Skill can be triggered by user command
+- [ ] Skill can be triggered by operator command
 - [ ] Skill generates relevant NBA
 - [ ] Skill uses proper context
 
-## Dependencies
-- Phase 5: Paperclip Agents
-
 ## Quality Standard
 
-Based on: https://github.com/moldovancsaba/mvp-factory-control/issues/498
-
 Every skill integration must include:
-- When to use the skill
-- What inputs needed
-- Expected outputs
-- Related skills
-- Framework steps
+- When to use the skill.
+- What inputs needed.
+- Expected outputs.
+- Related skills.
+- Framework steps.

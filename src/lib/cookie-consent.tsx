@@ -6,16 +6,16 @@ import { Check } from "lucide-react";
 type ConsentSettings = {
   essential: boolean;
   analytics: boolean;
-  marketing: boolean;
+  personalization: boolean;
 };
 
 const DEFAULT_CONSENT: ConsentSettings = {
   essential: true,
   analytics: false,
-  marketing: false,
+  personalization: false,
 };
 
-const STORAGE_KEY = "cookie_consent";
+const STORAGE_KEY = "cookie_consent_v2";
 
 export function useCookieConsent() {
   const [showBanner, setShowBanner] = useState(() => {
@@ -29,7 +29,7 @@ export function useCookieConsent() {
   });
 
   const acceptAll = () => {
-    const fullConsent = { essential: true, analytics: true, marketing: true };
+    const fullConsent = { essential: true, analytics: true, personalization: true };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fullConsent));
     setSettings(fullConsent);
     setShowBanner(false);
@@ -49,7 +49,7 @@ export function useCookieConsent() {
 
 export function CookieBanner() {
   const [analytics, setAnalytics] = useState(false);
-  const [marketing, setMarketing] = useState(false);
+  const [personalization, setPersonalization] = useState(false);
   const { showBanner, acceptAll, acceptSelected, close } = useCookieConsent();
 
   if (!showBanner) return null;
@@ -59,14 +59,14 @@ export function CookieBanner() {
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex-1">
           <p className="text-sm">
-            We use cookies to improve your experience. Essential cookies are required for the service to work.
+            We use cookies to improve your experience. Essential cookies are required for the system to operate.
           </p>
           <div className="flex items-center gap-4 mt-3">
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked disabled className="rounded" />
               Essential
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input
                 type="checkbox"
                 checked={analytics}
@@ -75,26 +75,26 @@ export function CookieBanner() {
               />
               Analytics
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input
                 type="checkbox"
-                checked={marketing}
-                onChange={(e) => setMarketing(e.target.checked)}
+                checked={personalization}
+                onChange={(e) => setPersonalization(e.target.checked)}
                 className="rounded"
               />
-              Marketing
+              Personalization
             </label>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={acceptAll}
-            className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-md"
+            className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-md font-bold"
           >
             Accept All
           </button>
           <button
-            onClick={() => acceptSelected({ essential: true, analytics, marketing })}
+            onClick={() => acceptSelected({ essential: true, analytics, personalization })}
             className="px-4 py-2 border border-border text-sm rounded-md"
           >
             Save Preferences
@@ -112,9 +112,9 @@ export function hasAnalyticsConsent(): boolean {
   return JSON.parse(stored).analytics;
 }
 
-export function hasMarketingConsent(): boolean {
+export function hasPersonalizationConsent(): boolean {
   if (typeof window === "undefined") return false;
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) return false;
-  return JSON.parse(stored).marketing;
+  return JSON.parse(stored).personalization;
 }

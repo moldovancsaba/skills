@@ -1,6 +1,6 @@
 {
-  "name": "checklist-marketing-os",
-  "version": "0.15.0",
+  "name": "checklist-os",
+  "version": "0.15.0-HARDENED",
   "private": true,
   "scripts": {
     "dev": "next dev",

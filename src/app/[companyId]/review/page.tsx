@@ -117,12 +117,6 @@ export default function ReviewDashboard() {
   return (
     <PageShell width="full">
       <Stack gap="xl">
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-          <PageHeader 
-            title="Axiom Review Gateway" 
-            description="Resolve intelligence items where the AI elected not to assign strict mathematical scoring parameters. You must supply a 1-10 boundary score for each item to return it to autonomous flow." 
-          />
-        </motion.div>
 
         {items.length === 0 ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>

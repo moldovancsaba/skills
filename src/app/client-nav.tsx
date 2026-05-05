@@ -41,6 +41,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
 import { Button } from "@/components/ui/button";
+import { APP_VERSION } from "@/lib/release";
 
 const pipelineItems = [
   {
@@ -161,20 +162,7 @@ export function ClientNav() {
 
       <AppShellSection component={ScrollArea} grow mx="-md" px="md">
         <Stack gap="xs">
-          <NavLink
-            label="Global Portfolio"
-            leftSection={<LayoutDashboard size={20} />}
-            onClick={() => router.push("/")}
-            active={pathname === "/"}
-            variant="filled"
-            color="brand"
-            styles={{
-              root: { borderRadius: 'var(--mantine-radius-md)' },
-              label: { fontWeight: 900, fontSize: rem(14) }
-            }}
-          />
-          
-          <Divider label="Intelligence Unit" labelPosition="center" my="lg" />
+          {/* Global Portfolio and Intelligence Unit divider removed per user request */}
           
           {company ? (
             <Stack gap={4}>
@@ -271,7 +259,7 @@ export function ClientNav() {
                       </Avatar>
                       <Box style={{ flex: 1, overflow: 'hidden' }}>
                         <Text size="xs" fw={900} truncate>{session.name}</Text>
-                        <Text size="10px" c="dimmed" truncate>v0.15.0-hardened</Text>
+                        <Text size="10px" c="dimmed" truncate>v{APP_VERSION}</Text>
                       </Box>
                     </Group>
                     <ChevronDown size={14} />
@@ -281,13 +269,12 @@ export function ClientNav() {
               
               <Menu.Dropdown>
                 <Menu.Label>Identity</Menu.Label>
-                <Menu.Item leftSection={<UserIcon size={14} />}>Profile Settings</Menu.Item>
                 {company && (
                   <Menu.Item 
                     leftSection={<SettingsIcon size={14} />}
                     onClick={() => router.push(`/${company.id}/settings`)}
                   >
-                    Unit Settings
+                    Organization Settings
                   </Menu.Item>
                 )}
                 <Menu.Divider />
@@ -313,6 +300,34 @@ export function ClientNav() {
             </Button>
           )}
         </Stack>
+        
+        <Divider my="md" variant="dotted" />
+        
+        <Group gap="md" px="xs" justify="center">
+          <Text 
+            component="a" 
+            href="/privacy" 
+            size="10px" 
+            c="dimmed" 
+            fw={700} 
+            style={{ textDecoration: 'none', cursor: 'pointer' }}
+          >
+            PRIVACY
+          </Text>
+          <Text 
+            component="a" 
+            href="/terms" 
+            size="10px" 
+            c="dimmed" 
+            fw={700} 
+            style={{ textDecoration: 'none', cursor: 'pointer' }}
+          >
+            TERMS
+          </Text>
+          <Text size="10px" c="dimmed" fw={700} tt="uppercase">
+            v{APP_VERSION}
+          </Text>
+        </Group>
       </AppShellSection>
     </AppShellNavbar>
   );

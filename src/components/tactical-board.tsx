@@ -386,13 +386,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }
 
   return (
-    <div style={{ height: "calc(100vh - 80px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ padding: "1.5rem 2rem 0 2rem" }}>
-        <PageHeader
-          title="Tactical Board"
-          description="AI-orchestrated 5-horizon planning. Drag to set hard priority anchors. Click any card to view details."
-        />
-      </div>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
       <CardDetailModal
         item={detailId ? items.find(i => i.id === detailId) || null : null}

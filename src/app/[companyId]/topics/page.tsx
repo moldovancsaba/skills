@@ -173,12 +173,6 @@ export default function CompanyTopicsPage() {
 
   return (
     <PageShell width="full">
-      <PageHeader
-        backHref={`/${companyId}`}
-        backLabel="Back"
-        title="Topics"
-        description={`Prioritized research focus topics for ${company?.name ?? "this company"}. Drag to reorder, use the checkbox to activate or pause.`}
-      />
 
       {message ? (
         <Notice title="Saved">

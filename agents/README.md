@@ -1,89 +1,89 @@
-# Paperclip Agent Configurations
+# CHECKLIST Agent Configurations
 
-This directory contains the agent configurations for the Marketing OS.
+This directory contains the agent configurations for the Strategic Intelligence OS.
 
 ## Agents to Create
 
-### 1. Marketing Orchestrator (CTO)
-Reports to: CEO (your main agent)
+### 1. Intelligence Orchestrator
+Reports to: System Operator (CEO)
 
 ```json
 {
-  "name": "Marketing Orchestrator",
-  "role": "marketing_orchestrator", 
-  "title": "Chief Marketing Officer",
+  "name": "Intelligence Orchestrator",
+  "role": "intelligence_orchestrator", 
+  "title": "Chief Strategy Officer",
   "icon": "brain",
   "adapterType": "codex_local",
   "adapterConfig": {
     "model": "o4-mini",
     "cwd": "./checklist-local"
   },
-  "capabilities": "Owns marketing strategy, coordinates specialists, generates NBAs"
+  "capabilities": "Owns strategic synthesis, coordinates entity specialists, generates high-yield NBAs"
 }
 ```
 
-### 2. Product Specialist
-Reports to: Marketing Orchestrator
+### 2. Product & Value Specialist
+Reports to: Intelligence Orchestrator
 
 ```json
 {
   "name": "Product Specialist",
   "role": "product_specialist",
-  "title": "Product Marketing Specialist",
+  "title": "Strategic Product Analyst",
   "icon": "package",
   "adapterType": "codex_local",
   "adapterConfig": {
     "model": "o4-mini"
   },
-  "capabilities": "Analyzes products, identifies gaps, recommends improvements"
+  "capabilities": "Analyzes products, identifies value gaps, recommends strategic improvements"
 }
 ```
 
-### 3. Customer Specialist
-Reports to: Marketing Orchestrator
+### 3. Market & Customer Specialist
+Reports to: Intelligence Orchestrator
 
 ```json
 {
-  "name": "Customer Specialist", 
-  "role": "customer_specialist",
-  "title": "Customer Insights Analyst",
+  "name": "Market Specialist", 
+  "role": "market_specialist",
+  "title": "Market Insights Analyst",
   "icon": "users",
   "adapterType": "codex_local",
   "adapterConfig": {
     "model": "o4-mini"
   },
-  "capabilities": "Analyzes customer data, identifies segments, finds insights"
+  "capabilities": "Analyzes market data, identifies segments, harvests high-confidence insights"
 }
 ```
 
-### 4. Competitor Specialist
-Reports to: Marketing Orchestrator
+### 4. Competitive Intelligence Specialist
+Reports to: Intelligence Orchestrator
 
 ```json
 {
-  "name": "Competitor Specialist",
-  "role": "competitor_specialist", 
-  "title": "Competitive Intelligence Agent",
+  "name": "Competitive Specialist",
+  "role": "competitive_specialist", 
+  "title": "Strategic Intelligence Agent",
   "icon": "search",
   "adapterType": "codex_local",
   "adapterConfig": {
     "model": "o4-mini"
   },
-  "capabilities": "Monitors competitors, analyzes positioning, flags threats"
+  "capabilities": "Monitors competitors, analyzes positioning, flags strategic threats"
 }
 ```
 
 ## Agent Communication Flow
 
-1. User uploads data (products, customers, competitors)
-2. Specialists analyze their respective domains
-3. Orchestrator synthesizes and generates 3 NBA items
-4. User sees NBA checklist and can accept/decline
+1. Operator synchronizes data (products, customers, competitors, files).
+2. Entity specialists analyze their respective domains.
+3. Orchestrator synthesizes findings and generates high-yield checklist items (NBAs).
+4. Operator sees intelligence cards and can accept/decline actions.
 
 ## Setup Required
 
-Run via Paperclip API or dashboard:
+Run via system API or CLI:
 ```bash
-# Create agents using the Paperclip CLI
-# Requires: PAPERCLIP_API_KEY and PAPERCLIP_COMPANY_ID
+# Initialize agents via the command line
+# Requires: SYSTEM_INGEST_SECRET and COMPANY_ID
 ```

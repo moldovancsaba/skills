@@ -349,14 +349,6 @@ export default function CompanyDataPage() {
 
   return (
     <PageShell width="full">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <PageHeader
-          backHref={`/${companyId}`}
-          backLabel="Back"
-          title={editingId ? "Edit Data" : "Add Data"}
-          description={editingId ? "Edit the selected raw source from the list below." : "Store raw URLs, notes, and files with hashtags. Processing happens later."}
-        />
-      </motion.div>
 
       <Card id="data-form-container" radius="md" withBorder>
         <Stack gap="md" p="xl">

@@ -158,11 +158,6 @@ export default function SettingsPage() {
 
   return (
     <PageShell width="lg">
-      <PageHeader 
-        title="Communication Settings" 
-        description="Manage AI alerts and the two-way communication bridge."
-        backHref={`/${companyId}`}
-      />
 
       <Stack gap="xl">
         {/* Global Alerting Control */}

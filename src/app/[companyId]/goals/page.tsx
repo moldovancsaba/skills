@@ -254,15 +254,7 @@ export default function CompanyGoalsPage() {
   return (
     <PageShell width="full">
       <Stack gap="xl">
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-          {errorMessage && <Notice variant="destructive" className="mb-4">{errorMessage}</Notice>}
-          <PageHeader
-            backHref={`/${companyId}`}
-            backLabel="Back"
-            title="Strategic Goals"
-            description={`High-level objectives and aspirational milestones for ${company?.name}.`}
-          />
-        </motion.div>
+        {errorMessage && <Notice variant="destructive" className="mb-4">{errorMessage}</Notice>}
 
         <MetricGrid>
           <MetricCard icon={Target} color="green" label="Active goals" value={goals.length} detail="Strategic objectives being tracked." />

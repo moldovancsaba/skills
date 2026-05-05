@@ -305,12 +305,6 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                 {archived ? <Archive size={12} /> : <Brain size={12} />}
                 {archived ? "Archive" : "Active Intelligence"}
               </Text>
-              <Title order={1} fw={900} lts={-1.5} size="42px" c="white">
-                {archived ? "Archived Units" : "CHECKLIST"}
-              </Title>
-              <Text size="sm" c="dimmed" fw={600}>
-                {filteredItems.length} units detected on this tactical layer
-              </Text>
             </Stack>
 
             <Group gap="sm">

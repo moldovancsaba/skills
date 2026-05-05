@@ -14,7 +14,7 @@ import {
   Alert,
   ThemeIcon
 } from "@mantine/core";
-import { Plus, ListOrdered, Sparkles, Zap, Edit, Trash2, HelpCircle, LogIn, AlertCircle, Database, Target, ListTodo } from "lucide-react";
+import { Plus, ListOrdered, Sparkles, Zap, Edit, Trash2, HelpCircle, LogIn, AlertCircle, Database, Target, ListTodo, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -184,17 +184,6 @@ export default function Home() {
             title="Global Portfolio" 
             description="Select an intelligence unit to operate." 
           />
-          {session && (
-            <Badge 
-              variant="dot" 
-              color="brand" 
-              size="lg" 
-              radius="md"
-              styles={{ root: { backgroundColor: 'var(--mantine-color-dark-6)', border: '1px solid var(--mantine-color-dark-4)' } }}
-            >
-              System Operator: {session.email}
-            </Badge>
-          )}
         </Group>
 
         {error && (
@@ -309,14 +298,15 @@ export default function Home() {
                   )}
                 </Group>
 
-                <UnifiedGrid className="md:grid-cols-4">
+                <UnifiedGrid className="md:grid-cols-5">
                   <LinkCard
                     href={`/${c.id}/data`}
                     icon={Database}
                     variant="gray"
                     metric={c.metrics?.data ?? 0}
                     title="Data Ingress"
-                    description="Raw sources & harvesting"
+                    description="Source harvesting & processing"
+                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.sources }))}
                   />
                   <LinkCard
                     href={`/${c.id}/topics`}
@@ -325,6 +315,7 @@ export default function Home() {
                     metric={c.metrics?.topics ?? 0}
                     title="Topics"
                     description="Prioritize AI synthesis"
+                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.topics }))}
                   />
                   <LinkCard
                     href={`/${c.id}/knowmore`}
@@ -333,14 +324,25 @@ export default function Home() {
                     metric={c.metrics?.knowmore ?? 0}
                     title="Knowmore"
                     description="Intelligence knowledge layer"
+                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.flashcards }))}
                   />
                   <LinkCard
-                    href={`/${c.id}/nba`}
-                    icon={Zap}
-                    variant="brand"
-                    metric={c.metrics?.checklist ?? 0}
-                    title="checklist"
-                    description="High-impact strategic actions"
+                    href={`/${c.id}/goals`}
+                    icon={Target}
+                    variant="strategy"
+                    metric={c.metrics?.goals ?? 0}
+                    title="Strategic Goals"
+                    description="High-confidence task generation"
+                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.goals }))}
+                  />
+                  <LinkCard
+                    href={`/${c.id}/tactical`}
+                    icon={LayoutDashboard}
+                    variant="execution"
+                    metric={c.metrics?.tactical ?? 0}
+                    title="Tactical Board"
+                    description="Operational task orchestration"
+                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.nba }))}
                   />
                 </UnifiedGrid>
               </Box>

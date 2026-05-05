@@ -49,7 +49,7 @@ export const manualSections: HelpSection[] = [
     title: "Add the highest-value sources first",
     summary: "The AI team gets the best results from sources that expose real market language and real constraints.",
     bullets: [
-      "Add offer pages, pricing pages, onboarding pages, FAQs, sales decks, and audience notes before broad marketing copy.",
+      "Add offer pages, pricing pages, onboarding pages, FAQs, sales decks, and audience notes before broad descriptive copy.",
       "Add alternative market positioning, competitor evidence, and proof pages instead of just a homepage snapshot.",
       "Upload files when they contain detail that the public web does not show, such as call notes, sales docs, and internal briefs.",
       "Use clear raw source text and useful hashtags so the system can cluster the source correctly.",
@@ -143,7 +143,7 @@ const expertTips = {
     body:
       "Add at least a few real sources or files. The best early additions are pricing pages, offer pages, onboarding pages, FAQs, interview notes, and research snippets.",
     whyItMatters:
-      "Weak source coverage creates weak flashcards and generic tasks. A small set of sharp sources beats a large set of vague marketing pages.",
+      "Weak source coverage creates weak flashcards and generic tasks. A small set of sharp sources beats a large set of vague descriptive pages.",
     ctaLabel: "Open Data",
     ctaHref: `/${companyId}/data`,
   }),

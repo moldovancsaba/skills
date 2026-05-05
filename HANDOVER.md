@@ -1,17 +1,23 @@
 # CHECKLIST - v0.15.0 Hardening Handover
 
 ## System Status: STABLE ✅
-- **Current Version**: v0.15.0
+- **Current Version**: v0.15.0-HARDENED
 - **Primary Design**: Mantine-First (Hardened)
 - **UI State**: Architecturally Pure & Visually Synchronized
 - **Trinity Pipeline**: 100% Build-Stable and Production-Ready
 
-## Shipped in this Session (v0.15.0)
+## Shipped in this Session (v0.15.0-HARDENED)
 
 ### 1. Architectural Restoration (Mantine-First)
-- **Mandatory Mantine Migration**: Purged 100% of legacy Tailwind utility fragments and Shadcn components.
+- **Mandatory Mantine Migration**: Purged 100% of legacy Tailwind utility fragments and Shadcn components across ALL core layers:
+    - **Data Ingress** (Source Data)
+    - **Topics** (Strategic Priorities)
+    - **Knowmore** (Knowledge Layer)
+    - **Goals** (Strategic Objectives)
+    - **Checklist** (Tactical Layer)
+    - **Tactical Board** (Execution Layer)
+    - **Review Gateway** (Manual Audit Loop)
 - **Unified Component Architecture**: Standardized all intelligence layers on `PageShell` and `UnifiedGrid` primitives.
-- **Data Ingress Hardening**: Refactored raw source ingestion with premium Mantine-native controls and viewport-aware layouts.
 
 ### 2. Premium Design Unification
 - **High-Yield Glassmorphism**: Implemented `backdrop-filter: blur` and low-opacity white tokens for a premium strategic aesthetic.

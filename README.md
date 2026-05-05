@@ -1,7 +1,7 @@
 # 🌌 CHECKLIST
 > **The Autonomous Recurrent Intelligence Layer for Strategic Marketing.**
 
-**v1.4.0: CHECKLIST Intelligence Architecture**
+**v0.15.0-HARDENED: Production Architecture**
 
 **CHECKLIST** is a high-performance, private-first autonomous intelligence system. It implements the **Recurrent-Depth Transformer (RDT)** philosophy at the agent level, bridging the gap between raw market evidence and executive strategy through iterative self-refinement.
 
@@ -104,9 +104,9 @@ npm run guardian
 
 ## 🗺️ Product Roadmap
 *   [x] **v0.14.0**: Production Hardening & Standalone Decoupling.
-*   [x] **v1.0.0**: Multi-agent tournament judging & Executive Summary synthesis.
-*   [x] **v1.2.0**: Recurrent Kanban Intelligence & Strategic Learning.
-*   [x] **v1.4.0**: **CHECKLIST Intelligence Architecture (Tri-Layer & SCI).**
-*   [ ] **v1.6.0**: Recursive Deliberation (Multi-pass Evaluator) & Autonomous Budget Forecasting.
+*   [x] **v0.15.0**: **Architectural Hardening (Mantine-First & Metadata Purity).**
+*   [ ] **v1.0.0**: Multi-agent tournament judging & Executive Summary synthesis.
+*   [ ] **v1.2.0**: Recurrent Kanban Intelligence & Strategic Learning.
+*   [ ] **v1.4.0**: Recursive Deliberation (Multi-pass Evaluator) & Autonomous Budget Forecasting.
 
 *Built for the Executive Marketing Operator.*

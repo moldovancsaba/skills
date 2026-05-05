@@ -3,7 +3,7 @@
 ## ✅ DELIVERED THIS SESSION (v0.15.0)
 
 ### UI Hardening & Unification (Mantine-First)
-- **Mantine-First Restoration**: Purged 100% of legacy Tailwind utility classes and Shadcn fragments from core pages (Data Ingress, Topics, Tactical Board).
+- **Mantine-First Restoration**: Purged 100% of legacy Tailwind utility classes and Shadcn fragments from core pages (Data Ingress, Topics, Tactical Board, Knowmore, Goals, Checklist, and Review Gateway).
 - **Premium Design Unification**: Hardened `MetricCard` and `LinkCard` with high-yield glassmorphism, vibrant gradients, and sophisticated micro-animations.
 - **Unified Architecture**: Standardized strategic and tactical layers using the `PageShell` and `UnifiedGrid` patterns for total structural consistency.
 

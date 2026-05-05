@@ -126,9 +126,17 @@ export function Notice({
   );
 }
 
-export function MetricGrid({ children }: { children: ReactNode }) {
+export function MetricGrid({ 
+  children,
+  cols = { base: 1, md: 3 },
+  ...props
+}: { 
+  children: ReactNode;
+  cols?: any;
+  [key: string]: any;
+}) {
   return (
-    <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+    <SimpleGrid cols={cols} spacing="md" {...props}>
       {children}
     </SimpleGrid>
   );

@@ -105,7 +105,7 @@ const pipelineItems = [
 export function ClientNav() {
   const router = useRouter();
   const pathname = usePathname();
-  const { company } = useStore();
+  const { company, setCompany } = useStore();
   const { isDark, toggle } = useTheme();
   const [session, setSession] = useState<any>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -116,12 +116,39 @@ export function ClientNav() {
       .then((data) => setSession(data));
   }, []);
 
+  // Extract companyId from pathname if present (UUID v4 check)
+  const companyIdFromUrl = pathname.split('/').find(part => 
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(part) ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(part)
+  );
+
   useEffect(() => {
-    if (!company?.id) return;
+    if (companyIdFromUrl && (!company || company.id !== companyIdFromUrl)) {
+      // Try to populate store from companies list
+      fetch("/api/companies")
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            const found = data.find((c: any) => c.id === companyIdFromUrl);
+            if (found) {
+              setCompany(found);
+            }
+          }
+        })
+        .catch(err => console.error("Nav company sync failed:", err));
+    }
+  }, [companyIdFromUrl, company?.id, setCompany]);
+
+  useEffect(() => {
+    const activeId = company?.id || companyIdFromUrl;
+    if (!activeId) {
+      setCounts({});
+      return;
+    }
     
     const fetchCounts = async () => {
       try {
-        const res = await fetch(`/api/companies/${company.id}/dashboard`);
+        const res = await fetch(`/api/companies/${activeId}/dashboard`);
         if (res.ok) {
           const data = await res.json();
           setCounts({
@@ -142,7 +169,7 @@ export function ClientNav() {
     fetchCounts();
     const interval = setInterval(fetchCounts, 30000); // Sync every 30s
     return () => clearInterval(interval);
-  }, [company?.id]);
+  }, [company?.id, companyIdFromUrl]);
 
   const handleLogout = () => {
     window.location.href = "/api/auth/logout?returnTo=/login";
@@ -164,14 +191,14 @@ export function ClientNav() {
         <Stack gap="xs">
           {/* Global Portfolio and Intelligence Unit divider removed per user request */}
           
-          {(company && pathname !== '/') ? (
+          {((company || companyIdFromUrl) && pathname !== '/' && !pathname.startsWith('/faq') && !pathname.startsWith('/manual')) ? (
             <Stack gap={4}>
               <NavLink
-                label={company.name}
-                description="Operating Unit"
+                label={company?.name || "Intelligence Unit"}
+                description={company?.id ? "Operating Unit" : "Synchronizing..."}
                 variant="light"
-                active={pathname === `/${company.id}`}
-                onClick={() => router.push(`/${company.id}`)}
+                active={pathname === `/${company?.id || companyIdFromUrl}`}
+                onClick={() => company?.id && router.push(`/${company.id}`)}
                 styles={{
                   root: { borderRadius: 'var(--mantine-radius-md)', marginBottom: rem(8) },
                   label: { fontWeight: 900 }
@@ -198,7 +225,7 @@ export function ClientNav() {
                       <ChevronRight size={14} strokeOpacity={0.5} />
                     </Group>
                   }
-                  onClick={() => router.push(item.href(company.id))}
+                  onClick={() => (company?.id || companyIdFromUrl) && router.push(item.href(company?.id || companyIdFromUrl!))}
                   active={pathname.includes(item.key)}
                   variant="subtle"
                   color={item.color}

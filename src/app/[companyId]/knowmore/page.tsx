@@ -510,7 +510,7 @@ export default function CompanyKnowMorePage() {
         <Stack gap="xl">
           <Skeleton h={40} w={200} radius="md" />
           <Skeleton h={20} w={400} radius="md" />
-          <MetricGrid>
+          <MetricGrid cols={{ base: 1, sm: 2, md: 5 }}>
             <Skeleton h={140} radius="lg" />
             <Skeleton h={140} radius="lg" />
             <Skeleton h={140} radius="lg" />
@@ -535,7 +535,7 @@ export default function CompanyKnowMorePage() {
         </Notice>
       )}
 
-      <MetricGrid>
+      <MetricGrid cols={{ base: 1, sm: 2, md: 5 }}>
         <MetricCard
           icon={Database}
           color="blue"

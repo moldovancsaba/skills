@@ -138,8 +138,7 @@ function CardDetailModal({
       overlayProps={{ blur: 4, opacity: 0.6 }}
       styles={{
         content: { 
-          background: "var(--mantine-color-dark-8)",
-          border: "1px solid var(--mantine-color-dark-4)",
+          border: "1px solid var(--mantine-color-default-border)",
         }
       }}
     >
@@ -170,12 +169,12 @@ function CardDetailModal({
             { label: "Confidence", value: item.confidence, color: "var(--mantine-color-cyan-6)" },
             { label: "Ease",       value: item.ease,       color: "var(--mantine-color-violet-6)" },
           ].map(s => (
-            <Paper key={s.label} p="sm" radius="md" withBorder ta="center" bg="var(--mantine-color-dark-7)">
+            <Paper key={s.label} p="sm" radius="md" withBorder ta="center">
               <Text size="xl" fw={900} style={{ color: s.color }}>{s.value}</Text>
               <Text size="xs" c="dimmed">{s.label}</Text>
             </Paper>
           ))}
-          <Paper p="sm" radius="md" withBorder ta="center" bg="var(--mantine-color-dark-7)">
+          <Paper p="sm" radius="md" withBorder ta="center">
             <Text size="xl" fw={900} c="orange">{Math.round(item.iceScore)}</Text>
             <Text size="xs" c="dimmed">ICE Score</Text>
           </Paper>
@@ -183,7 +182,7 @@ function CardDetailModal({
 
         {/* AI Scores */}
         {(item.qualityScore != null || item.urgencyScore != null || item.freshnessScore != null) && (
-          <Paper p="sm" radius="md" withBorder bg="var(--mantine-color-dark-7)">
+          <Paper p="sm" radius="md" withBorder>
             <Text size="xs" fw={700} c="dimmed" mb="xs">AI EVALUATION SIGNALS</Text>
             <Group gap="xl">
               <Stack gap={0}>
@@ -208,7 +207,7 @@ function CardDetailModal({
 
         {/* Evaluation Reason */}
         {item.evaluationReason && (
-          <Paper p="sm" radius="md" withBorder bg="var(--mantine-color-dark-7)">
+          <Paper p="sm" radius="md" withBorder>
             <Text size="xs" fw={700} c="dimmed" mb={4}>AI JUDGE REASONING</Text>
             <Text size="xs" style={{ lineHeight: 1.6, fontStyle: "italic" }}>
               {item.evaluationReason}
@@ -252,10 +251,10 @@ function CardDetailModal({
         <Stack gap="xs" mt="xs">
           <Text size="xs" ta="center" c="dimmed">Recatalog this intelligence unit if it belongs in a different layer.</Text>
           <Group justify="center">
-            <Button variant="outline" color="violet" size="xs" onClick={() => onConvert(item.id, "KNOWLEDGE")}>
+            <Button variant="light" color="knowledge" size="xs" onClick={() => onConvert(item.id, "KNOWLEDGE")}>
               Move to Knowledge
             </Button>
-            <Button variant="outline" color="emerald" size="xs" onClick={() => onConvert(item.id, "GOAL")}>
+            <Button variant="light" color="strategy" size="xs" onClick={() => onConvert(item.id, "GOAL")}>
               Move to Strategic Goal
             </Button>
           </Group>
@@ -386,7 +385,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: 'var(--mantine-color-body)' }}>
 
       <CardDetailModal
         item={detailId ? items.find(i => i.id === detailId) || null : null}
@@ -416,14 +415,14 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
               .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
             return (
-              <Stack key={col.key} gap="sm" style={{ minWidth: 240 }}>
+              <Stack key={col.key} gap="sm" style={{ minWidth: 280, height: "100%" }}>
                 {/* Column Header */}
                 <Paper
                   p="sm"
                   radius="md"
+                  withBorder
                   style={{
                     borderTop: `3px solid ${col.accent}`,
-                    background: "var(--mantine-color-dark-8)",
                   }}
                 >
                   <Group justify="space-between">
@@ -449,17 +448,14 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       style={{
+                        flex: 1,
                         minHeight: 100,
-                        maxHeight: "calc(100vh - 280px)",
                         overflowY: "auto",
                         borderRadius: rem(12),
                         padding: rem(4),
                         border: snapshot.isDraggingOver
                           ? `1.5px dashed ${col.accent}`
                           : "1.5px dashed transparent",
-                        background: snapshot.isDraggingOver
-                          ? `${col.accent}0d`
-                          : "transparent",
                         transition: "all 0.15s ease",
                       }}
                     >
@@ -483,9 +479,6 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                     handleOpenCard(item);
                                   }}
                                   style={{
-                                    background: snapshot.isDragging
-                                      ? "var(--mantine-color-dark-5)"
-                                      : "var(--mantine-color-dark-7)",
                                     boxShadow: snapshot.isDragging
                                       ? "0 16px 40px rgba(0,0,0,0.5)"
                                       : "none",

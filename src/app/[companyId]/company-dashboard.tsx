@@ -16,7 +16,7 @@ import {
   rem
 } from "@mantine/core";
 import { Button } from "@/components/ui/button";
-import { LinkCard, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { LinkCard, PageHeader, PageShell, MetricGrid } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
@@ -229,7 +229,7 @@ export default function CompanyDashboard() {
 
   return (
     <PageShell width="full">
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 5 }} spacing="lg" mb={40}>
+      <MetricGrid cols={{ base: 1, sm: 2, md: 5 }} mb={40}>
         <LinkCard
           href={`/${companyId}/data`}
           icon={Plus}
@@ -275,7 +275,7 @@ export default function CompanyDashboard() {
           description="Operational task orchestration"
           chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
         />
-      </SimpleGrid>
+      </MetricGrid>
 
       <Stack gap={40}>
         <Stack gap="md">

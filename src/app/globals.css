@@ -19,7 +19,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: var(--font-body), sans-serif;
-  background-color: var(--mantine-color-dark-9);
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-text);
 }
 
 /* Material Symbols Integration */
@@ -50,10 +51,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--mantine-color-dark-4);
+  background: var(--mantine-color-default-border);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--mantine-color-dark-3);
+  background: var(--mantine-color-gray-6);
 }

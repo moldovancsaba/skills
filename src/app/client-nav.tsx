@@ -152,7 +152,7 @@ export function ClientNav() {
   }
 
   return (
-    <AppShellNavbar p="md" bg="var(--mantine-color-dark-9)" style={{ borderRight: '1px solid var(--mantine-color-dark-4)' }}>
+    <AppShellNavbar p="md" style={{ borderRight: '1px solid var(--mantine-color-default-border)' }}>
       <AppShellSection mb="xl">
         <Box px="xs" py="md">
           <Logo />
@@ -240,9 +240,9 @@ export function ClientNav() {
             p="xs"
             style={{ 
               borderRadius: 'var(--mantine-radius-md)',
-              transition: 'background-color 0.2s ease'
+              transition: 'background-color 0.2s ease',
+              backgroundColor: isDark ? 'transparent' : 'var(--mantine-color-gray-0)'
             }}
-            className="hover:bg-dark-6"
           >
             <Group justify="space-between">
               <Group gap="sm">
@@ -261,9 +261,8 @@ export function ClientNav() {
                   p="xs"
                   style={{ 
                     borderRadius: 'var(--mantine-radius-md)',
-                    backgroundColor: 'rgba(255,255,255,0.03)'
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'var(--mantine-color-gray-1)'
                   }}
-                  className="hover:bg-dark-6"
                 >
                   <Group justify="space-between">
                     <Group gap="sm">

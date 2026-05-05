@@ -6,7 +6,7 @@ import { ClientNav } from "./client-nav";
 import { Footer } from "./footer";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { CookieBanner } from "@/lib/cookie-consent";
-import { AppShell, AppShellMain, MantineProvider, createTheme } from "@mantine/core";
+import { AppShell, AppShellMain, MantineProvider, createTheme, ColorSchemeScript } from "@mantine/core";
 
 export const metadata: Metadata = {
   title: "checklist",
@@ -96,15 +96,16 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,600,1,0"
         />
+        <ColorSchemeScript defaultColorScheme="auto" />
       </head>
       <body className={`${fontBody.variable} ${fontDisplay.variable} font-body`}>
-        <MantineProvider theme={theme} defaultColorScheme="dark">
+        <MantineProvider theme={theme} defaultColorScheme="auto">
           <ThemeProvider>
             <AppShell
               padding="0"
               navbar={{ width: 280, breakpoint: 'sm' }}
               styles={{
-                main: { background: 'var(--mantine-color-dark-9)' }
+                main: { background: 'var(--mantine-color-body)' }
               }}
             >
               <ClientNav />

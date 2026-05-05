@@ -22,6 +22,7 @@ import {
 } from "@mantine/core";
 
 import { DashboardChart } from "@/components/dashboard-chart";
+import { useTheme } from "@/lib/theme-provider";
 
 type PageShellProps = {
   children: ReactNode;
@@ -156,15 +157,16 @@ export function MetricCard({
   detail,
   color = "brand",
 }: MetricCardProps) {
+  const { isDark } = useTheme();
   return (
     <Card 
       radius="lg" 
       p="xl" 
       withBorder 
       style={{ 
-        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.03)',
         backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.05)',
+        border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
         position: 'relative',
         overflow: 'hidden',
         height: '100%'
@@ -273,6 +275,7 @@ export function LinkCard({
   className,
   chartData,
 }: LinkCardProps) {
+  const { isDark } = useTheme();
   return (
     <UnstyledButton 
       component={Link} 
@@ -287,9 +290,9 @@ export function LinkCard({
         className="link-card-hardened"
         style={{ 
           height: '100%',
-          backgroundColor: 'rgba(255, 255, 255, 0.02)',
+          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.03)',
           backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.05)',
+          border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           cursor: 'pointer',
           overflow: 'hidden',
@@ -356,10 +359,10 @@ export function LinkCard({
       </Card>
       <style jsx global>{`
         .link-card-hardened:hover {
-          background-color: rgba(255, 255, 255, 0.05) !important;
+          background-color: ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'} !important;
           transform: translateY(-6px);
-          border-color: rgba(255, 255, 255, 0.1) !important;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+          border-color: ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'} !important;
+          box-shadow: 0 20px 40px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.1)'};
         }
       `}</style>
     </UnstyledButton>

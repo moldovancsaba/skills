@@ -1,9 +1,17 @@
 import { Suspense } from "react";
 import HomeClient from "./home-client";
+import { Center, Loader, Stack, Text } from "@mantine/core";
 
 export default function Home() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>}>
+    <Suspense fallback={
+      <Center h="100vh">
+        <Stack align="center" gap="md">
+          <Loader size="xl" variant="bars" color="brand" />
+          <Text size="sm" fw={700} c="dimmed">Hardening OS Infrastructure...</Text>
+        </Stack>
+      </Center>
+    }>
       <HomeClient />
     </Suspense>
   );

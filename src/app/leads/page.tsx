@@ -19,7 +19,6 @@ export default function LeadsPage() {
     <PageShell>
       <PageHeader 
         title="Lead Generation"
-        description="Campaigns, tracking, and conversion optimization."
         actions={
           <Button size="xs" variant="light" color="gray" disabled>
             Coming soon

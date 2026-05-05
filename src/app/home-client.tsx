@@ -300,7 +300,6 @@ export default function Home() {
                     variant="gray"
                     metric={c.metrics?.data ?? 0}
                     title="Data Ingress"
-                    description="Source harvesting & processing"
                     chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.sources }))}
                   />
                   <LinkCard
@@ -309,7 +308,6 @@ export default function Home() {
                     variant="indigo"
                     metric={c.metrics?.topics ?? 0}
                     title="Topics"
-                    description="Prioritize AI synthesis"
                     chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.topics }))}
                   />
                   <LinkCard
@@ -318,7 +316,6 @@ export default function Home() {
                     variant="knowledge"
                     metric={c.metrics?.knowmore ?? 0}
                     title="Knowmore"
-                    description="Intelligence knowledge layer"
                     chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.flashcards }))}
                   />
                   <LinkCard
@@ -327,7 +324,6 @@ export default function Home() {
                     variant="strategy"
                     metric={c.metrics?.goals ?? 0}
                     title="Strategic Goals"
-                    description="High-confidence task generation"
                     chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.goals }))}
                   />
                   <LinkCard
@@ -336,7 +332,6 @@ export default function Home() {
                     variant="execution"
                     metric={c.metrics?.tactical ?? 0}
                     title="Tactical Board"
-                    description="Operational task orchestration"
                     chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.nba }))}
                   />
                 </UnifiedGrid>

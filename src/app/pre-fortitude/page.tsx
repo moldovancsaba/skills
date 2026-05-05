@@ -19,7 +19,6 @@ export default function PreFortitudePage() {
     <PageShell>
       <PageHeader 
         title="Pre-Fortitude AI"
-        description="New program validation and market testing."
         actions={
           <Button size="xs" variant="light" color="gray" disabled>
             Coming soon

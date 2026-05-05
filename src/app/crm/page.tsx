@@ -19,7 +19,6 @@ export default function CrmPage() {
     <PageShell>
       <PageHeader 
         title="CRM & Automation"
-        description="Lead pipeline management and customer tracking."
         actions={
           <Button size="xs" variant="light" color="gray" disabled>
             Coming soon

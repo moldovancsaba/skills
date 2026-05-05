@@ -20,7 +20,6 @@ export default function BrandPage() {
     <PageShell>
       <PageHeader 
         title="Brand Management"
-        description="Brand identity, messaging, and visual guidelines."
         actions={
           <Button size="xs" variant="light" color="gray" disabled>
             Coming soon

@@ -247,7 +247,7 @@ export function MetricCard({
 type EmptyStateProps = {
   icon: LucideIcon;
   title: string;
-  description: string;
+  description?: string;
   primaryAction?: ReactNode;
   secondaryAction?: ReactNode;
 };
@@ -284,7 +284,7 @@ type LinkCardProps = {
   href: string;
   icon: LucideIcon | string;
   title: string;
-  description: string;
+  description?: string;
   metric?: string | number;
   variant?: string;
   className?: string;

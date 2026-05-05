@@ -50,7 +50,6 @@ const pipelineItems = [
     label: "Data Ingress",
     icon: Database,
     color: "blue",
-    description: "Source harvesting & processing"
   },
   {
     key: "topics",
@@ -58,7 +57,6 @@ const pipelineItems = [
     label: "Topic Synthesis",
     icon: ListTodo,
     color: "indigo",
-    description: "Strategic focus prioritization"
   },
   {
     key: "knowmore",
@@ -66,7 +64,6 @@ const pipelineItems = [
     label: "Knowmore",
     icon: Sparkles,
     color: "teal",
-    description: "Contextual memory layer"
   },
   {
     key: "goals",
@@ -74,7 +71,6 @@ const pipelineItems = [
     label: "Strategic Goals",
     icon: Target,
     color: "violet",
-    description: "High-confidence task generation"
   },
   {
     key: "nba",
@@ -82,7 +78,6 @@ const pipelineItems = [
     label: "Checklist",
     icon: ListTodo,
     color: "blue",
-    description: "Active intelligence items"
   },
   {
     key: "tactical",
@@ -90,7 +85,6 @@ const pipelineItems = [
     label: "Tactical Board",
     icon: LayoutDashboard,
     color: "cyan",
-    description: "Operational task orchestration"
   },
   {
     key: "review",
@@ -98,7 +92,6 @@ const pipelineItems = [
     label: "Review Gateway",
     icon: HardHat,
     color: "orange",
-    description: "Resolve scoring anomalies"
   },
 ];
 
@@ -207,7 +200,6 @@ export function ClientNav() {
                 <NavLink
                   key={item.key}
                   label={item.label}
-                  description={item.description}
                   leftSection={
                     <ThemeIcon color={item.color} variant="light" size="sm" radius="sm">
                       <item.icon size={14} />
@@ -229,8 +221,7 @@ export function ClientNav() {
                   color={item.color}
                   styles={{
                     root: { borderRadius: 'var(--mantine-radius-md)' },
-                    label: { fontWeight: 700, fontSize: rem(13) },
-                    description: { fontSize: rem(10) }
+                    label: { fontWeight: 700, fontSize: rem(13) }
                   }}
                 />
               ))}

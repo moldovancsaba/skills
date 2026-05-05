@@ -261,7 +261,6 @@ export default function GlobalDataCollectionPage() {
     <PageShell width="xl">
       <PageHeader
         title={editingId ? "Edit Data Unit" : "Global Data Collection"}
-        description={editingId ? `Refining intelligence unit for ${company?.name}.` : `Harvesting raw data for ${company?.name}.`}
       />
 
       <Stack gap="xl">

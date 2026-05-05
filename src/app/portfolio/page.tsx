@@ -19,7 +19,6 @@ export default function PortfolioPage() {
     <PageShell>
       <PageHeader 
         title="Portfolio & Offerings"
-        description="Programs, pricing, and product management."
         actions={
           <Button size="xs" variant="light" color="gray" disabled>
             Coming soon

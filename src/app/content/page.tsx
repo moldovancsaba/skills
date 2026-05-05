@@ -19,7 +19,6 @@ export default function ContentPage() {
     <PageShell>
       <PageHeader 
         title="Digital Presence"
-        description="Website, social profiles, and content assets."
         actions={
           <Button size="xs" variant="light" color="gray" disabled>
             Coming soon

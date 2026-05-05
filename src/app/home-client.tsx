@@ -179,12 +179,6 @@ export default function Home() {
   return (
     <PageShell width="7xl">
       <Stack gap="xl">
-        <Group justify="space-between" align="center">
-          <PageHeader 
-            title="Global Portfolio" 
-            description="Select an intelligence unit to operate." 
-          />
-        </Group>
 
         {error && (
           <Alert icon={<AlertCircle size={16} />} title="Synchronization Failure" color="red" radius="md" variant="light">

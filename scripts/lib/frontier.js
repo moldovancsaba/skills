@@ -217,12 +217,15 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   for (const item of deduplicated) {
     const ice = item.iceScore || 0;
 
-    // Respect user-set hard priority (sortOrder < 0) — always surface to CHECKLIST
-    if (item.sortOrder < 0) {
-      if (columnMap[0].items.length < FRONTIER_MAX_SIZE) {
-        columnMap[0].items.push(item);
+    // Respect user-set hard priority (sortOrder < 0) — Anchor in their current column
+    if (item.sortOrder < 0 && item.kanbanColumn) {
+      const targetCol = columnMap.find(c => c.column === item.kanbanColumn) || columnMap[4];
+      
+      // Special case: CHECKLIST (Now) has a hard cap of 3
+      if (item.kanbanColumn === "CHECKLIST" && columnMap[0].items.length >= FRONTIER_MAX_SIZE) {
+        columnMap[1].items.push(item); // Overflow to TODO (Next)
       } else {
-        columnMap[1].items.push(item); // overflow to TODO
+        targetCol.items.push(item);
       }
     } else if (ice >= ICE_THRESHOLD.CHECKLIST && columnMap[0].items.length < FRONTIER_MAX_SIZE) {
       columnMap[0].items.push(item);
@@ -262,6 +265,7 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   // Final cleanup for items no longer eligible (e.g. archived)
   // Handled byprisma query filters in loadEligibleCandidates
 
+  const checklist = columnMap[0].items;
   return checklist.map(i => i.id);
 }
 

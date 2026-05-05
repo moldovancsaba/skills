@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     const items = await prisma.nBAItem.findMany({
       where,
-      orderBy: [{ iceScore: "desc" }, { confidenceScore: "desc" }, { publicId: "asc" }],
+      orderBy: [{ sortOrder: "asc" }, { iceScore: "desc" }, { confidenceScore: "desc" }, { publicId: "asc" }],
     });
     return NextResponse.json(items);
   } catch (error) {

@@ -1,5 +1,5 @@
 # 🌌 CHECKLIST
-> **The Autonomous Recurrent Intelligence Layer for Strategic Intelligence.**
+> **The Autonomous Recurrent Layer for Strategic Intelligence.**
 
 **v0.15.0-HARDENED: Production Architecture**
 

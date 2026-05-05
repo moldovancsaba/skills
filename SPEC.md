@@ -37,13 +37,16 @@ The system is designed so the online app remains usable even when the local AI l
 
 | Path | Description |
 |------|-------------|
-| `/` | company selection and company CRUD |
-| `/[companyId]` | company dashboard |
-| `/[companyId]/data` | raw source ingestion |
-| `/[companyId]/topics` | topic prioritization for AI research |
-| `/[companyId]/review` | manual loop for uncalculatable AI outputs |
-| `/[companyId]/knowmore` | flashcard review and knowledge layer |
-| `/[companyId]/nba` | pending next-best-action checklist |
+| `/` | Global Portfolio |
+| `/[companyId]` | Dashboard |
+| `/[companyId]/data` | Data Ingress |
+| `/[companyId]/topics` | Topic Synthesis |
+| `/[companyId]/review` | Review Gateway |
+| `/[companyId]/knowmore` | Knowmore |
+| `/[companyId]/goals` | Strategic Goals |
+| `/[companyId]/nba` | Checklist |
+| `/[companyId]/tactical` | Tactical Board |
+| `/[companyId]/settings` | Organization Settings |
 
 ### Supporting routes
 

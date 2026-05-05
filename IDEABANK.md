@@ -62,7 +62,7 @@ Build Strategic Skill IDEABANK that:
 - [ ] churn-prevention - Lifecycle preservation.
 
 ### Growth & Strategy
-- [ ] growth-levers - Strategic marketing tools.
+- [ ] growth-levers - Strategic intelligence tools.
 - [ ] launch-strategy - High-yield product launches.
 - [ ] pricing-strategy - Strategic pricing models.
 

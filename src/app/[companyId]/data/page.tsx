@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams, usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import { 
   Stack, 
   Group, 
@@ -13,14 +12,22 @@ import {
   Card,
   ScrollArea,
   Box,
-  Divider
+  Divider,
+  Title,
+  Button,
+  Badge,
+  rem,
+  Center,
+  Loader,
+  ThemeIcon,
+  Tooltip,
+  ActionIcon,
+  Transition
 } from "@mantine/core";
-import { FileUp, Plus, CheckCircle, ScrollText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { FileUp, Plus, CheckCircle, ScrollText, ListFilter, SortAsc, Users, Edit2, Info } from "lucide-react";
+import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
-import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
 import { SourceDataCard } from "@/components/source-data-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
@@ -32,7 +39,6 @@ import {
   parseHashtagFilterParam,
   stringifyHashtagFilterParam,
 } from "@/lib/hashtags";
-import { cn } from "@/lib/utils";
 
 type DataType = "source" | "file";
 
@@ -67,7 +73,6 @@ function sortDataItems(items: DataItem[], sortBy: "ICE" | "CREATED" | "UPDATED")
       return right.createdAt.localeCompare(left.createdAt);
     }
 
-    // Default: Public ID or Created At
     const leftPublicId = left.publicId ?? Number.MAX_SAFE_INTEGER;
     const rightPublicId = right.publicId ?? Number.MAX_SAFE_INTEGER;
 
@@ -124,10 +129,8 @@ export default function CompanyDataPage() {
     const loadCompany = async (cid: string) => {
       try {
         const companies = await fetch(`/api/companies`).then((res) => res.json());
-        if (!Array.isArray(companies)) {
-          console.error("Invalid companies response:", companies);
-          return;
-        }
+        if (!Array.isArray(companies)) return;
+        
         const found = companies.find((c: any) => c.id === cid);
         if (!found) {
           router.push("/");
@@ -137,7 +140,6 @@ export default function CompanyDataPage() {
         setCompany(found);
         await loadAllData(found.id);
 
-        // Fetch additional context for the Expert Tip and Member List
         const [f, nba, members, sessionRes] = await Promise.all([
           fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
           fetch(`/api/nba?companyId=${cid}`).then((res) => res.json()),
@@ -153,8 +155,6 @@ export default function CompanyDataPage() {
           const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
           setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
         }
-
-        await loadAllData(found.id);
       } catch (error) {
         console.error(error);
       }
@@ -203,9 +203,8 @@ export default function CompanyDataPage() {
       setErrorMessage(null);
       if (editingId) {
         const currentItem = items.find((item) => item.id === editingId);
-        if (!currentItem) {
-          throw new Error("Edited item not found");
-        }
+        if (!currentItem) throw new Error("Edited item not found");
+        
         const editEndpoint = currentItem.type === "file" ? "/api/data-files" : "/api/sources";
 
         const response = await fetch(`${editEndpoint}?id=${editingId}`, {
@@ -218,10 +217,7 @@ export default function CompanyDataPage() {
             intelligenceType,
           }),
         });
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          throw new Error(payload?.error || "Failed to update source");
-        }
+        if (!response.ok) throw new Error("Failed to update source");
       } else if (selectedFiles.length > 0) {
         const formData = new FormData();
         formData.append("companyId", company.id);
@@ -233,10 +229,7 @@ export default function CompanyDataPage() {
           method: "POST",
           body: formData,
         });
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          throw new Error(payload?.error || "Failed to upload files");
-        }
+        if (!response.ok) throw new Error("Failed to upload files");
       } else {
         const response = await fetch("/api/sources", {
           method: "POST",
@@ -248,10 +241,7 @@ export default function CompanyDataPage() {
             intelligenceType,
           }),
         });
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          throw new Error(payload?.error || "Failed to save source");
-        }
+        if (!response.ok) throw new Error("Failed to save source");
       }
       
       setInput("");
@@ -274,9 +264,7 @@ export default function CompanyDataPage() {
     setHashtags(item.hashtags ?? []);
     setIntelligenceType(item.intelligenceType ?? "INTERNAL");
     setSelectedFiles([]);
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 100);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const cancelEdit = () => {
@@ -306,11 +294,7 @@ export default function CompanyDataPage() {
     if (!company) return;
     
     const endpoint = item.type === "file" ? "/api/data-files" : "/api/sources";
-
-    await fetch(`${endpoint}?id=${item.id}`, {
-      method: "DELETE",
-    });
-
+    await fetch(`${endpoint}?id=${item.id}`, { method: "DELETE" });
     loadAllData(company.id);
   };
 
@@ -327,9 +311,7 @@ export default function CompanyDataPage() {
           companyId: company.id
         })
       });
-      if (res.ok) {
-        loadAllData(company.id);
-      }
+      if (res.ok) loadAllData(company.id);
     } catch (err) {
       console.error("Conversion failed:", err);
     }
@@ -344,223 +326,195 @@ export default function CompanyDataPage() {
   const sortedItems = sortDataItems(filteredItems, sortBy);
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
+    return (
+      <Center h="100vh">
+        <Loader size="xl" variant="bars" color="brand" />
+      </Center>
+    );
   }
+
+  const tip = getDashboardExpertTip({
+    companyId,
+    productCount: sources.length,
+    customerCount: 0,
+    competitorCount: 0,
+    fileCount,
+    flashcardCount: 0,
+    pendingTaskCount,
+  });
 
   return (
     <PageShell width="full">
-
-      <Card id="data-form-container" radius="md" withBorder>
-        <Stack gap="md" p="xl">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {editingId ? (
-              <Notice title="Editing Selected Source">
-                You are editing an existing source. Save changes or cancel to return to add mode.
-              </Notice>
-            ) : null}
-
-            <FormTextarea
-              label="Evidence Details"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Paste a URL, type a source name, or write notes..."
-              minRows={5}
-              size="md"
-            />
-
-            {!editingId && (
-              <Stack gap="xs">
-                <Text size="sm" fw={600}>Evidence Files</Text>
-                <Group gap="sm">
-                  <FileButton 
-                    onChange={(files) => setSelectedFiles(prev => [...prev, ...Array.from(files)])} 
-                    accept="*" 
-                    multiple
-                  >
-                    {(props) => (
-                      <Button {...props} variant="light" color="brand" leftSection={<FileUp size={16} />}>
-                        Choose Files
-                      </Button>
-                    )}
-                  </FileButton>
-                  
-                  {selectedFiles.length > 0 && (
-                    <Button 
-                      variant="ghost" 
-                      color="red" 
-                      size="xs" 
-                      onClick={() => setSelectedFiles([])}
-                    >
-                      Clear ({selectedFiles.length})
-                    </Button>
-                  )}
-                </Group>
-
-                {selectedFiles.length > 0 && (
-                  <Group gap={6} mt="xs">
-                    {selectedFiles.map((file, idx) => (
-                      <Badge 
-                        key={`${file.name}-${idx}`} 
-                        variant="dot" 
-                        color="brand"
-                        radius="sm"
-                        styles={{ label: { textTransform: 'none' } }}
-                      >
-                        {file.name}
-                      </Badge>
-                    ))}
-                  </Group>
-                )}
-              </Stack>
-            )}
-
-            <HashtagInput
-              value={hashtags}
-              onChange={setHashtags}
-              suggestions={hashtagSuggestions}
-              label="Strategic Taxonomy (Hashtags)"
-              placeholder="Add hashtags like #pricing, #competitor, #product"
-            />
-
-            <Stack gap="xs">
-              <Text size="sm" fw={600}>Intelligence Focus</Text>
-              <SegmentedControl
-                value={intelligenceType}
-                onChange={(value) => setIntelligenceType(value as any)}
-                data={[
-                  { label: 'My Company', value: 'INTERNAL' },
-                  { label: 'Market / Competitor', value: 'COMPETITOR' },
-                ]}
-                color={intelligenceType === 'INTERNAL' ? 'blue' : 'orange'}
-                fullWidth
-                size="md"
-                radius="md"
-              />
-              <Text size="xs" c="dimmed">
-                {intelligenceType === "INTERNAL" 
-                  ? "Insights about your own product, operations, and performance." 
-                  : "Insights about market competitors and industry benchmarks. Managed separately."}
-              </Text>
-            </Stack>
-
-            <Group justify="flex-end" gap="md" mt="xl">
-              {editingId && (
-                <Button variant="subtle" color="gray" onClick={cancelEdit}>
-                  Cancel
-                </Button>
-              )}
-              <Button 
-                type="submit" 
-                size="md"
-                disabled={(!input.trim() && selectedFiles.length === 0) || !company}
-                leftSection={editingId ? undefined : <Plus size={18} />}
-              >
-                {editingId ? "Save Changes" : "Hardened Ingest"}
-              </Button>
-            </Group>
-          </form>
-        </Stack>
-      </Card>
-
-      {saved && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Notice icon={CheckCircle} title="Saved">
-            The raw source was stored. Any enrichment happens separately in the local pipeline.
-          </Notice>
-        </motion.div>
-      )}
-
-      {errorMessage ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Notice variant="destructive" title="Save failed">
-            {errorMessage}
-          </Notice>
-        </motion.div>
-      ) : null}
-
-      <MetricGrid>
-        <MetricCard 
-          icon={ScrollText} 
-          label="Total Sources" 
-          value={sources.length} 
-          detail="Ingested Evidence"
-          color="blue"
-        />
-        <MetricCard 
-          icon={FileUp} 
-          label="Uploaded Files" 
-          value={items.filter((item) => item.type === "file").length} 
-          detail="Direct Assets"
-          color="teal"
-        />
-      </MetricGrid>
+      <PageHeader 
+        title={editingId ? "Edit Evidence" : "Data Harvesting"}
+        description={`Centralized intelligence unit for ${company?.name}.`}
+      />
 
       <Stack gap="xl">
-        <Group justify="space-between" align="center">
-          <Group gap="sm">
-            <Text size="xl" fw={900} lts={-0.5}>All Evidence</Text>
-            <Badge variant="light" color="gray" radius="sm">
-              {filteredItems.length} {activeHashtags.length > 0 || listIntelligenceFilter !== "ALL" ? `of ${items.length}` : ""}
-            </Badge>
-          </Group>
+        <Card radius="lg" withBorder p="xl">
+          <form onSubmit={handleSubmit}>
+            <Stack gap="lg">
+              {editingId && (
+                <Notice title="Modification Active">
+                  Currently editing an existing evidence unit. Save or cancel to return to ingestion.
+                </Notice>
+              )}
+              
+              <FormTextarea
+                label="Raw Evidence Details"
+                description="Paste strategic content, URLs, or operational updates."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Market intelligence report snippet..."
+                minRows={5}
+              />
 
-          <Group gap="sm">
-            {/* Focus Filter */}
-            <Group gap={4} p={4} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
-              {(["ALL", "INTERNAL", "COMPETITOR"] as const).map((type) => (
-                <Button
-                  key={type}
-                  variant={listIntelligenceFilter === type ? "light" : "subtle"}
-                  size="compact-xs"
-                  color={listIntelligenceFilter === type 
-                    ? (type === "COMPETITOR" ? "orange" : (type === "INTERNAL" ? "blue" : "gray"))
-                    : "gray"
-                  }
-                  px="md"
-                  h={28}
-                  styles={{ label: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 } }}
-                  onClick={() => setListIntelligenceFilter(type)}
-                >
-                  {type === "ALL" ? "All" : type === "INTERNAL" ? "Internal" : "Market"}
+              {!editingId && (
+                <Stack gap="xs">
+                  <Text size="sm" fw={700}>Contextual File Ingress</Text>
+                  <Group gap="sm">
+                    <FileButton 
+                      onChange={(files) => setSelectedFiles(prev => [...prev, ...Array.from(files)])} 
+                      accept="*" 
+                      multiple
+                    >
+                      {(props) => (
+                        <Button {...props} variant="light" color="brand" leftSection={<FileUp size={16} />}>
+                          Upload Documents
+                        </Button>
+                      )}
+                    </FileButton>
+                    {selectedFiles.length > 0 && (
+                      <Button variant="subtle" color="red" size="xs" onClick={() => setSelectedFiles([])}>
+                        Clear Queue ({selectedFiles.length})
+                      </Button>
+                    )}
+                  </Group>
+                  {selectedFiles.length > 0 && (
+                    <Group gap={6} mt="xs">
+                      {selectedFiles.map((file, idx) => (
+                        <Badge key={idx} variant="outline" color="gray" size="sm">{file.name}</Badge>
+                      ))}
+                    </Group>
+                  )}
+                </Stack>
+              )}
+
+              <HashtagInput
+                value={hashtags}
+                onChange={setHashtags}
+                suggestions={hashtagSuggestions}
+                label="Strategic Anchors (Hashtags)"
+                placeholder="#pricing, #competitor-audit..."
+              />
+
+              <Stack gap="xs">
+                <Text size="sm" fw={700}>Intelligence Classification</Text>
+                <SegmentedControl
+                  value={intelligenceType}
+                  onChange={(value) => setIntelligenceType(value as any)}
+                  data={[
+                    { label: 'Operating Unit (Internal)', value: 'INTERNAL' },
+                    { label: 'Market / Competitor', value: 'COMPETITOR' },
+                  ]}
+                  color={intelligenceType === 'INTERNAL' ? 'blue' : 'orange'}
+                  fullWidth
+                  size="md"
+                  radius="md"
+                />
+              </Stack>
+
+              <Group justify="flex-end" mt="md">
+                {editingId && (
+                  <Button variant="subtle" color="gray" onClick={cancelEdit}>Cancel</Button>
+                )}
+                <Button type="submit" size="md" leftSection={editingId ? undefined : <Plus size={18} />}>
+                  {editingId ? "Save Changes" : "Deploy Evidence"}
                 </Button>
-              ))}
+              </Group>
+            </Stack>
+          </form>
+        </Card>
+
+        {saved && (
+          <Notice icon={CheckCircle} title="Unit Committed">
+            Data unit stored in the high-fidelity buffer. Synthesis worker notified.
+          </Notice>
+        )}
+
+        {errorMessage && (
+          <Notice variant="destructive" title="Ingress Error">
+            {errorMessage}
+          </Notice>
+        )}
+
+        <MetricGrid>
+          <MetricCard 
+            icon={ScrollText} 
+            label="Intelligence Units" 
+            value={sources.length} 
+            detail="Raw Evidence"
+            color="blue"
+          />
+          <MetricCard 
+            icon={FileUp} 
+            label="Source Assets" 
+            value={items.filter((item) => item.type === "file").length} 
+            detail="Binary Data"
+            color="teal"
+          />
+        </MetricGrid>
+
+        <Stack gap="xl">
+          <Group justify="space-between" align="center">
+            <Group gap="sm">
+              <Title order={2} size="h3" fw={900} lts={-0.5}>Inventory</Title>
+              <Badge variant="light" color="gray">{filteredItems.length} units</Badge>
             </Group>
 
-            {/* Sort Controls */}
-            <Group gap={4} p={4} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)' }}>
-              {(["CREATED", "UPDATED", "ICE"] as const).map((sort) => (
-                <Button
-                  key={sort}
-                  variant={sortBy === sort ? "light" : "subtle"}
-                  size="compact-xs"
-                  color="gray"
-                  px="md"
-                  h={28}
-                  styles={{ label: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 } }}
-                  onClick={() => setSortBy(sort)}
-                >
-                  {sort}
-                </Button>
-              ))}
+            <Group gap="sm">
+              <Group gap={4} p={4} style={{ backgroundColor: 'var(--mantine-color-dark-8)', borderRadius: 8 }}>
+                {(["ALL", "INTERNAL", "COMPETITOR"] as const).map((type) => (
+                  <Button
+                    key={type}
+                    variant={listIntelligenceFilter === type ? "light" : "subtle"}
+                    size="compact-xs"
+                    color={listIntelligenceFilter === type 
+                      ? (type === "COMPETITOR" ? "orange" : (type === "INTERNAL" ? "blue" : "gray"))
+                      : "gray"
+                    }
+                    onClick={() => setListIntelligenceFilter(type)}
+                    styles={{ label: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase' } }}
+                  >
+                    {type === "ALL" ? "All" : type === "INTERNAL" ? "Unit" : "Market"}
+                  </Button>
+                ))}
+              </Group>
+
+              <Group gap={4} p={4} style={{ backgroundColor: 'var(--mantine-color-dark-8)', borderRadius: 8 }}>
+                {(["CREATED", "UPDATED", "ICE"] as const).map((sort) => (
+                  <Button
+                    key={sort}
+                    variant={sortBy === sort ? "light" : "subtle"}
+                    size="compact-xs"
+                    color="gray"
+                    onClick={() => setSortBy(sort)}
+                    styles={{ label: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase' } }}
+                  >
+                    {sort}
+                  </Button>
+                ))}
+              </Group>
             </Group>
           </Group>
-        </Group>
-        {filteredItems.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No data yet. Add your first item above.</p>
-        ) : (
-          <UnifiedGrid>
-            {sortedItems.map((item, index) => {
-              const tip = getDashboardExpertTip({
-                companyId,
-                productCount: sources.length,
-                customerCount: 0,
-                competitorCount: 0,
-                fileCount,
-                flashcardCount: 0, // Not loaded on this page specifically, or can be fetched
-                pendingTaskCount,
-              });
 
-              return (
+          {filteredItems.length === 0 ? (
+            <Card radius="md" withBorder p="xl" ta="center" style={{ borderStyle: 'dashed' }}>
+              <Text size="sm" c="dimmed">No intelligence units match the current filters.</Text>
+            </Card>
+          ) : (
+            <UnifiedGrid>
+              {sortedItems.map((item, index) => (
                 <React.Fragment key={item.id}>
                   <SourceDataCard
                     id={item.id}
@@ -577,28 +531,17 @@ export default function CompanyDataPage() {
                     onConvert={handleConvert}
                   />
 
-                  {/* Inject Expert Tip and Team Members at 3rd place (index 1 is after 2nd item) */}
                   {index === 1 && (
-                    <React.Fragment>
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                      >
-                        <ExpertTipCard tip={tip} />
-                      </motion.div>
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                      >
-                        <MemberList companyId={companyId} isOwner={isOwner} />
-                      </motion.div>
-                    </React.Fragment>
+                    <>
+                      <ExpertTipCard tip={tip} />
+                      <MemberList companyId={companyId} isOwner={isOwner} />
+                    </>
                   )}
                 </React.Fragment>
-              );
-            })}
-          </UnifiedGrid>
-        )}
+              ))}
+            </UnifiedGrid>
+          )}
+        </Stack>
       </Stack>
     </PageShell>
   );

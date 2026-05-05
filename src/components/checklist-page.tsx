@@ -14,12 +14,24 @@ import { useStore } from "@/lib/store";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Group, Loader, Stack, Title, Text } from "@mantine/core";
+import { 
+  Group, 
+  Loader, 
+  Stack, 
+  Title, 
+  Text, 
+  Button, 
+  ActionIcon, 
+  Tooltip, 
+  rem, 
+  Box,
+  Divider,
+  Center
+} from "@mantine/core";
 import { EmptyState, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
-import { Button } from "@/components/ui/button";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
-import { Archive, Brain, RefreshCw } from "lucide-react";
+import { Archive, Brain, RefreshCw, ArrowRight } from "lucide-react";
 
 /**
  * Representational interface for a tactical intelligence unit (Task).
@@ -271,10 +283,12 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   if (loading) {
     return (
       <PageShell width="full">
-        <Stack align="center" gap="md" py={100}>
-          <Loader color="brand" size="xl" variant="bars" />
-          <Text size="sm" fw={800} tt="uppercase" lts={1} c="dimmed">Decrypting tactical intelligence...</Text>
-        </Stack>
+        <Center h="60vh">
+          <Stack align="center" gap="md">
+            <Loader color="brand" size="xl" variant="bars" />
+            <Text size="sm" fw={800} tt="uppercase" lts={1} c="dimmed">Decrypting tactical intelligence...</Text>
+          </Stack>
+        </Center>
       </PageShell>
     );
   }
@@ -285,12 +299,13 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     <PageShell width="full">
       <Stack gap="xl">
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-          <Group justify="space-between" align="center" mt="md">
+          <Group justify="space-between" align="center">
             <Stack gap={0}>
-              <Text size="xs" fw={800} tt="uppercase" lts={2} c="brand">
+              <Text size="xs" fw={800} tt="uppercase" lts={2} c="brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {archived ? <Archive size={12} /> : <Brain size={12} />}
                 {archived ? "Archive" : "Active Intelligence"}
               </Text>
-              <Title order={1} fw={900} lts={-1.5} size="36px">
+              <Title order={1} fw={900} lts={-1.5} size="42px" c="white">
                 {archived ? "Archived Units" : "CHECKLIST"}
               </Title>
               <Text size="sm" c="dimmed" fw={600}>
@@ -300,7 +315,12 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
 
             <Group gap="sm">
               {archived ? (
-                <Button variant="light" color="gray" component={Link} href={`/${companyId}/nba`}>
+                <Button 
+                  variant="light" 
+                  color="gray" 
+                  onClick={() => router.push(`/${companyId}/nba`)}
+                  leftSection={<ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />}
+                >
                   Open Active Checklist
                 </Button>
               ) : (
@@ -314,7 +334,12 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                   >
                     Refresh
                   </Button>
-                  <Button variant="light" color="gray" component={Link} href={`/${companyId}/nba_archived`} leftSection={<Archive size={14} />}>
+                  <Button 
+                    variant="light" 
+                    color="gray" 
+                    onClick={() => router.push(`/${companyId}/nba_archived`)}
+                    leftSection={<Archive size={14} />}
+                  >
                     Show Archived
                   </Button>
                 </Group>
@@ -328,6 +353,22 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
             icon={archived ? Archive : Brain}
             title={archived ? "No archived checklist items" : "No checklist items yet"}
             description={activeHashtags.length > 0 ? "Try clearing hashtag filters." : archived ? "Accepted, declined, and AI-filtered items will appear here." : "Add data to get AI-powered suggestions."}
+            primaryAction={
+              activeHashtags.length > 0 ? (
+                <Button variant="light" onClick={() => {
+                  const nextSearch = new URLSearchParams(window.location.search);
+                  nextSearch.delete("tags");
+                  setActiveHashtags([]);
+                  router.replace(`${pathname}`, { scroll: false });
+                }}>
+                  Clear Filters
+                </Button>
+              ) : !archived ? (
+                <Button variant="filled" color="brand" onClick={() => router.push(`/${companyId}/data`)}>
+                  Open Data Ingress
+                </Button>
+              ) : undefined
+            }
           />
         ) : (
           <UnifiedGrid>

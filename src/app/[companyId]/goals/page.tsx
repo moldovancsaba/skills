@@ -18,9 +18,18 @@ import {
   ArrowUpRight,
   Target,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Group, TextInput } from "@mantine/core";
+import { 
+  Badge, 
+  Button, 
+  Group, 
+  TextInput, 
+  Stack, 
+  Skeleton, 
+  Loader, 
+  Center,
+  Text,
+  Title
+} from "@mantine/core";
 import {
   EmptyState,
   MetricCard,
@@ -30,14 +39,12 @@ import {
   PageShell,
   UnifiedGrid,
 } from "@/components/ui/app-shell";
-import { Skeleton } from "@/components/ui/skeleton";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { useStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
 import React from "react";
 
 type Company = {
@@ -126,19 +133,6 @@ function actionLabel(action: FlashcardAction["action"] | ActionMode) {
 
 function reviewStatusLabel(processingStatus: Goalcard["processingStatus"]) {
   return processingStatus.charAt(0).toUpperCase() + processingStatus.slice(1).toLowerCase();
-}
-
-function reviewStatusClasses(processingStatus: Goalcard["processingStatus"]) {
-  switch (processingStatus) {
-    case "ACCEPTED":
-      return "border-[hsl(var(--color-high)/0.2)] bg-[hsl(var(--color-high)/0.1)] text-[hsl(var(--color-high))]";
-    case "DECLINED":
-      return "border-[hsl(var(--color-low)/0.2)] bg-[hsl(var(--color-low)/0.1)] text-[hsl(var(--color-low))]";
-    case "VERIFIED":
-      return "border-[hsl(var(--color-quality)/0.2)] bg-[hsl(var(--color-quality)/0.1)] text-[hsl(var(--color-quality))]";
-    default:
-      return "border-input bg-background text-foreground";
-  }
 }
 
 function kindLabel(kind: string) {
@@ -240,83 +234,95 @@ export default function CompanyGoalsPage() {
 
   if (loading) {
     return (
-      <PageShell width="full" className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-56" />
+      <PageShell width="full">
+        <Stack gap="xl">
+          <Skeleton h={40} w={200} radius="md" />
+          <Skeleton h={20} w={400} radius="md" />
+          <MetricGrid>
+            <Skeleton h={140} radius="lg" />
+            <Skeleton h={140} radius="lg" />
+          </MetricGrid>
+          <UnifiedGrid>
+            <Skeleton h={300} radius="lg" />
+            <Skeleton h={300} radius="lg" />
+          </UnifiedGrid>
+        </Stack>
       </PageShell>
     );
   }
 
   return (
     <PageShell width="full">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        {errorMessage && <Notice variant="destructive" className="mb-4">{errorMessage}</Notice>}
-        <PageHeader
-          backHref={`/${companyId}`}
-          backLabel="Back"
-          title="Strategic Goals"
-          description={`High-level objectives and aspirational milestones for ${company?.name}.`}
-        />
-      </motion.div>
+      <Stack gap="xl">
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+          {errorMessage && <Notice variant="destructive" className="mb-4">{errorMessage}</Notice>}
+          <PageHeader
+            backHref={`/${companyId}`}
+            backLabel="Back"
+            title="Strategic Goals"
+            description={`High-level objectives and aspirational milestones for ${company?.name}.`}
+          />
+        </motion.div>
 
-      <MetricGrid>
-        <MetricCard icon={Target} color="green" label="Active goals" value={goals.length} detail="Strategic objectives being tracked." />
-        <MetricCard icon={TrendingUp} color="blue" label="Goal Alignment" value="85%" detail="Alignment with current market research." />
-      </MetricGrid>
+        <MetricGrid>
+          <MetricCard icon={Target} color="green" label="Active goals" value={goals.length} detail="Strategic objectives being tracked." />
+          <MetricCard icon={TrendingUp} color="blue" label="Goal Alignment" value="85%" detail="Alignment with current market research." />
+        </MetricGrid>
 
-      <Group justify="space-between" align="center">
-        <TextInput 
-          placeholder="Search goals..." 
-          leftSection={<Search size={16} />}
-          value={searchQuery} 
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ flex: 1, maxWidth: 400 }}
-          radius="md"
-        />
-      </Group>
+        <Group justify="space-between" align="center">
+          <TextInput 
+            placeholder="Search goals..." 
+            leftSection={<Search size={16} />}
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ flex: 1, maxWidth: 400 }}
+            radius="md"
+          />
+        </Group>
 
-      {filteredGoals.length === 0 ? (
-        <EmptyState icon={Target} title="No strategic goals found" description="Goals represent what your company wants to become. They are derived from research or created manually." />
-      ) : (
-        <UnifiedGrid>
-          {filteredGoals.map((goal, index) => (
-            <motion.div key={goal.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
-              <KnowledgeReviewCard
-                flashcard={goal as any}
-                cardType="GOAL"
-                isActionOpen={activeGoalId === goal.id}
-                actionMode={actionMode}
-                isBusy={actingId === goal.id}
-                isGenerating={false}
-                actionComment={actionComment}
-                editedTitle={editedTitle}
-                editedBody={editedBody}
-                reviewStatusLabel={reviewStatusLabel}
-                kindLabel={kindLabel}
-                actionLabel={actionLabel}
-                onOpenAction={(fc, mode) => {
-                  setActiveGoalId(fc.id);
-                  setActionMode(mode);
-                  setEditedTitle(fc.title);
-                  setEditedBody(fc.body);
-                }}
-                onCloseAction={() => {
-                  setActiveGoalId(null);
-                  setActionMode(null);
-                }}
-                onActionCommentChange={setActionComment}
-                onEditedTitleChange={setEditedTitle}
-                onEditedBodyChange={setEditedBody}
-                onSubmit={handleActionSubmit}
-                activeHashtags={activeHashtags}
-                onToggleHashtag={() => {}}
-                onRemoveHashtag={() => {}}
-                onConvert={(type) => handleConvert(goal.id, type)}
-              />
-            </motion.div>
-          ))}
-        </UnifiedGrid>
-      )}
+        {filteredGoals.length === 0 ? (
+          <EmptyState icon={Target} title="No strategic goals found" description="Goals represent what your company wants to become. They are derived from research or created manually." />
+        ) : (
+          <UnifiedGrid>
+            {filteredGoals.map((goal, index) => (
+              <motion.div key={goal.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
+                <KnowledgeReviewCard
+                  flashcard={goal as any}
+                  cardType="GOAL"
+                  isActionOpen={activeGoalId === goal.id}
+                  actionMode={actionMode}
+                  isBusy={actingId === goal.id}
+                  isGenerating={false}
+                  actionComment={actionComment}
+                  editedTitle={editedTitle}
+                  editedBody={editedBody}
+                  reviewStatusLabel={reviewStatusLabel}
+                  kindLabel={kindLabel}
+                  actionLabel={actionLabel}
+                  onOpenAction={(fc, mode) => {
+                    setActiveGoalId(fc.id);
+                    setActionMode(mode);
+                    setEditedTitle(fc.title);
+                    setEditedBody(fc.body);
+                  }}
+                  onCloseAction={() => {
+                    setActiveGoalId(null);
+                    setActionMode(null);
+                  }}
+                  onActionCommentChange={setActionComment}
+                  onEditedTitleChange={setEditedTitle}
+                  onEditedBodyChange={setEditedBody}
+                  onSubmit={handleActionSubmit}
+                  activeHashtags={activeHashtags}
+                  onToggleHashtag={() => {}}
+                  onRemoveHashtag={() => {}}
+                  onConvert={(type) => handleConvert(goal.id, type)}
+                />
+              </motion.div>
+            ))}
+          </UnifiedGrid>
+        )}
+      </Stack>
     </PageShell>
   );
 }

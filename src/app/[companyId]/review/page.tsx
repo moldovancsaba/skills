@@ -5,11 +5,21 @@ import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, HardHat, Save } from "lucide-react";
 
+import { 
+  Button, 
+  Stack, 
+  Skeleton, 
+  Text, 
+  Center, 
+  NumberInput, 
+  Group, 
+  Box,
+  Title,
+  Loader,
+  Badge
+} from "@mantine/core";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardActions } from "@/components/ui/unified-card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { FormInput } from "@/components/ui/form-fields";
 
 export default function ReviewDashboard() {
   const params = useParams();
@@ -27,9 +37,6 @@ export default function ReviewDashboard() {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      // In a real implementation we would fetch Flashcards and Tasks with processingStatus: 'REVIEW'
-      // Since this is Axiom Phase 5 implementation and we haven't built the explicit /api yet,
-      // we'll fetch from standard API's and filter locally for now.
       const [fcRes, nbaRes] = await Promise.all([
         fetch(`/api/flashcards?companyId=${companyId}`),
         fetch(`/api/nba?companyId=${companyId}`)
@@ -92,73 +99,100 @@ export default function ReviewDashboard() {
     }
   };
 
-  return (
-    <PageShell width="7xl" className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4">
-        <PageHeader 
-          title="Axiom Review Gateway" 
-          description="Resolve intelligence items where the AI elected not to assign strict mathematical scoring parameters. You must supply a 1-10 boundary score for each item to return it to autonomous flow." 
-        />
-      </motion.div>
+  if (loading) {
+    return (
+      <PageShell width="full">
+        <Stack gap="xl">
+          <Skeleton h={40} w={300} radius="md" />
+          <Skeleton h={20} w={600} radius="md" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <Skeleton h={300} radius="lg" />
+            <Skeleton h={300} radius="lg" />
+          </div>
+        </Stack>
+      </PageShell>
+    );
+  }
 
-      {loading ? (
-         <div className="space-y-4">
-           <Skeleton className="h-[200px] w-full rounded-2xl" />
-           <Skeleton className="h-[200px] w-full rounded-2xl" />
-         </div>
-      ) : items.length === 0 ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center p-12 text-center border border-zinc-800 border-dashed rounded-3xl bg-zinc-900/20">
-          <HardHat className="w-12 h-12 text-zinc-600 mb-4" />
-          <h3 className="text-lg font-bold text-white tracking-tight">No Anomalies Detected</h3>
-          <p className="text-zinc-400 mt-2 max-w-sm">The trinity engine is successfully grading all intelligence inside the established Axioms.</p>
+  return (
+    <PageShell width="full">
+      <Stack gap="xl">
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+          <PageHeader 
+            title="Axiom Review Gateway" 
+            description="Resolve intelligence items where the AI elected not to assign strict mathematical scoring parameters. You must supply a 1-10 boundary score for each item to return it to autonomous flow." 
+          />
         </motion.div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AnimatePresence>
-            {items.map(item => (
-              <ReviewEditorCard key={item.id} item={item} onSave={handleScoreUpdate} isSaving={savingId === item.id} />
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
+
+        {items.length === 0 ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <Center h="50vh">
+              <Stack align="center" gap="md" p={40} style={{ border: '1px dashed var(--mantine-color-dark-4)', borderRadius: '2rem', background: 'rgba(0,0,0,0.1)' }}>
+                <HardHat className="w-12 h-12 text-zinc-600 mb-4" />
+                <Title order={3} fw={900} lts={-0.5} c="white">No Anomalies Detected</Title>
+                <Text size="sm" c="dimmed" ta="center" maw={400}>The trinity engine is successfully grading all intelligence inside the established Axioms.</Text>
+              </Stack>
+            </Center>
+          </motion.div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '1rem' }}>
+            <AnimatePresence>
+              {items.map(item => (
+                <ReviewEditorCard key={item.id} item={item} onSave={handleScoreUpdate} isSaving={savingId === item.id} />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </Stack>
     </PageShell>
   );
 }
 
 function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, isSaving: boolean }) {
-  const [c, setC] = useState("1");
-  const [i, setI] = useState("1");
-  const [ew, setEW] = useState("1"); // Ease or Weight
+  const [c, setC] = useState<number | string>(1);
+  const [i, setI] = useState<number | string>(1);
+  const [ew, setEW] = useState<number | string>(1); // Ease or Weight
 
   const metricLabel = item._type === 'TASK' ? 'Ease' : 'Weight';
 
   return (
     <motion.div layout initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} exit={{opacity:0, scale:0.95}}>
-      <UnifiedCard className="border-amber-500/30">
+      <UnifiedCard style={{ borderColor: 'rgba(245, 158, 11, 0.3)' }}>
         <UnifiedCardHeader 
           title={item.title} 
           supporting={
-            <div className="flex gap-2">
-              <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full uppercase">Review Required</span>
-              <span className="text-[10px] font-mono text-zinc-500 uppercase">{item._type}</span>
-            </div>
+            <Group gap="xs">
+              <Badge variant="filled" color="orange" size="xs" tt="uppercase" fw={800}>Review Required</Badge>
+              <Badge variant="outline" color="gray" size="xs" ff="monospace" tt="uppercase">{item._type}</Badge>
+            </Group>
           }
         />
         <UnifiedCardBody>
-          <p className="text-sm text-zinc-300 line-clamp-4 bg-zinc-900/50 p-3 rounded-lg border border-zinc-800/50">
-            {item.body || item.description}
-          </p>
+          <Box p="md" mb="md" style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--mantine-radius-md)', border: '1px solid var(--mantine-color-dark-4)' }}>
+            <Text size="sm" c="dimmed" lineClamp={4}>
+              {item.body || item.description}
+            </Text>
+          </Box>
 
-          <div className="grid grid-cols-3 gap-2 mt-4">
-             <FormInput label="Impact [1-10]" type="number" min="1" max="10" value={i} onChange={e=>setI(e.target.value)} />
-             <FormInput label="Confidence [1-10]" type="number" min="1" max="10" value={c} onChange={e=>setC(e.target.value)} />
-             <FormInput label={`${metricLabel} [1-10]`} type="number" min="1" max="10" value={ew} onChange={e=>setEW(e.target.value)} />
-          </div>
+          <Group grow gap="xs">
+             <NumberInput label="Impact" min={1} max={10} value={i} onChange={setI} size="sm" radius="md" />
+             <NumberInput label="Confidence" min={1} max={10} value={c} onChange={setC} size="sm" radius="md" />
+             <NumberInput label={metricLabel} min={1} max={10} value={ew} onChange={setEW} size="sm" radius="md" />
+          </Group>
 
-          <UnifiedCardActions className="mt-4">
-            <Button onClick={() => onSave(item.id, item._type, parseInt(c), parseInt(i), parseInt(ew))} disabled={isSaving} className="w-full bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold">
+          <UnifiedCardActions mt="xl">
+            <Button 
+              fullWidth
+              color="orange"
+              onClick={() => onSave(item.id, item._type, Number(c), Number(i), Number(ew))} 
+              disabled={isSaving}
+              loading={isSaving}
+              leftSection={isSaving ? <Loader size={14} color="dark" /> : <Save size={16} />}
+              fw={900}
+              tt="uppercase"
+              lts={1}
+            >
               {isSaving ? "Injecting Axiom..." : "Confirm & Return to Pipeline"}
-              <Save className="w-4 h-4 ml-2" />
             </Button>
           </UnifiedCardActions>
         </UnifiedCardBody>

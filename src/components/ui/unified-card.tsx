@@ -1,12 +1,14 @@
-import type { ReactNode } from "react";
+import type { ReactNode, CSSProperties } from "react";
 import { Card, Stack, Group, Title, Text, Box } from "@mantine/core";
 
 type UnifiedCardProps = {
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
+  mt?: string | number;
 };
 
-export function UnifiedCard({ children, className }: UnifiedCardProps) {
+export function UnifiedCard({ children, className, style, mt }: UnifiedCardProps) {
   return (
     <Card 
       shadow="sm" 
@@ -14,9 +16,11 @@ export function UnifiedCard({ children, className }: UnifiedCardProps) {
       radius="lg" 
       withBorder 
       className={className}
+      mt={mt}
       style={{
         backgroundColor: "var(--mantine-color-dark-8)",
-        transition: "transform 0.2s ease, box-shadow 0.2s ease"
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        ...style
       }}
     >
       {children}
@@ -59,46 +63,48 @@ export function UnifiedCardHeader({
   );
 }
 
-export function UnifiedCardBody({ children, className }: UnifiedCardProps) {
-  return <Stack gap="md" className={className}>{children}</Stack>;
+export function UnifiedCardBody({ children, className, style, mt }: UnifiedCardProps) {
+  return <Stack gap="md" className={className} style={style} mt={mt}>{children}</Stack>;
 }
 
-export function UnifiedCardText({ children, className }: UnifiedCardProps) {
+export function UnifiedCardText({ children, className, style, mt }: UnifiedCardProps) {
   return (
-    <Text size="sm" style={{ lineHeight: 1.6, opacity: 0.9 }} className={className}>
+    <Text size="sm" style={{ lineHeight: 1.6, opacity: 0.9, ...style }} className={className} mt={mt}>
       {children}
     </Text>
   );
 }
 
-export function UnifiedCardSection({ children, className }: UnifiedCardProps) {
+export function UnifiedCardSection({ children, className, style, mt }: UnifiedCardProps) {
   return (
     <Box 
       p="md" 
       style={{ 
         backgroundColor: "rgba(255,255,255,0.03)", 
         borderRadius: "var(--mantine-radius-md)",
-        border: "1px solid rgba(255,255,255,0.05)" 
+        border: "1px solid rgba(255,255,255,0.05)",
+        ...style 
       }} 
       className={className}
+      mt={mt}
     >
       {children}
     </Box>
   );
 }
 
-export function UnifiedCardActions({ children, className }: UnifiedCardProps) {
-  return <Group gap="sm" mt="md" className={className}>{children}</Group>;
+export function UnifiedCardActions({ children, className, style, mt }: UnifiedCardProps) {
+  return <Group gap="sm" mt={mt || "md"} className={className} style={style}>{children}</Group>;
 }
 
-export function UnifiedCardFooter({ children, className }: UnifiedCardProps) {
+export function UnifiedCardFooter({ children, className, style, mt }: UnifiedCardProps) {
   return (
     <Card.Section 
       withBorder 
       inheritPadding 
       py="md" 
-      mt="xl" 
-      style={{ backgroundColor: "rgba(0,0,0,0.15)" }}
+      mt={mt || "xl"} 
+      style={{ backgroundColor: "rgba(0,0,0,0.15)", ...style }}
       className={className}
     >
       {children}

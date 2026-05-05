@@ -21,9 +21,19 @@ import {
   TrendingUp,
   ArrowUpRight,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Group, TextInput, Button as MantineButton, Box } from "@mantine/core";
+import { 
+  Badge, 
+  Button, 
+  Group, 
+  TextInput, 
+  Box, 
+  Stack, 
+  Skeleton, 
+  Loader, 
+  Center,
+  Text,
+  ActionIcon
+} from "@mantine/core";
 import {
   EmptyState,
   MetricCard,
@@ -33,14 +43,12 @@ import {
   PageShell,
   UnifiedGrid,
 } from "@/components/ui/app-shell";
-import { Skeleton } from "@/components/ui/skeleton";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { useStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
 import React from "react";
 
 type Company = {
@@ -162,22 +170,6 @@ function reviewStatusLabel(processingStatus: Flashcard["processingStatus"]) {
       return "Accepted";
     case "DECLINED":
       return "Declined";
-  }
-}
-
-function reviewStatusClasses(processingStatus: Flashcard["processingStatus"]) {
-  switch (processingStatus) {
-    case "ACCEPTED":
-      return "border-[hsl(var(--color-high)/0.2)] bg-[hsl(var(--color-high)/0.1)] text-[hsl(var(--color-high))]";
-    case "DECLINED":
-      return "border-[hsl(var(--color-low)/0.2)] bg-[hsl(var(--color-low)/0.1)] text-[hsl(var(--color-low))]";
-    case "VERIFIED":
-      return "border-[hsl(var(--color-quality)/0.2)] bg-[hsl(var(--color-quality)/0.1)] text-[hsl(var(--color-quality))]";
-    case "DRAFT":
-    case "CHECKED":
-      return "border-input bg-background text-foreground";
-    default:
-      return "border-input bg-background text-foreground";
   }
 }
 
@@ -514,17 +506,23 @@ export default function CompanyKnowMorePage() {
 
   if (loading) {
     return (
-      <PageShell width="5xl" className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-80" />
-        <div className="grid gap-4 md:grid-cols-4">
-          <Skeleton className="h-28" />
-          <Skeleton className="h-28" />
-          <Skeleton className="h-28" />
-          <Skeleton className="h-28" />
-        </div>
-        <Skeleton className="h-56" />
-        <Skeleton className="h-56" />
+      <PageShell width="full">
+        <Stack gap="xl">
+          <Skeleton h={40} w={200} radius="md" />
+          <Skeleton h={20} w={400} radius="md" />
+          <MetricGrid>
+            <Skeleton h={140} radius="lg" />
+            <Skeleton h={140} radius="lg" />
+            <Skeleton h={140} radius="lg" />
+            <Skeleton h={140} radius="lg" />
+            <Skeleton h={140} radius="lg" />
+          </MetricGrid>
+          <UnifiedGrid>
+            <Skeleton h={300} radius="lg" />
+            <Skeleton h={300} radius="lg" />
+            <Skeleton h={300} radius="lg" />
+          </UnifiedGrid>
+        </Stack>
       </PageShell>
     );
   }
@@ -584,54 +582,71 @@ export default function CompanyKnowMorePage() {
         />
       </MetricGrid>
 
-      <Group justify="space-between" align="center">
-        <TextInput 
-          placeholder="Search knowledge slices..." 
-          leftSection={<Search size={16} />}
-          value={searchQuery} 
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ flex: 1, maxWidth: 400 }}
-          radius="md"
-        />
-        <Group gap="xs">
-          <Box 
-            p={4} 
-            style={{ 
-              borderRadius: "var(--mantine-radius-md)",
-              backgroundColor: "rgba(0,0,0,0.2)",
-              border: "1px solid rgba(255,255,255,0.05)",
-              display: "flex",
-              gap: 4
-            }}
-          >
-            {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
-              <MantineButton
-                key={type}
-                variant={intelligenceFilter === type ? "light" : "subtle"}
-                color={intelligenceFilter === type ? (type === "COMPETITOR" ? "orange" : "brand") : "gray"}
-                size="xs"
-                h={32}
-                fw={800}
-                tt="uppercase"
-                lts={1}
-                onClick={() => setIntelligenceFilter(type)}
-              >
-                {type === "INTERNAL" ? "My Company" : "The Market"}
-              </MantineButton>
-            ))}
-          </Box>
-          {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
-            <Badge
-              key={kind}
-              variant={filterKind === kind ? "default" : "outline"}
-              className="cursor-pointer px-3 py-1 text-xs transition-colors hover:bg-accent"
-              onClick={() => setFilterKind(kind)}
+      <Stack gap="lg">
+        <Group justify="space-between" align="center">
+          <TextInput 
+            placeholder="Search knowledge slices..." 
+            leftSection={<Search size={16} />}
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ flex: 1, maxWidth: 400 }}
+            radius="md"
+          />
+          <Group gap="xs">
+            <Box 
+              p={4} 
+              style={{ 
+                borderRadius: "var(--mantine-radius-md)",
+                backgroundColor: "rgba(0,0,0,0.2)",
+                border: "1px solid rgba(255,255,255,0.05)",
+                display: "flex",
+                gap: 4
+              }}
             >
-              {kind === "ALL" ? "All types" : kindLabel(kind as Flashcard["kind"])}
-            </Badge>
-          ))}
+              {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
+                <Button
+                  key={type}
+                  variant={intelligenceFilter === type ? "light" : "subtle"}
+                  color={intelligenceFilter === type ? (type === "COMPETITOR" ? "orange" : "brand") : "gray"}
+                  size="xs"
+                  h={32}
+                  fw={800}
+                  tt="uppercase"
+                  lts={1}
+                  onClick={() => setIntelligenceFilter(type)}
+                >
+                  {type === "INTERNAL" ? "My Company" : "The Market"}
+                </Button>
+              ))}
+            </Box>
+            <Box 
+              p={4} 
+              style={{ 
+                borderRadius: "var(--mantine-radius-md)",
+                backgroundColor: "rgba(0,0,0,0.2)",
+                border: "1px solid rgba(255,255,255,0.05)",
+                display: "flex",
+                gap: 4
+              }}
+            >
+              {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
+                <Button
+                  key={kind}
+                  variant={filterKind === kind ? "light" : "subtle"}
+                  color={filterKind === kind ? "brand" : "gray"}
+                  size="xs"
+                  h={32}
+                  fw={800}
+                  tt="uppercase"
+                  lts={1}
+                  onClick={() => setFilterKind(kind)}
+                >
+                  {kind === "ALL" ? "All" : kindLabel(kind as Flashcard["kind"])}
+                </Button>
+              ))}
+            </Box>
+          </Group>
         </Group>
-      </Group>
 
       {filteredFlashcards.length === 0 ? (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -650,8 +665,12 @@ export default function CompanyKnowMorePage() {
                   router.replace(`${pathname}${nextSearch.toString() ? `?${nextSearch.toString()}` : ""}`, { scroll: false });
                 }}>Clear filters</Button>
               ) : (
-                <Button asChild>
-                  <a href={`/${companyId}/data`}>Open Data</a>
+                <Button 
+                  onClick={() => router.push(`/${companyId}/data`)}
+                  variant="filled"
+                  color="brand"
+                >
+                  Open Data
                 </Button>
               )
             }
@@ -730,6 +749,7 @@ export default function CompanyKnowMorePage() {
           })}
         </UnifiedGrid>
       )}
+      </Stack>
     </PageShell>
   );
 }

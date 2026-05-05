@@ -1,9 +1,21 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { GitBranch, FileText, Lightbulb, CheckSquare, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { 
+  Box, 
+  Stack, 
+  Group, 
+  Title, 
+  Text, 
+  ActionIcon, 
+  ThemeIcon, 
+  Loader, 
+  Center,
+  rem,
+  ScrollArea
+} from "@mantine/core";
 
 interface TraceNode {
   id: string;
@@ -32,8 +44,6 @@ export function TraceViewer({
     async function fetchTrace() {
       setLoading(true);
       try {
-        // Fetch all items belonging to this version family
-        // In a real implementation, this would be a dedicated /api/trace endpoint
         const res = await fetch(`/api/trace?familyId=${versionFamilyId}`);
         const data = await res.json();
         setNodes(data);
@@ -48,57 +58,102 @@ export function TraceViewer({
   }, [versionFamilyId]);
 
   return (
-    <motion.div 
+    <Box
+      component={motion.div}
       initial={{ opacity: 0, x: 20 }} 
       animate={{ opacity: 1, x: 0 }} 
       exit={{ opacity: 0, x: 20 }}
-      className="fixed inset-y-0 right-0 w-96 bg-zinc-950 border-l border-zinc-800 shadow-2xl z-50 p-6 flex flex-col gap-6"
+      style={{
+        position: 'fixed',
+        top: 0,
+        bottom: 0,
+        right: 0,
+        width: rem(400),
+        backgroundColor: 'var(--mantine-color-body)',
+        borderLeft: '1px solid var(--mantine-color-default-border)',
+        boxShadow: 'var(--mantine-shadow-xl)',
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+      p="xl"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-white">
-          <GitBranch className="w-5 h-5 text-indigo-500" />
-          <h2 className="text-lg font-bold tracking-tight">Intelligence Lineage</h2>
-        </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="text-zinc-500 hover:text-white">
-          <X className="w-5 h-5" />
-        </Button>
-      </div>
+      <Stack gap="xl" h="100%">
+        <Group justify="space-between" align="center">
+          <Group gap="sm">
+            <ThemeIcon variant="light" color="indigo" radius="md" size="lg">
+              <GitBranch size={20} />
+            </ThemeIcon>
+            <Title order={2} size="h4" fw={900} lts={-0.5}>Intelligence Lineage</Title>
+          </Group>
+          <ActionIcon variant="subtle" color="gray" onClick={onClose}>
+            <X size={20} />
+          </ActionIcon>
+        </Group>
 
-      <div className="flex-1 overflow-y-auto space-y-8 relative">
-        {/* Connecting Line */}
-        <div className="absolute left-4 top-8 bottom-8 w-0.5 bg-zinc-800" />
+        <Box style={{ flex: 1, position: 'relative' }}>
+          {/* Vertical Connecting line */}
+          <Box 
+            style={{ 
+              position: 'absolute', 
+              left: 17, 
+              top: 20, 
+              bottom: 20, 
+              width: 2, 
+              backgroundColor: 'var(--mantine-color-default-border)',
+              opacity: 0.5
+            }} 
+          />
 
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : nodes.map((node, i) => (
-          <div key={node.id} className="relative pl-12">
-            <div className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center z-10 
-              ${node.type === 'SOURCE' ? 'bg-zinc-800 text-zinc-400' : 
-                node.type === 'FLASHCARD' ? 'bg-amber-500/20 text-amber-500' : 
-                'bg-indigo-500/20 text-indigo-500'}`}
-            >
-              {node.type === 'SOURCE' && <FileText className="w-4 h-4" />}
-              {node.type === 'FLASHCARD' && <Lightbulb className="w-4 h-4" />}
-              {node.type === 'TASK' && <CheckSquare className="w-4 h-4" />}
-            </div>
-            
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                {node.type} • {new Date(node.timestamp).toLocaleTimeString()}
-              </p>
-              <h3 className="text-sm font-semibold text-white leading-tight">
-                {node.title}
-              </h3>
-            </div>
-          </div>
-        ))}
-      </div>
+          <ScrollArea h="100%" offsetScrollbars>
+            <Stack gap={40} py="md">
+              {loading ? (
+                <Center h={200}>
+                  <Loader variant="bars" color="brand" size="lg" />
+                </Center>
+              ) : nodes.map((node) => (
+                <Group key={node.id} wrap="nowrap" align="flex-start" gap="lg" style={{ position: 'relative', zIndex: 1 }}>
+                  <ThemeIcon 
+                    variant="filled" 
+                    color={node.type === 'SOURCE' ? 'gray' : node.type === 'FLASHCARD' ? 'orange' : 'indigo'} 
+                    radius="xl" 
+                    size={36}
+                    style={{ 
+                      boxShadow: '0 0 0 4px var(--mantine-color-body)'
+                    }}
+                  >
+                    {node.type === 'SOURCE' && <FileText size={18} />}
+                    {node.type === 'FLASHCARD' && <Lightbulb size={18} />}
+                    {node.type === 'TASK' && <CheckSquare size={18} />}
+                  </ThemeIcon>
+                  
+                  <Stack gap={2}>
+                    <Text size="10px" fw={900} tt="uppercase" lts={2} c="dimmed">
+                      {node.type} • {new Date(node.timestamp).toLocaleTimeString()}
+                    </Text>
+                    <Text size="sm" fw={700} style={{ lineHeight: 1.4 }}>
+                      {node.title}
+                    </Text>
+                  </Stack>
+                </Group>
+              ))}
+            </Stack>
+          </ScrollArea>
+        </Box>
 
-      <div className="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800/50 text-[11px] text-zinc-500 leading-relaxed">
-        This trace visualizes the autonomous transformation from raw market evidence into strategic action cards.
-      </div>
-    </motion.div>
+        <Box 
+          p="md" 
+          style={{ 
+            borderRadius: 'var(--mantine-radius-md)',
+            backgroundColor: 'var(--mantine-color-default-hover)',
+            border: '1px solid var(--mantine-color-default-border)'
+          }}
+        >
+          <Text size="xs" c="dimmed" fw={500} style={{ lineHeight: 1.6, fontStyle: 'italic' }}>
+            This trace visualizes the autonomous transformation from raw market evidence into strategic action cards.
+          </Text>
+        </Box>
+      </Stack>
+    </Box>
   );
 }

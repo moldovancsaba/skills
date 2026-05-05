@@ -39,7 +39,6 @@ import {
   rem,
   ThemeIcon
 } from "@mantine/core";
-import { useTheme } from "@/lib/theme-provider";
 import {
   EmptyState,
   MetricCard,
@@ -160,7 +159,6 @@ export default function CompanyKnowMorePage() {
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
   const [intelligenceFilter, setIntelligenceFilter] = useState<"INTERNAL" | "COMPETITOR">("INTERNAL");
   const { sources, setSources } = useStore();
-  const { isDark } = useTheme();
   const [isOwner, setIsOwner] = useState(false);
   const [fileCount, setFileCount] = useState(0);
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
@@ -467,8 +465,8 @@ export default function CompanyKnowMorePage() {
             <Group gap="xs">
               <Group gap={4} p={4} style={{ 
                 borderRadius: "var(--mantine-radius-md)", 
-                backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-1)', 
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` 
+                backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))', 
+                border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' 
               }}>
                 {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
                   <Button
@@ -489,8 +487,8 @@ export default function CompanyKnowMorePage() {
               </Group>
               <Group gap={4} p={4} style={{ 
                 borderRadius: "var(--mantine-radius-md)", 
-                backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-1)', 
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` 
+                backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))', 
+                border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' 
               }}>
                 {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
                   <Button

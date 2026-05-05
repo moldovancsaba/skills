@@ -24,7 +24,6 @@ import {
 } from "@mantine/core";
 
 import { DashboardChart } from "@/components/dashboard-chart";
-import { useTheme } from "@/lib/theme-provider";
 
 type PageShellProps = {
   children: ReactNode;
@@ -183,16 +182,15 @@ export function MetricCard({
   detail,
   color = "brand",
 }: MetricCardProps) {
-  const { isDark } = useTheme();
   return (
     <Card 
       radius="lg" 
       p="xl" 
       withBorder 
       style={{ 
-        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+        backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.02))',
         backdropFilter: 'blur(10px)',
-        border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
+        border: '1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))',
         position: 'relative',
         overflow: 'hidden',
         height: '100%'
@@ -301,7 +299,6 @@ export function LinkCard({
   className,
   chartData,
 }: LinkCardProps) {
-  const { isDark } = useTheme();
   return (
     <UnstyledButton 
       component={Link} 
@@ -316,9 +313,9 @@ export function LinkCard({
         className="link-card-hardened"
         style={{ 
           height: '100%',
-          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+          backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.02))',
           backdropFilter: 'blur(10px)',
-          border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
+          border: '1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           cursor: 'pointer',
           overflow: 'hidden',
@@ -372,7 +369,7 @@ export function LinkCard({
           </Stack>
 
           {chartData && chartData.length > 0 && (
-            <Box mt="auto" pt="lg" style={{ filter: isDark ? 'grayscale(0.5) contrast(1.2)' : 'grayscale(0.2) contrast(1.1)' }}>
+            <Box mt="auto" pt="lg" style={{ filter: 'light-dark(grayscale(0.2) contrast(1.1), grayscale(0.5) contrast(1.2))' }}>
               <DashboardChart 
                 data={chartData} 
                 color={`var(--mantine-color-${variant}-6)`} 
@@ -389,10 +386,10 @@ export function LinkCard({
       </Card>
       <style jsx global>{`
         .link-card-hardened:hover {
-          background-color: ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'} !important;
+          background-color: light-dark(rgba(0, 0, 0, 0.04), rgba(255, 255, 255, 0.05)) !important;
           transform: translateY(-6px);
-          border-color: ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'} !important;
-          box-shadow: 0 20px 40px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.08)'};
+          border-color: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1)) !important;
+          box-shadow: 0 20px 40px light-dark(rgba(0,0,0,0.08), rgba(0,0,0,0.4));
         }
       `}</style>
     </UnstyledButton>
@@ -408,7 +405,6 @@ export function PipelineAccentHeader({
   title: string;
   icon: string;
 }) {
-  const { isDark } = useTheme();
   const segments = [
     { key: "data", color: "blue" },
     { key: "topics", color: "indigo" },
@@ -430,7 +426,7 @@ export function PipelineAccentHeader({
             h={6} 
             style={{ 
               borderRadius: 3,
-              backgroundColor: segment.key === activeKey ? `var(--mantine-color-${activeColor}-6)` : (isDark ? "var(--mantine-color-dark-4)" : "var(--mantine-color-gray-2)"),
+              backgroundColor: segment.key === activeKey ? `var(--mantine-color-${activeColor}-6)` : 'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4))',
               boxShadow: segment.key === activeKey ? `0 0 10px var(--mantine-color-${activeColor}-9)` : "none",
               transition: 'all 0.3s ease'
             }}

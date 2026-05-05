@@ -16,7 +16,8 @@ import {
   UnstyledButton,
   ScrollArea,
   ThemeIcon,
-  Badge
+  Badge,
+  Button
 } from "@mantine/core";
 import {
   ChevronRight,
@@ -40,7 +41,6 @@ import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
-import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/release";
 
 const pipelineItems = [

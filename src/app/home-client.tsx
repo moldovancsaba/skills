@@ -9,28 +9,25 @@ import {
   Tooltip, 
   Divider, 
   Box, 
-  SimpleGrid, 
   Loader, 
   Alert,
-  ThemeIcon
+  ThemeIcon,
+  Button,
+  Badge,
+  Card
 } from "@mantine/core";
-import { Plus, ListOrdered, Sparkles, Zap, Edit, Trash2, HelpCircle, LogIn, AlertCircle, Database, Target, ListTodo, LayoutDashboard } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Plus, Sparkles, Edit, Trash2, HelpCircle, LogIn, AlertCircle, Database, Target, ListTodo, LayoutDashboard } from "lucide-react";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
-import { LinkCard, UnifiedGrid, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { LinkCard, UnifiedGrid, PageShell } from "@/components/ui/app-shell";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { useTheme } from "@/lib/theme-provider";
 import { useState, useEffect, useCallback } from "react";
 
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setCompany, setSources } = useStore();
-  const { isDark } = useTheme();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -170,7 +167,7 @@ export default function Home() {
     return (
       <Box style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
         <Stack align="center" gap="md" w="100%">
-          <Loader color="brand" size="lg" />
+          <Loader color="brand" size="lg" variant="bars" />
           <Text size="sm" fw={700} c="dimmed">Hardening OS Infrastructure...</Text>
         </Stack>
       </Box>
@@ -211,7 +208,7 @@ export default function Home() {
         </Group>
 
         {(canManageCompanies && (companies.length === 0 || showForm)) ? (
-          <Card p="xl" radius="lg" withBorder style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)' }}>
+          <Card p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
             <Stack gap="lg">
               <Title order={3}>{editingId ? "Modify Intelligence Unit" : "Initialize New Unit"}</Title>
               <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany}>
@@ -252,7 +249,7 @@ export default function Home() {
           <Stack gap={48}>
             {Array.isArray(companies) && companies.map((c: any) => (
               <Box key={c.id}>
-                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: `1px solid ${isDark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-2)'}`, paddingBottom: 'var(--mantine-spacing-md)' }}>
+                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: '1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4))', paddingBottom: 'var(--mantine-spacing-md)' }}>
                   <Stack gap={4}>
                     <Group gap="sm">
                       <Title 
@@ -347,7 +344,7 @@ export default function Home() {
             ))}
 
             {!canManageCompanies && companies.length === 0 && (
-              <Card p="xl" radius="lg" withBorder style={{ backgroundColor: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)' }}>
+              <Card p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
                 <Text size="sm" c="dimmed" fs="italic">
                   No intelligence units are currently provisioned for this account.
                 </Text>
@@ -357,7 +354,7 @@ export default function Home() {
         )}
 
         {canManageCompanies && !showForm && (
-          <Box pt="xl" style={{ borderTop: `1px solid ${isDark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-2)'}` }}>
+          <Box pt="xl" style={{ borderTop: '1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-6))' }}>
             <Button 
               onClick={() => setShowForm(true)} 
               variant="subtle" 

@@ -2,7 +2,6 @@
 
 import type { ReactNode, CSSProperties } from "react";
 import { Card, Stack, Group, Title, Text, Box, rem } from "@mantine/core";
-import { useTheme } from "@/lib/theme-provider";
 
 type UnifiedCardProps = {
   children: ReactNode;
@@ -12,7 +11,6 @@ type UnifiedCardProps = {
 };
 
 export function UnifiedCard({ children, className, style, mt }: UnifiedCardProps) {
-  const { isDark } = useTheme();
   return (
     <Card 
       shadow="sm" 
@@ -22,7 +20,7 @@ export function UnifiedCard({ children, className, style, mt }: UnifiedCardProps
       className={className}
       mt={mt}
       style={{
-        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.01)',
+        backgroundColor: 'light-dark(rgba(0, 0, 0, 0.01), rgba(255, 255, 255, 0.02))',
         transition: "transform 0.2s ease, box-shadow 0.2s ease",
         ...style
       }}
@@ -80,14 +78,13 @@ export function UnifiedCardText({ children, className, style, mt }: UnifiedCardP
 }
 
 export function UnifiedCardSection({ children, className, style, mt }: UnifiedCardProps) {
-  const { isDark } = useTheme();
   return (
     <Box 
       p="md" 
       style={{ 
-        backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", 
+        backgroundColor: 'light-dark(rgba(0,0,0,0.02), rgba(255,255,255,0.03))',
         borderRadius: "var(--mantine-radius-md)",
-        border: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
+        border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))',
         ...style 
       }} 
       className={className}
@@ -103,7 +100,6 @@ export function UnifiedCardActions({ children, className, style, mt }: UnifiedCa
 }
 
 export function UnifiedCardFooter({ children, className, style, mt }: UnifiedCardProps) {
-  const { isDark } = useTheme();
   return (
     <Card.Section 
       withBorder 
@@ -111,7 +107,7 @@ export function UnifiedCardFooter({ children, className, style, mt }: UnifiedCar
       py="md" 
       mt={mt || "xl"} 
       style={{ 
-        backgroundColor: isDark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.03)", 
+        backgroundColor: 'light-dark(rgba(0,0,0,0.03), rgba(0,0,0,0.2))',
         ...style 
       }}
       className={className}

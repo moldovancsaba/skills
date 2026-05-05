@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { Center, Container, Title, Text, Anchor, Stack } from "@mantine/core";
+import { Container, Title, Text, Anchor, Stack, rem } from "@mantine/core";
 
 export default function CustomersPage() {
   return (
@@ -18,5 +18,3 @@ export default function CustomersPage() {
     </Container>
   );
 }
-
-import { rem } from "@mantine/core";

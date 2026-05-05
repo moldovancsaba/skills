@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CircleHelp, Lightbulb } from "lucide-react";
+import { BookOpen, CircleHelp, Lightbulb, ArrowLeft, HelpCircle, FileText } from "lucide-react";
 import { faqItems, manualSections } from "@/content/help";
 import { 
   Accordion, 
@@ -13,7 +13,10 @@ import {
   Group, 
   ThemeIcon,
   rem,
-  SimpleGrid
+  SimpleGrid,
+  Box,
+  Paper,
+  Anchor
 } from "@mantine/core";
 import { Notice, PageShell } from "@/components/ui/app-shell";
 import Link from "next/link";
@@ -21,73 +24,108 @@ import Link from "next/link";
 export function ManualPageContent() {
   return (
     <PageShell width="5xl">
-      <Stack gap="xl">
-        <Group justify="flex-end">
-          <Button component={Link} href="/faq" variant="subtle" size="xs">
+      <Stack gap={48}>
+        <Group justify="space-between" align="center">
+          <Stack gap={4}>
+            <Group gap="sm">
+              <ThemeIcon variant="light" color="brand" size="lg" radius="md">
+                <FileText size={20} />
+              </ThemeIcon>
+              <Title order={1} fw={900} lts={-1}>Operations Manual</Title>
+            </Group>
+            <Text size="xs" fw={800} tt="uppercase" lts={2} c="dimmed" ml={rem(44)}>
+              System Guidance & Best Practices
+            </Text>
+          </Stack>
+          <Button component={Link} href="/faq" variant="subtle" color="gray" leftSection={<CircleHelp size={16} />}>
             Open FAQ
           </Button>
         </Group>
 
-        <Notice icon={Lightbulb} title="Fastest path to better output">
-          Better source quality and sharper feedback improve the system faster than simply refreshing the same weak inputs.
+        <Notice icon={Lightbulb} title="Strategic Yield Optimization">
+          Better source quality and sharper feedback improve the system faster than simply refreshing the same weak inputs. Focus on high-integrity data ingress.
         </Notice>
 
-        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-          <Card p="xl" radius="lg" withBorder>
-            <Stack gap="md">
-              <Title order={3} size="h4">Use these source types first</Title>
-              <Stack gap={4}>
-                <Text size="sm">Product and pricing pages</Text>
-                <Text size="sm">Competitor pricing and positioning pages</Text>
-                <Text size="sm">Customer notes and interview summaries</Text>
-                <Text size="sm">Sales decks, briefs, onboarding docs, and internal files</Text>
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+          <Card p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+            <Stack gap="lg">
+              <Title order={3} size="h5" fw={900} tt="uppercase" lts={1}>Source Priority Layer</Title>
+              <Stack gap="sm">
+                {[
+                  "Product and pricing pages",
+                  "Competitor pricing and positioning pages",
+                  "Customer notes and interview summaries",
+                  "Sales decks, briefs, and internal files"
+                ].map((item, i) => (
+                  <Group key={i} gap="sm" wrap="nowrap">
+                    <ThemeIcon size="xs" variant="subtle" color="brand" radius="xl">
+                      <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
+                    </ThemeIcon>
+                    <Text size="sm" fw={500}>{item}</Text>
+                  </Group>
+                ))}
               </Stack>
             </Stack>
           </Card>
-          <Card p="xl" radius="lg" withBorder>
-            <Stack gap="md">
-              <Title order={3} size="h4">Useful decline language</Title>
-              <Stack gap={4}>
-                <Text size="sm">Already doing this</Text>
-                <Text size="sm">Not relevant for this company</Text>
-                <Text size="sm">Too early, revisit after summer</Text>
-                <Text size="sm">Blocked until launch, budget approval, or hiring</Text>
+          <Card p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+            <Stack gap="lg">
+              <Title order={3} size="h5" fw={900} tt="uppercase" lts={1}>Calibration Vocabulary</Title>
+              <Stack gap="sm">
+                {[
+                  "Already doing this",
+                  "Not relevant for this company",
+                  "Too early, revisit after summer",
+                  "Blocked until launch or budget approval"
+                ].map((item, i) => (
+                  <Group key={i} gap="sm" wrap="nowrap">
+                    <ThemeIcon size="xs" variant="subtle" color="orange" radius="xl">
+                      <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
+                    </ThemeIcon>
+                    <Text size="sm" fw={500}>{item}</Text>
+                  </Group>
+                ))}
               </Stack>
             </Stack>
           </Card>
         </SimpleGrid>
 
-        <Stack gap="md">
+        <Stack gap="xl">
           {manualSections.map((section) => (
-            <Card key={section.id} p="xl" radius="lg" withBorder>
-              <Stack gap="md">
-                <Group>
-                  <Badge variant="light" color="brand">{section.title}</Badge>
-                </Group>
-                <Title order={3} size="h4">{section.summary}</Title>
-                <Stack gap="sm">
+            <Paper key={section.id} p="xl" radius="lg" withBorder style={{ position: 'relative' }}>
+              <Badge 
+                variant="filled" 
+                color="brand" 
+                size="xs" 
+                radius="sm" 
+                style={{ position: 'absolute', top: -10, left: 20 }}
+              >
+                {section.title}
+              </Badge>
+              <Stack gap="lg" mt="sm">
+                <Title order={3} size="h4" fw={900} lts={-0.5}>{section.summary}</Title>
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                   {section.bullets.map((bullet) => (
-                    <Card key={bullet} p="md" radius="md" withBorder variant="light">
-                      <Text size="sm">{bullet}</Text>
-                    </Card>
+                    <Paper key={bullet} p="md" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-7))' }}>
+                      <Text size="sm" fw={500} style={{ lineHeight: 1.5 }}>{bullet}</Text>
+                    </Paper>
                   ))}
-                </Stack>
+                </SimpleGrid>
               </Stack>
-            </Card>
+            </Paper>
           ))}
         </Stack>
 
-        <Card p="xl" radius="lg" withBorder>
+        <Card p="xl" radius="lg" withBorder ta="center" style={{ borderStyle: 'dashed' }}>
           <Stack align="center" gap="md">
-            <Title order={3} size="h4">Need quick answers?</Title>
+            <Title order={3} size="h4" fw={900}>Need rapid operational support?</Title>
             <Button 
               component={Link} 
               href="/faq" 
               variant="light" 
               color="brand"
-              leftSection={<CircleHelp size={16} />}
+              leftSection={<CircleHelp size={18} />}
             >
-              Open FAQ
+              Access Intelligence FAQ
             </Button>
           </Stack>
         </Card>
@@ -99,25 +137,44 @@ export function ManualPageContent() {
 export function FaqPageContent() {
   return (
     <PageShell width="5xl">
-      <Stack gap="xl">
-        <Notice icon={BookOpen} title="Before you refresh again">
-          If the output feels weak, check source quality and feedback quality first. That usually matters more than another blind rerun.
+      <Stack gap={48}>
+        <Group justify="space-between" align="center">
+          <Stack gap={4}>
+            <Group gap="sm">
+              <ThemeIcon variant="light" color="indigo" size="lg" radius="md">
+                <HelpCircle size={20} />
+              </ThemeIcon>
+              <Title order={1} fw={900} lts={-1}>Intelligence FAQ</Title>
+            </Group>
+            <Text size="xs" fw={800} tt="uppercase" lts={2} c="dimmed" ml={rem(44)}>
+              Core Protocol Inquiries
+            </Text>
+          </Stack>
+          <Anchor component={Link} href="/" size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">
+            Return to Dashboard →
+          </Anchor>
+        </Group>
+
+        <Notice icon={BookOpen} title="Operational Context">
+          If the intelligence output feels weak, check source quality and calibration history first. System performance is a direct reflection of evidence fidelity.
         </Notice>
 
-        <Card p="xl" radius="lg" withBorder>
+        <Paper p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(white, var(--mantine-color-dark-8))' }}>
           <Accordion variant="separated" radius="md">
             {faqItems.map((item) => (
-              <Accordion.Item key={item.id} value={item.id} style={{ border: 'none', marginBottom: rem(8) }}>
+              <Accordion.Item key={item.id} value={item.id} style={{ border: 'none', marginBottom: rem(12) }}>
                 <Accordion.Control>
-                  <Text fw={700}>{item.question}</Text>
+                  <Text fw={800} size="sm" tt="uppercase" lts={0.5}>{item.question}</Text>
                 </Accordion.Control>
                 <Accordion.Panel>
-                  <Text size="sm" c="dimmed">{item.answer}</Text>
+                  <Paper p="md" radius="md" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-9))', borderLeft: '3px solid var(--mantine-color-brand-6)' }}>
+                    <Text size="sm" c="dimmed" fw={500} style={{ lineHeight: 1.6 }}>{item.answer}</Text>
+                  </Paper>
                 </Accordion.Panel>
               </Accordion.Item>
             ))}
           </Accordion>
-        </Card>
+        </Paper>
       </Stack>
     </PageShell>
   );

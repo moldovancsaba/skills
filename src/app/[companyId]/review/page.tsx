@@ -19,6 +19,7 @@ import {
   Badge,
   SimpleGrid,
   ThemeIcon,
+  Card,
   rem
 } from "@mantine/core";
 import { PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
@@ -185,7 +186,7 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
         />
         <UnifiedCardBody>
           <Stack gap="lg">
-            <Box p="md" style={{ background: 'light-dark(rgba(0,0,0,0.03), rgba(0,0,0,0.2))', borderRadius: 'var(--mantine-radius-md)', border: '1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4))' }}>
+            <Box p="md" style={{ background: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))', borderRadius: 'var(--mantine-radius-md)', border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' }}>
               <Text size="sm" c="dimmed" lineClamp={4} fw={500}>
                 {item.body || item.description}
               </Text>
@@ -220,4 +221,3 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
   );
 }
 
-import { Card } from "@mantine/core";

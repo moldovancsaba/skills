@@ -1,68 +1,101 @@
 import { Metadata } from "next";
-import { Container, Title, Text, Stack, Box, Divider } from "@mantine/core";
+import { Container, Title, Text, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
+import { Shield, Database, Lock, Eye, Mail } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy - checklist",
+  title: "Privacy Policy - checklist OS",
 };
 
 export default function PrivacyPage() {
   return (
-    <Container size="sm" py="xl">
-      <Stack gap="xl">
+    <Container size="sm" py={rem(80)}>
+      <Stack gap={60}>
         <Box>
-          <Title order={1} mb="xs">Privacy Policy</Title>
-          <Text size="sm" c="dimmed">Last updated: April 2025</Text>
+          <Group gap="sm" mb="xs">
+            <ThemeIcon variant="light" color="indigo" size="lg" radius="md">
+              <Shield size={20} />
+            </ThemeIcon>
+            <Title order={1} fw={900} lts={-1}>Privacy Policy</Title>
+          </Group>
+          <Text size="xs" fw={800} tt="uppercase" lts={2} c="dimmed" ml={rem(44)}>
+            PROTOCOL v0.15.0-HARDENED • LAST SYNC: APRIL 2025
+          </Text>
         </Box>
 
-        <Stack gap="lg">
-          <Box>
-            <Title order={2} size="h4" mb={4}>Data We Collect</Title>
-            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
-              We collect company information, product details, customer data, and competitor 
-              intelligence that you voluntarily provide. We also collect usage data to improve 
-              our service.
-            </Text>
-          </Box>
+        <Stack gap={40}>
+          <Group wrap="nowrap" align="flex-start" gap="xl">
+            <ThemeIcon variant="subtle" color="gray" size="xl">
+              <Database size={24} />
+            </ThemeIcon>
+            <Box>
+              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Data Collection</Title>
+              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+                We harvest company information, product details, customer data, and competitor 
+                intelligence that you voluntarily provision. We also collect usage data to calibrate 
+                the autonomous intelligence layer.
+              </Text>
+            </Box>
+          </Group>
 
-          <Divider variant="dotted" />
+          <Divider variant="dashed" />
 
-          <Box>
-            <Title order={2} size="h4" mb={4}>How We Use Data</Title>
-            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
-              Your data is used to generate marketing recommendations (Next Best Actions) 
-              tailored to your business. All AI processing is performed locally using 
-              Ollama - no data is sent to external AI services.
-            </Text>
-          </Box>
+          <Group wrap="nowrap" align="flex-start" gap="xl">
+            <ThemeIcon variant="subtle" color="gray" size="xl">
+              <Lock size={24} />
+            </ThemeIcon>
+            <Box>
+              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Processing Architecture</Title>
+              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+                Your data is used to synthesize marketing recommendations (Strategic Actions) 
+                tailored to your business. All primary AI processing is performed using 
+                high-integrity local inference - no data is leaked to external public AI services.
+              </Text>
+            </Box>
+          </Group>
 
-          <Divider variant="dotted" />
+          <Divider variant="dashed" />
 
-          <Box>
-            <Title order={2} size="h4" mb={4}>Data Storage</Title>
-            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
-              Data is stored in MongoDB Atlas. Local sync runs on mvp-factory-control 
-              for AI processing. We implement industry-standard security measures.
-            </Text>
-          </Box>
+          <Group wrap="nowrap" align="flex-start" gap="xl">
+            <ThemeIcon variant="subtle" color="gray" size="xl">
+              <Database size={24} />
+            </ThemeIcon>
+            <Box>
+              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Data Storage</Title>
+              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+                Intelligence is stored in secure MongoDB Atlas clusters. Local synchronization 
+                runs on hardened infrastructure for AI processing. We implement industrial-grade security measures to protect the memory engine.
+              </Text>
+            </Box>
+          </Group>
 
-          <Divider variant="dotted" />
+          <Divider variant="dashed" />
 
-          <Box>
-            <Title order={2} size="h4" mb={4}>Your Rights</Title>
-            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
-              You may request deletion of your data at any time. Contact us to exercise 
-              your data subject access requests.
-            </Text>
-          </Box>
+          <Group wrap="nowrap" align="flex-start" gap="xl">
+            <ThemeIcon variant="subtle" color="gray" size="xl">
+              <Eye size={24} />
+            </ThemeIcon>
+            <Box>
+              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Your Rights</Title>
+              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+                You may request complete purging of your data at any time. Contact us to exercise 
+                your data subject access requests through the sovereign intelligence gateway.
+              </Text>
+            </Box>
+          </Group>
 
-          <Divider variant="dotted" />
+          <Divider variant="dashed" />
 
-          <Box>
-            <Title order={2} size="h4" mb={4}>Contact</Title>
-            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
-              For privacy questions, contact us through the app.
-            </Text>
-          </Box>
+          <Group wrap="nowrap" align="flex-start" gap="xl">
+            <ThemeIcon variant="subtle" color="gray" size="xl">
+              <Mail size={24} />
+            </ThemeIcon>
+            <Box>
+              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Contact</Title>
+              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+                For privacy questions, contact the system administrators through the app dashboard.
+              </Text>
+            </Box>
+          </Group>
         </Stack>
       </Stack>
     </Container>

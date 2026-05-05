@@ -208,7 +208,7 @@ export function KnowledgeReviewCard({
             p="md" 
             style={{ 
               borderRadius: "var(--mantine-radius-md)",
-              backgroundColor: 'light-dark(rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.2))',
+              backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))',
               borderLeft: `4px solid var(--mantine-color-brand-6)`,
               borderTop: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`,
               borderRight: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`,

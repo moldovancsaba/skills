@@ -2,7 +2,7 @@
 
 /**
  * TACTICAL BOARD
- * v1.1.0
+ * v1.1.0-HARDENED
  *
  * NOTE: This file must ONLY be imported via dynamic({ ssr: false }) from the
  * page component. @hello-pangea/dnd uses browser-only pointer/DOM APIs.
@@ -33,10 +33,12 @@ import {
   Button,
   Box,
   ScrollArea,
+  ThemeIcon,
+  SimpleGrid,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader, PipelineAccentHeader } from "@/components/ui/app-shell";
-import { Trash2 } from "lucide-react";
+import { Trash2, ExternalLink, Target, Cpu, RefreshCw, Layers } from "lucide-react";
 
 type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
@@ -73,14 +75,6 @@ const COLUMNS: {
   { key: "TODO",      label: "Next",      description: "Soon · ICE ≥ 500",     accent: "var(--mantine-color-violet-6)" },
   { key: "CHECKLIST", label: "Now",       description: "Active · ICE ≥ 700",   accent: "var(--mantine-color-orange-6)" },
 ];
-
-const chartColors: Record<string, string> = {
-  blue: "var(--mantine-color-blue-6)",
-  amber: "var(--mantine-color-yellow-6)",
-  green: "var(--mantine-color-green-6)",
-  violet: "var(--mantine-color-violet-6)",
-  teal: "var(--mantine-color-teal-6)",
-};
 
 const COLUMN_OPTIONS = [
   { value: "IDEABANK",  label: "Idea Bank (Someday)" },
@@ -122,13 +116,18 @@ function CardDetailModal({
       zIndex={3000}
       title={
         <Group gap="sm">
-          <Text fw={800} size="lg" style={{ letterSpacing: "-0.02em" }}>
-            #{item?.publicId ?? "—"} · Task Card
+          <ThemeIcon variant="light" color="orange" size="md" radius="sm">
+            <Target size={16} />
+          </ThemeIcon>
+          <Text fw={900} size="sm" style={{ letterSpacing: "-0.01em", textTransform: 'uppercase' }}>
+            #{item?.publicId ?? "—"} · Tactical Unit
           </Text>
           {col && (
             <Badge
-              size="sm"
-              style={{ backgroundColor: `${col.accent}22`, color: col.accent }}
+              size="xs"
+              variant="outline"
+              color={col.accent}
+              styles={{ root: { borderWidth: 1 } }}
             >
               {col.label}
             </Badge>
@@ -137,10 +136,15 @@ function CardDetailModal({
       }
       size="xl"
       radius="lg"
-      overlayProps={{ blur: 4, opacity: 0.6 }}
+      overlayProps={{ 
+        backgroundOpacity: 0.55, 
+        blur: 3,
+        color: 'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-9))'
+      }}
       styles={{
         content: { 
           border: "1px solid var(--mantine-color-default-border)",
+          backgroundColor: 'light-dark(white, var(--mantine-color-dark-7))'
         }
       }}
     >
@@ -149,134 +153,175 @@ function CardDetailModal({
           <Loader variant="dots" color="orange" />
         </Center>
       ) : (
-        <Stack gap="md" pt="xs">
-        {/* Title */}
-        <Text fw={700} size="xl" style={{ lineHeight: 1.3 }}>
-          {item.title}
-        </Text>
-
-        {/* Description */}
-        {item.description && (
-          <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }}>
-            {item.description}
+        <Stack gap="xl" pt="xs">
+        {/* Title & Description */}
+        <Stack gap="xs">
+          <Text fw={900} size="xl" style={{ lineHeight: 1.2, letterSpacing: '-0.02em' }}>
+            {item.title}
           </Text>
-        )}
-
-        <Divider />
+          {item.description && (
+            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }} fw={500}>
+              {item.description}
+            </Text>
+          )}
+        </Stack>
 
         {/* ICE Scores */}
-        <Group grow gap="xs">
-          {[
-            { label: "Impact",     value: item.impact,     color: "var(--mantine-color-orange-6)" },
-            { label: "Confidence", value: item.confidence, color: "var(--mantine-color-cyan-6)" },
-            { label: "Ease",       value: item.ease,       color: "var(--mantine-color-violet-6)" },
-          ].map(s => (
-            <Paper key={s.label} p="sm" radius="md" withBorder ta="center">
-              <Text size="xl" fw={900} style={{ color: s.color }}>{s.value}</Text>
-              <Text size="xs" c="dimmed">{s.label}</Text>
+        <Box>
+          <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed" mb="md">Operational Scores</Text>
+          <Group grow gap="md">
+            {[
+              { label: "Impact",     value: item.impact,     color: "orange" },
+              { label: "Confidence", value: item.confidence, color: "cyan" },
+              { label: "Ease",       value: item.ease,       color: "violet" },
+            ].map(s => (
+              <Paper key={s.label} p="md" radius="md" withBorder ta="center" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+                <Text size="xl" fw={900} c={s.color}>{s.value}</Text>
+                <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">{s.label}</Text>
+              </Paper>
+            ))}
+            <Paper p="md" radius="md" withBorder ta="center" style={{ backgroundColor: 'light-dark(var(--mantine-color-orange-0), var(--mantine-color-orange-9))', borderColor: 'var(--mantine-color-orange-filled)' }}>
+              <Text size="xl" fw={900} c="orange">{Math.round(item.iceScore)}</Text>
+              <Text size="xs" fw={800} tt="uppercase" lts={1} c="orange">ICE Score</Text>
             </Paper>
-          ))}
-          <Paper p="sm" radius="md" withBorder ta="center">
-            <Text size="xl" fw={900} c="orange">{Math.round(item.iceScore)}</Text>
-            <Text size="xs" c="dimmed">ICE Score</Text>
-          </Paper>
-        </Group>
+          </Group>
+        </Box>
 
         {/* AI Scores */}
         {(item.qualityScore != null || item.urgencyScore != null || item.freshnessScore != null) && (
-          <Paper p="sm" radius="md" withBorder>
-            <Text size="xs" fw={700} c="dimmed" mb="xs">AI EVALUATION SIGNALS</Text>
-            <Group gap="xl">
-              <Stack gap={0}>
-                <Text size="sm" fw={700}>{fmt(item.qualityScore)}</Text>
-                <Text size="xs" c="dimmed">Quality</Text>
-              </Stack>
-              <Stack gap={0}>
-                <Text size="sm" fw={700}>{fmt(item.urgencyScore)}</Text>
-                <Text size="xs" c="dimmed">Urgency</Text>
-              </Stack>
-              <Stack gap={0}>
-                <Text size="sm" fw={700}>{fmt(item.freshnessScore)}</Text>
-                <Text size="xs" c="dimmed">Freshness</Text>
-              </Stack>
-              <Stack gap={0}>
-                <Badge size="sm" variant="dot" color="blue">{item.candidateState}</Badge>
-                <Text size="xs" c="dimmed">State</Text>
-              </Stack>
+          <Box>
+            <Group gap="xs" mb="md">
+              <Cpu size={14} color="var(--mantine-color-blue-6)" />
+              <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed">AI Evaluation Signals</Text>
             </Group>
-          </Paper>
+            <Paper p="md" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+              <SimpleGrid cols={4}>
+                <Stack gap={2}>
+                  <Text size="sm" fw={800}>{fmt(item.qualityScore)}</Text>
+                  <Text size="xs" c="dimmed" fw={700} tt="uppercase">Quality</Text>
+                </Stack>
+                <Stack gap={2}>
+                  <Text size="sm" fw={800}>{fmt(item.urgencyScore)}</Text>
+                  <Text size="xs" c="dimmed" fw={700} tt="uppercase">Urgency</Text>
+                </Stack>
+                <Stack gap={2}>
+                  <Text size="sm" fw={800}>{fmt(item.freshnessScore)}</Text>
+                  <Text size="xs" c="dimmed" fw={700} tt="uppercase">Freshness</Text>
+                </Stack>
+                <Stack gap={2}>
+                  <Badge size="xs" variant="filled" color="blue" radius="xs">{item.candidateState}</Badge>
+                  <Text size="xs" c="dimmed" fw={700} tt="uppercase">State</Text>
+                </Stack>
+              </SimpleGrid>
+            </Paper>
+          </Box>
         )}
 
         {/* Evaluation Reason */}
         {item.evaluationReason && (
-          <Paper p="sm" radius="md" withBorder>
-            <Text size="xs" fw={700} c="dimmed" mb={4}>AI JUDGE REASONING</Text>
-            <Text size="xs" style={{ lineHeight: 1.6, fontStyle: "italic" }}>
-              {item.evaluationReason}
-            </Text>
-          </Paper>
+          <Box>
+            <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed" mb="md">AI Judge Reasoning</Text>
+            <Paper p="md" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))', borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
+              <Text size="sm" fw={500} style={{ lineHeight: 1.6, fontStyle: "italic" }}>
+                "{item.evaluationReason}"
+              </Text>
+            </Paper>
+          </Box>
         )}
 
         {/* Hashtags */}
         {item.hashtags?.length > 0 && (
           <Group gap="xs" wrap="wrap">
             {item.hashtags.map(tag => (
-              <Badge key={tag} size="xs" variant="outline" color="gray" radius="sm">
+              <Badge key={tag} size="xs" variant="light" color="gray" radius="sm" fw={800}>
                 #{tag}
               </Badge>
             ))}
           </Group>
         )}
 
-        <Divider label="MOVE TO COLUMN" labelPosition="center" />
+        <Divider variant="dashed" />
 
-        {/* Move Action */}
-        <Group justify="space-between">
-          <Select
-            data={COLUMN_OPTIONS}
-            defaultValue={item.kanbanColumn}
-            size="sm"
-            radius="md"
-            style={{ flex: 1 }}
-            onChange={(val) => {
-              if (val && val !== item.kanbanColumn) {
-                onMove(item.id, val);
-                onClose();
-              }
-            }}
-            label="Move to tactical horizon"
-          />
-        </Group>
-
-        {/* Conversion Controls */}
-        <Divider label="Cataloging Controls" labelPosition="center" mt="xl" />
-        <Stack gap="xs" mt="xs">
-          <Text size="xs" ta="center" c="dimmed">Recatalog this intelligence unit if it belongs in a different layer.</Text>
-          <Group justify="center">
-            <Button variant="light" color="knowledge" size="xs" onClick={() => onConvert(item.id, "KNOWLEDGE")}>
-              Move to Knowledge
-            </Button>
-            <Button variant="light" color="strategy" size="xs" onClick={() => onConvert(item.id, "GOAL")}>
-              Move to Strategic Goal
-            </Button>
+        {/* Actions Section */}
+        <Stack gap="lg">
+          <Group justify="space-between" align="flex-end">
+            <Select
+              data={COLUMN_OPTIONS}
+              value={item.kanbanColumn}
+              size="sm"
+              radius="md"
+              label={<Text size="xs" fw={900} tt="uppercase" lts={1} mb={4}>Move to tactical horizon</Text>}
+              style={{ flex: 1 }}
+              onChange={(val) => {
+                if (val && val !== item.kanbanColumn) {
+                  onMove(item.id, val);
+                  onClose();
+                }
+              }}
+            />
           </Group>
+
+          <Box>
+            <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed" mb="md">Protocol Migration</Text>
+            <Group grow gap="md">
+              <Button 
+                variant="light" 
+                color="indigo" 
+                size="xs" 
+                radius="md"
+                leftSection={<RefreshCw size={14} />}
+                onClick={() => onConvert(item.id, "KNOWLEDGE")}
+                fw={800}
+              >
+                Migrate to Knowledge
+              </Button>
+              <Button 
+                variant="light" 
+                color="teal" 
+                size="xs" 
+                radius="md"
+                leftSection={<Layers size={14} />}
+                onClick={() => onConvert(item.id, "GOAL")}
+                fw={800}
+              >
+                Migrate to Goals
+              </Button>
+            </Group>
+          </Box>
         </Stack>
 
-        <Divider mt="xl" />
-        <Group justify="flex-end">
-            <Button variant="light" color="red" leftSection={<Trash2 size={16} />} onClick={() => onDelete(item.id)}>
-              Archive Card
+        <Divider variant="dashed" />
+
+        <Group justify="space-between">
+          <Button 
+            variant="subtle" 
+            color="red" 
+            size="xs"
+            leftSection={<Trash2 size={16} />} 
+            onClick={() => onDelete(item.id)}
+            fw={800}
+          >
+            Archive Unit
+          </Button>
+          <Group gap="sm">
+            <Button variant="light" color="gray" onClick={onClose} fw={800} size="sm">
+              Cancel
             </Button>
-            <Button variant="filled" color="orange" onClick={onClose}>
-              Done
+            <Button variant="filled" color="orange" onClick={onClose} fw={900} size="sm" tt="uppercase">
+              Acknowledge
             </Button>
+          </Group>
         </Group>
 
         {/* Timestamps */}
-        <Text size="xs" c="dimmed" ta="right">
-          Created {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"} ·
-          Updated {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : "—"}
-        </Text>
+        <Group justify="flex-end" gap="xs">
+          <Text size="10px" fw={800} c="dimmed" tt="uppercase" lts={1}>
+            COMMITTED: {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
+          </Text>
+          <Text size="10px" fw={800} c="dimmed" tt="uppercase" lts={1}>
+            SYNCED: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : "—"}
+          </Text>
+        </Group>
         </Stack>
       )}
     </Modal>
@@ -378,8 +423,8 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
       <PageShell width="full">
         <Center h={400}>
           <Stack align="center" gap="sm">
-            <Loader size="lg" variant="dots" color="orange" />
-            <Text c="dimmed" size="sm">Synchronizing Tactical Board...</Text>
+            <Loader size="lg" variant="bars" color="orange" />
+            <Text fw={900} tt="uppercase" lts={1} c="dimmed" size="xs">Synchronizing Tactical Board...</Text>
           </Stack>
         </Center>
       </PageShell>
@@ -387,7 +432,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }
 
   return (
-    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: 'var(--mantine-color-body)' }}>
+    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))' }}>
 
       <CardDetailModal
         item={detailId ? items.find(i => i.id === detailId) || null : null}
@@ -411,8 +456,9 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
           <Group 
             wrap="nowrap" 
             align="flex-start" 
-            gap="md" 
+            gap="lg" 
             h="100%"
+            pt="md"
           >
             {COLUMNS.map((col) => {
               const colItems = items
@@ -422,40 +468,43 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
               return (
                 <Stack 
                   key={col.key} 
-                  gap="sm" 
-                  w={300} 
+                  gap="md" 
+                  w={320} 
                   h="100%"
                   style={{ flexShrink: 0 }}
                 >
                   {/* Column Header */}
                   <Paper
-                    p="sm"
-                    radius="md"
+                    p="md"
+                    radius="lg"
                     withBorder
                     style={{
-                      borderTop: `3px solid ${col.accent}`,
-                      flexShrink: 0
+                      borderTop: `4px solid ${col.accent}`,
+                      flexShrink: 0,
+                      backgroundColor: 'light-dark(white, var(--mantine-color-dark-7))',
+                      boxShadow: 'var(--mantine-shadow-xs)'
                     }}
                   >
                     <Group justify="space-between" wrap="nowrap">
                       <Stack gap={2} style={{ overflow: 'hidden' }}>
-                        <Text fw={800} size="sm" style={{ color: col.accent, letterSpacing: "-0.01em" }} truncate>
+                        <Text fw={900} size="sm" style={{ color: col.accent, letterSpacing: "-0.01em", textTransform: 'uppercase' }} truncate>
                           {col.label}
                         </Text>
-                        <Text size="xs" c="dimmed" truncate>{col.description}</Text>
+                        <Text size="xs" fw={700} c="dimmed" truncate>{col.description}</Text>
                       </Stack>
                       <Badge
                         size="sm"
                         variant="light"
                         color={col.accent}
-                        style={{ backgroundColor: `${col.accent}22`, color: col.accent }}
+                        style={{ backgroundColor: `${col.accent}15`, color: col.accent, border: `1px solid ${col.accent}33` }}
+                        fw={900}
                       >
                         {colItems.length}
                       </Badge>
                     </Group>
                   </Paper>
 
-                  {/* Droppable — plain div is required here for provided.innerRef and provided.droppableProps */}
+                  {/* Droppable */}
                   <Droppable droppableId={col.key}>
                     {(provided, snapshot) => (
                       <Box
@@ -464,21 +513,21 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                         {...provided.droppableProps}
                         style={{
                           flex: 1,
-                          borderRadius: 'var(--mantine-radius-md)',
+                          borderRadius: 'var(--mantine-radius-lg)',
                           border: snapshot.isDraggingOver
-                            ? `1.5px dashed ${col.accent}`
-                            : "1.5px dashed transparent",
+                            ? `2px dashed ${col.accent}`
+                            : "2px dashed transparent",
                           backgroundColor: snapshot.isDraggingOver
-                            ? `${col.accent}0d`
+                            ? `${col.accent}05`
                             : "transparent",
                           transition: "all 0.15s ease",
                           display: 'flex',
                           flexDirection: 'column',
-                          minHeight: 0 // Crucial for flex child scrolling
+                          minHeight: 0
                         }}
                       >
                         <ScrollArea offsetScrollbars style={{ flex: 1 }} viewportProps={{ style: { display: 'flex', flexDirection: 'column' } }}>
-                          <Stack gap="xs" p={4} style={{ flex: 1 }}>
+                          <Stack gap="sm" p={4} style={{ flex: 1 }}>
                             {colItems.map((item, index) => (
                               <Draggable key={item.id} draggableId={item.id} index={index}>
                                 {(provided, snapshot) => (
@@ -490,7 +539,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                     style={{ ...provided.draggableProps.style }}
                                   >
                                     <Paper
-                                      p="sm"
+                                      p="md"
                                       radius="md"
                                       withBorder
                                       onClick={(e) => {
@@ -500,33 +549,43 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                       }}
                                       style={{
                                         boxShadow: snapshot.isDragging
-                                          ? "0 16px 40px rgba(0,0,0,0.5)"
-                                          : "none",
+                                          ? "0 20px 50px rgba(0,0,0,0.3)"
+                                          : "var(--mantine-shadow-xs)",
                                         cursor: snapshot.isDragging ? "grabbing" : "pointer",
                                         borderColor: snapshot.isDragging
                                           ? col.accent
-                                          : "transparent",
-                                        transform: snapshot.isDragging ? "rotate(1.5deg)" : "none",
-                                        transition: "box-shadow 0.15s ease, background 0.15s ease",
+                                          : "light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))",
+                                        backgroundColor: 'light-dark(white, var(--mantine-color-dark-6))',
+                                        transform: snapshot.isDragging ? "rotate(1deg) scale(1.02)" : "none",
+                                        transition: "all 0.15s ease",
                                         userSelect: "none",
                                       }}
                                     >
-                                      <Stack gap={6}>
-                                        <Text size="xs" fw={700} lineClamp={2} style={{ lineHeight: 1.35 }}>
+                                      <Stack gap="xs">
+                                        <Text size="xs" fw={900} lineClamp={2} style={{ lineHeight: 1.3, letterSpacing: '-0.01em' }}>
                                           {item.title}
                                         </Text>
                                         {item.description && (
-                                          <Text size="xs" c="dimmed" lineClamp={2} style={{ lineHeight: 1.4 }}>
+                                          <Text size="xs" c="dimmed" lineClamp={2} fw={500} style={{ lineHeight: 1.5 }}>
                                             {item.description}
                                           </Text>
                                         )}
-                                        <Group justify="space-between" mt={2} wrap="nowrap">
-                                          <Badge size="xs" variant="dot" color={item.impact >= 8 ? "red" : item.impact >= 5 ? "yellow" : "gray"}>
+                                        <Group justify="space-between" mt={4} wrap="nowrap">
+                                          <Badge 
+                                            size="xs" 
+                                            variant="light" 
+                                            color={item.impact >= 8 ? "red" : item.impact >= 5 ? "orange" : "gray"}
+                                            fw={900}
+                                            tt="uppercase"
+                                          >
                                             {item.candidateState}
                                           </Badge>
-                                          <Text size="xs" fw={900} style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
-                                            {Math.round(item.iceScore)}
-                                          </Text>
+                                          <Group gap={4}>
+                                            <Text size="10px" fw={900} c="dimmed">ICE</Text>
+                                            <Text size="xs" fw={900} style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
+                                              {Math.round(item.iceScore)}
+                                            </Text>
+                                          </Group>
                                         </Group>
                                       </Stack>
                                     </Paper>

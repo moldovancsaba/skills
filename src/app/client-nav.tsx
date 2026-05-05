@@ -153,7 +153,7 @@ export function ClientNav() {
   }
 
   return (
-    <AppShellNavbar p="md" style={{ borderRight: '1px solid var(--mantine-color-default-border)' }}>
+    <AppShellNavbar p="md" style={{ borderRight: '1px solid var(--mantine-color-default-border)', backgroundColor: 'var(--mantine-color-body)' }}>
       <AppShellSection mb="xl">
         <Box px="xs" py="md">
           <Logo />
@@ -229,8 +229,8 @@ export function ClientNav() {
             style={{ 
               borderRadius: 'var(--mantine-radius-md)',
               transition: 'background-color 0.2s ease',
-              backgroundColor: isDark ? 'transparent' : 'var(--mantine-color-gray-0)'
             }}
+            className="theme-toggle-button"
           >
             <Group justify="space-between">
               <Group gap="sm">
@@ -249,8 +249,8 @@ export function ClientNav() {
                   p="xs"
                   style={{ 
                     borderRadius: 'var(--mantine-radius-md)',
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'var(--mantine-color-gray-1)'
                   }}
+                  className="user-profile-button"
                 >
                   <Group justify="space-between">
                     <Group gap="sm">

@@ -47,6 +47,8 @@ export function useCookieConsent() {
   return { showBanner, settings, acceptAll, acceptSelected, close };
 }
 
+import { Card, Text, Group, Button, Checkbox, Stack, Box, rem } from "@mantine/core";
+
 export function CookieBanner() {
   const [analytics, setAnalytics] = useState(false);
   const [personalization, setPersonalization] = useState(false);
@@ -55,53 +57,85 @@ export function CookieBanner() {
   if (!showBanner) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 shadow-lg z-50">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex-1">
-          <p className="text-sm">
-            We use cookies to improve your experience. Essential cookies are required for the system to operate.
-          </p>
-          <div className="flex items-center gap-4 mt-3">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked disabled className="rounded" />
-              Essential
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={analytics}
-                onChange={(e) => setAnalytics(e.target.checked)}
-                className="rounded"
-              />
-              Analytics
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={personalization}
-                onChange={(e) => setPersonalization(e.target.checked)}
-                className="rounded"
-              />
-              Personalization
-            </label>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={acceptAll}
-            className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-md font-bold"
+    <Box 
+      style={{ 
+        position: 'fixed', 
+        bottom: 0, 
+        left: 0, 
+        right: 0, 
+        zIndex: 1000,
+        pointerEvents: 'none'
+      }}
+    >
+      <Box 
+        style={{ 
+          paddingLeft: 'var(--app-shell-navbar-offset, 280px)',
+          width: '100%',
+          pointerEvents: 'none'
+        }}
+      >
+        <Box p="md" style={{ pointerEvents: 'auto' }}>
+          <Card 
+            radius="lg" 
+            p="xl" 
+            withBorder 
+            shadow="xl"
+            style={{ 
+              backgroundColor: 'var(--mantine-color-body)',
+              backdropFilter: 'blur(10px)',
+              maxWidth: '1200px',
+              margin: '0 auto'
+            }}
           >
-            Accept All
-          </button>
-          <button
-            onClick={() => acceptSelected({ essential: true, analytics, personalization })}
-            className="px-4 py-2 border border-border text-sm rounded-md"
-          >
-            Save Preferences
-          </button>
-        </div>
-      </div>
-    </div>
+            <Stack gap="md">
+              <Group justify="space-between" align="flex-start" wrap="nowrap">
+                <Stack gap={4} style={{ flex: 1 }}>
+                  <Text size="sm" fw={700}>Cookie Preferences</Text>
+                  <Text size="xs" c="dimmed">
+                    We use cookies to improve your experience. Essential cookies are required for the system to operate.
+                  </Text>
+                  <Group gap="xl" mt="xs">
+                    <Checkbox label="Essential" checked disabled size="xs" color="brand" />
+                    <Checkbox 
+                      label="Analytics" 
+                      checked={analytics} 
+                      onChange={(e) => setAnalytics(e.currentTarget.checked)} 
+                      size="xs" 
+                      color="brand"
+                    />
+                    <Checkbox 
+                      label="Personalization" 
+                      checked={personalization} 
+                      onChange={(e) => setPersonalization(e.currentTarget.checked)} 
+                      size="xs" 
+                      color="brand"
+                    />
+                  </Group>
+                </Stack>
+                <Group gap="xs" wrap="nowrap">
+                  <Button 
+                    variant="light" 
+                    color="gray" 
+                    size="xs" 
+                    onClick={() => acceptSelected({ essential: true, analytics, personalization })}
+                  >
+                    Save Preferences
+                  </Button>
+                  <Button 
+                    variant="filled" 
+                    color="brand" 
+                    size="xs" 
+                    onClick={acceptAll}
+                  >
+                    Accept All
+                  </Button>
+                </Group>
+              </Group>
+            </Stack>
+          </Card>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 

@@ -1,92 +1,97 @@
 "use client";
 
-import Link from "next/link";
 import { BookOpen, CircleHelp, Lightbulb } from "lucide-react";
-
 import { faqItems, manualSections } from "@/content/help";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { 
+  Accordion, 
+  Badge, 
+  Button, 
+  Card, 
+  Text, 
+  Title, 
+  Stack, 
+  Group, 
+  ThemeIcon,
+  rem,
+  SimpleGrid
+} from "@mantine/core";
+import { Notice, PageShell } from "@/components/ui/app-shell";
+import Link from "next/link";
 
 export function ManualPageContent() {
   return (
     <PageShell width="5xl">
-      <PageHeader
-        title="Operator Manual"
-        description="Practical guidance for adding better data, reviewing Knowmore flashcards, and teaching the checklist system with better feedback."
-        actions={
-          <>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/faq">Open FAQ</Link>
-            </Button>
-          </>
-        }
-      />
-
-      <Notice icon={Lightbulb} title="Fastest path to better output">
-        Better source quality and sharper feedback improve the system faster than simply refreshing the same weak inputs.
-      </Notice>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Use these source types first</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-foreground">
-            <p>Product and pricing pages</p>
-            <p>Competitor pricing and positioning pages</p>
-            <p>Customer notes and interview summaries</p>
-            <p>Sales decks, briefs, onboarding docs, and internal files</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Useful decline language</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-foreground">
-            <p>Already doing this</p>
-            <p>Not relevant for this company</p>
-            <p>Too early, revisit after summer</p>
-            <p>Blocked until launch, budget approval, or hiring</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4">
-        {manualSections.map((section) => (
-          <Card key={section.id}>
-            <CardHeader className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{section.title}</Badge>
-              </div>
-              <CardTitle className="text-2xl">{section.summary}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-foreground">
-              {section.bullets.map((bullet) => (
-                <div key={bullet} className="rounded-lg border border-border/80 bg-background/70 px-4 py-3">
-                  {bullet}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Need quick answers?</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href="/faq">
-              <CircleHelp className="h-4 w-4" />
-              Open FAQ
-            </Link>
+      <Stack gap="xl">
+        <Group justify="flex-end">
+          <Button component={Link} href="/faq" variant="subtle" size="xs">
+            Open FAQ
           </Button>
-        </CardContent>
-      </Card>
+        </Group>
+
+        <Notice icon={Lightbulb} title="Fastest path to better output">
+          Better source quality and sharper feedback improve the system faster than simply refreshing the same weak inputs.
+        </Notice>
+
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+          <Card p="xl" radius="lg" withBorder>
+            <Stack gap="md">
+              <Title order={3} size="h4">Use these source types first</Title>
+              <Stack gap={4}>
+                <Text size="sm">Product and pricing pages</Text>
+                <Text size="sm">Competitor pricing and positioning pages</Text>
+                <Text size="sm">Customer notes and interview summaries</Text>
+                <Text size="sm">Sales decks, briefs, onboarding docs, and internal files</Text>
+              </Stack>
+            </Stack>
+          </Card>
+          <Card p="xl" radius="lg" withBorder>
+            <Stack gap="md">
+              <Title order={3} size="h4">Useful decline language</Title>
+              <Stack gap={4}>
+                <Text size="sm">Already doing this</Text>
+                <Text size="sm">Not relevant for this company</Text>
+                <Text size="sm">Too early, revisit after summer</Text>
+                <Text size="sm">Blocked until launch, budget approval, or hiring</Text>
+              </Stack>
+            </Stack>
+          </Card>
+        </SimpleGrid>
+
+        <Stack gap="md">
+          {manualSections.map((section) => (
+            <Card key={section.id} p="xl" radius="lg" withBorder>
+              <Stack gap="md">
+                <Group>
+                  <Badge variant="light" color="brand">{section.title}</Badge>
+                </Group>
+                <Title order={3} size="h4">{section.summary}</Title>
+                <Stack gap="sm">
+                  {section.bullets.map((bullet) => (
+                    <Card key={bullet} p="md" radius="md" withBorder variant="light">
+                      <Text size="sm">{bullet}</Text>
+                    </Card>
+                  ))}
+                </Stack>
+              </Stack>
+            </Card>
+          ))}
+        </Stack>
+
+        <Card p="xl" radius="lg" withBorder>
+          <Stack align="center" gap="md">
+            <Title order={3} size="h4">Need quick answers?</Title>
+            <Button 
+              component={Link} 
+              href="/faq" 
+              variant="light" 
+              color="brand"
+              leftSection={<CircleHelp size={16} />}
+            >
+              Open FAQ
+            </Button>
+          </Stack>
+        </Card>
+      </Stack>
     </PageShell>
   );
 }
@@ -94,29 +99,26 @@ export function ManualPageContent() {
 export function FaqPageContent() {
   return (
     <PageShell width="5xl">
-      <PageHeader
-        title="FAQ"
-        description="Short answers to the workflow questions that come up most often."
-      />
+      <Stack gap="xl">
+        <Notice icon={BookOpen} title="Before you refresh again">
+          If the output feels weak, check source quality and feedback quality first. That usually matters more than another blind rerun.
+        </Notice>
 
-      <Notice icon={BookOpen} title="Before you refresh again">
-        If the output feels weak, check source quality and feedback quality first. That usually matters more than another blind rerun.
-      </Notice>
-
-      <Card>
-        <CardContent className="p-6">
-          <Accordion type="single" collapsible className="w-full">
+        <Card p="xl" radius="lg" withBorder>
+          <Accordion variant="separated" radius="md">
             {faqItems.map((item) => (
-              <AccordionItem key={item.id} value={item.id}>
-                <AccordionTrigger className="text-left text-base">{item.question}</AccordionTrigger>
-                <AccordionContent className="text-sm text-muted-foreground">
-                  {item.answer}
-                </AccordionContent>
-              </AccordionItem>
+              <Accordion.Item key={item.id} value={item.id} style={{ border: 'none', marginBottom: rem(8) }}>
+                <Accordion.Control>
+                  <Text fw={700}>{item.question}</Text>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <Text size="sm" c="dimmed">{item.answer}</Text>
+                </Accordion.Panel>
+              </Accordion.Item>
             ))}
           </Accordion>
-        </CardContent>
-      </Card>
+        </Card>
+      </Stack>
     </PageShell>
   );
 }

@@ -35,7 +35,7 @@ import {
   ScrollArea,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { PageShell, PageHeader } from "@/components/ui/app-shell";
+import { PageShell, PageHeader, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { Trash2 } from "lucide-react";
 
 type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
@@ -399,10 +399,15 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
       />
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <Box 
-          style={{ flex: 1, overflowX: "auto", overflowY: "hidden" }}
-          p="xl"
-        >
+      <Box 
+        style={{ flex: 1, overflowX: "auto", overflowY: "hidden" }}
+        p="xl"
+      >
+        <PipelineAccentHeader 
+          activeKey="tactical" 
+          title="Tactical Board" 
+          icon="dashboard" 
+        />
           <Group 
             wrap="nowrap" 
             align="flex-start" 

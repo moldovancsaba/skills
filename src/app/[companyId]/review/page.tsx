@@ -120,7 +120,7 @@ export default function ReviewDashboard() {
       <Stack gap="xl">
         <PipelineAccentHeader 
           activeKey="review" 
-          title="Anomaly Correction Layer" 
+          title="Review Gateway" 
           icon="hard_hat" 
         />
         {items.length === 0 ? (

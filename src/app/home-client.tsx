@@ -293,7 +293,7 @@ export default function Home() {
                   )}
                 </Group>
 
-                <UnifiedGrid cols={{ base: 1, sm: 2, md: 5 }}>
+                <UnifiedGrid cols={{ base: 1, sm: 2, md: 3 }}>
                   <LinkCard
                     href={`/${c.id}/data`}
                     icon={Database}
@@ -307,7 +307,7 @@ export default function Home() {
                     icon={ListTodo}
                     variant="indigo"
                     metric={c.metrics?.topics ?? 0}
-                    title="Topics"
+                    title="Topic Synthesis"
                     chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.topics }))}
                   />
                   <LinkCard
@@ -327,12 +327,20 @@ export default function Home() {
                     chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.goals }))}
                   />
                   <LinkCard
+                    href={`/${c.id}/nba`}
+                    icon={ListTodo}
+                    variant="blue"
+                    metric={c.metrics?.checklistCount ?? 0}
+                    title="Checklist"
+                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.nba }))}
+                  />
+                  <LinkCard
                     href={`/${c.id}/tactical`}
                     icon={LayoutDashboard}
                     variant="execution"
                     metric={c.metrics?.tactical ?? 0}
                     title="Tactical Board"
-                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.nba }))}
+                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.nbaItems }))}
                   />
                 </UnifiedGrid>
               </Box>

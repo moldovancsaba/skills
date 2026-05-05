@@ -179,8 +179,8 @@ export default function CompanyTopicsPage() {
       <Stack gap="xl">
         <PipelineAccentHeader 
           activeKey="topics" 
-          title="Strategic Focus Units" 
-          icon="target" 
+          title="Topic Synthesis" 
+          icon="list_alt" 
         />
         {message && (
           <Notice title="Protocol Updated">

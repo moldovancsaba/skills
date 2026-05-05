@@ -240,7 +240,7 @@ export default function CompanyGoalsPage() {
       <Stack gap="xl">
         <PipelineAccentHeader 
           activeKey="goals" 
-          title="Strategic Objectives" 
+          title="Strategic Goals" 
           icon="target" 
         />
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}

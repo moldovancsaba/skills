@@ -236,7 +236,6 @@ export default function CompanyDashboard() {
           variant="blue"
           metric={safeSources.length + fileCount}
           title="Data Ingress"
-          description="Evidence harvesting & enrichment"
           chartData={chartData.map(d => ({ date: d.date, value: d.sources }))}
         />
         <LinkCard
@@ -245,7 +244,6 @@ export default function CompanyDashboard() {
           variant="indigo"
           metric={topicCount}
           title="Topic Synthesis"
-          description="Strategic focus orchestration"
           chartData={chartData.map(d => ({ date: d.date, value: d.topics }))}
         />
         <LinkCard
@@ -253,8 +251,7 @@ export default function CompanyDashboard() {
           icon={Brain}
           variant="teal"
           metric={flashcardCount}
-          title="Context Layer"
-          description="Long-term memory synthesis"
+          title="Knowmore"
           chartData={chartData.map(d => ({ date: d.date, value: d.flashcards }))}
         />
         <LinkCard
@@ -263,7 +260,6 @@ export default function CompanyDashboard() {
           variant="violet"
           metric={pendingTaskCount}
           title="Strategic Goals"
-          description="High-confidence task generation"
           chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
         />
         <LinkCard
@@ -272,7 +268,6 @@ export default function CompanyDashboard() {
           variant="cyan"
           metric={tacticalCount}
           title="Tactical Board"
-          description="Operational task orchestration"
           chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
         />
       </MetricGrid>

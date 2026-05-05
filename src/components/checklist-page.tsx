@@ -28,7 +28,7 @@ import {
   Divider,
   Center
 } from "@mantine/core";
-import { EmptyState, PageHeader, PageShell, UnifiedGrid } from "@/components/ui/app-shell";
+import { EmptyState, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
 import { Archive, Brain, RefreshCw, ArrowRight } from "lucide-react";
@@ -298,6 +298,11 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   return (
     <PageShell width="full">
       <Stack gap="xl">
+        <PipelineAccentHeader 
+          activeKey="nba" 
+          title="Checklist" 
+          icon="fact_check" 
+        />
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
           <Group justify="space-between" align="center">
             <Stack gap={0}>

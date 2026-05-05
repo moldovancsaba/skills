@@ -440,7 +440,7 @@ export default function CompanyKnowMorePage() {
       <Stack gap="xl">
         <PipelineAccentHeader 
           activeKey="knowmore" 
-          title="Contextual Intelligence Layer" 
+          title="Knowmore" 
           icon="psychology" 
         />
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}

@@ -459,7 +459,6 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                         {...provided.droppableProps}
                         style={{
                           flex: 1,
-                          minHeight: 100,
                           borderRadius: 'var(--mantine-radius-md)',
                           border: snapshot.isDraggingOver
                             ? `1.5px dashed ${col.accent}`
@@ -469,11 +468,12 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                             : "transparent",
                           transition: "all 0.15s ease",
                           display: 'flex',
-                          flexDirection: 'column'
+                          flexDirection: 'column',
+                          minHeight: 0 // Crucial for flex child scrolling
                         }}
                       >
-                        <ScrollArea offsetScrollbars style={{ flex: 1 }}>
-                          <Stack gap="xs" p={4}>
+                        <ScrollArea offsetScrollbars style={{ flex: 1 }} viewportProps={{ style: { display: 'flex', flexDirection: 'column' } }}>
+                          <Stack gap="xs" p={4} style={{ flex: 1 }}>
                             {colItems.map((item, index) => (
                               <Draggable key={item.id} draggableId={item.id} index={index}>
                                 {(provided, snapshot) => (

@@ -1,46 +1,68 @@
 'use client';
 
-import { motion } from "framer-motion";
-import { Paintbrush, Info } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { 
+  Stack, 
+  Group, 
+  Title, 
+  Text, 
+  Button, 
+  Card, 
+  Box, 
+  ThemeIcon, 
+  Badge,
+  rem 
+} from "@mantine/core";
+import { Info, Paintbrush } from "lucide-react";
+import { PageHeader, PageShell, MetricGrid } from "@/components/ui/app-shell";
 
 export default function BrandPage() {
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Brand Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">Brand identity, messaging, and visual guidelines.</p>
-        </div>
-        <Button size="sm" disabled>
-          <span className="text-muted-foreground">Coming soon</span>
-        </Button>
-      </motion.div>
+    <PageShell>
+      <PageHeader 
+        title="Brand Management"
+        description="Brand identity, messaging, and visual guidelines."
+        actions={
+          <Button size="xs" variant="light" color="gray" disabled>
+            Coming soon
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <MetricGrid cols={{ base: 1, sm: 2, lg: 3 }}>
         {[
-          { label: "Brand Status", value: "--", status: "Coming soon" },
-          { label: "Messaging", value: "--", status: "Coming soon" },
-          { label: "Visual Assets", value: "--", status: "Coming soon" },
+          { label: "Brand Status", value: "--", status: "Coming soon", color: "blue" },
+          { label: "Messaging", value: "--", status: "Coming soon", color: "teal" },
+          { label: "Visual Assets", value: "--", status: "Coming soon", color: "violet" },
         ].map((m, i) => (
-          <div key={i} className="bg-card border border-border rounded-lg p-4 shadow-sm">
-            <span className="text-xs font-medium text-muted-foreground uppercase">{m.label}</span>
-            <span className="text-lg font-bold text-foreground block">{m.value}</span>
-            <Badge variant="outline" className="mt-2">{m.status}</Badge>
-          </div>
+          <Card key={i} radius="lg" withBorder p="xl">
+            <Stack gap="md">
+              <Text size="xs" fw={800} c="dimmed" tt="uppercase" lts={1}>
+                {m.label}
+              </Text>
+              <Text size="xl" fw={900} lts={-0.5}>
+                {m.value}
+              </Text>
+              <Badge variant="light" color={m.color} size="sm" radius="sm">
+                {m.status}
+              </Badge>
+            </Stack>
+          </Card>
         ))}
-      </div>
+      </MetricGrid>
 
-      <div className="bg-card border border-border rounded-lg shadow-sm p-6">
-        <div className="flex items-center justify-center gap-3 text-muted-foreground">
-          <Info className="w-5 h-5" />
-          <span className="text-lg">Coming soon</span>
-        </div>
-        <p className="text-sm text-muted-foreground text-center mt-2">
-          Set up database to enable brand management features.
-        </p>
-      </div>
-    </div>
+      <Card radius="lg" withBorder p={rem(60)} ta="center">
+        <Stack align="center" gap="xl">
+          <ThemeIcon variant="light" color="gray" size={64} radius="xl">
+            <Info size={32} />
+          </ThemeIcon>
+          <Stack gap="xs">
+            <Title order={2} fw={900} lts={-0.5}>Identity Protocol Locked</Title>
+            <Text size="sm" c="dimmed" maw={500} mx="auto" fw={500} style={{ fontStyle: "italic" }}>
+              The brand management suite is offline. System initialization requires database availability to serve visual guidelines and messaging frameworks.
+            </Text>
+          </Stack>
+        </Stack>
+      </Card>
+    </PageShell>
   );
 }

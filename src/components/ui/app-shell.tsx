@@ -18,7 +18,8 @@ import {
   ThemeIcon,
   Anchor,
   Box,
-  Alert
+  Alert,
+  SimpleGridProps
 } from "@mantine/core";
 
 import { DashboardChart } from "@/components/dashboard-chart";
@@ -126,15 +127,15 @@ export function Notice({
   );
 }
 
+export interface MetricGridProps extends SimpleGridProps {
+  children: ReactNode;
+}
+
 export function MetricGrid({ 
   children,
-  cols = { base: 1, md: 3 },
+  cols = { base: 1, sm: 2, md: 3 },
   ...props
-}: { 
-  children: ReactNode;
-  cols?: any;
-  [key: string]: any;
-}) {
+}: MetricGridProps) {
   return (
     <SimpleGrid cols={cols} spacing="md" {...props}>
       {children}

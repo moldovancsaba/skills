@@ -1,29 +1,29 @@
 'use client';
 
-import { 
+import {
   AppShellNavbar,
   AppShellSection,
-  NavLink, 
-  Stack, 
-  Group, 
-  Box, 
-  Text, 
-  Avatar, 
-  Menu, 
-  ActionIcon, 
-  rem, 
-  Divider, 
+  NavLink,
+  Stack,
+  Group,
+  Box,
+  Text,
+  Avatar,
+  Menu,
+  ActionIcon,
+  rem,
+  Divider,
   UnstyledButton,
   ScrollArea,
   ThemeIcon,
   Badge
 } from "@mantine/core";
-import { 
-  ChevronRight, 
-  Sun, 
-  Moon, 
-  LogOut, 
-  User as UserIcon, 
+import {
+  ChevronRight,
+  Sun,
+  Moon,
+  LogOut,
+  User as UserIcon,
   Settings as SettingsIcon,
   LayoutDashboard,
   Database,
@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -105,10 +105,14 @@ const pipelineItems = [
 export function ClientNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const params = useParams();
   const { company, setCompany } = useStore();
   const { isDark, toggle } = useTheme();
   const [session, setSession] = useState<any>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
+
+  // Pure URL-driven company ID
+  const companyIdFromUrl = params?.companyId as string;
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -116,15 +120,9 @@ export function ClientNav() {
       .then((data) => setSession(data));
   }, []);
 
-  // Extract companyId from pathname if present (UUID v4 check)
-  const companyIdFromUrl = pathname.split('/').find(part => 
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(part) ||
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(part)
-  );
-
   useEffect(() => {
     if (companyIdFromUrl && (!company || company.id !== companyIdFromUrl)) {
-      // Try to populate store from companies list
+      // Synchronize store from URL in background
       fetch("/api/companies")
         .then(res => res.json())
         .then(data => {
@@ -145,7 +143,7 @@ export function ClientNav() {
       setCounts({});
       return;
     }
-    
+
     const fetchCounts = async () => {
       try {
         const res = await fetch(`/api/companies/${activeId}/dashboard`);
@@ -190,7 +188,7 @@ export function ClientNav() {
       <AppShellSection component={ScrollArea} grow mx="-md" px="md">
         <Stack gap="xs">
           {/* Global Portfolio and Intelligence Unit divider removed per user request */}
-          
+
           {((company || companyIdFromUrl) && pathname !== '/' && !pathname.startsWith('/faq') && !pathname.startsWith('/manual')) ? (
             <Stack gap={4}>
               <NavLink
@@ -204,7 +202,7 @@ export function ClientNav() {
                   label: { fontWeight: 900 }
                 }}
               />
-              
+
               {pipelineItems.map((item) => (
                 <NavLink
                   key={item.key}
@@ -253,7 +251,7 @@ export function ClientNav() {
           <UnstyledButton
             onClick={toggle}
             p="xs"
-            style={{ 
+            style={{
               borderRadius: 'var(--mantine-radius-md)',
               transition: 'background-color 0.2s ease',
             }}
@@ -274,7 +272,7 @@ export function ClientNav() {
               <Menu.Target>
                 <UnstyledButton
                   p="xs"
-                  style={{ 
+                  style={{
                     borderRadius: 'var(--mantine-radius-md)',
                   }}
                   className="user-profile-button"
@@ -292,11 +290,11 @@ export function ClientNav() {
                   </Group>
                 </UnstyledButton>
               </Menu.Target>
-              
+
               <Menu.Dropdown>
                 <Menu.Label>Identity</Menu.Label>
                 {company && (
-                  <Menu.Item 
+                  <Menu.Item
                     leftSection={<SettingsIcon size={14} />}
                     onClick={() => router.push(`/${company.id}/settings`)}
                   >
@@ -304,8 +302,8 @@ export function ClientNav() {
                   </Menu.Item>
                 )}
                 <Menu.Divider />
-                <Menu.Item 
-                  color="red" 
+                <Menu.Item
+                  color="red"
                   leftSection={<LogOut size={14} />}
                   onClick={handleLogout}
                 >
@@ -314,11 +312,11 @@ export function ClientNav() {
               </Menu.Dropdown>
             </Menu>
           ) : (
-            <Button 
-              variant="light" 
-              color="indigo" 
-              size="xs" 
-              fullWidth 
+            <Button
+              variant="light"
+              color="indigo"
+              size="xs"
+              fullWidth
               onClick={() => router.push("/auth")}
               leftSection={<UserIcon size={14} />}
             >
@@ -326,26 +324,26 @@ export function ClientNav() {
             </Button>
           )}
         </Stack>
-        
+
         <Divider my="md" variant="dotted" />
-        
+
         <Group gap="md" px="xs" justify="center">
-          <Text 
-            component="a" 
-            href="/privacy" 
-            size="10px" 
-            c="dimmed" 
-            fw={700} 
+          <Text
+            component="a"
+            href="/privacy"
+            size="10px"
+            c="dimmed"
+            fw={700}
             style={{ textDecoration: 'none', cursor: 'pointer' }}
           >
             PRIVACY
           </Text>
-          <Text 
-            component="a" 
-            href="/terms" 
-            size="10px" 
-            c="dimmed" 
-            fw={700} 
+          <Text
+            component="a"
+            href="/terms"
+            size="10px"
+            c="dimmed"
+            fw={700}
             style={{ textDecoration: 'none', cursor: 'pointer' }}
           >
             TERMS

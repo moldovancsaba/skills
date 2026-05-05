@@ -1,45 +1,70 @@
 'use client';
 
-import { motion } from "framer-motion";
-import { Beaker, FlaskConical, TrendingUp, CheckCircle, Info } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { 
+  Stack, 
+  Group, 
+  Title, 
+  Text, 
+  Button, 
+  Card, 
+  Box, 
+  ThemeIcon, 
+  rem 
+} from "@mantine/core";
+import { Info, Beaker, FlaskConical, TrendingUp, CheckCircle } from "lucide-react";
+import { PageHeader, PageShell, MetricGrid } from "@/components/ui/app-shell";
 
 export default function PreFortitudePage() {
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Pre-Fortitude AI</h1>
-          <p className="text-sm text-muted-foreground mt-1">New program validation and market testing.</p>
-        </div>
-        <Button size="sm" disabled>
-          <span className="text-muted-foreground">Coming soon</span>
-        </Button>
-      </motion.div>
+    <PageShell>
+      <PageHeader 
+        title="Pre-Fortitude AI"
+        description="New program validation and market testing."
+        actions={
+          <Button size="xs" variant="light" color="gray" disabled>
+            Coming soon
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <MetricGrid cols={{ base: 1, sm: 2, lg: 4 }}>
         {[
-          { label: "Active Experiments", value: "--" },
-          { label: "Total Participants", value: "--" },
-          { label: "Avg. Conversion", value: "--" },
-          { label: "Successful Tests", value: "--" },
+          { label: "Active Experiments", value: "--", icon: Beaker, color: "blue" },
+          { label: "Total Participants", value: "--", icon: FlaskConical, color: "teal" },
+          { label: "Avg. Conversion", value: "--", icon: TrendingUp, color: "orange" },
+          { label: "Successful Tests", value: "--", icon: CheckCircle, color: "indigo" },
         ].map((m, i) => (
-          <div key={i} className="bg-card border border-border rounded-lg p-4 shadow-sm">
-            <span className="text-xs font-medium text-muted-foreground uppercase">{m.label}</span>
-            <span className="text-xl font-bold text-foreground block">{m.value}</span>
-          </div>
+          <Card key={i} radius="lg" withBorder p="xl">
+            <Stack gap="md">
+              <Group justify="space-between" align="center">
+                <ThemeIcon variant="light" color={m.color} size="md" radius="md">
+                  <m.icon size={18} />
+                </ThemeIcon>
+                <Text size="xs" fw={800} c="dimmed" tt="uppercase" lts={1}>
+                  {m.label}
+                </Text>
+              </Group>
+              <Text size="32px" fw={900} lts={-1}>
+                {m.value}
+              </Text>
+            </Stack>
+          </Card>
         ))}
-      </div>
+      </MetricGrid>
 
-      <div className="bg-card border border-border rounded-lg shadow-sm p-6">
-        <div className="flex items-center justify-center gap-3 text-muted-foreground">
-          <Info className="w-5 h-5" />
-          <span className="text-lg">Coming soon</span>
-        </div>
-        <p className="text-sm text-muted-foreground text-center mt-2">
-          Set up database to enable program validation experiments.
-        </p>
-      </div>
-    </div>
+      <Card radius="lg" withBorder p={rem(60)} ta="center">
+        <Stack align="center" gap="xl">
+          <ThemeIcon variant="light" color="gray" size={64} radius="xl">
+            <Info size={32} />
+          </ThemeIcon>
+          <Stack gap="xs">
+            <Title order={2} fw={900} lts={-0.5}>Validation Engine Standby</Title>
+            <Text size="sm" c="dimmed" maw={500} mx="auto" fw={500} style={{ fontStyle: "italic" }}>
+              The Pre-Fortitude AI validation engine is awaiting system-wide initialization to enable high-confidence market testing and programmatic experiment management.
+            </Text>
+          </Stack>
+        </Stack>
+      </Card>
+    </PageShell>
   );
 }

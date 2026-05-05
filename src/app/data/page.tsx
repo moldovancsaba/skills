@@ -3,14 +3,29 @@
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { usePathname, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { FileUp, Plus, CheckCircle, ScrollText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { FormTextarea } from "@/components/ui/form-fields";
-import { HashtagInput } from "@/components/ui/hashtag-input";
+import { FileUp, Plus, CheckCircle, ScrollText, Info, FileText, Trash2, Edit2 } from "lucide-react";
+import { 
+  Stack, 
+  Group, 
+  Title, 
+  Text, 
+  Button, 
+  Card, 
+  Box, 
+  ThemeIcon, 
+  Badge,
+  Textarea,
+  FileInput,
+  rem,
+  Center,
+  Loader,
+  Transition,
+  Divider,
+  ActionIcon,
+  Tooltip
+} from "@mantine/core";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { HashtagInput } from "@/components/ui/hashtag-input";
 import { SourceDataCard } from "@/components/source-data-card";
 import {
   matchesAllHashtags,
@@ -157,7 +172,6 @@ export default function GlobalDataCollectionPage() {
         const formData = new FormData();
         formData.append("companyId", company.id);
         formData.append("hashtags", JSON.stringify(normalizedHashtags));
-        formData.append("hashtags", JSON.stringify(normalizedHashtags));
         for (const file of selectedFiles) {
           formData.append("files", file);
         }
@@ -236,100 +250,136 @@ export default function GlobalDataCollectionPage() {
   const filteredItems = items.filter((item) => matchesAllHashtags(item.hashtags ?? [], activeHashtags));
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>;
+    return (
+      <Center h="100vh">
+        <Loader size="xl" variant="bars" color="brand" />
+      </Center>
+    );
   }
 
   return (
-    <PageShell width="5xl">
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <PageHeader
-          title={editingId ? "Edit Data" : "Global Data Collection"}
-          description={editingId ? `Editing a raw source for ${company?.name || "your company"}.` : `Managing raw data for ${company?.name || "your company"}.`}
-        />
-      </motion.div>
+    <PageShell width="xl">
+      <PageHeader
+        title={editingId ? "Edit Data Unit" : "Global Data Collection"}
+        description={editingId ? `Refining intelligence unit for ${company?.name}.` : `Harvesting raw data for ${company?.name}.`}
+      />
 
-      <Card>
-        <CardContent className="space-y-4 p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {editingId ? (
-              <Notice title="Editing Selected Source">
-                The selected source is now loaded into the top form. Save it here or cancel to return to add mode.
-              </Notice>
-            ) : null}
-            <FormTextarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Paste a URL, type a source name, or write notes..."
-              className="min-h-[120px] text-base"
-              rows={4}
-            />
+      <Stack gap="xl">
+        <Card radius="lg" withBorder p="xl">
+          <form onSubmit={handleSubmit}>
+            <Stack gap="md">
+              {editingId && (
+                <Notice title="Maintenance Mode: Active Edit">
+                  A data unit is currently loaded for modification. Save or cancel to return to ingestion mode.
+                </Notice>
+              )}
+              
+              <Textarea
+                label="Raw Content Ingress"
+                description="Input a URL, source text, or operational notes for AI synthesis."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="https://example.com/strategic-report..."
+                minRows={4}
+                autosize
+                radius="md"
+                styles={{ input: { fontSize: rem(16) } }}
+              />
 
-            {!editingId ? (
-              <div className="space-y-3">
-                <label className="text-sm font-medium">Files</label>
-                <input
-                  type="file" multiple
-                  onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
-                  className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+              {!editingId && (
+                <FileInput
+                  label="Binary Ingress"
+                  description="Upload strategic documents for contextual harvesting."
+                  placeholder="Select files..."
+                  multiple
+                  value={selectedFiles}
+                  onChange={setSelectedFiles}
+                  leftSection={<FileUp size={16} />}
+                  radius="md"
                 />
-              </div>
-            ) : null}
+              )}
 
-            <HashtagInput
-              value={hashtags}
-              onChange={setHashtags}
-              suggestions={hashtagSuggestions}
-              label="Hashtags"
-              placeholder="#soccer, #academy..."
-            />
+              <HashtagInput
+                value={hashtags}
+                onChange={setHashtags}
+                suggestions={hashtagSuggestions}
+                label="Strategic Anchors (Hashtags)"
+                placeholder="#market-intelligence, #competitor-audit..."
+              />
 
-            <div className="flex justify-end gap-2 pt-2">
-              {editingId ? (
-                <Button type="button" variant="ghost" onClick={cancelEdit}>
-                  Cancel
+              <Group justify="flex-end" mt="md">
+                {editingId && (
+                  <Button variant="subtle" color="gray" onClick={cancelEdit}>
+                    Cancel
+                  </Button>
+                )}
+                <Button 
+                  type="submit" 
+                  radius="md"
+                  color="brand"
+                  leftSection={editingId ? <Edit2 size={16} /> : <Plus size={16} />}
+                  disabled={(!input.trim() && selectedFiles.length === 0) || !company}
+                >
+                  {editingId ? "Update Unit" : "Deploy Source"}
                 </Button>
-              ) : null}
-              <Button type="submit" disabled={(!input.trim() && selectedFiles.length === 0) || !company}>
-                <Plus className="w-4 h-4" />
-                {editingId ? "Save changes" : "Add raw source"}
-              </Button>
-            </div>
+              </Group>
+            </Stack>
           </form>
-        </CardContent>
-      </Card>
+        </Card>
 
-      {saved && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Notice icon={CheckCircle} title="Saved">
-            Item stored. Processing starts automatically in the local worker.
-          </Notice>
-        </motion.div>
-      )}
+        {saved && (
+          <Transition mounted={saved} transition="fade" duration={400}>
+            {(styles) => (
+              <Box style={styles}>
+                <Notice icon={CheckCircle} title="Unit Stored">
+                  The intelligence unit has been committed to the local buffer. Autonomous synthesis will begin shortly.
+                </Notice>
+              </Box>
+            )}
+          </Transition>
+        )}
 
-      {errorMessage ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Notice variant="destructive" title="Save failed">
-            {errorMessage}
-          </Notice>
-        </motion.div>
-      ) : null}
+        {errorMessage && (
+          <Transition mounted={!!errorMessage} transition="fade" duration={400}>
+            {(styles) => (
+              <Box style={styles}>
+                <Notice variant="destructive" title="Ingress Failure">
+                  {errorMessage}
+                </Notice>
+              </Box>
+            )}
+          </Transition>
+        )}
 
-      <MetricGrid>
-        <MetricCard icon={ScrollText} label="Sources" value={sources.length} />
-        <MetricCard icon={FileUp} label="Files" value={items.filter(i => i.type === "file").length} />
-      </MetricGrid>
+        <MetricGrid cols={{ base: 1, sm: 2 }}>
+          <MetricCard icon={ScrollText} label="Ingested Units" value={sources.length} color="blue" />
+          <MetricCard icon={FileUp} label="Contextual Files" value={items.filter(i => i.type === "file").length} color="teal" />
+        </MetricGrid>
 
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">
-          All Data ({filteredItems.length}{activeHashtags.length > 0 ? ` of ${items.length}` : ""})
-        </h2>
-        {filteredItems.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No data yet.</p>
-        ) : (
-          <div className="grid gap-4">
-            {filteredItems.map((item, index) => (
-              <React.Fragment key={item.id}>
+        <Stack gap="md">
+          <Group justify="space-between" align="center">
+            <Title order={2} size="h3" fw={900} lts={-0.5}>
+              Intelligence Inventory ({filteredItems.length}{activeHashtags.length > 0 ? ` of ${items.length}` : ""})
+            </Title>
+            {activeHashtags.length > 0 && (
+              <Button variant="subtle" size="xs" color="gray" onClick={() => {
+                setActiveHashtags([]);
+                router.replace(pathname, { scroll: false });
+              }}>
+                Clear Filters
+              </Button>
+            )}
+          </Group>
+          
+          {filteredItems.length === 0 ? (
+            <Card radius="md" withBorder p="xl" ta="center" style={{ borderStyle: 'dashed' }}>
+              <Text size="sm" c="dimmed" fs="italic">Inventory empty. Awaiting first ingress.</Text>
+            </Card>
+          ) : (
+            <Stack gap="md">
+              {filteredItems.map((item) => (
                 <SourceDataCard
+                  key={item.id}
                   id={item.id}
                   publicId={item.publicId}
                   name={item.name}
@@ -340,11 +390,11 @@ export default function GlobalDataCollectionPage() {
                   activeHashtags={activeHashtags}
                   onToggleHashtag={toggleHashtagFilter}
                 />
-              </React.Fragment>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </Stack>
+          )}
+        </Stack>
+      </Stack>
     </PageShell>
   );
 }

@@ -1,6 +1,6 @@
 /**
  * UI Utilities for the CHECKLIST OS.
- * v1.0.0-HARDENED
+ * v1.0.0
  */
 
 /**

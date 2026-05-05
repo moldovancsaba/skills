@@ -1,12 +1,12 @@
 # CHECKLIST - v0.15.0 Hardening Handover
 
 ## System Status: STABLE ✅
-- **Current Version**: v0.15.0-HARDENED
+- **Current Version**: v0.15.0
 - **Primary Design**: Mantine-First (Hardened)
 - **UI State**: Architecturally Pure & Visually Synchronized
 - **Trinity Pipeline**: 100% Build-Stable and Production-Ready
 
-## Shipped in this Session (v0.15.0-HARDENED)
+## Shipped in this Session (v0.15.0)
 
 ### 1. Architectural Restoration (Mantine-First)
 - **Mandatory Mantine Migration**: Purged 100% of legacy Tailwind utility fragments and Shadcn components across ALL core layers:

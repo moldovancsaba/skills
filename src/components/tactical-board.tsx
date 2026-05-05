@@ -2,7 +2,7 @@
 
 /**
  * TACTICAL BOARD
- * v1.1.0-HARDENED
+ * v1.1.0
  *
  * NOTE: This file must ONLY be imported via dynamic({ ssr: false }) from the
  * page component. @hello-pangea/dnd uses browser-only pointer/DOM APIs.

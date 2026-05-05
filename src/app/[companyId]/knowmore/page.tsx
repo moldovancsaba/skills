@@ -1,6 +1,6 @@
 /**
  * KNOWMORE INTELLIGENCE PAGE
- * v0.15.0-HARDENED
+ * v0.15.0
  * 
  * Implements Unified Page Architecture:
  * - PageShell: Full-Width Layout

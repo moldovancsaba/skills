@@ -18,7 +18,7 @@ export default function TermsPage() {
             <Title order={1} fw={900} lts={-1}>Terms of Service</Title>
           </Group>
           <Text size="xs" fw={800} tt="uppercase" lts={2} c="dimmed" ml={rem(44)}>
-            PROTOCOL v0.15.2-HARDENED • LAST SYNC: MAY 2025
+            PROTOCOL v0.15.2 • LAST SYNC: MAY 2025
           </Text>
         </Box>
 

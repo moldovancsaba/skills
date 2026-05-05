@@ -1,6 +1,6 @@
 /**
  * STRATEGIC GOALS PAGE
- * v0.15.0-HARDENED
+ * v0.15.0
  */
 'use client';
 

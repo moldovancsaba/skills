@@ -1,6 +1,6 @@
 /**
  * checklist TASK CARD
- * v0.15.0-HARDENED
+ * v0.15.0
  * 
  * Refactored to pure Mantine-ONLY design system.
  * Unified with PageShell and UnifiedCard architecture.

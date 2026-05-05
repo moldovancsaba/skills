@@ -1,6 +1,6 @@
 /**
  * TACTICAL BOARD PAGE
- * v1.1.0-HARDENED
+ * v1.1.0
  * 
  * Dynamic import with ssr:false is REQUIRED for @hello-pangea/dnd.
  */

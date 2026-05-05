@@ -1,7 +1,7 @@
 # 🌌 CHECKLIST
 > **The Autonomous Recurrent Layer for Strategic Intelligence.**
 
-**v0.15.0-HARDENED: Production Architecture**
+**v0.15.0: Production Architecture**
 
 **CHECKLIST** is a high-performance, private-first autonomous intelligence system. It implements the **Recurrent-Depth Transformer (RDT)** philosophy at the agent level, bridging the gap between raw market evidence and executive strategy through iterative self-refinement.
 

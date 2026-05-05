@@ -6,11 +6,11 @@ Checklist is an active production web application with local-AI-assisted enrichm
 
 Checklist release baseline:
 
-- app version: `v0.15.0-HARDENED`
+- app version: `v0.15.0`
 - framework: `Next.js 16.2.2 (Turbopack)`
 - product title: `CHECKLIST`
 - canonical production URL: `https://checklist.sovereignsquad.com`
-- local AI version: `CHECKLIST Trinity v0.15.0-HARDENED`
+- local AI version: `CHECKLIST Trinity v0.15.0`
 
 ## Product Definition
 
@@ -126,5 +126,5 @@ When any of these change, update docs in the same change set:
 
 ## Document Status
 
-Status: current (v0.15.0-HARDENED)
+Status: current (v0.15.0)
 Last updated: `2026-05-05`

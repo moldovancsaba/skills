@@ -1,6 +1,6 @@
 {
   "name": "checklist-os",
-  "version": "0.15.2-HARDENED",
+  "version": "0.15.2",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -2,9 +2,9 @@
   "guardianPid": 73504,
   "workerPid": null,
   "workerAlive": false,
-  "restartCount": 13569,
-  "startedAt": 1777984737369,
-  "lastHealthAt": "2026-05-05T12:38:57.466Z",
+  "restartCount": 13570,
+  "startedAt": 1777984742466,
+  "lastHealthAt": "2026-05-05T12:39:02.554Z",
   "lastProgressAt": null,
   "useSafeMode": false,
   "resources": {

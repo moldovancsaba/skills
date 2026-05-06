@@ -17,7 +17,7 @@ import {
   Card,
   Center
 } from "@mantine/core";
-import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListTodo, IconLayoutDashboard as LayoutDashboard } from "@tabler/icons-react";
+import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListCheck, IconLayoutDashboard as LayoutDashboard, IconLayersIntersect as Layers } from "@tabler/icons-react";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
 import { LinkCard, UnifiedGrid, PageShell } from "@/components/ui/app-shell";
@@ -299,7 +299,7 @@ export default function Home() {
                   />
                   <LinkCard
                     href={`/${c.id}/topics`}
-                    icon={ListTodo}
+                    icon={Layers}
                     variant="indigo"
                     metric={c.metrics?.topics ?? 0}
                     title="Topic Synthesis"
@@ -323,7 +323,7 @@ export default function Home() {
                   />
                   <LinkCard
                     href={`/${c.id}/nba`}
-                    icon={ListTodo}
+                    icon={ListCheck}
                     variant="blue"
                     metric={c.metrics?.checklistCount ?? 0}
                     title="Checklist"

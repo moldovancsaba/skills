@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { IconBrain as Brain, IconDatabase as Database, IconLayersIntersect as Layers3, IconSearch as Search, IconSparkles as Sparkles, IconTrendingUp as TrendingUp, IconArrowUpRight as ArrowUpRight, IconLayoutList as LayoutList, IconFilter as Filter } from "@tabler/icons-react";
+import { IconDatabase as Database, IconSearch as Search, IconSparkles as Sparkles, IconTarget as Target, IconBolt as Bolt, IconFilter as Filter, IconLayoutList as LayoutList } from "@tabler/icons-react";
 import { 
   Badge, 
   Button, 
@@ -433,12 +433,12 @@ export default function CompanyKnowMorePage() {
         />
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
 
-        <MetricGrid cols={{ base: 1, sm: 2, md: 5 }}>
+        <MetricGrid>
           <MetricCard icon={Database} color="blue" label="Knowledge Units" value={summary.total} detail="Derived evidence" />
           <MetricCard icon={Sparkles} color="orange" label="Feedback Yield" value={summary.reviewed} detail="Calibrated units" />
-          <MetricCard icon={Brain} color="violet" label="Confidence" value={`${summary.avgConfidence}%`} detail="System certainty" />
-          <MetricCard icon={TrendingUp} color="green" label="Avg ICE" value={summary.avgIceScore} detail="Strategic priority" />
-          <MetricCard icon={ArrowUpRight} color="cyan" label="Avg Ease" value={summary.avgEase} detail="Implementation path" />
+          <MetricCard icon={Sparkles} color="violet" label="Confidence" value={`${summary.avgConfidence}%`} detail="System certainty" />
+          <MetricCard icon={Target} color="green" label="Avg ICE" value={summary.avgIceScore} detail="Strategic priority" />
+          <MetricCard icon={Bolt} color="cyan" label="Avg Ease" value={summary.avgEase} detail="Implementation path" />
         </MetricGrid>
 
         <Stack gap="lg">
@@ -497,7 +497,7 @@ export default function CompanyKnowMorePage() {
              <Card style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
               <Stack align="center" gap="xl">
                 <ThemeIcon color="gray" size={64} >
-                  <Brain size={32} />
+                  <Sparkles size={32} />
                 </ThemeIcon>
                 <Stack gap="xs">
                   <Title order={3}>Memory Layer Silent</Title>

@@ -31,7 +31,7 @@ import {
 import { EmptyState, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
-import { IconArchive as Archive, IconBrain as Brain, IconRefresh as RefreshCw, IconArrowRight as ArrowRight, IconListCheck as ListTodo } from "@tabler/icons-react";
+import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowRight as ArrowRight, IconListCheck as ListCheck } from "@tabler/icons-react";
 
 /**
  * Representational interface for a tactical intelligence unit (Task).
@@ -301,13 +301,13 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         <PipelineAccentHeader 
           activeKey="nba" 
           title="Checklist" 
-          icon={ListTodo} 
+          icon={ListCheck} 
         />
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
           <Group justify="space-between" align="center">
             <Stack gap={0}>
               <Text size="xs"    c="brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {archived ? <Archive size={12} /> : <Brain size={12} />}
+                {archived ? <Archive size={12} /> : <Sparkles size={12} />}
                 {archived ? "Archive" : "Active Intelligence"}
               </Text>
             </Stack>
@@ -349,7 +349,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
 
         {filteredItems.length === 0 ? (
           <EmptyState
-            icon={archived ? Archive : Brain}
+            icon={archived ? Archive : Sparkles}
             title={archived ? "No archived checklist items" : "No checklist items yet"}
             description={activeHashtags.length > 0 ? "Try clearing hashtag filters." : archived ? "Accepted, declined, and AI-filtered items will appear here." : "Add data to get AI-powered suggestions."}
             primaryAction={

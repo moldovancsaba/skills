@@ -24,7 +24,7 @@ import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
-import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconTrendingUp as TrendingUp, IconBrain as Brain, IconRocket as Rocket, IconClipboardList as ClipboardList } from "@tabler/icons-react";
+import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History } from "@tabler/icons-react";
 
 type NBAItem = {
   id: string;
@@ -240,7 +240,7 @@ export default function CompanyDashboard() {
         />
         <LinkCard
           href={`/${companyId}/topics`}
-          icon={TrendingUp}
+          icon={Layers}
           variant="indigo"
           metric={topicCount}
           title="Topic Synthesis"
@@ -248,7 +248,7 @@ export default function CompanyDashboard() {
         />
         <LinkCard
           href={`/${companyId}/knowmore`}
-          icon={Brain}
+          icon={Sparkles}
           variant="teal"
           metric={flashcardCount}
           title="Knowmore"
@@ -256,7 +256,7 @@ export default function CompanyDashboard() {
         />
         <LinkCard
           href={`/${companyId}/goals`}
-          icon={Rocket}
+          icon={Target}
           variant="violet"
           metric={pendingTaskCount}
           title="Strategic Goals"
@@ -264,7 +264,7 @@ export default function CompanyDashboard() {
         />
         <LinkCard
           href={`/${companyId}/tactical`}
-          icon={ClipboardList}
+          icon={LayoutDashboard}
           variant="cyan"
           metric={tacticalCount}
           title="Tactical Board"

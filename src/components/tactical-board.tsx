@@ -38,7 +38,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader, PipelineAccentHeader } from "@/components/ui/app-shell";
-import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconCpu as Cpu, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard } from "@tabler/icons-react";
+import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";
 
 type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
@@ -183,7 +183,7 @@ function CardDetailModal({
         {(item.qualityScore != null || item.urgencyScore != null || item.freshnessScore != null) && (
           <Box>
             <Group gap="xs" mb="md">
-              <Cpu size={14} color="var(--mantine-color-blue-6)" />
+              <Sparkles size={14} color="var(--mantine-color-blue-6)" />
               <Text size="xs" c="dimmed">AI Evaluation Signals</Text>
             </Group>
             <Paper p="md">

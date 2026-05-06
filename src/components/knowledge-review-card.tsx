@@ -1,4 +1,4 @@
-import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconAlertCircle as AlertCircle, IconArchive as Archive } from "@tabler/icons-react";
+import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconSparkles as Sparkles, IconArchive as Archive } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import {
@@ -147,8 +147,6 @@ export function KnowledgeReviewCard({
               variant="outline" 
               color={getCardColor()} 
               size="sm"
-              
-              
             >
               {cardType === "GOAL" ? "Strategic Goal" : cardType === "TASK" ? "Tactical Task" : "Knowledge"}
             </Badge>
@@ -159,7 +157,7 @@ export function KnowledgeReviewCard({
               </Badge>
             )}
 
-            <Badge variant="light" color="gray" size="xs"  leftSection={<AlertCircle size={10} />}>
+            <Badge variant="light" color="gray" size="xs"  leftSection={<Sparkles size={10} />}>
               {kindLabel(flashcard.kind as any)}
             </Badge>
 
@@ -167,7 +165,6 @@ export function KnowledgeReviewCard({
               variant="light" 
               color={flashcard.intelligenceType === "COMPETITOR" ? "orange" : "gray"} 
               size="xs" 
-              
             >
               {flashcard.intelligenceType === "COMPETITOR" ? "The Market" : "Internal"}
             </Badge>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { IconHelmet as HardHat, IconDeviceFloppy as Save, IconAlertCircle as AlertCircle, IconInfoCircle as Info } from "@tabler/icons-react";
+import { IconHistory as History, IconDeviceFloppy as Save, IconAlertCircle as AlertCircle, IconInfoCircle as Info } from "@tabler/icons-react";
 
 import { 
   Button, 
@@ -122,14 +122,14 @@ export default function ReviewDashboard() {
         <PipelineAccentHeader 
           activeKey="review" 
           title="Review Gateway" 
-          icon={HardHat} 
+          icon={History} 
         />
         {items.length === 0 ? (
           <Center h={rem(400)}>
             <Card style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
               <Stack align="center" gap="xl">
                 <ThemeIcon color="gray" size={64}>
-                  <HardHat size={32} />
+                  <History size={32} />
                 </ThemeIcon>
                 <Stack gap="xs">
                   <Title order={3}>Structural Integrity Verified</Title>

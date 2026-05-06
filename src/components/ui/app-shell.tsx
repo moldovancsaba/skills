@@ -327,6 +327,11 @@ export function PipelineAccentHeader({
         ))}
       </SimpleGrid>
       <Group gap="sm">
+        {Icon && (
+          <ThemeIcon variant="light" color={activeColor} size="lg">
+            <Icon size={20} />
+          </ThemeIcon>
+        )}
         <Title order={2}>{title}</Title>
       </Group>
     </Stack>

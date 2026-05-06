@@ -1,228 +1,203 @@
-/**
- * STRATEGIC GOALS PAGE
- * v0.15.0
- */
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { IconBrain as Brain, IconDatabase as Database, IconLayersIntersect as Layers3, IconSearch as Search, IconSparkles as Sparkles, IconTrendingUp as TrendingUp, IconArrowUpRight as ArrowUpRight, IconTarget as Target, IconLayoutList as LayoutList, IconFilter as Filter } from "@tabler/icons-react";
+import { useState, useEffect, useCallback } from "react";
+import { useStore } from "@/lib/store";
+import { useRouter, useParams } from "next/navigation";
 import { 
-  Badge, 
-  Button, 
-  Group, 
-  TextInput, 
   Stack, 
-  Skeleton, 
+  Group, 
+  Text, 
+  Title, 
+  Button, 
+  Badge, 
+  TextInput, 
+  rem, 
+  ActionIcon, 
+  Tooltip, 
+  SimpleGrid, 
   Loader, 
-  Center,
-  Text,
-  Title,
-  Card,
-  rem,
-  ThemeIcon,
-  Box
+  Center 
 } from "@mantine/core";
-import {
-  EmptyState,
-  MetricCard,
-  MetricGrid,
-  Notice,
-  PageHeader,
-  PageShell,
-  PipelineAccentHeader,
-  UnifiedGrid,
+import { 
+  IconDatabase as Database, 
+  IconSearch as Search, 
+  IconSparkles as Sparkles, 
+  IconTarget as Target, 
+  IconPlus as Plus 
+} from "@tabler/icons-react";
+import { 
+  MetricCard, 
+  MetricGrid, 
+  Notice, 
+  PageHeader, 
+  PageShell, 
+  PipelineAccentHeader, 
+  UnifiedGrid 
 } from "@/components/ui/app-shell";
-import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
-import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
-import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
-import { useStore } from "@/lib/store";
-import React from "react";
+import { TaskReviewCard } from "@/components/task-review-card";
 
-type Company = {
-  id: string;
-  name: string;
-};
-
-type FlashcardSource = {
-  id: string;
-  sourceType: "SOURCE" | "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "FILE" | "AGENT_FOUND";
-  sourceId: string;
-  sourcePublicId: number | null;
-  sourceName: string;
-  relationRole: "PRIMARY" | "SUPPORTING" | "MERGED_FROM";
-};
-
-type FlashcardAction = {
-  id: string;
-  action: "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT";
-  annotation: string | null;
-  modifiedTitle: string | null;
-  modifiedBody: string | null;
-  createdAt: string;
-};
-
-type Goalcard = {
+type Goal = {
   id: string;
   publicId: number | null;
-  kind: string;
   title: string;
-  body: string;
-  confidenceScore: number;
+  description: string;
   impact: number;
-  weight: number;
+  confidenceScore: number;
+  ease: number;
+  iceScore: number;
   processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
   activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
-  userAnnotation: string | null;
+  kanbanColumn: "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
+  userAnnotation?: string;
   hashtags: string[];
-  lastActionAt: string | null;
-  refreshedAt: string;
-  sources: FlashcardSource[];
-  actions: FlashcardAction[];
-  intelligenceType: "INTERNAL" | "COMPETITOR";
-  iceScore: number;
 };
 
-type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "CONVERT";
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
 
-async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init);
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-  return response.json() as Promise<T>;
-}
-
-function actionLabel(action: FlashcardAction["action"] | ActionMode) {
-  switch (action) {
-    case "ACCEPT": return "Accepted";
-    case "DECLINE": return "Declined";
-    case "MODIFY_ACCEPT": return "Modified + accepted";
-    case "CONVERT": return "Converted";
-  }
-}
-
-function reviewStatusLabel(processingStatus: Goalcard["processingStatus"]) {
-  return processingStatus.charAt(0).toUpperCase() + processingStatus.slice(1).toLowerCase();
-}
-
-function kindLabel(kind: string) {
-  return kind.toLowerCase().replace(/_/g, " ");
-}
-
-export default function CompanyGoalsPage() {
+export default function GoalsPage() {
   const router = useRouter();
   const params = useParams();
   const companyId = params.companyId as string;
-  const [company, setCompany] = useState<Company | null>(null);
-  const [goals, setGoals] = useState<Goalcard[]>([]);
+  
+  const { company, setCompany } = useStore();
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeGoalId, setActiveGoalId] = useState<string | null>(null);
-  const [actionMode, setActionMode] = useState<ActionMode | null>(null);
-  const [actionComment, setActionComment] = useState("");
-  const [editedTitle, setEditedTitle] = useState("");
-  const [editedBody, setEditedBody] = useState("");
-  const [actingId, setActingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
-  const { sources } = useStore();
-  const [isOwner, setIsOwner] = useState(false);
+  const [actionItemId, setActionItemId] = useState<string | null>(null);
+  const [actionMode, setActionMode] = useState<ActionMode | null>(null);
+  const [annotation, setAnnotation] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
+  const [declineClass, setDeclineClass] = useState("WRONG");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadGoals = useCallback(async (cid: string) => {
-    const data = await fetchJson<Goalcard[]>(`/api/goalcards?companyId=${encodeURIComponent(cid)}`);
-    setGoals(data);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/nba?companyId=${cid}&column=ROADMAP`);
+      if (!res.ok) throw new Error("Failed to load strategic goals");
+      const data = await res.json();
+      setGoals(data);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Synchronization failure");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     if (!companyId) return;
 
-    const loadPage = async (cid: string) => {
-      setLoading(true);
-      setErrorMessage(null);
+    const fetchCompany = async (cid: string) => {
       try {
-        const companies = await fetchJson<Company[]>("/api/companies");
-        const found = companies.find((item) => item.id === cid);
+        const companies = await fetch(`/api/companies`).then((res) => res.json());
+        if (!Array.isArray(companies)) return;
+        const found = companies.find((c: any) => c.id === cid);
         if (!found) {
           router.push("/");
           return;
         }
+
         setCompany(found);
         await loadGoals(found.id);
-
-        const [members, sessionRes] = await Promise.all([
-          fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
-          fetch("/api/auth/session")
-        ]);
-
-        if (sessionRes.ok) {
-          const session = await sessionRes.json();
-          const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
-          setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
-        }
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : String(error));
-      } finally {
-        setLoading(false);
+        console.error(error);
       }
     };
 
-    loadPage(companyId);
-  }, [companyId, loadGoals, router]);
+    void fetchCompany(companyId);
+  }, [companyId, loadGoals, router, setCompany]);
 
-  const filteredGoals = useMemo(() => {
-    return goals.filter((goal) => {
-      const matchesSearch = goal.title.toLowerCase().includes(searchQuery.toLowerCase()) || goal.body.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesTags = matchesAllHashtags(goal.hashtags, activeHashtags);
-      return matchesSearch && matchesTags;
+  const openActionForm = (item: Goal, mode: ActionMode) => {
+    setActionMode(mode);
+    setActionItemId(item.id);
+    setAnnotation(item.userAnnotation ?? "");
+    setDraftTitle(item.title);
+    setDraftDescription(item.description);
+    setDeclineClass("WRONG");
+  };
+
+  const resetActionForm = () => {
+    setActionMode(null);
+    setActionItemId(null);
+    setAnnotation("");
+    setDraftTitle("");
+    setDraftDescription("");
+    setDeclineClass("WRONG");
+  };
+
+  const handleSubmitFeedback = async (
+    itemId: string,
+    action: ActionMode,
+    feedbackAnnotation?: string,
+    modifiedTitle?: string,
+    modifiedDescription?: string,
+    submittedDeclineClass?: string,
+  ) => {
+    setLoading(true);
+    const payload: any = {
+      nbaItemId: itemId,
+      action,
+      annotation: feedbackAnnotation,
+      modifiedTitle,
+      modifiedDescription,
+    };
+
+    if (action === "DECLINE" && submittedDeclineClass) payload.declineClass = submittedDeclineClass;
+    if (action === "DELIVER") payload.deliveryComment = feedbackAnnotation;
+
+    await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
-  }, [goals, searchQuery, activeHashtags]);
 
-  const handleConvert = useCallback(async (id: string, targetType: string) => {
-    if (!company) return;
-    setActingId(id);
+    resetActionForm();
+    if (company) await loadGoals(company.id);
+    setLoading(false);
+  };
+
+  const handleShare = async (item: Goal) => {
+    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidenceScore}% | Ease: ${item.ease}`;
     try {
-      await fetchJson("/api/intelligence/convert", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceId: id,
-          sourceType: "GOALCARD",
-          targetType: targetType === "KNOWLEDGE" ? "FLASHCARD" : targetType === "TASK" ? "TASKCARD" : "GOALCARD",
-          companyId: company.id
-        })
-      });
-      setGoals(prev => prev.filter(g => g.id !== id));
+      await navigator.clipboard.writeText(text);
+      setCopiedId(item.id);
+      setTimeout(() => setCopiedId(null), 2000);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setActingId(null);
+      console.error("Failed to copy", error);
     }
-  }, [company]);
+  };
 
-  if (loading) {
-    return (
-      <PageShell width="full">
-        <Center h="100vh">
-          <Stack align="center" gap="md">
-            <Loader color="brand" />
-            <Text c="dimmed">Synchronizing Strategic Goals...</Text>
-          </Stack>
-        </Center>
-      </PageShell>
-    );
-  }
+  const filteredGoals = goals.filter(g => 
+    g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    g.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const tip = getDashboardExpertTip({
     companyId,
-    productCount: sources.length,
+    productCount: 0,
     customerCount: 0,
     competitorCount: 0,
     fileCount: 0,
     flashcardCount: 0,
     pendingTaskCount: goals.length,
   });
+
+  if (loading && goals.length === 0) {
+    return (
+      <PageShell width="full">
+        <Center h="60vh">
+          <Stack align="center" gap="md">
+            <Loader color="brand" size="xl" variant="bars" />
+            <Text size="sm" c="dimmed">Decrypting strategic objectives...</Text>
+          </Stack>
+        </Center>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell width="full">
@@ -243,7 +218,7 @@ export default function CompanyGoalsPage() {
             detail="Objectives under management" 
           />
           <MetricCard 
-            icon={TrendingUp} 
+            icon={Sparkles} 
             color="blue" 
             label="Synthesis Yield" 
             value="85%" 
@@ -259,76 +234,48 @@ export default function CompanyGoalsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ flex: 1, maxWidth: 400 }}
           />
-          <Group gap="sm">
-            <Button variant="light" color="gray" leftSection={<Filter size={16} />}>Filters</Button>
-          </Group>
+          <Button 
+            variant="light" 
+            color="brand" 
+            leftSection={<Plus size={16} />}
+            onClick={() => router.push(`/${companyId}/data`)}
+          >
+            Add Intelligence
+          </Button>
         </Group>
 
         {filteredGoals.length === 0 ? (
-          <Center h={rem(400)}>
-            <Card style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
-              <Stack align="center" gap="xl">
-                <ThemeIcon color="gray" size={64} >
-                  <LayoutList size={32} />
-                </ThemeIcon>
-                <Stack gap="xs">
-                  <Title order={3}>No Strategic Goals Identified</Title>
-                  <Text c="dimmed" maw={400} mx="auto">
-                    Goals represent the aspirational future of the organization. They are synthesized from evidence units or established manually.
-                  </Text>
-                </Stack>
-              </Stack>
-            </Card>
+          <Center h="20vh">
+            <Text c="dimmed">No strategic goals match your criteria.</Text>
           </Center>
         ) : (
           <UnifiedGrid>
-            <AnimatePresence mode="popLayout">
-              {filteredGoals.map((goal, index) => (
-                <motion.div 
-                  key={goal.id} 
-                  layout
-                  initial={{ opacity: 0, scale: 0.98 }} 
-                  animate={{ opacity: 1, scale: 1 }} 
-                  exit={{ opacity: 0, scale: 0.98 }}
-                  transition={{ delay: index * 0.03 }}
-                >
-                  <KnowledgeReviewCard
-                    flashcard={goal as any}
-                    cardType="GOAL"
-                    isActionOpen={activeGoalId === goal.id}
-                    actionMode={actionMode}
-                    isBusy={actingId === goal.id}
-                    isGenerating={false}
-                    actionComment={actionComment}
-                    editedTitle={editedTitle}
-                    editedBody={editedBody}
-                    reviewStatusLabel={reviewStatusLabel}
-                    kindLabel={kindLabel}
-                    actionLabel={actionLabel}
-                    onOpenAction={(fc, mode) => {
-                      setActiveGoalId(fc.id);
-                      setActionMode(mode);
-                      setEditedTitle(fc.title);
-                      setEditedBody(fc.body);
-                    }}
-                    onCloseAction={() => {
-                      setActiveGoalId(null);
-                      setActionMode(null);
-                    }}
-                    onActionCommentChange={setActionComment}
-                    onEditedTitleChange={setEditedTitle}
-                    onEditedBodyChange={setEditedBody}
-                    onSubmit={() => {}}
-                    activeHashtags={activeHashtags}
-                    onToggleHashtag={() => {}}
-                    onRemoveHashtag={() => {}}
-                    onConvert={(type) => handleConvert(goal.id, type)}
-                  />
-                </motion.div>
-              ))}
-              <ExpertTipCard tip={tip} />
-              <MemberList companyId={companyId} isOwner={isOwner} />
-            </AnimatePresence>
+            {filteredGoals.map((goal) => (
+              <TaskReviewCard
+                key={goal.id}
+                item={goal as any}
+                isActionOpen={actionItemId === goal.id && actionMode !== null}
+                actionMode={actionMode}
+                isBusy={loading}
+                copied={copiedId === goal.id}
+                annotation={annotation}
+                draftTitle={draftTitle}
+                draftDescription={draftDescription}
+                onOpenAction={openActionForm as any}
+                onCloseAction={resetActionForm}
+                onAnnotationChange={setAnnotation}
+                onDraftTitleChange={setDraftTitle}
+                onDraftDescriptionChange={setDraftDescription}
+                declineClass={declineClass}
+                onDeclineClassChange={setDeclineClass}
+                activeHashtags={[]}
+                onToggleHashtag={() => {}}
+                onRemoveHashtag={() => {}}
+                onSubmit={handleSubmitFeedback}
+                onShare={handleShare as any}
+              />
+            ))}
+            <ExpertTipCard tip={tip} />
           </UnifiedGrid>
         )}
       </Stack>

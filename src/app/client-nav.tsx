@@ -19,7 +19,7 @@ import {
   Badge,
   Button
 } from "@mantine/core";
-import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListTodo, IconCircleCheck as CheckCircle2, IconTarget as Target, IconSparkles as Sparkles, IconBolt as Zap, IconChevronDown as ChevronDown, IconHelmet as HardHat } from "@tabler/icons-react";
+import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconCircleCheck as CheckCircle2, IconTarget as Target, IconSparkles as Sparkles, IconBolt as Zap, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
@@ -39,7 +39,7 @@ const pipelineItems = [
     key: "topics",
     href: (companyId: string) => `/${companyId}/topics`,
     label: "Topic Synthesis",
-    icon: ListTodo,
+    icon: Layers,
     color: "indigo",
   },
   {
@@ -60,7 +60,7 @@ const pipelineItems = [
     key: "nba",
     href: (companyId: string) => `/${companyId}/nba`,
     label: "Checklist",
-    icon: ListTodo,
+    icon: ListCheck,
     color: "blue",
   },
   {
@@ -74,7 +74,7 @@ const pipelineItems = [
     key: "review",
     href: (companyId: string) => `/${companyId}/review`,
     label: "Review Gateway",
-    icon: HardHat,
+    icon: History,
     color: "orange",
   },
 ];

@@ -328,7 +328,7 @@ export default function CompanyDataPage() {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader size="xl" variant="bars" color="brand" />
+        <Loader color="brand" />
       </Center>
     );
   }
@@ -351,7 +351,7 @@ export default function CompanyDataPage() {
           title="Data Ingress" 
           icon={Database} 
         />
-        <Card radius="lg" withBorder p="xl">
+        <Card>
           <form onSubmit={handleSubmit}>
             <Stack gap="lg">
               {editingId && (
@@ -371,7 +371,7 @@ export default function CompanyDataPage() {
 
               {!editingId && (
                 <Stack gap="xs">
-                  <Text size="sm" fw={700}>Contextual File Ingress</Text>
+                  <Text>Contextual File Ingress</Text>
                   <Group gap="sm">
                     <FileButton 
                       onChange={(files) => setSelectedFiles(prev => [...prev, ...Array.from(files)])} 
@@ -409,7 +409,7 @@ export default function CompanyDataPage() {
               />
 
               <Stack gap="xs">
-                <Text size="sm" fw={700}>Intelligence Classification</Text>
+                <Text>Intelligence Classification</Text>
                 <SegmentedControl
                   value={intelligenceType}
                   onChange={(value) => setIntelligenceType(value as any)}
@@ -419,8 +419,6 @@ export default function CompanyDataPage() {
                   ]}
                   color={intelligenceType === 'INTERNAL' ? 'blue' : 'orange'}
                   fullWidth
-                  size="md"
-                  radius="md"
                 />
               </Stack>
 
@@ -468,7 +466,7 @@ export default function CompanyDataPage() {
         <Stack gap="xl">
           <Group justify="space-between" align="center">
             <Group gap="sm">
-              <Title order={2} size="h3" fw={900} lts={-0.5}>Inventory</Title>
+              <Title order={2}>Inventory</Title>
               <Badge variant="light" color="gray">{filteredItems.length} units</Badge>
             </Group>
 
@@ -487,7 +485,6 @@ export default function CompanyDataPage() {
                       : "gray"
                     }
                     onClick={() => setListIntelligenceFilter(type)}
-                    styles={{ label: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase' } }}
                   >
                     {type === "ALL" ? "All" : type === "INTERNAL" ? "Unit" : "Market"}
                   </Button>
@@ -505,7 +502,6 @@ export default function CompanyDataPage() {
                     size="compact-xs"
                     color="gray"
                     onClick={() => setSortBy(sort)}
-                    styles={{ label: { fontSize: 10, fontWeight: 800, textTransform: 'uppercase' } }}
                   >
                     {sort}
                   </Button>
@@ -515,7 +511,7 @@ export default function CompanyDataPage() {
           </Group>
 
           {filteredItems.length === 0 ? (
-            <Card radius="md" withBorder p="xl" ta="center" style={{ borderStyle: 'dashed' }}>
+            <Card style={{ borderStyle: 'dashed' }} ta="center">
               <Text size="sm" c="dimmed">No intelligence units match the current filters.</Text>
             </Card>
           ) : (

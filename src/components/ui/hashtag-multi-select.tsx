@@ -79,7 +79,7 @@ export function HashtagMultiSelect({
   return (
     <Stack gap={4} ref={containerRef}>
       {label && (
-        <Text size="sm" fw={700} c="dimmed" tt="uppercase" lts={1}>
+        <Text c="dimmed">
           {label}
         </Text>
       )}
@@ -107,12 +107,8 @@ export function HashtagMultiSelect({
           {selected.map((tag) => (
             <Badge 
               key={tag}
-              variant="light" 
               color="brand"
               size="md"
-              radius="sm"
-              fw={700}
-              tt="none"
               rightSection={
                 <ActionIcon 
                   size="xs" 
@@ -169,9 +165,7 @@ export function HashtagMultiSelect({
                 borderRadius: 'var(--mantine-radius-lg)',
                 border: '1px solid var(--mantine-color-dark-4)',
                 backgroundColor: 'rgba(20, 20, 20, 0.95)',
-                backdropFilter: 'blur(16px)',
-                padding: rem(4),
-                boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+                padding: rem(4)
               }}
             >
               <ScrollArea.Autosize mah={240}>
@@ -197,7 +191,7 @@ export function HashtagMultiSelect({
                           <ThemeIcon variant="transparent" color="brand" size="xs">
                             <Hash size={14} />
                           </ThemeIcon>
-                          <Text size="sm" fw={600}>{suggestion}</Text>
+                          <Text>{suggestion}</Text>
                         </Group>
                         <Check size={14} color="var(--mantine-color-brand-filled)" style={{ opacity: 0.6 }} />
                       </Group>
@@ -225,8 +219,8 @@ export function HashtagMultiSelect({
                         <ThemeIcon variant="light" color="brand" size="sm" radius="xl">
                           <Plus size={14} />
                         </ThemeIcon>
-                        <Text size="sm" fw={700} c="brand">
-                          Add Focus: <Text span fw={700} td="underline">{normalizeHashtag(inputValue)}</Text>
+                        <Text c="brand">
+                          Add Focus: <Text span td="underline">{normalizeHashtag(inputValue)}</Text>
                         </Text>
                       </Group>
                     </UnstyledButton>
@@ -238,7 +232,7 @@ export function HashtagMultiSelect({
         </Transition>
       </Box>
       
-      {error && <Text size="xs" c="red" fw={700} mt={2}>{error}</Text>}
+      {error && <Text c="red" mt={2}>{error}</Text>}
     </Stack>
   );
 }

@@ -11,26 +11,6 @@ export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
     return (
       <TextInput
         ref={ref}
-        radius="md"
-        styles={(theme) => ({
-          input: { 
-            backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03))',
-            border: `1px solid light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1))`,
-            '&:focus': {
-              borderColor: 'var(--mantine-color-orange-6)'
-            }
-          },
-          label: { 
-            fontWeight: 700, 
-            marginBottom: rem(4),
-            fontSize: theme.fontSizes.sm,
-            color: 'light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-2))'
-          },
-          description: {
-            marginBottom: rem(4),
-            fontStyle: 'italic'
-          }
-        })}
         {...props}
       />
     );
@@ -46,26 +26,6 @@ export const FormTextarea = React.forwardRef<HTMLTextAreaElement, FormTextareaPr
     return (
       <Textarea
         ref={ref}
-        radius="md"
-        styles={(theme) => ({
-          input: { 
-            backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03))',
-            border: `1px solid light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1))`,
-            '&:focus': {
-              borderColor: 'var(--mantine-color-orange-6)'
-            }
-          },
-          label: { 
-            fontWeight: 700, 
-            marginBottom: rem(4),
-            fontSize: theme.fontSizes.sm,
-            color: 'light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-2))'
-          },
-          description: {
-            marginBottom: rem(4),
-            fontStyle: 'italic'
-          }
-        })}
         {...props}
       />
     );
@@ -81,19 +41,6 @@ export const FormSelect = React.forwardRef<HTMLInputElement, FormSelectProps>(
     return (
       <Select
         ref={ref}
-        radius="md"
-        styles={(theme) => ({
-          input: { 
-            backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03))',
-            border: `1px solid light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1))`
-          },
-          label: { 
-            fontWeight: 700, 
-            marginBottom: rem(4),
-            fontSize: theme.fontSizes.sm,
-            color: 'light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-2))'
-          }
-        })}
         {...props}
       />
     );
@@ -109,14 +56,6 @@ export const FormCheckbox = React.forwardRef<HTMLInputElement, FormCheckboxProps
     return (
       <Checkbox
         ref={ref}
-        radius="sm"
-        styles={(theme) => ({
-          label: { 
-            fontWeight: 700, 
-            cursor: "pointer",
-            color: 'light-dark(var(--mantine-color-gray-8), var(--mantine-color-dark-1))'
-          }
-        })}
         {...props}
       />
     );

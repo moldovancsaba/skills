@@ -13,19 +13,16 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
       <Group gap="xs">
         <ThemeIcon 
           size={iconSize + 8} 
-          radius="md" 
           color="brand"
         >
           <Sparkles size={iconSize} />
         </ThemeIcon>
         <Text 
           size={fontSize} 
-          fw={700} 
+          tt="lowercase"
           c="white"
           style={{ 
-            fontFamily: "var(--font-display)", 
-            letterSpacing: rem(-0.5),
-            textTransform: "lowercase"
+            fontFamily: "var(--font-display)"
           }}
         >
           checklist

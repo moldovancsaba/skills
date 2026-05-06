@@ -206,8 +206,8 @@ export default function CompanyGoalsPage() {
       <PageShell width="full">
         <Center h="100vh">
           <Stack align="center" gap="md">
-            <Loader size="xl" variant="bars" color="brand" />
-            <Text size="sm" fw={900} tt="uppercase" lts={2} c="dimmed">Synchronizing Strategic Goals...</Text>
+            <Loader color="brand" />
+            <Text c="dimmed">Synchronizing Strategic Goals...</Text>
           </Stack>
         </Center>
       </PageShell>
@@ -258,24 +258,22 @@ export default function CompanyGoalsPage() {
             value={searchQuery} 
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ flex: 1, maxWidth: 400 }}
-            radius="md"
-            size="md"
           />
           <Group gap="sm">
-            <Button variant="light" color="gray" leftSection={<Filter size={16} />} size="sm" radius="md">Filters</Button>
+            <Button variant="light" color="gray" leftSection={<Filter size={16} />}>Filters</Button>
           </Group>
         </Group>
 
         {filteredGoals.length === 0 ? (
           <Center h={rem(400)}>
-            <Card radius="lg" withBorder p={rem(60)} ta="center" style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }}>
+            <Card style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
               <Stack align="center" gap="xl">
-                <ThemeIcon variant="light" color="gray" size={64} radius="xl">
+                <ThemeIcon color="gray" size={64} radius="xl">
                   <LayoutList size={32} />
                 </ThemeIcon>
                 <Stack gap="xs">
-                  <Title order={3} fw={900} lts={-0.5}>No Strategic Goals Identified</Title>
-                  <Text size="sm" c="dimmed" maw={400} mx="auto" fw={500}>
+                  <Title order={3}>No Strategic Goals Identified</Title>
+                  <Text c="dimmed" maw={400} mx="auto">
                     Goals represent the aspirational future of the organization. They are synthesized from evidence units or established manually.
                   </Text>
                 </Stack>

@@ -116,10 +116,10 @@ function CardDetailModal({
       zIndex={3000}
       title={
         <Group gap="sm">
-          <ThemeIcon variant="light" color="orange" size="md" radius="sm">
+          <ThemeIcon color="orange">
             <Target size={16} />
           </ThemeIcon>
-          <Text fw={900} size="sm" style={{ letterSpacing: "-0.01em", textTransform: 'uppercase' }}>
+          <Text size="sm">
             #{item?.publicId ?? "—"} · Tactical Unit
           </Text>
           {col && (
@@ -127,7 +127,6 @@ function CardDetailModal({
               size="xs"
               variant="outline"
               color={col.accent}
-              styles={{ root: { borderWidth: 1 } }}
             >
               {col.label}
             </Badge>
@@ -138,7 +137,6 @@ function CardDetailModal({
       radius="lg"
       overlayProps={{ 
         backgroundOpacity: 0.55, 
-        blur: 3,
         color: 'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-9))'
       }}
       styles={{
@@ -156,11 +154,11 @@ function CardDetailModal({
         <Stack gap="xl" pt="xs">
         {/* Title & Description */}
         <Stack gap="xs">
-          <Text fw={900} size="xl" style={{ lineHeight: 1.2, letterSpacing: '-0.02em' }}>
+          <Text size="xl">
             {item.title}
           </Text>
           {item.description && (
-            <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }} fw={500}>
+            <Text size="sm" c="dimmed">
               {item.description}
             </Text>
           )}
@@ -168,21 +166,21 @@ function CardDetailModal({
 
         {/* ICE Scores */}
         <Box>
-          <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed" mb="md">Operational Scores</Text>
+          <Text size="xs" c="dimmed" mb="md">Operational Scores</Text>
           <Group grow gap="md">
             {[
               { label: "Impact",     value: item.impact,     color: "orange" },
               { label: "Confidence", value: item.confidence, color: "cyan" },
               { label: "Ease",       value: item.ease,       color: "violet" },
             ].map(s => (
-              <Paper key={s.label} p="md" radius="md" withBorder ta="center" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
-                <Text size="xl" fw={900} c={s.color}>{s.value}</Text>
-                <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">{s.label}</Text>
+              <Paper key={s.label} p="md" ta="center" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+                <Text size="xl" c={s.color}>{s.value}</Text>
+                <Text size="xs" c="dimmed">{s.label}</Text>
               </Paper>
             ))}
-            <Paper p="md" radius="md" withBorder ta="center" style={{ backgroundColor: 'light-dark(var(--mantine-color-orange-0), var(--mantine-color-orange-9))', borderColor: 'var(--mantine-color-orange-filled)' }}>
-              <Text size="xl" fw={900} c="orange">{Math.round(item.iceScore)}</Text>
-              <Text size="xs" fw={800} tt="uppercase" lts={1} c="orange">ICE Score</Text>
+            <Paper p="md" ta="center" style={{ backgroundColor: 'light-dark(var(--mantine-color-orange-0), var(--mantine-color-orange-9))', borderColor: 'var(--mantine-color-orange-filled)' }}>
+              <Text size="xl" c="orange">{Math.round(item.iceScore)}</Text>
+              <Text size="xs" c="orange">ICE Score</Text>
             </Paper>
           </Group>
         </Box>
@@ -192,25 +190,25 @@ function CardDetailModal({
           <Box>
             <Group gap="xs" mb="md">
               <Cpu size={14} color="var(--mantine-color-blue-6)" />
-              <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed">AI Evaluation Signals</Text>
+              <Text size="xs" c="dimmed">AI Evaluation Signals</Text>
             </Group>
-            <Paper p="md" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+            <Paper p="md" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
               <SimpleGrid cols={4}>
                 <Stack gap={2}>
-                  <Text size="sm" fw={800}>{fmt(item.qualityScore)}</Text>
-                  <Text size="xs" c="dimmed" fw={700} tt="uppercase">Quality</Text>
+                  <Text size="sm">{fmt(item.qualityScore)}</Text>
+                  <Text size="xs" c="dimmed">Quality</Text>
                 </Stack>
                 <Stack gap={2}>
-                  <Text size="sm" fw={800}>{fmt(item.urgencyScore)}</Text>
-                  <Text size="xs" c="dimmed" fw={700} tt="uppercase">Urgency</Text>
+                  <Text size="sm">{fmt(item.urgencyScore)}</Text>
+                  <Text size="xs" c="dimmed">Urgency</Text>
                 </Stack>
                 <Stack gap={2}>
-                  <Text size="sm" fw={800}>{fmt(item.freshnessScore)}</Text>
-                  <Text size="xs" c="dimmed" fw={700} tt="uppercase">Freshness</Text>
+                  <Text size="sm">{fmt(item.freshnessScore)}</Text>
+                  <Text size="xs" c="dimmed">Freshness</Text>
                 </Stack>
                 <Stack gap={2}>
-                  <Badge size="xs" variant="filled" color="blue" radius="xs">{item.candidateState}</Badge>
-                  <Text size="xs" c="dimmed" fw={700} tt="uppercase">State</Text>
+                  <Badge size="xs" color="blue">{item.candidateState}</Badge>
+                  <Text size="xs" c="dimmed">State</Text>
                 </Stack>
               </SimpleGrid>
             </Paper>
@@ -220,9 +218,9 @@ function CardDetailModal({
         {/* Evaluation Reason */}
         {item.evaluationReason && (
           <Box>
-            <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed" mb="md">AI Judge Reasoning</Text>
-            <Paper p="md" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))', borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
-              <Text size="sm" fw={500} style={{ lineHeight: 1.6, fontStyle: "italic" }}>
+            <Text size="xs" c="dimmed" mb="md">AI Judge Reasoning</Text>
+            <Paper p="md" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))', borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
+              <Text size="sm">
                 "{item.evaluationReason}"
               </Text>
             </Paper>
@@ -233,7 +231,7 @@ function CardDetailModal({
         {item.hashtags?.length > 0 && (
           <Group gap="xs" wrap="wrap">
             {item.hashtags.map(tag => (
-              <Badge key={tag} size="xs" variant="light" color="gray" radius="sm" fw={800}>
+              <Badge key={tag} size="xs" color="gray">
                 #{tag}
               </Badge>
             ))}
@@ -250,7 +248,7 @@ function CardDetailModal({
               value={item.kanbanColumn}
               size="sm"
               radius="md"
-              label={<Text size="xs" fw={900} tt="uppercase" lts={1} mb={4}>Move to tactical horizon</Text>}
+              label={<Text size="xs" mb={4}>Move to tactical horizon</Text>}
               style={{ flex: 1 }}
               onChange={(val) => {
                 if (val && val !== item.kanbanColumn) {
@@ -262,16 +260,14 @@ function CardDetailModal({
           </Group>
 
           <Box>
-            <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed" mb="md">Protocol Migration</Text>
+            <Text size="xs" c="dimmed" mb="md">Protocol Migration</Text>
             <Group grow gap="md">
               <Button 
                 variant="light" 
                 color="indigo" 
                 size="xs" 
-                radius="md"
                 leftSection={<RefreshCw size={14} />}
                 onClick={() => onConvert(item.id, "KNOWLEDGE")}
-                fw={800}
               >
                 Migrate to Knowledge
               </Button>
@@ -279,10 +275,8 @@ function CardDetailModal({
                 variant="light" 
                 color="teal" 
                 size="xs" 
-                radius="md"
                 leftSection={<Layers size={14} />}
                 onClick={() => onConvert(item.id, "GOAL")}
-                fw={800}
               >
                 Migrate to Goals
               </Button>
@@ -304,10 +298,10 @@ function CardDetailModal({
             Archive Unit
           </Button>
           <Group gap="sm">
-            <Button variant="light" color="gray" onClick={onClose} fw={800} size="sm">
+            <Button variant="light" color="gray" onClick={onClose} size="sm">
               Cancel
             </Button>
-            <Button variant="filled" color="orange" onClick={onClose} fw={900} size="sm" tt="uppercase">
+            <Button variant="filled" color="orange" onClick={onClose} size="sm">
               Acknowledge
             </Button>
           </Group>
@@ -315,10 +309,10 @@ function CardDetailModal({
 
         {/* Timestamps */}
         <Group justify="flex-end" gap="xs">
-          <Text size="10px" fw={800} c="dimmed" tt="uppercase" lts={1}>
+          <Text size="10px" c="dimmed">
             COMMITTED: {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
           </Text>
-          <Text size="10px" fw={800} c="dimmed" tt="uppercase" lts={1}>
+          <Text size="10px" c="dimmed">
             SYNCED: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : "—"}
           </Text>
         </Group>
@@ -423,8 +417,8 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
       <PageShell width="full">
         <Center h={400}>
           <Stack align="center" gap="sm">
-            <Loader size="lg" variant="bars" color="orange" />
-            <Text fw={900} tt="uppercase" lts={1} c="dimmed" size="xs">Synchronizing Tactical Board...</Text>
+            <Loader color="orange" />
+            <Text c="dimmed" size="xs">Synchronizing Tactical Board...</Text>
           </Stack>
         </Center>
       </PageShell>
@@ -476,28 +470,24 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                   {/* Column Header */}
                   <Paper
                     p="md"
-                    radius="lg"
-                    withBorder
                     style={{
                       borderTop: `4px solid ${col.accent}`,
                       flexShrink: 0,
-                      backgroundColor: 'light-dark(white, var(--mantine-color-dark-7))',
-                      boxShadow: 'var(--mantine-shadow-xs)'
+                      backgroundColor: 'light-dark(white, var(--mantine-color-dark-7))'
                     }}
                   >
                     <Group justify="space-between" wrap="nowrap">
                       <Stack gap={2} style={{ overflow: 'hidden' }}>
-                        <Text fw={900} size="sm" style={{ color: col.accent, letterSpacing: "-0.01em", textTransform: 'uppercase' }} truncate>
+                        <Text size="sm" style={{ color: col.accent }} truncate>
                           {col.label}
                         </Text>
-                        <Text size="xs" fw={700} c="dimmed" truncate>{col.description}</Text>
+                        <Text size="xs" c="dimmed" truncate>{col.description}</Text>
                       </Stack>
                       <Badge
                         size="sm"
                         variant="light"
                         color={col.accent}
                         style={{ backgroundColor: `${col.accent}15`, color: col.accent, border: `1px solid ${col.accent}33` }}
-                        fw={900}
                       >
                         {colItems.length}
                       </Badge>
@@ -540,8 +530,6 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                   >
                                     <Paper
                                       p="md"
-                                      radius="md"
-                                      withBorder
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         e.preventDefault();
@@ -562,11 +550,11 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                       }}
                                     >
                                       <Stack gap="xs">
-                                        <Text size="xs" fw={900} lineClamp={2} style={{ lineHeight: 1.3, letterSpacing: '-0.01em' }}>
+                                        <Text size="xs" lineClamp={2}>
                                           {item.title}
                                         </Text>
                                         {item.description && (
-                                          <Text size="xs" c="dimmed" lineClamp={2} fw={500} style={{ lineHeight: 1.5 }}>
+                                          <Text size="xs" c="dimmed" lineClamp={2}>
                                             {item.description}
                                           </Text>
                                         )}
@@ -575,14 +563,12 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                             size="xs" 
                                             variant="light" 
                                             color={item.impact >= 8 ? "red" : item.impact >= 5 ? "orange" : "gray"}
-                                            fw={900}
-                                            tt="uppercase"
                                           >
                                             {item.candidateState}
                                           </Badge>
                                           <Group gap={4}>
-                                            <Text size="10px" fw={900} c="dimmed">ICE</Text>
-                                            <Text size="xs" fw={900} style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
+                                            <Text size="10px" c="dimmed">ICE</Text>
+                                            <Text size="xs" style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
                                               {Math.round(item.iceScore)}
                                             </Text>
                                           </Group>

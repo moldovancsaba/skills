@@ -17,8 +17,8 @@ const TacticalBoard = dynamic(
     loading: () => (
       <Center h="100vh">
         <Stack align="center" gap="md">
-          <Loader size="xl" variant="bars" color="brand" />
-          <Text size="sm" fw={800} tt="uppercase" lts={1} c="dimmed">
+          <Loader color="brand" />
+          <Text c="dimmed">
             Initializing Tactical Board...
           </Text>
         </Stack>

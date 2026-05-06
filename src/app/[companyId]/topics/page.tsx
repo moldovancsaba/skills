@@ -169,7 +169,7 @@ export default function CompanyTopicsPage() {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader size="xl" variant="bars" color="brand" />
+        <Loader color="brand" />
       </Center>
     );
   }
@@ -188,9 +188,9 @@ export default function CompanyTopicsPage() {
           </Notice>
         )}
 
-        <Card radius="lg" withBorder p="xl">
+        <Card>
           <Stack gap="md">
-            <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed">Identify New Intelligence Frontier</Text>
+            <Text size="xs" c="dimmed">Identify New Intelligence Frontier</Text>
             <Group gap="md" align="flex-end" wrap="nowrap">
               <TextInput
                 label="Strategic Topic Label"
@@ -199,12 +199,9 @@ export default function CompanyTopicsPage() {
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="e.g., market landscape analysis, pricing strategy..."
                 style={{ flex: 1 }}
-                radius="md"
               />
               <Button 
                 onClick={() => void addTopic()}
-                size="md"
-                radius="md"
                 leftSection={<Plus size={16} />}
               >
                 Add Focus
@@ -215,10 +212,10 @@ export default function CompanyTopicsPage() {
 
         <Stack gap="xs">
           <Group gap="sm">
-            <Title order={2} size="h3" fw={900} lts={-0.5}>Strategic Hierarchy</Title>
-            <MantineBadge variant="light" color="gray" radius="sm">{orderedTopics.length} Units</MantineBadge>
+            <Title order={2}>Strategic Hierarchy</Title>
+            <MantineBadge color="gray">{orderedTopics.length} Units</MantineBadge>
           </Group>
-          <Text size="sm" c="dimmed" fw={500} style={{ fontStyle: "italic" }}>
+          <Text size="sm" c="dimmed">
             Prioritize topics by reordering. Top-level units receive maximum synthesis yield.
           </Text>
         </Stack>
@@ -227,14 +224,13 @@ export default function CompanyTopicsPage() {
           {orderedTopics.map((topic, index) => {
             const supportingBadge = (
               <Group gap={6}>
-                <MantineBadge variant="outline" color="gray" size="xs" fw={900}>
+                <MantineBadge variant="outline" color="gray" size="xs">
                   {index + 1}
                 </MantineBadge>
                 <MantineBadge 
                   variant="light" 
                   color={topic.active ? "green" : "gray"} 
                   size="xs"
-                  fw={900}
                 >
                   {topic.active ? "ACTIVE" : "PAUSED"}
                 </MantineBadge>
@@ -278,8 +274,8 @@ export default function CompanyTopicsPage() {
                           color="brand"
                         />
                         <Box style={{ flex: 1 }}>
-                          <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Research Status</Text>
-                          <Text size="sm" fw={600} c={topic.active ? "white" : "dimmed"}>
+                          <Text size="xs" c="dimmed">Research Status</Text>
+                          <Text size="sm" c={topic.active ? "white" : "dimmed"}>
                             {topic.active ? "Actively harvesting strategic intelligence" : "Research focus suspended"}
                           </Text>
                         </Box>
@@ -340,12 +336,12 @@ export default function CompanyTopicsPage() {
         </UnifiedGrid>
 
         {orderedTopics.length === 0 && (
-          <Card radius="lg" withBorder p={rem(60)} ta="center" style={{ borderStyle: 'dashed' }}>
+          <Card style={{ borderStyle: 'dashed' }} ta="center">
             <Stack align="center" gap="md">
-              <ThemeIcon variant="light" color="gray" size="xl" radius="xl">
+              <ThemeIcon color="gray" size="xl" radius="xl">
                 <LayoutList size={24} />
               </ThemeIcon>
-              <Text size="sm" c="dimmed" fs="italic">No focus topics established. Define your first intelligence frontier above.</Text>
+              <Text size="sm" c="dimmed">No focus topics established. Define your first intelligence frontier above.</Text>
             </Stack>
           </Card>
         )}

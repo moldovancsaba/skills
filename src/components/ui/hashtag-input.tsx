@@ -36,26 +36,6 @@ export function HashtagInput({
       clearable
       splitChars={[',', ' ', '|']}
       maxTags={15}
-      radius="md"
-      styles={(theme) => ({
-        input: { 
-          backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03))',
-          border: `1px solid light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1))`,
-          minHeight: rem(42)
-        },
-        label: { 
-          fontWeight: 700, 
-          marginBottom: rem(4),
-          fontSize: theme.fontSizes.sm,
-          color: 'light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-2))'
-        },
-        pill: { 
-          backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6))',
-          color: 'light-dark(black, white)',
-          fontWeight: 700,
-          border: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.1))`
-        }
-      })}
     />
   );
 }

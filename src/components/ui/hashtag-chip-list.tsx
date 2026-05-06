@@ -40,12 +40,7 @@ export function HashtagChipList({
                 variant={isActive ? "filled" : "light"}
                 color="gray"
                 size="sm"
-                radius="sm"
                 leftSection={<Hash size={10} />}
-                style={{ 
-                  textTransform: "none",
-                  fontWeight: 600
-                }}
               >
                 {displayHashtag(tag)}
               </Badge>

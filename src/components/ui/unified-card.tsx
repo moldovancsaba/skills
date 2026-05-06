@@ -13,9 +13,6 @@ export function UnifiedCard({ children, style, mt }: UnifiedCardProps) {
   return (
     <Card 
       shadow="sm" 
-      padding="xl" 
-      radius="lg" 
-      withBorder 
       mt={mt}
       style={style}
     >
@@ -43,11 +40,11 @@ export function UnifiedCardHeader({
         <Stack gap="sm" style={{ flex: 1 }}>
           {supporting && <Group gap="xs" wrap="wrap">{supporting}</Group>}
           <Stack gap={4}>
-            <Title order={3} size="h3" style={{ lineHeight: 1.2 }}>
+            <Title order={3}>
               {title}
             </Title>
             {description && (
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.6 }} fw={500}>
+              <Text c="dimmed">
                 {description}
               </Text>
             )}
@@ -65,7 +62,7 @@ export function UnifiedCardBody({ children, style, mt }: UnifiedCardProps) {
 
 export function UnifiedCardText({ children, style, mt }: UnifiedCardProps) {
   return (
-    <Text size="sm" style={{ lineHeight: 1.6, ...style }} mt={mt} fw={500}>
+    <Text style={style} mt={mt}>
       {children}
     </Text>
   );

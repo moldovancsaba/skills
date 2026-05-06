@@ -174,10 +174,6 @@ export function ClientNav() {
                 variant="light"
                 active={pathname === `/${company?.id || companyIdFromUrl}`}
                 onClick={() => company?.id && router.push(`/${company.id}`)}
-                styles={{
-                  root: { borderRadius: 'var(--mantine-radius-md)', marginBottom: rem(8) },
-                  label: { fontWeight: 700 }
-                }}
               />
 
               {pipelineItems.map((item) => (
@@ -185,14 +181,14 @@ export function ClientNav() {
                   key={item.key}
                   label={item.label}
                   leftSection={
-                    <ThemeIcon color={item.color} variant="light" size="sm" radius="sm">
+                    <ThemeIcon color={item.color}>
                       <item.icon size={14} />
                     </ThemeIcon>
                   }
                   rightSection={
                     <Group gap={4}>
                       {counts[item.key] !== undefined && (
-                        <Badge size="xs" variant="light" color={item.color} circle fw={700}>
+                        <Badge size="xs" color={item.color} circle>
                           {counts[item.key]}
                         </Badge>
                       )}
@@ -203,10 +199,6 @@ export function ClientNav() {
                   active={pathname.includes(item.key)}
                   variant="subtle"
                   color={item.color}
-                  styles={{
-                    root: { borderRadius: 'var(--mantine-radius-md)' },
-                    label: { fontWeight: 700, fontSize: rem(13) }
-                  }}
                 />
               ))}
             </Stack>
@@ -234,10 +226,10 @@ export function ClientNav() {
           >
             <Group justify="space-between">
               <Group gap="sm">
-                <ThemeIcon variant="light" color={isDark ? "yellow" : "indigo"} size="sm">
+                <ThemeIcon color={isDark ? "yellow" : "indigo"} size="sm">
                   {isDark ? <Sun size={14} /> : <Moon size={14} />}
                 </ThemeIcon>
-                <Text size="xs" fw={700}>{isDark ? "Light" : "Dark"} Mode</Text>
+                <Text size="xs">{isDark ? "Light" : "Dark"} Mode</Text>
               </Group>
             </Group>
           </UnstyledButton>
@@ -258,7 +250,7 @@ export function ClientNav() {
                         {session.name?.[0]}
                       </Avatar>
                       <Box style={{ flex: 1, overflow: 'hidden' }}>
-                        <Text size="xs" fw={700} truncate>{session.name}</Text>
+                        <Text size="xs" truncate>{session.name}</Text>
                       </Box>
                     </Group>
                     <ChevronDown size={14} />
@@ -306,9 +298,8 @@ export function ClientNav() {
           <Text
             component="a"
             href="/privacy"
-            size="10px"
+            size="xs"
             c="dimmed"
-            fw={700}
             style={{ textDecoration: 'none', cursor: 'pointer' }}
           >
             PRIVACY
@@ -316,14 +307,13 @@ export function ClientNav() {
           <Text
             component="a"
             href="/terms"
-            size="10px"
+            size="xs"
             c="dimmed"
-            fw={700}
             style={{ textDecoration: 'none', cursor: 'pointer' }}
           >
             TERMS
           </Text>
-          <Text size="10px" c="dimmed" fw={700} tt="uppercase">
+          <Text size="xs" c="dimmed" tt="uppercase">
             v{APP_VERSION}
           </Text>
         </Group>

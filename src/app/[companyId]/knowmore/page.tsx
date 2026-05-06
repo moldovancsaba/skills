@@ -405,8 +405,8 @@ export default function CompanyKnowMorePage() {
       <PageShell width="full">
         <Center h="100vh">
           <Stack align="center" gap="md">
-            <Loader size="xl" variant="bars" color="brand" />
-            <Text size="sm" fw={900} tt="uppercase" lts={2} c="dimmed">Synchronizing Contextual Memory...</Text>
+            <Loader color="brand" />
+            <Text c="dimmed">Synchronizing Contextual Memory...</Text>
           </Stack>
         </Center>
       </PageShell>
@@ -449,8 +449,6 @@ export default function CompanyKnowMorePage() {
               value={searchQuery} 
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ flex: 1, maxWidth: 400 }}
-              radius="md"
-              size="md"
             />
             <Group gap="xs">
               <Group gap={4} p={4} style={{ 
@@ -466,9 +464,6 @@ export default function CompanyKnowMorePage() {
                     size="compact-xs"
                     h={30}
                     px="md"
-                    fw={900}
-                    tt="uppercase"
-                    lts={1}
                     onClick={() => setIntelligenceFilter(type)}
                   >
                     {type === "INTERNAL" ? "Unit" : "Market"}
@@ -488,9 +483,6 @@ export default function CompanyKnowMorePage() {
                     size="compact-xs"
                     h={30}
                     px="md"
-                    fw={900}
-                    tt="uppercase"
-                    lts={1}
                     onClick={() => setFilterKind(kind)}
                   >
                     {kind === "ALL" ? "All" : kindLabel(kind as Flashcard["kind"])}
@@ -502,21 +494,21 @@ export default function CompanyKnowMorePage() {
 
           {filteredFlashcards.length === 0 ? (
             <Center h={rem(400)}>
-              <Card radius="lg" withBorder p={rem(60)} ta="center" style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }}>
-                <Stack align="center" gap="xl">
-                  <ThemeIcon variant="light" color="gray" size={64} radius="xl">
-                    <Brain size={32} />
-                  </ThemeIcon>
-                  <Stack gap="xs">
-                    <Title order={3} fw={900} lts={-0.5}>Memory Layer Silent</Title>
-                    <Text size="sm" c="dimmed" maw={400} mx="auto" fw={500}>
-                      {searchQuery || filterKind !== "ALL" || activeHashtags.length > 0 
-                        ? "No knowledge units match the current strategic filters."
-                        : "The memory layer is awaiting evidence unit ingress to begin synthesis."}
-                    </Text>
-                  </Stack>
+             <Card style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
+              <Stack align="center" gap="xl">
+                <ThemeIcon color="gray" size={64} radius="xl">
+                  <Brain size={32} />
+                </ThemeIcon>
+                <Stack gap="xs">
+                  <Title order={3}>Memory Layer Silent</Title>
+                  <Text c="dimmed" maw={400} mx="auto">
+                    {searchQuery || filterKind !== "ALL" || activeHashtags.length > 0 
+                      ? "No knowledge units match the current strategic filters."
+                      : "The memory layer is awaiting evidence unit ingress to begin synthesis."}
+                  </Text>
                 </Stack>
-              </Card>
+              </Stack>
+            </Card>
             </Center>
           ) : (
             <UnifiedGrid>

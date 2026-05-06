@@ -146,14 +146,14 @@ export default function SettingsPage() {
 
       <Stack gap="xl">
         {/* Global Alerting Control */}
-        <Card p="xl" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+        <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
           <Group justify="space-between">
             <Stack gap={4}>
               <Group gap="sm">
-                <ThemeIcon variant="light" color="brand" size="md">
+                <ThemeIcon color="brand">
                   <Bell size={18} />
                 </ThemeIcon>
-                <Title order={3} size="h4">Alerting Layer</Title>
+                <Title order={3}>Alerting Layer</Title>
               </Group>
               <Text size="sm" c="dimmed">Enable or disable automated AI discoveries and task alerts.</Text>
             </Stack>
@@ -167,19 +167,19 @@ export default function SettingsPage() {
         </Card>
 
         {/* Organization Settings */}
-        <Card p="xl" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+        <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
           <Stack gap="lg">
             <Group justify="space-between" align="flex-start">
               <Stack gap={4}>
                 <Group gap="sm">
-                  <ThemeIcon variant="light" color="brand" size="md">
+                  <ThemeIcon color="brand">
                     <Languages size={18} />
                   </ThemeIcon>
-                  <Title order={3} size="h4">Language Management</Title>
+                  <Title order={3}>Language Management</Title>
                 </Group>
                 <Text size="sm" c="dimmed">Define which languages the AI is allowed to use for intelligence synthesis.</Text>
               </Stack>
-              <Badge variant="light" color="brand" size="sm">
+              <Badge color="brand" size="sm">
                 {companySettings?.allowedLanguages.length || 0} Enabled
               </Badge>
             </Group>
@@ -206,8 +206,8 @@ export default function SettingsPage() {
             </Group>
 
             <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: 'light-dark(rgba(0,0,0,0.03), rgba(0,0,0,0.2))', border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' }}>
-              <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed" mb="xs">Policy Enforcement</Text>
-              <Text size="xs" c="dimmed" lh={1.6}>
+              <Text size="xs" c="dimmed" mb="xs">Policy Enforcement</Text>
+              <Text size="xs" c="dimmed">
                 AI agents will strictly use only these permitted languages for flashcards and taskcards. 
                 checklist Purity Check: Any content detected in a disallowed language or containing mixed-language structures will be deleted immediately during synthesis.
               </Text>
@@ -217,13 +217,13 @@ export default function SettingsPage() {
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           {/* Channel Configuration */}
-          <Card p="xl" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+          <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
             <Stack gap="md">
               <Group gap="sm">
-                <ThemeIcon variant="light" color="gray" size="md">
+                <ThemeIcon color="gray">
                   <Smartphone size={18} />
                 </ThemeIcon>
-                <Title order={3} size="h5">Notification Channel</Title>
+                <Title order={3}>Notification Channel</Title>
               </Group>
               <Select 
                 label="Channel"
@@ -251,18 +251,18 @@ export default function SettingsPage() {
           </Card>
 
           {/* Threshold Configuration */}
-          <Card p="xl" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+          <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
             <Stack gap="md">
               <Group gap="sm">
-                <ThemeIcon variant="light" color="gray" size="md">
+                <ThemeIcon color="gray">
                   <ShieldCheck size={18} />
                 </ThemeIcon>
-                <Title order={3} size="h5">Sensitivity & Priority</Title>
+                <Title order={3}>Sensitivity & Priority</Title>
               </Group>
               <Stack gap="xs">
                 <Group justify="space-between">
-                  <Text size="sm" fw={700}>Minimum ICE Score</Text>
-                  <Text size="sm" ff="monospace" c="brand" fw={900}>{settings.minIceScore}</Text>
+                  <Text>Minimum ICE Score</Text>
+                  <Text c="brand">{settings.minIceScore}</Text>
                 </Group>
                 <Slider 
                   value={settings.minIceScore} 
@@ -274,7 +274,7 @@ export default function SettingsPage() {
                   disabled={saving}
                   color="brand"
                 />
-                <Text size="xs" c="dimmed" tt="uppercase" lts={1}>
+                <Text size="xs" c="dimmed">
                   Higher score = Fewer, higher-quality notifications.
                 </Text>
               </Stack>
@@ -283,13 +283,13 @@ export default function SettingsPage() {
         </SimpleGrid>
 
         {/* Two-Way Bridge Security */}
-        <Card p="xl" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+        <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
           <Stack gap="md">
             <Group gap="sm">
-              <ThemeIcon variant="light" color="gray" size="md">
+              <ThemeIcon color="gray">
                 <Key size={18} />
               </ThemeIcon>
-              <Title order={3} size="h5">Communication Bridge API</Title>
+              <Title order={3}>Communication Bridge API</Title>
             </Group>
             <Text size="sm" c="dimmed">Use this key to send data into checklist memory from external scripts.</Text>
             
@@ -314,7 +314,7 @@ export default function SettingsPage() {
 
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               <Stack gap={4}>
-                <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">Endpoint</Text>
+                <Text size="xs" c="dimmed">Endpoint</Text>
                 <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", backgroundColor: "rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.03)" }}>
                   <Text ff="monospace" size="xs">
                     {typeof window !== 'undefined' ? window.location.origin : ''}/api/bridge/ingress
@@ -322,7 +322,7 @@ export default function SettingsPage() {
                 </Box>
               </Stack>
               <Stack gap={4}>
-                <Text size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">Example Payload</Text>
+                <Text size="xs" c="dimmed">Example Payload</Text>
                 <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", backgroundColor: "rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.03)" }}>
                   <Text ff="monospace" size="xs">
                     {`{ "secret": "...", "sender": "+123", "text": "New insight..." }`}

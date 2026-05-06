@@ -167,8 +167,8 @@ export default function Home() {
     return (
       <Box style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
         <Stack align="center" gap="md" w="100%">
-          <Loader color="brand" size="lg" variant="bars" />
-          <Text size="sm" fw={700} c="dimmed">Hardening OS Infrastructure...</Text>
+          <Loader color="brand" />
+          <Text c="dimmed">Hardening OS Infrastructure...</Text>
         </Stack>
       </Box>
     );
@@ -179,7 +179,7 @@ export default function Home() {
       <Stack gap="xl">
 
         {error && (
-          <Alert icon={<AlertCircle size={16} />} title="Synchronization Failure" color="red" radius="md" variant="light">
+          <Alert icon={<AlertCircle size={16} />} title="Synchronization Failure" color="red">
             {error}
           </Alert>
         )}
@@ -208,7 +208,7 @@ export default function Home() {
         </Group>
 
         {(canManageCompanies && (companies.length === 0 || showForm)) ? (
-          <Card p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+          <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
             <Stack gap="lg">
               <Title order={3}>{editingId ? "Modify Intelligence Unit" : "Initialize New Unit"}</Title>
               <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany}>
@@ -254,8 +254,6 @@ export default function Home() {
                     <Group gap="sm">
                       <Title 
                         order={2} 
-                        size="h2" 
-                        fw={900} 
                         style={{ cursor: 'pointer' }}
                         onClick={() => router.push(`/${c.id}`)}
                       >
@@ -269,7 +267,7 @@ export default function Home() {
                         ))}
                       </Group>
                     </Group>
-                    <Text size="xs" ff="monospace" c="dimmed" tt="uppercase" lts={1}>
+                    <Text size="xs" c="dimmed">
                       UNIT ID: {c.id.slice(0, 8)}
                     </Text>
                   </Stack>
@@ -344,8 +342,8 @@ export default function Home() {
             ))}
 
             {!canManageCompanies && companies.length === 0 && (
-              <Card p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
-                <Text size="sm" c="dimmed" fs="italic">
+              <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+                <Text c="dimmed">
                   No intelligence units are currently provisioned for this account.
                 </Text>
               </Card>

@@ -126,14 +126,14 @@ export default function ReviewDashboard() {
         />
         {items.length === 0 ? (
           <Center h={rem(400)}>
-            <Card radius="lg" withBorder p={rem(60)} ta="center" style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }}>
+            <Card style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
               <Stack align="center" gap="xl">
-                <ThemeIcon variant="light" color="gray" size={64} radius="xl">
+                <ThemeIcon color="gray" size={64} radius="xl">
                   <HardHat size={32} />
                 </ThemeIcon>
                 <Stack gap="xs">
-                  <Title order={3} fw={700}>Structural Integrity Verified</Title>
-                  <Text size="sm" c="dimmed" maw={400} mx="auto" fw={500}>
+                  <Title order={3}>Structural Integrity Verified</Title>
+                  <Text c="dimmed" maw={400} mx="auto">
                     The synthesis engine is successfully grading all intelligence inside the established Axioms. No manual corrections required.
                   </Text>
                 </Stack>
@@ -179,23 +179,23 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
           title={item.title} 
           supporting={
             <Group gap="xs">
-              <Badge variant="filled" color="orange" size="xs" fw={700} tt="uppercase">Review Required</Badge>
-              <Badge variant="outline" color="gray" size="xs" fw={700}>{item._type}</Badge>
+              <Badge color="orange" size="xs">Review Required</Badge>
+              <Badge variant="outline" color="gray" size="xs">{item._type}</Badge>
             </Group>
           }
         />
         <UnifiedCardBody>
           <Stack gap="lg">
             <Box p="md" style={{ background: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))', borderRadius: 'var(--mantine-radius-md)', border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' }}>
-              <Text size="sm" c="dimmed" lineClamp={4} fw={500}>
+              <Text c="dimmed" lineClamp={4}>
                 {item.body || item.description}
               </Text>
             </Box>
 
             <SimpleGrid cols={3} spacing="xs">
-              <NumberInput label="Impact" min={1} max={10} value={i} onChange={setI} radius="md" fw={700} />
-              <NumberInput label="Confidence" min={1} max={10} value={c} onChange={setC} radius="md" fw={700} />
-              <NumberInput label={metricLabel} min={1} max={10} value={ew} onChange={setEW} radius="md" fw={700} />
+              <NumberInput label="Impact" min={1} max={10} value={i} onChange={setI} />
+              <NumberInput label="Confidence" min={1} max={10} value={c} onChange={setC} />
+              <NumberInput label={metricLabel} min={1} max={10} value={ew} onChange={setEW} />
             </SimpleGrid>
 
             <UnifiedCardActions>
@@ -206,9 +206,6 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
                 disabled={isSaving}
                 loading={isSaving}
                 leftSection={<Save size={16} />}
-                fw={700}
-                tt="uppercase"
-                size="md"
               >
                 Confirm & Inject Axiom
               </Button>

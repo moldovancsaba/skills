@@ -206,8 +206,8 @@ export default function CompanyDashboard() {
       <PageShell width="full">
         <Center style={{ minHeight: "60vh" }}>
           <Stack align="center" gap="xl">
-            <Loader color="brand" size="xl" variant="bars" />
-            <Text size="sm" fw={900} tt="uppercase" lts={2} c="dimmed">
+            <Loader color="brand" />
+            <Text c="dimmed">
               Synchronizing Intelligence Stream...
             </Text>
           </Stack>
@@ -229,7 +229,7 @@ export default function CompanyDashboard() {
 
   return (
     <PageShell width="full">
-      <MetricGrid cols={{ base: 1, sm: 2, md: 5 }} mb={rem(60)}>
+      <MetricGrid cols={{ base: 1, sm: 2, md: 5 }} mb="xl">
         <LinkCard
           href={`/${companyId}/data`}
           icon={Database}
@@ -276,20 +276,15 @@ export default function CompanyDashboard() {
         <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
             <Box>
-              <Title order={2} size="h2" fw={900} lts={-1}>Synthesized Intelligence</Title>
-              <Text size="md" c="dimmed" fw={500}>Top-priority strategic goals derived by the autonomous Trinity engine.</Text>
+              <Title order={2}>Synthesized Intelligence</Title>
+              <Text c="dimmed">Top-priority strategic goals derived by the autonomous Trinity engine.</Text>
             </Box>
             <Button 
               component={Link}
               href={`/${companyId}/nba`}
               variant="light" 
               color="gray" 
-              size="sm" 
-              radius="md"
               rightSection={<ArrowRight size={16} />}
-              fw={800}
-              tt="uppercase"
-              lts={1}
             >
               Open Global Protocol
             </Button>
@@ -336,13 +331,6 @@ export default function CompanyDashboard() {
           radius="xl"
           color="brand"
           leftSection={<Plus size={22} />}
-          fw={900}
-          tt="uppercase"
-          lts={1.5}
-          style={{ 
-            boxShadow: "0 15px 35px rgba(0,0,0,0.4)",
-            border: "1px solid rgba(255,255,255,0.1)"
-          }}
         >
           Add Intelligence
         </Button>

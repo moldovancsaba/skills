@@ -69,10 +69,6 @@ export function PageHeader({
             <Anchor 
               component={Link} 
               href={backHref}
-              size="xs"
-              fw={800}
-              tt="uppercase"
-              lts={1}
               c="dimmed"
               style={{ display: "flex", alignItems: "center", gap: 4 }}
             >
@@ -80,14 +76,12 @@ export function PageHeader({
               {backLabel}
             </Anchor>
           )}
-          <Title order={1} size="h1" fw={900} lts={-1}>
+          <Title order={1}>
             {title}
           </Title>
-          {description && (
-            <Text size="md" c="dimmed" fw={500} style={{ fontStyle: "italic" }}>
+            <Text c="dimmed">
               {description}
             </Text>
-          )}
         </Stack>
         {actions && <Group gap="sm">{actions}</Group>}
       </Group>
@@ -110,13 +104,11 @@ export function Notice({
 }: NoticeProps) {
   return (
     <Alert 
-      variant="light" 
       color={variant === "destructive" ? "red" : "brand"} 
       title={title} 
       icon={Icon && <Icon size={16} />}
-      radius="md"
     >
-      <Text size="sm" fw={500}>{children}</Text>
+      <Text size="sm">{children}</Text>
     </Alert>
   );
 }
@@ -167,35 +159,25 @@ export function MetricCard({
   color = "brand",
 }: MetricCardProps) {
   return (
-    <Card 
-      radius="lg" 
-      p="xl" 
-      withBorder 
-      shadow="xs"
-    >
+    <Card shadow="xs">
       
       <Stack gap="xl">
         <Group justify="space-between" align="flex-start">
-          <ThemeIcon 
-            variant="light" 
-            color={color}
-            radius="md" 
-            size="xl"
-          >
+          <ThemeIcon color={color}>
             <Icon size={20} />
           </ThemeIcon>
           
-          <Text size="xs" c="dimmed" fw={700} tt="uppercase" lts={0.5}>
+          <Text c="dimmed">
             {label}
           </Text>
         </Group>
 
         <Stack gap={4}>
-          <Text size="h2" fw={700}>
+          <Text size="h2">
             {value}
           </Text>
           {detail && (
-            <Text size="xs" c={color} fw={800} mt={4} opacity={0.8} tt="uppercase" lts={1}>
+            <Text c={color}>
               {detail}
             </Text>
           )}
@@ -221,14 +203,14 @@ export function EmptyState({
   secondaryAction,
 }: EmptyStateProps) {
   return (
-    <Card p="xl" radius="lg" withBorder style={{ borderStyle: "dashed", backgroundColor: 'transparent' }} ta="center">
+    <Card style={{ borderStyle: "dashed", backgroundColor: 'transparent' }} ta="center">
       <Stack align="center" gap="md">
-        <ThemeIcon variant="light" color="gray" size={64} radius="xl">
+        <ThemeIcon color="gray" size={64} radius="xl">
           <Icon size={32} />
         </ThemeIcon>
         <Stack gap={4}>
-          <Title order={3} fw={900}>{title}</Title>
-          <Text size="sm" c="dimmed" maw={400} mx="auto" fw={500}>
+          <Title order={3}>{title}</Title>
+          <Text size="sm" c="dimmed" maw={400} mx="auto">
             {description}
           </Text>
         </Stack>
@@ -266,35 +248,25 @@ export function LinkCard({
       href={href} 
       style={{ display: "block", height: "100%", textDecoration: 'none' }}
     >
-      <Card 
-        radius="lg" 
-        p="xl" 
-        withBorder 
-        shadow="sm"
-      >
+      <Card shadow="sm">
 
         <Stack gap="xl" h="100%" style={{ position: 'relative', zIndex: 1 }}>
           <Group justify="space-between" align="center">
-            <ThemeIcon 
-              variant="light" 
-              color={variant}
-              radius="md" 
-              size="xl"
-            >
+            <ThemeIcon color={variant}>
               <Icon size={20} />
             </ThemeIcon>
             {metric !== undefined && (
-              <Text fw={900} size="24px" lts={-1} color={variant} opacity={0.8}>
+              <Text color={variant}>
                 {metric}
               </Text>
             )}
           </Group>
 
           <Stack gap={6}>
-            <Text fw={700} size="lg">
+            <Text>
               {title}
             </Text>
-            <Text size="xs" c="dimmed" lineClamp={2} fw={600} opacity={0.7}>
+            <Text c="dimmed" lineClamp={2}>
               {description}
             </Text>
           </Stack>
@@ -309,7 +281,7 @@ export function LinkCard({
           )}
 
           <Group justify="flex-end" mt="auto" pt="md">
-            <Text size="10px" fw={900} tt="uppercase" lts={2} color={variant} opacity={0.7}>
+            <Text size="xs" color={variant}>
               Access Layer →
             </Text>
           </Group>
@@ -355,10 +327,7 @@ export function PipelineAccentHeader({
         ))}
       </SimpleGrid>
       <Group gap="sm">
-        <ThemeIcon variant="light" color={activeColor} size="lg" radius="md">
-          <Icon size={20} />
-        </ThemeIcon>
-        <Title order={2} size="h3" fw={700} tt="uppercase">{title}</Title>
+        <Title order={2} size="h3">{title}</Title>
       </Group>
     </Stack>
   );

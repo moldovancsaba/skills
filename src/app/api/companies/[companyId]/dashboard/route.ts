@@ -1,10 +1,19 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { APP_VERSION, BRAIN_VERSION } from "@/lib/release";
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * UNIT DASHBOARD SUMMARY API
+ * v0.16.0
+ * 
+ * Implements State Snapshot Architecture:
+ * - READ-ONLY: All metrics fetched from IntelligenceSnapshot.
+ * - ZERO CALCULATION: No on-the-fly counts or filters.
+ * - AUTHORITATIVE: Only updated by Local AI Server.
+ */
 
 export async function GET(
   request: NextRequest,
@@ -20,26 +29,19 @@ export async function GET(
     const cid = companyId;
     const now = new Date();
     
-    // 1. Parallel Batch Query for Metadata
-    const [company, members, sourcesCount, filesCount, topicsCount, knowmoreCount, goalsCount, nbaItemsCount, reviewCountFc, reviewCountNba] = await Promise.all([
+    // 1. Fetch Company, Members, and the Absolute Snapshot
+    const [company, members, snapshot] = await Promise.all([
       prisma.company.findUnique({ where: { id: cid } }),
       prisma.user.findMany({ where: { companyId: cid } }),
-      prisma.source.count({ where: { companyId: cid } }),
-      prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
-      prisma.topic.count({ where: { companyId: cid } }),
-      prisma.flashcard.count({ where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE"] } } }),
-      prisma.goalcard.count({ where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE"] } } }),
-      prisma.nBAItem.count({ where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE"] } } }),
-      prisma.flashcard.count({ where: { companyId: cid, processingStatus: "REVIEW" } }),
-      prisma.nBAItem.count({ where: { companyId: cid, processingStatus: "REVIEW" } }),
+      prisma.intelligenceSnapshot.findUnique({ where: { companyId: cid } })
     ]);
 
-    // 2. Fetch Top Tasks (Checklist)
+    // 2. Fetch Active Top Tasks (The only real-time query allowed for operational flow)
     const topTasks = await prisma.nBAItem.findMany({
       where: {
         companyId: cid,
         kanbanColumn: "CHECKLIST",
-        activityState: { in: ["ACTIVE", "STALE"] },
+        activityState: "ACTIVE",
         OR: [
           { scheduledDate: null },
           { scheduledDate: { lte: now } }
@@ -49,67 +51,43 @@ export async function GET(
       take: 3
     });
 
-    // 3. Analytics History (Compressed logic from analytics/counts)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    // 3. Fallback logic if Local AI hasn't pushed a snapshot yet
+    const counts = snapshot ? {
+      sources: snapshot.dataIngressCount,
+      files: 0, // Consolidated in dataIngress
+      topics: snapshot.topicSynthesisCount,
+      flashcards: snapshot.knowmoreCount,
+      goals: snapshot.strategicGoalsCount,
+      nbaItems: snapshot.tacticalBoardCount,
+      checklistCount: snapshot.checklistCount || topTasks.length,
+      reviewCount: snapshot.reviewGatewayCount
+    } : {
+      sources: 0,
+      files: 0,
+      topics: 0,
+      flashcards: 0,
+      goals: 0,
+      nbaItems: 0,
+      checklistCount: 0,
+      reviewCount: 0
+    };
 
-    const [hSources, hFiles, hTopics, hFlashcards, hNBA] = await Promise.all([
-      prisma.source.findMany({ where: { companyId: cid, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-      prisma.uploadedSourceFile.findMany({ where: { companyId: cid, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-      prisma.topic.findMany({ where: { companyId: cid, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-      prisma.flashcard.findMany({ where: { companyId: cid, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-      prisma.nBAItem.findMany({ where: { companyId: cid, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-    ]);
-
-    // Pre-calculate baseline counts
-    const [bSources, bFiles, bTopics, bFlashcards, bNBA] = await Promise.all([
-      prisma.source.count({ where: { companyId: cid, createdAt: { lt: thirtyDaysAgo } } }),
-      prisma.uploadedSourceFile.count({ where: { companyId: cid, createdAt: { lt: thirtyDaysAgo } } }),
-      prisma.topic.count({ where: { companyId: cid, createdAt: { lt: thirtyDaysAgo } } }),
-      prisma.flashcard.count({ where: { companyId: cid, createdAt: { lt: thirtyDaysAgo } } }),
-      prisma.nBAItem.count({ where: { companyId: cid, createdAt: { lt: thirtyDaysAgo } } }),
-    ]);
-
-    const history = [];
-    let curS = bSources + bFiles;
-    let curT = bTopics;
-    let curK = bFlashcards;
-    let curN = bNBA;
-
-    for (let i = 0; i <= 30; i++) {
-      const d = new Date(thirtyDaysAgo);
-      d.setDate(d.getDate() + i);
-      const dayStr = d.toISOString().split('T')[0];
-
-      curS += hSources.filter(s => s.createdAt.toISOString().split('T')[0] === dayStr).length;
-      curS += hFiles.filter(f => f.createdAt.toISOString().split('T')[0] === dayStr).length;
-      curT += hTopics.filter(t => t.createdAt.toISOString().split('T')[0] === dayStr).length;
-      curK += hFlashcards.filter(f => f.createdAt.toISOString().split('T')[0] === dayStr).length;
-      curN += hNBA.filter(n => n.createdAt.toISOString().split('T')[0] === dayStr).length;
-
-      history.push({ date: dayStr, sources: curS, topics: curT, flashcards: curK, nba: curN });
-    }
-
-    // 4. Return Unified Context
     return NextResponse.json({
       company,
       members,
-      counts: {
-        sources: sourcesCount,
-        files: filesCount,
-        topics: topicsCount,
-        flashcards: knowmoreCount,
-        goals: goalsCount,
-        nbaItems: nbaItemsCount,
-        checklistCount: topTasks.length,
-        reviewCount: reviewCountFc + reviewCountNba
-      },
+      counts,
       topTasks,
-      analytics: history,
+      analytics: snapshot?.analyticsHistory || [],
       versions: {
         app: APP_VERSION,
         brain: BRAIN_VERSION
+      },
+      state: {
+        engineStatus: snapshot?.engineStatus || "OFFLINE",
+        activeContext: snapshot?.activeContext || "IDLE",
+        activeTask: snapshot?.activeTask || "Scanning...",
+        stage: snapshot?.stage || "STANDBY",
+        updatedAt: snapshot?.updatedAt
       }
     });
 

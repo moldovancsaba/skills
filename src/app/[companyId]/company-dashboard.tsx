@@ -54,11 +54,14 @@ export default function CompanyDashboard() {
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [topTasks, setTopTasks] = useState<NBAItem[]>([]);
-  const [pendingTaskCount, setPendingTaskCount] = useState(0);
-  const [tacticalCount, setTacticalCount] = useState(0);
-  const [flashcardCount, setFlashcardCount] = useState(0);
-  const [fileCount, setFileCount] = useState(0);
-  const [topicCount, setTopicCount] = useState(0);
+  const [counts, setCounts] = useState({
+    sources: 0,
+    topics: 0,
+    flashcards: 0,
+    goals: 0,
+    nbaItems: 0,
+    reviewCount: 0
+  });
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
   const [actionItemId, setActionItemId] = useState<string | null>(null);
   const [annotation, setAnnotation] = useState("");
@@ -78,11 +81,7 @@ export default function CompanyDashboard() {
       
       setCompany(data.company);
       setSources(Array.isArray(data.sources) ? data.sources : []);
-      setFileCount(data.counts.files);
-      setTopicCount(data.counts.topics);
-      setFlashcardCount(data.counts.flashcards);
-      setTacticalCount(data.counts.nbaItems);
-      setPendingTaskCount(data.counts.pendingTasks);
+      setCounts(data.counts);
       setTopTasks(data.topTasks);
       setChartData(data.analytics);
       
@@ -164,16 +163,16 @@ export default function CompanyDashboard() {
     if (!company) return;
 
     setLoading(true);
-    const payload: any = {
-      nbaItemId: itemId,
+    const payload = {
+      companyId: company.id,
+      entityId: itemId,
+      entityType: "TASK", // Dashboard topTasks are always TASKS
       action,
       annotation: feedbackAnnotation,
       modifiedTitle,
       modifiedDescription,
+      declineClass: submittedDeclineClass,
     };
-
-    if (action === "DECLINE" && submittedDeclineClass) payload.declineClass = submittedDeclineClass;
-    if (action === "DELIVER") payload.deliveryComment = feedbackAnnotation;
 
     await fetch("/api/feedback", {
       method: "POST",
@@ -219,12 +218,12 @@ export default function CompanyDashboard() {
   const safeSources = Array.isArray(sources) ? sources : [];
   const tip = getDashboardExpertTip({
     companyId,
-    productCount: safeSources.length,
+    productCount: counts.sources,
     customerCount: 0,
     competitorCount: 0,
-    fileCount,
-    flashcardCount,
-    pendingTaskCount,
+    fileCount: 0,
+    flashcardCount: counts.flashcards,
+    pendingTaskCount: counts.goals,
   });
 
   return (
@@ -234,7 +233,7 @@ export default function CompanyDashboard() {
           href={`/${companyId}/data`}
           icon={Database}
           variant="blue"
-          metric={safeSources.length + fileCount}
+          metric={counts.goals === 0 && !loading ? 0 : counts.sources}
           title="Data Ingress"
           chartData={chartData.map(d => ({ date: d.date, value: d.sources }))}
         />
@@ -242,7 +241,7 @@ export default function CompanyDashboard() {
           href={`/${companyId}/topics`}
           icon={Layers}
           variant="indigo"
-          metric={topicCount}
+          metric={counts.topics}
           title="Topic Synthesis"
           chartData={chartData.map(d => ({ date: d.date, value: d.topics }))}
         />
@@ -250,7 +249,7 @@ export default function CompanyDashboard() {
           href={`/${companyId}/knowmore`}
           icon={Sparkles}
           variant="teal"
-          metric={flashcardCount}
+          metric={counts.flashcards}
           title="Knowmore"
           chartData={chartData.map(d => ({ date: d.date, value: d.flashcards }))}
         />
@@ -258,7 +257,7 @@ export default function CompanyDashboard() {
           href={`/${companyId}/goals`}
           icon={Target}
           variant="violet"
-          metric={pendingTaskCount}
+          metric={counts.goals}
           title="Strategic Goals"
           chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
         />
@@ -266,7 +265,7 @@ export default function CompanyDashboard() {
           href={`/${companyId}/tactical`}
           icon={LayoutDashboard}
           variant="cyan"
-          metric={tacticalCount}
+          metric={counts.nbaItems}
           title="Tactical Board"
           chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
         />

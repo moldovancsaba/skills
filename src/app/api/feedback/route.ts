@@ -2,27 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 
+/**
+ * STRATEGIC FEEDBACK API
+ * v0.16.0
+ * 
+ * Implements State Snapshot Architecture:
+ * - ISOLATION: Writes exclusively to StrategicFeedback to prevent AI overwrites.
+ * - UNIFIED: Handles Goal, Task, and Knowledge feedback in one stream.
+ */
+
 export async function GET(request: NextRequest) {
   try {
-    const nbaItemId = request.nextUrl.searchParams.get("nbaItemId");
-    if (!nbaItemId) {
-      return NextResponse.json({ error: "nbaItemId required" }, { status: 400 });
+    const companyId = request.nextUrl.searchParams.get("companyId");
+    if (!companyId) {
+      return NextResponse.json({ error: "companyId required" }, { status: 400 });
     }
 
-    const item = await prisma.nBAItem.findUnique({
-      where: { id: nbaItemId },
-      select: { companyId: true }
-    });
-
-    if (!item) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
-
-    const auth = await verifyMembership(request, item.companyId);
+    const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
 
-    const feedbacks = await prisma.feedback.findMany({
-      where: { nbaItemId },
+    const feedbacks = await prisma.strategicFeedback.findMany({
+      where: { 
+        companyId,
+        processedByAI: false 
+      },
       orderBy: { createdAt: "desc" },
     });
     
@@ -35,41 +38,34 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
-    if (!data.nbaItemId) {
-      return NextResponse.json({ error: "nbaItemId required" }, { status: 400 });
+    const { companyId, entityId, entityType, action, annotation, modifiedTitle, modifiedDescription, declineClass } = data;
+
+    if (!companyId || !entityId || !entityType) {
+      return NextResponse.json({ error: "Missing required feedback fields" }, { status: 400 });
     }
 
-    const item = await prisma.nBAItem.findUnique({
-      where: { id: data.nbaItemId },
-    });
-
-    if (!item) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
-
-    const auth = await verifyMembership(request, item.companyId);
+    const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
     
-    // Save feedback for local worker processing
-    const feedback = await prisma.feedback.create({
+    // Save to the isolated StrategicFeedback table
+    // This is the "Journal" that the Local AI Server will pull and reconcile
+    const feedback = await prisma.strategicFeedback.create({
       data: {
-        nbaItemId: data.nbaItemId,
-        action: data.action,
-        annotation: data.annotation,
-        modifiedTitle: data.modifiedTitle,
-        modifiedDescription: data.modifiedDescription,
-        declineClass: data.declineClass,
-        deliveryComment: data.deliveryComment,
-        actorId: request.headers.get("x-user-id") || null, // Optional tracking if we add headers later
+        companyId,
+        entityId,
+        entityType,
+        action,
+        annotation,
+        modifiedTitle,
+        modifiedDescription,
+        declineClass,
+        processedByAI: false
       },
     });
     
-    // State transitions are now strictly deferred to the Trinity CandidateState machine
-    // (scripts/lib/feedback.js) which handles complex routing like REWORK vs ARCHIVED.
-    // The frontend UI optimistically removes the card from view to provide immediate feedback.
-    
     return NextResponse.json(feedback);
   } catch (error) {
+    console.error("[API:Feedback] Submission failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

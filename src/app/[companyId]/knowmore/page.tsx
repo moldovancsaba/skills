@@ -129,11 +129,14 @@ function kindLabel(kind: Flashcard["kind"]) {
   return kind.toLowerCase().replace(/_/g, " ");
 }
 
+import { useIntelligenceSnapshot } from "@/hooks/use-intelligence-snapshot";
+
 export default function CompanyKnowMorePage() {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
   const companyId = params.companyId as string;
+  const { snapshot, loading: snapshotLoading } = useIntelligenceSnapshot(companyId);
   const [company, setCompany] = useState<Company | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,8 +153,6 @@ export default function CompanyKnowMorePage() {
   const [intelligenceFilter, setIntelligenceFilter] = useState<"INTERNAL" | "COMPETITOR">("INTERNAL");
   const { sources, setSources } = useStore();
   const [isOwner, setIsOwner] = useState(false);
-  const [fileCount, setFileCount] = useState(0);
-  const [pendingTaskCount, setPendingTaskCount] = useState(0);
 
   const loadFlashcards = useCallback(async (cid: string) => {
     const cards = await fetchJson<Flashcard[]>(`/api/knowmore?companyId=${encodeURIComponent(cid)}`);
@@ -173,17 +174,10 @@ export default function CompanyKnowMorePage() {
       setCompany(found);
       await loadFlashcards(found.id);
 
-      const [s, f, nba, members, sessionRes] = await Promise.all([
-        fetch(`/api/sources?companyId=${cid}`).then((res) => res.json()),
-        fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
-        fetch(`/api/nba?companyId=${cid}`).then((res) => res.json()),
+      const [members, sessionRes] = await Promise.all([
         fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
         fetch("/api/auth/session")
       ]);
-
-      setSources(s);
-      setFileCount(Array.isArray(f) ? f.length : 0);
-      setPendingTaskCount(Array.isArray(nba) ? nba.filter((t: any) => t.processingStatus === "VERIFIED").length : 0);
 
       if (sessionRes.ok) {
         const session = await sessionRes.json();
@@ -197,7 +191,7 @@ export default function CompanyKnowMorePage() {
     } finally {
       setLoading(false);
     }
-  }, [loadFlashcards, router, setSources]);
+  }, [loadFlashcards, router]);
 
   useEffect(() => {
     if (companyId) loadPage(companyId);
@@ -280,33 +274,32 @@ export default function CompanyKnowMorePage() {
     setErrorMessage(null);
 
     try {
-      const result = await fetchJson<{ flashcard: Flashcard }>("/api/knowmore/actions", {
+      // JOURNAL FEEDBACK (Isolated)
+      const payload = {
+        companyId: company.id,
+        entityId: flashcardId,
+        entityType: "KNOWLEDGE",
+        action: actionMode,
+        annotation: trimmedComment || undefined,
+        modifiedTitle: actionMode === "MODIFY_ACCEPT" ? trimmedTitle : undefined,
+        modifiedDescription: actionMode === "MODIFY_ACCEPT" ? trimmedBody : undefined,
+      };
+
+      await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          flashcardId,
-          action: actionMode,
-          annotation: trimmedComment || undefined,
-          modifiedTitle: actionMode === "MODIFY_ACCEPT" ? trimmedTitle : undefined,
-          modifiedBody: actionMode === "MODIFY_ACCEPT" ? trimmedBody : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const updated = result.flashcard;
-      const isVisible = ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"].includes(updated.processingStatus) && ["ACTIVE", "STALE"].includes(updated.activityState);
-
-      if (isVisible) {
-        setFlashcards(prev => prev.map(f => f.id === flashcardId ? updated : f));
-      } else {
-        setFlashcards(prev => prev.filter(f => f.id !== flashcardId));
-      }
+      // Optimistically update list or reload
+      await loadFlashcards(company.id);
       closeActionForm();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setActingId(null);
     }
-  }, [actionComment, actionMode, closeActionForm, company, editedBody, editedTitle]);
+  }, [actionComment, actionMode, closeActionForm, company, editedBody, editedTitle, loadFlashcards]);
 
   const handleConvert = useCallback(async (id: string, targetType: string) => {
     if (!company) return;
@@ -415,12 +408,12 @@ export default function CompanyKnowMorePage() {
 
   const tip = getDashboardExpertTip({
     companyId,
-    productCount: sources.length,
+    productCount: snapshot?.dataIngressCount || 0,
     customerCount: 0,
     competitorCount: 0,
-    fileCount,
-    flashcardCount: flashcards.length,
-    pendingTaskCount,
+    fileCount: 0,
+    flashcardCount: snapshot?.knowmoreCount || flashcards.length,
+    pendingTaskCount: snapshot?.strategicGoalsCount || 0,
   });
 
   return (
@@ -434,11 +427,11 @@ export default function CompanyKnowMorePage() {
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
 
         <MetricGrid>
-          <MetricCard icon={Sparkles} color="blue" label="Knowledge Units" value={summary.total} detail="Derived evidence" />
-          <MetricCard icon={TrendingUp} color="orange" label="Feedback Yield" value={summary.reviewed} detail="Calibrated units" />
-          <MetricCard icon={ShieldCheck} color="violet" label="Confidence" value={`${summary.avgConfidence}%`} detail="System certainty" />
-          <MetricCard icon={Target} color="green" label="Avg ICE" value={summary.avgIceScore} detail="Strategic priority" />
-          <MetricCard icon={Bolt} color="cyan" label="Avg Ease" value={summary.avgEase} detail="Implementation path" />
+          <MetricCard icon={Sparkles} color="blue" label="Knowledge Units" value={snapshot?.knowmoreCount ?? summary.total} detail="Derived evidence" />
+          <MetricCard icon={TrendingUp} color="orange" label="Feedback Yield" value={`${snapshot?.synthesisYield ?? 85}%`} detail="Calibrated units" />
+          <MetricCard icon={ShieldCheck} color="violet" label="Confidence" value={`${snapshot?.confidenceAvg ?? summary.avgConfidence}%`} detail="System certainty" />
+          <MetricCard icon={Target} color="green" label="Avg ICE" value={snapshot?.iceScoreAvg ?? summary.avgIceScore} detail="Strategic priority" />
+          <MetricCard icon={Bolt} color="cyan" label="Avg Ease" value={snapshot?.easeScoreAvg ?? summary.avgEase} detail="Implementation path" />
         </MetricGrid>
 
         <Stack gap="lg">

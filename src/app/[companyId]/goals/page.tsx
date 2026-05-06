@@ -57,12 +57,15 @@ type Goal = {
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
 
+import { useIntelligenceSnapshot } from "@/hooks/use-intelligence-snapshot";
+
 export default function GoalsPage() {
   const router = useRouter();
   const params = useParams();
   const companyId = params.companyId as string;
   
   const { company, setCompany } = useStore();
+  const { snapshot, loading: snapshotLoading } = useIntelligenceSnapshot(companyId);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -138,17 +141,20 @@ export default function GoalsPage() {
     modifiedDescription?: string,
     submittedDeclineClass?: string,
   ) => {
+    if (!companyId) return;
     setLoading(true);
-    const payload: any = {
-      nbaItemId: itemId,
+    
+    // JOURNAL FEEDBACK (Isolated from AI generation)
+    const payload = {
+      companyId,
+      entityId: itemId,
+      entityType: "GOAL",
       action,
       annotation: feedbackAnnotation,
       modifiedTitle,
       modifiedDescription,
+      declineClass: submittedDeclineClass,
     };
-
-    if (action === "DECLINE" && submittedDeclineClass) payload.declineClass = submittedDeclineClass;
-    if (action === "DELIVER") payload.deliveryComment = feedbackAnnotation;
 
     await fetch("/api/feedback", {
       method: "POST",
@@ -157,7 +163,7 @@ export default function GoalsPage() {
     });
 
     resetActionForm();
-    if (company) await loadGoals(company.id);
+    await loadGoals(companyId);
     setLoading(false);
   };
 
@@ -179,12 +185,12 @@ export default function GoalsPage() {
 
   const tip = getDashboardExpertTip({
     companyId,
-    productCount: 0,
+    productCount: snapshot?.dataIngressCount || 0,
     customerCount: 0,
     competitorCount: 0,
     fileCount: 0,
-    flashcardCount: 0,
-    pendingTaskCount: goals.length,
+    flashcardCount: snapshot?.knowmoreCount || 0,
+    pendingTaskCount: snapshot?.strategicGoalsCount || goals.length,
   });
 
   if (loading && goals.length === 0) {
@@ -215,14 +221,14 @@ export default function GoalsPage() {
             icon={Target} 
             color="green" 
             label="Active Goals" 
-            value={goals.length} 
+            value={snapshot?.strategicGoalsCount ?? goals.length} 
             detail="Objectives under management" 
           />
           <MetricCard 
             icon={TrendingUp} 
             color="blue" 
             label="Synthesis Yield" 
-            value="85%" 
+            value={`${snapshot?.synthesisYield ?? 85}%`} 
             detail="Market research alignment" 
           />
         </MetricGrid>

@@ -34,12 +34,70 @@ model Company {
   communicationSettings CommunicationSettings?
   allowedLanguages    String[]              @default(["English"])
   
+  // State Snapshot Architecture (M4.0)
+  intelligenceSnapshot IntelligenceSnapshot?
+  strategicFeedback    StrategicFeedback[]
+  
   // Profile Validation Fields
   website             String?
   businessModel       String?
   productCategories   String[]              @default([])
   demographics        Json?                 @default("{}")
   competitors         Json?                 @default("[]")
+}
+
+model IntelligenceSnapshot {
+  id                  String    @id @default(uuid()) @map("_id")
+  companyId           String    @unique
+  
+  // Module Counts (Absolute Truth)
+  dataIngressCount    Int       @default(0)
+  topicSynthesisCount Int       @default(0)
+  knowmoreCount       Int       @default(0)
+  strategicGoalsCount Int       @default(0)
+  checklistCount      Int       @default(0)
+  tacticalBoardCount  Int       @default(0)
+  reviewGatewayCount  Int       @default(0)
+  
+  // Core Metrics
+  synthesisYield      Float     @default(0)
+  confidenceAvg       Float     @default(0)
+  iceScoreAvg         Float     @default(0)
+  easeScoreAvg        Float     @default(0)
+  
+  // Operational State
+  engineStatus        String    @default("OFFLINE")
+  activeContext       String?
+  activeTask          String?
+  stage               String?
+  analyticsHistory    Json?     @default("[]")
+  
+  updatedAt           DateTime  @default(now()) @updatedAt
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model StrategicFeedback {
+  id                  String      @id @default(uuid()) @map("_id")
+  companyId           String
+  entityType          String      // GOAL | TASK | KNOWLEDGE
+  entityId            String
+  
+  action              ActionType
+  annotation          String?
+  modifiedTitle       String?
+  modifiedDescription String?
+  declineClass        DeclineClass?
+  
+  // Reconciliation State
+  processedByAI       Boolean     @default(false)
+  reconciledAt        DateTime?
+  
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @default(now()) @updatedAt
+  
+  company             Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@index([companyId, processedByAI, createdAt])
 }
 
 

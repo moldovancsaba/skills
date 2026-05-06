@@ -61,9 +61,10 @@ The repository enforces a strict Mantine-native architecture.
 - **Visual Consistency**: All components must adhere to the hardened design tokens (glassmorphism, vibrant gradients, and blur filters).
 
 ### 2. Unified Grid Architecture
-All strategic and tactical layers must implement the `UnifiedGrid` and `PageShell` patterns found in `@/components/ui/app-shell`.
+All strategic and tactical layers must implement the shared layout primitives found in `@/components/ui/app-shell`.
 - **`PageShell`**: Standardized viewport-aware container.
 - **`UnifiedGrid`**: Automatic 3-column desktop / 1-column mobile responsive grid.
+- **`RouteCardGrid`**: Standard 6-column desktop grid for the six core route cards on company overview and Operation Unit dashboard surfaces.
 
 ### 3. Intelligence Clarity (Metadata Filtering)
 End-user displays must be purged of technical trace information.

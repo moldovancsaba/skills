@@ -20,7 +20,7 @@ import {
 import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListCheck, IconLayoutDashboard as LayoutDashboard, IconLayersIntersect as Layers } from "@tabler/icons-react";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
-import { LinkCard, UnifiedGrid, PageShell } from "@/components/ui/app-shell";
+import { LinkCard, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useState, useEffect, useCallback } from "react";
@@ -288,7 +288,7 @@ export default function Home() {
                   )}
                 </Group>
 
-                <UnifiedGrid cols={{ base: 1, sm: 2, md: 3 }}>
+                <RouteCardGrid>
                   <LinkCard
                     href={`/${c.id}/data`}
                     icon={Database}
@@ -337,7 +337,7 @@ export default function Home() {
                     title="Tactical Board"
                     chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.nbaItems }))}
                   />
-                </UnifiedGrid>
+                </RouteCardGrid>
               </Box>
             ))}
 

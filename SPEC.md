@@ -65,8 +65,9 @@ The system enforces a strict **Mantine-First** architectural mandate to ensure v
    - 100% of UI layout must be constructed using native Mantine components (`Stack`, `Group`, `Grid`, `SimpleGrid`).
    - Manual Tailwind utility classes are strictly prohibited to prevent architectural entropy.
 2. **Unified Page Architecture**
-   - Every primary intelligence layer must use the `PageShell` and `UnifiedGrid` wrappers.
+   - Every primary intelligence layer must use the `PageShell` and shared grid wrappers.
    - Layouts must be viewport-aware and responsive by design.
+   - Company overview and Operation Unit route-card strips must use the shared `RouteCardGrid` contract for a 6-column desktop layout.
 3. **Intelligence Clarity (Metadata Purge)**
    - All user-facing intelligence (Titles, Descriptions, Labels) must be processed via the `stripTechnicalMetadata()` utility.
    - Technical markers like `[TRACE:...]` or `[TOPIC_ID:...]` are strictly internal and must never be rendered in the presentation layer.

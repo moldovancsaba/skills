@@ -19,7 +19,7 @@ import {
   Tooltip,
   ThemeIcon
 } from "@mantine/core";
-import { LinkCard, PageHeader, PageShell, MetricGrid } from "@/components/ui/app-shell";
+import { LinkCard, PageHeader, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
@@ -229,7 +229,7 @@ export default function CompanyDashboard() {
 
   return (
     <PageShell width="full">
-      <MetricGrid cols={{ base: 1, sm: 2, lg: 6 }} mb="xl">
+      <RouteCardGrid mb="xl">
         <LinkCard
           href={`/${companyId}/data`}
           icon={Database}
@@ -278,7 +278,7 @@ export default function CompanyDashboard() {
           title="Tactical Board"
           chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
         />
-      </MetricGrid>
+      </RouteCardGrid>
 
       <Stack gap={rem(60)}>
         <Stack gap="xl">

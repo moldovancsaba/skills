@@ -143,6 +143,22 @@ export function UnifiedGrid({
   );
 }
 
+export interface RouteCardGridProps extends SimpleGridProps {
+  children: ReactNode;
+}
+
+export function RouteCardGrid({
+  children,
+  cols = { base: 1, sm: 2, lg: 6 },
+  ...props
+}: RouteCardGridProps) {
+  return (
+    <SimpleGrid cols={cols} spacing="lg" {...props}>
+      {children}
+    </SimpleGrid>
+  );
+}
+
 type MetricCardProps = {
   icon: any;
   label: string;

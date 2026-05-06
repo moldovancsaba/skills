@@ -41,6 +41,13 @@ The standard responsive layout engine for strategic and tactical layers.
 - **Desktop**: 3-column grid.
 - **Mobile**: 1-column stack.
 
+### `RouteCardGrid`
+The standard responsive layout engine for the six core intelligence route cards.
+- **Desktop**: 6-column grid.
+- **Tablet**: 2-column grid.
+- **Mobile**: 1-column stack.
+- **Usage**: Company overview and Operation Unit dashboard navigation strips must use `RouteCardGrid` so the six core layers share one global layout contract.
+
 ### `MetricCard`
 A high-visibility data surface re-engineered with glassmorphism and background blurs.
 - **Usage**: Core dashboard metrics and strategic KPIs.

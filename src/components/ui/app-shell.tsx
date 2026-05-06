@@ -185,13 +185,13 @@ export function MetricCard({
             <Icon size={20} />
           </ThemeIcon>
           
-          <Text size="xs" c="dimmed" fw={900} tt="uppercase" lts={1.5} opacity={0.6}>
+          <Text size="xs" c="dimmed" fw={700} tt="uppercase" lts={0.5}>
             {label}
           </Text>
         </Group>
 
         <Stack gap={4}>
-          <Text size="36px" fw={900} lts={-1.5} style={{ lineHeight: 1 }}>
+          <Text size="h2" fw={700}>
             {value}
           </Text>
           {detail && (
@@ -291,7 +291,7 @@ export function LinkCard({
           </Group>
 
           <Stack gap={6}>
-            <Text fw={900} size="xl" lh={1.1} lts={-0.5}>
+            <Text fw={700} size="lg">
               {title}
             </Text>
             <Text size="xs" c="dimmed" lineClamp={2} fw={600} opacity={0.7}>
@@ -358,7 +358,7 @@ export function PipelineAccentHeader({
         <ThemeIcon variant="light" color={activeColor} size="lg" radius="md">
           <Icon size={20} />
         </ThemeIcon>
-        <Title order={2} size="h3" fw={900} tt="uppercase" lts={1}>{title}</Title>
+        <Title order={2} size="h3" fw={700} tt="uppercase">{title}</Title>
       </Group>
     </Stack>
   );

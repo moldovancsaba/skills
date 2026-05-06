@@ -176,7 +176,7 @@ export function ClientNav() {
                 onClick={() => company?.id && router.push(`/${company.id}`)}
                 styles={{
                   root: { borderRadius: 'var(--mantine-radius-md)', marginBottom: rem(8) },
-                  label: { fontWeight: 900 }
+                  label: { fontWeight: 700 }
                 }}
               />
 
@@ -192,7 +192,7 @@ export function ClientNav() {
                   rightSection={
                     <Group gap={4}>
                       {counts[item.key] !== undefined && (
-                        <Badge size="xs" variant="light" color={item.color} circle fw={900}>
+                        <Badge size="xs" variant="light" color={item.color} circle fw={700}>
                           {counts[item.key]}
                         </Badge>
                       )}
@@ -258,7 +258,7 @@ export function ClientNav() {
                         {session.name?.[0]}
                       </Avatar>
                       <Box style={{ flex: 1, overflow: 'hidden' }}>
-                        <Text size="xs" fw={900} truncate>{session.name}</Text>
+                        <Text size="xs" fw={700} truncate>{session.name}</Text>
                       </Box>
                     </Group>
                     <ChevronDown size={14} />

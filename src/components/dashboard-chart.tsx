@@ -42,11 +42,10 @@ export function DashboardChart({ data, color }: DashboardChartProps) {
                     radius="xs" 
                     withBorder 
                     style={{ 
-                      backgroundColor: "rgba(0,0,0,0.8)", 
-                      backdropFilter: "blur(4px)" 
+                      backgroundColor: "rgba(0,0,0,0.8)"
                     }}
                   >
-                    <Text size="xs" fw={700} lts={1}>{payload[0].value}</Text>
+                    <Text size="xs" fw={700}>{payload[0].value}</Text>
                   </Paper>
                 );
               }

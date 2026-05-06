@@ -52,7 +52,7 @@ export function HashtagInput({
         pill: { 
           backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6))',
           color: 'light-dark(black, white)',
-          fontWeight: 800,
+          fontWeight: 700,
           border: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.1))`
         }
       })}

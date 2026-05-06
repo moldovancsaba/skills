@@ -111,7 +111,7 @@ export function HashtagMultiSelect({
               color="brand"
               size="md"
               radius="sm"
-              fw={900}
+              fw={700}
               tt="none"
               rightSection={
                 <ActionIcon 
@@ -225,8 +225,8 @@ export function HashtagMultiSelect({
                         <ThemeIcon variant="light" color="brand" size="sm" radius="xl">
                           <Plus size={14} />
                         </ThemeIcon>
-                        <Text size="sm" fw={800} c="brand">
-                          Add Focus: <Text span fw={900} td="underline">{normalizeHashtag(inputValue)}</Text>
+                        <Text size="sm" fw={700} c="brand">
+                          Add Focus: <Text span fw={700} td="underline">{normalizeHashtag(inputValue)}</Text>
                         </Text>
                       </Group>
                     </UnstyledButton>

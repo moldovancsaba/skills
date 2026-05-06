@@ -132,7 +132,7 @@ export default function ReviewDashboard() {
                   <HardHat size={32} />
                 </ThemeIcon>
                 <Stack gap="xs">
-                  <Title order={3} fw={900} lts={-0.5}>Structural Integrity Verified</Title>
+                  <Title order={3} fw={700}>Structural Integrity Verified</Title>
                   <Text size="sm" c="dimmed" maw={400} mx="auto" fw={500}>
                     The synthesis engine is successfully grading all intelligence inside the established Axioms. No manual corrections required.
                   </Text>
@@ -179,8 +179,8 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
           title={item.title} 
           supporting={
             <Group gap="xs">
-              <Badge variant="filled" color="orange" size="xs" fw={900} tt="uppercase">Review Required</Badge>
-              <Badge variant="outline" color="gray" size="xs" fw={900}>{item._type}</Badge>
+              <Badge variant="filled" color="orange" size="xs" fw={700} tt="uppercase">Review Required</Badge>
+              <Badge variant="outline" color="gray" size="xs" fw={700}>{item._type}</Badge>
             </Group>
           }
         />
@@ -206,9 +206,8 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
                 disabled={isSaving}
                 loading={isSaving}
                 leftSection={<Save size={16} />}
-                fw={900}
+                fw={700}
                 tt="uppercase"
-                lts={1}
                 size="md"
               >
                 Confirm & Inject Axiom

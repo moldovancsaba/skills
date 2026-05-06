@@ -31,9 +31,9 @@ export function ManualPageContent() {
               <ThemeIcon variant="light" color="brand" size="lg" radius="md">
                 <FileText size={20} />
               </ThemeIcon>
-              <Title order={1} fw={900} lts={-1}>Operations Manual</Title>
+              <Title order={1} fw={700}>Operations Manual</Title>
             </Group>
-            <Text size="xs" fw={800} tt="uppercase" lts={2} c="dimmed" ml={rem(44)}>
+            <Text size="xs" fw={700} tt="uppercase" c="dimmed" ml={rem(44)}>
               System Guidance & Best Practices
             </Text>
           </Stack>
@@ -49,7 +49,7 @@ export function ManualPageContent() {
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           <Card p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
             <Stack gap="lg">
-              <Title order={3} size="h5" fw={900} tt="uppercase" lts={1}>Source Priority Layer</Title>
+              <Title order={3} size="h5" fw={700} tt="uppercase">Source Priority Layer</Title>
               <Stack gap="sm">
                 {[
                   "Product and pricing pages",
@@ -69,7 +69,7 @@ export function ManualPageContent() {
           </Card>
           <Card p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
             <Stack gap="lg">
-              <Title order={3} size="h5" fw={900} tt="uppercase" lts={1}>Calibration Vocabulary</Title>
+              <Title order={3} size="h5" fw={700} tt="uppercase">Calibration Vocabulary</Title>
               <Stack gap="sm">
                 {[
                   "Already doing this",
@@ -102,7 +102,7 @@ export function ManualPageContent() {
                 {section.title}
               </Badge>
               <Stack gap="lg" mt="sm">
-                <Title order={3} size="h4" fw={900} lts={-0.5}>{section.summary}</Title>
+                <Title order={3} size="h4" fw={700}>{section.summary}</Title>
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                   {section.bullets.map((bullet) => (
                     <Paper key={bullet} p="md" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-7))' }}>
@@ -117,7 +117,7 @@ export function ManualPageContent() {
 
         <Card p="xl" radius="lg" withBorder ta="center" style={{ borderStyle: 'dashed' }}>
           <Stack align="center" gap="md">
-            <Title order={3} size="h4" fw={900}>Need rapid operational support?</Title>
+            <Title order={3} size="h4" fw={700}>Need rapid operational support?</Title>
             <Button 
               component={Link} 
               href="/faq" 
@@ -144,13 +144,13 @@ export function FaqPageContent() {
               <ThemeIcon variant="light" color="indigo" size="lg" radius="md">
                 <HelpCircle size={20} />
               </ThemeIcon>
-              <Title order={1} fw={900} lts={-1}>Intelligence FAQ</Title>
+              <Title order={1} fw={700}>Intelligence FAQ</Title>
             </Group>
-            <Text size="xs" fw={800} tt="uppercase" lts={2} c="dimmed" ml={rem(44)}>
+            <Text size="xs" fw={700} tt="uppercase" c="dimmed" ml={rem(44)}>
               Core Protocol Inquiries
             </Text>
           </Stack>
-          <Anchor component={Link} href="/" size="xs" fw={800} tt="uppercase" lts={1} c="dimmed">
+          <Anchor component={Link} href="/" size="xs" fw={700} tt="uppercase" c="dimmed">
             Return to Dashboard →
           </Anchor>
         </Group>
@@ -164,7 +164,7 @@ export function FaqPageContent() {
             {faqItems.map((item) => (
               <Accordion.Item key={item.id} value={item.id} style={{ border: 'none', marginBottom: rem(12) }}>
                 <Accordion.Control>
-                  <Text fw={800} size="sm" tt="uppercase" lts={0.5}>{item.question}</Text>
+                  <Text fw={700} size="sm" tt="uppercase">{item.question}</Text>
                 </Accordion.Control>
                 <Accordion.Panel>
                   <Paper p="md" radius="md" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-9))', borderLeft: '3px solid var(--mantine-color-brand-6)' }}>

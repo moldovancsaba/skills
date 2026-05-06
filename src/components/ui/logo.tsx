@@ -14,19 +14,17 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
         <ThemeIcon 
           size={iconSize + 8} 
           radius="md" 
-          variant="gradient" 
-          gradient={{ from: "brand.6", to: "brand.9", deg: 45 }}
+          color="brand"
         >
           <Sparkles size={iconSize} />
         </ThemeIcon>
         <Text 
           size={fontSize} 
-          fw={900} 
-          variant="gradient" 
-          gradient={{ from: "white", to: "rgba(255,255,255,0.5)", deg: 45 }}
+          fw={700} 
+          c="white"
           style={{ 
             fontFamily: "var(--font-display)", 
-            letterSpacing: rem(-1),
+            letterSpacing: rem(-0.5),
             textTransform: "lowercase"
           }}
         >

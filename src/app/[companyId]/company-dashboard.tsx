@@ -59,6 +59,7 @@ export default function CompanyDashboard() {
     topics: 0,
     flashcards: 0,
     goals: 0,
+    checklistCount: 0,
     nbaItems: 0,
     reviewCount: 0
   });
@@ -228,7 +229,7 @@ export default function CompanyDashboard() {
 
   return (
     <PageShell width="full">
-      <MetricGrid cols={{ base: 1, sm: 2, md: 5 }} mb="xl">
+      <MetricGrid cols={{ base: 1, sm: 2, lg: 6 }} mb="xl">
         <LinkCard
           href={`/${companyId}/data`}
           icon={Database}
@@ -259,6 +260,14 @@ export default function CompanyDashboard() {
           variant="violet"
           metric={counts.goals}
           title="Strategic Goals"
+          chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
+        />
+        <LinkCard
+          href={`/${companyId}/checklist`}
+          icon={ListCheck}
+          variant="orange"
+          metric={counts.checklistCount}
+          title="Checklist"
           chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
         />
         <LinkCard

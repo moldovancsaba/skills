@@ -1,7 +1,7 @@
 "use client";
 
 import { Group, Text, ThemeIcon, rem } from "@mantine/core";
-import { IconSparkles as Sparkles } from "@tabler/icons-react";
+import { IconCheckbox as LogoIcon } from "@tabler/icons-react";
 import Link from "next/link";
 
 export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
@@ -15,7 +15,7 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
           size={iconSize + 8} 
           color="brand"
         >
-          <Sparkles size={iconSize} />
+          <LogoIcon size={iconSize} />
         </ThemeIcon>
         <Text 
           size={fontSize} 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { IconArrowRight as ArrowRight, IconSparkles as Sparkles } from "@tabler/icons-react";
+import { IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconRoute as Route } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Box, ThemeIcon, Alert, rem } from "@mantine/core";
 
 import type { ExpertTip } from "@/content/help";
@@ -21,7 +21,7 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
         supporting={
           <Group gap="xs">
             <ThemeIcon variant="light" color="brand" size="lg" >
-              <Sparkles size={18} />
+              <Lightbulb size={18} />
             </ThemeIcon>
             <Badge variant="outline" color="brand" size="sm"  >
               {tip.category}
@@ -33,12 +33,12 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
       />
       
       <UnifiedCardBody>
-        <Alert 
-          icon={<Sparkles size={16} />} 
-          title="Strategic Rationale" 
-          color="brand" 
-          variant="light"
-        >
+          <Alert 
+            icon={<Route size={16} />} 
+            title="Strategic Rationale" 
+            color="brand" 
+            variant="light"
+          >
           {tip.whyItMatters}
         </Alert>
 

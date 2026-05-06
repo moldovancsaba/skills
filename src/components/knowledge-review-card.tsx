@@ -1,4 +1,4 @@
-import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconSparkles as Sparkles, IconArchive as Archive } from "@tabler/icons-react";
+import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconSparkles as Sparkles, IconArchive as Archive, IconTarget as Target, IconLayoutDashboard as LayoutDashboard } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import {
@@ -157,7 +157,16 @@ export function KnowledgeReviewCard({
               </Badge>
             )}
 
-            <Badge variant="light" color="gray" size="xs"  leftSection={<Sparkles size={10} />}>
+            <Badge 
+              variant="light" 
+              color="gray" 
+              size="xs"  
+              leftSection={
+                cardType === "GOAL" ? <Target size={10} /> : 
+                cardType === "TASK" ? <LayoutDashboard size={10} /> : 
+                <Sparkles size={10} />
+              }
+            >
               {kindLabel(flashcard.kind as any)}
             </Badge>
 

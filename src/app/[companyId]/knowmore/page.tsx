@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { IconDatabase as Database, IconSearch as Search, IconSparkles as Sparkles, IconTarget as Target, IconBolt as Bolt, IconFilter as Filter, IconLayoutList as LayoutList } from "@tabler/icons-react";
+import { IconDatabase as Database, IconSearch as Search, IconSparkles as Sparkles, IconTarget as Target, IconBolt as Bolt, IconFilter as Filter, IconLayoutList as LayoutList, IconTrendingUp as TrendingUp, IconShieldCheck as ShieldCheck } from "@tabler/icons-react";
 import { 
   Badge, 
   Button, 
@@ -434,9 +434,9 @@ export default function CompanyKnowMorePage() {
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
 
         <MetricGrid>
-          <MetricCard icon={Database} color="blue" label="Knowledge Units" value={summary.total} detail="Derived evidence" />
-          <MetricCard icon={Sparkles} color="orange" label="Feedback Yield" value={summary.reviewed} detail="Calibrated units" />
-          <MetricCard icon={Sparkles} color="violet" label="Confidence" value={`${summary.avgConfidence}%`} detail="System certainty" />
+          <MetricCard icon={Sparkles} color="blue" label="Knowledge Units" value={summary.total} detail="Derived evidence" />
+          <MetricCard icon={TrendingUp} color="orange" label="Feedback Yield" value={summary.reviewed} detail="Calibrated units" />
+          <MetricCard icon={ShieldCheck} color="violet" label="Confidence" value={`${summary.avgConfidence}%`} detail="System certainty" />
           <MetricCard icon={Target} color="green" label="Avg ICE" value={summary.avgIceScore} detail="Strategic priority" />
           <MetricCard icon={Bolt} color="cyan" label="Avg Ease" value={summary.avgEase} detail="Implementation path" />
         </MetricGrid>

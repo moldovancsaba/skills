@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCircleCheck as CheckCircle2, IconSparkles as Sparkles, IconHistory as History, IconBolt as Zap } from "@tabler/icons-react";
+import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCircleCheck as CheckCircle2, IconGauge as Gauge, IconTimeline as Timeline, IconBolt as Zap } from "@tabler/icons-react";
 import { 
   Card, 
   Stack, 
@@ -162,7 +162,7 @@ export function IntelligencePulse() {
         <Stack gap="md">
           <Group gap="xs">
             <ThemeIcon variant="transparent" color="blue" size="sm">
-              <Sparkles size={14} />
+              <Gauge size={14} />
             </ThemeIcon>
             <Text size="xs" c="dimmed">Throughput Yield</Text>
           </Group>
@@ -200,7 +200,7 @@ export function IntelligencePulse() {
         <Stack gap="md" h="100%">
           <Group gap="xs">
             <ThemeIcon variant="transparent" color="violet" size="sm">
-              <History size={14} />
+              <Timeline size={14} />
             </ThemeIcon>
             <Text size="xs" c="dimmed">Performance History</Text>
           </Group>

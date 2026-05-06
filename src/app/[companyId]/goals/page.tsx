@@ -22,6 +22,7 @@ import {
   IconDatabase as Database, 
   IconSearch as Search, 
   IconSparkles as Sparkles, 
+  IconTrendingUp as TrendingUp, 
   IconTarget as Target, 
   IconPlus as Plus 
 } from "@tabler/icons-react";
@@ -218,7 +219,7 @@ export default function GoalsPage() {
             detail="Objectives under management" 
           />
           <MetricCard 
-            icon={Sparkles} 
+            icon={TrendingUp} 
             color="blue" 
             label="Synthesis Yield" 
             value="85%" 

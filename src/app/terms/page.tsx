@@ -12,24 +12,24 @@ export default function TermsPage() {
       <Stack gap={60}>
         <Box>
           <Group gap="sm" mb="xs">
-            <ThemeIcon variant="light" color="brand" size="lg" radius="md">
+            <ThemeIcon color="brand">
               <ShieldCheck size={20} />
             </ThemeIcon>
-            <Title order={1} fw={900} lts={-1}>Terms of Service</Title>
+            <Title order={1}>Terms of Service</Title>
           </Group>
-          <Text size="xs" fw={800} tt="uppercase" lts={2} c="dimmed" ml={rem(44)}>
+          <Text size="xs" c="dimmed" ml={rem(44)}>
             PROTOCOL v0.15.2 • LAST SYNC: MAY 2025
           </Text>
         </Box>
 
         <Stack gap={40}>
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="gray" size="xl">
+            <ThemeIcon variant="subtle" color="gray">
               <Activity size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Acceptable Use</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4}>Acceptable Use</Title>
+              <Text size="sm" c="dimmed">
                 You agree to use checklist only for lawful business purposes. 
                 You are responsible for all activity under your account. Access to the intelligence layer requires authorized SSO credentials.
               </Text>
@@ -39,12 +39,12 @@ export default function TermsPage() {
           <Divider variant="dashed" />
 
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="gray" size="xl">
+            <ThemeIcon variant="subtle" color="gray">
               <FileText size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Data Ownership</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4}>Data Ownership</Title>
+              <Text size="sm" c="dimmed">
                 You retain ownership of all data you input. By using our service, 
                 you grant us permission to process your data to provide AI-generated 
                 recommendations and maintain contextual memory.
@@ -55,12 +55,12 @@ export default function TermsPage() {
           <Divider variant="dashed" />
 
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="gray" size="xl">
+            <ThemeIcon variant="subtle" color="gray">
               <Cpu size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>AI Service</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4}>AI Service</Title>
+              <Text size="sm" c="dimmed">
                 Our AI generates marketing recommendations based on your data. 
                 Recommendations are suggestions only - you are responsible for evaluating 
                 and implementing them. The OS operates as a high-fidelity intelligence assistant, not a fiduciary.
@@ -71,12 +71,12 @@ export default function TermsPage() {
           <Divider variant="dashed" />
 
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="gray" size="xl">
+            <ThemeIcon variant="subtle" color="gray">
               <Activity size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Service Availability</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4}>Service Availability</Title>
+              <Text size="sm" c="dimmed">
                 We strive to keep the service available 24/7 but do not guarantee 
                 uptime. The autonomous background worker runs periodically to ensure memory synchronization.
               </Text>
@@ -86,12 +86,12 @@ export default function TermsPage() {
           <Divider variant="dashed" />
 
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="red" size="xl">
+            <ThemeIcon variant="subtle" color="red">
               <AlertTriangle size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1} c="red">Disclaimer</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4} c="red">Disclaimer</Title>
+              <Text size="sm" c="dimmed">
                 checklist provides AI-generated suggestions for marketing purposes only. 
                 We do not guarantee the accuracy or effectiveness of any recommendations. Implement at your own strategic risk.
               </Text>
@@ -101,12 +101,12 @@ export default function TermsPage() {
           <Divider variant="dashed" />
 
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="gray" size="xl">
+            <ThemeIcon variant="subtle" color="gray">
               <RefreshCw size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Changes to Terms</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4}>Changes to Terms</Title>
+              <Text size="sm" c="dimmed">
                 We may update these terms at any time. Continued use constitutes 
                 acceptance of updated terms.
               </Text>

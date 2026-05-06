@@ -295,7 +295,7 @@ export default function SettingsPage() {
             
             <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: 'light-dark(rgba(0,0,0,0.03), rgba(0,0,0,0.2))', border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' }}>
               <Group justify="space-between">
-                <Text ff="monospace" size="sm" style={{ wordBreak: "break-all" }}>
+                <Text  size="sm" style={{ wordBreak: "break-all" }}>
                   {showSecret ? settings.bridgeSecret : "•".repeat(36)}
                 </Text>
                 <Group gap="xs">
@@ -316,7 +316,7 @@ export default function SettingsPage() {
               <Stack gap={4}>
                 <Text size="xs" c="dimmed">Endpoint</Text>
                 <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", backgroundColor: "rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.03)" }}>
-                  <Text ff="monospace" size="xs">
+                  <Text  size="xs">
                     {typeof window !== 'undefined' ? window.location.origin : ''}/api/bridge/ingress
                   </Text>
                 </Box>
@@ -324,7 +324,7 @@ export default function SettingsPage() {
               <Stack gap={4}>
                 <Text size="xs" c="dimmed">Example Payload</Text>
                 <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", backgroundColor: "rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.03)" }}>
-                  <Text ff="monospace" size="xs">
+                  <Text  size="xs">
                     {`{ "secret": "...", "sender": "+123", "text": "New insight..." }`}
                   </Text>
                 </Box>

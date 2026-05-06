@@ -328,7 +328,7 @@ export default function CompanyDashboard() {
         <Button
           onClick={() => router.push(`/${companyId}/data`)}
           size="lg"
-          radius="xl"
+          
           color="brand"
           leftSection={<Plus size={22} />}
         >

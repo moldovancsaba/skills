@@ -286,7 +286,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         <Center h="60vh">
           <Stack align="center" gap="md">
             <Loader color="brand" size="xl" variant="bars" />
-            <Text size="sm" fw={800} tt="uppercase" lts={1} c="dimmed">Decrypting tactical intelligence...</Text>
+            <Text size="sm"    c="dimmed">Decrypting tactical intelligence...</Text>
           </Stack>
         </Center>
       </PageShell>
@@ -306,7 +306,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
           <Group justify="space-between" align="center">
             <Stack gap={0}>
-              <Text size="xs" fw={800} tt="uppercase" lts={2} c="brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Text size="xs"    c="brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {archived ? <Archive size={12} /> : <Brain size={12} />}
                 {archived ? "Archive" : "Active Intelligence"}
               </Text>

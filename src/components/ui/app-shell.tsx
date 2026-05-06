@@ -159,7 +159,7 @@ export function MetricCard({
   color = "brand",
 }: MetricCardProps) {
   return (
-    <Card shadow="xs">
+    <Card>
       
       <Stack gap="xl">
         <Group justify="space-between" align="flex-start">
@@ -205,7 +205,7 @@ export function EmptyState({
   return (
     <Card style={{ borderStyle: "dashed", backgroundColor: 'transparent' }} ta="center">
       <Stack align="center" gap="md">
-        <ThemeIcon color="gray" size={64} radius="xl">
+        <ThemeIcon color="gray" size={64}>
           <Icon size={32} />
         </ThemeIcon>
         <Stack gap={4}>
@@ -248,7 +248,7 @@ export function LinkCard({
       href={href} 
       style={{ display: "block", height: "100%", textDecoration: 'none' }}
     >
-      <Card shadow="sm">
+      <Card>
 
         <Stack gap="xl" h="100%" style={{ position: 'relative', zIndex: 1 }}>
           <Group justify="space-between" align="center">
@@ -327,7 +327,7 @@ export function PipelineAccentHeader({
         ))}
       </SimpleGrid>
       <Group gap="sm">
-        <Title order={2} size="h3">{title}</Title>
+        <Title order={2}>{title}</Title>
       </Group>
     </Stack>
   );

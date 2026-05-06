@@ -10,7 +10,8 @@ import {
   Container,
   rem,
   Anchor,
-  Group
+  Group,
+  Card
 } from "@mantine/core";
 import Link from "next/link";
 import { PageShell } from "@/components/ui/app-shell";
@@ -36,75 +37,45 @@ export default function LoginPage() {
         <Container size="xs" w="100%">
           <Stack gap="xl">
             <Box ta="center">
-              <Title order={1} size={rem(64)} fw={900} lts={-4} mb="xs">
+              <Title order={1} mb="xs">
                 checklist
               </Title>
-              <Text c="dimmed" fw={800} tt="uppercase" lts={3} size="xs" opacity={0.6}>
+              <Text c="dimmed" size="xs">
                 Autonomous Intelligence OS
               </Text>
             </Box>
 
-            <Box 
-              p={rem(40)} 
-              style={{ 
-                borderRadius: 'var(--mantine-radius-lg)',
-                border: '1px solid var(--mantine-color-default-border)',
-                backgroundColor: 'var(--mantine-color-default-hover)',
-                position: 'relative',
-                overflow: 'hidden'
-              }}
-            >
-              <Box 
-                style={{ 
-                  position: 'absolute', 
-                  top: -20, 
-                  right: -20, 
-                  width: 100, 
-                  height: 100, 
-                  borderRadius: '50%', 
-                  background: 'var(--mantine-color-brand-filled)', 
-                  opacity: 0.05, 
-                  filter: 'blur(40px)' 
-                }} 
-              />
-              
+            <Card p={rem(40)}>
               <Stack gap="xl">
                 <Stack gap="xs">
-                  <Title order={2} size="h3" fw={900} ta="center">Secure Access Protocol</Title>
-                  <Text size="sm" c="dimmed" ta="center" fw={500}>
+                  <Title order={2} ta="center">Secure Access Protocol</Title>
+                  <Text size="sm" c="dimmed" ta="center">
                     Enter the operational theater via verified Google identity.
                   </Text>
                 </Stack>
 
                 <Button
                   size="lg"
-                  radius="md"
                   fullWidth
                   onClick={handleLogin}
                   variant="default"
                   leftSection={<GoogleIcon />}
-                  h={rem(60)}
-                  fw={800}
-                  style={{ 
-                    border: '1px solid var(--mantine-color-default-border)',
-                    boxShadow: '0 10px 20px rgba(0,0,0,0.05)'
-                  }}
                 >
                   Continue with Google
                 </Button>
 
                 <Stack gap={8} align="center">
-                  <Text size="10px" c="dimmed" fw={800} tt="uppercase" lts={1} opacity={0.5}>
+                  <Text size="xs" c="dimmed">
                     Compliance & Security Acknowledgement
                   </Text>
                   <Group gap="xs">
-                    <Anchor component={Link} href="/privacy" size="xs" fw={800} c="brand" tt="uppercase" lts={1}>Privacy</Anchor>
+                    <Anchor component={Link} href="/privacy" size="xs" c="brand">Privacy</Anchor>
                     <Text c="dimmed" size="xs" opacity={0.3}>•</Text>
-                    <Anchor component={Link} href="/terms" size="xs" fw={800} c="brand" tt="uppercase" lts={1}>Terms</Anchor>
+                    <Anchor component={Link} href="/terms" size="xs" c="brand">Terms</Anchor>
                   </Group>
                 </Stack>
               </Stack>
-            </Box>
+            </Card>
           </Stack>
         </Container>
       </Center>

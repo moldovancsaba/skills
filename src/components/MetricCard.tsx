@@ -26,8 +26,8 @@ const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon, 
     >
       <Paper
         p="md"
-        radius="lg"
-        withBorder
+        
+        
         style={{
           height: '100%',
           backgroundColor: 'light-dark(white, var(--mantine-color-dark-7))',
@@ -36,18 +36,18 @@ const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon, 
       >
         <Stack gap="xs">
           <Group justify="space-between" wrap="nowrap">
-            <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">
+            <Text size="xs"    c="dimmed">
               {label}
             </Text>
             <Icon size={16} style={{ opacity: 0.5 }} />
           </Group>
           
           <Group align="baseline" gap="sm">
-            <Text size="xl" fw={900} style={{ fontSize: rem(24) }}>
+            <Text size="xl"  style={{ fontSize: rem(24) }}>
               {value}
             </Text>
             {change && (
-              <Text size="xs" fw={800} c={getChangeColor()}>
+              <Text size="xs"  c={getChangeColor()}>
                 {change}
               </Text>
             )}

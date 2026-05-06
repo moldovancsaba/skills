@@ -246,7 +246,7 @@ export function ClientNav() {
                 >
                   <Group justify="space-between">
                     <Group gap="sm">
-                      <Avatar src={session.picture} radius="xl" size="sm" color="brand">
+                      <Avatar src={session.picture} size="sm" color="brand">
                         {session.name?.[0]}
                       </Avatar>
                       <Box style={{ flex: 1, overflow: 'hidden' }}>
@@ -313,7 +313,7 @@ export function ClientNav() {
           >
             TERMS
           </Text>
-          <Text size="xs" c="dimmed" tt="uppercase">
+          <Text size="xs" c="dimmed">
             v{APP_VERSION}
           </Text>
         </Group>

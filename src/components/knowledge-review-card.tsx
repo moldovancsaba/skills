@@ -147,19 +147,19 @@ export function KnowledgeReviewCard({
               variant="outline" 
               color={getCardColor()} 
               size="sm"
-              tt="uppercase"
-              fw={800}
+              
+              
             >
               {cardType === "GOAL" ? "Strategic Goal" : cardType === "TASK" ? "Tactical Task" : "Knowledge"}
             </Badge>
             
             {flashcard.activityState !== "ACTIVE" && (
-              <Badge variant="filled" color="gray" size="xs" tt="uppercase">
+              <Badge variant="filled" color="gray" size="xs" >
                 {flashcard.activityState}
               </Badge>
             )}
 
-            <Badge variant="light" color="gray" size="xs" tt="uppercase" leftSection={<AlertCircle size={10} />}>
+            <Badge variant="light" color="gray" size="xs"  leftSection={<AlertCircle size={10} />}>
               {kindLabel(flashcard.kind as any)}
             </Badge>
 
@@ -167,14 +167,14 @@ export function KnowledgeReviewCard({
               variant="light" 
               color={flashcard.intelligenceType === "COMPETITOR" ? "orange" : "gray"} 
               size="xs" 
-              tt="uppercase"
+              
             >
               {flashcard.intelligenceType === "COMPETITOR" ? "The Market" : "Internal"}
             </Badge>
 
             <Group gap={4} ml="auto">
-              <Text size="xs" fw={700} c="dimmed" tt="uppercase" style={{ letterSpacing: 1 }}>ICE</Text>
-              <Badge size="lg" radius="sm" color={getICEColor(flashcard.iceScore)} variant="filled">
+              <Text size="xs" c="dimmed">ICE</Text>
+              <Badge color={getICEColor(flashcard.iceScore)}>
                 {Math.round(flashcard.iceScore)}
               </Badge>
             </Group>
@@ -195,7 +195,6 @@ export function KnowledgeReviewCard({
               variant={activeHashtags.includes(tag) ? "filled" : "outline"}
               color="gray"
               size="xs"
-              style={{ cursor: "pointer" }}
               onClick={() => onToggleHashtag(tag)}
             >
               #{tag}
@@ -217,7 +216,7 @@ export function KnowledgeReviewCard({
           >
             <Group gap="xs" align="flex-start" wrap="nowrap">
               <MessageSquare size={16} style={{ marginTop: 4, opacity: 0.6 }} />
-              <Text size="sm" style={{ fontStyle: "italic", lineHeight: 1.5 }} fw={500}>
+              <Text size="sm">
                 {flashcard.userAnnotation}
               </Text>
             </Group>
@@ -257,12 +256,12 @@ export function KnowledgeReviewCard({
         {isActionOpen && actionMode && (
           <UnifiedCardSection>
             <Stack gap="md">
-              <Text fw={900} size="xs" tt="uppercase" lts={1} c="dimmed">{actionLabel(actionMode)}</Text>
+              <Text  size="xs"   c="dimmed">{actionLabel(actionMode)}</Text>
               
               {actionMode === "MODIFY_ACCEPT" && (
                 <Stack gap="sm">
-                  <TextInput label="Title" value={editedTitle} onChange={(e) => onEditedTitleChange(e.target.value)} radius="md" />
-                  <Textarea label="Body" value={editedBody} onChange={(e) => onEditedBodyChange(e.target.value)} minRows={3} radius="md" />
+                  <TextInput label="Title" value={editedTitle} onChange={(e) => onEditedTitleChange(e.target.value)}  />
+                  <Textarea label="Body" value={editedBody} onChange={(e) => onEditedBodyChange(e.target.value)} minRows={3}  />
                 </Stack>
               )}
               
@@ -272,7 +271,7 @@ export function KnowledgeReviewCard({
                 value={actionComment}
                 onChange={(e) => onActionCommentChange(e.target.value)}
                 minRows={2}
-                radius="md"
+                
               />
               
               <Group gap="xs">
@@ -286,7 +285,7 @@ export function KnowledgeReviewCard({
 
       {flashcard.refreshedAt && (
         <UnifiedCardFooter>
-          <Text size="xs" c="dimmed" fw={700} tt="uppercase" lts={0.5}>
+          <Text size="xs" c="dimmed">
             Last Synthesis: {new Date(flashcard.refreshedAt).toLocaleDateString()}
           </Text>
         </UnifiedCardFooter>

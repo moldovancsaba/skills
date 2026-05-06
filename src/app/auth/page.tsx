@@ -58,7 +58,7 @@ function AuthContent() {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader size="xl" variant="bars" color="brand" />
+        <Loader color="brand" />
       </Center>
     );
   }
@@ -68,16 +68,16 @@ function AuthContent() {
       <Container size="xs" w="100%">
         <Stack gap="xl">
           <Box ta="center">
-            <Title order={1} size={rem(54)} fw={900} lts={-3} mb="xs">
+            <Title order={1} mb="xs">
               checklist
             </Title>
-            <Text c="dimmed" fw={700} tt="uppercase" lts={2} size="xs">
+            <Text c="dimmed" size="xs">
               Strategic Intelligence Portal
             </Text>
           </Box>
 
           {authError && (
-            <Alert color="red" variant="light" radius="md" title="Access Denied">
+            <Alert color="red" title="Access Denied">
               {authError === "sso_not_configured" 
                 ? "SSO protocol mismatch. Contact systems administrator."
                 : `Security anomaly detected: ${authError}`}
@@ -86,28 +86,22 @@ function AuthContent() {
 
           <Button
             size="lg"
-            radius="md"
             fullWidth
             onClick={handleLogin}
             variant="default"
             leftSection={<GoogleIcon />}
-            h={rem(54)}
-            fw={700}
-            style={{ 
-              border: '1px solid var(--mantine-color-default-border)',
-            }}
           >
             Authenticate with Google
           </Button>
 
           <Stack gap={8} align="center">
-            <Text size="10px" c="dimmed" fw={800} tt="uppercase" lts={1}>
+            <Text size="xs" c="dimmed">
               Security Protocol Acknowledgement Required
             </Text>
             <Group gap="xs">
-              <Anchor component={Link} href="/privacy" size="xs" fw={800} c="brand" tt="uppercase" lts={1}>Privacy</Anchor>
+              <Anchor component={Link} href="/privacy" size="xs" c="brand">Privacy</Anchor>
               <Text c="dimmed" size="xs" opacity={0.5}>•</Text>
-              <Anchor component={Link} href="/terms" size="xs" fw={800} c="brand" tt="uppercase" lts={1}>Terms</Anchor>
+              <Anchor component={Link} href="/terms" size="xs" c="brand">Terms</Anchor>
             </Group>
           </Stack>
         </Stack>
@@ -120,7 +114,7 @@ export default function AuthPage() {
   return (
     <Suspense fallback={
       <Center h="100vh">
-        <Loader size="xl" variant="bars" color="brand" />
+        <Loader color="brand" />
       </Center>
     }>
       <AuthContent />

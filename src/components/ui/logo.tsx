@@ -19,7 +19,7 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
         </ThemeIcon>
         <Text 
           size={fontSize} 
-          tt="lowercase"
+          
           c="white"
           style={{ 
             fontFamily: "var(--font-display)"

@@ -65,26 +65,23 @@ export function SourceDataCard({
       <UnifiedCardHeader 
         supporting={
           <Group gap="xs">
-            <Badge variant="outline" color="gray" size="sm" tt="uppercase" fw={800}>
+            <Badge color="gray">
               Datacard
             </Badge>
             <Badge 
-              variant="light" 
               color={isCompetitor ? "orange" : "gray"} 
-              size="xs" 
-              tt="uppercase"
             >
               {isCompetitor ? "Competitor" : "Internal"}
             </Badge>
-            <Badge variant="light" color="gray" size="xs" tt="uppercase" leftSection={<Icon size={10} />}>
+            <Badge color="gray" leftSection={<Icon size={10} />}>
               {type}
             </Badge>
             
             <Group gap={4} ml="auto">
-              <Badge size="sm" radius="sm" color={getICEColor(iceScore)} variant="filled">
+              <Badge color={getICEColor(iceScore)}>
                 ICE {iceScore}
               </Badge>
-              <Text size="xs" ff="monospace" c="dimmed">
+              <Text size="xs" c="dimmed">
                 #{publicId || id.slice(0, 8)}
               </Text>
             </Group>
@@ -107,7 +104,6 @@ export function SourceDataCard({
               variant={activeHashtags.includes(tag) ? "filled" : "outline"}
               color="gray"
               size="xs"
-              style={{ cursor: "pointer" }}
               onClick={() => onToggleHashtag?.(tag)}
             >
               #{tag}
@@ -129,7 +125,7 @@ export function SourceDataCard({
 
       <UnifiedCardFooter>
         <Stack gap="sm">
-          <Text size="xs" fw={800} tt="uppercase" style={{ letterSpacing: 1 }} c="dimmed">Intelligence Controls</Text>
+          <Text size="xs" c="dimmed">Intelligence Controls</Text>
           <Group gap="xs" wrap="wrap">
             <Tooltip label="Pin relevant evidence">
               <Button variant="subtle" size="compact-xs" color="gray" leftSection={<Pin size={12} />}>

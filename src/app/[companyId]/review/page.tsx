@@ -105,11 +105,11 @@ export default function ReviewDashboard() {
     return (
       <PageShell width="full">
         <Stack gap="xl">
-          <Skeleton h={40} w={300} radius="md" />
-          <Skeleton h={20} w={600} radius="md" />
+          <Skeleton h={40} w={300} />
+          <Skeleton h={20} w={600} />
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-            <Skeleton h={300} radius="lg" />
-            <Skeleton h={300} radius="lg" />
+            <Skeleton h={300} />
+            <Skeleton h={300} />
           </SimpleGrid>
         </Stack>
       </PageShell>
@@ -128,7 +128,7 @@ export default function ReviewDashboard() {
           <Center h={rem(400)}>
             <Card style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
               <Stack align="center" gap="xl">
-                <ThemeIcon color="gray" size={64} radius="xl">
+                <ThemeIcon color="gray" size={64}>
                   <HardHat size={32} />
                 </ThemeIcon>
                 <Stack gap="xs">
@@ -174,7 +174,7 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.2 }}
     >
-      <UnifiedCard style={{ borderColor: 'var(--mantine-color-orange-filled)', borderWidth: 1, borderStyle: 'solid' }}>
+      <UnifiedCard style={{ borderColor: 'var(--mantine-color-orange-filled)' }}>
         <UnifiedCardHeader 
           title={item.title} 
           supporting={
@@ -186,7 +186,7 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
         />
         <UnifiedCardBody>
           <Stack gap="lg">
-            <Box p="md" style={{ background: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))', borderRadius: 'var(--mantine-radius-md)', border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' }}>
+            <Box p="md" style={{ background: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))' }}>
               <Text c="dimmed" lineClamp={4}>
                 {item.body || item.description}
               </Text>

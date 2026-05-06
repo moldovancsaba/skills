@@ -20,10 +20,10 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">
-            <ThemeIcon variant="light" color="brand" size="lg" radius="md">
+            <ThemeIcon variant="light" color="brand" size="lg" >
               <Lightbulb size={18} />
             </ThemeIcon>
-            <Badge variant="outline" color="brand" size="sm" tt="uppercase" fw={800}>
+            <Badge variant="outline" color="brand" size="sm"  >
               {tip.category}
             </Badge>
           </Group>
@@ -38,42 +38,24 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
           title="Strategic Rationale" 
           color="brand" 
           variant="light"
-          radius="md"
-          styles={{
-            title: { 
-              fontSize: "10px", 
-              fontWeight: 900, 
-              textTransform: "uppercase", 
-              letterSpacing: "1px",
-              color: 'light-dark(var(--mantine-color-brand-9), var(--mantine-color-brand-4))'
-            },
-            message: {
-              fontWeight: 500,
-              lineHeight: 1.6
-            },
-            root: {
-              border: `1px solid light-dark(rgba(255, 165, 0, 0.2), rgba(255, 165, 0, 0.1))`
-            }
-          }}
         >
           {tip.whyItMatters}
         </Alert>
 
         {tip.samplePhrases && tip.samplePhrases.length > 0 && (
           <Stack gap="xs">
-            <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Suggested Phrasing</Text>
+            <Text size="xs"    c="dimmed">Suggested Phrasing</Text>
             <Stack gap={6}>
               {tip.samplePhrases.map((phrase) => (
                 <Box 
                   key={phrase} 
                   p="xs" 
                   style={{ 
-                    borderRadius: "var(--mantine-radius-sm)",
                     backgroundColor: 'light-dark(rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.2))',
                     border: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`
                   }}
                 >
-                  <Text size="xs" fs="italic" c="dimmed" fw={500}>“{phrase}”</Text>
+                  <Text size="xs" fs="italic" c="dimmed" >“{phrase}”</Text>
                 </Box>
               ))}
             </Stack>

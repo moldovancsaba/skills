@@ -96,8 +96,8 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
     return (
       <UnifiedCard style={{ height: '100%' }}>
         <Stack align="center" justify="center" h={200}>
-          <Loader color="brand" size="sm" variant="bars" />
-          <Text size="xs" fw={900} c="dimmed" tt="uppercase" lts={1}>Syncing Permissions...</Text>
+          <Loader color="brand" />
+          <Text size="xs" c="dimmed">Syncing Permissions...</Text>
         </Stack>
       </UnifiedCard>
     );
@@ -108,10 +108,10 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">
-            <ThemeIcon variant="light" color="gray" size="lg" radius="md">
+            <ThemeIcon color="gray">
               <Users size={18} />
             </ThemeIcon>
-            <Badge variant="outline" color="gray" size="sm" tt="uppercase" fw={800}>
+            <Badge color="gray">
               Access Control
             </Badge>
           </Group>
@@ -141,12 +141,11 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                     loading={inviting} 
                     color="brand" 
                     leftSection={<UserPlus size={16} />}
-                    size="sm"
                   >
                     Invite
                   </Button>
                 </Group>
-                {error && <Text size="xs" c="red" fw={900}>{error}</Text>}
+                {error && <Text size="xs" c="red">{error}</Text>}
               </Stack>
             </form>
           )}
@@ -164,23 +163,20 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
               >
                 <Group justify="space-between" wrap="nowrap">
                   <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
-                    <Avatar radius="xl" size="md" color={member.role === 'OWNER' ? 'brand' : 'gray'} variant="light">
+                    <Avatar color={member.role === 'OWNER' ? 'brand' : 'gray'}>
                       {member.email[0].toUpperCase()}
                     </Avatar>
                     <Box style={{ flex: 1, minWidth: 0 }}>
-                      <Text size="sm" fw={800} truncate>{member.email}</Text>
+                      <Text size="sm" truncate>{member.email}</Text>
                       <Group gap="xs">
                         <Group gap={4}>
                           <Shield size={12} color={member.role === 'OWNER' ? 'var(--mantine-color-brand-6)' : 'var(--mantine-color-gray-6)'} />
-                          <Text size="10px" fw={900} tt="uppercase" lts={1} c="dimmed">
+                          <Text size="10px" c="dimmed">
                             {member.role === 'OWNER' ? 'Admin' : 'Member'}
                           </Text>
                         </Group>
                         <Badge 
-                          size="xs" 
-                          variant="dot" 
                           color={member.acceptedAt ? "green" : "gray"}
-                          fw={800}
                         >
                           {member.acceptedAt ? "Active" : "Pending"}
                         </Badge>

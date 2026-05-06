@@ -20,26 +20,24 @@ export function Footer() {
         <Group justify="space-between">
           <Group gap="xl">
             <Link href="/privacy" style={{ textDecoration: 'none' }}>
-              <Text size="xs" c="dimmed" fw={600}>Privacy Policy</Text>
+              <Text size="xs" c="dimmed">Privacy Policy</Text>
             </Link>
             <Link href="/terms" style={{ textDecoration: 'none' }}>
-              <Text size="xs" c="dimmed" fw={600}>Terms of Service</Text>
+              <Text size="xs" c="dimmed">Terms of Service</Text>
             </Link>
           </Group>
           <Group gap="xs">
-            <Text size="xs" c="dimmed" fw={700} tt="uppercase" lts={1}>
+            <Text size="xs" c="dimmed">
               Release
             </Text>
             <Box 
               px="xs" 
               py={2} 
               style={{ 
-                borderRadius: rem(10), 
                 backgroundColor: 'var(--mantine-color-dark-6)',
-                border: '1px solid var(--mantine-color-dark-4)'
               }}
             >
-              <Text size="10px" fw={900} ff="monospace">
+              <Text size="10px">
                 v{APP_VERSION}
               </Text>
             </Box>

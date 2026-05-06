@@ -134,16 +134,10 @@ function CardDetailModal({
         </Group>
       }
       size="xl"
-      radius="lg"
+      
       overlayProps={{ 
         backgroundOpacity: 0.55, 
         color: 'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-9))'
-      }}
-      styles={{
-        content: { 
-          border: "1px solid var(--mantine-color-default-border)",
-          backgroundColor: 'light-dark(white, var(--mantine-color-dark-7))'
-        }
       }}
     >
       {!item ? (
@@ -173,12 +167,12 @@ function CardDetailModal({
               { label: "Confidence", value: item.confidence, color: "cyan" },
               { label: "Ease",       value: item.ease,       color: "violet" },
             ].map(s => (
-              <Paper key={s.label} p="md" ta="center" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+              <Paper key={s.label} p="md" ta="center">
                 <Text size="xl" c={s.color}>{s.value}</Text>
                 <Text size="xs" c="dimmed">{s.label}</Text>
               </Paper>
             ))}
-            <Paper p="md" ta="center" style={{ backgroundColor: 'light-dark(var(--mantine-color-orange-0), var(--mantine-color-orange-9))', borderColor: 'var(--mantine-color-orange-filled)' }}>
+            <Paper p="md" ta="center">
               <Text size="xl" c="orange">{Math.round(item.iceScore)}</Text>
               <Text size="xs" c="orange">ICE Score</Text>
             </Paper>
@@ -192,7 +186,7 @@ function CardDetailModal({
               <Cpu size={14} color="var(--mantine-color-blue-6)" />
               <Text size="xs" c="dimmed">AI Evaluation Signals</Text>
             </Group>
-            <Paper p="md" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+            <Paper p="md">
               <SimpleGrid cols={4}>
                 <Stack gap={2}>
                   <Text size="sm">{fmt(item.qualityScore)}</Text>
@@ -207,7 +201,7 @@ function CardDetailModal({
                   <Text size="xs" c="dimmed">Freshness</Text>
                 </Stack>
                 <Stack gap={2}>
-                  <Badge size="xs" color="blue">{item.candidateState}</Badge>
+                  <Badge color="blue">{item.candidateState}</Badge>
                   <Text size="xs" c="dimmed">State</Text>
                 </Stack>
               </SimpleGrid>
@@ -219,7 +213,7 @@ function CardDetailModal({
         {item.evaluationReason && (
           <Box>
             <Text size="xs" c="dimmed" mb="md">AI Judge Reasoning</Text>
-            <Paper p="md" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))', borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
+            <Paper p="md" style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
               <Text size="sm">
                 "{item.evaluationReason}"
               </Text>
@@ -247,7 +241,7 @@ function CardDetailModal({
               data={COLUMN_OPTIONS}
               value={item.kanbanColumn}
               size="sm"
-              radius="md"
+              
               label={<Text size="xs" mb={4}>Move to tactical horizon</Text>}
               style={{ flex: 1 }}
               onChange={(val) => {
@@ -293,7 +287,7 @@ function CardDetailModal({
             size="xs"
             leftSection={<Trash2 size={16} />} 
             onClick={() => onDelete(item.id)}
-            fw={800}
+            
           >
             Archive Unit
           </Button>
@@ -472,8 +466,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                     p="md"
                     style={{
                       borderTop: `4px solid ${col.accent}`,
-                      flexShrink: 0,
-                      backgroundColor: 'light-dark(white, var(--mantine-color-dark-7))'
+                      flexShrink: 0
                     }}
                   >
                     <Group justify="space-between" wrap="nowrap">
@@ -503,7 +496,6 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                         {...provided.droppableProps}
                         style={{
                           flex: 1,
-                          borderRadius: 'var(--mantine-radius-lg)',
                           border: snapshot.isDraggingOver
                             ? `2px dashed ${col.accent}`
                             : "2px dashed transparent",
@@ -536,14 +528,10 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                         handleOpenCard(item);
                                       }}
                                       style={{
-                                        boxShadow: snapshot.isDragging
-                                          ? "0 20px 50px rgba(0,0,0,0.3)"
-                                          : "var(--mantine-shadow-xs)",
                                         cursor: snapshot.isDragging ? "grabbing" : "pointer",
                                         borderColor: snapshot.isDragging
                                           ? col.accent
-                                          : "light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))",
-                                        backgroundColor: 'light-dark(white, var(--mantine-color-dark-6))',
+                                          : "transparent",
                                         transform: snapshot.isDragging ? "rotate(1deg) scale(1.02)" : "none",
                                         transition: "all 0.15s ease",
                                         userSelect: "none",

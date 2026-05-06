@@ -39,13 +39,13 @@ export function DashboardChart({ data, color }: DashboardChartProps) {
                 return (
                   <Paper 
                     p={4} 
-                    radius="xs" 
-                    withBorder 
+                     
+                     
                     style={{ 
                       backgroundColor: "rgba(0,0,0,0.8)"
                     }}
                   >
-                    <Text size="xs" fw={700}>{payload[0].value}</Text>
+                    <Text size="xs" >{payload[0].value}</Text>
                   </Paper>
                 );
               }

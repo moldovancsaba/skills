@@ -81,10 +81,10 @@ export function TraceViewer({
       <Stack gap="xl" h="100%">
         <Group justify="space-between" align="center">
           <Group gap="sm">
-            <ThemeIcon variant="light" color="indigo" radius="md" size="lg">
+            <ThemeIcon variant="light" color="indigo"  size="lg">
               <GitBranch size={20} />
             </ThemeIcon>
-            <Title order={2} size="h4" fw={900} lts={-0.5}>Intelligence Lineage</Title>
+            <Title order={2} size="h4"  >Intelligence Lineage</Title>
           </Group>
           <ActionIcon variant="subtle" color="gray" onClick={onClose}>
             <X size={20} />
@@ -116,7 +116,7 @@ export function TraceViewer({
                   <ThemeIcon 
                     variant="filled" 
                     color={node.type === 'SOURCE' ? 'gray' : node.type === 'FLASHCARD' ? 'orange' : 'indigo'} 
-                    radius="xl" 
+                     
                     size={36}
                     style={{ 
                       boxShadow: '0 0 0 4px var(--mantine-color-body)'
@@ -128,10 +128,10 @@ export function TraceViewer({
                   </ThemeIcon>
                   
                   <Stack gap={2}>
-                    <Text size="10px" fw={900} tt="uppercase" lts={2} c="dimmed">
+                    <Text size="10px"    c="dimmed">
                       {node.type} • {new Date(node.timestamp).toLocaleTimeString()}
                     </Text>
-                    <Text size="sm" fw={700} style={{ lineHeight: 1.4 }}>
+                    <Text size="sm"  style={{ lineHeight: 1.4 }}>
                       {node.title}
                     </Text>
                   </Stack>
@@ -149,7 +149,7 @@ export function TraceViewer({
             border: '1px solid var(--mantine-color-default-border)'
           }}
         >
-          <Text size="xs" c="dimmed" fw={500} style={{ lineHeight: 1.6, fontStyle: 'italic' }}>
+          <Text size="xs" c="dimmed"  style={{ lineHeight: 1.6, fontStyle: 'italic' }}>
             This trace visualizes the autonomous transformation from raw market evidence into strategic action cards.
           </Text>
         </Box>

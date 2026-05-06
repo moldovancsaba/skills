@@ -47,7 +47,7 @@ export function ManualPageContent() {
         </Notice>
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-          <Card p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+          <Card p="xl"   style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
             <Stack gap="lg">
               <Title order={3}>Source Priority Layer</Title>
               <Stack gap="sm">
@@ -58,7 +58,7 @@ export function ManualPageContent() {
                   "Sales decks, briefs, and internal files"
                 ].map((item, i) => (
                   <Group key={i} gap="sm" wrap="nowrap">
-                    <ThemeIcon size="xs" variant="subtle" color="brand" radius="xl">
+                    <ThemeIcon size="xs" variant="subtle" color="brand" >
                       <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
                     </ThemeIcon>
                     <Text>{item}</Text>
@@ -67,7 +67,7 @@ export function ManualPageContent() {
               </Stack>
             </Stack>
           </Card>
-          <Card p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+          <Card p="xl"   style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
             <Stack gap="lg">
               <Title order={3}>Calibration Vocabulary</Title>
               <Stack gap="sm">
@@ -78,7 +78,7 @@ export function ManualPageContent() {
                   "Blocked until launch or budget approval"
                 ].map((item, i) => (
                   <Group key={i} gap="sm" wrap="nowrap">
-                    <ThemeIcon size="xs" variant="subtle" color="orange" radius="xl">
+                    <ThemeIcon size="xs" variant="subtle" color="orange" >
                       <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
                     </ThemeIcon>
                     <Text>{item}</Text>
@@ -91,7 +91,7 @@ export function ManualPageContent() {
 
         <Stack gap="xl">
           {manualSections.map((section) => (
-            <Paper key={section.id} p="xl" radius="lg" withBorder style={{ position: 'relative' }}>
+            <Paper key={section.id} p="xl"   style={{ position: 'relative' }}>
               <Badge 
                 color="brand" 
                 size="xs" 
@@ -103,7 +103,7 @@ export function ManualPageContent() {
                 <Title order={3}>{section.summary}</Title>
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                   {section.bullets.map((bullet) => (
-                    <Paper key={bullet} p="md" radius="md" withBorder style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-7))' }}>
+                    <Paper key={bullet} p="md"   style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-7))' }}>
                       <Text>{bullet}</Text>
                     </Paper>
                   ))}
@@ -113,7 +113,7 @@ export function ManualPageContent() {
           ))}
         </Stack>
 
-        <Card p="xl" radius="lg" withBorder ta="center" style={{ borderStyle: 'dashed' }}>
+        <Card p="xl"   ta="center" style={{ borderStyle: 'dashed' }}>
           <Stack align="center" gap="md">
             <Title order={3}>Need rapid operational support?</Title>
             <Button 
@@ -157,15 +157,15 @@ export function FaqPageContent() {
           If the intelligence output feels weak, check source quality and calibration history first. System performance is a direct reflection of evidence fidelity.
         </Notice>
 
-        <Paper p="xl" radius="lg" withBorder style={{ backgroundColor: 'light-dark(white, var(--mantine-color-dark-8))' }}>
-          <Accordion variant="separated" radius="md">
+        <Paper p="xl"   style={{ backgroundColor: 'light-dark(white, var(--mantine-color-dark-8))' }}>
+          <Accordion variant="separated" >
             {faqItems.map((item) => (
               <Accordion.Item key={item.id} value={item.id} style={{ border: 'none', marginBottom: rem(12) }}>
                 <Accordion.Control>
                   <Text size="sm">{item.question}</Text>
                 </Accordion.Control>
                 <Accordion.Panel>
-                  <Paper p="md" radius="md" style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-9))', borderLeft: '3px solid var(--mantine-color-brand-6)' }}>
+                  <Paper p="md"  style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-9))', borderLeft: '3px solid var(--mantine-color-brand-6)' }}>
                     <Text c="dimmed">{item.answer}</Text>
                   </Paper>
                 </Accordion.Panel>

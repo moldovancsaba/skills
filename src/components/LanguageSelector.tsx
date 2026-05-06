@@ -82,21 +82,17 @@ export function LanguageSelector({ selectedIds, onChange, disabled }: LanguageSe
       searchable
       clearable
       hidePickedOptions
-      radius="md"
+      
       leftSection={<Globe size={16} />}
       renderOption={({ option, checked }) => (
         <Group justify="space-between" flex={1}>
           <Stack gap={2}>
-            <Text size="sm" fw={500}>{option.label}</Text>
-            <Text size="xs" c="dimmed" ff="monospace" lts={1}>{(option as any).nativeName}</Text>
+            <Text size="sm" >{option.label}</Text>
+            <Text size="xs" c="dimmed" >{(option as any).nativeName}</Text>
           </Stack>
           {checked && <Check size={14} color="var(--mantine-color-brand-6)" />}
         </Group>
       )}
-      styles={{
-        input: { backgroundColor: "rgba(0,0,0,0.2)" },
-        pill: { backgroundColor: "var(--mantine-color-brand-9)", fontWeight: 700 }
-      }}
     />
   );
 }

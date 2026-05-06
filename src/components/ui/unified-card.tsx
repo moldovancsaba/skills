@@ -12,7 +12,7 @@ type UnifiedCardProps = {
 export function UnifiedCard({ children, style, mt }: UnifiedCardProps) {
   return (
     <Card 
-      shadow="sm" 
+       
       mt={mt}
       style={style}
     >
@@ -87,7 +87,7 @@ export function UnifiedCardActions({ children, style, mt }: UnifiedCardProps) {
 export function UnifiedCardFooter({ children, style, mt }: UnifiedCardProps) {
   return (
     <Card.Section 
-      withBorder 
+       
       inheritPadding 
       py="md" 
       mt={mt || "xl"} 

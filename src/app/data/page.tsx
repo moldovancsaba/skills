@@ -252,7 +252,7 @@ export default function GlobalDataCollectionPage() {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader size="xl" variant="bars" color="brand" />
+        <Loader color="brand" />
       </Center>
     );
   }
@@ -264,7 +264,7 @@ export default function GlobalDataCollectionPage() {
       />
 
       <Stack gap="xl">
-        <Card radius="lg" withBorder p="xl">
+        <Card>
           <form onSubmit={handleSubmit}>
             <Stack gap="md">
               {editingId && (
@@ -281,8 +281,6 @@ export default function GlobalDataCollectionPage() {
                 placeholder="https://example.com/strategic-report..."
                 minRows={4}
                 autosize
-                radius="md"
-                styles={{ input: { fontSize: rem(16) } }}
               />
 
               {!editingId && (
@@ -294,7 +292,6 @@ export default function GlobalDataCollectionPage() {
                   value={selectedFiles}
                   onChange={setSelectedFiles}
                   leftSection={<FileUp size={16} />}
-                  radius="md"
                 />
               )}
 
@@ -314,7 +311,6 @@ export default function GlobalDataCollectionPage() {
                 )}
                 <Button 
                   type="submit" 
-                  radius="md"
                   color="brand"
                   leftSection={editingId ? <Edit2 size={16} /> : <Plus size={16} />}
                   disabled={(!input.trim() && selectedFiles.length === 0) || !company}
@@ -357,7 +353,7 @@ export default function GlobalDataCollectionPage() {
 
         <Stack gap="md">
           <Group justify="space-between" align="center">
-            <Title order={2} size="h3" fw={900} lts={-0.5}>
+            <Title order={2}>
               Intelligence Inventory ({filteredItems.length}{activeHashtags.length > 0 ? ` of ${items.length}` : ""})
             </Title>
             {activeHashtags.length > 0 && (
@@ -371,8 +367,8 @@ export default function GlobalDataCollectionPage() {
           </Group>
           
           {filteredItems.length === 0 ? (
-            <Card radius="md" withBorder p="xl" ta="center" style={{ borderStyle: 'dashed' }}>
-              <Text size="sm" c="dimmed" fs="italic">Inventory empty. Awaiting first ingress.</Text>
+            <Card style={{ borderStyle: 'dashed' }} ta="center">
+              <Text size="sm" c="dimmed">Inventory empty. Awaiting first ingress.</Text>
             </Card>
           ) : (
             <Stack gap="md">

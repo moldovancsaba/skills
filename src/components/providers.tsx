@@ -19,10 +19,10 @@ export const theme = createTheme({
     fontFamily: "var(--font-display), var(--font-body), sans-serif",
     fontWeight: "900",
     sizes: {
-      h1: { fontSize: rem(34), lineHeight: "1.1", fontWeight: "900" },
-      h2: { fontSize: rem(26), lineHeight: "1.2", fontWeight: "900" },
-      h3: { fontSize: rem(20), lineHeight: "1.3", fontWeight: "900" },
-      h4: { fontSize: rem(18), lineHeight: "1.4", fontWeight: "900" },
+      h1: { fontSize: rem(34), lineHeight: "1.1" },
+      h2: { fontSize: rem(26), lineHeight: "1.2" },
+      h3: { fontSize: rem(20), lineHeight: "1.3" },
+      h4: { fontSize: rem(18), lineHeight: "1.4" },
     },
   },
   components: {
@@ -43,12 +43,13 @@ export const theme = createTheme({
       defaultProps: {
         radius: "sm",
         variant: "light",
-        fw: 700,
+        fw: 800,
+        tt: "uppercase",
       },
     },
     Card: {
       defaultProps: {
-        radius: "lg",
+        radius: "md",
         withBorder: true,
         padding: "xl",
       },
@@ -56,7 +57,17 @@ export const theme = createTheme({
     ThemeIcon: {
       defaultProps: {
         variant: "light",
-        radius: "md",
+        radius: "sm",
+      },
+    },
+    Text: {
+      defaultProps: {
+        size: "sm",
+      },
+    },
+    Title: {
+      defaultProps: {
+        fw: 900,
       },
     },
     InputWrapper: {

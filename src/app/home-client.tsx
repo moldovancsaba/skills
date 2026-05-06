@@ -14,7 +14,8 @@ import {
   ThemeIcon,
   Button,
   Badge,
-  Card
+  Card,
+  Center
 } from "@mantine/core";
 import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListTodo, IconLayoutDashboard as LayoutDashboard } from "@tabler/icons-react";
 import { FormInput } from "@/components/ui/form-fields";
@@ -165,12 +166,12 @@ export default function Home() {
 
   if (loading) {
     return (
-      <Box style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyItems: 'center' }}>
+      <Center h="100vh">
         <Stack align="center" gap="md" w="100%">
           <Loader color="brand" />
           <Text c="dimmed">Hardening OS Infrastructure...</Text>
         </Stack>
-      </Box>
+      </Center>
     );
   }
 
@@ -208,7 +209,7 @@ export default function Home() {
         </Group>
 
         {(canManageCompanies && (companies.length === 0 || showForm)) ? (
-          <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+          <Card>
             <Stack gap="lg">
               <Title order={3}>{editingId ? "Modify Intelligence Unit" : "Initialize New Unit"}</Title>
               <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany}>
@@ -249,12 +250,11 @@ export default function Home() {
           <Stack gap={48}>
             {Array.isArray(companies) && companies.map((c: any) => (
               <Box key={c.id}>
-                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: '1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4))', paddingBottom: 'var(--mantine-spacing-md)' }}>
+                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: '1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4))' }}>
                   <Stack gap={4}>
                     <Group gap="sm">
                       <Title 
                         order={2} 
-                        style={{ cursor: 'pointer' }}
                         onClick={() => router.push(`/${c.id}`)}
                       >
                         {c.name}
@@ -342,7 +342,7 @@ export default function Home() {
             ))}
 
             {!canManageCompanies && companies.length === 0 && (
-              <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+              <Card>
                 <Text c="dimmed">
                   No intelligence units are currently provisioned for this account.
                 </Text>
@@ -352,7 +352,7 @@ export default function Home() {
         )}
 
         {canManageCompanies && !showForm && (
-          <Box pt="xl" style={{ borderTop: '1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-6))' }}>
+          <Box mt="xl">
             <Button 
               onClick={() => setShowForm(true)} 
               variant="subtle" 

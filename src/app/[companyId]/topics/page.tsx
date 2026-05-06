@@ -338,7 +338,7 @@ export default function CompanyTopicsPage() {
         {orderedTopics.length === 0 && (
           <Card style={{ borderStyle: 'dashed' }} ta="center">
             <Stack align="center" gap="md">
-              <ThemeIcon color="gray" size="xl" radius="xl">
+              <ThemeIcon color="gray" size="xl" >
                 <LayoutList size={24} />
               </ThemeIcon>
               <Text size="sm" c="dimmed">No focus topics established. Define your first intelligence frontier above.</Text>

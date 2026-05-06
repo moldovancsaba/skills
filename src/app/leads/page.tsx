@@ -7,11 +7,11 @@ export default function LeadsPage() {
   return (
     <Container size="sm" py={rem(100)}>
       <Stack align="center" ta="center" gap="md">
-        <Title order={1} size="h2" fw={900} lts={-1}>Legacy View Removed</Title>
+        <Title order={1} >Legacy View Removed</Title>
         <Text size="sm" c="dimmed" maw={500}>
           Lead tracking is now integrated into the unified Data Ingress pipeline. Use hashtags like #leads or #conversion to classify evidence and let the intelligence engine synthesize strategic actions.
         </Text>
-        <Anchor component={Link} href="/data" size="sm" fw={800} tt="uppercase" lts={1}>
+        <Anchor component={Link} href="/data" size="sm" >
           Open Data Layer →
         </Anchor>
       </Stack>

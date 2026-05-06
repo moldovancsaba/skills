@@ -32,17 +32,17 @@ export default function StrategyPage() {
           { label: "Retention Rate", value: "--", icon: TrendingUp, color: "orange" },
           { label: "NPS Score", value: "--", icon: Target, color: "indigo" },
         ].map((m, i) => (
-          <Card key={i} radius="lg" withBorder p="xl">
+          <Card key={i}>
             <Stack gap="md">
               <Group justify="space-between" align="center">
-                <ThemeIcon variant="light" color={m.color} size="md" radius="md">
+                <ThemeIcon color={m.color} size="md">
                   <m.icon size={18} />
                 </ThemeIcon>
-                <Text size="xs" fw={800} c="dimmed" tt="uppercase" lts={1}>
+                <Text size="xs" c="dimmed">
                   {m.label}
                 </Text>
               </Group>
-              <Text size="32px" fw={900} lts={-1}>
+              <Text size="xl">
                 {m.value}
               </Text>
             </Stack>
@@ -50,14 +50,14 @@ export default function StrategyPage() {
         ))}
       </MetricGrid>
 
-      <Card radius="lg" withBorder p={rem(60)} ta="center">
+      <Card ta="center">
         <Stack align="center" gap="xl">
-          <ThemeIcon variant="light" color="gray" size={64} radius="xl">
+          <ThemeIcon color="gray" size={64}>
             <Info size={32} />
           </ThemeIcon>
           <Stack gap="xs">
-            <Title order={2} fw={900} lts={-0.5}>Strategic Protocol Pending</Title>
-            <Text size="sm" c="dimmed" maw={500} mx="auto" fw={500} style={{ fontStyle: "italic" }}>
+            <Title order={2}>Strategic Protocol Pending</Title>
+            <Text size="sm" c="dimmed" maw={500} mx="auto">
               The strategic planning and performance tracking engine is awaiting database synchronization to enable high-fidelity priorities and checkpoints.
             </Text>
           </Stack>

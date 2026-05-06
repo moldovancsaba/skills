@@ -12,24 +12,24 @@ export default function PrivacyPage() {
       <Stack gap={60}>
         <Box>
           <Group gap="sm" mb="xs">
-            <ThemeIcon variant="light" color="indigo" size="lg" radius="md">
+            <ThemeIcon color="indigo">
               <Shield size={20} />
             </ThemeIcon>
-            <Title order={1} fw={900} lts={-1}>Privacy Policy</Title>
+            <Title order={1}>Privacy Policy</Title>
           </Group>
-          <Text size="xs" fw={800} tt="uppercase" lts={2} c="dimmed" ml={rem(44)}>
+          <Text size="xs" c="dimmed" ml={rem(44)}>
             PROTOCOL v0.15.2 • LAST SYNC: MAY 2025
           </Text>
         </Box>
 
         <Stack gap={40}>
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="gray" size="xl">
+            <ThemeIcon variant="subtle" color="gray">
               <Database size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Data Collection</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4}>Data Collection</Title>
+              <Text size="sm" c="dimmed">
                 We harvest company information, product details, customer data, and competitor 
                 intelligence that you voluntarily provision. We also collect usage data to calibrate 
                 the autonomous intelligence layer.
@@ -40,12 +40,12 @@ export default function PrivacyPage() {
           <Divider variant="dashed" />
 
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="gray" size="xl">
+            <ThemeIcon variant="subtle" color="gray">
               <Lock size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Processing Architecture</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4}>Processing Architecture</Title>
+              <Text size="sm" c="dimmed">
                 Your data is used to synthesize marketing recommendations (Strategic Actions) 
                 tailored to your business. All primary AI processing is performed using 
                 high-integrity local inference - no data is leaked to external public AI services.
@@ -56,12 +56,12 @@ export default function PrivacyPage() {
           <Divider variant="dashed" />
 
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="gray" size="xl">
+            <ThemeIcon variant="subtle" color="gray">
               <Database size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Data Storage</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4}>Data Storage</Title>
+              <Text size="sm" c="dimmed">
                 Intelligence is stored in secure MongoDB Atlas clusters. Local synchronization 
                 runs on hardened infrastructure for AI processing. We implement industrial-grade security measures to protect the memory engine.
               </Text>
@@ -71,12 +71,12 @@ export default function PrivacyPage() {
           <Divider variant="dashed" />
 
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="gray" size="xl">
+            <ThemeIcon variant="subtle" color="gray">
               <Eye size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Your Rights</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4}>Your Rights</Title>
+              <Text size="sm" c="dimmed">
                 You may request complete purging of your data at any time. Contact us to exercise 
                 your data subject access requests through the sovereign intelligence gateway.
               </Text>
@@ -86,12 +86,12 @@ export default function PrivacyPage() {
           <Divider variant="dashed" />
 
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="gray" size="xl">
+            <ThemeIcon variant="subtle" color="gray">
               <Mail size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" fw={900} mb={4} tt="uppercase" lts={1}>Contact</Title>
-              <Text size="sm" c="dimmed" style={{ lineHeight: 1.7 }} fw={500}>
+              <Title order={2} size="h4" mb={4}>Contact</Title>
+              <Text size="sm" c="dimmed">
                 For privacy questions, contact the system administrators through the app dashboard.
               </Text>
             </Box>

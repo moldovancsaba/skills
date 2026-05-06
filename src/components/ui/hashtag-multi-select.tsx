@@ -216,7 +216,7 @@ export function HashtagMultiSelect({
                       })}
                     >
                       <Group gap="xs">
-                        <ThemeIcon variant="light" color="brand" size="sm" radius="xl">
+                        <ThemeIcon variant="light" color="brand" size="sm" >
                           <Plus size={14} />
                         </ThemeIcon>
                         <Text c="brand">

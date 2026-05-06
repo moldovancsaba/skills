@@ -135,10 +135,10 @@ export function TaskReviewCard({
         supporting={
           <Group justify="space-between" wrap="nowrap" style={{ width: '100%' }}>
             <Group gap={7}>
-              <Badge variant="outline" color="gray" size="xs" radius="sm" fw={800}>{item.processingStatus}</Badge>
-              <Badge variant="filled" color="execution" size="xs" radius="sm" fw={900}>TASK</Badge>
+              <Badge color="gray">{item.processingStatus}</Badge>
+              <Badge color="execution">TASK</Badge>
             </Group>
-            <Badge color={iceColor} variant="light" size="sm" radius="sm" fw={900}>ICE {Math.round(item.iceScore)}</Badge>
+            <Badge color={iceColor}>ICE {Math.round(item.iceScore)}</Badge>
           </Group>
         }
         title={stripTechnicalMetadata(item.title)}
@@ -167,7 +167,7 @@ export function TaskReviewCard({
           >
             <Group gap="xs" wrap="nowrap" align="flex-start">
               <MessageSquare size={14} style={{ marginTop: rem(2), opacity: 0.7 }} />
-              <Text size="xs" c="dimmed" fw={500}>{item.userAnnotation}</Text>
+              <Text size="xs" c="dimmed">{item.userAnnotation}</Text>
             </Group>
           </Box>
         )}
@@ -219,14 +219,14 @@ export function TaskReviewCard({
         {isActionOpen && actionMode && (
           <UnifiedCardSection>
             <Stack gap="sm">
-              <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">
+              <Text size="xs" c="dimmed">
                 {actionMode === "DECLINE" ? "Decline Task" : actionMode === "MODIFY_ACCEPT" ? "Modify & Accept" : actionMode === "DELIVER" ? "Mark Delivered" : "Accept Task"}
               </Text>
 
               {actionMode === "MODIFY_ACCEPT" && (
                 <Stack gap="sm">
-                  <TextInput label="Title" value={draftTitle} onChange={(e) => onDraftTitleChange(e.target.value)} size="xs" radius="md" />
-                  <Textarea label="Description" value={draftDescription} onChange={(e) => onDraftDescriptionChange(e.target.value)} autosize minRows={2} size="xs" radius="md" />
+                  <TextInput label="Title" value={draftTitle} onChange={(e) => onDraftTitleChange(e.target.value)} size="xs" />
+                  <Textarea label="Description" value={draftDescription} onChange={(e) => onDraftDescriptionChange(e.target.value)} autosize minRows={2} size="xs" />
                 </Stack>
               )}
 
@@ -238,7 +238,6 @@ export function TaskReviewCard({
                   value={declineClass}
                   onChange={(val) => onDeclineClassChange(val || "WRONG")}
                   size="xs"
-                  radius="md"
                   allowDeselect={false}
                 />
               )}
@@ -249,7 +248,6 @@ export function TaskReviewCard({
                 onChange={(e) => onAnnotationChange(e.target.value)}
                 placeholder="Provide context for system calibration..."
                 size="xs"
-                radius="md"
                 autosize
                 minRows={2}
               />
@@ -273,7 +271,7 @@ export function TaskReviewCard({
 
       <UnifiedCardFooter>
         <Stack gap="xs">
-          <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Intelligence controls</Text>
+          <Text size="xs" c="dimmed">Intelligence controls</Text>
           <Group gap={6}>
             <Tooltip label="Pin relevant evidence">
               <Button size="compact-xs" variant="subtle" color="gray" leftSection={<Pin size={12} />}>Pin</Button>
@@ -291,7 +289,6 @@ export function TaskReviewCard({
                 size="compact-xs"
                 variant="subtle"
                 color="orange"
-                radius="xl"
                 data={[
                   { value: "IDEABANK", label: "Idea Bank" },
                   { value: "ROADMAP", label: "Roadmap" },
@@ -299,7 +296,6 @@ export function TaskReviewCard({
                   { value: "TODO", label: "Next" },
                 ]}
                 onChange={(val) => val && onPostpone(item.id, val)}
-                styles={{ input: { width: rem(100), fontSize: '10px', fontWeight: 800 } }}
               />
             )}
 

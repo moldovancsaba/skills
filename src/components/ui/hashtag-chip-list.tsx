@@ -52,7 +52,7 @@ export function HashtagChipList({
                 variant="subtle" 
                 color="red" 
                 onClick={() => onRemove(tag)}
-                radius="xl"
+                
               >
                 <X size={10} />
               </ActionIcon>

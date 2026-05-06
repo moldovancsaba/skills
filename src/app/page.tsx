@@ -7,8 +7,8 @@ export default function Home() {
     <Suspense fallback={
       <Center h="100vh">
         <Stack align="center" gap="md">
-          <Loader size="xl" variant="bars" color="brand" />
-          <Text size="sm" fw={700} c="dimmed">Hardening OS Infrastructure...</Text>
+          <Loader color="brand" />
+          <Text size="sm" c="dimmed">Hardening OS Infrastructure...</Text>
         </Stack>
       </Center>
     }>

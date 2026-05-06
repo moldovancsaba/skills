@@ -15,7 +15,8 @@ import {
   Progress,
   Tooltip,
   Center,
-  Loader
+  Loader,
+  Title
 } from "@mantine/core";
 import { formatDistanceToNow } from 'date-fns';
 
@@ -82,14 +83,14 @@ export function IntelligencePulse() {
 
   if (!data || data.status === "OFFLINE") {
     return (
-      <Card radius="lg" withBorder style={{ backgroundColor: 'rgba(250, 82, 82, 0.05)', borderColor: 'rgba(250, 82, 82, 0.2)' }}>
+      <Card>
         <Group gap="md" wrap="nowrap">
-          <ThemeIcon color="red" variant="light" size="xl" radius="md">
+          <ThemeIcon color="red" variant="light">
             <AlertTriangle size={24} />
           </ThemeIcon>
           <Stack gap={2}>
-            <Text fw={900} size="sm" c="red" tt="uppercase" lts={1}>Intelligence Engine Offline</Text>
-            <Text size="xs" c="dimmed" fw={500}>The background worker is not responding. Strategic synthesis is currently paused.</Text>
+            <Title order={4} c="red">Intelligence Engine Offline</Title>
+            <Text size="xs" c="dimmed">The background worker is not responding. Strategic synthesis is currently paused.</Text>
           </Stack>
         </Group>
       </Card>
@@ -104,36 +105,36 @@ export function IntelligencePulse() {
   return (
     <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
       {/* Real-time Status */}
-      <Card radius="lg" withBorder p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
+      <Card p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
         <Stack gap="md">
           <Group justify="space-between">
             <Group gap="xs">
               <ThemeIcon variant="transparent" color="orange" size="sm">
                 <Zap size={14} />
               </ThemeIcon>
-              <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed">Engine Pulse</Text>
+              <Text size="xs" c="dimmed">Engine Pulse</Text>
             </Group>
-            <Badge variant="dot" color={statusColor} size="xs" fw={900}>LIVE</Badge>
+            <Badge variant="dot" color={statusColor} size="xs">LIVE</Badge>
           </Group>
 
           <Stack gap="sm">
             <Box>
               <Group justify="space-between" mb={2}>
-                <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Active Context</Text>
-                <Text size="xs" ff="monospace" c="dimmed" truncate maw={120}>
+                <Text size="xs" c="dimmed">Active Context</Text>
+                <Text size="xs" c="dimmed" truncate maw={120}>
                   {data.activeModel || data.settings?.failsafeModel?.split('|')[0]?.split(':')[1]?.trim() || "TRINITY-V1"}
                 </Text>
               </Group>
-              <Text size="sm" fw={800} c="white" truncate>{data.currentCompany || "Idle Rotation"}</Text>
-              <Text size="xs" c="dimmed" fs="italic" truncate mt={2}>
+              <Text size="sm" c="white" truncate>{data.currentCompany || "Idle Rotation"}</Text>
+              <Text size="xs" c="dimmed" truncate mt={2}>
                 {data.activeTask || "Scanning for signal..."}
               </Text>
             </Box>
             
             <Box>
               <Group justify="space-between" mb={4}>
-                <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Workflow Stage</Text>
-                <Text size="xs" fw={900} c="green" tt="uppercase">{data.stage || "IDLE"}</Text>
+                <Text size="xs" c="dimmed">Workflow Stage</Text>
+                <Text size="xs" c="green">{data.stage || "IDLE"}</Text>
               </Group>
               <Group gap={4} grow>
                 {['RESEARCH', 'SCRUB', 'WRITE', 'JUDGE'].map((s) => {
@@ -145,7 +146,6 @@ export function IntelligencePulse() {
                       style={{ 
                         borderRadius: rem(2),
                         backgroundColor: isActive ? 'var(--mantine-color-orange-filled)' : 'var(--mantine-color-dark-4)',
-                        boxShadow: isActive ? '0 0 8px rgba(245,158,11,0.4)' : 'none',
                         transition: 'all 0.3s ease'
                       }} 
                     />
@@ -158,37 +158,36 @@ export function IntelligencePulse() {
       </Card>
 
       {/* Throughput Yield */}
-      <Card radius="lg" withBorder p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
+      <Card p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
         <Stack gap="md">
           <Group gap="xs">
             <ThemeIcon variant="transparent" color="blue" size="sm">
               <Cpu size={14} />
             </ThemeIcon>
-            <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed">Throughput Yield</Text>
+            <Text size="xs" c="dimmed">Throughput Yield</Text>
           </Group>
 
           <Stack gap="sm">
             <Group justify="space-between">
-              <Text size="xs" fw={700} c="dimmed">Cycle Operations</Text>
-              <Text size="sm" ff="monospace" fw={900}>{data.metrics.total_operations}</Text>
+              <Text size="xs" c="dimmed">Cycle Operations</Text>
+              <Text size="sm">{data.metrics.total_operations}</Text>
             </Group>
             
             <Box>
               <Group justify="space-between" mb={4}>
-                <Text size="xs" fw={700} c="dimmed">Backlog Volume</Text>
-                <Text size="xs" ff="monospace" fw={900}>{data.metrics.backlog.draft_cards + data.metrics.backlog.checked_cards}</Text>
+                <Text size="xs" c="dimmed">Backlog Volume</Text>
+                <Text size="xs">{data.metrics.backlog.draft_cards + data.metrics.backlog.checked_cards}</Text>
               </Group>
               <Progress 
                 value={Math.min(100, ((data.metrics.backlog.draft_cards + data.metrics.backlog.checked_cards) / 50) * 100)} 
                 size="xs" 
                 color="blue" 
-                radius="xl"
               />
             </Box>
 
             <Group justify="space-between" mt="auto">
-              <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Last Sync</Text>
-              <Text size="xs" ff="monospace" c="dimmed">
+              <Text size="xs" c="dimmed">Last Sync</Text>
+              <Text size="xs" c="dimmed">
                 {data.timestamp ? formatDistanceToNow(new Date(data.timestamp), { addSuffix: true }) : 'N/A'}
               </Text>
             </Group>
@@ -197,13 +196,13 @@ export function IntelligencePulse() {
       </Card>
 
       {/* Recent Performance */}
-      <Card radius="lg" withBorder p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
+      <Card p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
         <Stack gap="md" h="100%">
           <Group gap="xs">
             <ThemeIcon variant="transparent" color="violet" size="sm">
               <History size={14} />
             </ThemeIcon>
-            <Text size="xs" fw={900} tt="uppercase" lts={1.5} c="dimmed">Performance History</Text>
+            <Text size="xs" c="dimmed">Performance History</Text>
           </Group>
 
           {data.metrics.cycleHistory && data.metrics.cycleHistory.length > 0 ? (
@@ -243,10 +242,10 @@ export function IntelligencePulse() {
           )}
 
           <Group justify="space-between" mt="auto">
-            <Text size="xs" fw={900} tt="uppercase" lts={1} c="dimmed">Last 10 Cycles</Text>
+            <Text size="xs" c="dimmed">Last 10 Cycles</Text>
             <Group gap={6}>
               <Box h={6} w={6} style={{ borderRadius: '50%', backgroundColor: 'var(--mantine-color-green-filled)' }} />
-              <Text size="xs" fw={800} c="dimmed" tt="uppercase" lts={0.5}>Success</Text>
+              <Text size="xs" c="dimmed">Success</Text>
             </Group>
           </Group>
         </Stack>

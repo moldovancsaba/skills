@@ -496,7 +496,7 @@ export default function CompanyKnowMorePage() {
             <Center h={rem(400)}>
              <Card style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
               <Stack align="center" gap="xl">
-                <ThemeIcon color="gray" size={64} radius="xl">
+                <ThemeIcon color="gray" size={64} >
                   <Brain size={32} />
                 </ThemeIcon>
                 <Stack gap="xs">

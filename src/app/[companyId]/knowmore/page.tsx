@@ -180,9 +180,9 @@ export default function CompanyKnowMorePage() {
     setErrorMessage(null);
 
     try {
-      const companies = await fetchJson<Company[]>("/api/companies");
-      const found = companies.find((item) => item.id === cid);
-      if (!found) {
+      const dashboard = await fetchJson<{ company: Company | null }>(`/api/companies/${encodeURIComponent(cid)}/dashboard`);
+      const found = dashboard.company;
+      if (!found?.id) {
         router.push("/");
         return;
       }

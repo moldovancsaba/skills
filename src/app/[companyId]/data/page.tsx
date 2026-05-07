@@ -152,11 +152,17 @@ export default function CompanyDataPage() {
 
     const loadCompany = async (cid: string) => {
       try {
-        const companies = await fetch(`/api/companies`).then((res) => res.json());
-        if (!Array.isArray(companies)) return;
-        
-        const found = companies.find((c: any) => c.id === cid);
-        if (!found) {
+        const dashboardRes = await fetch(`/api/companies/${cid}/dashboard`);
+        if (!dashboardRes.ok) {
+          if (dashboardRes.status === 404 || dashboardRes.status === 403) {
+            router.push("/");
+          }
+          return;
+        }
+
+        const dashboard = await dashboardRes.json();
+        const found = dashboard?.company;
+        if (!found?.id) {
           router.push("/");
           return;
         }

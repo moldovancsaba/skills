@@ -1,22 +1,24 @@
 'use client';
 
-import { 
-  Center, 
-  Box, 
-  Stack, 
-  Title, 
-  Text, 
-  Button, 
+import {
+  Center,
+  Box,
+  Stack,
+  Title,
+  Text,
+  Button,
   Container,
   rem,
   Anchor,
   Group,
-  Card
+  Card,
+  Loader,
 } from "@mantine/core";
 import Link from "next/link";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/ui/app-shell";
 
-// High-integrity Google Icon wrapper
 const GoogleIcon = () => (
   <Box component="svg" w={20} h={20} viewBox="0 0 24 24">
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -26,14 +28,17 @@ const GoogleIcon = () => (
   </Box>
 );
 
-export default function LoginPage() {
+function LoginContent() {
+  const searchParams = useSearchParams();
+
   const handleLogin = () => {
-    window.location.href = "/api/auth/login?returnTo=/";
+    const returnTo = searchParams.get("returnTo") || "/";
+    window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
   };
 
   return (
     <PageShell width="xl">
-      <Center style={{ minHeight: 'calc(100vh - 200px)' }}>
+      <Center style={{ minHeight: "calc(100vh - 200px)" }}>
         <Container size="xs" w="100%">
           <Stack gap="xl">
             <Box ta="center">
@@ -80,5 +85,13 @@ export default function LoginPage() {
         </Container>
       </Center>
     </PageShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<Center h="100vh"><Loader color="brand" /></Center>}>
+      <LoginContent />
+    </Suspense>
   );
 }

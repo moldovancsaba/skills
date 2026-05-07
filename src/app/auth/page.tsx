@@ -33,6 +33,7 @@ function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const authError = searchParams.get("authError");
+  const returnTo = searchParams.get("returnTo") || "/";
   const [loading, setLoading] = useState(!authError);
 
   useEffect(() => {
@@ -51,8 +52,7 @@ function AuthContent() {
   }, [authError, router]);
 
   const handleLogin = () => {
-    const returnTo = encodeURIComponent("/");
-    window.location.href = `/api/auth/login?returnTo=${returnTo}`;
+    window.location.href = `/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
   };
 
   if (loading) {

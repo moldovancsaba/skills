@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
+import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
 import { verifyMembership } from "@/lib/permissions";
 
 function normalizeTopicLabel(value: unknown) {
@@ -56,6 +57,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await recordInteractionEventFromRequest(request, {
+      companyId,
+      surface: "topics",
+      interactionType: "TOPIC_CREATE",
+      entityType: "TOPIC",
+      entityId: created.id,
+      afterState: {
+        label: created.label,
+        active: created.active,
+        sortOrder: created.sortOrder,
+      },
+      teachingWeight: 75,
+    });
+
     return NextResponse.json(created);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -88,6 +103,32 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
+    await recordInteractionEventFromRequest(request, {
+      companyId: existing.companyId,
+      surface: "topics",
+      interactionType:
+        data.active !== undefined
+          ? "TOPIC_TOGGLE_ACTIVE"
+          : data.sortOrder !== undefined
+            ? "TOPIC_DRAG_REORDER"
+            : "TOPIC_EDIT",
+      entityType: "TOPIC",
+      entityId: existing.id,
+      beforeState: {
+        label: existing.label,
+        active: existing.active,
+        sortOrder: existing.sortOrder,
+        notes: existing.notes,
+      },
+      afterState: {
+        label: updated.label,
+        active: updated.active,
+        sortOrder: updated.sortOrder,
+        notes: updated.notes,
+      },
+      teachingWeight: data.active !== undefined ? 80 : data.sortOrder !== undefined ? 70 : 40,
+    });
+
     return NextResponse.json(updated);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -108,6 +149,16 @@ export async function DELETE(request: NextRequest) {
 
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
+
+    await recordInteractionEventFromRequest(request, {
+      companyId: existing.companyId,
+      surface: "topics",
+      interactionType: "TOPIC_ARCHIVE",
+      entityType: "TOPIC",
+      entityId: existing.id,
+      beforeState: existing,
+      teachingWeight: 65,
+    });
 
     await prisma.topic.delete({ where: { id } });
     return NextResponse.json({ success: true });

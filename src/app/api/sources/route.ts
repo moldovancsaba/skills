@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
+import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
 import { normalizeHashtagList } from "@/lib/hashtags";
 import { verifyMembership } from "@/lib/permissions";
 import {
@@ -64,6 +65,22 @@ export async function POST(request: NextRequest) {
       });
     }, TRANSACTION_SETTINGS);
 
+    await recordInteractionEventFromRequest(request, {
+      companyId,
+      surface: "data-ingress",
+      interactionType: "INGRESS_TEXT_CAPTURE",
+      entityType: "SOURCE",
+      entityId: created.id,
+      afterState: {
+        intelligenceType: created.intelligenceType,
+        hashtags: created.hashtags,
+      },
+      payload: {
+        entityTag: created.entityTag,
+      },
+      teachingWeight: 30,
+    });
+
     return NextResponse.json(created);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -96,6 +113,25 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
+    await recordInteractionEventFromRequest(request, {
+      companyId: existing.companyId,
+      surface: "datacard",
+      interactionType: "DATACARD_EDIT",
+      entityType: "SOURCE",
+      entityId: existing.id,
+      beforeState: {
+        content: existing.content,
+        hashtags: existing.hashtags,
+        intelligenceType: existing.intelligenceType,
+      },
+      afterState: {
+        content: updated.content,
+        hashtags: updated.hashtags,
+        intelligenceType: updated.intelligenceType,
+      },
+      teachingWeight: 40,
+    });
+
     return NextResponse.json(updated);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -114,6 +150,15 @@ export async function DELETE(request: NextRequest) {
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
+    await recordInteractionEventFromRequest(request, {
+      companyId: existing.companyId,
+      surface: "datacard",
+      interactionType: "DATACARD_DELETE",
+      entityType: "SOURCE",
+      entityId: id,
+      beforeState: existing,
+      teachingWeight: 35,
+    });
     await prisma.source.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

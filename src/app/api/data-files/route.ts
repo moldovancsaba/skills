@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
+import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
 import { verifyMembership } from "@/lib/permissions";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
 import {
@@ -122,6 +123,22 @@ export async function POST(request: NextRequest) {
       return results;
     }, TRANSACTION_SETTINGS);
 
+    for (const file of created) {
+      await recordInteractionEventFromRequest(request, {
+        companyId,
+        surface: "data-ingress",
+        interactionType: "INGRESS_FILE_UPLOAD",
+        entityType: "FILE",
+        entityId: file.id,
+        afterState: {
+          name: file.name,
+          hashtags: file.hashtags,
+          sizeBytes: file.sizeBytes,
+        },
+        teachingWeight: 30,
+      });
+    }
+
     return NextResponse.json(created);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -160,6 +177,21 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
+    await recordInteractionEventFromRequest(request, {
+      companyId: existing.companyId,
+      surface: "datacard",
+      interactionType: "DATACARD_EDIT",
+      entityType: "FILE",
+      entityId: existing.id,
+      beforeState: {
+        name: existing.name,
+        hashtags: existing.hashtags,
+        entityTag: existing.entityTag,
+      },
+      afterState: file,
+      teachingWeight: 40,
+    });
+
     return NextResponse.json(file);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -181,6 +213,20 @@ export async function DELETE(request: NextRequest) {
 
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
+
+    await recordInteractionEventFromRequest(request, {
+      companyId: existing.companyId,
+      surface: "datacard",
+      interactionType: "DATACARD_DELETE",
+      entityType: "FILE",
+      entityId: existing.id,
+      beforeState: {
+        name: existing.name,
+        hashtags: existing.hashtags,
+        sizeBytes: existing.sizeBytes,
+      },
+      teachingWeight: 35,
+    });
 
     await prisma.uploadedSourceFile.delete({ where: { id } });
     return NextResponse.json({ success: true });

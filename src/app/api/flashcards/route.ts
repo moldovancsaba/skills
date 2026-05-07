@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { prisma } from "@/lib/db";
 import { listCompanyFlashcards } from "@/lib/flashcards";
 import { verifyMembership } from "@/lib/permissions";
@@ -67,6 +68,66 @@ export async function PATCH(request: NextRequest) {
         updatedAt: new Date(),
       },
     });
+
+    await recordInteractionEventFromRequest(request, {
+      companyId: existing.companyId,
+      surface: "knowmore",
+      interactionType: "KNOWLEDGE_EDIT",
+      entityType: "FLASHCARD",
+      entityId: existing.id,
+      beforeState: {
+        title: existing.title,
+        body: existing.body,
+        impact: existing.impact,
+        confidenceScore: existing.confidenceScore,
+        weight: existing.weight,
+        processingStatus: existing.processingStatus,
+      },
+      afterState: {
+        title: updated.title,
+        body: updated.body,
+        impact: updated.impact,
+        confidenceScore: updated.confidenceScore,
+        weight: updated.weight,
+        processingStatus: updated.processingStatus,
+      },
+      teachingWeight: 100,
+    });
+
+    await recordDecisionEvent({
+      companyId: existing.companyId,
+      decisionMaker: "human-review",
+      decisionType: "FLASHCARD_SCORE_OVERRIDE",
+      entityType: "FLASHCARD",
+      entityId: existing.id,
+      beforeState: {
+        iceScore: existing.iceScore,
+        impact: existing.impact,
+        confidenceScore: existing.confidenceScore,
+        weight: existing.weight,
+      },
+      afterState: {
+        iceScore: updated.iceScore,
+        impact: updated.impact,
+        confidenceScore: updated.confidenceScore,
+        weight: updated.weight,
+      },
+      teachingWeight: 90,
+    });
+
+    if (updated.processingStatus !== existing.processingStatus) {
+      await recordOutcomeEvent({
+        companyId: existing.companyId,
+        actorType: "USER",
+        entityType: "FLASHCARD",
+        entityId: existing.id,
+        outcomeType: updated.processingStatus,
+        outcomeValue: updated.processingStatus,
+        beforeState: { processingStatus: existing.processingStatus },
+        afterState: { processingStatus: updated.processingStatus },
+        teachingWeight: updated.processingStatus === "CHECKED" ? 90 : 60,
+      });
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

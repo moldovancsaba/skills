@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
+import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,13 @@ export async function PATCH(
 
   try {
     const data = await request.json();
+    const existing = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        id: true,
+        allowedLanguages: true,
+      },
+    });
     
     // Validate allowedLanguages is an array of strings
     if (data.allowedLanguages && (!Array.isArray(data.allowedLanguages) || !data.allowedLanguages.every((l: unknown) => typeof l === 'string'))) {
@@ -55,6 +63,41 @@ export async function PATCH(
       data: {
         allowedLanguages: data.allowedLanguages,
       },
+    });
+
+    await recordInteractionEventFromRequest(request, {
+      companyId,
+      surface: "settings-company",
+      interactionType: "ALLOWED_LANGUAGES_UPDATE",
+      entityType: "COMPANY",
+      entityId: updated.id,
+      beforeState: {
+        allowedLanguages: existing?.allowedLanguages ?? [],
+      },
+      afterState: {
+        allowedLanguages: updated.allowedLanguages,
+      },
+      payload: {
+        previousCount: existing?.allowedLanguages?.length ?? 0,
+        nextCount: updated.allowedLanguages.length,
+      },
+      teachingWeight: 95,
+    });
+
+    await recordOutcomeEvent({
+      companyId,
+      actorType: "HUMAN",
+      entityType: "COMPANY",
+      entityId: updated.id,
+      outcomeType: "LANGUAGE_POLICY_CHANGED",
+      outcomeValue: updated.allowedLanguages.join(", "),
+      beforeState: {
+        allowedLanguages: existing?.allowedLanguages ?? [],
+      },
+      afterState: {
+        allowedLanguages: updated.allowedLanguages,
+      },
+      teachingWeight: 95,
     });
 
     return NextResponse.json(updated);

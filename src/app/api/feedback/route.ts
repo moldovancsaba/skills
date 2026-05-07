@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { verifyMembership } from "@/lib/permissions";
 
 /**
@@ -61,6 +62,46 @@ export async function POST(request: NextRequest) {
         declineClass,
         processedByAI: false
       },
+    });
+
+    await recordInteractionEventFromRequest(request, {
+      companyId,
+      surface: entityType === "TASK" ? "checklist" : entityType === "GOAL" ? "goals" : "knowmore",
+      interactionType:
+        action === "ACCEPT"
+          ? entityType === "TASK" ? "TASK_ACCEPT" : entityType === "GOAL" ? "GOAL_REVIEW_ACCEPT" : "KNOWLEDGE_ACCEPT"
+          : action === "DECLINE"
+            ? entityType === "TASK" ? "TASK_DECLINE" : entityType === "GOAL" ? "GOAL_REVIEW_DECLINE" : "KNOWLEDGE_DECLINE"
+            : action === "MODIFY_ACCEPT"
+              ? entityType === "TASK" ? "TASK_EDIT" : entityType === "GOAL" ? "GOAL_REVIEW_EDIT" : "KNOWLEDGE_EDIT"
+              : action === "DELIVER"
+                ? "TASK_DELIVER"
+                : "FEEDBACK_COMMENT",
+      entityType,
+      entityId,
+      payload: {
+        annotation,
+        modifiedTitle,
+        modifiedDescription,
+        declineClass,
+        action,
+      },
+      teachingWeight: action === "MODIFY_ACCEPT" || action === "DELIVER" ? 100 : action === "ACCEPT" ? 90 : action === "DECLINE" ? 95 : 60,
+    });
+
+    await recordOutcomeEvent({
+      companyId,
+      actorType: "USER",
+      entityType,
+      entityId,
+      outcomeType: action,
+      outcomeValue: declineClass ?? action,
+      annotation,
+      payload: {
+        modifiedTitle,
+        modifiedDescription,
+      },
+      teachingWeight: action === "MODIFY_ACCEPT" || action === "DELIVER" ? 100 : action === "ACCEPT" ? 90 : action === "DECLINE" ? 95 : 60,
     });
     
     return NextResponse.json(feedback);

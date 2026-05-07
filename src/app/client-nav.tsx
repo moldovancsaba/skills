@@ -26,6 +26,7 @@ import { usePathname, useRouter, useParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
 import { APP_VERSION } from "@/lib/release";
+import { logClientInteraction } from "@/lib/client-events";
 
 const pipelineItems = [
   {
@@ -150,6 +151,22 @@ export function ClientNav() {
     window.location.href = "/api/auth/logout?returnTo=/login";
   };
 
+  const activeCompanyId = company?.id || companyIdFromUrl;
+
+  useEffect(() => {
+    if (!activeCompanyId || !pathname || pathname === "/") return;
+
+    void logClientInteraction({
+      companyId: activeCompanyId,
+      surface: "global-navigation",
+      interactionType: "PIPELINE_PAGE_OPEN",
+      entityType: "ROUTE",
+      entityId: pathname,
+      payload: { pathname },
+      teachingWeight: 30,
+    });
+  }, [activeCompanyId, pathname]);
+
   if (pathname === "/login" || pathname === "/auth" || pathname?.startsWith("/auth/")) {
     return null;
   }
@@ -195,7 +212,20 @@ export function ClientNav() {
                       <ChevronRight size={14} strokeOpacity={0.5} />
                     </Group>
                   }
-                  onClick={() => (company?.id || companyIdFromUrl) && router.push(item.href(company?.id || companyIdFromUrl!))}
+                  onClick={() => {
+                    const companyId = company?.id || companyIdFromUrl;
+                    if (!companyId) return;
+                    void logClientInteraction({
+                      companyId,
+                      surface: "global-navigation",
+                      interactionType: "PIPELINE_ROUTE_SELECT",
+                      entityType: "ROUTE",
+                      entityId: item.key,
+                      payload: { href: item.href(companyId), label: item.label },
+                      teachingWeight: 30,
+                    });
+                    router.push(item.href(companyId));
+                  }}
                   active={pathname.includes(item.key)}
                   variant="subtle"
                   color={item.color}
@@ -216,7 +246,20 @@ export function ClientNav() {
         <Divider mb="md" />
         <Stack gap="xs">
           <UnstyledButton
-            onClick={toggle}
+            onClick={() => {
+              if (activeCompanyId) {
+                void logClientInteraction({
+                  companyId: activeCompanyId,
+                  surface: "global-navigation",
+                  interactionType: "THEME_TOGGLE",
+                  entityType: "PREFERENCE",
+                  entityId: "color-scheme",
+                  payload: { nextMode: isDark ? "light" : "dark" },
+                  teachingWeight: 30,
+                });
+              }
+              toggle();
+            }}
             p="xs"
             style={{
               borderRadius: 'var(--mantine-radius-md)',

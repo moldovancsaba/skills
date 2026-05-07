@@ -5,6 +5,8 @@ import {
   listCompanyFlashcardCorrections,
   recordFlashcardCorrection,
 } from "@/lib/flashcards";
+import { verifyMembership } from "@/lib/permissions";
+import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 
 const VALID_CORRECTIONS = new Set<FlashcardCorrectionType>([
   FlashcardCorrectionType.HIDE,
@@ -28,6 +30,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const auth = await verifyMembership(request, companyId);
+    if (auth.error) return auth.error;
     const corrections = await listCompanyFlashcardCorrections(companyId);
     return NextResponse.json(corrections);
   } catch (error) {
@@ -49,6 +53,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid sourceType" }, { status: 400 });
     }
 
+    if (!data.companyId) {
+      return NextResponse.json({ error: "companyId required" }, { status: 400 });
+    }
+
+    const auth = await verifyMembership(request, data.companyId);
+    if (auth.error) return auth.error;
+
     const result = await recordFlashcardCorrection({
       companyId: data.companyId,
       flashcardId: data.flashcardId,
@@ -58,6 +69,47 @@ export async function POST(request: NextRequest) {
       sourceName: data.sourceName,
       correctionType,
       note: data.note,
+    });
+
+    await recordInteractionEventFromRequest(request, {
+      companyId: result.companyId,
+      surface: "knowmore-corrections",
+      interactionType: `KNOWLEDGE_${correctionType}`,
+      entityType: "KNOWLEDGE",
+      entityId: data.flashcardId,
+      payload: {
+        sourceType,
+        sourceId: data.sourceId,
+        sourcePublicId: data.sourcePublicId,
+        sourceName: data.sourceName,
+        note: data.note,
+      },
+      teachingWeight:
+        correctionType === FlashcardCorrectionType.PIN
+          ? 85
+          : correctionType === FlashcardCorrectionType.REQUEST_REFRESH
+            ? 60
+            : 90,
+    });
+
+    await recordOutcomeEvent({
+      companyId: result.companyId,
+      actorType: "HUMAN",
+      entityType: "KNOWLEDGE",
+      entityId: data.flashcardId || data.sourceId,
+      outcomeType: "FLASHCARD_CORRECTION",
+      outcomeValue: correctionType,
+      annotation: data.note,
+      payload: {
+        sourceType,
+        sourceId: data.sourceId,
+      },
+      teachingWeight:
+        correctionType === FlashcardCorrectionType.PIN
+          ? 85
+          : correctionType === FlashcardCorrectionType.REQUEST_REFRESH
+            ? 60
+            : 90,
     });
 
     return NextResponse.json(result);

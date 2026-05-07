@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { normalizeHashtag, normalizeHashtagList } from "@/lib/hashtags";
 import { verifyMembership } from "@/lib/permissions";
+import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 
 function removeTag(values: string[] | null | undefined, tag: string) {
   return normalizeHashtagList(values).filter((item) => item !== tag);
@@ -85,6 +86,37 @@ export async function POST(request: NextRequest) {
         tag: normalizedTag,
         action: HashtagFeedbackAction.USER_REMOVE,
       },
+    });
+
+    await recordInteractionEventFromRequest(request, {
+      companyId: lookup.companyId,
+      surface: "hashtag-controls",
+      interactionType: "HASHTAG_REMOVE",
+      entityType,
+      entityId,
+      beforeState: {
+        hashtags: lookup.hashtags,
+      },
+      afterState: {
+        hashtags: nextHashtags,
+      },
+      payload: {
+        tag: normalizedTag,
+      },
+      teachingWeight: 45,
+    });
+
+    await recordOutcomeEvent({
+      companyId: lookup.companyId,
+      actorType: "HUMAN",
+      entityType,
+      entityId,
+      outcomeType: "HASHTAG_TAXONOMY_CHANGED",
+      outcomeValue: "USER_REMOVE",
+      payload: {
+        tag: normalizedTag,
+      },
+      teachingWeight: 45,
     });
 
     return NextResponse.json({ success: true, hashtags: nextHashtags });

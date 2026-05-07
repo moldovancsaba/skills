@@ -537,6 +537,104 @@ model WorkerReport {
   createdAt DateTime @default(now())
 }
 
+model InteractionEvent {
+  id             String   @id @default(uuid()) @map("_id")
+  companyId      String
+  userId         String?
+  userEmail      String?
+  sessionId      String?
+  surface        String
+  interactionType String
+  entityType     String?
+  entityId       String?
+  beforeState    Json?
+  afterState     Json?
+  payload        Json?
+  teachingWeight Int      @default(30)
+  workerConsumed Boolean  @default(false)
+  consumedAt     DateTime?
+  cycleRunId     String?
+  createdAt      DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, surface, interactionType, createdAt])
+  @@index([companyId, entityType, entityId, createdAt])
+}
+
+model DecisionEvent {
+  id             String   @id @default(uuid()) @map("_id")
+  companyId      String
+  decisionMaker  String
+  decisionType   String
+  entityType     String?
+  entityId       String?
+  sourceEntityIds String[] @default([])
+  beforeState    Json?
+  afterState     Json?
+  payload        Json?
+  rationale      String?
+  alternatives   Json?
+  teachingWeight Int      @default(30)
+  cycleRunId     String?
+  createdAt      DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, decisionMaker, decisionType, createdAt])
+  @@index([companyId, entityType, entityId, createdAt])
+}
+
+model GenerationEvent {
+  id              String   @id @default(uuid()) @map("_id")
+  companyId       String
+  entityType      String
+  entityId        String?
+  sourceEntityIds String[] @default([])
+  promptName      String?
+  promptVersion   String?
+  promptHash      String?
+  modelName       String?
+  modelVersion    String?
+  temperature     Float?
+  inputSummary    String?
+  generatedTitle  String?
+  generatedBody   String?
+  variantIndex    Int?
+  selected        Boolean  @default(false)
+  payload         Json?
+  teachingWeight  Int      @default(30)
+  cycleRunId      String?
+  createdAt       DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, entityType, entityId, createdAt])
+  @@index([companyId, modelName, createdAt])
+}
+
+model OutcomeEvent {
+  id               String   @id @default(uuid()) @map("_id")
+  companyId        String
+  actorType        String
+  actorId          String?
+  actorEmail       String?
+  entityType       String
+  entityId         String
+  outcomeType      String
+  outcomeValue     String?
+  annotation       String?
+  beforeState      Json?
+  afterState       Json?
+  linkedDecisionId String?
+  linkedInteractionId String?
+  payload          Json?
+  teachingWeight   Int      @default(30)
+  cycleRunId       String?
+  createdAt        DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, entityType, entityId, createdAt])
+  @@index([companyId, outcomeType, createdAt])
+}
+
 model CommunicationSettings {
   id               String      @id @default(uuid()) @map("_id")
   companyId        String      @unique
@@ -895,4 +993,3 @@ model MemoryEntry {
   @@index([companyId, topicHint, active])
   @@index([companyId, itemFamilyId, active])
 }
-

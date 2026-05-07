@@ -17,6 +17,7 @@
  *   ICE thresholds and force the candidate to the CHECKLIST/TODO horizons.
  */
 const { CandidateState } = require("./lifecycle");
+const { recordDecisionEvent, recordOutcomeEvent } = require("./audit-ledger");
 
 // ---------------------------------------------------------------------------
 // 1. Configuration
@@ -242,6 +243,38 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
 
   console.log(`[KANBAN] ${company.name}: Orchestrating ${deduplicated.length} items across 5 columns.`);
 
+  for (const [rank, item] of deduplicated.entries()) {
+    const targetColumn = columnMap.find((group) => group.items.some((candidate) => candidate.id === item.id))?.column || item.kanbanColumn || "IDEABANK";
+    await recordDecisionEvent(prisma, {
+      companyId,
+      decisionMaker: "frontier-orchestrator",
+      decisionType: "KANBAN_COLUMN_ASSIGNMENT",
+      entityType: "TASK",
+      entityId: item.id,
+      beforeState: {
+        kanbanColumn: item.kanbanColumn,
+        sortOrder: item.sortOrder,
+        iceScore: item.iceScore,
+        candidateState: item.candidateState,
+      },
+      afterState: {
+        kanbanColumn: targetColumn,
+        frontierRank: rank + 1,
+      },
+      payload: {
+        frontierScore: item._frontierScore,
+        checklistThreshold: 700,
+        todoThreshold: 500,
+        backlogThreshold: 250,
+        roadmapThreshold: 100,
+        manualPriority: item.sortOrder < 0,
+      },
+      rationale: item.sortOrder < 0 ? "User-prioritized hard anchor respected during frontier recompute" : "Column assigned by ICE threshold and frontier score",
+      teachingWeight: targetColumn === "CHECKLIST" ? 80 : 60,
+      cycleRunId,
+    });
+  }
+
   // 7. Persist Column State
   for (const group of columnMap) {
     if (group.items.length === 0) continue;
@@ -257,6 +290,32 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
         cycleRunId: cycleRunId || undefined
       }
     });
+
+    for (const item of group.items) {
+      if (item.kanbanColumn !== group.column) {
+        await recordOutcomeEvent(prisma, {
+          companyId,
+          actorType: "AI",
+          actorId: "frontier-orchestrator",
+          entityType: "TASK",
+          entityId: item.id,
+          outcomeType: "KANBAN_REASSIGNMENT",
+          outcomeValue: group.column,
+          beforeState: {
+            kanbanColumn: item.kanbanColumn,
+          },
+          afterState: {
+            kanbanColumn: group.column,
+            scheduledDate: group.column === "CHECKLIST" ? new Date() : null,
+          },
+          payload: {
+            frontierScore: item._frontierScore,
+          },
+          teachingWeight: group.column === "CHECKLIST" ? 80 : 60,
+          cycleRunId,
+        });
+      }
+    }
 
     // Handle sortOrder for manual overrides - only reset if it was 0
     // We don't want to wipe the user's "hard feedback"

@@ -5,6 +5,7 @@ import { verifyMembership } from "@/lib/permissions";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
 import { ensurechecklistPublicIds, nextchecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
+import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -80,6 +81,25 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date(),
       },
     });
+
+    await recordInteractionEventFromRequest(request, {
+      companyId: data.companyId,
+      surface: "task-ingress",
+      interactionType: "TASK_CREATE",
+      entityType: "TASK",
+      entityId: item.id,
+      afterState: {
+        title: item.title,
+        processingStatus: item.processingStatus,
+        activityState: item.activityState,
+        kanbanColumn: item.kanbanColumn,
+      },
+      payload: {
+        scheduledDate: item.scheduledDate,
+        createdBy: item.createdBy,
+      },
+      teachingWeight: 40,
+    });
     
     return NextResponse.json(item);
   } catch (error) {
@@ -114,6 +134,13 @@ export async function PATCH(request: NextRequest) {
           ? calculateICEScore(metricInput)
           : existing.iceScore;
 
+    const nextProcessingStatus = data.processingStatus ?? existing.processingStatus;
+    const nextActivityState = data.activityState ?? existing.activityState;
+    const nextKanbanColumn = data.kanbanColumn ?? existing.kanbanColumn;
+    const nextCandidateState = data.candidateState ?? existing.candidateState;
+    const nextScheduledDate =
+      data.scheduledDate !== undefined ? (data.scheduledDate ? new Date(data.scheduledDate) : null) : existing.scheduledDate;
+
     const updated = await prisma.nBAItem.update({
       where: { id },
       data: {
@@ -124,19 +151,124 @@ export async function PATCH(request: NextRequest) {
         confidenceScore: hasMetricOverride ? metricInput.confidence : existing.confidenceScore,
         ease: hasMetricOverride ? metricInput.ease : existing.ease,
         iceScore: nextIceScore,
-        processingStatus: data.processingStatus ?? existing.processingStatus,
-        activityState: data.activityState ?? existing.activityState,
-        kanbanColumn: data.kanbanColumn ?? existing.kanbanColumn,
+        processingStatus: nextProcessingStatus,
+        activityState: nextActivityState,
+        kanbanColumn: nextKanbanColumn,
         sortOrder: data.sortOrder ?? existing.sortOrder,
-        candidateState: data.candidateState ?? existing.candidateState,
+        candidateState: nextCandidateState,
         qualityScore: data.qualityScore !== undefined ? data.qualityScore : existing.qualityScore,
         urgencyScore: data.urgencyScore !== undefined ? data.urgencyScore : existing.urgencyScore,
         freshnessScore: data.freshnessScore !== undefined ? data.freshnessScore : existing.freshnessScore,
         evaluationReason: data.evaluationReason ?? existing.evaluationReason,
-        scheduledDate: data.scheduledDate !== undefined ? (data.scheduledDate ? new Date(data.scheduledDate) : null) : existing.scheduledDate,
+        scheduledDate: nextScheduledDate,
         updatedAt: new Date(),
       },
     });
+
+    const patchType =
+      nextKanbanColumn !== existing.kanbanColumn
+        ? "TASK_MOVE_COLUMN"
+        : hasMetricOverride || data.iceScore !== undefined
+          ? "TASK_SCORE_OVERRIDE"
+          : nextProcessingStatus !== existing.processingStatus || nextActivityState !== existing.activityState
+            ? "TASK_STATUS_OVERRIDE"
+            : "TASK_EDIT";
+
+    await recordInteractionEventFromRequest(request, {
+      companyId: existing.companyId,
+      surface: "task-lifecycle",
+      interactionType: patchType,
+      entityType: "TASK",
+      entityId: existing.id,
+      beforeState: {
+        title: existing.title,
+        processingStatus: existing.processingStatus,
+        activityState: existing.activityState,
+        kanbanColumn: existing.kanbanColumn,
+        candidateState: existing.candidateState,
+        impact: existing.impact,
+        confidenceScore: existing.confidenceScore,
+        ease: existing.ease,
+        iceScore: existing.iceScore,
+      },
+      afterState: {
+        title: updated.title,
+        processingStatus: updated.processingStatus,
+        activityState: updated.activityState,
+        kanbanColumn: updated.kanbanColumn,
+        candidateState: updated.candidateState,
+        impact: updated.impact,
+        confidenceScore: updated.confidenceScore,
+        ease: updated.ease,
+        iceScore: updated.iceScore,
+      },
+      payload: data,
+      teachingWeight: patchType === "TASK_MOVE_COLUMN" ? 70 : patchType === "TASK_SCORE_OVERRIDE" ? 90 : 60,
+    });
+
+    if (hasMetricOverride || data.iceScore !== undefined || data.qualityScore !== undefined || data.urgencyScore !== undefined || data.freshnessScore !== undefined || data.candidateState !== undefined) {
+      await recordDecisionEvent({
+        companyId: existing.companyId,
+        decisionMaker: "human-override",
+        decisionType: "TASK_EVALUATION_OVERRIDE",
+        entityType: "TASK",
+        entityId: existing.id,
+        beforeState: {
+          impact: existing.impact,
+          confidenceScore: existing.confidenceScore,
+          ease: existing.ease,
+          iceScore: existing.iceScore,
+          candidateState: existing.candidateState,
+          qualityScore: existing.qualityScore,
+          urgencyScore: existing.urgencyScore,
+          freshnessScore: existing.freshnessScore,
+        },
+        afterState: {
+          impact: updated.impact,
+          confidenceScore: updated.confidenceScore,
+          ease: updated.ease,
+          iceScore: updated.iceScore,
+          candidateState: updated.candidateState,
+          qualityScore: updated.qualityScore,
+          urgencyScore: updated.urgencyScore,
+          freshnessScore: updated.freshnessScore,
+        },
+        payload: {
+          explicitIceScore: data.iceScore,
+          metricInput,
+          evaluationReason: updated.evaluationReason,
+        },
+        rationale: data.evaluationReason ?? "Manual override applied through task API",
+        teachingWeight: 90,
+      });
+    }
+
+    if (
+      updated.processingStatus !== existing.processingStatus ||
+      updated.activityState !== existing.activityState ||
+      updated.kanbanColumn !== existing.kanbanColumn
+    ) {
+      await recordOutcomeEvent({
+        companyId: existing.companyId,
+        actorType: "HUMAN",
+        entityType: "TASK",
+        entityId: existing.id,
+        outcomeType: "TASK_LIFECYCLE_CHANGE",
+        outcomeValue: `${updated.processingStatus}:${updated.activityState}:${updated.kanbanColumn ?? "UNSET"}`,
+        beforeState: {
+          processingStatus: existing.processingStatus,
+          activityState: existing.activityState,
+          kanbanColumn: existing.kanbanColumn,
+        },
+        afterState: {
+          processingStatus: updated.processingStatus,
+          activityState: updated.activityState,
+          kanbanColumn: updated.kanbanColumn,
+        },
+        payload: data,
+        teachingWeight: updated.kanbanColumn !== existing.kanbanColumn ? 70 : 60,
+      });
+    }
 
     // NOTE: The Kanban column update is immediately persisted to the database.
     // The local Trinity Guardian worker detects the change on its next synthesis
@@ -166,6 +298,41 @@ export async function DELETE(request: NextRequest) {
         processingStatus: existing.processingStatus === "DECLINED" ? existing.processingStatus : "DECLINED",
         updatedAt: new Date(),
       },
+    });
+
+    await recordInteractionEventFromRequest(request, {
+      companyId: existing.companyId,
+      surface: "task-lifecycle",
+      interactionType: "TASK_ARCHIVE",
+      entityType: "TASK",
+      entityId: existing.id,
+      beforeState: {
+        processingStatus: existing.processingStatus,
+        activityState: existing.activityState,
+      },
+      afterState: {
+        processingStatus: updated.processingStatus,
+        activityState: updated.activityState,
+      },
+      teachingWeight: 35,
+    });
+
+    await recordOutcomeEvent({
+      companyId: existing.companyId,
+      actorType: "HUMAN",
+      entityType: "TASK",
+      entityId: existing.id,
+      outcomeType: "ARCHIVED",
+      outcomeValue: updated.processingStatus,
+      beforeState: {
+        processingStatus: existing.processingStatus,
+        activityState: existing.activityState,
+      },
+      afterState: {
+        processingStatus: updated.processingStatus,
+        activityState: updated.activityState,
+      },
+      teachingWeight: 35,
     });
 
     return NextResponse.json(updated);

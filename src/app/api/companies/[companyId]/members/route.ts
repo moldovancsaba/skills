@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
 import { prisma } from "@/lib/db";
 import { readAppSession } from "@/lib/auth";
 
@@ -85,6 +86,19 @@ export async function POST(
       }
     });
 
+    await recordInteractionEventFromRequest(request, {
+      companyId,
+      surface: "members",
+      interactionType: "MEMBER_INVITE",
+      entityType: "USER",
+      entityId: newUser.id,
+      afterState: {
+        email: newUser.email,
+        role: newUser.role,
+      },
+      teachingWeight: 30,
+    });
+
     return NextResponse.json(newUser);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -110,6 +124,15 @@ export async function DELETE(
     });
 
     if (!requester) return NextResponse.json({ error: "Only owners can remove members" }, { status: 403 });
+
+    await recordInteractionEventFromRequest(request, {
+      companyId,
+      surface: "members",
+      interactionType: "MEMBER_REMOVE",
+      entityType: "USER",
+      entityId: userId,
+      teachingWeight: 30,
+    });
 
     await prisma.user.deleteMany({
       where: { id: userId, companyId }

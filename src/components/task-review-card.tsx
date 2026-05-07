@@ -30,6 +30,7 @@ import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { TraceViewer } from "@/components/trace-viewer";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { logClientInteraction } from "@/lib/client-events";
 import { 
   UnifiedCard, 
   UnifiedCardHeader, 
@@ -114,6 +115,18 @@ export function TaskReviewCard({
   onPostpone,
 }: TaskReviewCardProps) {
   const [traceOpen, setTraceOpen] = useState(false);
+
+  const logTaskInteraction = (interactionType: string, teachingWeight: number, payload?: Record<string, unknown>) => {
+    void logClientInteraction({
+      companyId: (item as any).companyId,
+      surface: "task-card",
+      interactionType,
+      entityType: "TASK",
+      entityId: item.id,
+      payload,
+      teachingWeight,
+    });
+  };
   
   const DECLINE_OPTIONS = [
     { value: "DUPLICATE", label: "Already exists (Duplicate)" },
@@ -275,13 +288,42 @@ export function TaskReviewCard({
           <Text size="xs" c="dimmed">Intelligence controls</Text>
           <Group gap={6}>
             <Tooltip label="Pin relevant evidence">
-              <Button size="compact-xs" variant="subtle" color="gray" leftSection={<Pin size={12} />}>Pin</Button>
+              <Button
+                size="compact-xs"
+                variant="subtle"
+                color="gray"
+                leftSection={<Pin size={12} />}
+                onClick={() => logTaskInteraction("TASK_PIN_REQUEST", 30)}
+              >
+                Pin
+              </Button>
             </Tooltip>
             <Tooltip label="Request re-evaluation">
-              <Button size="compact-xs" variant="subtle" color="gray" leftSection={<RefreshCw size={12} />}>Refresh</Button>
+              <Button
+                size="compact-xs"
+                variant="subtle"
+                color="gray"
+                leftSection={<RefreshCw size={12} />}
+                onClick={() => logTaskInteraction("TASK_REFRESH_REQUEST", 30)}
+              >
+                Refresh
+              </Button>
             </Tooltip>
             <Tooltip label="View synthesis trace">
-              <Button size="compact-xs" variant="subtle" color="violet" leftSection={<History size={12} />} onClick={() => setTraceOpen(true)}>Trace</Button>
+              <Button
+                size="compact-xs"
+                variant="subtle"
+                color="violet"
+                leftSection={<History size={12} />}
+                onClick={() => {
+                  logTaskInteraction("TRACE_VIEW_OPEN", 30, {
+                    versionFamilyId: (item as any).versionFamilyId || item.id,
+                  });
+                  setTraceOpen(true);
+                }}
+              >
+                Trace
+              </Button>
             </Tooltip>
             
             {onPostpone && (
@@ -296,11 +338,27 @@ export function TaskReviewCard({
                   { value: "BACKLOG", label: "Backlog" },
                   { value: "TODO", label: "Next" },
                 ]}
-                onChange={(val) => val && onPostpone(item.id, val)}
+                onChange={(val) => {
+                  if (!val) return;
+                  logTaskInteraction("TASK_MOVE_COLUMN", 70, {
+                    from: item.kanbanColumn,
+                    to: val,
+                  });
+                  onPostpone(item.id, val);
+                }}
               />
             )}
 
-            <Button size="compact-xs" variant="subtle" color="gray" leftSection={<Archive size={12} />} ml="auto">Archive</Button>
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              color="gray"
+              leftSection={<Archive size={12} />}
+              ml="auto"
+              onClick={() => logTaskInteraction("TASK_ARCHIVE_REQUEST", 35)}
+            >
+              Archive
+            </Button>
           </Group>
         </Stack>
       </UnifiedCardFooter>
@@ -308,7 +366,12 @@ export function TaskReviewCard({
       {traceOpen && (
         <TraceViewer 
           versionFamilyId={(item as any).versionFamilyId || item.id} 
-          onClose={() => setTraceOpen(false)} 
+          onClose={() => {
+            logTaskInteraction("TRACE_VIEW_CLOSE", 30, {
+              versionFamilyId: (item as any).versionFamilyId || item.id,
+            });
+            setTraceOpen(false);
+          }} 
         />
       )}
     </UnifiedCard>

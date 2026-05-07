@@ -12,6 +12,7 @@ const { generateStrategicKeywords, performResearchHarvest } = require("./researc
 const { ingestEvidenceUnit, selectEvidenceForGeneration, buildEvidenceBatches } = require("./evidence");
 const { recomputeFrontier } = require("./frontier");
 const { CandidateState } = require("./lifecycle");
+const { recordDecisionEvent, recordGenerationEvent, recordOutcomeEvent } = require("./audit-ledger");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
@@ -162,6 +163,20 @@ async function runSynthesisCycle(prisma) {
     const memoryPrompt = await getHumanMemoryPrompt(prisma, company);
     batchContext.push({ company, memoryPrompt, lockCtx, lockId: lockCtx.cycleRunId, ops: 0 });
     await prisma.company.update({ where: { id: company.id }, data: { lastAIVisited: new Date() } });
+    await recordDecisionEvent(prisma, {
+      companyId: company.id,
+      decisionMaker: `trinity-worker:${process.pid}`,
+      decisionType: "COMPANY_SELECTED_FOR_CYCLE",
+      entityType: "COMPANY",
+      entityId: company.id,
+      payload: {
+        stageOrder: ["SCRUBBING", "WRITING", "JUDGING", "ACTION"],
+        schedulingMode: "company-serial-cycle",
+      },
+      rationale: "Company selected by Trinity scheduler for current synthesis batch",
+      teachingWeight: 30,
+      cycleRunId: lockCtx.cycleRunId,
+    });
   }
 
   const STAGES = [
@@ -176,6 +191,20 @@ async function runSynthesisCycle(prisma) {
     await updateProgress(prisma, { stage: stage.name });
 
     for (const ctx of batchContext) {
+      await recordDecisionEvent(prisma, {
+        companyId: ctx.company.id,
+        decisionMaker: `trinity-worker:${process.pid}`,
+        decisionType: "WORKER_STAGE_ENTER",
+        entityType: "COMPANY",
+        entityId: ctx.company.id,
+        payload: {
+          stage: stage.name,
+          workerId: ctx.lockCtx.ownerId,
+        },
+        rationale: `Entering ${stage.name} stage for company cycle`,
+        teachingWeight: 30,
+        cycleRunId: ctx.lockId,
+      });
       // M4.1: Refresh memory prompt with stage-specific lessons
       const stagePrompt = await getStagedMemoryPrompt(prisma, ctx.company, stage.name);
       
@@ -263,6 +292,24 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
                 createdAt: await getServerTime(prisma)
               }
             });
+            await recordGenerationEvent(prisma, {
+              companyId: cid,
+              entityType: "GOAL",
+              entityId: createdItem.id,
+              sourceEntityIds: batch.map((src) => src.id),
+              promptName: "goalcard-generation",
+              promptVersion: cleanDraft.promptVersion || "worker-runtime",
+              modelName: cleanDraft.modelName || "local-worker",
+              generatedTitle: cleanDraft.title,
+              generatedBody: cleanDraft.body,
+              selected: true,
+              payload: {
+                category,
+                hashtags: cleanDraft.hashtags || [],
+              },
+              teachingWeight: 45,
+              cycleRunId: workerContext.cycleRunId,
+            });
             // Link sources to Goalcard
             for (const src of batch) {
               await prisma.goalcardSource.create({
@@ -294,6 +341,28 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
                 candidateState: "GENERATED",
               }
             });
+            await recordGenerationEvent(prisma, {
+              companyId: cid,
+              entityType: "TASK",
+              entityId: createdItem.id,
+              sourceEntityIds: sourceIds,
+              promptName: "taskcard-generation",
+              promptVersion: cleanDraft.promptVersion || "worker-runtime",
+              modelName: cleanDraft.modelName || "local-worker",
+              generatedTitle: cleanDraft.title,
+              generatedBody: cleanDraft.body,
+              selected: true,
+              payload: {
+                category,
+                hashtags: cleanDraft.hashtags || [],
+                iceScore: cleanDraft.iceScore,
+                impact: cleanDraft.impact,
+                confidence: cleanDraft.confidence,
+                ease: cleanDraft.weight,
+              },
+              teachingWeight: 45,
+              cycleRunId: workerContext.cycleRunId,
+            });
           } else {
             // Default: FLASHCARD
             createdItem = await prisma.flashcard.create({
@@ -306,6 +375,25 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
                 createdByRunId: workerContext.cycleRunId,
                 createdAt: await getServerTime(prisma)
               }
+            });
+            await recordGenerationEvent(prisma, {
+              companyId: cid,
+              entityType: "KNOWLEDGE",
+              entityId: createdItem.id,
+              sourceEntityIds: batch.map((src) => src.id),
+              promptName: "flashcard-generation",
+              promptVersion: cleanDraft.promptVersion || "worker-runtime",
+              modelName: cleanDraft.modelName || "local-worker",
+              generatedTitle: cleanDraft.title,
+              generatedBody: cleanDraft.body,
+              selected: true,
+              payload: {
+                category: "FLASHCARD",
+                hashtags: cleanDraft.hashtags || [],
+                confidence: cleanDraft.confidence,
+              },
+              teachingWeight: 45,
+              cycleRunId: workerContext.cycleRunId,
             });
 
             // Link sources to Flashcard
@@ -366,6 +454,26 @@ async function performCompanyJudging(prisma, company, memoryPrompt, topic, worke
           await tx.flashcardAction.create({
             data: { flashcardId: fc.id, action: "ANNOTATE", annotation: audit.userAnnotation, actedBy: workerContext.workerId }
           });
+        });
+        await recordOutcomeEvent(prisma, {
+          companyId: company.id,
+          actorType: "AI",
+          actorId: workerContext.workerId,
+          entityType: "KNOWLEDGE",
+          entityId: fc.id,
+          outcomeType: "JUDGE_REVIEW_RESULT",
+          outcomeValue: audit.processingStatus || "UPDATED",
+          annotation: audit.userAnnotation || undefined,
+          beforeState: {
+            processingStatus: fc.processingStatus,
+            activityState: fc.activityState,
+          },
+          afterState: {
+            processingStatus: audit.processingStatus,
+            activityState: audit.activityState,
+          },
+          teachingWeight: 40,
+          cycleRunId: workerContext.cycleRunId,
         });
         ops++;
       }
@@ -428,13 +536,35 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
 
       // Ensure fingerprint and other default fields for generated candidates
       const dbCandidates = await Promise.all(generatedCandidates.map(async draft => {
-        return await prisma.nBAItem.create({
+        const created = await prisma.nBAItem.create({
           data: {
             ...draft,
             cycleRunId: workerContext.cycleRunId,
             createdAt: await getServerTime(prisma)
           }
         });
+        await recordGenerationEvent(prisma, {
+          companyId: cid,
+          entityType: "TASK",
+          entityId: created.id,
+          sourceEntityIds: [fc.id],
+          promptName: "action-generation",
+          promptVersion: draft.promptVersion || "worker-runtime",
+          modelName: draft.modelName || "local-worker",
+          generatedTitle: draft.title,
+          generatedBody: draft.description || draft.body,
+          selected: true,
+          payload: {
+            fromFlashcardId: fc.id,
+            iceScore: draft.iceScore,
+            impact: draft.impact,
+            confidenceScore: draft.confidenceScore,
+            ease: draft.ease,
+          },
+          teachingWeight: 50,
+          cycleRunId: workerContext.cycleRunId,
+        });
+        return created;
       }));
 
       // Step 2: REFINE (M2.2 Refiner)

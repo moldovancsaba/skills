@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { recordDecisionEvent, recordInteractionEvent, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { prisma } from "@/lib/db";
+import { verifyMembership } from "@/lib/permissions";
 
 export async function POST(req: Request) {
   try {
@@ -8,6 +10,9 @@ export async function POST(req: Request) {
     if (!sourceId || !sourceType || !targetType || !companyId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    const auth = await verifyMembership(req as any, companyId);
+    if (auth.error) return auth.error;
 
     if (sourceType === targetType) {
       return NextResponse.json({ error: "Source and target types are the same" }, { status: 400 });
@@ -89,6 +94,35 @@ export async function POST(req: Request) {
       });
     }
 
+    await recordInteractionEvent({
+      companyId,
+      surface: "intelligence-convert",
+      interactionType:
+        targetType === "FLASHCARD"
+          ? "DATACARD_PROMOTE_KNOWLEDGE"
+          : targetType === "GOALCARD"
+            ? "DATACARD_PROMOTE_GOAL"
+            : "DATACARD_PROMOTE_TASK",
+      entityType: sourceType,
+      entityId: sourceId,
+      afterState: {
+        targetType,
+        targetId: createdItem.id,
+      },
+      teachingWeight: 50,
+    });
+
+    await recordDecisionEvent({
+      companyId,
+      decisionMaker: "human-convert",
+      decisionType: "INTELLIGENCE_RECATEGORIZATION",
+      entityType: sourceType,
+      entityId: sourceId,
+      beforeState: { sourceType },
+      afterState: { targetType, targetId: createdItem.id },
+      teachingWeight: 50,
+    });
+
     // 3. Migrate Sources (Lineage)
     if (sourceData.sources && sourceData.sources.length > 0 && targetType !== "TASKCARD") {
       for (const s of sourceData.sources) {
@@ -138,6 +172,17 @@ export async function POST(req: Request) {
         where: { id: sourceId }
       });
     }
+
+    await recordOutcomeEvent({
+      companyId,
+      actorType: "USER",
+      entityType: targetType,
+      entityId: createdItem.id,
+      outcomeType: "CONVERTED",
+      outcomeValue: `${sourceType}->${targetType}`,
+      payload: { sourceId, sourceType },
+      teachingWeight: 50,
+    });
 
     return NextResponse.json({ success: true, targetId: createdItem.id });
   } catch (error) {

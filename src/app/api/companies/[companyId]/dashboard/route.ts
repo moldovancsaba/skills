@@ -59,7 +59,7 @@ export async function GET(
       flashcards: snapshot.knowmoreCount,
       goals: snapshot.strategicGoalsCount,
       nbaItems: snapshot.tacticalBoardCount,
-      checklistCount: snapshot.checklistCount || topTasks.length,
+      checklistCount: snapshot.checklistCount ?? topTasks.length,
       reviewCount: snapshot.reviewGatewayCount
     } : {
       sources: 0,
@@ -78,6 +78,12 @@ export async function GET(
       counts,
       topTasks,
       analytics: snapshot?.analyticsHistory || [],
+      metrics: {
+        synthesisYield: snapshot?.synthesisYield || 0,
+        confidenceAvg: snapshot?.confidenceAvg || 0,
+        iceScoreAvg: snapshot?.iceScoreAvg || 0,
+        easeScoreAvg: snapshot?.easeScoreAvg || 0,
+      },
       versions: {
         app: APP_VERSION,
         brain: BRAIN_VERSION

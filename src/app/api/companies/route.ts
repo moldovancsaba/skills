@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
           companyId: c.id,
           processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] },
           activityState: { in: ["ACTIVE", "STALE"] },
+          kanbanColumn: "CHECKLIST",
           scheduledDate: { lte: new Date() }
         }
       });

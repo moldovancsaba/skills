@@ -9,14 +9,36 @@ import crypto from "crypto";
 
 export const dynamic = 'force-dynamic';
 
-function verifyHmac(payload: any, signature: string, secret: string) {
-  const hmac = crypto.createHmac("sha256", secret).update(JSON.stringify(payload)).digest("hex");
-  return hmac === signature;
+function hashBridgeSecret(secret: string) {
+  return crypto.createHash("sha256").update(secret).digest("hex");
+}
+
+function isHashedBridgeSecret(secret: string | null | undefined) {
+  return Boolean(secret && /^[a-f0-9]{64}$/i.test(secret));
+}
+
+function timingSafeHexEqual(leftHex: string, rightHex: string) {
+  const left = Buffer.from(leftHex, "hex");
+  const right = Buffer.from(rightHex, "hex");
+  if (left.length !== right.length) return false;
+  return crypto.timingSafeEqual(left, right);
+}
+
+function verifyBridgeSecret(secret: string, storedSecret: string) {
+  const providedHash = hashBridgeSecret(secret);
+  const storedHash = isHashedBridgeSecret(storedSecret) ? storedSecret : hashBridgeSecret(storedSecret);
+  return timingSafeHexEqual(providedHash, storedHash);
+}
+
+function verifyLegacyHmac(payload: unknown, signature: string, secret: string) {
+  const expected = crypto.createHmac("sha256", secret).update(JSON.stringify(payload)).digest("hex");
+  return timingSafeHexEqual(expected, signature);
 }
 
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    const bridgeSecret = request.headers.get("x-bridge-secret");
     const signature = request.headers.get("x-bridge-signature");
     const timestamp = request.headers.get("x-bridge-timestamp");
     const companyId = request.headers.get("x-company-id");
@@ -32,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Request outside 15-minute window" }, { status: 403 });
     }
 
-    // 2. Identify and Validate Secret (v2.0.0 uses hashed secrets)
+    // 2. Identify and Validate Secret
     const settings = await prisma.communicationSettings.findUnique({
       where: { companyId },
       include: { company: true }
@@ -42,11 +64,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Bridge unavailable or misconfigured" }, { status: 403 });
     }
 
-    // 3. HMAC Verification
-    // Note: In v2.0.0, we verify against the raw secret provided in a secure way 
-    // OR we use the hash as a salt. For simplicity in this LLD context:
-    if (!verifyHmac(data, signature, settings.bridgeSecretHash)) {
-      return NextResponse.json({ error: "Signature mismatch" }, { status: 401 });
+    const storedSecret = settings.bridgeSecretHash;
+    const hasModernSecret = typeof bridgeSecret === "string" && bridgeSecret.length > 0;
+    const hasLegacySignature = typeof signature === "string" && signature.length > 0;
+
+    if (hasModernSecret) {
+      if (!verifyBridgeSecret(bridgeSecret, storedSecret)) {
+        return NextResponse.json({ error: "Bridge key rejected" }, { status: 401 });
+      }
+    } else if (hasLegacySignature && !isHashedBridgeSecret(storedSecret)) {
+      if (!verifyLegacyHmac(data, signature, storedSecret)) {
+        return NextResponse.json({ error: "Signature mismatch" }, { status: 401 });
+      }
+    } else {
+      return NextResponse.json({ error: "Missing or incompatible bridge authentication" }, { status: 401 });
     }
 
     const content = typeof data.text === "string" ? data.text.trim() : "";

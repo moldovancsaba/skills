@@ -28,6 +28,7 @@ import {
 import { useClipboard } from "@mantine/hooks";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { TraceViewer } from "@/components/trace-viewer";
+import { getIceBadgeColor } from "@/lib/ice-colors";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { 
   UnifiedCard, 
@@ -127,7 +128,7 @@ export function TaskReviewCard({
     { value: "IGNORANT_OUTPUT", label: "AI Hallucination" },
   ];
 
-  const iceColor = item.iceScore >= 70 ? "green" : item.iceScore >= 40 ? "orange" : "gray";
+  const iceColor = getIceBadgeColor(item.iceScore);
 
   return (
     <UnifiedCard style={{ opacity: item.processingStatus === "DECLINED" ? 0.6 : 1 }}>

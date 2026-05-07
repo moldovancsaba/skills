@@ -1,3 +1,11 @@
+export function getIceBadgeColor(iceScore: number): string {
+  if (iceScore >= 700) return "orange";
+  if (iceScore >= 500) return "violet";
+  if (iceScore >= 250) return "blue";
+  if (iceScore >= 100) return "cyan";
+  return "gray";
+}
+
 export function getIceColorClasses(iceScore: number): string {
   if (iceScore <= 50) return "text-[hsl(var(--color-low))] bg-[hsl(var(--color-low)/0.1)] border-[hsl(var(--color-low)/0.2)]";
   if (iceScore <= 125) return "text-[hsl(var(--color-medium))] bg-[hsl(var(--color-medium)/0.1)] border-[hsl(var(--color-medium)/0.2)]";

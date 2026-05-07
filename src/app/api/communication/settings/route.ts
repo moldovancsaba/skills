@@ -5,8 +5,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
+import crypto from "crypto";
 
 export const dynamic = 'force-dynamic';
+
+function hashBridgeSecret(secret: string) {
+  return crypto.createHash("sha256").update(secret).digest("hex");
+}
+
+function isHashedBridgeSecret(secret: string | null | undefined) {
+  return Boolean(secret && /^[a-f0-9]{64}$/i.test(secret));
+}
+
+function serializeSettings(settings: any, bridgeSecret?: string) {
+  return {
+    ...settings,
+    bridgeSecret: bridgeSecret || "",
+    bridgeSecretConfigured: Boolean(settings.bridgeSecretHash),
+    bridgeSecretStoredHashed: isHashedBridgeSecret(settings.bridgeSecretHash),
+  };
+}
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -30,7 +48,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json(settings);
+    return NextResponse.json(serializeSettings(settings));
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -55,14 +73,14 @@ export async function PATCH(request: NextRequest) {
       },
       create: {
         companyId,
-        channel: data.channel || "IMESSAGE",
+        channel: data.channel ?? "IMESSAGE",
         handle: data.handle,
-        isEnabled: data.isEnabled || false,
-        minIceScore: data.minIceScore || 600,
+        isEnabled: data.isEnabled ?? false,
+        minIceScore: data.minIceScore ?? 600,
       },
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(serializeSettings(updated));
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -79,13 +97,19 @@ export async function POST(request: NextRequest) {
 
   try {
     if (action === "regenerate-secret") {
-      const crypto = require("crypto");
       const newSecret = crypto.randomUUID();
-      const updated = await prisma.communicationSettings.update({
+      const updated = await prisma.communicationSettings.upsert({
         where: { companyId },
-        data: { bridgeSecretHash: newSecret },
+        update: { bridgeSecretHash: hashBridgeSecret(newSecret) },
+        create: {
+          companyId,
+          channel: "IMESSAGE",
+          isEnabled: false,
+          minIceScore: 600,
+          bridgeSecretHash: hashBridgeSecret(newSecret),
+        },
       });
-      return NextResponse.json(updated);
+      return NextResponse.json(serializeSettings(updated, newSecret));
     }
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {

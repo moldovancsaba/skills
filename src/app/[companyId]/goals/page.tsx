@@ -81,10 +81,27 @@ export default function GoalsPage() {
   const loadGoals = useCallback(async (cid: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/nba?companyId=${cid}&column=ROADMAP`);
+      const res = await fetch(`/api/goalcards?companyId=${cid}`);
       if (!res.ok) throw new Error("Failed to load strategic goals");
       const data = await res.json();
-      setGoals(data);
+      const mappedGoals: Goal[] = Array.isArray(data)
+        ? data.map((goal: any) => ({
+            id: goal.id,
+            publicId: goal.publicId ?? null,
+            title: goal.title,
+            description: goal.body ?? "",
+            impact: goal.impact ?? 5,
+            confidenceScore: goal.confidenceScore ?? goal.confidence ?? 50,
+            ease: goal.weight ?? 5,
+            iceScore: goal.iceScore ?? 0,
+            processingStatus: goal.processingStatus,
+            activityState: goal.activityState,
+            kanbanColumn: "ROADMAP" as const,
+            userAnnotation: goal.userAnnotation ?? undefined,
+            hashtags: Array.isArray(goal.hashtags) ? goal.hashtags : [],
+          }))
+        : [];
+      setGoals(mappedGoals);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Synchronization failure");
     } finally {

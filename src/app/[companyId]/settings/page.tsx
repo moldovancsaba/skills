@@ -32,6 +32,8 @@ type CommunicationSettings = {
   handle: string;
   minIceScore: number;
   bridgeSecret: string;
+  bridgeSecretConfigured: boolean;
+  bridgeSecretStoredHashed: boolean;
 };
 
 type CompanySettings = {
@@ -134,12 +136,21 @@ export default function SettingsPage() {
   };
 
   const copyToClipboard = (text: string) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
     notifications.show({ title: "Copied", message: "Copied to clipboard." });
   };
 
   if (loading) return <Box p="xl" ta="center"><Text>Loading OS configuration...</Text></Box>;
   if (!settings) return <Box p="xl" ta="center"><Text c="red">Error: Settings context not found.</Text></Box>;
+
+  const bridgeSecretDisplay = settings.bridgeSecret
+    ? showSecret
+      ? settings.bridgeSecret
+      : "•".repeat(Math.max(settings.bridgeSecret.length, 24))
+    : settings.bridgeSecretConfigured
+      ? "Stored securely. Regenerate to reveal a new Bridge API key."
+      : "No Bridge API key generated yet.";
 
   return (
     <PageShell width="lg">
@@ -296,13 +307,13 @@ export default function SettingsPage() {
             <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: 'light-dark(rgba(0,0,0,0.03), rgba(0,0,0,0.2))', border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' }}>
               <Group justify="space-between">
                 <Text  size="sm" style={{ wordBreak: "break-all" }}>
-                  {showSecret ? settings.bridgeSecret : "•".repeat(36)}
+                  {bridgeSecretDisplay}
                 </Text>
                 <Group gap="xs">
-                  <ActionIcon variant="subtle" color="gray" onClick={() => setShowSecret(!showSecret)}>
+                  <ActionIcon variant="subtle" color="gray" onClick={() => setShowSecret(!showSecret)} disabled={!settings.bridgeSecret}>
                     {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
                   </ActionIcon>
-                  <ActionIcon variant="subtle" color="gray" onClick={() => copyToClipboard(settings.bridgeSecret)}>
+                  <ActionIcon variant="subtle" color="gray" onClick={() => copyToClipboard(settings.bridgeSecret)} disabled={!settings.bridgeSecret}>
                     <Copy size={16} />
                   </ActionIcon>
                   <ActionIcon variant="subtle" color="gray" onClick={regenerateSecret} loading={saving}>
@@ -311,6 +322,9 @@ export default function SettingsPage() {
                 </Group>
               </Group>
             </Box>
+            <Text size="xs" c="dimmed">
+              Newly generated keys are shown once, then stored hashed at rest. Use the `x-company-id`, `x-bridge-secret`, and `x-bridge-timestamp` headers when posting into the bridge.
+            </Text>
 
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               <Stack gap={4}>
@@ -322,10 +336,10 @@ export default function SettingsPage() {
                 </Box>
               </Stack>
               <Stack gap={4}>
-                <Text size="xs" c="dimmed">Example Payload</Text>
+                <Text size="xs" c="dimmed">Example Request</Text>
                 <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", backgroundColor: "rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.03)" }}>
                   <Text  size="xs">
-                    {`{ "secret": "...", "sender": "+123", "text": "New insight..." }`}
+                    {`POST /api/bridge/ingress + headers: x-company-id, x-bridge-secret, x-bridge-timestamp`}
                   </Text>
                 </Box>
               </Stack>

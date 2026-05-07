@@ -42,7 +42,7 @@ export default function ReviewDashboard() {
     try {
       const [fcRes, nbaRes] = await Promise.all([
         fetch(`/api/flashcards?companyId=${companyId}`),
-        fetch(`/api/nba?companyId=${companyId}`)
+        fetch(`/api/nba?companyId=${companyId}&review=true`)
       ]);
       
       const [fcData, nbaData] = await Promise.all([
@@ -67,13 +67,14 @@ export default function ReviewDashboard() {
     setSavingId(id);
     try {
       if (type === 'TASK') {
-        const ice = newI * newC * newE_W;
+        const normalizedConfidence = newC * 10;
+        const ice = newI * (normalizedConfidence / 10) * newE_W;
         await fetch(`/api/nba?id=${id}`, {
           method: "PATCH",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
-            confidenceScore: newC,
-            confidence: newC,
+            confidenceScore: normalizedConfidence,
+            confidence: normalizedConfidence,
             impact: newI,
             ease: newE_W,
             iceScore: ice,
@@ -85,8 +86,8 @@ export default function ReviewDashboard() {
           method: "PATCH",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
-            confidenceScore: newC,
-            confidence: newC,
+            confidenceScore: newC * 10,
+            confidence: newC * 10,
             impact: newI,
             weight: newE_W,
             processingStatus: "CHECKED" 
@@ -160,9 +161,17 @@ export default function ReviewDashboard() {
 }
 
 function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, isSaving: boolean }) {
-  const [c, setC] = useState<number | string>(1);
-  const [i, setI] = useState<number | string>(1);
-  const [ew, setEW] = useState<number | string>(1); 
+  const [c, setC] = useState<number | string>(
+    item._type === "TASK"
+      ? Math.max(1, Math.min(10, Math.round((item.confidenceScore ?? item.confidence ?? 10) / 10)))
+      : Math.max(1, Math.min(10, Math.round((item.confidenceScore ?? item.confidence ?? 10) / 10))),
+  );
+  const [i, setI] = useState<number | string>(Math.max(1, Math.min(10, item.impact ?? 1)));
+  const [ew, setEW] = useState<number | string>(
+    item._type === "TASK"
+      ? Math.max(1, Math.min(10, item.ease ?? 1))
+      : Math.max(1, Math.min(10, item.weight ?? 1)),
+  ); 
 
   const metricLabel = item._type === 'TASK' ? 'Ease' : 'Weight';
 
@@ -216,4 +225,3 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
     </motion.div>
   );
 }
-

@@ -127,7 +127,7 @@ export function ClientNav() {
         if (res.ok) {
           const data = await res.json();
           setCounts({
-            data: (data.sources?.length || 0) + (data.counts?.files || 0),
+            data: data.counts?.sources || 0,
             topics: data.counts?.topics || 0,
             knowmore: data.counts?.flashcards || 0,
             goals: data.counts?.goals || 0,

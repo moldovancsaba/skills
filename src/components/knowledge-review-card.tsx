@@ -1,5 +1,6 @@
 import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconSparkles as Sparkles, IconArchive as Archive, IconTarget as Target, IconLayoutDashboard as LayoutDashboard } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader } from "@mantine/core";
+import { getIceBadgeColor } from "@/lib/ice-colors";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import {
   UnifiedCard,
@@ -132,12 +133,6 @@ export function KnowledgeReviewCard({
     return "knowledge";
   };
 
-  const getICEColor = (score: number) => {
-    if (score > 500) return "green";
-    if (score > 250) return "orange";
-    return "red";
-  };
-
   return (
     <UnifiedCard>
       <UnifiedCardHeader
@@ -180,7 +175,7 @@ export function KnowledgeReviewCard({
 
             <Group gap={4} ml="auto">
               <Text size="xs" c="dimmed">ICE</Text>
-              <Badge color={getICEColor(flashcard.iceScore)}>
+              <Badge color={getIceBadgeColor(flashcard.iceScore)}>
                 {Math.round(flashcard.iceScore)}
               </Badge>
             </Group>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { verifyMembership } from "@/lib/permissions";
 
 interface FeedbackPattern {
   pattern: string;
@@ -29,6 +30,9 @@ export async function GET(request: NextRequest) {
     if (!companyId) {
       return NextResponse.json({ error: "companyId required" }, { status: 400 });
     }
+
+    const auth = await verifyMembership(request, companyId);
+    if (auth.error) return auth.error;
 
     // Get all NBA items with feedback for this company
     const nbaItems = await prisma.nBAItem.findMany({

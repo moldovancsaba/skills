@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { verifyMembership } from "@/lib/permissions";
 
 /**
  * INTELLIGENCE TRACE API (Phase 4)
@@ -24,8 +25,16 @@ export async function GET(req: Request) {
     // 1. Fetch tasks in this version family
     const tasks = await prisma.nBAItem.findMany({
       where: { versionFamilyId: familyId },
-      select: { id: true, title: true, createdAt: true, sourceFlashcardIds: true, generatedFromIds: true }
+      select: { id: true, title: true, createdAt: true, sourceFlashcardIds: true, generatedFromIds: true, companyId: true }
     });
+
+    const companyId = tasks[0]?.companyId;
+    if (!companyId) {
+      return NextResponse.json([]);
+    }
+
+    const auth = await verifyMembership(req as any, companyId);
+    if (auth.error) return auth.error;
 
     const nodes: any[] = [];
     tasks.forEach(t => nodes.push({ id: t.id, type: "TASK", title: t.title, timestamp: t.createdAt }));

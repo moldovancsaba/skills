@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
   const isArchived = request.nextUrl.searchParams.get("archived") === "true";
   const showAll = request.nextUrl.searchParams.get("all") === "true";
-  const kanbanColumn = request.nextUrl.searchParams.get("kanbanColumn");
+  const reviewOnly = request.nextUrl.searchParams.get("review") === "true";
+  const kanbanColumn = request.nextUrl.searchParams.get("kanbanColumn") ?? request.nextUrl.searchParams.get("column");
   
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
@@ -19,7 +20,9 @@ export async function GET(request: NextRequest) {
   try {
     const where: any = { companyId: companyId as string };
 
-    if (showAll) {
+    if (reviewOnly) {
+      where.processingStatus = "REVIEW";
+    } else if (showAll) {
       // Return everything active for the Kanban board
       where.activityState = { in: ["ACTIVE", "STALE"] };
       where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED"] };
@@ -97,15 +100,39 @@ export async function PATCH(request: NextRequest) {
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
 
+    const hasMetricOverride =
+      data.impact !== undefined || data.confidence !== undefined || data.confidenceScore !== undefined || data.ease !== undefined;
+    const metricInput = normalizeNBAMetrics({
+      impact: data.impact ?? existing.impact,
+      confidence: data.confidenceScore ?? data.confidence ?? existing.confidenceScore ?? existing.confidence,
+      ease: data.ease ?? existing.ease,
+    });
+    const nextIceScore =
+      data.iceScore !== undefined
+        ? Number(data.iceScore)
+        : hasMetricOverride
+          ? calculateICEScore(metricInput)
+          : existing.iceScore;
+
     const updated = await prisma.nBAItem.update({
       where: { id },
       data: {
         title: data.title ?? existing.title,
         description: data.description ?? existing.description,
+        impact: hasMetricOverride ? metricInput.impact : existing.impact,
+        confidence: hasMetricOverride ? Math.round(metricInput.confidence) : existing.confidence,
+        confidenceScore: hasMetricOverride ? metricInput.confidence : existing.confidenceScore,
+        ease: hasMetricOverride ? metricInput.ease : existing.ease,
+        iceScore: nextIceScore,
         processingStatus: data.processingStatus ?? existing.processingStatus,
         activityState: data.activityState ?? existing.activityState,
         kanbanColumn: data.kanbanColumn ?? existing.kanbanColumn,
         sortOrder: data.sortOrder ?? existing.sortOrder,
+        candidateState: data.candidateState ?? existing.candidateState,
+        qualityScore: data.qualityScore !== undefined ? data.qualityScore : existing.qualityScore,
+        urgencyScore: data.urgencyScore !== undefined ? data.urgencyScore : existing.urgencyScore,
+        freshnessScore: data.freshnessScore !== undefined ? data.freshnessScore : existing.freshnessScore,
+        evaluationReason: data.evaluationReason ?? existing.evaluationReason,
         scheduledDate: data.scheduledDate !== undefined ? (data.scheduledDate ? new Date(data.scheduledDate) : null) : existing.scheduledDate,
         updatedAt: new Date(),
       },
@@ -117,6 +144,33 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(updated);
   } catch (error) {
     console.error("[API:NBA] Patch failure:", error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const id = request.nextUrl.searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+    const existing = await prisma.nBAItem.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const auth = await verifyMembership(request, existing.companyId);
+    if (auth.error) return auth.error;
+
+    const updated = await prisma.nBAItem.update({
+      where: { id },
+      data: {
+        activityState: "ARCHIVED",
+        processingStatus: existing.processingStatus === "DECLINED" ? existing.processingStatus : "DECLINED",
+        updatedAt: new Date(),
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("[API:NBA] Delete failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

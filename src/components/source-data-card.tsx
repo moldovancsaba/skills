@@ -1,5 +1,6 @@
 import { IconFileUpload as FileUp, IconPencil as Pencil, IconFileText as ScrollText, IconTrash as Trash2, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Divider, Tooltip, Box } from "@mantine/core";
+import { getIceBadgeColor } from "@/lib/ice-colors";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { 
   UnifiedCard, 
@@ -39,7 +40,7 @@ export function SourceDataCard({
   type,
   intelligenceType,
   hashtags,
-  iceScore = 50,
+  iceScore,
   onStartEdit,
   onDelete,
   activeHashtags = [],
@@ -48,12 +49,6 @@ export function SourceDataCard({
 }: SourceDataCardProps) {
   const Icon = typeIcon[type];
   const isCompetitor = intelligenceType === "COMPETITOR";
-
-  const getICEColor = (score: number) => {
-    if (score > 500) return "green";
-    if (score > 250) return "orange";
-    return "red";
-  };
 
   const lines = name.split("\n");
   const firstLine = stripTechnicalMetadata(lines[0]);
@@ -78,9 +73,11 @@ export function SourceDataCard({
             </Badge>
             
             <Group gap={4} ml="auto">
-              <Badge color={getICEColor(iceScore)}>
-                ICE {iceScore}
-              </Badge>
+              {typeof iceScore === "number" && (
+                <Badge color={getIceBadgeColor(iceScore)}>
+                  ICE {Math.round(iceScore)}
+                </Badge>
+              )}
               <Text size="xs" c="dimmed">
                 #{publicId || id.slice(0, 8)}
               </Text>

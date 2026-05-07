@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { verifyMembership } from "@/lib/permissions";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -8,6 +9,9 @@ export async function GET(req: Request) {
   if (!companyId) {
     return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
   }
+
+  const auth = await verifyMembership(req as any, companyId);
+  if (auth.error) return auth.error;
 
   const goalcards = await prisma.goalcard.findMany({
     where: { 
@@ -39,6 +43,9 @@ export async function POST(req: Request) {
     if (!companyId || !title) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    const auth = await verifyMembership(req as any, companyId);
+    if (auth.error) return auth.error;
 
     const goalcard = await prisma.goalcard.create({
       data: {
@@ -72,6 +79,14 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
+    const existing = await prisma.goalcard.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const auth = await verifyMembership(req as any, existing.companyId);
+    if (auth.error) return auth.error;
+
     const updated = await prisma.goalcard.update({
       where: { id },
       data: {
@@ -98,6 +113,14 @@ export async function DELETE(req: Request) {
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
+
+  const existing = await prisma.goalcard.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const auth = await verifyMembership(req as any, existing.companyId);
+  if (auth.error) return auth.error;
 
   await prisma.goalcard.update({
     where: { id },

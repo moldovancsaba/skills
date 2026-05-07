@@ -39,6 +39,16 @@ export default function Home() {
   const [suggestedIndustries, setSuggestedIndustries] = useState<string[]>([]);
   const [session, setSession] = useState<any>(null);
 
+  const chartSeries = useCallback((history: any[] | undefined, ...keys: string[]) => {
+    return (history || []).map((point: any) => {
+      const value = keys.reduce<number | null>((resolved, key) => {
+        if (resolved !== null) return resolved;
+        return typeof point?.[key] === "number" ? point[key] : null;
+      }, null);
+      return { date: point.date, value: value ?? 0 };
+    });
+  }, []);
+
   const canManageCompanies = Boolean(session?.isSuperAdmin);
 
   const companyParam = searchParams.get("company");
@@ -295,7 +305,7 @@ export default function Home() {
                     variant="gray"
                     metric={c.metrics?.data ?? 0}
                     title="Data Ingress"
-                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.sources }))}
+                    chartData={chartSeries(c.analytics, "sources", "dataIngress")}
                   />
                   <LinkCard
                     href={`/${c.id}/topics`}
@@ -303,7 +313,7 @@ export default function Home() {
                     variant="indigo"
                     metric={c.metrics?.topics ?? 0}
                     title="Topic Synthesis"
-                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.topics }))}
+                    chartData={chartSeries(c.analytics, "topics", "topicSynthesis")}
                   />
                   <LinkCard
                     href={`/${c.id}/knowmore`}
@@ -311,7 +321,7 @@ export default function Home() {
                     variant="knowledge"
                     metric={c.metrics?.knowmore ?? 0}
                     title="Knowmore"
-                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.flashcards }))}
+                    chartData={chartSeries(c.analytics, "flashcards", "knowmore")}
                   />
                   <LinkCard
                     href={`/${c.id}/goals`}
@@ -319,7 +329,7 @@ export default function Home() {
                     variant="strategy"
                     metric={c.metrics?.goals ?? 0}
                     title="Strategic Goals"
-                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.goals }))}
+                    chartData={chartSeries(c.analytics, "goals", "strategicGoals", "nba")}
                   />
                   <LinkCard
                     href={`/${c.id}/nba`}
@@ -327,7 +337,7 @@ export default function Home() {
                     variant="blue"
                     metric={c.metrics?.checklistCount ?? 0}
                     title="Checklist"
-                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.nba }))}
+                    chartData={chartSeries(c.analytics, "checklist", "nba")}
                   />
                   <LinkCard
                     href={`/${c.id}/tactical`}
@@ -335,7 +345,7 @@ export default function Home() {
                     variant="execution"
                     metric={c.metrics?.tactical ?? 0}
                     title="Tactical Board"
-                    chartData={c.analytics?.map((d: any) => ({ date: d.date, value: d.nbaItems }))}
+                    chartData={chartSeries(c.analytics, "tacticalBoard", "nbaItems", "nba")}
                   />
                 </RouteCardGrid>
               </Box>

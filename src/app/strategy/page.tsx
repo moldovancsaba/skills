@@ -2,16 +2,16 @@
 
 import { 
   Stack, 
-  Group, 
   Title, 
   Text, 
   Button, 
   Card, 
   ThemeIcon, 
-  rem 
+  Badge,
+  List
 } from "@mantine/core";
-import { IconInfoCircle as Info, IconTarget as Target, IconTrendingUp as TrendingUp, IconUsers as Users, IconCurrencyDollar as DollarSign } from "@tabler/icons-react";
-import { PageHeader, PageShell, MetricGrid } from "@/components/ui/app-shell";
+import { IconInfoCircle as Info } from "@tabler/icons-react";
+import { PageHeader, PageShell } from "@/components/ui/app-shell";
 
 export default function StrategyPage() {
   return (
@@ -24,32 +24,6 @@ export default function StrategyPage() {
           </Button>
         }
       />
-
-      <MetricGrid cols={{ base: 1, sm: 2, lg: 4 }}>
-        {[
-          { label: "Revenue vs Goal", value: "--", icon: DollarSign, color: "blue" },
-          { label: "Enrollment Rate", value: "--", icon: Users, color: "teal" },
-          { label: "Retention Rate", value: "--", icon: TrendingUp, color: "orange" },
-          { label: "NPS Score", value: "--", icon: Target, color: "indigo" },
-        ].map((m, i) => (
-          <Card key={i}>
-            <Stack gap="md">
-              <Group justify="space-between" align="center">
-                <ThemeIcon color={m.color} size="md">
-                  <m.icon size={18} />
-                </ThemeIcon>
-                <Text size="xs" c="dimmed">
-                  {m.label}
-                </Text>
-              </Group>
-              <Text size="xl">
-                {m.value}
-              </Text>
-            </Stack>
-          </Card>
-        ))}
-      </MetricGrid>
-
       <Card ta="center">
         <Stack align="center" gap="xl">
           <ThemeIcon color="gray" size={64}>
@@ -58,9 +32,17 @@ export default function StrategyPage() {
           <Stack gap="xs">
             <Title order={2}>Strategic Protocol Pending</Title>
             <Text size="sm" c="dimmed" maw={500} mx="auto">
-              The strategic planning and performance tracking engine is awaiting database synchronization to enable high-fidelity priorities and checkpoints.
+              This surface does not expose live performance indicators yet. Placeholder metrics have been removed until the product has a real source of truth for strategy KPIs.
             </Text>
           </Stack>
+          <Badge color="gray" variant="light">
+            No live KPI feed connected
+          </Badge>
+          <List size="sm" c="dimmed" spacing="xs" style={{ textAlign: "left", maxWidth: 560 }}>
+            <List.Item>Revenue, enrollment, retention, and NPS are not currently stored in the operational schema.</List.Item>
+            <List.Item>The page remains available as a roadmap surface, but it no longer renders fake values.</List.Item>
+            <List.Item>Once those metrics have a backed data model, they should be wired through the same snapshot contract as the other route indicators.</List.Item>
+          </List>
         </Stack>
       </Card>
     </PageShell>

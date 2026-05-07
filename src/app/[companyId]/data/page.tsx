@@ -60,8 +60,8 @@ interface DataItem {
 function sortDataItems(items: DataItem[], sortBy: "ICE" | "CREATED" | "UPDATED") {
   return [...items].sort((left, right) => {
     if (sortBy === "ICE") {
-      const leftIce = left.iceScore ?? 50;
-      const rightIce = right.iceScore ?? 50;
+      const leftIce = left.iceScore ?? Number.NEGATIVE_INFINITY;
+      const rightIce = right.iceScore ?? Number.NEGATIVE_INFINITY;
       if (leftIce !== rightIce) return rightIce - leftIce;
     }
 
@@ -148,7 +148,11 @@ export default function CompanyDataPage() {
         ]);
 
         setFileCount(Array.isArray(f) ? f.length : 0);
-        setPendingTaskCount(Array.isArray(nba) ? nba.filter((t: any) => t.status === "PENDING").length : 0);
+        setPendingTaskCount(
+          Array.isArray(nba)
+            ? nba.filter((t: any) => ["DRAFT", "CHECKED", "VERIFIED"].includes(t.processingStatus)).length
+            : 0,
+        );
 
         if (sessionRes.ok) {
           const session = await sessionRes.json();
@@ -324,6 +328,7 @@ export default function CompanyDataPage() {
   });
 
   const sortedItems = sortDataItems(filteredItems, sortBy);
+  const hasSortableIce = items.some((item) => typeof item.iceScore === "number");
 
   if (loading) {
     return (
@@ -495,7 +500,7 @@ export default function CompanyDataPage() {
                 backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))', 
                 borderRadius: 8 
               }}>
-                {(["CREATED", "UPDATED", "ICE"] as const).map((sort) => (
+                {([ "CREATED", "UPDATED", ...(hasSortableIce ? (["ICE"] as const) : []) ] as const).map((sort) => (
                   <Button
                     key={sort}
                     variant={sortBy === sort ? "light" : "subtle"}

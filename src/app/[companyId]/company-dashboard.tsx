@@ -72,6 +72,17 @@ export default function CompanyDashboard() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
 
+  const chartSeries = useCallback((...keys: string[]) => {
+    return chartData.map((point) => {
+      const value = keys.reduce<number | null>((resolved, key) => {
+        if (resolved !== null) return resolved;
+        const candidate = point?.[key];
+        return typeof candidate === "number" ? candidate : null;
+      }, null);
+      return { date: point.date, value: value ?? 0 };
+    });
+  }, [chartData]);
+
   const loadDashboard = useCallback(async (cid: string) => {
     setLoading(true);
     try {
@@ -234,9 +245,9 @@ export default function CompanyDashboard() {
           href={`/${companyId}/data`}
           icon={Database}
           variant="blue"
-          metric={counts.goals === 0 && !loading ? 0 : counts.sources}
+          metric={counts.sources}
           title="Data Ingress"
-          chartData={chartData.map(d => ({ date: d.date, value: d.sources }))}
+          chartData={chartSeries("sources", "dataIngress")}
         />
         <LinkCard
           href={`/${companyId}/topics`}
@@ -244,7 +255,7 @@ export default function CompanyDashboard() {
           variant="indigo"
           metric={counts.topics}
           title="Topic Synthesis"
-          chartData={chartData.map(d => ({ date: d.date, value: d.topics }))}
+          chartData={chartSeries("topics", "topicSynthesis")}
         />
         <LinkCard
           href={`/${companyId}/knowmore`}
@@ -252,7 +263,7 @@ export default function CompanyDashboard() {
           variant="teal"
           metric={counts.flashcards}
           title="Knowmore"
-          chartData={chartData.map(d => ({ date: d.date, value: d.flashcards }))}
+          chartData={chartSeries("flashcards", "knowmore")}
         />
         <LinkCard
           href={`/${companyId}/goals`}
@@ -260,7 +271,7 @@ export default function CompanyDashboard() {
           variant="violet"
           metric={counts.goals}
           title="Strategic Goals"
-          chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
+          chartData={chartSeries("goals", "strategicGoals", "nba")}
         />
         <LinkCard
           href={`/${companyId}/checklist`}
@@ -268,7 +279,7 @@ export default function CompanyDashboard() {
           variant="orange"
           metric={counts.checklistCount}
           title="Checklist"
-          chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
+          chartData={chartSeries("checklist", "nba")}
         />
         <LinkCard
           href={`/${companyId}/tactical`}
@@ -276,7 +287,7 @@ export default function CompanyDashboard() {
           variant="cyan"
           metric={counts.nbaItems}
           title="Tactical Board"
-          chartData={chartData.map(d => ({ date: d.date, value: d.nba }))}
+          chartData={chartSeries("tacticalBoard", "nbaItems", "nba")}
         />
       </RouteCardGrid>
 

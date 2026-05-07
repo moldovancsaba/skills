@@ -14,11 +14,18 @@ import { ensureUnifiedSources } from "@/lib/sources";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
+  const limitParam = request.nextUrl.searchParams.get("limit");
+  const offsetParam = request.nextUrl.searchParams.get("offset");
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
   if (!companyId) return NextResponse.json({ error: "companyId required" }, { status: 400 });
 
   try {
+    const limit = limitParam ? Number(limitParam) : null;
+    const offset = offsetParam ? Number(offsetParam) : 0;
+    const safeLimit = limit && Number.isFinite(limit) && limit > 0 ? Math.min(limit, 100) : null;
+    const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0;
+
     const sources = await prisma.source.findMany({
       where: { companyId },
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
@@ -33,14 +40,24 @@ export async function GET(request: NextRequest) {
         updatedAt: true,
         intelligenceType: true,
       },
+      ...(safeLimit ? { skip: safeOffset, take: safeLimit } : {}),
     });
-    return NextResponse.json(
-      sources.map((source) => ({
+    const normalized = sources.map((source) => ({
         ...source,
         hashtags: normalizeHashtagList(source.hashtags),
         aiClusters: normalizeHashtagList(source.aiClusters),
-      })),
-    );
+      }));
+
+    if (safeLimit) {
+      const total = await prisma.source.count({ where: { companyId } });
+      return NextResponse.json({
+        items: normalized,
+        total,
+        hasMore: safeOffset + normalized.length < total,
+      });
+    }
+
+    return NextResponse.json(normalized);
   } catch (error) {
     console.error("[API:SOURCES] Get failure:", error);
     // Iron-Clad: Never return a non-array crash object to the dashboard

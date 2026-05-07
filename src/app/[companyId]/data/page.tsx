@@ -109,21 +109,39 @@ export default function CompanyDataPage() {
   const [listIntelligenceFilter, setListIntelligenceFilter] = useState<"ALL" | "INTERNAL" | "COMPETITOR">("ALL");
   const [sortBy, setSortBy] = useState<"ICE" | "CREATED" | "UPDATED">("CREATED");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [sourceTotal, setSourceTotal] = useState(0);
+  const [sourceHasMore, setSourceHasMore] = useState(false);
 
   const loadAllData = useCallback(async (cid: string) => {
     const [s, f] = await Promise.all([
-      fetch(`/api/sources?companyId=${cid}`).then((res) => res.json()),
+      fetch(`/api/sources?companyId=${cid}&limit=${PAGE_SIZE}&offset=0`).then((res) => res.json()),
       fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
     ]);
-    setSources(s);
+    const sourceItems = Array.isArray(s) ? s : Array.isArray(s?.items) ? s.items : [];
+    setSources(sourceItems);
+    setSourceTotal(typeof s?.total === "number" ? s.total : sourceItems.length);
+    setSourceHasMore(Boolean(s?.hasMore));
     
     const all = [
-      ...s.map((x: any) => ({ ...x, name: x.content, type: "source" as DataType })),
+      ...sourceItems.map((x: any) => ({ ...x, name: x.content, type: "source" as DataType })),
       ...f.map((x: any) => ({ ...x, type: "file" as DataType })),
     ];
     setItems(all);
     setLoading(false);
   }, [setSources]);
+
+  const loadMoreSources = useCallback(async () => {
+    if (!company || !sourceHasMore) return;
+    const s = await fetch(`/api/sources?companyId=${company.id}&limit=${PAGE_SIZE}&offset=${sources.length}`).then((res) => res.json());
+    const sourceItems = Array.isArray(s?.items) ? s.items : [];
+    setSources([...sources, ...sourceItems]);
+    setSourceTotal(typeof s?.total === "number" ? s.total : sourceTotal);
+    setSourceHasMore(Boolean(s?.hasMore));
+    setItems((prev) => [
+      ...prev,
+      ...sourceItems.map((x: any) => ({ ...x, name: x.content, type: "source" as DataType })),
+    ]);
+  }, [company, sourceHasMore, sources.length, setSources, sourceTotal]);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
@@ -347,7 +365,7 @@ export default function CompanyDataPage() {
 
   const tip = getDashboardExpertTip({
     companyId,
-    productCount: sources.length,
+    productCount: sourceTotal || sources.length,
     customerCount: 0,
     competitorCount: 0,
     fileCount,
@@ -462,7 +480,7 @@ export default function CompanyDataPage() {
           <MetricCard 
             icon={ScrollText} 
             label="Intelligence Units" 
-            value={sources.length} 
+            value={sourceTotal || sources.length} 
             detail="Raw Evidence"
             color="blue"
           />
@@ -556,9 +574,18 @@ export default function CompanyDataPage() {
             </UnifiedGrid>
           )}
 
-          {sortedItems.length > visibleItems.length && (
+          {(sortedItems.length > visibleItems.length || sourceHasMore) && (
             <Group justify="center">
-              <Button variant="light" color="ingress" onClick={() => setVisibleCount((current) => current + PAGE_SIZE)}>
+              <Button
+                variant="light"
+                color="ingress"
+                onClick={async () => {
+                  if (visibleCount >= sortedItems.length && sourceHasMore) {
+                    await loadMoreSources();
+                  }
+                  setVisibleCount((current) => current + PAGE_SIZE);
+                }}
+              >
                 Load More Intelligence
               </Button>
             </Group>

@@ -153,12 +153,27 @@ export default function CompanyKnowMorePage() {
   const [intelligenceFilter, setIntelligenceFilter] = useState<"INTERNAL" | "COMPETITOR">("INTERNAL");
   const { sources, setSources } = useStore();
   const [isOwner, setIsOwner] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
 
   const loadFlashcards = useCallback(async (cid: string) => {
-    const cards = await fetchJson<Flashcard[]>(`/api/knowmore?companyId=${encodeURIComponent(cid)}`);
-    setFlashcards(cards);
+    const response = await fetchJson<{ items: Flashcard[]; hasMore: boolean; total: number }>(
+      `/api/knowmore?companyId=${encodeURIComponent(cid)}&limit=${PAGE_SIZE}&offset=0`
+    );
+    setFlashcards(response.items);
+    setHasMore(response.hasMore);
+    setTotalCount(response.total);
   }, []);
+
+  const loadMoreFlashcards = useCallback(async () => {
+    if (!company || !hasMore) return;
+    const response = await fetchJson<{ items: Flashcard[]; hasMore: boolean; total: number }>(
+      `/api/knowmore?companyId=${encodeURIComponent(company.id)}&limit=${PAGE_SIZE}&offset=${flashcards.length}`
+    );
+    setFlashcards((prev) => [...prev, ...response.items]);
+    setHasMore(response.hasMore);
+    setTotalCount(response.total);
+  }, [company, flashcards.length, hasMore]);
 
   const loadPage = useCallback(async (cid: string) => {
     setLoading(true);
@@ -233,10 +248,6 @@ export default function CompanyKnowMorePage() {
       return matchesSearch && matchesKind && matchesTags && matchesIntelligence;
     });
   }, [activeHashtags, flashcards, searchQuery, filterKind, intelligenceFilter]);
-
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, filterKind, intelligenceFilter, activeHashtags, flashcards.length]);
 
   const summary = useMemo(() => {
     const visibleCards = flashcards.filter(f => f.intelligenceType === intelligenceFilter);
@@ -417,11 +428,9 @@ export default function CompanyKnowMorePage() {
     customerCount: 0,
     competitorCount: 0,
     fileCount: 0,
-    flashcardCount: snapshot?.knowmoreCount || flashcards.length,
+    flashcardCount: snapshot?.knowmoreCount || totalCount || flashcards.length,
     pendingTaskCount: snapshot?.strategicGoalsCount || 0,
   });
-  const visibleFlashcards = filteredFlashcards.slice(0, visibleCount);
-
   return (
     <PageShell width="full">
       <Stack gap="xl">
@@ -511,7 +520,7 @@ export default function CompanyKnowMorePage() {
             </Center>
           ) : (
             <UnifiedGrid>
-              {visibleFlashcards.map((flashcard, index) => {
+              {filteredFlashcards.map((flashcard, index) => {
                 const isActionOpen = activeFlashcardId === flashcard.id && actionMode !== null;
                 const isBusy = actingId === flashcard.id;
                 return (
@@ -553,9 +562,9 @@ export default function CompanyKnowMorePage() {
             </UnifiedGrid>
           )}
 
-          {filteredFlashcards.length > visibleFlashcards.length && (
+          {hasMore && searchQuery.length === 0 && filterKind === "ALL" && activeHashtags.length === 0 && (
             <Group justify="center">
-              <Button variant="light" color="knowmore" onClick={() => setVisibleCount((current) => current + PAGE_SIZE)}>
+              <Button variant="light" color="knowmore" onClick={() => void loadMoreFlashcards()}>
                 Load More Knowledge
               </Button>
             </Group>

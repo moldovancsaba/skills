@@ -6,6 +6,8 @@ import { verifyMembership } from "@/lib/permissions";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get("companyId");
+  const limitParam = searchParams.get("limit");
+  const offsetParam = searchParams.get("offset");
 
   if (!companyId) {
     return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
@@ -14,11 +16,18 @@ export async function GET(req: Request) {
   const auth = await verifyMembership(req as any, companyId);
   if (auth.error) return auth.error;
 
+  const limit = limitParam ? Number(limitParam) : null;
+  const offset = offsetParam ? Number(offsetParam) : 0;
+  const safeLimit = limit && Number.isFinite(limit) && limit > 0 ? Math.min(limit, 100) : null;
+  const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0;
+
+  const baseWhere = {
+    companyId,
+    activityState: "ACTIVE" as const,
+  };
+
   const goalcards = await prisma.goalcard.findMany({
-    where: { 
-      companyId,
-      activityState: "ACTIVE"
-    },
+    where: baseWhere,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -40,7 +49,17 @@ export async function GET(req: Request) {
       intelligenceType: true,
       iceScore: true,
     },
+    ...(safeLimit ? { skip: safeOffset, take: safeLimit } : {}),
   });
+
+  if (safeLimit) {
+    const total = await prisma.goalcard.count({ where: baseWhere });
+    return NextResponse.json({
+      items: goalcards,
+      total,
+      hasMore: safeOffset + goalcards.length < total,
+    });
+  }
 
   return NextResponse.json(goalcards);
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createOAuthState, buildAuthorizeUrl, isSsoConfigured, OAUTH_STATE_COOKIE, APP_SESSION_COOKIE } from "@/lib/auth";
+import { createOAuthState, buildAuthorizeUrl, isSsoConfigured, OAUTH_STATE_COOKIE } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   if (!isSsoConfigured()) {
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
   const returnTo = new URL(req.url).searchParams.get("returnTo") || "/";
   const { token, payload } = createOAuthState(returnTo);
-  const redirectUrl = buildAuthorizeUrl(payload);
+  const redirectUrl = buildAuthorizeUrl(token, payload);
 
   const response = NextResponse.redirect(redirectUrl);
   response.cookies.set(OAUTH_STATE_COOKIE, token, {

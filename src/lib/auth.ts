@@ -151,13 +151,13 @@ export function getSsoScopes() {
   return process.env.SSO_SCOPES || "openid profile email offline_access";
 }
 
-export function buildAuthorizeUrl(oauthState: OAuthState): string {
+export function buildAuthorizeUrl(stateToken: string, oauthState: OAuthState): string {
   const authUrl = new URL(process.env.SSO_AUTH_URL!);
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("client_id", process.env.SSO_CLIENT_ID!);
   authUrl.searchParams.set("redirect_uri", getSsoRedirectUri());
   authUrl.searchParams.set("scope", getSsoScopes());
-  authUrl.searchParams.set("state", oauthState.state);
+  authUrl.searchParams.set("state", stateToken);
   authUrl.searchParams.set("nonce", oauthState.nonce);
   authUrl.searchParams.set("code_challenge", createCodeChallenge(oauthState.codeVerifier));
   authUrl.searchParams.set("code_challenge_method", "S256");
@@ -214,14 +214,20 @@ export async function handleOAuthCallback(req: NextRequest) {
   }
 
   try {
-    const stateCookie = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
-    if (!stateCookie) {
-      return NextResponse.redirect(new URL("/?authError=no_state", req.url));
-    }
+    let oauthState = state ? readOAuthState(state) : null;
 
-    const oauthState = readOAuthState(stateCookie);
-    if (!oauthState || oauthState.state !== state) {
-      return NextResponse.redirect(new URL("/?authError=invalid_state", req.url));
+    if (!oauthState) {
+      const stateCookie = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
+      if (!stateCookie) {
+        return NextResponse.redirect(new URL("/?authError=no_state", req.url));
+      }
+
+      const cookieState = readOAuthState(stateCookie);
+      if (!cookieState || cookieState.state !== state) {
+        return NextResponse.redirect(new URL("/?authError=invalid_state", req.url));
+      }
+
+      oauthState = cookieState;
     }
 
     const tokens = await exchangeCodeForTokens(code, oauthState.codeVerifier);

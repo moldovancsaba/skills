@@ -168,7 +168,7 @@ export function TaskReviewCard({
           >
             <Group gap="xs" wrap="nowrap" align="flex-start">
               <MessageSquare size={14} style={{ marginTop: rem(2), opacity: 0.7 }} />
-              <Text size="xs" c="dimmed">{item.userAnnotation}</Text>
+              <Text size="xs" c="dimmed">{stripTechnicalMetadata(item.userAnnotation)}</Text>
             </Group>
           </Box>
         )}

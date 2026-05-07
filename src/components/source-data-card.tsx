@@ -1,5 +1,5 @@
 import { IconFileUpload as FileUp, IconPencil as Pencil, IconFileText as ScrollText, IconTrash as Trash2, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";
-import { Badge, Button, Group, Stack, Text, Divider, Tooltip, Box } from "@mantine/core";
+import { Badge, Button, Group, Stack, Text, Divider, Tooltip } from "@mantine/core";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { 
@@ -33,6 +33,8 @@ const typeIcon = {
   file: FileUp,
 } satisfies Record<DataType, typeof ScrollText>;
 
+const DATA_CARD_COLOR = "blue" as const;
+
 export function SourceDataCard({
   id,
   publicId,
@@ -52,23 +54,23 @@ export function SourceDataCard({
 
   const lines = name.split("\n");
   const firstLine = stripTechnicalMetadata(lines[0]);
-  const displayTitle = firstLine.length > 80 ? firstLine.slice(0, 80) + "..." : firstLine;
   const bodyText = stripTechnicalMetadata(lines.slice(1).join("\n"));
 
   return (
-    <UnifiedCard>
+    <UnifiedCard style={{ borderColor: "var(--mantine-color-blue-filled)" }}>
       <UnifiedCardHeader 
         supporting={
           <Group gap="xs">
-            <Badge color="gray">
+            <Badge color={DATA_CARD_COLOR} variant="light">
               Datacard
             </Badge>
             <Badge 
-              color={isCompetitor ? "orange" : "gray"} 
+              color={isCompetitor ? "orange" : DATA_CARD_COLOR}
+              variant="light"
             >
               {isCompetitor ? "Competitor" : "Internal"}
             </Badge>
-            <Badge color="gray" leftSection={<Icon size={10} />}>
+            <Badge color={DATA_CARD_COLOR} variant="light" leftSection={<Icon size={10} />}>
               {type}
             </Badge>
             
@@ -84,7 +86,7 @@ export function SourceDataCard({
             </Group>
           </Group>
         } 
-        title={displayTitle} 
+        title={firstLine} 
       />
       
       <UnifiedCardBody>
@@ -99,7 +101,7 @@ export function SourceDataCard({
             <Badge 
               key={tag} 
               variant={activeHashtags.includes(tag) ? "filled" : "outline"}
-              color="gray"
+              color={DATA_CARD_COLOR}
               size="xs"
               onClick={() => onToggleHashtag?.(tag)}
             >
@@ -110,7 +112,7 @@ export function SourceDataCard({
 
         <UnifiedCardActions>
           {onStartEdit && (
-            <Button variant="filled" color="gray" size="sm" leftSection={<Pencil size={14} />} onClick={onStartEdit}>
+            <Button variant="filled" color={DATA_CARD_COLOR} size="sm" leftSection={<Pencil size={14} />} onClick={onStartEdit}>
               Edit
             </Button>
           )}
@@ -125,17 +127,17 @@ export function SourceDataCard({
           <Text size="xs" c="dimmed">Intelligence Controls</Text>
           <Group gap="xs" wrap="wrap">
             <Tooltip label="Pin relevant evidence">
-              <Button variant="subtle" size="compact-xs" color="gray" leftSection={<Pin size={12} />}>
+              <Button variant="subtle" size="compact-xs" color={DATA_CARD_COLOR} leftSection={<Pin size={12} />}>
                 Pin
               </Button>
             </Tooltip>
             <Tooltip label="Refresh knowledge">
-              <Button variant="subtle" size="compact-xs" color="gray" leftSection={<RefreshCw size={12} />}>
+              <Button variant="subtle" size="compact-xs" color={DATA_CARD_COLOR} leftSection={<RefreshCw size={12} />}>
                 Refresh
               </Button>
             </Tooltip>
             <Tooltip label="Archive intelligence">
-              <Button variant="subtle" size="compact-xs" color="gray" leftSection={<Archive size={12} />}>
+              <Button variant="subtle" size="compact-xs" color={DATA_CARD_COLOR} leftSection={<Archive size={12} />}>
                 Archive
               </Button>
             </Tooltip>

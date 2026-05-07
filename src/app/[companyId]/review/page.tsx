@@ -24,6 +24,7 @@ import {
 } from "@mantine/core";
 import { PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardActions } from "@/components/ui/unified-card";
+import { stripTechnicalMetadata } from "@/lib/ui-utils";
 
 export default function ReviewDashboard() {
   const params = useParams();
@@ -185,7 +186,7 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
     >
       <UnifiedCard style={{ borderColor: 'var(--mantine-color-orange-filled)' }}>
         <UnifiedCardHeader 
-          title={item.title} 
+          title={stripTechnicalMetadata(item.title)} 
           supporting={
             <Group gap="xs">
               <Badge color="orange" size="xs">Review Required</Badge>
@@ -197,7 +198,7 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
           <Stack gap="lg">
             <Box p="md" style={{ background: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))' }}>
               <Text c="dimmed" lineClamp={4}>
-                {item.body || item.description}
+                {stripTechnicalMetadata(item.body || item.description)}
               </Text>
             </Box>
 

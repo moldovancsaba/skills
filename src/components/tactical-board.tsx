@@ -38,6 +38,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader, PipelineAccentHeader } from "@/components/ui/app-shell";
+import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";
 
 type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
@@ -149,11 +150,11 @@ function CardDetailModal({
         {/* Title & Description */}
         <Stack gap="xs">
           <Text size="xl">
-            {item.title}
+            {stripTechnicalMetadata(item.title)}
           </Text>
           {item.description && (
             <Text size="sm" c="dimmed">
-              {item.description}
+              {stripTechnicalMetadata(item.description)}
             </Text>
           )}
         </Stack>
@@ -215,7 +216,7 @@ function CardDetailModal({
             <Text size="xs" c="dimmed" mb="md">AI Judge Reasoning</Text>
             <Paper p="md" style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
               <Text size="sm">
-                "{item.evaluationReason}"
+                "{stripTechnicalMetadata(item.evaluationReason)}"
               </Text>
             </Paper>
           </Box>
@@ -539,11 +540,11 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                     >
                                       <Stack gap="xs">
                                         <Text size="xs" lineClamp={2}>
-                                          {item.title}
+                                          {stripTechnicalMetadata(item.title)}
                                         </Text>
                                         {item.description && (
                                           <Text size="xs" c="dimmed" lineClamp={2}>
-                                            {item.description}
+                                            {stripTechnicalMetadata(item.description)}
                                           </Text>
                                         )}
                                         <Group justify="space-between" mt={4} wrap="nowrap">

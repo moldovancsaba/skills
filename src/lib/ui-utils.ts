@@ -12,6 +12,10 @@ export function stripTechnicalMetadata(text: string | null | undefined): string 
   
   // Pattern matches [TRACE:XYZ] or [TOPIC_ID:ABC-123]
   const metadataPattern = /\[TRACE:[^\]]*\]|\[TOPIC_ID:[^\]]*\]/gi;
-  
-  return text.replace(metadataPattern, "").trim();
+
+  return text
+    .replace(metadataPattern, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^["'\s]+|["'\s]+$/g, "")
+    .trim();
 }

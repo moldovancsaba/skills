@@ -218,7 +218,7 @@ export function KnowledgeReviewCard({
             <Group gap="xs" align="flex-start" wrap="nowrap">
               <MessageSquare size={16} style={{ marginTop: 4, opacity: 0.6 }} />
               <Text size="sm">
-                {flashcard.userAnnotation}
+                {stripTechnicalMetadata(flashcard.userAnnotation)}
               </Text>
             </Group>
           </Box>

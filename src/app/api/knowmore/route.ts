@@ -8,6 +8,8 @@ export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
+  const limitParam = request.nextUrl.searchParams.get("limit");
+  const offsetParam = request.nextUrl.searchParams.get("offset");
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
 
@@ -41,10 +43,44 @@ export async function GET(request: NextRequest) {
         .map((source) => source.id)
     );
 
-    return NextResponse.json(flashcards.map((flashcard) => ({
-      ...flashcard,
+    const serialized = flashcards.map((flashcard) => ({
+      id: flashcard.id,
+      publicId: flashcard.publicId ?? null,
+      kind: flashcard.kind,
+      title: flashcard.title,
+      body: flashcard.body,
+      confidenceScore: flashcard.confidenceScore,
+      impact: flashcard.impact,
+      weight: flashcard.weight,
+      processingStatus: flashcard.processingStatus,
+      activityState: flashcard.activityState,
+      userAnnotation: flashcard.userAnnotation,
+      hashtags: flashcard.hashtags,
+      lastActionAt: flashcard.lastActionAt,
+      refreshedAt: flashcard.refreshedAt,
+      intelligenceType: flashcard.intelligenceType,
+      iceScore: flashcard.iceScore,
       ischecklistResearch: flashcard.sources.some((source) => source.sourceType === "SOURCE" && researchHarvestIds.has(source.sourceId)),
-    })), {
+    }));
+
+    const limit = limitParam ? Number(limitParam) : null;
+    const offset = offsetParam ? Number(offsetParam) : 0;
+
+    if (limit && Number.isFinite(limit) && limit > 0) {
+      const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0;
+      const items = serialized.slice(safeOffset, safeOffset + limit);
+      return NextResponse.json({
+        items,
+        hasMore: safeOffset + limit < serialized.length,
+        total: serialized.length,
+      }, {
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      });
+    }
+
+    return NextResponse.json(serialized, {
       headers: {
         "Cache-Control": "no-store, max-age=0",
       },

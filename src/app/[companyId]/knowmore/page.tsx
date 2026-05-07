@@ -10,7 +10,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { IconDatabase as Database, IconSearch as Search, IconSparkles as Sparkles, IconTarget as Target, IconBolt as Bolt, IconFilter as Filter, IconLayoutList as LayoutList, IconTrendingUp as TrendingUp, IconShieldCheck as ShieldCheck } from "@tabler/icons-react";
 import { 
   Badge, 
@@ -132,6 +131,7 @@ function kindLabel(kind: Flashcard["kind"]) {
 import { useIntelligenceSnapshot } from "@/hooks/use-intelligence-snapshot";
 
 export default function CompanyKnowMorePage() {
+  const PAGE_SIZE = 24;
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
@@ -153,6 +153,7 @@ export default function CompanyKnowMorePage() {
   const [intelligenceFilter, setIntelligenceFilter] = useState<"INTERNAL" | "COMPETITOR">("INTERNAL");
   const { sources, setSources } = useStore();
   const [isOwner, setIsOwner] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const loadFlashcards = useCallback(async (cid: string) => {
     const cards = await fetchJson<Flashcard[]>(`/api/knowmore?companyId=${encodeURIComponent(cid)}`);
@@ -232,6 +233,10 @@ export default function CompanyKnowMorePage() {
       return matchesSearch && matchesKind && matchesTags && matchesIntelligence;
     });
   }, [activeHashtags, flashcards, searchQuery, filterKind, intelligenceFilter]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, filterKind, intelligenceFilter, activeHashtags, flashcards.length]);
 
   const summary = useMemo(() => {
     const visibleCards = flashcards.filter(f => f.intelligenceType === intelligenceFilter);
@@ -415,6 +420,7 @@ export default function CompanyKnowMorePage() {
     flashcardCount: snapshot?.knowmoreCount || flashcards.length,
     pendingTaskCount: snapshot?.strategicGoalsCount || 0,
   });
+  const visibleFlashcards = filteredFlashcards.slice(0, visibleCount);
 
   return (
     <PageShell width="full">
@@ -505,56 +511,54 @@ export default function CompanyKnowMorePage() {
             </Center>
           ) : (
             <UnifiedGrid>
-              <AnimatePresence mode="popLayout">
-                {filteredFlashcards.map((flashcard, index) => {
-                  const isActionOpen = activeFlashcardId === flashcard.id && actionMode !== null;
-                  const isBusy = actingId === flashcard.id;
-                  return (
-                    <React.Fragment key={flashcard.id}>
-                      <motion.div
-                        layout
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.98 }}
-                        transition={{ delay: index * 0.03 }}
-                      >
-                        <KnowledgeReviewCard
-                          flashcard={flashcard}
-                          isActionOpen={isActionOpen}
-                          actionMode={actionMode}
-                          isBusy={isBusy}
-                          isGenerating={false}
-                          actionComment={actionComment}
-                          editedTitle={editedTitle}
-                          editedBody={editedBody}
-                          reviewStatusLabel={reviewStatusLabel}
-                          kindLabel={kindLabel}
-                          actionLabel={actionLabel}
-                          onOpenAction={openActionForm}
-                          onCloseAction={closeActionForm}
-                          onActionCommentChange={setActionComment}
-                          onEditedTitleChange={setEditedTitle}
-                          onEditedBodyChange={setEditedBody}
-                          onSubmit={(flashcardId) => void handleActionSubmit(flashcardId)}
-                          activeHashtags={activeHashtags}
-                          onToggleHashtag={toggleHashtagFilter}
-                          onRemoveHashtag={(flashcardId, tag) => void removeFlashcardHashtag(flashcardId, tag)}
-                          onCorrection={(input) => void handleCorrection(input)}
-                          onConvert={(type) => handleConvert(flashcard.id, type)}
-                        />
-                      </motion.div>
+              {visibleFlashcards.map((flashcard, index) => {
+                const isActionOpen = activeFlashcardId === flashcard.id && actionMode !== null;
+                const isBusy = actingId === flashcard.id;
+                return (
+                  <React.Fragment key={flashcard.id}>
+                    <KnowledgeReviewCard
+                      flashcard={flashcard}
+                      isActionOpen={isActionOpen}
+                      actionMode={actionMode}
+                      isBusy={isBusy}
+                      isGenerating={false}
+                      actionComment={actionComment}
+                      editedTitle={editedTitle}
+                      editedBody={editedBody}
+                      reviewStatusLabel={reviewStatusLabel}
+                      kindLabel={kindLabel}
+                      actionLabel={actionLabel}
+                      onOpenAction={openActionForm}
+                      onCloseAction={closeActionForm}
+                      onActionCommentChange={setActionComment}
+                      onEditedTitleChange={setEditedTitle}
+                      onEditedBodyChange={setEditedBody}
+                      onSubmit={(flashcardId) => void handleActionSubmit(flashcardId)}
+                      activeHashtags={activeHashtags}
+                      onToggleHashtag={toggleHashtagFilter}
+                      onRemoveHashtag={(flashcardId, tag) => void removeFlashcardHashtag(flashcardId, tag)}
+                      onCorrection={(input) => void handleCorrection(input)}
+                      onConvert={(type) => handleConvert(flashcard.id, type)}
+                    />
 
-                      {index === 1 && (
-                        <>
-                          <ExpertTipCard tip={tip} />
-                          <MemberList companyId={companyId} isOwner={isOwner} />
-                        </>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </AnimatePresence>
+                    {index === 1 && (
+                      <>
+                        <ExpertTipCard tip={tip} />
+                        <MemberList companyId={companyId} isOwner={isOwner} />
+                      </>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </UnifiedGrid>
+          )}
+
+          {filteredFlashcards.length > visibleFlashcards.length && (
+            <Group justify="center">
+              <Button variant="light" color="knowmore" onClick={() => setVisibleCount((current) => current + PAGE_SIZE)}>
+                Load More Knowledge
+              </Button>
+            </Group>
           )}
         </Stack>
       </Stack>

@@ -85,6 +85,7 @@ function sortDataItems(items: DataItem[], sortBy: "ICE" | "CREATED" | "UPDATED")
 }
 
 export default function CompanyDataPage() {
+  const PAGE_SIZE = 24;
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
@@ -107,6 +108,7 @@ export default function CompanyDataPage() {
   const [intelligenceType, setIntelligenceType] = useState<"INTERNAL" | "COMPETITOR">("INTERNAL");
   const [listIntelligenceFilter, setListIntelligenceFilter] = useState<"ALL" | "INTERNAL" | "COMPETITOR">("ALL");
   const [sortBy, setSortBy] = useState<"ICE" | "CREATED" | "UPDATED">("CREATED");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const loadAllData = useCallback(async (cid: string) => {
     const [s, f] = await Promise.all([
@@ -122,6 +124,10 @@ export default function CompanyDataPage() {
     setItems(all);
     setLoading(false);
   }, [setSources]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [activeHashtags, listIntelligenceFilter, sortBy, items.length]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -328,6 +334,7 @@ export default function CompanyDataPage() {
   });
 
   const sortedItems = sortDataItems(filteredItems, sortBy);
+  const visibleItems = sortedItems.slice(0, visibleCount);
   const hasSortableIce = items.some((item) => typeof item.iceScore === "number");
 
   if (loading) {
@@ -521,7 +528,7 @@ export default function CompanyDataPage() {
             </Card>
           ) : (
             <UnifiedGrid>
-              {sortedItems.map((item, index) => (
+              {visibleItems.map((item, index) => (
                 <React.Fragment key={item.id}>
                   <SourceDataCard
                     id={item.id}
@@ -547,6 +554,14 @@ export default function CompanyDataPage() {
                 </React.Fragment>
               ))}
             </UnifiedGrid>
+          )}
+
+          {sortedItems.length > visibleItems.length && (
+            <Group justify="center">
+              <Button variant="light" color="ingress" onClick={() => setVisibleCount((current) => current + PAGE_SIZE)}>
+                Load More Intelligence
+              </Button>
+            </Group>
           )}
         </Stack>
       </Stack>

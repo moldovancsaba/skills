@@ -119,9 +119,6 @@ export function getSemanticSurfaceStyle(
       ? `0 10px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255,255,255,0.03)`
       : `0 1px 0 rgba(255,255,255,0.03) inset`,
     backdropFilter: "blur(10px)",
-    transition: interactive
-      ? "transform 160ms ease-out, box-shadow 160ms ease-out, border-color 160ms ease-out, background-color 160ms ease-out"
-      : undefined,
   };
 }
 
@@ -130,8 +127,7 @@ export function getSemanticHoverStyle(tone: ModuleTone = "neutral"): CSSProperti
 
   return {
     background: `linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)), ${module.hoverSurface}`,
-    boxShadow: `0 0 0 1px rgba(${module.rgb},0.30), 0 12px 30px ${module.glow}`,
-    transform: "translateY(-2px)",
+    boxShadow: `0 0 0 1px rgba(${module.rgb},0.24), 0 10px 24px ${module.glow}`,
   };
 }
 

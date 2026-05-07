@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { Paper, Text, Group, Stack, rem } from "@mantine/core";
 
 interface MetricCardProps {
@@ -18,12 +17,7 @@ const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon, 
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay: delay * 0.06 }}
-      style={{ height: '100%' }}
-    >
+    <div style={{ height: '100%' }}>
       <Paper
         p="md"
         
@@ -54,7 +48,7 @@ const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon, 
           </Group>
         </Stack>
       </Paper>
-    </motion.div>
+    </div>
   );
 };
 

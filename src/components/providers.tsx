@@ -71,7 +71,6 @@ export const theme = createTheme({
         root: {
           borderRadius: rem(10),
           color: "#E6EDF3",
-          transition: "background-color 160ms ease-out, border-color 160ms ease-out, transform 160ms ease-out",
         },
         label: {
           fontWeight: 600,
@@ -102,7 +101,6 @@ export const theme = createTheme({
                   : undefined,
           color: "#E6EDF3",
           boxShadow: "0 8px 18px rgba(0, 0, 0, 0.22)",
-          transition: "transform 160ms ease-out, box-shadow 160ms ease-out, border-color 160ms ease-out, background-color 160ms ease-out",
         },
       }),
     },
@@ -222,7 +220,18 @@ export const theme = createTheme({
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
-      <ThemeProvider>{children}</ThemeProvider>
+      <ThemeProvider>
+        {children}
+        <style jsx global>{`
+          *,
+          *::before,
+          *::after {
+            animation: none !important;
+            transition: none !important;
+            scroll-behavior: auto !important;
+          }
+        `}</style>
+      </ThemeProvider>
     </MantineProvider>
   );
 }

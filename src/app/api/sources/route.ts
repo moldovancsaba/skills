@@ -22,6 +22,17 @@ export async function GET(request: NextRequest) {
     const sources = await prisma.source.findMany({
       where: { companyId },
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        publicId: true,
+        content: true,
+        hashtags: true,
+        aiClusters: true,
+        entityTag: true,
+        createdAt: true,
+        updatedAt: true,
+        intelligenceType: true,
+      },
     });
     return NextResponse.json(
       sources.map((source) => ({

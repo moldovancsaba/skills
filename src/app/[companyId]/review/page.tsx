@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { IconHistory as History, IconDeviceFloppy as Save, IconAlertCircle as AlertCircle, IconInfoCircle as Info } from "@tabler/icons-react";
 
 import { 
@@ -145,16 +144,14 @@ export default function ReviewDashboard() {
           </Center>
         ) : (
           <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-            <AnimatePresence mode="popLayout">
-              {items.map(item => (
-                <ReviewEditorCard 
-                  key={item.id} 
-                  item={item} 
-                  onSave={handleScoreUpdate} 
-                  isSaving={savingId === item.id} 
-                />
-              ))}
-            </AnimatePresence>
+            {items.map(item => (
+              <ReviewEditorCard 
+                key={item.id} 
+                item={item} 
+                onSave={handleScoreUpdate} 
+                isSaving={savingId === item.id} 
+              />
+            ))}
           </SimpleGrid>
         )}
       </Stack>
@@ -178,13 +175,7 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
   const metricLabel = item._type === 'TASK' ? 'Ease' : 'Weight';
 
   return (
-    <motion.div 
-      layout 
-      initial={{ opacity: 0, scale: 0.98 }} 
-      animate={{ opacity: 1, scale: 1 }} 
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.2 }}
-    >
+    <div>
       <UnifiedCard tone="review">
         <UnifiedCardHeader 
           title={stripTechnicalMetadata(item.title)} 
@@ -224,6 +215,6 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
           </Stack>
         </UnifiedCardBody>
       </UnifiedCard>
-    </motion.div>
+    </div>
   );
 }

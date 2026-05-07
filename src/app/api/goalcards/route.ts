@@ -20,17 +20,26 @@ export async function GET(req: Request) {
       activityState: "ACTIVE"
     },
     orderBy: { createdAt: "desc" },
-    include: {
-      sources: true,
-      actions: {
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      },
-      corrections: {
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      }
-    }
+    select: {
+      id: true,
+      publicId: true,
+      companyId: true,
+      title: true,
+      body: true,
+      confidence: true,
+      impact: true,
+      weight: true,
+      processingStatus: true,
+      activityState: true,
+      confidenceScore: true,
+      refreshedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      userAnnotation: true,
+      hashtags: true,
+      intelligenceType: true,
+      iceScore: true,
+    },
   });
 
   return NextResponse.json(goalcards);

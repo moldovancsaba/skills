@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { IconGitBranch as GitBranch, IconFileText as FileText, IconBulb as Lightbulb, IconSquareCheck as CheckSquare, IconX as X } from "@tabler/icons-react";
 import { 
   Box, 
@@ -59,10 +58,6 @@ export function TraceViewer({
 
   return (
     <Box
-      component={motion.div}
-      initial={{ opacity: 0, x: 20 }} 
-      animate={{ opacity: 1, x: 0 }} 
-      exit={{ opacity: 0, x: 20 }}
       style={{
         position: 'fixed',
         top: 0,

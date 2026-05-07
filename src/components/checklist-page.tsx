@@ -12,7 +12,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { usePathname, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { 
   Group, 
@@ -303,7 +302,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           title="Checklist" 
           icon={ListCheck} 
         />
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <Box>
           <Group justify="space-between" align="center">
             <Stack gap={0}>
               <Text size="xs"    c="brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -345,7 +344,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
               )}
             </Group>
           </Group>
-        </motion.div>
+        </Box>
 
         {filteredItems.length === 0 ? (
           <EmptyState
@@ -372,12 +371,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         ) : (
           <UnifiedGrid>
             {filteredItems.map((item, index) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
-              >
+              <Box key={item.id}>
                 <TaskReviewCard
                   item={item}
                   isActionOpen={actionItemId === item.id && actionMode !== null}
@@ -401,7 +395,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                   onShare={handleShare}
                   onPostpone={handlePostpone}
                 />
-              </motion.div>
+              </Box>
             ))}
           </UnifiedGrid>
         )}

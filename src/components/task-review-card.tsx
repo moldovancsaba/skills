@@ -144,13 +144,13 @@ export function TaskReviewCard({
   const iceColor = getIceBadgeColor(item.iceScore);
 
   return (
-    <UnifiedCard style={{ opacity: item.processingStatus === "DECLINED" ? 0.6 : 1 }}>
+    <UnifiedCard tone="checklist" style={{ opacity: item.processingStatus === "DECLINED" ? 0.6 : 1 }}>
       <UnifiedCardHeader
         supporting={
           <Group justify="space-between" wrap="nowrap" style={{ width: '100%' }}>
             <Group gap={7}>
-              <Badge color="gray">{item.processingStatus}</Badge>
-              <Badge color="execution">TASK</Badge>
+              <Badge color="dark">{item.processingStatus}</Badge>
+              <Badge color="checklist">TASK</Badge>
             </Group>
             <Badge color={iceColor}>ICE {Math.round(item.iceScore)}</Badge>
           </Group>

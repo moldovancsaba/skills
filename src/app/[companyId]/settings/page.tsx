@@ -25,6 +25,7 @@ import {
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { notifications } from "@mantine/notifications";
+import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 type CommunicationSettings = {
   isEnabled: boolean;
@@ -157,11 +158,11 @@ export default function SettingsPage() {
 
       <Stack gap="xl">
         {/* Global Alerting Control */}
-        <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+        <Card style={getSemanticSurfaceStyle("review")}>
           <Group justify="space-between">
             <Stack gap={4}>
               <Group gap="sm">
-                <ThemeIcon color="brand">
+                <ThemeIcon color="review">
                   <Bell size={18} />
                 </ThemeIcon>
                 <Title order={3}>Alerting Layer</Title>
@@ -178,19 +179,19 @@ export default function SettingsPage() {
         </Card>
 
         {/* Organization Settings */}
-        <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+        <Card style={getSemanticSurfaceStyle("synthesis")}>
           <Stack gap="lg">
             <Group justify="space-between" align="flex-start">
               <Stack gap={4}>
                 <Group gap="sm">
-                  <ThemeIcon color="brand">
+                  <ThemeIcon color="synthesis">
                     <Languages size={18} />
                   </ThemeIcon>
                   <Title order={3}>Language Management</Title>
                 </Group>
                 <Text size="sm" c="dimmed">Define which languages the AI is allowed to use for intelligence synthesis.</Text>
               </Stack>
-              <Badge color="brand" size="sm">
+              <Badge color="synthesis" size="sm">
                 {companySettings?.allowedLanguages.length || 0} Enabled
               </Badge>
             </Group>
@@ -207,7 +208,7 @@ export default function SettingsPage() {
 
             <Group justify="flex-end">
               <Button 
-                color="brand"
+                color="synthesis"
                 onClick={() => saveCompanySettings({ allowedLanguages: companySettings?.allowedLanguages })}
                 disabled={saving || !companySettings}
                 loading={saving}
@@ -216,7 +217,7 @@ export default function SettingsPage() {
               </Button>
             </Group>
 
-            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: 'light-dark(rgba(0,0,0,0.03), rgba(0,0,0,0.2))', border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' }}>
+            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", ...getSemanticSurfaceStyle("synthesis", { elevated: false }) }}>
               <Text size="xs" c="dimmed" mb="xs">Policy Enforcement</Text>
               <Text size="xs" c="dimmed">
                 AI agents will strictly use only these permitted languages for flashcards and taskcards. 
@@ -228,10 +229,10 @@ export default function SettingsPage() {
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           {/* Channel Configuration */}
-          <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+          <Card style={getSemanticSurfaceStyle("ingress")}>
             <Stack gap="md">
               <Group gap="sm">
-                <ThemeIcon color="gray">
+                <ThemeIcon color="ingress">
                   <Smartphone size={18} />
                 </ThemeIcon>
                 <Title order={3}>Notification Channel</Title>
@@ -262,10 +263,10 @@ export default function SettingsPage() {
           </Card>
 
           {/* Threshold Configuration */}
-          <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+          <Card style={getSemanticSurfaceStyle("review")}>
             <Stack gap="md">
               <Group gap="sm">
-                <ThemeIcon color="gray">
+                <ThemeIcon color="review">
                   <ShieldCheck size={18} />
                 </ThemeIcon>
                 <Title order={3}>Sensitivity & Priority</Title>
@@ -273,7 +274,7 @@ export default function SettingsPage() {
               <Stack gap="xs">
                 <Group justify="space-between">
                   <Text>Minimum ICE Score</Text>
-                  <Text c="brand">{settings.minIceScore}</Text>
+                  <Text c="review">{settings.minIceScore}</Text>
                 </Group>
                 <Slider 
                   value={settings.minIceScore} 
@@ -283,7 +284,7 @@ export default function SettingsPage() {
                   onChange={(val) => setSettings({ ...settings, minIceScore: val })}
                   onChangeEnd={(val) => saveSettings({ minIceScore: val })}
                   disabled={saving}
-                  color="brand"
+                  color="review"
                 />
                 <Text size="xs" c="dimmed">
                   Higher score = Fewer, higher-quality notifications.
@@ -294,29 +295,29 @@ export default function SettingsPage() {
         </SimpleGrid>
 
         {/* Two-Way Bridge Security */}
-        <Card style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+        <Card style={getSemanticSurfaceStyle("tactical")}>
           <Stack gap="md">
             <Group gap="sm">
-              <ThemeIcon color="gray">
+              <ThemeIcon color="tactical">
                 <Key size={18} />
               </ThemeIcon>
               <Title order={3}>Communication Bridge API</Title>
             </Group>
             <Text size="sm" c="dimmed">Use this key to send data into checklist memory from external scripts.</Text>
             
-            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", backgroundColor: 'light-dark(rgba(0,0,0,0.03), rgba(0,0,0,0.2))', border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' }}>
+            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", ...getSemanticSurfaceStyle("tactical", { elevated: false }) }}>
               <Group justify="space-between">
                 <Text  size="sm" style={{ wordBreak: "break-all" }}>
                   {bridgeSecretDisplay}
                 </Text>
                 <Group gap="xs">
-                  <ActionIcon variant="subtle" color="gray" onClick={() => setShowSecret(!showSecret)} disabled={!settings.bridgeSecret}>
+                  <ActionIcon variant="subtle" color="tactical" onClick={() => setShowSecret(!showSecret)} disabled={!settings.bridgeSecret}>
                     {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
                   </ActionIcon>
-                  <ActionIcon variant="subtle" color="gray" onClick={() => copyToClipboard(settings.bridgeSecret)} disabled={!settings.bridgeSecret}>
+                  <ActionIcon variant="subtle" color="tactical" onClick={() => copyToClipboard(settings.bridgeSecret)} disabled={!settings.bridgeSecret}>
                     <Copy size={16} />
                   </ActionIcon>
-                  <ActionIcon variant="subtle" color="gray" onClick={regenerateSecret} loading={saving}>
+                  <ActionIcon variant="subtle" color="tactical" onClick={regenerateSecret} loading={saving}>
                     <RefreshCcw size={16} />
                   </ActionIcon>
                 </Group>
@@ -329,7 +330,7 @@ export default function SettingsPage() {
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               <Stack gap={4}>
                 <Text size="xs" c="dimmed">Endpoint</Text>
-                <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", backgroundColor: "rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.03)" }}>
+                <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", ...getSemanticSurfaceStyle("tactical", { elevated: false }) }}>
                   <Text  size="xs">
                     {typeof window !== 'undefined' ? window.location.origin : ''}/api/bridge/ingress
                   </Text>
@@ -337,7 +338,7 @@ export default function SettingsPage() {
               </Stack>
               <Stack gap={4}>
                 <Text size="xs" c="dimmed">Example Request</Text>
-                <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", backgroundColor: "rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.03)" }}>
+                <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", ...getSemanticSurfaceStyle("tactical", { elevated: false }) }}>
                   <Text  size="xs">
                     {`POST /api/bridge/ingress + headers: x-company-id, x-bridge-secret, x-bridge-timestamp`}
                   </Text>

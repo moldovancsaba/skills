@@ -302,7 +302,7 @@ export default function Home() {
                   <LinkCard
                     href={`/${c.id}/data`}
                     icon={Database}
-                    variant="gray"
+                    variant="ingress"
                     metric={c.metrics?.data ?? 0}
                     title="Data Ingress"
                     chartData={chartSeries(c.analytics, "sources", "dataIngress")}
@@ -310,7 +310,7 @@ export default function Home() {
                   <LinkCard
                     href={`/${c.id}/topics`}
                     icon={Layers}
-                    variant="indigo"
+                    variant="synthesis"
                     metric={c.metrics?.topics ?? 0}
                     title="Topic Synthesis"
                     chartData={chartSeries(c.analytics, "topics", "topicSynthesis")}
@@ -318,7 +318,7 @@ export default function Home() {
                   <LinkCard
                     href={`/${c.id}/knowmore`}
                     icon={Sparkles}
-                    variant="knowledge"
+                    variant="knowmore"
                     metric={c.metrics?.knowmore ?? 0}
                     title="Knowmore"
                     chartData={chartSeries(c.analytics, "flashcards", "knowmore")}
@@ -334,7 +334,7 @@ export default function Home() {
                   <LinkCard
                     href={`/${c.id}/nba`}
                     icon={ListCheck}
-                    variant="blue"
+                    variant="checklist"
                     metric={c.metrics?.checklistCount ?? 0}
                     title="Checklist"
                     chartData={chartSeries(c.analytics, "checklist", "nba")}
@@ -342,7 +342,7 @@ export default function Home() {
                   <LinkCard
                     href={`/${c.id}/tactical`}
                     icon={LayoutDashboard}
-                    variant="execution"
+                    variant="tactical"
                     metric={c.metrics?.tactical ?? 0}
                     title="Tactical Board"
                     chartData={chartSeries(c.analytics, "tacticalBoard", "nbaItems", "nba")}

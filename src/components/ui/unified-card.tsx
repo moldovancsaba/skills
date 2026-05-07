@@ -3,11 +3,14 @@
 import type { ReactNode, CSSProperties } from "react";
 import { Card, Stack, Group, Title, Text, Box, rem } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { getSemanticHoverStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
 
 type UnifiedCardProps = {
   children: ReactNode;
   style?: CSSProperties;
   mt?: string | number;
+  tone?: ModuleTone;
+  interactive?: boolean;
 };
 
 type UnifiedCardTextProps = UnifiedCardProps & {
@@ -34,12 +37,37 @@ function getPreviewText(value: string, previewLength: number) {
   return `${normalized.slice(0, previewLength).trimEnd()}...`;
 }
 
-export function UnifiedCard({ children, style, mt }: UnifiedCardProps) {
+export function UnifiedCard({
+  children,
+  style,
+  mt,
+  tone = "neutral",
+  interactive = false,
+}: UnifiedCardProps) {
+  const baseStyle = getSemanticSurfaceStyle(tone, { interactive, elevated: true });
+  const hoverStyle = interactive ? getSemanticHoverStyle(tone) : null;
+
   return (
-    <Card 
-       
+    <Card
       mt={mt}
-      style={style}
+      style={style ? { ...baseStyle, ...style } : baseStyle}
+      onMouseEnter={
+        interactive
+          ? (event) => {
+              Object.assign((event.currentTarget as HTMLDivElement).style, hoverStyle ?? {});
+            }
+          : undefined
+      }
+      onMouseLeave={
+        interactive
+          ? (event) => {
+              Object.assign((event.currentTarget as HTMLDivElement).style, baseStyle);
+              if (style) {
+                Object.assign((event.currentTarget as HTMLDivElement).style, style);
+              }
+            }
+          : undefined
+      }
     >
       {children}
     </Card>
@@ -66,16 +94,16 @@ export function UnifiedCardHeader({
           {supporting && <Group gap="xs" wrap="wrap">{supporting}</Group>}
           <Stack gap={4}>
             {typeof title === "string" ? (
-              <Title order={3} style={singleLineClampStyle}>
+              <Title order={3} style={{ ...singleLineClampStyle, fontWeight: 650 }}>
                 {stripTechnicalMetadata(title)}
               </Title>
             ) : (
-              <Title order={3} style={singleLineClampStyle}>
+              <Title order={3} style={{ ...singleLineClampStyle, fontWeight: 650 }}>
                 {title}
               </Title>
             )}
             {description && (
-              <Text c="dimmed">
+              <Text c="#9AA4B2">
                 {description}
               </Text>
             )}
@@ -104,17 +132,23 @@ export function UnifiedCardText({
       : children;
 
   return (
-    <Text style={style} mt={mt}>
+    <Text style={style} mt={mt} c="#9AA4B2" lh={1.6}>
       {content}
     </Text>
   );
 }
 
-export function UnifiedCardSection({ children, style, mt }: UnifiedCardProps) {
+export function UnifiedCardSection({ children, style, mt, tone = "neutral" }: UnifiedCardProps) {
   return (
-    <Box 
-      p="md" 
-      style={style}
+    <Box
+      p="md"
+      style={{
+        borderRadius: rem(12),
+        background: `linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01)), var(--module-hover-surface, #1B2430)`,
+        border: "1px solid rgba(255,255,255,0.05)",
+        ...getSemanticSurfaceStyle(tone, { elevated: false }),
+        ...style,
+      }}
       mt={mt}
     >
       {children}
@@ -128,12 +162,14 @@ export function UnifiedCardActions({ children, style, mt }: UnifiedCardProps) {
 
 export function UnifiedCardFooter({ children, style, mt }: UnifiedCardProps) {
   return (
-    <Card.Section 
-       
-      inheritPadding 
-      py="md" 
-      mt={mt || "xl"} 
-      style={style}
+    <Card.Section
+      inheritPadding
+      py="md"
+      mt={mt || "xl"}
+      style={{
+        borderTop: "1px solid rgba(255,255,255,0.05)",
+        ...style,
+      }}
     >
       {children}
     </Card.Section>

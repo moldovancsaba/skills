@@ -39,6 +39,7 @@ import {
   UnifiedCardBody, 
   UnifiedCardActions, 
 } from "@/components/ui/unified-card";
+import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 type Topic = {
   id: string;
@@ -188,7 +189,7 @@ export default function CompanyTopicsPage() {
           </Notice>
         )}
 
-        <Card>
+        <Card style={getSemanticSurfaceStyle("synthesis")}>
           <Stack gap="md">
             <Text size="xs" c="dimmed">Identify New Intelligence Frontier</Text>
             <Group gap="md" align="flex-end" wrap="nowrap">
@@ -213,7 +214,7 @@ export default function CompanyTopicsPage() {
         <Stack gap="xs">
           <Group gap="sm">
             <Title order={2}>Strategic Hierarchy</Title>
-            <MantineBadge color="gray">{orderedTopics.length} Units</MantineBadge>
+            <MantineBadge color="synthesis">{orderedTopics.length} Units</MantineBadge>
           </Group>
           <Text size="sm" c="dimmed">
             Prioritize topics by reordering. Top-level units receive maximum synthesis yield.
@@ -258,7 +259,7 @@ export default function CompanyTopicsPage() {
                   transition: 'opacity 0.2s ease'
                 }}
               >
-                <UnifiedCard>
+                <UnifiedCard tone="synthesis">
                   <UnifiedCardHeader 
                     supporting={supportingBadge} 
                     title={stripTechnicalMetadata(topic.label)} 
@@ -271,7 +272,7 @@ export default function CompanyTopicsPage() {
                           checked={topic.active} 
                           onChange={() => void toggleActive(topic)} 
                           size="md"
-                          color="brand"
+                          color="synthesis"
                         />
                         <Box style={{ flex: 1 }}>
                           <Text size="xs" c="dimmed">Research Status</Text>
@@ -289,7 +290,7 @@ export default function CompanyTopicsPage() {
                             <Tooltip label="Move Up">
                               <ActionIcon 
                                 variant="light" 
-                                color="gray" 
+                                color="synthesis" 
                                 size="lg"
                                 disabled={index === 0}
                                 onClick={() => void persistOrder(reorder(orderedTopics, index, index - 1))}
@@ -300,7 +301,7 @@ export default function CompanyTopicsPage() {
                             <Tooltip label="Move Down">
                               <ActionIcon 
                                 variant="light" 
-                                color="gray" 
+                                color="synthesis" 
                                 size="lg"
                                 disabled={index === orderedTopics.length - 1}
                                 onClick={() => void persistOrder(reorder(orderedTopics, index, index + 1))}
@@ -311,7 +312,7 @@ export default function CompanyTopicsPage() {
                           </Group>
 
                           <Group gap="sm">
-                            <ThemeIcon variant="transparent" color="gray" opacity={0.3}>
+                            <ThemeIcon variant="transparent" color="synthesis" opacity={0.35}>
                               <GripVertical size={16} />
                             </ThemeIcon>
                             <Tooltip label="Archive Focus">
@@ -336,7 +337,7 @@ export default function CompanyTopicsPage() {
         </UnifiedGrid>
 
         {orderedTopics.length === 0 && (
-          <Card style={{ borderStyle: 'dashed' }} ta="center">
+          <Card style={{ ...getSemanticSurfaceStyle("synthesis", { elevated: false }), borderStyle: 'dashed' }} ta="center">
             <Stack align="center" gap="md">
               <ThemeIcon color="gray" size="xl" >
                 <LayoutList size={24} />

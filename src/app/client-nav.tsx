@@ -27,6 +27,7 @@ import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
 import { APP_VERSION } from "@/lib/release";
 import { logClientInteraction } from "@/lib/client-events";
+import { getSidebarActiveStyle, getSidebarHoverStyle, type ModuleTone } from "@/lib/semantic-theme";
 
 const pipelineItems = [
   {
@@ -34,49 +35,56 @@ const pipelineItems = [
     href: (companyId: string) => `/${companyId}/data`,
     label: "Data Ingress",
     icon: Database,
-    color: "blue",
+    color: "ingress",
+    tone: "ingress",
   },
   {
     key: "topics",
     href: (companyId: string) => `/${companyId}/topics`,
     label: "Topic Synthesis",
     icon: Layers,
-    color: "indigo",
+    color: "synthesis",
+    tone: "synthesis",
   },
   {
     key: "knowmore",
     href: (companyId: string) => `/${companyId}/knowmore`,
     label: "Knowmore",
     icon: Sparkles,
-    color: "teal",
+    color: "knowmore",
+    tone: "knowmore",
   },
   {
     key: "goals",
     href: (companyId: string) => `/${companyId}/goals`,
     label: "Strategic Goals",
     icon: Target,
-    color: "violet",
+    color: "strategy",
+    tone: "strategy",
   },
   {
     key: "nba",
     href: (companyId: string) => `/${companyId}/nba`,
     label: "Checklist",
     icon: ListCheck,
-    color: "blue",
+    color: "checklist",
+    tone: "checklist",
   },
   {
     key: "tactical",
     href: (companyId: string) => `/${companyId}/tactical`,
     label: "Tactical Board",
     icon: LayoutDashboard,
-    color: "cyan",
+    color: "tactical",
+    tone: "tactical",
   },
   {
     key: "review",
     href: (companyId: string) => `/${companyId}/review`,
     label: "Review Gateway",
     icon: History,
-    color: "orange",
+    color: "review",
+    tone: "review",
   },
 ];
 
@@ -172,7 +180,7 @@ export function ClientNav() {
   }
 
   return (
-    <AppShellNavbar p="md" style={{ borderRight: '1px solid var(--mantine-color-default-border)', backgroundColor: 'var(--mantine-color-body)' }}>
+    <AppShellNavbar p="md" style={{ borderRight: '1px solid #2A3441', backgroundColor: '#0F141B' }}>
       <AppShellSection mb="xl">
         <Box px="xs" py="md">
           <Logo />
@@ -191,6 +199,14 @@ export function ClientNav() {
                 variant="light"
                 active={pathname === `/${company?.id || companyIdFromUrl}`}
                 onClick={() => company?.id && router.push(`/${company.id}`)}
+                styles={{
+                  root: {
+                    background: "linear-gradient(90deg, rgba(245,158,11,0.24), rgba(245,158,11,0.08))",
+                    borderLeft: "2px solid #F59E0B",
+                  },
+                  label: { color: "#FBC277" },
+                  description: { color: "#E8C89A" },
+                }}
               />
 
               {pipelineItems.map((item) => (
@@ -229,6 +245,27 @@ export function ClientNav() {
                   active={pathname.includes(item.key)}
                   variant="subtle"
                   color={item.color}
+                  styles={{
+                    root: {
+                      backgroundColor: "transparent",
+                      borderLeft: "2px solid transparent",
+                      ...(pathname.includes(item.key) ? getSidebarActiveStyle(item.tone as ModuleTone) : {}),
+                    },
+                    label: {
+                      color: pathname.includes(item.key) ? "#E6EDF3" : "#D2D9E1",
+                      fontWeight: 500,
+                    },
+                  }}
+                  onMouseEnter={(event) => {
+                    if (!pathname.includes(item.key)) {
+                      Object.assign((event.currentTarget as HTMLAnchorElement).style, getSidebarHoverStyle(item.tone as ModuleTone));
+                    }
+                  }}
+                  onMouseLeave={(event) => {
+                    if (!pathname.includes(item.key)) {
+                      (event.currentTarget as HTMLAnchorElement).style.background = "transparent";
+                    }
+                  }}
                 />
               ))}
             </Stack>
@@ -272,7 +309,7 @@ export function ClientNav() {
                 <ThemeIcon color={isDark ? "yellow" : "indigo"} size="sm">
                   {isDark ? <Sun size={14} /> : <Moon size={14} />}
                 </ThemeIcon>
-                <Text size="xs">{isDark ? "Light" : "Dark"} Mode</Text>
+                <Text size="xs" c="#9AA4B2">{isDark ? "Light" : "Dark"} Mode</Text>
               </Group>
             </Group>
           </UnstyledButton>

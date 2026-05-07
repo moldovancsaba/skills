@@ -25,6 +25,7 @@ import {
 import { PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardActions } from "@/components/ui/unified-card";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 export default function ReviewDashboard() {
   const params = useParams();
@@ -128,7 +129,7 @@ export default function ReviewDashboard() {
         />
         {items.length === 0 ? (
           <Center h={rem(400)}>
-            <Card style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
+            <Card style={{ ...getSemanticSurfaceStyle("review", { elevated: false }), borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
               <Stack align="center" gap="xl">
                 <ThemeIcon color="gray" size={64}>
                   <History size={32} />
@@ -184,19 +185,19 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.2 }}
     >
-      <UnifiedCard style={{ borderColor: 'var(--mantine-color-orange-filled)' }}>
+      <UnifiedCard tone="review">
         <UnifiedCardHeader 
           title={stripTechnicalMetadata(item.title)} 
           supporting={
             <Group gap="xs">
-              <Badge color="orange" size="xs">Review Required</Badge>
-              <Badge variant="outline" color="gray" size="xs">{item._type}</Badge>
+                <Badge color="review" size="xs">Review Required</Badge>
+                <Badge variant="outline" color="dark" size="xs">{item._type}</Badge>
             </Group>
           }
         />
         <UnifiedCardBody>
           <Stack gap="lg">
-            <Box p="md" style={{ background: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))' }}>
+            <Box p="md" style={{ ...getSemanticSurfaceStyle("review", { elevated: false }) }}>
               <Text c="dimmed" lineClamp={4}>
                 {stripTechnicalMetadata(item.body || item.description)}
               </Text>
@@ -211,7 +212,7 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
             <UnifiedCardActions>
               <Button 
                 fullWidth
-                color="orange"
+                color="review"
                 onClick={() => onSave(item.id, item._type, Number(c), Number(i), Number(ew))} 
                 disabled={isSaving}
                 loading={isSaving}

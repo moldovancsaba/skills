@@ -40,6 +40,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";
+import { getModuleTheme, getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
@@ -69,12 +70,13 @@ const COLUMNS: {
   label: string;
   description: string;
   accent: string;
+  tone: "neutral" | "strategy" | "ingress" | "tactical" | "checklist";
 }[] = [
-  { key: "IDEABANK",  label: "Idea Bank", description: "Someday · ICE < 100",  accent: "var(--mantine-color-gray-6)" },
-  { key: "ROADMAP",   label: "Roadmap",   description: "Later · ICE ≥ 100",    accent: "var(--mantine-color-cyan-6)" },
-  { key: "BACKLOG",   label: "Backlog",   description: "Sooner · ICE ≥ 250",   accent: "var(--mantine-color-blue-6)" },
-  { key: "TODO",      label: "Next",      description: "Soon · ICE ≥ 500",     accent: "var(--mantine-color-violet-6)" },
-  { key: "CHECKLIST", label: "Now",       description: "Active · ICE ≥ 700",   accent: "var(--mantine-color-orange-6)" },
+  { key: "IDEABANK",  label: "Idea Bank", description: "Someday · ICE < 100",  accent: getModuleTheme("neutral").color, tone: "neutral" },
+  { key: "ROADMAP",   label: "Roadmap",   description: "Later · ICE ≥ 100",    accent: getModuleTheme("strategy").color, tone: "strategy" },
+  { key: "BACKLOG",   label: "Backlog",   description: "Sooner · ICE ≥ 250",   accent: getModuleTheme("ingress").color, tone: "ingress" },
+  { key: "TODO",      label: "Next",      description: "Soon · ICE ≥ 500",     accent: getModuleTheme("tactical").color, tone: "tactical" },
+  { key: "CHECKLIST", label: "Now",       description: "Active · ICE ≥ 700",   accent: getModuleTheme("checklist").color, tone: "checklist" },
 ];
 
 const COLUMN_OPTIONS = [
@@ -117,7 +119,7 @@ function CardDetailModal({
       zIndex={3000}
       title={
         <Group gap="sm">
-          <ThemeIcon color="orange">
+          <ThemeIcon color={col?.tone === "strategy" ? "strategy" : col?.tone === "ingress" ? "ingress" : col?.tone === "tactical" ? "tactical" : col?.tone === "checklist" ? "checklist" : "dark"}>
             <Target size={16} />
           </ThemeIcon>
           <Text size="sm">
@@ -127,7 +129,7 @@ function CardDetailModal({
             <Badge
               size="xs"
               variant="outline"
-              color={col.accent}
+              color={col.tone === "neutral" ? "dark" : col.tone}
             >
               {col.label}
             </Badge>
@@ -143,7 +145,7 @@ function CardDetailModal({
     >
       {!item ? (
         <Center py="xl">
-          <Loader variant="dots" color="orange" />
+          <Loader variant="dots" color="checklist" />
         </Center>
       ) : (
         <Stack gap="xl" pt="xs">
@@ -168,14 +170,14 @@ function CardDetailModal({
               { label: "Confidence", value: item.confidence, color: "cyan" },
               { label: "Ease",       value: item.ease,       color: "violet" },
             ].map(s => (
-              <Paper key={s.label} p="md" ta="center">
+              <Paper key={s.label} p="md" ta="center" style={getSemanticSurfaceStyle(s.color === "orange" ? "review" : s.color === "cyan" ? "tactical" : "strategy", { elevated: false })}>
                 <Text size="xl" c={s.color}>{s.value}</Text>
                 <Text size="xs" c="dimmed">{s.label}</Text>
               </Paper>
             ))}
-            <Paper p="md" ta="center">
-              <Text size="xl" c="orange">{Math.round(item.iceScore)}</Text>
-              <Text size="xs" c="orange">ICE Score</Text>
+            <Paper p="md" ta="center" style={getSemanticSurfaceStyle("checklist", { elevated: false })}>
+              <Text size="xl" c="checklist">{Math.round(item.iceScore)}</Text>
+              <Text size="xs" c="checklist">ICE Score</Text>
             </Paper>
           </Group>
         </Box>
@@ -187,7 +189,7 @@ function CardDetailModal({
               <Sparkles size={14} color="var(--mantine-color-blue-6)" />
               <Text size="xs" c="dimmed">AI Evaluation Signals</Text>
             </Group>
-            <Paper p="md">
+            <Paper p="md" style={getSemanticSurfaceStyle("tactical", { elevated: false })}>
               <SimpleGrid cols={4}>
                 <Stack gap={2}>
                   <Text size="sm">{fmt(item.qualityScore)}</Text>
@@ -202,7 +204,7 @@ function CardDetailModal({
                   <Text size="xs" c="dimmed">Freshness</Text>
                 </Stack>
                 <Stack gap={2}>
-                  <Badge color="blue">{item.candidateState}</Badge>
+                  <Badge color="tactical">{item.candidateState}</Badge>
                   <Text size="xs" c="dimmed">State</Text>
                 </Stack>
               </SimpleGrid>
@@ -214,7 +216,7 @@ function CardDetailModal({
         {item.evaluationReason && (
           <Box>
             <Text size="xs" c="dimmed" mb="md">AI Judge Reasoning</Text>
-            <Paper p="md" style={{ borderLeft: '4px solid var(--mantine-color-orange-6)' }}>
+            <Paper p="md" style={{ ...getSemanticSurfaceStyle("review", { elevated: false }), borderLeft: '4px solid var(--mantine-color-review-4)' }}>
               <Text size="sm">
                 "{stripTechnicalMetadata(item.evaluationReason)}"
               </Text>
@@ -226,7 +228,7 @@ function CardDetailModal({
         {item.hashtags?.length > 0 && (
           <Group gap="xs" wrap="wrap">
             {item.hashtags.map(tag => (
-              <Badge key={tag} size="xs" color="gray">
+                <Badge key={tag} size="xs" color="tactical">
                 #{tag}
               </Badge>
             ))}
@@ -259,7 +261,7 @@ function CardDetailModal({
             <Group grow gap="md">
               <Button 
                 variant="light" 
-                color="indigo" 
+                color="knowmore" 
                 size="xs" 
                 leftSection={<RefreshCw size={14} />}
                 onClick={() => onConvert(item.id, "KNOWLEDGE")}
@@ -268,7 +270,7 @@ function CardDetailModal({
               </Button>
               <Button 
                 variant="light" 
-                color="teal" 
+                color="strategy" 
                 size="xs" 
                 leftSection={<Layers size={14} />}
                 onClick={() => onConvert(item.id, "GOAL")}
@@ -293,10 +295,10 @@ function CardDetailModal({
             Archive Unit
           </Button>
           <Group gap="sm">
-            <Button variant="light" color="gray" onClick={onClose} size="sm">
+            <Button variant="light" color="dark" onClick={onClose} size="sm">
               Cancel
             </Button>
-            <Button variant="filled" color="orange" onClick={onClose} size="sm">
+            <Button variant="filled" color="checklist" onClick={onClose} size="sm">
               Acknowledge
             </Button>
           </Group>
@@ -412,7 +414,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
       <PageShell width="full">
         <Center h={400}>
           <Stack align="center" gap="sm">
-            <Loader color="orange" />
+            <Loader color="tactical" />
             <Text c="dimmed" size="xs">Synchronizing Tactical Board...</Text>
           </Stack>
         </Center>
@@ -421,7 +423,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }
 
   return (
-    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))' }}>
+    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: "#0B0F14" }}>
 
       <CardDetailModal
         item={detailId ? items.find(i => i.id === detailId) || null : null}
@@ -467,12 +469,13 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                     p="md"
                     style={{
                       borderTop: `4px solid ${col.accent}`,
-                      flexShrink: 0
+                      flexShrink: 0,
+                      ...getSemanticSurfaceStyle(col.tone)
                     }}
                   >
                     <Group justify="space-between" wrap="nowrap">
                       <Stack gap={2} style={{ overflow: 'hidden' }}>
-                        <Text size="sm" style={{ color: col.accent }} truncate>
+                        <Text size="sm" style={{ color: col.accent, fontWeight: 650 }} truncate>
                           {col.label}
                         </Text>
                         <Text size="xs" c="dimmed" truncate>{col.description}</Text>
@@ -480,8 +483,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                       <Badge
                         size="sm"
                         variant="light"
-                        color={col.accent}
-                        style={{ backgroundColor: `${col.accent}15`, color: col.accent, border: `1px solid ${col.accent}33` }}
+                        color={col.tone === "neutral" ? "dark" : col.tone}
                       >
                         {colItems.length}
                       </Badge>
@@ -500,9 +502,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                           border: snapshot.isDraggingOver
                             ? `2px dashed ${col.accent}`
                             : "2px dashed transparent",
-                          backgroundColor: snapshot.isDraggingOver
-                            ? `${col.accent}05`
-                            : "transparent",
+                          backgroundColor: snapshot.isDraggingOver ? `${col.accent}10` : "transparent",
                           transition: "all 0.15s ease",
                           display: 'flex',
                           flexDirection: 'column',
@@ -536,6 +536,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                         transform: snapshot.isDragging ? "rotate(1deg) scale(1.02)" : "none",
                                         transition: "all 0.15s ease",
                                         userSelect: "none",
+                                        ...getSemanticSurfaceStyle(col.tone),
                                       }}
                                     >
                                       <Stack gap="xs">
@@ -551,7 +552,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                           <Badge 
                                             size="xs" 
                                             variant="light" 
-                                            color={item.impact >= 8 ? "red" : item.impact >= 5 ? "orange" : "gray"}
+                                            color={item.impact >= 8 ? "review" : item.impact >= 5 ? "checklist" : "dark"}
                                           >
                                             {item.candidateState}
                                           </Badge>

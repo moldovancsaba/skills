@@ -22,6 +22,7 @@ import { FormInput } from "@/components/ui/form-fields";
 import { Button } from "@mantine/core";
 import { IconUsers as Users, IconUserPlus as UserPlus, IconTrash as Trash2, IconShield as Shield, IconUser as UserIcon, IconMail as Mail } from "@tabler/icons-react";
 import { useState, useEffect, useCallback } from "react";
+import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 export function MemberList({ companyId, isOwner }: { companyId: string; isOwner: boolean }) {
   const [members, setMembers] = useState<any[]>([]);
@@ -94,7 +95,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
 
   if (loading) {
     return (
-      <UnifiedCard style={{ height: '100%' }}>
+      <UnifiedCard tone="ingress" style={{ height: '100%' }}>
         <Stack align="center" justify="center" h={200}>
           <Loader color="brand" />
           <Text size="xs" c="dimmed">Syncing Permissions...</Text>
@@ -104,14 +105,14 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
   }
 
   return (
-    <UnifiedCard style={{ height: '100%' }}>
+    <UnifiedCard tone="ingress" style={{ height: '100%' }}>
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">
             <ThemeIcon color="gray">
               <Users size={18} />
             </ThemeIcon>
-            <Badge color="gray">
+            <Badge color="ingress">
               Access Control
             </Badge>
           </Group>
@@ -139,7 +140,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                   <Button 
                     type="submit" 
                     loading={inviting} 
-                    color="brand" 
+                    color="ingress" 
                     leftSection={<UserPlus size={16} />}
                   >
                     Invite
@@ -157,20 +158,19 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                 p="sm" 
                 style={{ 
                   borderRadius: "var(--mantine-radius-md)",
-                  backgroundColor: 'light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03))',
-                  border: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`
+                  ...getSemanticSurfaceStyle(member.role === "OWNER" ? "strategy" : "neutral", { elevated: false })
                 }}
               >
                 <Group justify="space-between" wrap="nowrap">
                   <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
-                    <Avatar color={member.role === 'OWNER' ? 'brand' : 'gray'}>
+                    <Avatar color={member.role === 'OWNER' ? 'strategy' : 'ingress'}>
                       {member.email[0].toUpperCase()}
                     </Avatar>
                     <Box style={{ flex: 1, minWidth: 0 }}>
                       <Text size="sm" truncate>{member.email}</Text>
                       <Group gap="xs">
                         <Group gap={4}>
-                          <Shield size={12} color={member.role === 'OWNER' ? 'var(--mantine-color-brand-6)' : 'var(--mantine-color-gray-6)'} />
+                          <Shield size={12} color={member.role === 'OWNER' ? 'var(--mantine-color-strategy-4)' : 'var(--mantine-color-ingress-4)'} />
                           <Text size="10px" c="dimmed">
                             {member.role === 'OWNER' ? 'Admin' : 'Member'}
                           </Text>

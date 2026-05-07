@@ -129,12 +129,18 @@ export function KnowledgeReviewCard({
   
   const getCardColor = () => {
     if (cardType === "GOAL") return "strategy";
-    if (cardType === "TASK") return "execution";
-    return "knowledge";
+    if (cardType === "TASK") return "checklist";
+    return "knowmore";
+  };
+
+  const getCardTone = () => {
+    if (cardType === "GOAL") return "strategy" as const;
+    if (cardType === "TASK") return "checklist" as const;
+    return "knowmore" as const;
   };
 
   return (
-    <UnifiedCard>
+    <UnifiedCard tone={getCardTone()}>
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">
@@ -209,7 +215,7 @@ export function KnowledgeReviewCard({
             style={{ 
               borderRadius: "var(--mantine-radius-md)",
               backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))',
-              borderLeft: `4px solid var(--mantine-color-brand-6)`,
+              borderLeft: `4px solid var(--mantine-color-${getCardColor()}-4)`,
               borderTop: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`,
               borderRight: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`,
               borderBottom: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`

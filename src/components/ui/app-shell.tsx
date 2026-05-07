@@ -24,6 +24,7 @@ import {
 } from "@mantine/core";
 
 import { DashboardChart } from "@/components/dashboard-chart";
+import { getModuleCssVars, getSemanticHoverStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
 
 type PageShellProps = {
   children: ReactNode;
@@ -38,6 +39,7 @@ export function PageShell({
     <Container 
       size={width === "full" ? "100%" : width} 
       py="xl"
+      style={{ position: "relative" }}
     >
       <Stack gap="xl">
         {children}
@@ -174,8 +176,9 @@ export function MetricCard({
   detail,
   color = "brand",
 }: MetricCardProps) {
+  const tone = (color === "brand" ? "ingress" : color) as ModuleTone;
   return (
-    <Card>
+    <Card style={getSemanticSurfaceStyle(tone)}>
       
       <Stack gap="xl">
         <Group justify="space-between" align="flex-start">
@@ -183,17 +186,17 @@ export function MetricCard({
             <Icon size={20} />
           </ThemeIcon>
           
-          <Text c="dimmed">
+          <Text c="#9AA4B2" fw={500}>
             {label}
           </Text>
         </Group>
 
         <Stack gap={4}>
-          <Text size="h2">
+          <Text size="h2" fw={700}>
             {value}
           </Text>
           {detail && (
-            <Text c={color}>
+            <Text c={`var(--mantine-color-${color}-4)`}>
               {detail}
             </Text>
           )}
@@ -258,13 +261,50 @@ export function LinkCard({
   variant = "blue",
   chartData,
 }: LinkCardProps) {
+  const tone = (
+    variant === "ingress" || variant === "blue"
+      ? "ingress"
+      : variant === "synthesis" || variant === "indigo"
+        ? "synthesis"
+        : variant === "knowmore" || variant === "teal" || variant === "knowledge"
+          ? "knowmore"
+          : variant === "strategy" || variant === "violet"
+            ? "strategy"
+            : variant === "checklist" || variant === "orange" || variant === "execution"
+              ? "checklist"
+              : variant === "tactical" || variant === "cyan"
+                ? "tactical"
+                : variant === "review"
+                  ? "review"
+                  : "neutral"
+  ) as ModuleTone;
+
+  const baseStyle = getSemanticSurfaceStyle(tone, { interactive: true });
+  const hoverStyle = getSemanticHoverStyle(tone);
+
   return (
     <UnstyledButton 
       component={Link} 
       href={href} 
       style={{ display: "block", height: "100%", textDecoration: 'none' }}
     >
-      <Card>
+      <Card
+        style={{
+          ...baseStyle,
+          ...getModuleCssVars(tone),
+          overflow: "hidden",
+        }}
+        onMouseEnter={(event) => {
+          Object.assign((event.currentTarget as HTMLDivElement).style, hoverStyle);
+        }}
+        onMouseLeave={(event) => {
+          Object.assign((event.currentTarget as HTMLDivElement).style, {
+            ...baseStyle,
+            ...getModuleCssVars(tone),
+            overflow: "hidden",
+          });
+        }}
+      >
 
         <Stack gap="xl" h="100%" style={{ position: 'relative', zIndex: 1 }}>
           <Group justify="space-between" align="center">
@@ -272,17 +312,17 @@ export function LinkCard({
               <Icon size={20} />
             </ThemeIcon>
             {metric !== undefined && (
-              <Text color={variant}>
+              <Text c={`var(--mantine-color-${variant}-4)`} fw={600}>
                 {metric}
               </Text>
             )}
           </Group>
 
           <Stack gap={6}>
-            <Text>
+            <Text fw={650} size="lg">
               {title}
             </Text>
-            <Text c="dimmed" lineClamp={2}>
+            <Text c="#9AA4B2" lineClamp={2}>
               {description}
             </Text>
           </Stack>
@@ -297,7 +337,7 @@ export function LinkCard({
           )}
 
           <Group justify="flex-end" mt="auto" pt="md">
-            <Text size="xs" color={variant}>
+            <Text size="xs" c={`var(--mantine-color-${variant}-4)`} fw={600}>
               Access Layer →
             </Text>
           </Group>

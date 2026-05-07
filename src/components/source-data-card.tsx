@@ -57,20 +57,20 @@ export function SourceDataCard({
   const bodyText = stripTechnicalMetadata(lines.slice(1).join("\n"));
 
   return (
-    <UnifiedCard style={{ borderColor: "var(--mantine-color-blue-filled)" }}>
+    <UnifiedCard tone="ingress">
       <UnifiedCardHeader 
         supporting={
           <Group gap="xs">
-            <Badge color={DATA_CARD_COLOR} variant="light">
+            <Badge color="ingress" variant="light">
               Datacard
             </Badge>
             <Badge 
-              color={isCompetitor ? "orange" : DATA_CARD_COLOR}
+              color={isCompetitor ? "review" : "ingress"}
               variant="light"
             >
               {isCompetitor ? "Competitor" : "Internal"}
             </Badge>
-            <Badge color={DATA_CARD_COLOR} variant="light" leftSection={<Icon size={10} />}>
+            <Badge color="ingress" variant="light" leftSection={<Icon size={10} />}>
               {type}
             </Badge>
             
@@ -101,7 +101,7 @@ export function SourceDataCard({
             <Badge 
               key={tag} 
               variant={activeHashtags.includes(tag) ? "filled" : "outline"}
-              color={DATA_CARD_COLOR}
+              color="ingress"
               size="xs"
               onClick={() => onToggleHashtag?.(tag)}
             >
@@ -112,7 +112,7 @@ export function SourceDataCard({
 
         <UnifiedCardActions>
           {onStartEdit && (
-            <Button variant="filled" color={DATA_CARD_COLOR} size="sm" leftSection={<Pencil size={14} />} onClick={onStartEdit}>
+            <Button variant="filled" color="ingress" size="sm" leftSection={<Pencil size={14} />} onClick={onStartEdit}>
               Edit
             </Button>
           )}
@@ -127,17 +127,17 @@ export function SourceDataCard({
           <Text size="xs" c="dimmed">Intelligence Controls</Text>
           <Group gap="xs" wrap="wrap">
             <Tooltip label="Pin relevant evidence">
-              <Button variant="subtle" size="compact-xs" color={DATA_CARD_COLOR} leftSection={<Pin size={12} />}>
+              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<Pin size={12} />}>
                 Pin
               </Button>
             </Tooltip>
             <Tooltip label="Refresh knowledge">
-              <Button variant="subtle" size="compact-xs" color={DATA_CARD_COLOR} leftSection={<RefreshCw size={12} />}>
+              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<RefreshCw size={12} />}>
                 Refresh
               </Button>
             </Tooltip>
             <Tooltip label="Archive intelligence">
-              <Button variant="subtle" size="compact-xs" color={DATA_CARD_COLOR} leftSection={<Archive size={12} />}>
+              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<Archive size={12} />}>
                 Archive
               </Button>
             </Tooltip>
@@ -147,9 +147,9 @@ export function SourceDataCard({
             <>
               <Divider my="xs" label="Convert Research Into" labelPosition="center" />
               <Group gap="xs" justify="center">
-                <Button variant="outline" size="compact-xs" color="knowledge" onClick={() => onConvert(id, "KNOWLEDGE")}>Knowledge</Button>
+                <Button variant="outline" size="compact-xs" color="knowmore" onClick={() => onConvert(id, "KNOWLEDGE")}>Knowledge</Button>
                 <Button variant="outline" size="compact-xs" color="strategy" onClick={() => onConvert(id, "GOAL")}>Goal</Button>
-                <Button variant="outline" size="compact-xs" color="execution" onClick={() => onConvert(id, "TASK")}>Task</Button>
+                <Button variant="outline" size="compact-xs" color="checklist" onClick={() => onConvert(id, "TASK")}>Task</Button>
               </Group>
             </>
           )}

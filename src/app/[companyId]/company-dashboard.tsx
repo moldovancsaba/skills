@@ -244,7 +244,7 @@ export default function CompanyDashboard() {
         <LinkCard
           href={`/${companyId}/data`}
           icon={Database}
-          variant="blue"
+          variant="ingress"
           metric={counts.sources}
           title="Data Ingress"
           chartData={chartSeries("sources", "dataIngress")}
@@ -252,7 +252,7 @@ export default function CompanyDashboard() {
         <LinkCard
           href={`/${companyId}/topics`}
           icon={Layers}
-          variant="indigo"
+          variant="synthesis"
           metric={counts.topics}
           title="Topic Synthesis"
           chartData={chartSeries("topics", "topicSynthesis")}
@@ -260,7 +260,7 @@ export default function CompanyDashboard() {
         <LinkCard
           href={`/${companyId}/knowmore`}
           icon={Sparkles}
-          variant="teal"
+          variant="knowmore"
           metric={counts.flashcards}
           title="Knowmore"
           chartData={chartSeries("flashcards", "knowmore")}
@@ -268,7 +268,7 @@ export default function CompanyDashboard() {
         <LinkCard
           href={`/${companyId}/goals`}
           icon={Target}
-          variant="violet"
+          variant="strategy"
           metric={counts.goals}
           title="Strategic Goals"
           chartData={chartSeries("goals", "strategicGoals", "nba")}
@@ -276,7 +276,7 @@ export default function CompanyDashboard() {
         <LinkCard
           href={`/${companyId}/checklist`}
           icon={ListCheck}
-          variant="orange"
+          variant="checklist"
           metric={counts.checklistCount}
           title="Checklist"
           chartData={chartSeries("checklist", "nba")}
@@ -284,7 +284,7 @@ export default function CompanyDashboard() {
         <LinkCard
           href={`/${companyId}/tactical`}
           icon={LayoutDashboard}
-          variant="cyan"
+          variant="tactical"
           metric={counts.nbaItems}
           title="Tactical Board"
           chartData={chartSeries("tacticalBoard", "nbaItems", "nba")}

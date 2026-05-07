@@ -7,6 +7,10 @@ const OAUTH_MAX_AGE = 60 * 15;
 export const APP_SESSION_COOKIE = "checklist_session";
 export const OAUTH_STATE_COOKIE = "checklist_oauth";
 
+function redirect(url: URL) {
+  return NextResponse.redirect(url, 302);
+}
+
 export type AppSession = {
   sub: string;
   email: string;
@@ -206,11 +210,11 @@ export async function handleOAuthCallback(req: NextRequest) {
   const state = searchParams.get("state");
 
   if (error) {
-    return NextResponse.redirect(new URL(`/?authError=${error}`, req.url));
+    return redirect(new URL(`/?authError=${error}`, req.url));
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/?authError=no_code", req.url));
+    return redirect(new URL("/?authError=no_code", req.url));
   }
 
   try {
@@ -219,12 +223,12 @@ export async function handleOAuthCallback(req: NextRequest) {
     if (!oauthState) {
       const stateCookie = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
       if (!stateCookie) {
-        return NextResponse.redirect(new URL("/?authError=no_state", req.url));
+        return redirect(new URL("/?authError=no_state", req.url));
       }
 
       const cookieState = readOAuthState(stateCookie);
       if (!cookieState || cookieState.state !== state) {
-        return NextResponse.redirect(new URL("/?authError=invalid_state", req.url));
+        return redirect(new URL("/?authError=invalid_state", req.url));
       }
 
       oauthState = cookieState;
@@ -258,7 +262,7 @@ export async function handleOAuthCallback(req: NextRequest) {
     });
 
     const returnTo = oauthState.returnTo || "/";
-    const response = NextResponse.redirect(new URL(returnTo, req.url));
+    const response = redirect(new URL(returnTo, req.url));
 
     response.cookies.set(APP_SESSION_COOKIE, session, {
       httpOnly: true,
@@ -271,6 +275,6 @@ export async function handleOAuthCallback(req: NextRequest) {
     response.cookies.delete(OAUTH_STATE_COOKIE);
     return response;
   } catch {
-    return NextResponse.redirect(new URL("/?authError=callback_failed", req.url));
+    return redirect(new URL("/?authError=callback_failed", req.url));
   }
 }

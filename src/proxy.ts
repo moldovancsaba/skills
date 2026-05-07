@@ -2,13 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const APP_SESSION_COOKIE = "checklist_session";
 
+function redirect(url: URL) {
+  return NextResponse.redirect(url, 302);
+}
+
 // Renamed from 'middleware' to 'proxy' to conform to Next.js 16.2.2 Turbopack expectations.
 export function proxy(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const { pathname, search } = req.nextUrl;
   const session = req.cookies.get(APP_SESSION_COOKIE)?.value;
+  const accept = req.headers.get("accept") || "";
+  const isDocumentRequest = req.method === "GET" && accept.includes("text/html");
 
   // 1. Allow these specific public paths
-  const publicPaths = ["/login", "/auth/callback", "/api/auth", "/api/bridge", "/api/test-public"];
+  const publicPaths = ["/login", "/auth", "/auth/callback", "/api/auth", "/api/bridge", "/api/test-public"];
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 
   // 2. Allow static files regardless of auth
@@ -24,7 +30,7 @@ export function proxy(req: NextRequest) {
   // 3. Handle Login page redirection
   if (pathname === "/login") {
     if (session) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return redirect(new URL("/", req.url));
     }
     return NextResponse.next();
   }
@@ -32,8 +38,15 @@ export function proxy(req: NextRequest) {
   // 4. Force Login for all other routes (including /)
   if (!session && !isPublicPath) {
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("returnTo", pathname);
-    return NextResponse.redirect(loginUrl);
+    loginUrl.searchParams.set("returnTo", `${pathname}${search}`);
+
+    // Embedded browsers are much more reliable when we render the first-party login
+    // surface directly instead of forcing an immediate redirect chain.
+    if (isDocumentRequest) {
+      return NextResponse.rewrite(loginUrl);
+    }
+
+    return redirect(loginUrl);
   }
 
   return NextResponse.next();

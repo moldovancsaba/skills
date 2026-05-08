@@ -1,9 +1,10 @@
 'use client';
 
 import type { ReactNode, CSSProperties, KeyboardEvent, MouseEvent } from "react";
-import { Card, Stack, Group, Title, Text, Box, rem } from "@mantine/core";
+import { Card, Stack, Group, Title, Text, Box, Badge, rem } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { getSemanticHoverStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
+import type { CardFreshnessState } from "@/lib/card-freshness";
 
 type UnifiedCardProps = {
   children: ReactNode;
@@ -130,6 +131,24 @@ export function UnifiedCardHeader({
         {actions && <Box>{actions}</Box>}
       </Group>
     </Stack>
+  );
+}
+
+type UnifiedCardFreshnessBadgeProps = {
+  freshness: CardFreshnessState | null;
+};
+
+export function UnifiedCardFreshnessBadge({ freshness }: UnifiedCardFreshnessBadgeProps) {
+  if (!freshness) {
+    return null;
+  }
+
+  const color = freshness === "NEW" ? "knowmore" : "tactical";
+
+  return (
+    <Badge color={color} variant="light" size="xs">
+      {freshness}
+    </Badge>
   );
 }
 

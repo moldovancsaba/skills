@@ -5,6 +5,12 @@ const { enforceLanguagePolicy } = require("./language-validator");
 const { fetchUrlContent } = require("./fetcher");
 const { CandidateState, toArchived, toGenerated } = require("./lifecycle");
 const { recomputeFrontier, refillChecklistFromBacklog: frontierRefill } = require("./frontier");
+const {
+  calculateKnowledgeIceScore,
+  normalizeGoalScores,
+  normalizeKnowledgeScores,
+  normalizeTaskScores,
+} = require("../../src/lib/scoring-contract");
 
 /**
  * checklist MAINTENANCE ENGINE
@@ -170,6 +176,11 @@ async function processUserFeedback(prisma, company) {
             confidence: Math.max(1, Math.min(10, currentConf + delta.confidence)),
             confidenceScore: Math.max(1, Math.min(10, currentConf + delta.confidence)),
             weight: Math.max(1, Math.min(10, currentWeight + delta.weight)),
+            iceScore: calculateKnowledgeIceScore({
+              impact: fc.impact,
+              confidence: Math.max(1, Math.min(10, currentConf + delta.confidence)),
+              weight: Math.max(1, Math.min(10, currentWeight + delta.weight)),
+            }),
             updatedAt: new Date()
           }
         });
@@ -194,6 +205,104 @@ async function processUserFeedback(prisma, company) {
   }
 
   return pendingFeedback.length;
+}
+
+async function loadOldestAuditBatch(model, where, take) {
+  const neverAudited = await model.findMany({
+    where: {
+      ...where,
+      lastAuditedAt: null,
+    },
+    orderBy: { updatedAt: "asc" },
+    take,
+  });
+
+  if (neverAudited.length >= take) {
+    return neverAudited;
+  }
+
+  const audited = await model.findMany({
+    where: {
+      ...where,
+      lastAuditedAt: { not: null },
+    },
+    orderBy: [
+      { lastAuditedAt: "asc" },
+      { updatedAt: "asc" },
+    ],
+    take: take - neverAudited.length,
+  });
+
+  return [...neverAudited, ...audited];
+}
+
+async function rescorePeriodicCards(prisma, company) {
+  const cid = company.id;
+  const batchSize = await getWorkerConfig(prisma, company, "rescore_batch_size", 3);
+  const activeWhere = {
+    companyId: cid,
+    activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+    processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+  };
+  const auditTimestamp = new Date();
+
+  const [flashcards, goalcards, taskcards] = await Promise.all([
+    loadOldestAuditBatch(prisma.flashcard, activeWhere, batchSize),
+    loadOldestAuditBatch(prisma.goalcard, activeWhere, batchSize),
+    loadOldestAuditBatch(prisma.nBAItem, {
+      ...activeWhere,
+      candidateState: { in: [CandidateState.GENERATED, CandidateState.REFINED, CandidateState.EVALUATED] },
+    }, batchSize),
+  ]);
+
+  for (const flashcard of flashcards) {
+    await prisma.flashcard.update({
+      where: { id: flashcard.id },
+      data: {
+        ...normalizeKnowledgeScores({
+          confidence: flashcard.confidenceScore ?? flashcard.confidence,
+          impact: flashcard.impact,
+          weight: flashcard.weight,
+        }),
+        lastAuditedAt: auditTimestamp,
+      },
+    });
+  }
+
+  for (const goalcard of goalcards) {
+    await prisma.goalcard.update({
+      where: { id: goalcard.id },
+      data: {
+        ...normalizeGoalScores({
+          confidence: goalcard.confidenceScore ?? goalcard.confidence,
+          impact: goalcard.impact,
+          weight: goalcard.weight,
+        }),
+        lastAuditedAt: auditTimestamp,
+      },
+    });
+  }
+
+  for (const taskcard of taskcards) {
+    await prisma.nBAItem.update({
+      where: { id: taskcard.id },
+      data: {
+        ...normalizeTaskScores({
+          confidence: taskcard.confidenceScore ?? taskcard.confidence,
+          impact: taskcard.impact,
+          ease: taskcard.ease,
+        }),
+        lastAuditedAt: auditTimestamp,
+      },
+    });
+  }
+
+  const totalAudited = flashcards.length + goalcards.length + taskcards.length;
+  if (totalAudited > 0) {
+    console.log(`[RESCORE] ${company.name}: Audited ${flashcards.length} flashcards, ${goalcards.length} goalcards, ${taskcards.length} taskcards with oldest-first queueing.`);
+  }
+
+  return totalAudited;
 }
 
 // --- LIFECYCLE MANAGEMENT ---
@@ -246,6 +355,9 @@ async function runMaintenance(prisma, company) {
 
   // 0. Brain Reconciliation (User Feedback)
   await processUserFeedback(prisma, company);
+
+  // 0.25 Periodic rescoring across all active card layers with oldest-first queueing.
+  await rescorePeriodicCards(prisma, company);
 
   // 0.5 Global Inconsistency Scrub (v0.11.5 Harden)
   await scrubCompanyRejections(prisma, cid);
@@ -801,6 +913,7 @@ module.exports = {
   reactivateCard,
   scrubDatabaseElemental,
   processUserFeedback,
+  rescorePeriodicCards,
   scrubCompanyRejections,
   mergeDuplicates,
   enrichOldestCards,

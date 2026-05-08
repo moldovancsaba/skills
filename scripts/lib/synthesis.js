@@ -16,6 +16,10 @@ const { recordDecisionEvent, recordGenerationEvent, recordOutcomeEvent } = requi
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const {
+  normalizeKnowledgeScores,
+  normalizeTaskScores,
+} = require("../../src/lib/scoring-contract");
 
 /**
  * trinity ENGINE
@@ -283,10 +287,16 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
           let createdItem;
 
           if (category === "GOALCARD") {
+            const normalizedScores = normalizeKnowledgeScores(cleanDraft);
             createdItem = await prisma.goalcard.create({
               data: {
                 ...cleanDraft,
                 companyId: cid,
+                confidence: normalizedScores.confidence,
+                confidenceScore: normalizedScores.confidenceScore,
+                impact: normalizedScores.impact,
+                weight: normalizedScores.weight,
+                iceScore: normalizedScores.iceScore,
                 processingStatus: "DRAFT",
                 cycleRunId: workerContext.cycleRunId,
                 createdAt: await getServerTime(prisma)
@@ -324,17 +334,22 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
             }
           } else if (category === "TASKCARD") {
             const sourceIds = batch.map(src => src.id);
+            const normalizedScores = normalizeTaskScores({
+              impact: cleanDraft.impact,
+              confidence: cleanDraft.confidenceScore ?? cleanDraft.confidence,
+              ease: cleanDraft.weight ?? cleanDraft.ease,
+            });
             createdItem = await prisma.nBAItem.create({
               data: {
                 companyId: cid,
                 title: cleanDraft.title,
                 description: cleanDraft.body,
                 status: "PENDING",
-                confidence: cleanDraft.confidence,
-                confidenceScore: cleanDraft.confidence,
-                impact: cleanDraft.impact,
-                ease: cleanDraft.weight,
-                iceScore: cleanDraft.iceScore,
+                confidence: normalizedScores.confidence,
+                confidenceScore: normalizedScores.confidenceScore,
+                impact: normalizedScores.impact,
+                ease: normalizedScores.ease,
+                iceScore: normalizedScores.iceScore,
                 hashtags: cleanDraft.hashtags,
                 cycleRunId: workerContext.cycleRunId,
                 generatedFromIds: sourceIds,
@@ -355,20 +370,26 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
               payload: {
                 category,
                 hashtags: cleanDraft.hashtags || [],
-                iceScore: cleanDraft.iceScore,
-                impact: cleanDraft.impact,
-                confidence: cleanDraft.confidence,
-                ease: cleanDraft.weight,
+                iceScore: normalizedScores.iceScore,
+                impact: normalizedScores.impact,
+                confidence: normalizedScores.confidence,
+                ease: normalizedScores.ease,
               },
               teachingWeight: 45,
               cycleRunId: workerContext.cycleRunId,
             });
           } else {
             // Default: FLASHCARD
+            const normalizedScores = normalizeKnowledgeScores(cleanDraft);
             createdItem = await prisma.flashcard.create({
               data: {
                 ...cleanDraft,
                 companyId: cid,
+                confidence: normalizedScores.confidence,
+                confidenceScore: normalizedScores.confidenceScore,
+                impact: normalizedScores.impact,
+                weight: normalizedScores.weight,
+                iceScore: normalizedScores.iceScore,
                 processingStatus: "DRAFT",
                 candidateState: CandidateState.GENERATED,
                 cycleRunId: workerContext.cycleRunId,
@@ -439,6 +460,7 @@ async function performCompanyJudging(prisma, company, memoryPrompt, topic, worke
   let ops = 0;
   const pending = await prisma.flashcard.findMany({
     where: { companyId: company.id, processingStatus: "CHECKED" },
+    orderBy: { updatedAt: "asc" },
     take: 5
   });
 
@@ -620,6 +642,7 @@ async function processCandidateBacklog(prisma, company, memoryPrompt) {
       candidateState: CandidateState.REFINED,
       activityState: "ACTIVE"
     },
+    orderBy: { updatedAt: "asc" },
     take: 10
   });
 
@@ -635,6 +658,7 @@ async function processCandidateBacklog(prisma, company, memoryPrompt) {
       candidateState: CandidateState.GENERATED,
       activityState: "ACTIVE"
     },
+    orderBy: { updatedAt: "asc" },
     take: 10
   });
 

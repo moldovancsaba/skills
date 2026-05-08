@@ -26,7 +26,17 @@
 
 ### 3. Intelligence Clarity (Metadata Filtering)
 - **Hardened Presentation Layer**: Implemented `stripTechnicalMetadata()` utility to keep implementation details invisible to users.
-- **Purged Markers**: Technical trace data (`[TRACE:...]`, `[TOPIC_ID:...]`) is now strictly internal and filtered from all user-facing cards.
+- **Boundary Sanitization**: Added persistence-safe sanitizers so technical trace data is removed from feedback and annotations before storage, not only before render.
+- **Purged Markers**: Technical trace data (`[TRACE:...]`, `[TOPIC_ID:...]`) is now strictly internal and filtered from all user-facing cards and user-facing annotation fields.
+
+### 4. Canonical Scoring & Queueing
+- **Shared Scoring Contract**: `src/lib/scoring-contract.js` is now the authoritative contract for normalized `1-10` metrics and derived ICE values.
+- **Evidence-Grounded Task Scoring**: Task generation/refinement no longer relies on raw repeated tuples alone; scores are grounded by source strength plus task specificity, urgency, and complexity signals.
+- **Fairness Rule**: Periodic rescoring and true refinement queues run oldest-updated-first to avoid starvation.
+
+### 5. Tactical Board Drag Stability
+- **Drag Lifecycle Fix**: Tactical board drag visuals are now tied to explicit drag lifecycle state instead of lingering per-card transforms.
+- **Invariant**: After drop, cards must immediately return to resting style without requiring a refresh.
 
 ## Open Gaps & Roadmap
 

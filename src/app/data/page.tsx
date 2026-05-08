@@ -47,6 +47,7 @@ interface DataItem {
   entityTag?: string | null;
   description?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 function sortDataItems(items: DataItem[]) {
@@ -380,6 +381,8 @@ export default function GlobalDataCollectionPage() {
                   name={item.name}
                   type={item.type}
                   hashtags={item.hashtags ?? []}
+                  createdAt={item.createdAt}
+                  updatedAt={item.updatedAt}
                   onStartEdit={() => startEdit(item)}
                   onDelete={() => deleteItem(item)}
                   activeHashtags={activeHashtags}

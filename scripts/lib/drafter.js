@@ -21,6 +21,12 @@ const { getCompanyStrategicContext } = require("./context");
 const { unifyArray } = require("./synthesis-utils");
 const { CandidateState, toGenerated } = require("./lifecycle");
 const { computeInitialFreshnessScore } = require("./evidence");
+const {
+  calculateKnowledgeIceScore,
+  groundTaskScores,
+  normalizeKnowledgeScores,
+  normalizeTaskScores,
+} = require("../../src/lib/scoring-contract");
 
 // --- UTILITIES ---
 
@@ -194,6 +200,11 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       procStatus = "REVIEW";
     }
 
+    const normalizedScores = normalizeKnowledgeScores({
+      impact,
+      confidence,
+      weight,
+    });
     const freshnessScore = computeInitialFreshnessScore(evidenceBatch[0]);
     const fingerprint = hashValue(`GEN:FC:${company.id}:${evidenceBatch.map(e => e.id).join(",")}:${item.title}`);
 
@@ -203,10 +214,10 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       companyId: company.id,
       title: truncate(item.title, 160),
       body: truncate(joinBody(item.body), bodyLimit),
-      confidenceScore: confidence,
-      confidence,
-      impact,
-      weight,
+      confidenceScore: normalizedScores.confidenceScore,
+      confidence: normalizedScores.confidence,
+      impact: normalizedScores.impact,
+      weight: normalizedScores.weight,
       processingStatus: procStatus,
       activityState: "ACTIVE",
       status: "ACTIVE",
@@ -223,7 +234,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       versionFamilyId,
       candidateState: CandidateState.GENERATED,
       freshnessScore,
-      iceScore: impact * (confidence / 10) * weight,
+      iceScore: normalizedScores.iceScore,
       feedbackScore: 0,
       // Legacy source linking (for backward compat)
       sourceId: evidenceBatch[0].id,
@@ -267,6 +278,8 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     tacticalGuidance ? `\n### [TACTICAL GUIDANCE]\n${tacticalGuidance}\n` : "",
     "Required fields: title, description, kind, impact, confidence, ease, semanticTags (array of 3-5 lowercase strings).",
     "AXIOM: Strict integer scores for confidence, impact, ease. Scale: 1-10. NO zeros.",
+    "SCORING DISCIPLINE: Score each dimension independently from the actual task text. Impact = business upside, confidence = evidence strength and clarity, ease = implementation effort. Do not reuse favorite tuples across tasks.",
+    "SCORING RATIONALE: Titles or descriptions that differ materially should usually not receive identical triplets unless the evidence truly supports it.",
     "ACTIONABILITY REQUIREMENT: Every task must be concretely executable by a real human in a business context.",
     "Check the context carefully. Do NOT draft a task that is already present.",
     "You may propose MULTIPLE TaskCards if one KnowledgeItem implies multiple distinct actions.",
@@ -292,18 +305,34 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     if (activeFingerprints.has(titleKey)) continue;
 
     const publicId = await nextPublicId(prisma, "NBAItem");
-    let confidence, impact, ease, iceScore;
+    let confidence, impact, ease;
     let procStatus = "DRAFT";
 
     try {
       confidence = parseBoundedInt(item.confidence, 1, 10);
       impact = parseBoundedInt(item.impact, 1, 10);
       ease = parseBoundedInt(item.ease, 1, 10);
-      iceScore = impact * confidence * ease;
     } catch (e) {
-      confidence = 1; impact = 1; ease = 1; iceScore = 1;
+      confidence = 1; impact = 1; ease = 1;
       procStatus = "REVIEW";
     }
+
+    const groundedScores = groundTaskScores({
+      impact,
+      confidence,
+      effort: ease,
+      sourceImpact: flashCard.impact,
+      sourceConfidence: flashCard.confidenceScore ?? flashCard.confidence,
+      sourceWeight: flashCard.weight ?? flashCard.ease,
+      kind: item.kind,
+      title: item.title,
+      description: item.description,
+    });
+    const normalizedTaskScores = normalizeTaskScores({
+      impact: groundedScores.impact,
+      confidence: groundedScores.confidence,
+      ease: groundedScores.effort,
+    });
 
     drafts.push({
       id: crypto.randomUUID(),
@@ -312,11 +341,11 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       title: truncate(item.title, 160),
       description: truncate(joinBody(item.description), descLimit),
       kind: String(item.kind || "TASK").toUpperCase(),
-      impact,
-      confidenceScore: confidence,
-      confidence,
-      ease,
-      iceScore: impact * (confidence / 10) * ease * 10, // Normalized to 1-1000 scale
+      impact: normalizedTaskScores.impact,
+      confidenceScore: normalizedTaskScores.confidenceScore,
+      confidence: normalizedTaskScores.confidence,
+      ease: normalizedTaskScores.ease,
+      iceScore: normalizedTaskScores.iceScore,
       processingStatus: procStatus,
       activityState: "ACTIVE",
       status: "PENDING",

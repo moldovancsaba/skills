@@ -1,20 +1,22 @@
-export function clampMetric(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
+import { clampMetric, calculateTaskIceScore, normalizeTaskScores } from "@/lib/scoring-contract";
+
+export { clampMetric };
 
 export function normalizeNBAMetrics(input: {
   impact?: number | null;
   confidence?: number | null;
   ease?: number | null;
 }) {
-  const impact = clampMetric(Number(input.impact) || 0, 0, 10);
-  const confidence = clampMetric(Number(input.confidence) || 0, 0, 100);
-  const ease = clampMetric(Number(input.ease) || 0, 0, 10);
+  const normalized = normalizeTaskScores({
+    impact: input.impact,
+    confidence: input.confidence,
+    ease: input.ease,
+  });
 
   return {
-    impact,
-    confidence,
-    ease,
+    impact: normalized.impact,
+    confidence: normalized.confidence,
+    ease: normalized.ease,
   };
 }
 
@@ -23,6 +25,5 @@ export function calculateICEScore(input: {
   confidence?: number | null;
   ease?: number | null;
 }) {
-  const { impact, confidence, ease } = normalizeNBAMetrics(input);
-  return impact * (confidence / 10) * ease;
+  return calculateTaskIceScore(input);
 }

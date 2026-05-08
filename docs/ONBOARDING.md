@@ -184,18 +184,18 @@ These endpoints are passive in the hosted app. They do not contact your local AI
 checklist task scoring is:
 
 ```text
-Impact: 0-10
-Confidence: 0-100, multiplied as confidence/10
-Ease: 0-10
-ICE = impact * (confidence / 10) * ease
-Range: 0-1000
+Impact: 1-10 integer
+Confidence: 1-10 integer
+Ease: 1-10 integer
+ICE = impact * confidence * ease
+Range: 1-1000
 ```
 
-Examples:
+Rules:
 
-- `Impact 8, Confidence 75, Ease 6.5` -> `390`
-- `Impact 8, Confidence 85, Ease 5` -> `340`
-- `Impact 10, Confidence 100, Ease 10` -> `1000`
+- never persist mixed confidence scales
+- never back-solve base metrics from an `iceScore`
+- always use the shared canonical scorer in `src/lib/scoring-contract.js`
 
 ## Auth Setup
 

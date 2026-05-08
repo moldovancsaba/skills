@@ -1,9 +1,11 @@
 import { IconFileUpload as FileUp, IconPencil as Pencil, IconFileText as ScrollText, IconTrash as Trash2, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Divider, Tooltip } from "@mantine/core";
 import { getIceBadgeColor } from "@/lib/ice-colors";
+import { getDataCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { 
   UnifiedCard, 
+  UnifiedCardFreshnessBadge,
   UnifiedCardHeader, 
   UnifiedCardBody, 
   UnifiedCardText, 
@@ -23,6 +25,8 @@ type SourceDataCardProps = {
   intelligenceType?: "INTERNAL" | "COMPETITOR";
   hashtags: string[];
   iceScore?: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   onStartEdit?: () => void;
   onDelete: () => void;
   activeHashtags?: string[];
@@ -47,6 +51,8 @@ export function SourceDataCard({
   intelligenceType,
   hashtags,
   iceScore,
+  createdAt,
+  updatedAt,
   onStartEdit,
   onDelete,
   activeHashtags = [],
@@ -63,6 +69,7 @@ export function SourceDataCard({
   const lines = name.split("\n");
   const firstLine = stripTechnicalMetadata(lines[0]);
   const bodyText = stripTechnicalMetadata(lines.slice(1).join("\n"));
+  const freshness = getDataCardFreshness({ createdAt, updatedAt });
 
   return (
     <UnifiedCard tone="ingress" onClick={onOpenDetail}>
@@ -82,6 +89,7 @@ export function SourceDataCard({
             <Badge color="ingress" variant="light" leftSection={<Icon size={10} />}>
               {type}
             </Badge>
+            <UnifiedCardFreshnessBadge freshness={freshness} />
             
             <Group gap={4} ml="auto">
               {typeof iceScore === "number" && (

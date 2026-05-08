@@ -7,9 +7,10 @@
  */
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, trinity_WRITE_TIMEOUT_MS } = require("./core");
-const { truncate, hashValue, getWorkerConfig, parseBoundedInt, getStageModels } = require("./shared");
+const { truncate, hashValue, getWorkerConfig, parseBoundedInt, getStageModels, similarity, nextPublicId } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject } = require("./synthesis-utils");
+const { groundTaskScores, normalizeTaskScores } = require("../../src/lib/scoring-contract");
 
 // --- UTILITIES ---
 
@@ -33,6 +34,7 @@ function joinBody(body) {
 async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = null) {
   const bodyLimit = await getWorkerConfig(prisma, flashCard.company || {}, "write_body_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
+  const company = flashCard.company || null;
 
   // 1. Internal Memory & De-duplication Check
   // Require BOTH title AND body to be similar to avoid false positives on
@@ -109,6 +111,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
 async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null) {
   const descLimit = await getWorkerConfig(prisma, taskCard.company || {}, "write_desc_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, taskCard.companyId);
+  const company = taskCard.company || null;
 
   // De-duplication — require BOTH title AND body to match
   const existing = await prisma.nBAItem.findMany({
@@ -141,6 +144,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nAlign this task refinement with the following objective: ${topic.notes || topic.label}\n` : "",
     "Return a SINGLE JSON object with: title, description, kind, impact, confidenceScore, ease.",
     "checklist AXIOM: You MUST generate strict integer scores for confidenceScore, impact, and ease. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
+    "SCORING DISCIPLINE: Score impact, confidence, and ease independently from the actual task. Do not repeat stock score triplets unless the task substance truly matches.",
     "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
     memoryPrompt
   ].join("\n");
@@ -157,9 +161,26 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
     confidence = parseBoundedInt(raw.confidenceScore, 1, 10);
     impact = parseBoundedInt(raw.impact, 1, 10);
     ease = parseBoundedInt(raw.ease, 1, 10);
-    iceScore = impact * confidence * ease;
-    // ensure min range
-    iceScore = Math.max(1, Math.min(1000, iceScore));
+    const groundedScores = groundTaskScores({
+      impact,
+      confidence,
+      effort: ease,
+      title: raw.title,
+      description: raw.description,
+      kind: raw.kind || taskCard.kind,
+      sourceImpact: taskCard.impact,
+      sourceConfidence: taskCard.confidenceScore ?? taskCard.confidence,
+      sourceWeight: taskCard.ease,
+    });
+    const normalizedScores = normalizeTaskScores({
+      impact: groundedScores.impact,
+      confidence: groundedScores.confidence,
+      ease: groundedScores.effort,
+    });
+    impact = normalizedScores.impact;
+    confidence = normalizedScores.confidence;
+    ease = normalizedScores.ease;
+    iceScore = normalizedScores.iceScore;
   } catch (e) {
     // Axiom 2: Human Review Circuit
     confidence = 1; impact = 1; ease = 1; iceScore = 1;

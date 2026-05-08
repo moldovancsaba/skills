@@ -7,6 +7,7 @@ import {
 } from "@/lib/flashcards";
 import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
+import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
 
 const VALID_CORRECTIONS = new Set<FlashcardCorrectionType>([
   FlashcardCorrectionType.HIDE,
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     const correctionType = data.correctionType as FlashcardCorrectionType;
     const sourceType = data.sourceType as FlashcardSourceType | undefined;
+    const sanitizedNote = sanitizeOptionalUserFacingText(data.note);
 
     if (!VALID_CORRECTIONS.has(correctionType)) {
       return NextResponse.json({ error: "Invalid correctionType" }, { status: 400 });
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
       sourcePublicId: data.sourcePublicId,
       sourceName: data.sourceName,
       correctionType,
-      note: data.note,
+      note: sanitizedNote ?? undefined,
     });
 
     await recordInteractionEventFromRequest(request, {
@@ -82,7 +84,7 @@ export async function POST(request: NextRequest) {
         sourceId: data.sourceId,
         sourcePublicId: data.sourcePublicId,
         sourceName: data.sourceName,
-        note: data.note,
+        note: sanitizedNote,
       },
       teachingWeight:
         correctionType === FlashcardCorrectionType.PIN
@@ -99,7 +101,7 @@ export async function POST(request: NextRequest) {
       entityId: data.flashcardId || data.sourceId,
       outcomeType: "FLASHCARD_CORRECTION",
       outcomeValue: correctionType,
-      annotation: data.note,
+      annotation: sanitizedNote ?? undefined,
       payload: {
         sourceType,
         sourceId: data.sourceId,

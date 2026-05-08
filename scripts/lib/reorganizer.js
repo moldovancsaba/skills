@@ -9,6 +9,11 @@
  *   - Archives/Deletes original cards after successful migration.
  */
 
+const {
+  normalizeKnowledgeScores,
+  normalizeTaskScores,
+} = require("../../src/lib/scoring-contract");
+
 
 /**
  * Reorganizes a card into a different layer.
@@ -44,7 +49,7 @@ async function reorganizeCard(prisma, card, sourceLayer, targetLayer) {
       companyId: card.companyId,
       title: card.title,
       body: card.body || card.description || card.generatedBody || "",
-      confidence: card.confidence ?? 50,
+      confidence: card.confidenceScore ?? card.confidence ?? 5,
       impact: card.impact ?? 5,
       weight: card.weight ?? card.ease ?? 5,
       hashtags: card.hashtags || [],
@@ -55,17 +60,29 @@ async function reorganizeCard(prisma, card, sourceLayer, targetLayer) {
     let createdItem;
 
     if (tType === "FLASHCARD") {
+      const normalizedScores = normalizeKnowledgeScores(baseData);
       createdItem = await prisma.flashcard.create({
         data: {
           ...baseData,
+          confidence: normalizedScores.confidence,
+          confidenceScore: normalizedScores.confidenceScore,
+          impact: normalizedScores.impact,
+          weight: normalizedScores.weight,
+          iceScore: normalizedScores.iceScore,
           processingStatus: "ACCEPTED",
           kind: "SUMMARY",
         }
       });
     } else if (tType === "GOALCARD") {
+      const normalizedScores = normalizeKnowledgeScores(baseData);
       createdItem = await prisma.goalcard.create({
         data: {
           ...baseData,
+          confidence: normalizedScores.confidence,
+          confidenceScore: normalizedScores.confidenceScore,
+          impact: normalizedScores.impact,
+          weight: normalizedScores.weight,
+          iceScore: normalizedScores.iceScore,
           processingStatus: "ACCEPTED",
           kind: "GOAL",
         }
@@ -73,15 +90,18 @@ async function reorganizeCard(prisma, card, sourceLayer, targetLayer) {
     } else if (tType === "TASKCARD") {
       const generatedFromIds = card.sources ? card.sources.map(s => s.sourceId) : 
                                card.generatedFromIds ? card.generatedFromIds : [];
+      const normalizedScores = normalizeTaskScores(baseData);
       createdItem = await prisma.nBAItem.create({
         data: {
           companyId: baseData.companyId,
           title: baseData.title,
           description: baseData.body,
           status: "PENDING",
-          confidence: baseData.confidence,
-          impact: baseData.impact,
-          ease: baseData.weight,
+          confidence: normalizedScores.confidence,
+          confidenceScore: normalizedScores.confidenceScore,
+          impact: normalizedScores.impact,
+          ease: normalizedScores.ease,
+          iceScore: normalizedScores.iceScore,
           hashtags: baseData.hashtags,
           generatedFromIds: generatedFromIds,
           candidateState: "GENERATED",

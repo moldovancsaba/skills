@@ -4,6 +4,7 @@ import { recordFlashcardAction } from "@/lib/flashcards";
 import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { prisma } from "@/lib/db";
+import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
 
 const VALID_ACTIONS = new Set<FlashcardActionType>([
   FlashcardActionType.ACCEPT,
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     const action = data.action as FlashcardActionType;
+    const sanitizedAnnotation = sanitizeOptionalUserFacingText(data.annotation);
 
     if (!data.flashcardId) {
       return NextResponse.json(
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
     const result = await recordFlashcardAction({
       flashcardId: data.flashcardId,
       action,
-      annotation: data.annotation,
+      annotation: sanitizedAnnotation ?? undefined,
       modifiedTitle: data.modifiedTitle,
       modifiedBody: data.modifiedBody,
     });
@@ -70,7 +72,7 @@ export async function POST(request: NextRequest) {
         title: result.flashcard.title,
       },
       payload: {
-        annotation: data.annotation,
+        annotation: sanitizedAnnotation,
         modifiedTitle: data.modifiedTitle,
         modifiedBody: data.modifiedBody,
       },
@@ -89,7 +91,7 @@ export async function POST(request: NextRequest) {
       entityId: result.flashcard.id,
       outcomeType: "FLASHCARD_REVIEW_ACTION",
       outcomeValue: action,
-      annotation: data.annotation,
+      annotation: sanitizedAnnotation ?? undefined,
       afterState: {
         processingStatus: result.flashcard.processingStatus,
         activityState: result.flashcard.activityState,

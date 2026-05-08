@@ -4,6 +4,7 @@ import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEv
 import { prisma } from "@/lib/db";
 import { listCompanyFlashcards } from "@/lib/flashcards";
 import { verifyMembership } from "@/lib/permissions";
+import { normalizeKnowledgeScores } from "@/lib/scoring-contract";
 
 export const dynamic = "force-dynamic";
 
@@ -41,28 +42,22 @@ export async function PATCH(request: NextRequest) {
     if (auth.error) return auth.error;
 
     const data = await request.json();
-    const confidenceInput = data.confidenceScore ?? data.confidence;
-    const normalizedConfidence = confidenceInput !== undefined
-      ? Math.max(1, Math.min(100, Number(confidenceInput)))
-      : existing.confidenceScore;
-    const normalizedImpact = data.impact !== undefined
-      ? Math.max(1, Math.min(10, Number(data.impact)))
-      : existing.impact;
-    const normalizedWeight = data.weight !== undefined
-      ? Math.max(1, Math.min(10, Number(data.weight)))
-      : existing.weight;
-    const nextIceScore = normalizedImpact * (normalizedConfidence / 10) * normalizedWeight;
+    const normalizedScores = normalizeKnowledgeScores({
+      impact: data.impact ?? existing.impact,
+      confidence: data.confidenceScore ?? data.confidence ?? existing.confidenceScore ?? existing.confidence,
+      weight: data.weight ?? existing.weight,
+    });
 
     const updated = await prisma.flashcard.update({
       where: { id },
       data: {
         title: data.title ?? existing.title,
         body: data.body ?? existing.body,
-        confidence: Math.round(normalizedConfidence),
-        confidenceScore: normalizedConfidence,
-        impact: normalizedImpact,
-        weight: normalizedWeight,
-        iceScore: nextIceScore,
+        confidence: normalizedScores.confidence,
+        confidenceScore: normalizedScores.confidenceScore,
+        impact: normalizedScores.impact,
+        weight: normalizedScores.weight,
+        iceScore: normalizedScores.iceScore,
         processingStatus: data.processingStatus ?? existing.processingStatus,
         activityState: data.activityState ?? existing.activityState,
         updatedAt: new Date(),

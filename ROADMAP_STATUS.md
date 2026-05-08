@@ -9,7 +9,16 @@
 
 ### Intelligence Clarity & Purity
 - **Global Metadata Filter**: Implemented `stripTechnicalMetadata()` utility to purge `[TRACE:...]` and `[TOPIC_ID:...]` markers from all end-user cards.
-- **Taxonomy Hardening**: Applied the metadata filter across `TaskReviewCard`, `SourceDataCard`, and `KnowledgeReviewCard`, ensuring a purely strategic interface for executive operators.
+- **Boundary Hardening**: Added shared sanitizers for feedback and annotation persistence so technical markers cannot leak back into user-facing text state.
+- **Taxonomy Hardening**: Applied the metadata filter across `TaskReviewCard`, `SourceDataCard`, and `KnowledgeReviewCard`, and action-form state seeding now strips technical metadata before display.
+
+### Scoring & Refinement Foundations
+- **Canonical Scoring Contract**: Introduced a shared scoring contract for normalized `1-10` metrics across tasks, goals, and knowledge.
+- **Oldest-First Maintenance**: Periodic rescoring and true refinement/update queues now process oldest-updated items first.
+- **General Task Score Grounding**: Task scoring now uses shared normalization plus evidence/task-shape signals instead of trusting repeated raw tuples.
+
+### Tactical Board Stability
+- **Drag-State Cleanup**: Fixed the tactical board so drag rotation/accent state clears immediately after drop instead of persisting until refresh.
 
 ### Technical Foundations
 - **Build-Time Stability**: Validated 100% stable `next build` across the new Mantine architecture.
@@ -37,4 +46,4 @@
 - [ ] **Autonomous Budgeting**: Fiscal forecasting based on tactical execution velocity.
 
 ---
-*Status Update: 2026-05-04. Project Board Synchronized (v0.15.0 Architecture Release).*
+*Status Update: 2026-05-09. Project Board Synchronized (multi-theme, scoring, metadata, and tactical-board hardening).*

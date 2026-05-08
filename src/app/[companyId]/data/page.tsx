@@ -573,6 +573,8 @@ export default function CompanyDataPage() {
                     intelligenceType={item.intelligenceType}
                     hashtags={item.hashtags ?? []}
                     iceScore={item.iceScore}
+                    createdAt={item.createdAt}
+                    updatedAt={item.updatedAt}
                     onStartEdit={() => {
                       closeDetailModal();
                       startEdit(item);
@@ -629,6 +631,8 @@ export default function CompanyDataPage() {
             intelligenceType={selectedDataItem.intelligenceType}
             hashtags={selectedDataItem.hashtags ?? []}
             iceScore={selectedDataItem.iceScore}
+            createdAt={selectedDataItem.createdAt}
+            updatedAt={selectedDataItem.updatedAt}
             onStartEdit={() => {
               closeDetailModal();
               startEdit(selectedDataItem);

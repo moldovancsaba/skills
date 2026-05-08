@@ -28,11 +28,13 @@ import {
 import { useClipboard } from "@mantine/hooks";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { TraceViewer } from "@/components/trace-viewer";
+import { getGoalCardFreshness, getTaskCardFreshness } from "@/lib/card-freshness";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { logClientInteraction } from "@/lib/client-events";
 import { 
   UnifiedCard, 
+  UnifiedCardFreshnessBadge,
   UnifiedCardHeader, 
   UnifiedCardBody, 
   UnifiedCardText, 
@@ -58,6 +60,11 @@ type NBAItem = {
   userAnnotation?: string;
   hashtags: string[];
   scheduledDate?: string | Date | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  generatedAt?: string | null;
+  refreshedAt?: string | null;
+  lastActionAt?: string | null;
 };
 
 type TaskReviewCardProps = {
@@ -153,6 +160,19 @@ export function TaskReviewCard({
 
   const iceColor = getIceBadgeColor(item.iceScore);
   const isAccepted = twoPhaseWorkflow && item.processingStatus === "ACCEPTED";
+  const freshness =
+    item.refreshedAt || item.lastActionAt
+      ? getGoalCardFreshness({
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          refreshedAt: item.refreshedAt,
+          lastActionAt: item.lastActionAt,
+        })
+      : getTaskCardFreshness({
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          generatedAt: item.generatedAt,
+        });
 
   return (
     <UnifiedCard
@@ -167,6 +187,7 @@ export function TaskReviewCard({
             <Group gap={7}>
               <Badge color="dark">{item.processingStatus}</Badge>
               <Badge color="checklist">TASK</Badge>
+              <UnifiedCardFreshnessBadge freshness={freshness} />
             </Group>
             <Badge color={iceColor}>ICE {Math.round(item.iceScore)}</Badge>
           </Group>

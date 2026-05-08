@@ -11,7 +11,7 @@
 **CHECKLIST** operates as a hardened, standalone strategic asset, enforcing data sovereignty through local inference.
 
 1.  **Recurrent Reasoning (RDT Engine)**: The Drafter agent now processes intelligence in three computational phases (**Prelude, Recurrence, Coda**), anchoring every loop with raw evidence injection to prevent hallucination.
-2.  **Tactical Kanban Orchestration**: A 5-column tactical board (**Idea Bank → Roadmap → Backlog → Todo → Checklist**) automatically organizes tasks based on multi-factor ICE scoring (Impact, Confidence, Ease).
+2.  **Tactical Kanban Orchestration**: A 5-column tactical board (**Idea Bank → Roadmap → Backlog → Todo → Checklist**) automatically organizes tasks based on canonical `1-10` ICE metrics (`impact`, `confidence`, `ease`) with shared normalization.
 3.  **Strategic Learning**: The system harvests manual "Hard Feedback" from the Kanban board. When you drag a card to a high-priority position, the AI learns your tactical intent and steers future generations toward those themes.
 
 ---
@@ -28,7 +28,7 @@ Strategic synthesis is governed by a recurrent multi-pass loop, enforcing strict
 ---
 
 ## 📋 Tactical Horizons (Kanban)
-The system automatically distributes taskcards across five tactical horizons based on their **ICE Score**:
+The system automatically distributes taskcards across five tactical horizons based on their canonical **ICE Score**:
 
 *   **NOW (Checklist)**: ICE ≥ 700. The active frontier for immediate execution.
 *   **NEXT (Todo)**: ICE ≥ 500. High-value tasks ready for the next sprint.
@@ -48,6 +48,7 @@ The system automatically distributes taskcards across five tactical horizons bas
 *   **Frontend**: Next.js 16 (App Router) + Mantine UI.
 *   **Learning**: Context-aware priority harvesting (Strategic Context v2.0).
 *   **Persistence**: Prisma + MongoDB Atlas + Periodic Guardian Orchestration.
+*   **Queueing**: Periodic rescoring and true refinement/update loops process oldest-updated items first to avoid starvation.
 
 ---
 
@@ -68,10 +69,17 @@ All strategic and tactical layers must implement the shared layout primitives fo
 
 ### 3. Intelligence Clarity (Metadata Filtering)
 End-user displays must be purged of technical trace information.
-- **Filtering Utility**: Always wrap user-facing text (titles, descriptions, labels) in the `stripTechnicalMetadata()` utility from `@/lib/ui-utils`.
-- **Markers Purged**: `[TRACE:...]` and `[TOPIC_ID:...]` are strictly technical metadata and must remain invisible to the end user.
+- **Boundary Rule**: Technical metadata must be stripped both on render and at persistence boundaries for user-authored text.
+- **Filtering Utility**: Use `stripTechnicalMetadata()` for display and `sanitizeUserFacingText()` / `sanitizeOptionalUserFacingText()` for user-facing input and storage paths.
+- **Markers Purged**: `[TRACE:...]` and `[TOPIC_ID:...]` are strictly technical metadata and must remain invisible to the end user or stored user-facing feedback.
 
-### 4. Premium Design System Tokens
+### 4. Canonical Scoring Contract
+- **Scale**: `impact`, `confidence`, `ease`, and `weight` are normalized to strict integers on a `1-10` boundary.
+- **Task ICE**: `impact * confidence * ease`, yielding a `1-1000` range.
+- **Knowledge/Goal ICE**: Derived from the same normalized base metrics through the shared scoring contract.
+- **Grounding Rule**: Task generation and refinement must route through `@/lib/scoring-contract` rather than trusting repeated raw tuples.
+
+### 5. Premium Design System Tokens
 All interactive surfaces must use the hardened design language:
 - **Glassmorphism**: Use `backdropFilter: 'blur(10px)'` with low-opacity white backgrounds (`rgba(255, 255, 255, 0.02)`) and `1px` borders.
 - **Gradients**: Leverage Mantine's `gradient` variant for `ThemeIcon` and `Button` to ensure a high-yield aesthetic.

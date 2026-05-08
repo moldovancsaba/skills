@@ -38,6 +38,7 @@ import {
 import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
+import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { TaskReviewCard } from "@/components/task-review-card";
 
 type Goal = {
@@ -54,6 +55,10 @@ type Goal = {
   kanbanColumn: "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
   userAnnotation?: string;
   hashtags: string[];
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  refreshedAt?: string | null;
+  lastActionAt?: string | null;
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
@@ -93,7 +98,7 @@ export default function GoalsPage() {
             title: goal.title,
             description: goal.body ?? "",
             impact: goal.impact ?? 5,
-            confidenceScore: goal.confidenceScore ?? goal.confidence ?? 50,
+            confidenceScore: goal.confidenceScore ?? goal.confidence ?? 5,
             ease: goal.weight ?? 5,
             iceScore: goal.iceScore ?? 0,
             processingStatus: goal.processingStatus,
@@ -101,6 +106,10 @@ export default function GoalsPage() {
             kanbanColumn: "ROADMAP" as const,
             userAnnotation: goal.userAnnotation ?? undefined,
             hashtags: Array.isArray(goal.hashtags) ? goal.hashtags : [],
+            createdAt: goal.createdAt ?? null,
+            updatedAt: goal.updatedAt ?? null,
+            refreshedAt: goal.refreshedAt ?? null,
+            lastActionAt: goal.lastActionAt ?? null,
           }))
         : [];
       setGoals(mappedGoals);
@@ -145,7 +154,7 @@ export default function GoalsPage() {
     setSelectedGoalId(item.id);
     setActionMode(mode);
     setActionItemId(item.id);
-    setAnnotation(item.userAnnotation ?? "");
+    setAnnotation(stripTechnicalMetadata(item.userAnnotation));
     setDraftTitle(item.title);
     setDraftDescription(item.description);
     setDeclineClass("WRONG");

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
+import { normalizeGoalScores } from "@/lib/scoring-contract";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -44,6 +45,7 @@ export async function GET(req: Request) {
       refreshedAt: true,
       createdAt: true,
       updatedAt: true,
+      lastActionAt: true,
       userAnnotation: true,
       hashtags: true,
       intelligenceType: true,
@@ -76,6 +78,12 @@ export async function POST(req: Request) {
     const auth = await verifyMembership(req as any, companyId);
     if (auth.error) return auth.error;
 
+    const normalizedScores = normalizeGoalScores({
+      impact: body.impact ?? 5,
+      confidence: body.confidenceScore ?? body.confidence ?? 5,
+      weight: body.weight ?? 5,
+    });
+
     const goalcard = await prisma.goalcard.create({
       data: {
         companyId,
@@ -83,9 +91,11 @@ export async function POST(req: Request) {
         body: content || "",
         hashtags: hashtags || [],
         intelligenceType: intelligenceType || "INTERNAL",
-        confidence: 50,
-        impact: iceScore ? Math.floor(iceScore / 10) : 5,
-        weight: 5,
+        confidence: normalizedScores.confidence,
+        confidenceScore: normalizedScores.confidenceScore,
+        impact: normalizedScores.impact,
+        weight: normalizedScores.weight,
+        iceScore: normalizedScores.iceScore,
         processingStatus: "ACCEPTED",
         kind: "GOAL",
       }
@@ -130,13 +140,24 @@ export async function PATCH(req: Request) {
     const auth = await verifyMembership(req as any, existing.companyId);
     if (auth.error) return auth.error;
 
+    const normalizedScores = normalizeGoalScores({
+      impact: body.impact ?? existing.impact,
+      confidence: body.confidenceScore ?? body.confidence ?? existing.confidenceScore ?? existing.confidence,
+      weight: body.weight ?? existing.weight,
+    });
+
     const updated = await prisma.goalcard.update({
       where: { id },
       data: {
-        title: body.title,
+        title: body.title ?? existing.title,
         body: body.content || body.body,
         hashtags: body.hashtags,
         intelligenceType: body.intelligenceType,
+        confidence: normalizedScores.confidence,
+        confidenceScore: normalizedScores.confidenceScore,
+        impact: normalizedScores.impact,
+        weight: normalizedScores.weight,
+        iceScore: normalizedScores.iceScore,
         processingStatus: body.processingStatus,
         activityState: body.activityState,
       }

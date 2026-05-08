@@ -32,6 +32,7 @@ import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
 import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowRight as ArrowRight, IconListCheck as ListCheck } from "@tabler/icons-react";
+import { stripTechnicalMetadata } from "@/lib/ui-utils";
 
 /**
  * Representational interface for a tactical intelligence unit (Task).
@@ -50,6 +51,9 @@ interface NBAItem {
   kanbanColumn: "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
   userAnnotation?: string;
   hashtags: string[];
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  generatedAt?: string | null;
 }
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
@@ -160,7 +164,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     setSelectedItemId(item.id);
     setActionMode(mode);
     setActionItemId(item.id);
-    setAnnotation(item.userAnnotation ?? "");
+    setAnnotation(stripTechnicalMetadata(item.userAnnotation));
     setDraftTitle(item.title);
     setDraftDescription(item.description);
     setDeclineClass("WRONG");
@@ -243,7 +247,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           setItems((prev) =>
             prev.map((i) =>
               i.id === itemId
-                ? { ...i, processingStatus: "ACCEPTED", userAnnotation: feedbackAnnotation || i.userAnnotation }
+                ? { ...i, processingStatus: "ACCEPTED", userAnnotation: stripTechnicalMetadata(feedbackAnnotation) || i.userAnnotation }
                 : i,
             ),
           );

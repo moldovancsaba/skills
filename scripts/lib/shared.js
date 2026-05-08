@@ -101,6 +101,19 @@ function parseBoundedInt(val, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
+function stripTechnicalMetadata(text) {
+  if (!text) return "";
+  return String(text)
+    .replace(/\[(?:TRACE|TOPIC_ID):[^\]]*\]/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^["'\s]+|["'\s]+$/g, "")
+    .trim();
+}
+
+function sanitizeUserFacingText(text) {
+  return stripTechnicalMetadata(text).replace(/\s+/g, " ").trim();
+}
+
 async function nextPublicId(prisma, modelName) {
   const counterKey = `counter:${modelName.toLowerCase()}`;
   try {
@@ -129,5 +142,7 @@ module.exports = {
   tokenizeText,
   unique,
   parseBoundedInt,
+  stripTechnicalMetadata,
+  sanitizeUserFacingText,
   nextPublicId
 };

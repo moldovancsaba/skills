@@ -71,6 +71,7 @@ The system enforces a strict **Mantine-Only** architectural mandate to ensure vi
 3. **Intelligence Clarity (Metadata Purge)**
    - All user-facing intelligence (Titles, Descriptions, Labels) must be processed via the `stripTechnicalMetadata()` utility.
    - Technical markers like `[TRACE:...]` or `[TOPIC_ID:...]` are strictly internal and must never be rendered in the presentation layer.
+   - User-facing feedback and annotations must also be sanitized at API/storage boundaries before persistence.
 
 ## Architecture
 
@@ -89,7 +90,7 @@ Shared persistence (MongoDB Atlas)
 Local AI Layer (The Trinity - Authoritative Engine)
 - **Authoritative Source**: Performs all scoring (ICE), bounded to strict 1-10 integers.
 - Drafter: Extracts insights from raw sources into FlashCard drafts. Reroutes logic failures to REVIEW state.
-- Writer: Refines FlashCards and TaskCards (Calculating ICE Impact * Confidence * Ease).
+- Writer: Refines FlashCards and TaskCards and normalizes task metrics through the shared canonical scoring contract.
 - Judge: Audits quality against a statistical percentile floor. Unsalvageable cards cratered to 1 score.
 - Defibrillator Hook: Local worker heartbeat can be forcefully reset via API ping to MongoDB.
 ```
@@ -105,7 +106,7 @@ Local AI Layer (The Trinity - Authoritative Engine)
 
 ### Quality floor & Axiom Bounds
 
-All parameters (Impact, Confidence, Ease, Weight) exist strictly on a `1 to 10` boundary. The ICE score formula is directly computed (`I * C * E`), expanding to bounds of `1 to 1000`. Feedback interactions provide a direct `+1/-1` metric impact.
+All parameters (`impact`, `confidence`, `ease`, `weight`) exist strictly on a `1 to 10` integer boundary. Task ICE is directly computed as `I * C * E`, expanding to bounds of `1 to 1000`. Knowledge and goal layers share the same normalized base metrics and derive their display ICE from that same contract. Feedback interactions provide direct bounded metric deltas and always trigger score recomputation.
 
 The Judge demotes any card falling below the `confidence_reject_percentile` (default: 10th percentile) of current verified intelligence. Rejected cards are returned to `DRAFT` status and their metrics are forcefully reset to `1`.
 
@@ -124,6 +125,7 @@ When any of these change, update docs in the same change set:
 - online/local workflow
 - design-system grammar (Mantine-Only Mandate)
 - metadata filtering standards
+- scoring contract semantics
 
 ## Document Status
 

@@ -14,6 +14,7 @@
     "audit:semantic": "node scripts/semantic-audit.mjs",
     "smoke:routes": "node scripts/smoke-routes.mjs",
     "repair:raw-sources": "node scripts/repair-raw-sources.mjs",
+    "repair:ice-scores": "node scripts/repair-ice-scores.js",
     "research:probe": "node scripts/research-probe.mjs",
     "task:probe": "node scripts/task-probe.mjs",
     "sync": "node scripts/sync.js",

@@ -23,6 +23,7 @@ const { truncate, hashValue, getWorkerConfig, getStageModels, similarity, parseB
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject, unifyArray } = require("./synthesis-utils");
 const { CandidateState, toRefined, toSuppressed } = require("./lifecycle");
+const { groundTaskScores, normalizeTaskScores } = require("../../src/lib/scoring-contract");
 
 // ---------------------------------------------------------------------------
 // 1. Neighborhood Detection
@@ -110,6 +111,26 @@ function selectChampion(neighborhood) {
   });
 }
 
+function normalizeRefinedTaskScores(raw = {}, fallback = {}) {
+  const grounded = groundTaskScores({
+    impact: raw.impact ?? fallback.impact,
+    confidence: raw.confidence ?? raw.confidenceScore ?? fallback.confidence ?? fallback.confidenceScore,
+    effort: raw.ease ?? fallback.ease,
+    title: raw.title ?? fallback.title,
+    description: raw.description ?? raw.body ?? fallback.description ?? fallback.body,
+    kind: raw.kind ?? fallback.kind,
+    sourceImpact: fallback.impact,
+    sourceConfidence: fallback.confidence ?? fallback.confidenceScore,
+    sourceWeight: fallback.ease,
+  });
+
+  return normalizeTaskScores({
+    impact: grounded.impact,
+    confidence: grounded.confidence,
+    ease: grounded.effort,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // 3. Operation Implementations
 // ---------------------------------------------------------------------------
@@ -151,15 +172,17 @@ async function mergeNeighborhood(neighborhood, context, memoryPrompt) {
     )
   )];
 
+  const mergedScores = normalizeRefinedTaskScores(raw, champion);
   const merged = {
     ...champion,
     title: truncate(raw.title, 160),
     description: truncate(raw.description || champion.description || "", 1200),
     body: truncate(raw.description || champion.body || "", 1200),
-    impact: parseSafe(raw.impact, champion.impact || 5),
-    confidence: parseSafe(raw.confidence, champion.confidence || 5),
-    ease: parseSafe(raw.ease, champion.ease || 5),
-    iceScore: parseSafe(raw.impact, 5) * parseSafe(raw.confidence, 5) * parseSafe(raw.ease, 5),
+    impact: mergedScores.impact,
+    confidence: mergedScores.confidence,
+    confidenceScore: mergedScores.confidenceScore,
+    ease: mergedScores.ease,
+    iceScore: mergedScores.iceScore,
     hashtags: Array.isArray(raw.semanticTags) ? raw.semanticTags.slice(0, 5) : (champion.hashtags || []),
     // Trinity lineage: merge all sources
     generatedFromIds: mergedGeneratedFromIds,
@@ -214,15 +237,17 @@ async function enrichCandidate(candidate, context, memoryPrompt) {
   const raw = unifyObject(res);
   if (!raw || !raw.title) return candidate;
 
+  const enrichedScores = normalizeRefinedTaskScores(raw, candidate);
   return {
     ...candidate,
     title: truncate(raw.title, 160),
     description: truncate(raw.description || candidate.description || "", 1200),
     body: truncate(raw.description || candidate.body || "", 1200),
-    impact: parseSafe(raw.impact, candidate.impact || 5),
-    confidence: parseSafe(raw.confidence, candidate.confidence || 5),
-    ease: parseSafe(raw.ease, candidate.ease || 5),
-    iceScore: parseSafe(raw.impact, 5) * parseSafe(raw.confidence, 5) * parseSafe(raw.ease, 5),
+    impact: enrichedScores.impact,
+    confidence: enrichedScores.confidence,
+    confidenceScore: enrichedScores.confidenceScore,
+    ease: enrichedScores.ease,
+    iceScore: enrichedScores.iceScore,
     ...toRefined({ evaluationReason: "ENRICH: underspecified candidate strengthened" }),
     refinedFromId: candidate.id,
     processingStatus: "CHECKED",
@@ -249,15 +274,17 @@ async function refineAsIs(candidate, context, memoryPrompt) {
   const raw = unifyObject(res);
   if (!raw || !raw.title) return candidate;
 
+  const refinedScores = normalizeRefinedTaskScores(raw, candidate);
   return {
     ...candidate,
     title: truncate(raw.title, 160),
     description: truncate(raw.description || candidate.description || "", 1200),
     body: truncate(raw.description || candidate.body || "", 1200),
-    impact: parseSafe(raw.impact, candidate.impact || 5),
-    confidence: parseSafe(raw.confidence, candidate.confidence || 5),
-    ease: parseSafe(raw.ease, candidate.ease || 5),
-    iceScore: parseSafe(raw.impact, 5) * parseSafe(raw.confidence, 5) * parseSafe(raw.ease, 5),
+    impact: refinedScores.impact,
+    confidence: refinedScores.confidence,
+    confidenceScore: refinedScores.confidenceScore,
+    ease: refinedScores.ease,
+    iceScore: refinedScores.iceScore,
     hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : (candidate.hashtags || []),
     ...toRefined({ evaluationReason: "REFINE_AS_IS: standard refinement" }),
     refinedFromId: candidate.id,

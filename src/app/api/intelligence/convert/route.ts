@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { recordDecisionEvent, recordInteractionEvent, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
+import { normalizeKnowledgeScores, normalizeTaskScores } from "@/lib/scoring-contract";
 
 export async function POST(req: Request) {
   try {
@@ -52,26 +53,38 @@ export async function POST(req: Request) {
       companyId: sourceData.companyId,
       title: sourceData.title,
       body: sourceData.body || sourceData.description || "",
-      confidence: sourceData.confidence ?? 50,
+      confidence: sourceData.confidenceScore ?? sourceData.confidence ?? 5,
       impact: sourceData.impact ?? 5,
-      weight: sourceData.weight ?? 5,
+      weight: sourceData.weight ?? sourceData.ease ?? 5,
       hashtags: sourceData.hashtags || [],
       intelligenceType: sourceData.intelligenceType || "INTERNAL",
       userAnnotation: `Converted from ${sourceType} ${sourceId}. original title: ${sourceData.title}`,
     };
 
     if (targetType === "FLASHCARD") {
+      const normalizedScores = normalizeKnowledgeScores(baseData);
       createdItem = await prisma.flashcard.create({
         data: {
           ...baseData,
+          confidence: normalizedScores.confidence,
+          confidenceScore: normalizedScores.confidenceScore,
+          impact: normalizedScores.impact,
+          weight: normalizedScores.weight,
+          iceScore: normalizedScores.iceScore,
           processingStatus: "ACCEPTED",
           kind: "SUMMARY",
         }
       });
     } else if (targetType === "GOALCARD") {
+      const normalizedScores = normalizeKnowledgeScores(baseData);
       createdItem = await prisma.goalcard.create({
         data: {
           ...baseData,
+          confidence: normalizedScores.confidence,
+          confidenceScore: normalizedScores.confidenceScore,
+          impact: normalizedScores.impact,
+          weight: normalizedScores.weight,
+          iceScore: normalizedScores.iceScore,
           processingStatus: "ACCEPTED",
           kind: "GOAL",
         }
@@ -79,15 +92,18 @@ export async function POST(req: Request) {
     } else if (targetType === "TASKCARD") {
       const generatedFromIds = sourceData.sources ? sourceData.sources.map((s: any) => s.sourceId) : 
                                sourceData.generatedFromIds ? sourceData.generatedFromIds : [];
+      const normalizedScores = normalizeTaskScores(baseData);
       createdItem = await prisma.nBAItem.create({
         data: {
           companyId: baseData.companyId,
           title: baseData.title,
           description: baseData.body,
           status: "PENDING",
-          confidence: baseData.confidence,
-          impact: baseData.impact,
-          ease: baseData.weight,
+          confidence: normalizedScores.confidence,
+          confidenceScore: normalizedScores.confidenceScore,
+          impact: normalizedScores.impact,
+          ease: normalizedScores.ease,
+          iceScore: normalizedScores.iceScore,
           hashtags: baseData.hashtags,
           generatedFromIds: generatedFromIds,
         }

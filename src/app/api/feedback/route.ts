@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { verifyMembership } from "@/lib/permissions";
+import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
 
 /**
  * STRATEGIC FEEDBACK API
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     const { companyId, entityId, entityType, action, annotation, modifiedTitle, modifiedDescription, declineClass } = data;
+    const sanitizedAnnotation = sanitizeOptionalUserFacingText(annotation);
 
     if (!companyId || !entityId || !entityType) {
       return NextResponse.json({ error: "Missing required feedback fields" }, { status: 400 });
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
         entityId,
         entityType,
         action,
-        annotation,
+        annotation: sanitizedAnnotation,
         modifiedTitle,
         modifiedDescription,
         declineClass,
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
       entityType,
       entityId,
       payload: {
-        annotation,
+        annotation: sanitizedAnnotation,
         modifiedTitle,
         modifiedDescription,
         declineClass,
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
       entityId,
       outcomeType: action,
       outcomeValue: declineClass ?? action,
-      annotation,
+      annotation: sanitizedAnnotation ?? undefined,
       payload: {
         modifiedTitle,
         modifiedDescription,

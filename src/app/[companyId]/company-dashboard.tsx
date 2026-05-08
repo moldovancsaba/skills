@@ -25,6 +25,7 @@ import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History } from "@tabler/icons-react";
+import { stripTechnicalMetadata } from "@/lib/ui-utils";
 
 type NBAItem = {
   id: string;
@@ -41,6 +42,9 @@ type NBAItem = {
   scheduledDate?: string | Date | null;
   userAnnotation?: string;
   hashtags: string[];
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  generatedAt?: string | null;
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
@@ -147,7 +151,7 @@ export default function CompanyDashboard() {
   const openActionForm = useCallback((item: NBAItem, mode: ActionMode) => {
     setActionMode(mode);
     setActionItemId(item.id);
-    setAnnotation(item.userAnnotation ?? "");
+    setAnnotation(stripTechnicalMetadata(item.userAnnotation));
     setDraftTitle(item.title);
     setDraftDescription(item.description);
     setDeclineClass("WRONG");

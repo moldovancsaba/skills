@@ -23,6 +23,7 @@ import {
 } from "@mantine/core";
 import { PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardActions } from "@/components/ui/unified-card";
+import { calculateKnowledgeIceScore, calculateTaskIceScore } from "@/lib/scoring-contract";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
@@ -70,14 +71,17 @@ export default function ReviewDashboard() {
     setSavingId(id);
     try {
       if (type === 'TASK') {
-        const normalizedConfidence = newC * 10;
-        const ice = newI * (normalizedConfidence / 10) * newE_W;
+        const ice = calculateTaskIceScore({
+          confidence: newC,
+          impact: newI,
+          ease: newE_W,
+        });
         await fetch(`/api/nba?id=${id}`, {
           method: "PATCH",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
-            confidenceScore: normalizedConfidence,
-            confidence: normalizedConfidence,
+            confidenceScore: newC,
+            confidence: newC,
             impact: newI,
             ease: newE_W,
             iceScore: ice,
@@ -89,10 +93,15 @@ export default function ReviewDashboard() {
           method: "PATCH",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
-            confidenceScore: newC * 10,
-            confidence: newC * 10,
+            confidenceScore: newC,
+            confidence: newC,
             impact: newI,
             weight: newE_W,
+            iceScore: calculateKnowledgeIceScore({
+              confidence: newC,
+              impact: newI,
+              weight: newE_W,
+            }),
             processingStatus: "CHECKED" 
           })
         });
@@ -163,9 +172,7 @@ export default function ReviewDashboard() {
 
 function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, isSaving: boolean }) {
   const [c, setC] = useState<number | string>(
-    item._type === "TASK"
-      ? Math.max(1, Math.min(10, Math.round((item.confidenceScore ?? item.confidence ?? 10) / 10)))
-      : Math.max(1, Math.min(10, Math.round((item.confidenceScore ?? item.confidence ?? 10) / 10))),
+    Math.max(1, Math.min(10, Math.round(item.confidenceScore ?? item.confidence ?? 5))),
   );
   const [i, setI] = useState<number | string>(Math.max(1, Math.min(10, item.impact ?? 1)));
   const [ew, setEW] = useState<number | string>(

@@ -14,6 +14,7 @@ import {
   Droppable,
   Draggable,
   DropResult,
+  DragStart,
 } from "@hello-pangea/dnd";
 import {
   Title,
@@ -38,6 +39,8 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader, PipelineAccentHeader } from "@/components/ui/app-shell";
+import { UnifiedCardFreshnessBadge } from "@/components/ui/unified-card";
+import { getTaskCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";
 import { getModuleTheme, getSemanticSurfaceStyle } from "@/lib/semantic-theme";
@@ -60,6 +63,7 @@ type NBAItem = {
   evaluationReason?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  generatedAt?: string | null;
   qualityScore?: number | null;
   urgencyScore?: number | null;
   freshnessScore?: number | null;
@@ -106,6 +110,13 @@ function CardDetailModal({
   onConvert: (id: string, targetType: "KNOWLEDGE" | "GOAL") => void;
 }) {
   const col = item ? COLUMNS.find(c => c.key === item.kanbanColumn) : null;
+  const freshness = item
+    ? getTaskCardFreshness({
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        generatedAt: item.generatedAt,
+      })
+    : null;
 
   const fmt = (n: number | null | undefined) =>
     n != null ? `${Math.round(n * 100)}%` : "—";
@@ -134,6 +145,7 @@ function CardDetailModal({
               {col.label}
             </Badge>
           )}
+          <UnifiedCardFreshnessBadge freshness={freshness} />
         </Group>
       }
       size="xl"
@@ -326,6 +338,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   const [items, setItems] = useState<NBAItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
 
   const fetchItems = useCallback(async () => {
@@ -407,8 +420,13 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
     }
   }, [fetchItems]);
 
+  const onDragStart = useCallback((result: DragStart) => {
+    setDraggingItemId(result.draggableId);
+  }, []);
+
   const onDragEnd = useCallback(async (result: DropResult) => {
     const { destination, source, draggableId } = result;
+    setDraggingItemId(null);
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
     await handleMoveItem(draggableId, destination.droppableId);
@@ -439,7 +457,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
         onConvert={handleConvert}
       />
 
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <Box 
         style={{ flex: 1, overflowX: "auto", overflowY: "hidden" }}
         p="xl"
@@ -518,60 +536,77 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                           <Stack gap="sm" p={4} style={{ flex: 1 }}>
                             {colItems.map((item, index) => (
                               <Draggable key={item.id} draggableId={item.id} index={index}>
-                                {(provided, snapshot) => (
-                                  <Box
-                                    component="div"
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    style={{ ...provided.draggableProps.style }}
-                                  >
-                                    <Paper
-                                      p="md"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                        handleOpenCard(item);
-                                      }}
+                                {(provided, snapshot) => {
+                                  const freshness = getTaskCardFreshness({
+                                    createdAt: item.createdAt,
+                                    updatedAt: item.updatedAt,
+                                    generatedAt: item.generatedAt,
+                                  });
+                                  const isActivelyDragging = draggingItemId === item.id && snapshot.isDragging;
+
+                                  return (
+                                    <Box
+                                      component="div"
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
                                       style={{
-                                        cursor: snapshot.isDragging ? "grabbing" : "pointer",
-                                        borderColor: snapshot.isDragging
-                                          ? col.accent
-                                          : "transparent",
-                                        transform: snapshot.isDragging ? "rotate(1deg) scale(1.02)" : "none",
-                                        transition: "all 0.15s ease",
-                                        userSelect: "none",
-                                        ...getSemanticSurfaceStyle(col.tone),
+                                        ...provided.draggableProps.style,
+                                        transform: isActivelyDragging
+                                          ? `${provided.draggableProps.style?.transform ?? ""} rotate(1deg) scale(1.02)`.trim()
+                                          : provided.draggableProps.style?.transform,
+                                        transition: provided.draggableProps.style?.transition ?? "transform 0.15s ease",
                                       }}
                                     >
-                                      <Stack gap="xs">
-                                        <Text size="xs" lineClamp={2}>
-                                          {stripTechnicalMetadata(item.title)}
-                                        </Text>
-                                        {item.description && (
-                                          <Text size="xs" c="dimmed" lineClamp={2}>
-                                            {stripTechnicalMetadata(item.description)}
-                                          </Text>
-                                        )}
-                                        <Group justify="space-between" mt={4} wrap="nowrap">
-                                          <Badge 
-                                            size="xs" 
-                                            variant="light" 
-                                            color={item.impact >= 8 ? "review" : item.impact >= 5 ? "checklist" : "dark"}
-                                          >
-                                            {item.candidateState}
-                                          </Badge>
-                                          <Group gap={4}>
-                                            <Text size="10px" c="dimmed">ICE</Text>
-                                            <Text size="xs" style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
-                                              {Math.round(item.iceScore)}
+                                      <Paper
+                                        p="md"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          event.preventDefault();
+                                          handleOpenCard(item);
+                                        }}
+                                        style={{
+                                          cursor: isActivelyDragging ? "grabbing" : "pointer",
+                                          borderColor: isActivelyDragging
+                                            ? col.accent
+                                            : "transparent",
+                                          transition: "all 0.15s ease",
+                                          userSelect: "none",
+                                          ...getSemanticSurfaceStyle(col.tone),
+                                        }}
+                                      >
+                                        <Stack gap="xs">
+                                          <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm">
+                                            <Text size="xs" lineClamp={2} style={{ flex: 1 }}>
+                                              {stripTechnicalMetadata(item.title)}
                                             </Text>
+                                            <UnifiedCardFreshnessBadge freshness={freshness} />
                                           </Group>
-                                        </Group>
-                                      </Stack>
-                                    </Paper>
-                                  </Box>
-                                )}
+                                          {item.description && (
+                                            <Text size="xs" c="dimmed" lineClamp={2}>
+                                              {stripTechnicalMetadata(item.description)}
+                                            </Text>
+                                          )}
+                                          <Group justify="space-between" mt={4} wrap="nowrap">
+                                            <Badge 
+                                              size="xs" 
+                                              variant="light" 
+                                              color={item.impact >= 8 ? "review" : item.impact >= 5 ? "checklist" : "dark"}
+                                            >
+                                              {item.candidateState}
+                                            </Badge>
+                                            <Group gap={4}>
+                                              <Text size="10px" c="dimmed">ICE</Text>
+                                              <Text size="xs" style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
+                                                {Math.round(item.iceScore)}
+                                              </Text>
+                                            </Group>
+                                          </Group>
+                                        </Stack>
+                                      </Paper>
+                                    </Box>
+                                  );
+                                }}
                               </Draggable>
                             ))}
                             {provided.placeholder}

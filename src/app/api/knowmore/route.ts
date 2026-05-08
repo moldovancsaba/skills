@@ -56,6 +56,8 @@ export async function GET(request: NextRequest) {
       activityState: flashcard.activityState,
       userAnnotation: flashcard.userAnnotation,
       hashtags: flashcard.hashtags,
+      createdAt: flashcard.createdAt,
+      updatedAt: flashcard.updatedAt,
       lastActionAt: flashcard.lastActionAt,
       refreshedAt: flashcard.refreshedAt,
       intelligenceType: flashcard.intelligenceType,

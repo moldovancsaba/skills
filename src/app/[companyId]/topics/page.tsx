@@ -35,10 +35,12 @@ import { IconGripVertical as GripVertical, IconPlus as Plus, IconTrash as Trash2
 import { Notice, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { 
   UnifiedCard, 
+  UnifiedCardFreshnessBadge,
   UnifiedCardHeader, 
   UnifiedCardBody, 
   UnifiedCardActions, 
 } from "@/components/ui/unified-card";
+import { getTopicCardFreshness } from "@/lib/card-freshness";
 import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 type Topic = {
@@ -48,6 +50,8 @@ type Topic = {
   active: boolean;
   sortOrder: number;
   notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type Company = {
@@ -235,6 +239,12 @@ export default function CompanyTopicsPage() {
                 >
                   {topic.active ? "ACTIVE" : "PAUSED"}
                 </MantineBadge>
+                <UnifiedCardFreshnessBadge
+                  freshness={getTopicCardFreshness({
+                    createdAt: topic.createdAt,
+                    updatedAt: topic.updatedAt,
+                  })}
+                />
               </Group>
             );
 

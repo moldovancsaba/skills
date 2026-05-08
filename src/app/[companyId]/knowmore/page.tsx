@@ -45,6 +45,7 @@ import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { useStore } from "@/lib/store";
+import { calculateKnowledgeIceScore } from "@/lib/scoring-contract";
 import React from "react";
 
 type Company = {
@@ -94,6 +95,8 @@ type Flashcard = {
   activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
   userAnnotation: string | null;
   hashtags: string[];
+  createdAt: string;
+  updatedAt: string;
   lastActionAt: string | null;
   refreshedAt: string;
   sources: FlashcardSource[];
@@ -277,7 +280,7 @@ export default function CompanyKnowMorePage() {
       total: visibleCards.length,
       reviewed: totals.reviewed,
       avgConfidence: Math.round(totals.confidence / visibleCards.length),
-      avgIceScore: Math.round(visibleCards.reduce((sum, f) => sum + (f.impact * (f.confidenceScore / 10) * f.weight), 0) / visibleCards.length),
+      avgIceScore: Math.round(visibleCards.reduce((sum, f) => sum + calculateKnowledgeIceScore(f), 0) / visibleCards.length),
       avgEase: Math.round(totals.weight / visibleCards.length),
     };
   }, [flashcards, intelligenceFilter]);

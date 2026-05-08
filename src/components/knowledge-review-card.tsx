@@ -1,11 +1,13 @@
 import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconSparkles as Sparkles, IconArchive as Archive, IconTarget as Target, IconLayoutDashboard as LayoutDashboard } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader } from "@mantine/core";
 import { getIceBadgeColor } from "@/lib/ice-colors";
+import { getKnowledgeCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import {
   UnifiedCard,
   UnifiedCardActions,
   UnifiedCardBody,
+  UnifiedCardFreshnessBadge,
   UnifiedCardFooter,
   UnifiedCardHeader,
   UnifiedCardSection,
@@ -54,6 +56,8 @@ type Flashcard = {
   activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
   userAnnotation: string | null;
   hashtags: string[];
+  createdAt: string;
+  updatedAt: string;
   sources: FlashcardSource[];
   actions: FlashcardAction[];
   corrections: FlashcardCorrection[];
@@ -134,6 +138,12 @@ export function KnowledgeReviewCard({
     event.stopPropagation();
     callback?.();
   };
+  const freshness = getKnowledgeCardFreshness({
+    createdAt: flashcard.createdAt,
+    updatedAt: flashcard.updatedAt,
+    refreshedAt: flashcard.refreshedAt,
+    lastActionAt: flashcard.lastActionAt,
+  });
   
   const getCardColor = () => {
     if (cardType === "GOAL") return "strategy";
@@ -187,6 +197,7 @@ export function KnowledgeReviewCard({
             >
               {flashcard.intelligenceType === "COMPETITOR" ? "The Market" : "Internal"}
             </Badge>
+            <UnifiedCardFreshnessBadge freshness={freshness} />
 
             <Group gap={4} ml="auto">
               <Text size="xs" c="dimmed">ICE</Text>

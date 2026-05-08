@@ -44,6 +44,8 @@ import {
   shouldEnrichCompetitor,
   shouldEnrichProduct,
 } from "@/lib/url-enrichment";
+import { calculateKnowledgeIceScore, clampMetric } from "@/lib/scoring-contract";
+import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
 
 // --- TYPES ---
 
@@ -229,6 +231,10 @@ function sourceKeyFromCorrection(sourceType: FlashcardSourceKind | null | undefi
 function normalizeText(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function normalizeAnnotationText(value: string | null | undefined) {
+  return sanitizeOptionalUserFacingText(value);
 }
 
 function displaySourceName(value: string) {
@@ -725,7 +731,7 @@ function competitorEvidenceSignals(source: CompetitorSource) {
  * @param {FlashcardKind} kind - Flashcard category
  * @param {string} title - Human-readable title
  * @param {string} body - Synthesized description
- * @param {number} confidence - AI-estimated confidence (1-100)
+ * @param {number} confidence - AI-estimated confidence (1-10)
  * @param {number} impact - Strategic impact (1-10)
  * @param {number} weight - Relative weight (1-10)
  * @param {Prisma.InputJsonValue | null} evidence - Supporting data
@@ -738,9 +744,9 @@ function makeDraft(source: SourceRecord, kind: FlashcardKind, title: string, bod
     fingerprint: buildFingerprint(source, kind, seed),
     title,
     body: sentenceize(body),
-    confidence: clamp(Math.round(confidence), 1, 100),
-    impact: clamp(Math.round(impact), 1, 100),
-    weight: clamp(Math.round(weight), 1, 100),
+    confidence: clampMetric(confidence),
+    impact: clampMetric(impact),
+    weight: clampMetric(weight),
     evidence,
     hashtags: stripSourceTypeHashtags(source.hashtags),
     source: {
@@ -1225,22 +1231,22 @@ function applyFeedbackDeltas(draft: FlashcardDraft, existing?: { feedbackWeightD
   const confidenceDelta = existing?.feedbackConfidenceDelta ?? 0;
 
   return {
-    confidence: clamp(draft.confidence + confidenceDelta, 1, 100),
-    weight: clamp(draft.weight + weightDelta, 1, 100),
+    confidence: clampMetric(draft.confidence + confidenceDelta),
+    weight: clampMetric(draft.weight + weightDelta),
   };
 }
 
 function effectiveConfidence(value: { confidence: number; feedbackConfidenceDelta?: number | null }) {
-  return clamp(value.confidence + (value.feedbackConfidenceDelta ?? 0), 1, 100);
+  return clampMetric(value.confidence + (value.feedbackConfidenceDelta ?? 0));
 }
 
 function effectiveWeight(value: { weight: number; feedbackWeightDelta?: number | null }) {
-  return clamp(value.weight + (value.feedbackWeightDelta ?? 0), 1, 100);
+  return clampMetric(value.weight + (value.feedbackWeightDelta ?? 0));
 }
 
 function shouldPublishDraft(draft: FlashcardDraft, existing?: { feedbackConfidenceDelta: number }) {
   const confidenceDelta = existing?.feedbackConfidenceDelta ?? 0;
-  return draft.confidence + confidenceDelta > 50;
+  return draft.confidence + confidenceDelta > 5;
 }
 
 async function reconcilePendingTasksForFlashcards(tx: Prisma.TransactionClient, flashcardIds: string[]) {
@@ -1279,7 +1285,7 @@ async function reconcilePendingTasksForFlashcards(tx: Prisma.TransactionClient, 
       return (
         flashcard.status === FlashcardStatus.ACTIVE &&
         flashcard.reviewStatus !== FlashcardReviewStatus.DECLINED &&
-        effectiveConfidence(flashcard) > 50
+        effectiveConfidence(flashcard) > 5
       );
     });
 
@@ -1612,8 +1618,14 @@ export async function syncBootstrapFlashcards(companyId: string) {
                 manualTitle: resolved.manualTitle,
                 manualBody: resolved.manualBody,
                 confidence: adjusted.confidence,
+                confidenceScore: adjusted.confidence,
                 impact: draft.impact,
                 weight: adjusted.weight,
+                iceScore: calculateKnowledgeIceScore({
+                  impact: draft.impact,
+                  confidence: adjusted.confidence,
+                  weight: adjusted.weight,
+                }),
                 hashtags: draft.hashtags,
                 evidence: draft.evidence ?? undefined,
                 status: FlashcardStatus.ACTIVE,
@@ -1654,8 +1666,14 @@ export async function syncBootstrapFlashcards(companyId: string) {
           generatedTitle: draft.title,
           generatedBody: draft.body,
           confidence: adjusted.confidence,
+          confidenceScore: adjusted.confidence,
           impact: draft.impact,
           weight: adjusted.weight,
+          iceScore: calculateKnowledgeIceScore({
+            impact: draft.impact,
+            confidence: adjusted.confidence,
+            weight: adjusted.weight,
+          }),
           hashtags: draft.hashtags,
           evidence: draft.evidence ?? undefined,
           status: FlashcardStatus.ACTIVE,
@@ -1710,18 +1728,18 @@ export async function syncBootstrapFlashcards(companyId: string) {
 function flashcardActionDelta(action: FlashcardActionType) {
   switch (action) {
     case FlashcardActionType.ACCEPT:
-      return { confidence: 5, weight: 6 };
+      return { confidence: 1, weight: 1 };
     case FlashcardActionType.DECLINE:
-      return { confidence: -18, weight: -14 };
+      return { confidence: -3, weight: -2 };
     case FlashcardActionType.MODIFY_ACCEPT:
-      return { confidence: 8, weight: 8 };
+      return { confidence: 2, weight: 2 };
     default:
       return assertNever(action);
   }
 }
 
 export async function recordFlashcardAction(input: FlashcardActionInput) {
-  const annotation = normalizeText(input.annotation);
+  const annotation = normalizeAnnotationText(input.annotation);
 
   return withSerializableRetry(() =>
     prisma.$transaction(async (tx) => {
@@ -1816,16 +1834,21 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
           reviewStatus: REVIEW_STATUS_BY_ACTION[input.action],
           userAnnotation: annotation,
           lastActionAt,
-          feedbackConfidenceDelta: clamp(flashcard.feedbackConfidenceDelta + delta.confidence, -40, 40),
-          feedbackWeightDelta: clamp(flashcard.feedbackWeightDelta + delta.weight, -40, 40),
-          confidence: clamp(flashcard.confidence + delta.confidence, 1, 100),
-          weight: clamp(flashcard.weight + delta.weight, 1, 100),
+          feedbackConfidenceDelta: clamp(flashcard.feedbackConfidenceDelta + delta.confidence, -5, 5),
+          feedbackWeightDelta: clamp(flashcard.feedbackWeightDelta + delta.weight, -5, 5),
+          confidence: clampMetric(flashcard.confidence + delta.confidence),
+          weight: clampMetric(flashcard.weight + delta.weight),
+          iceScore: calculateKnowledgeIceScore({
+            impact: flashcard.impact,
+            confidence: flashcard.confidence + delta.confidence,
+            weight: flashcard.weight + delta.weight,
+          }),
           activityState:
             input.action === FlashcardActionType.DECLINE ||
             effectiveConfidence({
               confidence: flashcard.confidence + delta.confidence,
               feedbackConfidenceDelta: flashcard.feedbackConfidenceDelta + delta.confidence,
-            }) <= 50
+            }) <= 5
               ? FlashcardActivityState.ARCHIVED
               : FlashcardActivityState.ACTIVE,
           status:
@@ -1833,7 +1856,7 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
             effectiveConfidence({
               confidence: flashcard.confidence + delta.confidence,
               feedbackConfidenceDelta: flashcard.feedbackConfidenceDelta + delta.confidence,
-            }) <= 50
+            }) <= 5
               ? FlashcardStatus.ARCHIVED
               : FlashcardStatus.ACTIVE,
         },
@@ -1869,20 +1892,20 @@ export async function applyTaskFeedbackToFlashcards(nbaItemId: string, action: "
       });
 
       const delta = action === "ACCEPT"
-        ? { confidence: 8, weight: 10 }
-        : { confidence: -22, weight: -18 };
+        ? { confidence: 2, weight: 2 }
+        : { confidence: -3, weight: -2 };
 
       for (const flashcard of flashcards) {
-        const nextFeedbackConfidenceDelta = clamp(flashcard.feedbackConfidenceDelta + delta.confidence, -50, 50);
-        const nextFeedbackWeightDelta = clamp(flashcard.feedbackWeightDelta + delta.weight, -50, 50);
-        const nextConfidence = clamp(flashcard.confidence + delta.confidence, 1, 100);
-        const nextWeight = clamp(flashcard.weight + delta.weight, 1, 100);
+        const nextFeedbackConfidenceDelta = clamp(flashcard.feedbackConfidenceDelta + delta.confidence, -5, 5);
+        const nextFeedbackWeightDelta = clamp(flashcard.feedbackWeightDelta + delta.weight, -5, 5);
+        const nextConfidence = clampMetric(flashcard.confidence + delta.confidence);
+        const nextWeight = clampMetric(flashcard.weight + delta.weight);
         const nextStatus =
           action === "DECLINE" ||
           effectiveConfidence({
             confidence: nextConfidence,
             feedbackConfidenceDelta: nextFeedbackConfidenceDelta,
-          }) <= 50
+          }) <= 5
             ? FlashcardStatus.ARCHIVED
             : flashcard.status;
 
@@ -1893,6 +1916,11 @@ export async function applyTaskFeedbackToFlashcards(nbaItemId: string, action: "
             feedbackWeightDelta: nextFeedbackWeightDelta,
             confidence: nextConfidence,
             weight: nextWeight,
+            iceScore: calculateKnowledgeIceScore({
+              impact: flashcard.impact,
+              confidence: nextConfidence,
+              weight: nextWeight,
+            }),
             userAnnotation: normalizeText(annotation) ?? flashcard.userAnnotation,
             status: nextStatus,
           },
@@ -1927,7 +1955,7 @@ export async function listCompanyFlashcards(companyId: string) {
 }
 
 function correctionNote(note: string | undefined) {
-  return normalizeText(note);
+  return normalizeAnnotationText(note);
 }
 
 export async function listCompanyFlashcardCorrections(companyId: string) {
@@ -2002,10 +2030,15 @@ export async function recordFlashcardCorrection(input: FlashcardCorrectionInput)
             data: {
               status: FlashcardStatus.ACTIVE,
               activityState: FlashcardActivityState.ACTIVE,
-              confidence: clamp(flashcard.confidence + 10, 1, 100),
-              weight: clamp(flashcard.weight + 18, 1, 100),
-              feedbackConfidenceDelta: clamp(flashcard.feedbackConfidenceDelta + 10, -50, 50),
-              feedbackWeightDelta: clamp(flashcard.feedbackWeightDelta + 18, -50, 50),
+              confidence: clampMetric(flashcard.confidence + 1),
+              weight: clampMetric(flashcard.weight + 2),
+              iceScore: calculateKnowledgeIceScore({
+                impact: flashcard.impact,
+                confidence: flashcard.confidence + 1,
+                weight: flashcard.weight + 2,
+              }),
+              feedbackConfidenceDelta: clamp(flashcard.feedbackConfidenceDelta + 1, -5, 5),
+              feedbackWeightDelta: clamp(flashcard.feedbackWeightDelta + 2, -5, 5),
               userAnnotation: note ?? flashcard.userAnnotation,
               lastActionAt: new Date(),
             },

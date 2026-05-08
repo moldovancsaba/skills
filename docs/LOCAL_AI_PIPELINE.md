@@ -313,15 +313,22 @@ The detailed program and issue breakdown live in:
 
 ## ICE scoring
 
-The current task scoring contract is:
+The current canonical scoring contract is:
 
 ```text
-Impact: 0-10
-Confidence: 0-100, multiplied as confidence/10
-Ease: 0-10
-ICE = impact * (confidence / 10) * ease
-Range: 0-1000
+Impact: 1-10 integer
+Confidence: 1-10 integer
+Ease: 1-10 integer
+Task ICE = impact * confidence * ease
+Task range: 1-1000
 ```
+
+Important:
+
+- the app no longer uses mixed confidence scales
+- task generation/refinement must normalize through `src/lib/scoring-contract.js`
+- task scoring is grounded by source strength plus task specificity, urgency, and complexity signals
+- periodic rescoring runs oldest-updated-first across active card layers
 
 ## Delivery modes
 

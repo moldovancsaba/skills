@@ -1,4 +1,5 @@
 import { Paper, Text, Group, Stack, rem } from "@mantine/core";
+import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 interface MetricCardProps {
   label: string;
@@ -20,12 +21,9 @@ const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon, 
     <div style={{ height: '100%' }}>
       <Paper
         p="md"
-        
-        
         style={{
           height: '100%',
-          backgroundColor: 'light-dark(white, var(--mantine-color-dark-7))',
-          boxShadow: 'var(--mantine-shadow-xs)',
+          ...getSemanticSurfaceStyle("neutral", { elevated: false }),
         }}
       >
         <Stack gap="xs">

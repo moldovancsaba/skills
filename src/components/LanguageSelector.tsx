@@ -90,7 +90,7 @@ export function LanguageSelector({ selectedIds, onChange, disabled }: LanguageSe
             <Text size="sm" >{option.label}</Text>
             <Text size="xs" c="dimmed" >{(option as any).nativeName}</Text>
           </Stack>
-          {checked && <Check size={14} color="var(--mantine-color-brand-6)" />}
+          {checked && <Check size={14} color="var(--mantine-color-ingress-6)" />}
         </Group>
       )}
     />

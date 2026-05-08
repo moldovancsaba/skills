@@ -140,7 +140,7 @@ function CardDetailModal({
       
       overlayProps={{ 
         backgroundOpacity: 0.55, 
-        color: 'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-9))'
+        color: 'rgba(15, 20, 27, 0.92)'
       }}
     >
       {!item ? (
@@ -166,11 +166,11 @@ function CardDetailModal({
           <Text size="xs" c="dimmed" mb="md">Operational Scores</Text>
           <Group grow gap="md">
             {[
-              { label: "Impact",     value: item.impact,     color: "orange" },
-              { label: "Confidence", value: item.confidence, color: "cyan" },
-              { label: "Ease",       value: item.ease,       color: "violet" },
+              { label: "Impact",     value: item.impact,     color: "review" },
+              { label: "Confidence", value: item.confidence, color: "tactical" },
+              { label: "Ease",       value: item.ease,       color: "strategy" },
             ].map(s => (
-              <Paper key={s.label} p="md" ta="center" style={getSemanticSurfaceStyle(s.color === "orange" ? "review" : s.color === "cyan" ? "tactical" : "strategy", { elevated: false })}>
+              <Paper key={s.label} p="md" ta="center" style={getSemanticSurfaceStyle(s.color as any, { elevated: false })}>
                 <Text size="xl" c={s.color}>{s.value}</Text>
                 <Text size="xs" c="dimmed">{s.label}</Text>
               </Paper>
@@ -186,7 +186,7 @@ function CardDetailModal({
         {(item.qualityScore != null || item.urgencyScore != null || item.freshnessScore != null) && (
           <Box>
             <Group gap="xs" mb="md">
-              <Sparkles size={14} color="var(--mantine-color-blue-6)" />
+              <Sparkles size={14} color="var(--mantine-color-ingress-6)" />
               <Text size="xs" c="dimmed">AI Evaluation Signals</Text>
             </Group>
             <Paper p="md" style={getSemanticSurfaceStyle("tactical", { elevated: false })}>

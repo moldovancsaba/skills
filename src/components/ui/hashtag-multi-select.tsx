@@ -182,7 +182,7 @@ export function HashtagMultiSelect({
                         borderRadius: 'var(--mantine-radius-md)',
                         transition: 'background 0.2s ease',
                         '&:hover': {
-                          backgroundColor: 'light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))',
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
                         }
                       })}
                     >
@@ -211,7 +211,7 @@ export function HashtagMultiSelect({
                         marginTop: rem(2),
                         paddingTop: rem(8),
                         '&:hover': {
-                          backgroundColor: 'light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))',
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
                         }
                       })}
                     >

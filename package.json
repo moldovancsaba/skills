@@ -11,6 +11,8 @@
     "lint": "eslint src eslint.config.js --ext .ts,.tsx,.js,.jsx",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
+    "audit:semantic": "node scripts/semantic-audit.mjs",
+    "smoke:routes": "node scripts/smoke-routes.mjs",
     "repair:raw-sources": "node scripts/repair-raw-sources.mjs",
     "research:probe": "node scripts/research-probe.mjs",
     "task:probe": "node scripts/task-probe.mjs",

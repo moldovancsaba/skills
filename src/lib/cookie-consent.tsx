@@ -48,6 +48,7 @@ export function useCookieConsent() {
 }
 
 import { Card, Text, Group, Button, Checkbox, Stack, Box, rem } from "@mantine/core";
+import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 export function CookieBanner() {
   const [analytics, setAnalytics] = useState(false);
@@ -81,8 +82,7 @@ export function CookieBanner() {
             withBorder 
             shadow="xl"
             style={{ 
-              backgroundColor: 'var(--mantine-color-body)',
-              backdropFilter: 'blur(10px)',
+              ...getSemanticSurfaceStyle("neutral"),
               maxWidth: '1200px',
               margin: '0 auto'
             }}
@@ -95,20 +95,20 @@ export function CookieBanner() {
                     We use cookies to improve your experience. Essential cookies are required for the system to operate.
                   </Text>
                   <Group gap="xl" mt="xs">
-                    <Checkbox label="Essential" checked disabled size="xs" color="brand" />
+                    <Checkbox label="Essential" checked disabled size="xs" color="ingress" />
                     <Checkbox 
                       label="Analytics" 
                       checked={analytics} 
                       onChange={(e) => setAnalytics(e.currentTarget.checked)} 
                       size="xs" 
-                      color="brand"
+                      color="ingress"
                     />
                     <Checkbox 
                       label="Personalization" 
                       checked={personalization} 
                       onChange={(e) => setPersonalization(e.currentTarget.checked)} 
                       size="xs" 
-                      color="brand"
+                      color="ingress"
                     />
                   </Group>
                 </Stack>
@@ -123,7 +123,7 @@ export function CookieBanner() {
                   </Button>
                   <Button 
                     variant="filled" 
-                    color="brand" 
+                    color="ingress" 
                     size="xs" 
                     onClick={acceptAll}
                   >

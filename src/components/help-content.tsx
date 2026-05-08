@@ -20,6 +20,7 @@ import {
 } from "@mantine/core";
 import { Notice, PageShell } from "@/components/ui/app-shell";
 import Link from "next/link";
+import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 export function ManualPageContent() {
   return (
@@ -47,7 +48,7 @@ export function ManualPageContent() {
         </Notice>
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-          <Card p="xl"   style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+          <Card p="xl" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
             <Stack gap="lg">
               <Title order={3}>Source Priority Layer</Title>
               <Stack gap="sm">
@@ -67,7 +68,7 @@ export function ManualPageContent() {
               </Stack>
             </Stack>
           </Card>
-          <Card p="xl"   style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))' }}>
+          <Card p="xl" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
             <Stack gap="lg">
               <Title order={3}>Calibration Vocabulary</Title>
               <Stack gap="sm">
@@ -91,7 +92,7 @@ export function ManualPageContent() {
 
         <Stack gap="xl">
           {manualSections.map((section) => (
-            <Paper key={section.id} p="xl"   style={{ position: 'relative' }}>
+            <Paper key={section.id} p="xl" style={{ position: 'relative', ...getSemanticSurfaceStyle("neutral", { elevated: false }) }}>
               <Badge 
                 color="ingress" 
                 size="xs" 
@@ -103,7 +104,7 @@ export function ManualPageContent() {
                 <Title order={3}>{section.summary}</Title>
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                   {section.bullets.map((bullet) => (
-                    <Paper key={bullet} p="md"   style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-7))' }}>
+                    <Paper key={bullet} p="md" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
                       <Text>{bullet}</Text>
                     </Paper>
                   ))}
@@ -157,7 +158,7 @@ export function FaqPageContent() {
           If the intelligence output feels weak, check source quality and calibration history first. System performance is a direct reflection of evidence fidelity.
         </Notice>
 
-        <Paper p="xl"   style={{ backgroundColor: 'light-dark(white, var(--mantine-color-dark-8))' }}>
+        <Paper p="xl" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
           <Accordion variant="separated" >
             {faqItems.map((item) => (
               <Accordion.Item key={item.id} value={item.id} style={{ border: 'none', marginBottom: rem(12) }}>
@@ -165,7 +166,7 @@ export function FaqPageContent() {
                   <Text size="sm">{item.question}</Text>
                 </Accordion.Control>
                 <Accordion.Panel>
-                  <Paper p="md"  style={{ backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-9))', borderLeft: '3px solid var(--mantine-color-brand-6)' }}>
+                  <Paper p="md" style={{ ...getSemanticSurfaceStyle("neutral", { elevated: false }), borderLeft: '3px solid var(--mantine-color-ingress-6)' }}>
                     <Text c="dimmed">{item.answer}</Text>
                   </Paper>
                 </Accordion.Panel>

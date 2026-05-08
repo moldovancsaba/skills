@@ -34,6 +34,8 @@ type ModuleDefinition = {
   rgb: string;
 };
 
+const warnedSemanticValues = new Set<string>();
+
 export const MODULE_THEME: Record<ModuleTone, ModuleDefinition> = {
   ingress: {
     color: "#3B82F6",
@@ -133,7 +135,16 @@ export function resolveModuleTone(color?: SemanticColor | string): ModuleTone {
     case "orange":
     case "amber":
       return "review";
+    case "gray":
+    case "dark":
+    case "red":
+    case "yellow":
+      return "neutral";
     default:
+      if (typeof color === "string" && color.trim() && !warnedSemanticValues.has(color)) {
+        warnedSemanticValues.add(color);
+        console.warn(`[semantic-theme] Unknown semantic color "${color}" received. Falling back to neutral.`);
+      }
       return "neutral";
   }
 }

@@ -26,6 +26,39 @@ import {
 import { DashboardChart } from "@/components/dashboard-chart";
 import { getModuleCssVars, getSemanticHoverStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
 
+function resolveModuleTone(color?: string): ModuleTone {
+  switch (color) {
+    case "ingress":
+    case "blue":
+    case "brand":
+      return "ingress";
+    case "synthesis":
+    case "indigo":
+      return "synthesis";
+    case "knowmore":
+    case "teal":
+    case "green":
+    case "knowledge":
+      return "knowmore";
+    case "strategy":
+    case "violet":
+    case "purple":
+      return "strategy";
+    case "checklist":
+    case "cyan":
+    case "execution":
+      return "checklist";
+    case "tactical":
+      return "tactical";
+    case "review":
+    case "orange":
+    case "amber":
+      return "review";
+    default:
+      return "neutral";
+  }
+}
+
 type PageShellProps = {
   children: ReactNode;
   width?: "md" | "lg" | "xl" | "2xl" | "5xl" | "7xl" | "full";
@@ -176,7 +209,7 @@ export function MetricCard({
   detail,
   color = "brand",
 }: MetricCardProps) {
-  const tone = (color === "brand" ? "ingress" : color) as ModuleTone;
+  const tone = resolveModuleTone(color);
   return (
     <Card style={getSemanticSurfaceStyle(tone)}>
       

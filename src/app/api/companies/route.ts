@@ -100,6 +100,14 @@ export async function GET(request: NextRequest) {
         }
       });
 
+      const reviewCount = await prisma.nBAItem.count({
+        where: {
+          companyId: c.id,
+          processingStatus: "REVIEW",
+          activityState: { in: ["ACTIVE", "STALE"] },
+        },
+      });
+
       return {
         ...c,
         metrics: {
@@ -107,6 +115,7 @@ export async function GET(request: NextRequest) {
           topics: c._count.topics || 0,
           knowmore: c._count.flashcards || 0,
           goals: c._count.goalcards || 0,
+          review: reviewCount,
           checklist: pendingNbaCount,
           tactical: c._count.nbaItems || 0
         },

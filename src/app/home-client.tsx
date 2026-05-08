@@ -17,7 +17,7 @@ import {
   Card,
   Center
 } from "@mantine/core";
-import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListCheck, IconLayoutDashboard as LayoutDashboard, IconLayersIntersect as Layers } from "@tabler/icons-react";
+import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListCheck, IconLayoutDashboard as LayoutDashboard, IconLayersIntersect as Layers, IconHistory as History } from "@tabler/icons-react";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
 import { LinkCard, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
@@ -304,7 +304,7 @@ export default function Home() {
                     icon={Database}
                     variant="ingress"
                     metric={c.metrics?.data ?? 0}
-                    title="Data Ingress"
+                    title="Data"
                     chartData={chartSeries(c.analytics, "sources", "dataIngress")}
                   />
                   <LinkCard
@@ -312,8 +312,24 @@ export default function Home() {
                     icon={Layers}
                     variant="synthesis"
                     metric={c.metrics?.topics ?? 0}
-                    title="Topic Synthesis"
+                    title="Topics"
                     chartData={chartSeries(c.analytics, "topics", "topicSynthesis")}
+                  />
+                  <LinkCard
+                    href={`/${c.id}/goals`}
+                    icon={Target}
+                    variant="strategy"
+                    metric={c.metrics?.goals ?? 0}
+                    title="Goals"
+                    chartData={chartSeries(c.analytics, "goals", "strategicGoals", "nba")}
+                  />
+                  <LinkCard
+                    href={`/${c.id}/review`}
+                    icon={History}
+                    variant="review"
+                    metric={c.metrics?.review ?? 0}
+                    title="Review"
+                    chartData={chartSeries(c.analytics, "reviewGateway", "nba")}
                   />
                   <LinkCard
                     href={`/${c.id}/knowmore`}
@@ -324,28 +340,20 @@ export default function Home() {
                     chartData={chartSeries(c.analytics, "flashcards", "knowmore")}
                   />
                   <LinkCard
-                    href={`/${c.id}/goals`}
-                    icon={Target}
-                    variant="strategy"
-                    metric={c.metrics?.goals ?? 0}
-                    title="Strategic Goals"
-                    chartData={chartSeries(c.analytics, "goals", "strategicGoals", "nba")}
+                    href={`/${c.id}/tactical`}
+                    icon={LayoutDashboard}
+                    variant="tactical"
+                    metric={c.metrics?.tactical ?? 0}
+                    title="Planning"
+                    chartData={chartSeries(c.analytics, "tacticalBoard", "nbaItems", "nba")}
                   />
                   <LinkCard
                     href={`/${c.id}/nba`}
                     icon={ListCheck}
                     variant="checklist"
-                    metric={c.metrics?.checklistCount ?? 0}
+                    metric={c.metrics?.checklist ?? 0}
                     title="Checklist"
                     chartData={chartSeries(c.analytics, "checklist", "nba")}
-                  />
-                  <LinkCard
-                    href={`/${c.id}/tactical`}
-                    icon={LayoutDashboard}
-                    variant="tactical"
-                    metric={c.metrics?.tactical ?? 0}
-                    title="Tactical Board"
-                    chartData={chartSeries(c.analytics, "tacticalBoard", "nbaItems", "nba")}
                   />
                 </RouteCardGrid>
               </Box>

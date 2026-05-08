@@ -246,7 +246,7 @@ export default function CompanyDashboard() {
           icon={Database}
           variant="ingress"
           metric={counts.sources}
-          title="Data Ingress"
+          title="Data"
           chartData={chartSeries("sources", "dataIngress")}
         />
         <LinkCard
@@ -254,8 +254,24 @@ export default function CompanyDashboard() {
           icon={Layers}
           variant="synthesis"
           metric={counts.topics}
-          title="Topic Synthesis"
+          title="Topics"
           chartData={chartSeries("topics", "topicSynthesis")}
+        />
+        <LinkCard
+          href={`/${companyId}/goals`}
+          icon={Target}
+          variant="strategy"
+          metric={counts.goals}
+          title="Goals"
+          chartData={chartSeries("goals", "strategicGoals", "nba")}
+        />
+        <LinkCard
+          href={`/${companyId}/review`}
+          icon={History}
+          variant="review"
+          metric={counts.reviewCount}
+          title="Review"
+          chartData={chartSeries("reviewGateway", "nba")}
         />
         <LinkCard
           href={`/${companyId}/knowmore`}
@@ -266,28 +282,20 @@ export default function CompanyDashboard() {
           chartData={chartSeries("flashcards", "knowmore")}
         />
         <LinkCard
-          href={`/${companyId}/goals`}
-          icon={Target}
-          variant="strategy"
-          metric={counts.goals}
-          title="Strategic Goals"
-          chartData={chartSeries("goals", "strategicGoals", "nba")}
+          href={`/${companyId}/tactical`}
+          icon={LayoutDashboard}
+          variant="tactical"
+          metric={counts.nbaItems}
+          title="Planning"
+          chartData={chartSeries("tacticalBoard", "nbaItems", "nba")}
         />
         <LinkCard
-          href={`/${companyId}/checklist`}
+          href={`/${companyId}/nba`}
           icon={ListCheck}
           variant="checklist"
           metric={counts.checklistCount}
           title="Checklist"
           chartData={chartSeries("checklist", "nba")}
-        />
-        <LinkCard
-          href={`/${companyId}/tactical`}
-          icon={LayoutDashboard}
-          variant="tactical"
-          metric={counts.nbaItems}
-          title="Tactical Board"
-          chartData={chartSeries("tacticalBoard", "nbaItems", "nba")}
         />
       </RouteCardGrid>
 

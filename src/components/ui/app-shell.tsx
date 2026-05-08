@@ -160,7 +160,7 @@ export interface RouteCardGridProps extends SimpleGridProps {
 
 export function RouteCardGrid({
   children,
-  cols = { base: 1, sm: 2, lg: 6 },
+  cols = { base: 1, sm: 2, lg: 7 },
   ...props
 }: RouteCardGridProps) {
   return (

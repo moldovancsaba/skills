@@ -33,7 +33,7 @@ const pipelineItems = [
   {
     key: "data",
     href: (companyId: string) => `/${companyId}/data`,
-    label: "Data Ingress",
+    label: "Data",
     icon: Database,
     color: "ingress",
     tone: "ingress",
@@ -41,10 +41,26 @@ const pipelineItems = [
   {
     key: "topics",
     href: (companyId: string) => `/${companyId}/topics`,
-    label: "Topic Synthesis",
+    label: "Topics",
     icon: Layers,
     color: "synthesis",
     tone: "synthesis",
+  },
+  {
+    key: "goals",
+    href: (companyId: string) => `/${companyId}/goals`,
+    label: "Goals",
+    icon: Target,
+    color: "strategy",
+    tone: "strategy",
+  },
+  {
+    key: "review",
+    href: (companyId: string) => `/${companyId}/review`,
+    label: "Review",
+    icon: History,
+    color: "review",
+    tone: "review",
   },
   {
     key: "knowmore",
@@ -55,12 +71,12 @@ const pipelineItems = [
     tone: "knowmore",
   },
   {
-    key: "goals",
-    href: (companyId: string) => `/${companyId}/goals`,
-    label: "Strategic Goals",
-    icon: Target,
-    color: "strategy",
-    tone: "strategy",
+    key: "tactical",
+    href: (companyId: string) => `/${companyId}/tactical`,
+    label: "Planning",
+    icon: LayoutDashboard,
+    color: "tactical",
+    tone: "tactical",
   },
   {
     key: "nba",
@@ -69,22 +85,6 @@ const pipelineItems = [
     icon: ListCheck,
     color: "checklist",
     tone: "checklist",
-  },
-  {
-    key: "tactical",
-    href: (companyId: string) => `/${companyId}/tactical`,
-    label: "Tactical Board",
-    icon: LayoutDashboard,
-    color: "tactical",
-    tone: "tactical",
-  },
-  {
-    key: "review",
-    href: (companyId: string) => `/${companyId}/review`,
-    label: "Review Gateway",
-    icon: History,
-    color: "review",
-    tone: "review",
   },
 ];
 

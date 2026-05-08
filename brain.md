@@ -5,7 +5,7 @@ This file serves as the long-term cognitive anchor for Antigravity (the AI assis
 ## 🧠 Core Axioms
 1. **APERTUS Purity**: 100% monolingual content. No mixed-language cards. Delete without hesitation if violated.
 2. **Provenance is King**: Every Flashcard/Task MUST link back to a Source. No "hallucinated" intelligence.
-3. **Mantine-First Mandate**: 100% architectural purity. No Tailwind utility classes. Use only Mantine primitives and hardened design tokens (glassmorphism/gradients).
+3. **Mantine-Only Mandate**: 100% architectural purity. No Tailwind utility classes. Use only Mantine primitives and hardened design tokens (glassmorphism/gradients).
 4. **Metadata Purity**: User-facing cards must be purged of technical trace data (use `stripTechnicalMetadata`).
 5. **Trinity Serial Lock**: AI inference is sequential to protect local hardware (Ollama).
 

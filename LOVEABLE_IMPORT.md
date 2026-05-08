@@ -5,8 +5,8 @@ https://github.com/moldovancsaba/remix-of-gtm-ai-navigator-68.git
 
 ## Technology Stack
 - **Framework**: Vite + React + TypeScript
-- **UI Library**: shadcn-ui (49 components)
-- **Styling**: Tailwind CSS
+- **UI Library**: Legacy import source was shadcn-ui (49 components)
+- **Styling**: Legacy import source used Tailwind CSS
 - **Platform**: Marketing AI Navigator
 
 ---
@@ -217,8 +217,8 @@ https://github.com/moldovancsaba/remix-of-gtm-ai-navigator-68.git
 ## 5. LIBRARIES & UTILITIES
 
 - **utils.ts**: Utility functions (cn, formatting, etc.)
-- **Tailwind CSS**: Styling
-- **shadcn-ui**: Component library (based on Radix UI)
+- **Tailwind CSS**: Legacy styling source during import
+- **shadcn-ui**: Legacy component source during import (based on Radix UI)
 
 ---
 
@@ -241,7 +241,7 @@ https://github.com/moldovancsaba/remix-of-gtm-ai-navigator-68.git
    - Implement full feature set
 
 3. **UI Components to Implement**:
-   - All 49 shadcn-ui components
+   - Historical import included 49 shadcn-ui components before Mantine-only hardening
    - Custom components for marketing
 
 4. **API Routes to Extend**:
@@ -257,7 +257,7 @@ https://github.com/moldovancsaba/remix-of-gtm-ai-navigator-68.git
 ## IMPLEMENTATION PHASES
 
 ### Phase 7: UI Components
-- Import all 49 shadcn-ui components
+- Historical note: import originally included 49 shadcn-ui components before the Mantine-only migration
 - Build custom marketing components
 
 ### Phase 8: Core Pages

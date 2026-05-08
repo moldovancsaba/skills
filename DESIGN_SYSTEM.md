@@ -1,14 +1,14 @@
 # Checklist Design System
-**v0.15.0: Hardened Mantine Architecture**
+**v0.15.0: Hardened Mantine-Only Architecture**
 
 Unified component patterns for a premium, production-ready strategic intelligence interface.
 
-## Core Principle: Mantine-First Mandate
+## Core Principle: Mantine-Only Mandate
 
-**CHECKLIST** enforces a strict Mantine-native architecture. 
+**CHECKLIST** enforces a strict Mantine-only architecture.
 1. **No Ad-hoc Utility Classes**: All layout and styling must be handled via Mantine primitives (`Stack`, `Group`, `Grid`, `Box`, `Paper`, `Card`).
 2. **Design Tokens Only**: Use only the hardened design tokens for colors, shadows, and spacing. 
-3. **Architectural Purity**: Purge all legacy Tailwind utility fragments and Shadcn components from the repository.
+3. **Architectural Purity**: No legacy Tailwind, shadcn, Radix, or parallel UI-system fragments may remain in the product UI.
 
 ## Premium Visual Language (Hardened)
 
@@ -72,4 +72,4 @@ Import from `@/components/ui/unified-card` for all first-class objects:
 
 ---
 
-Last Updated: 2026-05-04 (v0.15.0 Hardening Release)
+Last Updated: 2026-05-08 (v0.15.3 Mantine-only terminology sync)

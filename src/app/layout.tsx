@@ -7,6 +7,8 @@ import { CookieBanner } from "@/lib/cookie-consent";
 import { AppShell, AppShellMain, ColorSchemeScript } from "@mantine/core";
 import { Providers } from "@/components/providers";
 
+const colorSchemeStorageKey = "checklist-color-scheme";
+
 export const metadata: Metadata = {
   title: "checklist",
   description: "AI-powered strategic intelligence system",
@@ -39,7 +41,7 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
-        <ColorSchemeScript defaultColorScheme="auto" />
+        <ColorSchemeScript defaultColorScheme="auto" localStorageKey={colorSchemeStorageKey} />
       </head>
       <body className={`${fontBody.variable} ${fontDisplay.variable} font-body`}>
         <Providers>

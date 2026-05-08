@@ -56,7 +56,7 @@ type Goal = {
   hashtags: string[];
 };
 
-type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
 
 import { useIntelligenceSnapshot } from "@/hooks/use-intelligence-snapshot";
 
@@ -294,6 +294,7 @@ export default function GoalsPage() {
               <TaskReviewCard
                 key={goal.id}
                 item={goal as any}
+                twoPhaseWorkflow={false}
                 onOpenDetail={() => setSelectedGoalId(goal.id)}
                 isActionOpen={actionItemId === goal.id && actionMode !== null}
                 actionMode={actionMode}
@@ -332,6 +333,7 @@ export default function GoalsPage() {
         {selectedGoal ? (
           <TaskReviewCard
             item={selectedGoal as any}
+            twoPhaseWorkflow={false}
             detailMode
             isActionOpen={actionItemId === selectedGoal.id && actionMode !== null}
             actionMode={actionMode}

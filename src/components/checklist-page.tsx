@@ -52,7 +52,7 @@ interface NBAItem {
   hashtags: string[];
 }
 
-type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
 
 type ChecklistPageProps = {
   companyId: string;
@@ -179,37 +179,100 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     modifiedDescription?: string,
     submittedDeclineClass?: string,
   ) => {
+    if (!company) return;
     setActingId(itemId);
-    
-    const payload: any = {
-      nbaItemId: itemId,
-      action,
-      annotation: feedbackAnnotation,
-      modifiedTitle,
-      modifiedDescription,
-    };
+    try {
+      if (action === "DELETE") {
+        const res = await fetch(`/api/nba?id=${itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            processingStatus: "ACCEPTED",
+            activityState: "ARCHIVED",
+            candidateState: "ARCHIVED",
+            status: "ARCHIVED",
+            evaluationReason: feedbackAnnotation?.trim() || "Accepted but not delivered",
+            acceptedNotDelivered: true,
+          }),
+        });
 
-    if (action === "DECLINE" && submittedDeclineClass) {
-      payload.declineClass = submittedDeclineClass;
+        if (res.ok) {
+          setItems((prev) => prev.filter((i) => i.id !== itemId));
+          if (selectedItemId === itemId) {
+            closeDetailModal();
+          } else {
+            resetActionForm();
+          }
+        }
+        return;
+      }
+
+      const payload: any = {
+        companyId: company.id,
+        entityId: itemId,
+        entityType: "TASK",
+        action,
+        annotation: feedbackAnnotation,
+        modifiedTitle,
+        modifiedDescription,
+        declineClass: action === "DECLINE" ? submittedDeclineClass : undefined,
+      };
+
+      const feedbackRes = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!feedbackRes.ok) {
+        return;
+      }
+
+      if (action === "ACCEPT") {
+        const patchRes = await fetch(`/api/nba?id=${itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            processingStatus: "ACCEPTED",
+            status: "ACCEPTED",
+            evaluationReason: feedbackAnnotation?.trim() || "Accepted for execution",
+          }),
+        });
+
+        if (patchRes.ok) {
+          setItems((prev) =>
+            prev.map((i) =>
+              i.id === itemId
+                ? { ...i, processingStatus: "ACCEPTED", userAnnotation: feedbackAnnotation || i.userAnnotation }
+                : i,
+            ),
+          );
+        }
+      } else if (action === "DELIVER") {
+        const patchRes = await fetch(`/api/nba?id=${itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            processingStatus: "ACCEPTED",
+            activityState: "ARCHIVED",
+            candidateState: "DELIVERED",
+            status: "COMPLETED",
+            evaluationReason: feedbackAnnotation?.trim() || "Delivered in reality",
+          }),
+        });
+
+        if (patchRes.ok) {
+          setItems((prev) => prev.filter((i) => i.id !== itemId));
+        }
+      } else if (action === "DECLINE") {
+        setItems((prev) => prev.filter((i) => i.id !== itemId));
+      }
+
+      resetActionForm();
+    } finally {
+      setActingId(null);
     }
-    if (action === "DELIVER") {
-      payload.deliveryComment = feedbackAnnotation;
-    }
-
-    const res = await fetch("/api/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (res.ok) {
-      // Archive or update the item in local state optimistically
-      setItems(prev => prev.filter(i => i.id !== itemId));
-    }
-
-    resetActionForm();
-    setActingId(null);
-  }, [resetActionForm]);
+  }, [closeDetailModal, company, resetActionForm, selectedItemId]);
 
   const handlePostpone = useCallback(async (itemId: string, column: string) => {
     setActingId(itemId);

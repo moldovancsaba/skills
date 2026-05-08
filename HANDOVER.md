@@ -2,13 +2,13 @@
 
 ## System Status: STABLE ✅
 - **Current Version**: v0.15.0
-- **Primary Design**: Mantine-First (Hardened)
+- **Primary Design**: Mantine-Only (Hardened)
 - **UI State**: Architecturally Pure & Visually Synchronized
 - **Trinity Pipeline**: 100% Build-Stable and Production-Ready
 
 ## Shipped in this Session (v0.15.0)
 
-### 1. Architectural Restoration (Mantine-First)
+### 1. Architectural Restoration (Mantine-Only)
 - **Mandatory Mantine Migration**: Purged 100% of legacy Tailwind utility fragments and Shadcn components across ALL core layers:
     - **Data Ingress** (Source Data)
     - **Topics** (Strategic Priorities)
@@ -37,7 +37,7 @@
 | **P3** | **Autonomous Budgeting** | Future: Fiscal forecasting based on tactical execution velocity. |
 
 ## Maintenance & Standards
-- **Coding Standard**: Strict **Mantine-First** mandate; NO Tailwind utilities permitted.
+- **Coding Standard**: Strict **Mantine-Only** mandate; NO Tailwind utilities or parallel UI systems permitted.
 - **UI Standard**: Premium glassmorphism and gradient tokens only.
 - **Metadata Standard**: All end-user text must be processed via `stripTechnicalMetadata`.
 

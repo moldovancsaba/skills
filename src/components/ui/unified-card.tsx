@@ -121,7 +121,7 @@ export function UnifiedCardHeader({
               </Title>
             )}
             {description && (
-              <Text c="#9AA4B2">
+              <Text c="var(--text-secondary)">
                 {description}
               </Text>
             )}
@@ -150,7 +150,7 @@ export function UnifiedCardText({
       : children;
 
   return (
-    <Text style={style} mt={mt} c="#9AA4B2" lh={1.6}>
+    <Text style={style} mt={mt} c="var(--text-secondary)" lh={1.6}>
       {content}
     </Text>
   );
@@ -162,8 +162,8 @@ export function UnifiedCardSection({ children, style, mt, tone = "neutral" }: Un
       p="md"
       style={{
         borderRadius: rem(12),
-        background: `linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01)), var(--module-hover-surface, #1B2430)`,
-        border: "1px solid rgba(255,255,255,0.05)",
+        background: "linear-gradient(180deg, var(--surface-hover-top), var(--surface-hover-bottom)), var(--module-hover-surface, var(--surface-elevated))",
+        border: "1px solid var(--surface-section-border)",
         ...getSemanticSurfaceStyle(tone, { elevated: false }),
         ...style,
       }}
@@ -185,7 +185,7 @@ export function UnifiedCardFooter({ children, style, mt }: UnifiedCardProps) {
       py="md"
       mt={mt || "xl"}
       style={{
-        borderTop: "1px solid rgba(255,255,255,0.05)",
+        borderTop: "1px solid var(--surface-section-border)",
         ...style,
       }}
     >

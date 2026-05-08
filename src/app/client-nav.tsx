@@ -121,13 +121,16 @@ export function ClientNav() {
         })
         .catch(err => console.error("Nav company sync failed:", err));
     }
-  }, [companyIdFromUrl, company?.id, setCompany]);
+  }, [company, companyIdFromUrl, setCompany]);
 
   useEffect(() => {
     const activeId = company?.id || companyIdFromUrl;
     if (!activeId) {
-      setCounts({});
-      return;
+      const timer = window.setTimeout(() => {
+        setCounts({});
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
 
     const fetchCounts = async () => {
@@ -150,8 +153,14 @@ export function ClientNav() {
       }
     };
 
-    fetchCounts();
-    const interval = setInterval(fetchCounts, 30000); // Sync every 30s
+    void (async () => {
+      await fetchCounts();
+    })();
+
+    const interval = setInterval(() => {
+      void fetchCounts();
+    }, 30000);
+
     return () => clearInterval(interval);
   }, [company?.id, companyIdFromUrl]);
 
@@ -180,7 +189,7 @@ export function ClientNav() {
   }
 
   return (
-    <AppShellNavbar p="md" style={{ borderRight: '1px solid #2A3441', backgroundColor: '#0F141B' }}>
+    <AppShellNavbar p="md" style={{ borderRight: '1px solid var(--border-primary)', backgroundColor: 'var(--sidebar-bg)' }}>
       <AppShellSection mb="xl">
         <Box px="xs" py="md">
           <Logo />
@@ -202,10 +211,10 @@ export function ClientNav() {
                 styles={{
                   root: {
                     background: "linear-gradient(90deg, rgba(245,158,11,0.24), rgba(245,158,11,0.08))",
-                    borderLeft: "2px solid #F59E0B",
+                    borderLeft: "2px solid var(--module-review-color)",
                   },
-                  label: { color: "#FBC277" },
-                  description: { color: "#E8C89A" },
+                  label: { color: "var(--nav-company-label)" },
+                  description: { color: "var(--nav-company-description)" },
                 }}
               />
 
@@ -252,7 +261,7 @@ export function ClientNav() {
                       ...(pathname.includes(item.key) ? getSidebarActiveStyle(item.tone as ModuleTone) : {}),
                     },
                     label: {
-                      color: pathname.includes(item.key) ? "#E6EDF3" : "#D2D9E1",
+                      color: pathname.includes(item.key) ? "var(--nav-link-active)" : "var(--nav-link-inactive)",
                       fontWeight: 500,
                     },
                   }}
@@ -309,7 +318,7 @@ export function ClientNav() {
                 <ThemeIcon color={isDark ? "review" : "synthesis"} size="sm">
                   {isDark ? <Sun size={14} /> : <Moon size={14} />}
                 </ThemeIcon>
-                <Text size="xs" c="#9AA4B2">{isDark ? "Light" : "Dark"} Mode</Text>
+                <Text size="xs" c="var(--text-secondary)">{isDark ? "Light" : "Dark"} Mode</Text>
               </Group>
             </Group>
           </UnstyledButton>

@@ -54,7 +54,8 @@ export async function GET(
           where: {
             companyId: cid,
             kanbanColumn: "CHECKLIST",
-            activityState: "ACTIVE",
+            activityState: { in: ["ACTIVE", "STALE"] },
+            processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
             OR: [
               { scheduledDate: null },
               { scheduledDate: { lte: now } },
@@ -93,7 +94,8 @@ export async function GET(
       where: {
         companyId: cid,
         kanbanColumn: "CHECKLIST",
-        activityState: "ACTIVE",
+        activityState: { in: ["ACTIVE", "STALE"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
         OR: [
           { scheduledDate: null },
           { scheduledDate: { lte: now } }

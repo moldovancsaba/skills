@@ -2,8 +2,8 @@
 
 ## ✅ DELIVERED THIS SESSION (v0.15.0)
 
-### UI Hardening & Unification (Mantine-First)
-- **Mantine-First Restoration**: Purged 100% of legacy Tailwind utility classes and Shadcn fragments from core pages (Data Ingress, Topics, Tactical Board, Knowmore, Goals, Checklist, and Review Gateway).
+### UI Hardening & Unification (Mantine-Only)
+- **Mantine-Only Restoration**: Purged 100% of legacy Tailwind utility classes and shadcn fragments from core pages (Data Ingress, Topics, Tactical Board, Knowmore, Goals, Checklist, and Review Gateway).
 - **Premium Design Unification**: Hardened `MetricCard` and `LinkCard` with high-yield glassmorphism, vibrant gradients, and sophisticated micro-animations.
 - **Unified Architecture**: Standardized strategic and tactical layers using the `PageShell` and `UnifiedGrid` patterns for total structural consistency.
 
@@ -14,13 +14,13 @@
 ### Technical Foundations
 - **Build-Time Stability**: Validated 100% stable `next build` across the new Mantine architecture.
 - **Versioning**: Bumped repository to v0.15.0, reflecting the hardened, production-ready state.
-- **Documentation Sync**: Synchronized `README.md`, `brain.md`, and technical specs with the new Mantine-First methodology.
+- **Documentation Sync**: Synchronized `README.md`, `brain.md`, and technical specs with the new Mantine-only methodology.
 
 ---
 
 ## 🚀 COMPLETED NEXT BEST ACTIONS (NBAs)
 
-1. **Mantine-First UI Restoration & Unification** [DELIVERED]
+1. **Mantine-Only UI Restoration & Unification** [DELIVERED]
 2. **Global Metadata Filtering Implementation** [DELIVERED]
 3. **Production Build Validation & Branding Sync** [DELIVERED]
 
@@ -38,4 +38,3 @@
 
 ---
 *Status Update: 2026-05-04. Project Board Synchronized (v0.15.0 Architecture Release).*
-

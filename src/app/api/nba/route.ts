@@ -26,14 +26,14 @@ export async function GET(request: NextRequest) {
     } else if (showAll) {
       // Return everything active for the Kanban board
       where.activityState = { in: ["ACTIVE", "STALE"] };
-      where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED"] };
+      where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] };
     } else if (isArchived) {
       where.OR = [
         { activityState: "ARCHIVED" },
-        { processingStatus: { in: ["ACCEPTED", "DECLINED"] } }
+        { processingStatus: "DECLINED" }
       ];
     } else {
-      where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED"] };
+      where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] };
       where.activityState = { in: ["ACTIVE", "STALE"] };
       // Unified Tactical Logic (§24): Checklist only shows what is in the CHECKLIST column
       where.kanbanColumn = "CHECKLIST";
@@ -138,8 +138,10 @@ export async function PATCH(request: NextRequest) {
     const nextActivityState = data.activityState ?? existing.activityState;
     const nextKanbanColumn = data.kanbanColumn ?? existing.kanbanColumn;
     const nextCandidateState = data.candidateState ?? existing.candidateState;
+    const nextStatus = data.status ?? existing.status;
     const nextScheduledDate =
       data.scheduledDate !== undefined ? (data.scheduledDate ? new Date(data.scheduledDate) : null) : existing.scheduledDate;
+    const isAcceptedNotDelivered = Boolean(data.acceptedNotDelivered);
 
     const updated = await prisma.nBAItem.update({
       where: { id },
@@ -153,6 +155,7 @@ export async function PATCH(request: NextRequest) {
         iceScore: nextIceScore,
         processingStatus: nextProcessingStatus,
         activityState: nextActivityState,
+        status: nextStatus,
         kanbanColumn: nextKanbanColumn,
         sortOrder: data.sortOrder ?? existing.sortOrder,
         candidateState: nextCandidateState,
@@ -166,7 +169,9 @@ export async function PATCH(request: NextRequest) {
     });
 
     const patchType =
-      nextKanbanColumn !== existing.kanbanColumn
+      isAcceptedNotDelivered
+        ? "TASK_ACCEPTED_NOT_DELIVERED"
+        : nextKanbanColumn !== existing.kanbanColumn
         ? "TASK_MOVE_COLUMN"
         : hasMetricOverride || data.iceScore !== undefined
           ? "TASK_SCORE_OVERRIDE"
@@ -195,6 +200,7 @@ export async function PATCH(request: NextRequest) {
         title: updated.title,
         processingStatus: updated.processingStatus,
         activityState: updated.activityState,
+        status: updated.status,
         kanbanColumn: updated.kanbanColumn,
         candidateState: updated.candidateState,
         impact: updated.impact,
@@ -203,7 +209,14 @@ export async function PATCH(request: NextRequest) {
         iceScore: updated.iceScore,
       },
       payload: data,
-      teachingWeight: patchType === "TASK_MOVE_COLUMN" ? 70 : patchType === "TASK_SCORE_OVERRIDE" ? 90 : 60,
+      teachingWeight:
+        patchType === "TASK_ACCEPTED_NOT_DELIVERED"
+          ? 90
+          : patchType === "TASK_MOVE_COLUMN"
+            ? 70
+            : patchType === "TASK_SCORE_OVERRIDE"
+              ? 90
+              : 60,
     });
 
     if (hasMetricOverride || data.iceScore !== undefined || data.qualityScore !== undefined || data.urgencyScore !== undefined || data.freshnessScore !== undefined || data.candidateState !== undefined) {
@@ -263,10 +276,11 @@ export async function PATCH(request: NextRequest) {
         afterState: {
           processingStatus: updated.processingStatus,
           activityState: updated.activityState,
+          status: updated.status,
           kanbanColumn: updated.kanbanColumn,
         },
         payload: data,
-        teachingWeight: updated.kanbanColumn !== existing.kanbanColumn ? 70 : 60,
+        teachingWeight: isAcceptedNotDelivered ? 90 : updated.kanbanColumn !== existing.kanbanColumn ? 70 : 60,
       });
     }
 

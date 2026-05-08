@@ -1,8 +1,168 @@
-/* CHECKLIST Global Styles - Hardened Mantine-First Foundation */
+/* CHECKLIST Global Styles - Hardened Mantine-Only Foundation */
 
 :root {
   --font-body: var(--font-body);
   --font-display: var(--font-display);
+
+  --app-bg: #f4f7fb;
+  --sidebar-bg: #eef3f8;
+  --surface-base: #ffffff;
+  --surface-elevated: #f8fbff;
+  --border-primary: rgba(15, 23, 42, 0.12);
+  --text-primary: #142033;
+  --text-secondary: #4f6078;
+  --text-muted: #72839a;
+  --overlay-color: rgba(228, 236, 248, 0.82);
+  --surface-gradient-top: rgba(255, 255, 255, 0.88);
+  --surface-gradient-bottom: rgba(255, 255, 255, 0.58);
+  --surface-hover-top: rgba(255, 255, 255, 0.94);
+  --surface-hover-bottom: rgba(255, 255, 255, 0.72);
+  --surface-shadow-elevated: 0 14px 32px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --surface-shadow-flat: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  --surface-icon-border: rgba(15, 23, 42, 0.08);
+  --surface-icon-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  --surface-section-border: rgba(15, 23, 42, 0.08);
+  --nav-company-label: #9a6700;
+  --nav-company-description: #b47c14;
+  --nav-link-active: var(--text-primary);
+  --nav-link-inactive: #5d6f89;
+
+  --module-ingress-color: #2563eb;
+  --module-ingress-surface: #e8f1ff;
+  --module-ingress-hover-surface: #dbeafe;
+  --module-ingress-glow: rgba(37, 99, 235, 0.12);
+  --module-ingress-border: rgba(37, 99, 235, 0.18);
+  --module-ingress-rgb: 37, 99, 235;
+
+  --module-synthesis-color: #4f46e5;
+  --module-synthesis-surface: #ede9fe;
+  --module-synthesis-hover-surface: #e2ddff;
+  --module-synthesis-glow: rgba(79, 70, 229, 0.12);
+  --module-synthesis-border: rgba(79, 70, 229, 0.18);
+  --module-synthesis-rgb: 79, 70, 229;
+
+  --module-knowmore-color: #059669;
+  --module-knowmore-surface: #e5fbf2;
+  --module-knowmore-hover-surface: #d5f7ea;
+  --module-knowmore-glow: rgba(5, 150, 105, 0.12);
+  --module-knowmore-border: rgba(5, 150, 105, 0.18);
+  --module-knowmore-rgb: 5, 150, 105;
+
+  --module-strategy-color: #7c3aed;
+  --module-strategy-surface: #f2eaff;
+  --module-strategy-hover-surface: #e9dcff;
+  --module-strategy-glow: rgba(124, 58, 237, 0.12);
+  --module-strategy-border: rgba(124, 58, 237, 0.18);
+  --module-strategy-rgb: 124, 58, 237;
+
+  --module-checklist-color: #0284c7;
+  --module-checklist-surface: #e6f6ff;
+  --module-checklist-hover-surface: #d6f0ff;
+  --module-checklist-glow: rgba(2, 132, 199, 0.12);
+  --module-checklist-border: rgba(2, 132, 199, 0.18);
+  --module-checklist-rgb: 2, 132, 199;
+
+  --module-tactical-color: #0f766e;
+  --module-tactical-surface: #e1fbf8;
+  --module-tactical-hover-surface: #d0f5f0;
+  --module-tactical-glow: rgba(15, 118, 110, 0.12);
+  --module-tactical-border: rgba(15, 118, 110, 0.18);
+  --module-tactical-rgb: 15, 118, 110;
+
+  --module-review-color: #d97706;
+  --module-review-surface: #fff3df;
+  --module-review-hover-surface: #ffe8c1;
+  --module-review-glow: rgba(217, 119, 6, 0.12);
+  --module-review-border: rgba(217, 119, 6, 0.18);
+  --module-review-rgb: 217, 119, 6;
+
+  --module-neutral-color: #64748b;
+  --module-neutral-surface: #f4f7fb;
+  --module-neutral-hover-surface: #edf2f8;
+  --module-neutral-glow: rgba(100, 116, 139, 0.08);
+  --module-neutral-border: rgba(100, 116, 139, 0.14);
+  --module-neutral-rgb: 100, 116, 139;
+}
+
+html[data-mantine-color-scheme="dark"] {
+  --app-bg: #0b0f14;
+  --sidebar-bg: #0f141b;
+  --surface-base: #161c24;
+  --surface-elevated: #1b2430;
+  --border-primary: #2a3441;
+  --text-primary: #e6edf3;
+  --text-secondary: #9aa4b2;
+  --text-muted: #6b7280;
+  --overlay-color: rgba(11, 15, 20, 0.92);
+  --surface-gradient-top: rgba(255, 255, 255, 0.03);
+  --surface-gradient-bottom: rgba(255, 255, 255, 0.01);
+  --surface-hover-top: rgba(255, 255, 255, 0.04);
+  --surface-hover-bottom: rgba(255, 255, 255, 0.015);
+  --surface-shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --surface-shadow-flat: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --surface-icon-border: rgba(255, 255, 255, 0.06);
+  --surface-icon-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --surface-section-border: rgba(255, 255, 255, 0.05);
+  --nav-company-label: #fbc277;
+  --nav-company-description: #e8c89a;
+  --nav-link-active: #e6edf3;
+  --nav-link-inactive: #d2d9e1;
+
+  --module-ingress-color: #3b82f6;
+  --module-ingress-surface: #10243f;
+  --module-ingress-hover-surface: #143154;
+  --module-ingress-glow: rgba(59, 130, 246, 0.18);
+  --module-ingress-border: rgba(59, 130, 246, 0.22);
+  --module-ingress-rgb: 59, 130, 246;
+
+  --module-synthesis-color: #6366f1;
+  --module-synthesis-surface: #1a1d4a;
+  --module-synthesis-hover-surface: #232864;
+  --module-synthesis-glow: rgba(99, 102, 241, 0.18);
+  --module-synthesis-border: rgba(99, 102, 241, 0.22);
+  --module-synthesis-rgb: 99, 102, 241;
+
+  --module-knowmore-color: #10b981;
+  --module-knowmore-surface: #0f2d27;
+  --module-knowmore-hover-surface: #153d35;
+  --module-knowmore-glow: rgba(16, 185, 129, 0.18);
+  --module-knowmore-border: rgba(16, 185, 129, 0.22);
+  --module-knowmore-rgb: 16, 185, 129;
+
+  --module-strategy-color: #8b5cf6;
+  --module-strategy-surface: #24163f;
+  --module-strategy-hover-surface: #312058;
+  --module-strategy-glow: rgba(139, 92, 246, 0.18);
+  --module-strategy-border: rgba(139, 92, 246, 0.22);
+  --module-strategy-rgb: 139, 92, 246;
+
+  --module-checklist-color: #0ea5e9;
+  --module-checklist-surface: #102838;
+  --module-checklist-hover-surface: #16384c;
+  --module-checklist-glow: rgba(14, 165, 233, 0.18);
+  --module-checklist-border: rgba(14, 165, 233, 0.22);
+  --module-checklist-rgb: 14, 165, 233;
+
+  --module-tactical-color: #14b8a6;
+  --module-tactical-surface: #102d2a;
+  --module-tactical-hover-surface: #17403c;
+  --module-tactical-glow: rgba(20, 184, 166, 0.18);
+  --module-tactical-border: rgba(20, 184, 166, 0.22);
+  --module-tactical-rgb: 20, 184, 166;
+
+  --module-review-color: #f59e0b;
+  --module-review-surface: #3b2a12;
+  --module-review-hover-surface: #513a18;
+  --module-review-glow: rgba(245, 158, 11, 0.18);
+  --module-review-border: rgba(245, 158, 11, 0.22);
+  --module-review-rgb: 245, 158, 11;
+
+  --module-neutral-color: #9aa4b2;
+  --module-neutral-surface: #161c24;
+  --module-neutral-hover-surface: #1b2430;
+  --module-neutral-glow: rgba(154, 164, 178, 0.12);
+  --module-neutral-border: rgba(154, 164, 178, 0.18);
+  --module-neutral-rgb: 154, 164, 178;
 }
 
 * {
@@ -19,8 +179,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-family: var(--font-body), sans-serif;
-  background-color: var(--mantine-color-body);
-  color: var(--mantine-color-text);
+  background-color: var(--app-bg);
+  color: var(--text-primary);
 }
 
 /* Custom Scrollbar for Intelligence Dashboards */

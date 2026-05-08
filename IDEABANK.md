@@ -76,7 +76,7 @@ Build Strategic Skill IDEABANK that:
 - [x] Fair Orbit Rotation & AI Resilience
 - [x] Intelligence Specialization: Positive Feedback Replay
 - [x] Skill Selection Logic (CRO, SEO, Strategy)
-- [x] Production Hardening (Mantine-First & Metadata Filtering)
+- [x] Production Hardening (Mantine-Only & Metadata Filtering)
 - [ ] Skills available in IDEABANK (Phase 2)
 - [ ] Skill can be triggered by operator command
 - [ ] Skill generates relevant NBA

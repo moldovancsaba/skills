@@ -59,7 +59,7 @@ The system is designed so the online app remains usable even when the local AI l
 
 ## Design System & UI Architecture (Hardened)
 
-The system enforces a strict **Mantine-First** architectural mandate to ensure visual premium and build-time stability.
+The system enforces a strict **Mantine-Only** architectural mandate to ensure visual premium and build-time stability.
 
 1. **Mantine-Native Primitives**
    - 100% of UI layout must be constructed using native Mantine components (`Stack`, `Group`, `Grid`, `SimpleGrid`).
@@ -78,7 +78,7 @@ The system enforces a strict **Mantine-First** architectural mandate to ensure v
 Online webapp (Vercel)
 - Next.js 16 app router
 - Prisma + MongoDB Atlas
-- **Mantine-First UI**: Standardized on Mantine 7 primitives.
+- **Mantine-Only UI**: Standardized on Mantine 7 primitives.
 - **Axiomatic Enforcement**: Core interface color layers strictly bound to 1-10 thresholds.
 - **Metadata Filtering**: Hardened presentation layer for pure intelligence visibility.
 
@@ -122,7 +122,7 @@ When any of these change, update docs in the same change set:
 - API surface
 - database contract
 - online/local workflow
-- design-system grammar (Mantine-First Mandate)
+- design-system grammar (Mantine-Only Mandate)
 - metadata filtering standards
 
 ## Document Status

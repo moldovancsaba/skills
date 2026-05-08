@@ -1,15 +1,19 @@
 'use client';
 
-import { createContext, useContext, useEffect } from "react";
-import { useMantineColorScheme } from "@mantine/core";
+import { createContext, useContext } from "react";
+import { useComputedColorScheme, useMantineColorScheme } from "@mantine/core";
 
 type ThemeContextType = {
   isDark: boolean;
+  scheme: "light" | "dark";
+  colorScheme: "auto" | "light" | "dark";
   toggle: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextType>({
   isDark: true,
+  scheme: "dark",
+  colorScheme: "auto",
   toggle: () => {},
 });
 
@@ -18,19 +22,19 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("dark", isDark);
-    
-    // Also update data-mantine-color-scheme just in case (Mantine usually handles this)
-    document.documentElement.setAttribute('data-mantine-color-scheme', colorScheme);
-  }, [isDark, colorScheme]);
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
+  const scheme = useComputedColorScheme("dark");
+  const isDark = scheme === "dark";
 
   return (
-    <ThemeContext.Provider value={{ isDark, toggle: toggleColorScheme }}>
+    <ThemeContext.Provider
+      value={{
+        isDark,
+        scheme,
+        colorScheme,
+        toggle: () => setColorScheme(isDark ? "light" : "dark"),
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

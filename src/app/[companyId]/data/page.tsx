@@ -143,10 +143,14 @@ export default function CompanyDataPage() {
       ...prev,
       ...sourceItems.map((x: any) => ({ ...x, name: x.content, type: "source" as DataType })),
     ]);
-  }, [company, sourceHasMore, sources.length, setSources, sourceTotal]);
+  }, [company, sourceHasMore, sources, setSources, sourceTotal]);
 
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
+    const timer = window.setTimeout(() => {
+      setVisibleCount(PAGE_SIZE);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [activeHashtags, listIntelligenceFilter, sortBy, items.length]);
 
   useEffect(() => {
@@ -195,8 +199,7 @@ export default function CompanyDataPage() {
         console.error(error);
       }
     };
-
-    loadCompany(companyId);
+    void loadCompany(companyId);
   }, [companyId, router, setCompany, loadAllData]);
 
   useEffect(() => {

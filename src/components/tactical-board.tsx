@@ -218,7 +218,7 @@ function CardDetailModal({
             <Text size="xs" c="dimmed" mb="md">AI Judge Reasoning</Text>
             <Paper p="md" style={{ ...getSemanticSurfaceStyle("review", { elevated: false }), borderLeft: '4px solid var(--mantine-color-review-4)' }}>
               <Text size="sm">
-                "{stripTechnicalMetadata(item.evaluationReason)}"
+                &quot;{stripTechnicalMetadata(item.evaluationReason)}&quot;
               </Text>
             </Paper>
           </Box>
@@ -344,8 +344,13 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }, [companyId]);
 
   useEffect(() => {
-    fetchItems();
-    const interval = setInterval(fetchItems, 5 * 60 * 1000);
+    void (async () => {
+      await fetchItems();
+    })();
+
+    const interval = setInterval(() => {
+      void fetchItems();
+    }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchItems]);
 
@@ -423,7 +428,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }
 
   return (
-    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: "#0B0F14" }}>
+    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: "var(--app-bg)" }}>
 
       <CardDetailModal
         item={detailId ? items.find(i => i.id === detailId) || null : null}

@@ -43,7 +43,7 @@ type NBAItem = {
   hashtags: string[];
 };
 
-type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
 
 export default function CompanyDashboard() {
   const router = useRouter();
@@ -175,22 +175,61 @@ export default function CompanyDashboard() {
     if (!company) return;
 
     setLoading(true);
-    const payload = {
-      companyId: company.id,
-      entityId: itemId,
-      entityType: "TASK", // Dashboard topTasks are always TASKS
-      action,
-      annotation: feedbackAnnotation,
-      modifiedTitle,
-      modifiedDescription,
-      declineClass: submittedDeclineClass,
-    };
+    if (action === "DELETE") {
+      await fetch(`/api/nba?id=${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          processingStatus: "ACCEPTED",
+          activityState: "ARCHIVED",
+          candidateState: "ARCHIVED",
+          status: "ARCHIVED",
+          evaluationReason: feedbackAnnotation?.trim() || "Accepted but not delivered",
+          acceptedNotDelivered: true,
+        }),
+      });
+    } else {
+      const payload = {
+        companyId: company.id,
+        entityId: itemId,
+        entityType: "TASK",
+        action,
+        annotation: feedbackAnnotation,
+        modifiedTitle,
+        modifiedDescription,
+        declineClass: submittedDeclineClass,
+      };
 
-    await fetch("/api/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (action === "ACCEPT") {
+        await fetch(`/api/nba?id=${itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            processingStatus: "ACCEPTED",
+            status: "ACCEPTED",
+            evaluationReason: feedbackAnnotation?.trim() || "Accepted for execution",
+          }),
+        });
+      } else if (action === "DELIVER") {
+        await fetch(`/api/nba?id=${itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            processingStatus: "ACCEPTED",
+            activityState: "ARCHIVED",
+            candidateState: "DELIVERED",
+            status: "COMPLETED",
+            evaluationReason: feedbackAnnotation?.trim() || "Delivered in reality",
+          }),
+        });
+      }
+    }
 
     resetActionForm();
     await loadDashboard(company.id);

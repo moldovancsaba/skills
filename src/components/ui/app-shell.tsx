@@ -196,7 +196,7 @@ export function MetricCard({
             <Icon size={20} />
           </ThemeIcon>
           
-          <Text c="#9AA4B2" fw={500}>
+          <Text c="var(--text-secondary)" fw={500}>
             {label}
           </Text>
         </Group>
@@ -316,7 +316,7 @@ export function LinkCard({
             <Text fw={650} size="lg">
               {title}
             </Text>
-            <Text c="#9AA4B2" lineClamp={2}>
+            <Text c="var(--text-secondary)" lineClamp={2}>
               {description}
             </Text>
           </Stack>

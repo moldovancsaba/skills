@@ -43,19 +43,19 @@ export function UnifiedCardModal({
       padding="lg"
       overlayProps={{
         backgroundOpacity: 0.72,
-        color: "rgba(11, 15, 20, 0.92)",
+        color: "var(--overlay-color)",
         blur: 2,
       }}
       styles={{
         content: {
           ...surfaceStyle,
-          background: `linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015)), ${theme.surface}`,
+          background: `linear-gradient(180deg, var(--surface-hover-top), var(--surface-hover-bottom)), ${theme.surface}`,
           border: `1px solid ${theme.border}`,
           boxShadow: `0 24px 72px rgba(0, 0, 0, 0.42), 0 0 0 1px ${theme.border}`,
         },
         header: {
           background: "transparent",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          borderBottom: "1px solid var(--surface-section-border)",
           paddingBottom: 16,
         },
         body: {
@@ -70,7 +70,7 @@ export function UnifiedCardModal({
           <Stack gap={4}>
             <Text fw={650}>{title}</Text>
             {subtitle ? (
-              <Text size="xs" c="#9AA4B2">
+              <Text size="xs" c="var(--text-secondary)">
                 {subtitle}
               </Text>
             ) : null}

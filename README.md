@@ -54,8 +54,8 @@ The system automatically distributes taskcards across five tactical horizons bas
 ## 📐 Technical Standards & Design System
 To maintain the premium experience and ensure system stability, follow these architectural constraints:
 
-### 1. Mantine-First Mandate
-The repository enforces a strict Mantine-native architecture. 
+### 1. Mantine-Only Mandate
+The repository enforces a strict Mantine-only architecture.
 - **NO Tailwind Utilities**: Do not use ad-hoc Tailwind classes for layout or styling. 
 - **Component Primitives**: Always use Mantine `Stack`, `Group`, `Box`, `Paper`, and `Card` for structural layout.
 - **Visual Consistency**: All components must adhere to the hardened design tokens (glassmorphism, vibrant gradients, and blur filters).
@@ -105,7 +105,7 @@ npm run guardian
 
 ## 🗺️ Product Roadmap
 *   [x] **v0.14.0**: Production Hardening & Standalone Decoupling.
-*   [x] **v0.15.0**: **Architectural Hardening (Mantine-First & Metadata Purity).**
+*   [x] **v0.15.0**: **Architectural Hardening (Mantine-Only & Metadata Purity).**
 *   [ ] **v1.0.0**: Multi-agent tournament judging & Executive Summary synthesis.
 *   [ ] **v1.2.0**: Recurrent Kanban Intelligence & Strategic Learning.
 *   [ ] **v1.4.0**: Recursive Deliberation (Multi-pass Evaluator) & Autonomous Budget Forecasting.

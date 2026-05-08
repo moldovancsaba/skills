@@ -46,7 +46,9 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
   }, [companyId]);
 
   useEffect(() => {
-    void fetchMembers();
+    void (async () => {
+      await fetchMembers();
+    })();
   }, [fetchMembers]);
 
   const handleInvite = async (e: React.FormEvent) => {

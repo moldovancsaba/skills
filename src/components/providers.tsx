@@ -1,17 +1,19 @@
 'use client';
 
-import { MantineProvider, createTheme, rem, MantineTheme } from "@mantine/core";
+import { MantineProvider, createTheme, localStorageColorSchemeManager, rem, MantineTheme } from "@mantine/core";
 import { ThemeProvider } from "@/lib/theme-provider";
 import React from "react";
 import { getModuleTheme, resolveModuleTone } from "@/lib/semantic-theme";
 
+const colorSchemeManager = localStorageColorSchemeManager({
+  key: "checklist-color-scheme",
+});
+
 export const theme = createTheme({
   primaryColor: "ingress",
-  primaryShade: 4,
+  primaryShade: { light: 6, dark: 4 },
   fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
   fontFamilyMonospace: "Monaco, Courier, monospace",
-  black: "#0B0F14",
-  white: "#E6EDF3",
   defaultRadius: "md",
   colors: {
     dark: ["#C9D1D9", "#B0BAC5", "#8B949E", "#6E7681", "#484F58", "#30363D", "#21262D", "#161C24", "#0F141B", "#0B0F14"],
@@ -44,14 +46,14 @@ export const theme = createTheme({
     },
   },
   other: {
-    appBg: "#0B0F14",
-    sidebarBg: "#0F141B",
-    surfaceBase: "#161C24",
-    surfaceElevated: "#1B2430",
-    borderPrimary: "#2A3441",
-    textPrimary: "#E6EDF3",
-    textSecondary: "#9AA4B2",
-    textMuted: "#6B7280",
+    appBg: "var(--app-bg)",
+    sidebarBg: "var(--sidebar-bg)",
+    surfaceBase: "var(--surface-base)",
+    surfaceElevated: "var(--surface-elevated)",
+    borderPrimary: "var(--border-primary)",
+    textPrimary: "var(--text-primary)",
+    textSecondary: "var(--text-secondary)",
+    textMuted: "var(--text-muted)",
   },
   components: {
     Container: {
@@ -62,8 +64,8 @@ export const theme = createTheme({
     AppShell: {
       styles: {
         main: {
-          backgroundColor: "#0B0F14",
-          color: "#E6EDF3",
+          backgroundColor: "var(--app-bg)",
+          color: "var(--text-primary)",
         },
       },
     },
@@ -71,14 +73,14 @@ export const theme = createTheme({
       styles: {
         root: {
           borderRadius: rem(10),
-          color: "#E6EDF3",
+          color: "var(--text-primary)",
         },
         label: {
           fontWeight: 600,
           letterSpacing: "-0.01em",
         },
         description: {
-          color: "#9AA4B2",
+          color: "var(--text-secondary)",
         },
       },
     },
@@ -93,27 +95,27 @@ export const theme = createTheme({
         root: {
           ...(function () {
             const tone = resolveModuleTone(props.color);
-            const module = getModuleTheme(tone);
+            const toneTheme = getModuleTheme(tone);
             if (props.variant === "filled") {
               return {
-                background: `linear-gradient(135deg, ${module.color}, ${module.color})`,
+                background: `linear-gradient(135deg, ${toneTheme.color}, ${toneTheme.color})`,
               };
             }
             if (props.variant === "light") {
               return {
-                background: module.surface,
-                border: `1px solid ${module.border}`,
+                background: toneTheme.surface,
+                border: `1px solid ${toneTheme.border}`,
               };
             }
             if (props.variant === "outline") {
               return {
-                borderColor: module.border,
-                color: module.color,
+                borderColor: toneTheme.border,
+                color: toneTheme.color,
               };
             }
             return {};
           })(),
-          color: "#E6EDF3",
+          color: "var(--text-primary)",
           boxShadow: "0 8px 18px rgba(0, 0, 0, 0.22)",
         },
       }),
@@ -141,10 +143,10 @@ export const theme = createTheme({
       },
       styles: {
         root: {
-          backgroundColor: "#161C24",
-          borderColor: "#2A3441",
-          boxShadow: "0 10px 24px rgba(0,0,0,0.24)",
-          color: "#E6EDF3",
+          backgroundColor: "var(--surface-base)",
+          borderColor: "var(--border-primary)",
+          boxShadow: "var(--surface-shadow-elevated)",
+          color: "var(--text-primary)",
         },
       },
     },
@@ -155,8 +157,8 @@ export const theme = createTheme({
       },
       styles: {
         root: {
-          border: "1px solid rgba(255,255,255,0.06)",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+          border: "1px solid var(--surface-icon-border)",
+          boxShadow: "var(--surface-icon-shadow)",
         },
       },
     },
@@ -166,7 +168,7 @@ export const theme = createTheme({
       },
       styles: {
         root: {
-          color: "#E6EDF3",
+          color: "var(--text-primary)",
         },
       },
     },
@@ -176,7 +178,7 @@ export const theme = createTheme({
       },
       styles: {
         root: {
-          color: "#E6EDF3",
+          color: "var(--text-primary)",
           letterSpacing: "-0.03em",
         },
       },
@@ -187,43 +189,43 @@ export const theme = createTheme({
           fontWeight: 500,
           marginBottom: rem(4),
           fontSize: theme.fontSizes.sm,
-          color: "#9AA4B2",
+          color: "var(--text-secondary)",
         },
         description: {
           marginBottom: rem(4),
           fontStyle: "italic",
-          color: "#6B7280",
+          color: "var(--text-muted)",
         },
       }),
     },
     Input: {
       styles: {
         input: {
-          backgroundColor: "#1B2430",
-          border: "1px solid #2A3441",
-          color: "#E6EDF3",
+          backgroundColor: "var(--surface-elevated)",
+          border: "1px solid var(--border-primary)",
+          color: "var(--text-primary)",
         },
       },
     },
     Modal: {
       styles: {
         content: {
-          backgroundColor: "#1B2430",
-          border: "1px solid #2A3441",
+          backgroundColor: "var(--surface-elevated)",
+          border: "1px solid var(--border-primary)",
           boxShadow: "0 24px 60px rgba(0,0,0,0.42)",
         },
         header: {
-          backgroundColor: "#1B2430",
+          backgroundColor: "var(--surface-elevated)",
         },
       },
     },
     Divider: {
       styles: {
         root: {
-          borderColor: "#2A3441",
+          borderColor: "var(--border-primary)",
         },
         label: {
-          color: "#6B7280",
+          color: "var(--text-muted)",
           fontWeight: 500,
         },
       },
@@ -233,7 +235,11 @@ export const theme = createTheme({
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <MantineProvider theme={theme} defaultColorScheme="dark">
+    <MantineProvider
+      theme={theme}
+      colorSchemeManager={colorSchemeManager}
+      defaultColorScheme="auto"
+    >
       <ThemeProvider>
         {children}
         <style jsx global>{`

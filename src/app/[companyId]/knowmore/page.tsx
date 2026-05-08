@@ -212,7 +212,11 @@ export default function CompanyKnowMorePage() {
   }, [loadFlashcards, router]);
 
   useEffect(() => {
-    if (companyId) loadPage(companyId);
+    if (!companyId) return;
+
+    void (async () => {
+      await loadPage(companyId);
+    })();
   }, [companyId, loadPage]);
 
   useEffect(() => {

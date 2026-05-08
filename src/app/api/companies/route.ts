@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
           take: 0 // We only want the total count via _count
         },
         nbaItems: {
-          where: { processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] } },
+          where: { processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] } },
           orderBy: { iceScore: "desc" },
           take: 0, // We handle the count in _count, but filtering logic for 'pending' is complex in count
         },
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       const pendingNbaCount = await prisma.nBAItem.count({
         where: {
           companyId: c.id,
-          processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] },
+          processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
           activityState: { in: ["ACTIVE", "STALE"] },
           kanbanColumn: "CHECKLIST",
           scheduledDate: { lte: new Date() }

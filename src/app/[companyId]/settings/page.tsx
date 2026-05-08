@@ -75,7 +75,11 @@ export default function SettingsPage() {
   }, [companyId]);
 
   useEffect(() => {
-    if (companyId) fetchSettings();
+    if (!companyId) return;
+
+    void (async () => {
+      await fetchSettings();
+    })();
   }, [companyId, fetchSettings]);
 
   const saveSettings = async (updates: Partial<CommunicationSettings>) => {

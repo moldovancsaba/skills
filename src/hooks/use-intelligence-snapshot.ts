@@ -76,7 +76,9 @@ export function useIntelligenceSnapshot(companyId: string | undefined) {
   }, [companyId]);
 
   useEffect(() => {
-    refresh();
+    void (async () => {
+      await refresh();
+    })();
   }, [refresh]);
 
   return { snapshot, loading, error, refresh };

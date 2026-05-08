@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { IconHistory as History, IconDeviceFloppy as Save, IconAlertCircle as AlertCircle, IconInfoCircle as Info } from "@tabler/icons-react";
 
@@ -34,11 +34,7 @@ export default function ReviewDashboard() {
   const [items, setItems] = useState<any[]>([]);
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchItems();
-  }, [companyId]);
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
       const [fcRes, nbaRes] = await Promise.all([
@@ -62,7 +58,13 @@ export default function ReviewDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [companyId]);
+
+  useEffect(() => {
+    void (async () => {
+      await fetchItems();
+    })();
+  }, [fetchItems]);
 
   const handleScoreUpdate = async (id: string, type: 'TASK'|'FLASHCARD', newC: number, newI: number, newE_W: number) => {
     setSavingId(id);

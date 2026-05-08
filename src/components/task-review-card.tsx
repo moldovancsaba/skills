@@ -41,7 +41,7 @@ import {
   UnifiedCardSection
 } from "@/components/ui/unified-card";
 
-type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER";
+type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
 
 type NBAItem = {
   id: string;
@@ -64,6 +64,7 @@ type TaskReviewCardProps = {
   item: NBAItem;
   onOpenDetail?: (item: NBAItem) => void;
   detailMode?: boolean;
+  twoPhaseWorkflow?: boolean;
   isActionOpen: boolean;
   actionMode: ActionMode | null;
   isBusy: boolean;
@@ -97,6 +98,7 @@ export function TaskReviewCard({
   item,
   onOpenDetail,
   detailMode = false,
+  twoPhaseWorkflow = true,
   isActionOpen,
   actionMode,
   isBusy,
@@ -150,6 +152,7 @@ export function TaskReviewCard({
   ];
 
   const iceColor = getIceBadgeColor(item.iceScore);
+  const isAccepted = twoPhaseWorkflow && item.processingStatus === "ACCEPTED";
 
   return (
     <UnifiedCard
@@ -200,36 +203,53 @@ export function TaskReviewCard({
         )}
 
         <UnifiedCardActions>
-          <Button 
-            size="xs" 
-            variant="filled" 
-            color="knowmore" 
-            leftSection={<CheckCheck size={14} />} 
-            onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DELIVER"))}
-            disabled={isBusy}
-          >
-            Delivered
-          </Button>
-          <Button 
-            size="xs" 
-            variant="light" 
-            color="checklist" 
-            leftSection={<Check size={14} />} 
-            onClick={(event) => stopCardClick(event, () => onOpenAction(item, "ACCEPT"))}
-            disabled={isBusy}
-          >
-            Accept
-          </Button>
-          <Button 
-            size="xs" 
-            variant="outline" 
-            color="red" 
-            leftSection={<X size={14} />} 
-            onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DECLINE"))}
-            disabled={isBusy}
-          >
-            Decline
-          </Button>
+          {isAccepted ? (
+            <>
+              <Button
+                size="xs"
+                variant="filled"
+                color="knowmore"
+                leftSection={<CheckCheck size={14} />}
+                onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DELIVER"))}
+                disabled={isBusy}
+              >
+                Deliver
+              </Button>
+              <Button
+                size="xs"
+                variant="outline"
+                color="red"
+                leftSection={<Archive size={14} />}
+                onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DELETE"))}
+                disabled={isBusy}
+              >
+                Delete
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                size="xs" 
+                variant="light" 
+                color="checklist" 
+                leftSection={<Check size={14} />} 
+                onClick={(event) => stopCardClick(event, () => onOpenAction(item, "ACCEPT"))}
+                disabled={isBusy}
+              >
+                Accept
+              </Button>
+              <Button 
+                size="xs" 
+                variant="outline" 
+                color="red" 
+                leftSection={<X size={14} />} 
+                onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DECLINE"))}
+                disabled={isBusy}
+              >
+                Decline
+              </Button>
+            </>
+          )}
           
           <Button 
             ml="auto"
@@ -247,7 +267,15 @@ export function TaskReviewCard({
           <UnifiedCardSection>
             <Stack gap="sm">
               <Text size="xs" c="dimmed">
-                {actionMode === "DECLINE" ? "Decline Task" : actionMode === "MODIFY_ACCEPT" ? "Modify & Accept" : actionMode === "DELIVER" ? "Mark Delivered" : "Accept Task"}
+                {actionMode === "DECLINE"
+                  ? "Decline Task"
+                  : actionMode === "MODIFY_ACCEPT"
+                    ? "Modify & Accept"
+                    : actionMode === "DELIVER"
+                      ? "Mark Delivered"
+                      : actionMode === "DELETE"
+                        ? "Delete Accepted Task"
+                        : "Accept Task"}
               </Text>
 
               {actionMode === "MODIFY_ACCEPT" && (
@@ -283,7 +311,7 @@ export function TaskReviewCard({
               <Group gap="xs">
                 <Button
                   size="xs"
-                  color={actionMode === "DECLINE" ? "red" : actionMode === "DELIVER" ? "green" : "blue"}
+                  color={actionMode === "DECLINE" || actionMode === "DELETE" ? "red" : actionMode === "DELIVER" ? "green" : "blue"}
                   onClick={(event) => stopCardClick(event, () => onSubmit(item.id, actionMode, annotation, actionMode === "MODIFY_ACCEPT" ? draftTitle : undefined, actionMode === "MODIFY_ACCEPT" ? draftDescription : undefined, declineClass))}
                   disabled={isBusy || (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))}
                   loading={isBusy}

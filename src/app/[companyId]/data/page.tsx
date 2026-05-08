@@ -622,6 +622,7 @@ export default function CompanyDataPage() {
             publicId={selectedDataItem.publicId}
             name={selectedDataItem.name}
             type={selectedDataItem.type}
+            detailMode
             intelligenceType={selectedDataItem.intelligenceType}
             hashtags={selectedDataItem.hashtags ?? []}
             iceScore={selectedDataItem.iceScore}

@@ -332,6 +332,7 @@ export default function GoalsPage() {
         {selectedGoal ? (
           <TaskReviewCard
             item={selectedGoal as any}
+            detailMode
             isActionOpen={actionItemId === selectedGoal.id && actionMode !== null}
             actionMode={actionMode}
             isBusy={loading}

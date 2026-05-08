@@ -19,6 +19,7 @@ type SourceDataCardProps = {
   name: string;
   type: DataType;
   onOpenDetail?: () => void;
+  detailMode?: boolean;
   intelligenceType?: "INTERNAL" | "COMPETITOR";
   hashtags: string[];
   iceScore?: number;
@@ -42,6 +43,7 @@ export function SourceDataCard({
   name,
   type,
   onOpenDetail,
+  detailMode = false,
   intelligenceType,
   hashtags,
   iceScore,
@@ -65,6 +67,7 @@ export function SourceDataCard({
   return (
     <UnifiedCard tone="ingress" onClick={onOpenDetail}>
       <UnifiedCardHeader 
+        clampTitle={!detailMode}
         supporting={
           <Group gap="xs">
             <Badge color="ingress" variant="light">
@@ -97,7 +100,7 @@ export function SourceDataCard({
       
       <UnifiedCardBody>
         {bodyText && (
-          <UnifiedCardText>
+          <UnifiedCardText disablePreview={detailMode}>
             {bodyText}
           </UnifiedCardText>
         )}

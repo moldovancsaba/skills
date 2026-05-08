@@ -93,6 +93,7 @@ type UnifiedCardHeaderProps = {
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
+  clampTitle?: boolean;
 };
 
 export function UnifiedCardHeader({
@@ -100,7 +101,10 @@ export function UnifiedCardHeader({
   title,
   description,
   actions,
+  clampTitle = true,
 }: UnifiedCardHeaderProps) {
+  const titleStyle = clampTitle ? { ...singleLineClampStyle, fontWeight: 650 } : { fontWeight: 650 };
+
   return (
     <Stack gap="md" mb="md">
       <Group justify="space-between" align="flex-start" wrap="nowrap">
@@ -108,11 +112,11 @@ export function UnifiedCardHeader({
           {supporting && <Group gap="xs" wrap="wrap">{supporting}</Group>}
           <Stack gap={4}>
             {typeof title === "string" ? (
-              <Title order={3} style={{ ...singleLineClampStyle, fontWeight: 650 }}>
+              <Title order={3} style={titleStyle}>
                 {stripTechnicalMetadata(title)}
               </Title>
             ) : (
-              <Title order={3} style={{ ...singleLineClampStyle, fontWeight: 650 }}>
+              <Title order={3} style={titleStyle}>
                 {title}
               </Title>
             )}

@@ -63,6 +63,7 @@ type NBAItem = {
 type TaskReviewCardProps = {
   item: NBAItem;
   onOpenDetail?: (item: NBAItem) => void;
+  detailMode?: boolean;
   isActionOpen: boolean;
   actionMode: ActionMode | null;
   isBusy: boolean;
@@ -95,6 +96,7 @@ type TaskReviewCardProps = {
 export function TaskReviewCard({
   item,
   onOpenDetail,
+  detailMode = false,
   isActionOpen,
   actionMode,
   isBusy,
@@ -156,6 +158,7 @@ export function TaskReviewCard({
       style={{ opacity: item.processingStatus === "DECLINED" ? 0.6 : 1 }}
     >
       <UnifiedCardHeader
+        clampTitle={!detailMode}
         supporting={
           <Group justify="space-between" wrap="nowrap" style={{ width: '100%' }}>
             <Group gap={7}>
@@ -169,7 +172,7 @@ export function TaskReviewCard({
       />
 
       <UnifiedCardBody>
-        <UnifiedCardText>
+        <UnifiedCardText disablePreview={detailMode}>
           {stripTechnicalMetadata(item.description)}
         </UnifiedCardText>
         

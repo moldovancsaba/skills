@@ -591,6 +591,7 @@ export default function CompanyKnowMorePage() {
         {selectedFlashcard ? (
           <KnowledgeReviewCard
             flashcard={selectedFlashcard}
+            detailMode
             isActionOpen={activeFlashcardId === selectedFlashcard.id && actionMode !== null}
             actionMode={actionMode}
             isBusy={actingId === selectedFlashcard.id}

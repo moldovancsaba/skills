@@ -71,6 +71,7 @@ type IntelligenceType = "KNOWLEDGE" | "GOAL" | "TASK";
 type Props = {
   flashcard: Flashcard;
   onOpenDetail?: (flashcard: Flashcard) => void;
+  detailMode?: boolean;
   isActionOpen: boolean;
   actionMode: ActionMode | null;
   isBusy: boolean;
@@ -105,6 +106,7 @@ type Props = {
 export function KnowledgeReviewCard({
   flashcard,
   onOpenDetail,
+  detailMode = false,
   isActionOpen,
   actionMode,
   isBusy,
@@ -148,6 +150,7 @@ export function KnowledgeReviewCard({
   return (
     <UnifiedCard tone={getCardTone()} onClick={onOpenDetail ? () => onOpenDetail(flashcard) : undefined}>
       <UnifiedCardHeader
+        clampTitle={!detailMode}
         supporting={
           <Group gap="xs">
             <Badge 
@@ -197,7 +200,7 @@ export function KnowledgeReviewCard({
       />
 
       <UnifiedCardBody>
-        <UnifiedCardText>
+        <UnifiedCardText disablePreview={detailMode}>
           {stripTechnicalMetadata(flashcard.body)}
         </UnifiedCardText>
 

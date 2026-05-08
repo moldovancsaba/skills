@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <Stack gap={60}>
         <Box>
           <Group gap="sm" mb="xs">
-            <ThemeIcon color="indigo">
+            <ThemeIcon color="synthesis">
               <Shield size={20} />
             </ThemeIcon>
             <Title order={1}>Privacy Policy</Title>

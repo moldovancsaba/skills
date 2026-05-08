@@ -76,7 +76,7 @@ export function TraceViewer({
       <Stack gap="xl" h="100%">
         <Group justify="space-between" align="center">
           <Group gap="sm">
-            <ThemeIcon variant="light" color="indigo"  size="lg">
+            <ThemeIcon variant="light" color="synthesis"  size="lg">
               <GitBranch size={20} />
             </ThemeIcon>
             <Title order={2} size="h4"  >Intelligence Lineage</Title>
@@ -104,13 +104,13 @@ export function TraceViewer({
             <Stack gap={40} py="md">
               {loading ? (
                 <Center h={200}>
-                  <Loader variant="bars" color="brand" size="lg" />
+                  <Loader variant="bars" color="ingress" size="lg" />
                 </Center>
               ) : nodes.map((node) => (
                 <Group key={node.id} wrap="nowrap" align="flex-start" gap="lg" style={{ position: 'relative', zIndex: 1 }}>
                   <ThemeIcon 
                     variant="filled" 
-                    color={node.type === 'SOURCE' ? 'gray' : node.type === 'FLASHCARD' ? 'orange' : 'indigo'} 
+                    color={node.type === 'SOURCE' ? 'gray' : node.type === 'FLASHCARD' ? 'knowmore' : 'checklist'} 
                      
                     size={36}
                     style={{ 

@@ -12,7 +12,7 @@ export default function TermsPage() {
       <Stack gap={60}>
         <Box>
           <Group gap="sm" mb="xs">
-            <ThemeIcon color="brand">
+            <ThemeIcon color="ingress">
               <ShieldCheck size={20} />
             </ThemeIcon>
             <Title order={1}>Terms of Service</Title>

@@ -74,9 +74,9 @@ function LoginContent() {
                     Compliance & Security Acknowledgement
                   </Text>
                   <Group gap="xs">
-                    <Anchor component={Link} href="/privacy" size="xs" c="brand">Privacy</Anchor>
+                    <Anchor component={Link} href="/privacy" size="xs" c="ingress">Privacy</Anchor>
                     <Text c="dimmed" size="xs" opacity={0.3}>•</Text>
-                    <Anchor component={Link} href="/terms" size="xs" c="brand">Terms</Anchor>
+                    <Anchor component={Link} href="/terms" size="xs" c="ingress">Terms</Anchor>
                   </Group>
                 </Stack>
               </Stack>
@@ -90,7 +90,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<Center h="100vh"><Loader color="brand" /></Center>}>
+    <Suspense fallback={<Center h="100vh"><Loader color="ingress" /></Center>}>
       <LoginContent />
     </Suspense>
   );

@@ -16,14 +16,14 @@ type ExpertTipCardProps = {
 
 export function ExpertTipCard({ tip }: ExpertTipCardProps) {
   return (
-    <UnifiedCard style={{ height: '100%' }}>
+    <UnifiedCard tone="synthesis" style={{ height: '100%' }}>
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">
-            <ThemeIcon variant="light" color="brand" size="lg" >
+            <ThemeIcon variant="light" color="synthesis" size="lg" >
               <Lightbulb size={18} />
             </ThemeIcon>
-            <Badge variant="outline" color="brand" size="sm"  >
+            <Badge variant="outline" color="synthesis" size="sm"  >
               {tip.category}
             </Badge>
           </Group>
@@ -36,7 +36,7 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
           <Alert 
             icon={<Route size={16} />} 
             title="Strategic Rationale" 
-            color="brand" 
+            color="synthesis" 
             variant="light"
           >
           {tip.whyItMatters}
@@ -67,7 +67,7 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
         <Button 
           component={Link} 
           href={tip.ctaHref} 
-          color="brand" 
+          color="synthesis" 
           size="sm" 
           rightSection={<ArrowRight size={14} />}
         >

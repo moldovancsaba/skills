@@ -217,7 +217,7 @@ export default function CompanyDashboard() {
       <PageShell width="full">
         <Center style={{ minHeight: "60vh" }}>
           <Stack align="center" gap="xl">
-            <Loader color="brand" />
+            <Loader color="ingress" />
             <Text c="dimmed">
               Synchronizing Intelligence Stream...
             </Text>
@@ -348,7 +348,7 @@ export default function CompanyDashboard() {
           onClick={() => router.push(`/${companyId}/data`)}
           size="lg"
           
-          color="brand"
+          color="ingress"
           leftSection={<Plus size={22} />}
         >
           Add Intelligence

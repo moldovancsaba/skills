@@ -24,40 +24,16 @@ import {
 } from "@mantine/core";
 
 import { DashboardChart } from "@/components/dashboard-chart";
-import { getModuleCssVars, getSemanticHoverStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
-
-function resolveModuleTone(color?: string): ModuleTone {
-  switch (color) {
-    case "ingress":
-    case "blue":
-    case "brand":
-      return "ingress";
-    case "synthesis":
-    case "indigo":
-      return "synthesis";
-    case "knowmore":
-    case "teal":
-    case "green":
-    case "knowledge":
-      return "knowmore";
-    case "strategy":
-    case "violet":
-    case "purple":
-      return "strategy";
-    case "checklist":
-    case "cyan":
-    case "execution":
-      return "checklist";
-    case "tactical":
-      return "tactical";
-    case "review":
-    case "orange":
-    case "amber":
-      return "review";
-    default:
-      return "neutral";
-  }
-}
+import {
+  getModuleCssVars,
+  getSemanticHoverStyle,
+  getSemanticSurfaceStyle,
+  resolveMantineColor,
+  resolveModuleTone,
+  type ModuleTone,
+  type SemanticColor,
+  toneToMantineColor,
+} from "@/lib/semantic-theme";
 
 type PageShellProps = {
   children: ReactNode;
@@ -199,7 +175,7 @@ type MetricCardProps = {
   label: string;
   value: ReactNode;
   detail?: ReactNode;
-  color?: string;
+  color?: SemanticColor;
 };
 
 export function MetricCard({
@@ -210,12 +186,13 @@ export function MetricCard({
   color = "brand",
 }: MetricCardProps) {
   const tone = resolveModuleTone(color);
+  const mantineColor = resolveMantineColor(color);
   return (
     <Card style={getSemanticSurfaceStyle(tone)}>
       
       <Stack gap="xl">
         <Group justify="space-between" align="flex-start">
-          <ThemeIcon color={color}>
+          <ThemeIcon color={mantineColor}>
             <Icon size={20} />
           </ThemeIcon>
           
@@ -229,7 +206,7 @@ export function MetricCard({
             {value}
           </Text>
           {detail && (
-            <Text c={`var(--mantine-color-${color}-4)`}>
+            <Text c={`var(--mantine-color-${mantineColor}-4)`}>
               {detail}
             </Text>
           )}
@@ -281,7 +258,7 @@ type LinkCardProps = {
   title: string;
   description?: string;
   metric?: string | number;
-  variant?: string;
+  variant?: SemanticColor;
   chartData?: any[];
 };
 
@@ -294,24 +271,8 @@ export function LinkCard({
   variant = "blue",
   chartData,
 }: LinkCardProps) {
-  const tone = (
-    variant === "ingress" || variant === "blue"
-      ? "ingress"
-      : variant === "synthesis" || variant === "indigo"
-        ? "synthesis"
-        : variant === "knowmore" || variant === "teal" || variant === "knowledge"
-          ? "knowmore"
-          : variant === "strategy" || variant === "violet"
-            ? "strategy"
-            : variant === "checklist" || variant === "orange" || variant === "execution"
-              ? "checklist"
-              : variant === "tactical" || variant === "cyan"
-                ? "tactical"
-                : variant === "review"
-                  ? "review"
-                  : "neutral"
-  ) as ModuleTone;
-
+  const tone = resolveModuleTone(variant);
+  const mantineColor = resolveMantineColor(variant);
   const baseStyle = getSemanticSurfaceStyle(tone, { interactive: true });
   const hoverStyle = getSemanticHoverStyle(tone);
 
@@ -341,11 +302,11 @@ export function LinkCard({
 
         <Stack gap="xl" h="100%" style={{ position: 'relative', zIndex: 1 }}>
           <Group justify="space-between" align="center">
-            <ThemeIcon color={variant}>
+            <ThemeIcon color={mantineColor}>
               <Icon size={20} />
             </ThemeIcon>
             {metric !== undefined && (
-              <Text c={`var(--mantine-color-${variant}-4)`} fw={600}>
+              <Text c={`var(--mantine-color-${mantineColor}-4)`} fw={600}>
                 {metric}
               </Text>
             )}
@@ -364,13 +325,13 @@ export function LinkCard({
             <Box mt="auto" pt="lg">
               <DashboardChart 
                 data={chartData} 
-                color={`var(--mantine-color-${variant}-6)`} 
+                color={`var(--mantine-color-${mantineColor}-6)`} 
               />
             </Box>
           )}
 
           <Group justify="flex-end" mt="auto" pt="md">
-            <Text size="xs" c={`var(--mantine-color-${variant}-4)`} fw={600}>
+            <Text size="xs" c={`var(--mantine-color-${mantineColor}-4)`} fw={600}>
               Access Layer →
             </Text>
           </Group>
@@ -390,16 +351,16 @@ export function PipelineAccentHeader({
   icon: any;
 }) {
   const segments = [
-    { key: "data", color: "blue" },
-    { key: "topics", color: "indigo" },
-    { key: "knowmore", color: "teal" },
-    { key: "goals", color: "violet" },
-    { key: "nba", color: "blue" },
-    { key: "tactical", color: "cyan" },
-    { key: "review", color: "orange" },
+    { key: "data", tone: "ingress" },
+    { key: "topics", tone: "synthesis" },
+    { key: "knowmore", tone: "knowmore" },
+    { key: "goals", tone: "strategy" },
+    { key: "nba", tone: "checklist" },
+    { key: "tactical", tone: "tactical" },
+    { key: "review", tone: "review" },
   ];
-
-  const activeColor = segments.find(s => s.key === activeKey)?.color || "brand";
+  const activeTone = segments.find((segment) => segment.key === activeKey)?.tone ?? "ingress";
+  const activeColor = toneToMantineColor(activeTone as ModuleTone);
 
   return (
     <Stack gap="md" mb="xl">
@@ -410,7 +371,7 @@ export function PipelineAccentHeader({
             h={6} 
             style={{ 
               borderRadius: 3,
-              backgroundColor: segment.key === activeKey ? `var(--mantine-color-${activeColor}-filled)` : 'var(--mantine-color-gray-2)',
+              backgroundColor: segment.key === activeKey ? `var(--mantine-color-${toneToMantineColor(segment.tone as ModuleTone)}-filled)` : 'var(--mantine-color-gray-2)',
             }}
           />
         ))}

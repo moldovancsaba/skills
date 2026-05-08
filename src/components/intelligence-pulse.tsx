@@ -109,7 +109,7 @@ export function IntelligencePulse() {
         <Stack gap="md">
           <Group justify="space-between">
             <Group gap="xs">
-              <ThemeIcon variant="transparent" color="orange" size="sm">
+              <ThemeIcon variant="transparent" color="review" size="sm">
                 <Zap size={14} />
               </ThemeIcon>
               <Text size="xs" c="dimmed">Engine Pulse</Text>
@@ -134,7 +134,7 @@ export function IntelligencePulse() {
             <Box>
               <Group justify="space-between" mb={4}>
                 <Text size="xs" c="dimmed">Workflow Stage</Text>
-                <Text size="xs" c="green">{data.stage || "IDLE"}</Text>
+                <Text size="xs" c="knowmore">{data.stage || "IDLE"}</Text>
               </Group>
               <Group gap={4} grow>
                 {['RESEARCH', 'SCRUB', 'WRITE', 'JUDGE'].map((s) => {
@@ -161,7 +161,7 @@ export function IntelligencePulse() {
       <Card p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
         <Stack gap="md">
           <Group gap="xs">
-            <ThemeIcon variant="transparent" color="blue" size="sm">
+            <ThemeIcon variant="transparent" color="ingress" size="sm">
               <Gauge size={14} />
             </ThemeIcon>
             <Text size="xs" c="dimmed">Throughput Yield</Text>
@@ -181,7 +181,7 @@ export function IntelligencePulse() {
               <Progress 
                 value={Math.min(100, ((data.metrics.backlog.draft_cards + data.metrics.backlog.checked_cards) / 50) * 100)} 
                 size="xs" 
-                color="blue" 
+                color="ingress" 
               />
             </Box>
 
@@ -199,7 +199,7 @@ export function IntelligencePulse() {
       <Card p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
         <Stack gap="md" h="100%">
           <Group gap="xs">
-            <ThemeIcon variant="transparent" color="violet" size="sm">
+            <ThemeIcon variant="transparent" color="strategy" size="sm">
               <Timeline size={14} />
             </ThemeIcon>
             <Text size="xs" c="dimmed">Performance History</Text>

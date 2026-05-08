@@ -252,7 +252,7 @@ export default function GlobalDataCollectionPage() {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader color="brand" />
+        <Loader color="ingress" />
       </Center>
     );
   }
@@ -311,7 +311,7 @@ export default function GlobalDataCollectionPage() {
                 )}
                 <Button 
                   type="submit" 
-                  color="brand"
+                  color="ingress"
                   leftSection={editingId ? <Edit2 size={16} /> : <Plus size={16} />}
                   disabled={(!input.trim() && selectedFiles.length === 0) || !company}
                 >
@@ -347,8 +347,8 @@ export default function GlobalDataCollectionPage() {
         )}
 
         <MetricGrid cols={{ base: 1, sm: 2 }}>
-          <MetricCard icon={ScrollText} label="Ingested Units" value={sources.length} color="blue" />
-          <MetricCard icon={FileUp} label="Contextual Files" value={items.filter(i => i.type === "file").length} color="teal" />
+          <MetricCard icon={ScrollText} label="Ingested Units" value={sources.length} color="ingress" />
+          <MetricCard icon={FileUp} label="Contextual Files" value={items.filter(i => i.type === "file").length} color="tactical" />
         </MetricGrid>
 
         <Stack gap="md">

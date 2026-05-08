@@ -190,7 +190,7 @@ export function TaskReviewCard({
           <Button 
             size="xs" 
             variant="filled" 
-            color="green" 
+            color="knowmore" 
             leftSection={<CheckCheck size={14} />} 
             onClick={() => onOpenAction(item, "DELIVER")} 
             disabled={isBusy}
@@ -200,7 +200,7 @@ export function TaskReviewCard({
           <Button 
             size="xs" 
             variant="light" 
-            color="blue" 
+            color="checklist" 
             leftSection={<Check size={14} />} 
             onClick={() => onOpenAction(item, "ACCEPT")} 
             disabled={isBusy}
@@ -313,7 +313,7 @@ export function TaskReviewCard({
               <Button
                 size="compact-xs"
                 variant="subtle"
-                color="violet"
+                color="strategy"
                 leftSection={<History size={12} />}
                 onClick={() => {
                   logTaskInteraction("TRACE_VIEW_OPEN", 30, {
@@ -331,7 +331,7 @@ export function TaskReviewCard({
                 placeholder="POSTPONE..."
                 size="compact-xs"
                 variant="subtle"
-                color="orange"
+                color="review"
                 data={[
                   { value: "IDEABANK", label: "Idea Bank" },
                   { value: "ROADMAP", label: "Roadmap" },

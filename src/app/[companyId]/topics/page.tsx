@@ -170,7 +170,7 @@ export default function CompanyTopicsPage() {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader color="brand" />
+        <Loader color="synthesis" />
       </Center>
     );
   }
@@ -230,7 +230,7 @@ export default function CompanyTopicsPage() {
                 </MantineBadge>
                 <MantineBadge 
                   variant="light" 
-                  color={topic.active ? "green" : "gray"} 
+                  color={topic.active ? "knowmore" : "gray"} 
                   size="xs"
                 >
                   {topic.active ? "ACTIVE" : "PAUSED"}

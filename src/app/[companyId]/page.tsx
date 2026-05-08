@@ -8,7 +8,7 @@ export default function CompanyPage() {
       fallback={
         <Center h="100vh">
           <Stack align="center" gap="md">
-            <Loader size="xl" variant="bars" color="brand" />
+            <Loader size="xl" variant="bars" color="ingress" />
             <Text size="sm"  c="dimmed">
               Initializing Intelligence Dashboard...
             </Text>

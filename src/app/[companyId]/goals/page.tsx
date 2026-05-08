@@ -222,7 +222,7 @@ export default function GoalsPage() {
       <PageShell width="full">
         <Center h="60vh">
           <Stack align="center" gap="md">
-            <Loader color="brand" size="xl" variant="bars" />
+            <Loader color="strategy" size="xl" variant="bars" />
             <Text size="sm" c="dimmed">Decrypting strategic objectives...</Text>
           </Stack>
         </Center>
@@ -243,14 +243,14 @@ export default function GoalsPage() {
         <MetricGrid>
           <MetricCard 
             icon={Target} 
-            color="green" 
+            color="strategy" 
             label="Active Goals" 
             value={snapshot?.strategicGoalsCount ?? goals.length} 
             detail="Objectives under management" 
           />
           <MetricCard 
             icon={TrendingUp} 
-            color="blue" 
+            color="synthesis" 
             label="Synthesis Yield" 
             value={`${snapshot?.synthesisYield ?? 85}%`} 
             detail="Market research alignment" 
@@ -267,7 +267,7 @@ export default function GoalsPage() {
           />
           <Button 
             variant="light" 
-            color="brand" 
+            color="ingress" 
             leftSection={<Plus size={16} />}
             onClick={() => router.push(`/${companyId}/data`)}
           >

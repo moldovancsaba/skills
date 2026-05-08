@@ -364,7 +364,7 @@ export default function CompanyDataPage() {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader color="brand" />
+        <Loader color="ingress" />
       </Center>
     );
   }
@@ -415,7 +415,7 @@ export default function CompanyDataPage() {
                       multiple
                     >
                       {(props) => (
-                        <Button {...props} variant="light" color="brand" leftSection={<FileUp size={16} />}>
+                        <Button {...props} variant="light" color="ingress" leftSection={<FileUp size={16} />}>
                           Upload Documents
                         </Button>
                       )}
@@ -488,14 +488,14 @@ export default function CompanyDataPage() {
             label="Intelligence Units" 
             value={sourceTotal || sources.length} 
             detail="Raw Evidence"
-            color="blue"
+            color="ingress"
           />
           <MetricCard 
             icon={FileUp} 
             label="Source Assets" 
             value={items.filter((item) => item.type === "file").length} 
             detail="Binary Data"
-            color="teal"
+            color="tactical"
           />
         </MetricGrid>
 

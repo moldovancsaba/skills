@@ -22,7 +22,7 @@ import { FormInput } from "@/components/ui/form-fields";
 import { Button } from "@mantine/core";
 import { IconUsers as Users, IconUserPlus as UserPlus, IconTrash as Trash2, IconShield as Shield, IconUser as UserIcon, IconMail as Mail } from "@tabler/icons-react";
 import { useState, useEffect, useCallback } from "react";
-import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
+import { getSemanticSurfaceStyle, resolveMantineColor } from "@/lib/semantic-theme";
 
 export function MemberList({ companyId, isOwner }: { companyId: string; isOwner: boolean }) {
   const [members, setMembers] = useState<any[]>([]);
@@ -97,7 +97,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
     return (
       <UnifiedCard tone="ingress" style={{ height: '100%' }}>
         <Stack align="center" justify="center" h={200}>
-          <Loader color="brand" />
+          <Loader color="ingress" />
           <Text size="xs" c="dimmed">Syncing Permissions...</Text>
         </Stack>
       </UnifiedCard>
@@ -109,7 +109,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">
-            <ThemeIcon color="gray">
+            <ThemeIcon color="ingress">
               <Users size={18} />
             </ThemeIcon>
             <Badge color="ingress">
@@ -175,9 +175,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                             {member.role === 'OWNER' ? 'Admin' : 'Member'}
                           </Text>
                         </Group>
-                        <Badge 
-                          color={member.acceptedAt ? "green" : "gray"}
-                        >
+                        <Badge color={member.acceptedAt ? resolveMantineColor("knowmore") : "gray"}>
                           {member.acceptedAt ? "Active" : "Pending"}
                         </Badge>
                       </Group>

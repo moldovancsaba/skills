@@ -306,7 +306,7 @@ export function ClientNav() {
           >
             <Group justify="space-between">
               <Group gap="sm">
-                <ThemeIcon color={isDark ? "yellow" : "indigo"} size="sm">
+                <ThemeIcon color={isDark ? "review" : "synthesis"} size="sm">
                   {isDark ? <Sun size={14} /> : <Moon size={14} />}
                 </ThemeIcon>
                 <Text size="xs" c="#9AA4B2">{isDark ? "Light" : "Dark"} Mode</Text>
@@ -326,7 +326,7 @@ export function ClientNav() {
                 >
                   <Group justify="space-between">
                     <Group gap="sm">
-                      <Avatar src={session.picture} size="sm" color="brand">
+                      <Avatar src={session.picture} size="sm" color="ingress">
                         {session.name?.[0]}
                       </Avatar>
                       <Box style={{ flex: 1, overflow: 'hidden' }}>
@@ -361,7 +361,7 @@ export function ClientNav() {
           ) : (
             <Button
               variant="light"
-              color="indigo"
+              color="synthesis"
               size="xs"
               fullWidth
               onClick={() => router.push("/auth")}

@@ -58,7 +58,7 @@ function AuthContent() {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader color="brand" />
+        <Loader color="ingress" />
       </Center>
     );
   }
@@ -99,9 +99,9 @@ function AuthContent() {
               Security Protocol Acknowledgement Required
             </Text>
             <Group gap="xs">
-              <Anchor component={Link} href="/privacy" size="xs" c="brand">Privacy</Anchor>
+              <Anchor component={Link} href="/privacy" size="xs" c="ingress">Privacy</Anchor>
               <Text c="dimmed" size="xs" opacity={0.5}>•</Text>
-              <Anchor component={Link} href="/terms" size="xs" c="brand">Terms</Anchor>
+              <Anchor component={Link} href="/terms" size="xs" c="ingress">Terms</Anchor>
             </Group>
           </Stack>
         </Stack>
@@ -114,7 +114,7 @@ export default function AuthPage() {
   return (
     <Suspense fallback={
       <Center h="100vh">
-        <Loader color="brand" />
+        <Loader color="ingress" />
       </Center>
     }>
       <AuthContent />

@@ -178,7 +178,7 @@ export default function Home() {
     return (
       <Center h="100vh">
         <Stack align="center" gap="md" w="100%">
-          <Loader color="brand" />
+          <Loader color="ingress" />
           <Text c="dimmed">Hardening OS Infrastructure...</Text>
         </Stack>
       </Center>
@@ -208,7 +208,7 @@ export default function Home() {
           {!session && (
             <Button 
               variant="light" 
-              color="indigo" 
+              color="synthesis" 
               size="compact-sm" 
               leftSection={<LogIn size={14} />}
               onClick={() => router.push("/auth")}
@@ -241,7 +241,7 @@ export default function Home() {
                     error={undefined}
                   />
                   <Group gap="sm" mt="lg">
-                    <Button type="submit" color="brand" leftSection={<Plus size={16} />}>
+                    <Button type="submit" color="ingress" leftSection={<Plus size={16} />}>
                       {editingId ? "Synchronize" : "Initialize"} Unit
                     </Button>
                     <Button
@@ -260,7 +260,7 @@ export default function Home() {
           <Stack gap={48}>
             {Array.isArray(companies) && companies.map((c: any) => (
               <Box key={c.id}>
-                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: '1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4))' }}>
+                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
                   <Stack gap={4}>
                     <Group gap="sm">
                       <Title 
@@ -271,7 +271,7 @@ export default function Home() {
                       </Title>
                       <Group gap={6}>
                         {c.industries?.map((tag: string) => (
-                          <Badge key={tag} variant="outline" color="brand" size="xs">
+                          <Badge key={tag} variant="outline" color="ingress" size="xs">
                             {tag}
                           </Badge>
                         ))}
@@ -366,7 +366,7 @@ export default function Home() {
             <Button 
               onClick={() => setShowForm(true)} 
               variant="subtle" 
-              color="brand"
+              color="ingress"
               leftSection={<Plus size={16} />}
             >
               Provision New Intelligence Unit

@@ -93,7 +93,7 @@ export function HashtagMultiSelect({
         style={{
           minHeight: rem(42),
           borderRadius: 'var(--mantine-radius-md)',
-          border: `1px solid ${error ? 'var(--mantine-color-red-filled)' : isOpen ? 'var(--mantine-color-brand-filled)' : 'var(--mantine-color-dark-4)'}`,
+          border: `1px solid ${error ? 'var(--mantine-color-red-filled)' : isOpen ? 'var(--mantine-color-ingress-filled)' : 'var(--mantine-color-dark-4)'}`,
           backgroundColor: 'rgba(0,0,0,0.2)',
           padding: '4px 12px',
           transition: 'all 0.2s ease',
@@ -107,12 +107,12 @@ export function HashtagMultiSelect({
           {selected.map((tag) => (
             <Badge 
               key={tag}
-              color="brand"
+              color="ingress"
               size="md"
               rightSection={
                 <ActionIcon 
                   size="xs" 
-                  color="brand" 
+                  color="ingress" 
                   variant="transparent"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -188,12 +188,12 @@ export function HashtagMultiSelect({
                     >
                       <Group justify="space-between">
                         <Group gap="xs">
-                          <ThemeIcon variant="transparent" color="brand" size="xs">
+                          <ThemeIcon variant="transparent" color="ingress" size="xs">
                             <Hash size={14} />
                           </ThemeIcon>
                           <Text>{suggestion}</Text>
                         </Group>
-                        <Check size={14} color="var(--mantine-color-brand-filled)" style={{ opacity: 0.6 }} />
+                        <Check size={14} color="var(--mantine-color-ingress-filled)" style={{ opacity: 0.6 }} />
                       </Group>
                     </UnstyledButton>
                   ))}
@@ -216,10 +216,10 @@ export function HashtagMultiSelect({
                       })}
                     >
                       <Group gap="xs">
-                        <ThemeIcon variant="light" color="brand" size="sm" >
+                        <ThemeIcon variant="light" color="ingress" size="sm" >
                           <Plus size={14} />
                         </ThemeIcon>
-                        <Text c="brand">
+                        <Text c="ingress">
                           Add Focus: <Text span td="underline">{normalizeHashtag(inputValue)}</Text>
                         </Text>
                       </Group>

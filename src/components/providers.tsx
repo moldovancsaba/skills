@@ -3,6 +3,7 @@
 import { MantineProvider, createTheme, rem, MantineTheme } from "@mantine/core";
 import { ThemeProvider } from "@/lib/theme-provider";
 import React from "react";
+import { getModuleTheme, resolveModuleTone } from "@/lib/semantic-theme";
 
 export const theme = createTheme({
   primaryColor: "ingress",
@@ -90,15 +91,28 @@ export const theme = createTheme({
       },
       styles: (_theme: MantineTheme, props: Record<string, any>) => ({
         root: {
-          borderColor: props.variant === "outline" ? "#334155" : undefined,
-          background:
-            props.variant === "filled" && (props.color === "ingress" || props.color === "brand" || !props.color)
-              ? "linear-gradient(135deg, #2563EB, #3B82F6)"
-              : props.variant === "filled" && props.color === "green"
-                ? "linear-gradient(135deg, #16A34A, #22C55E)"
-                : props.variant === "light"
-                  ? "#243041"
-                  : undefined,
+          ...(function () {
+            const tone = resolveModuleTone(props.color);
+            const module = getModuleTheme(tone);
+            if (props.variant === "filled") {
+              return {
+                background: `linear-gradient(135deg, ${module.color}, ${module.color})`,
+              };
+            }
+            if (props.variant === "light") {
+              return {
+                background: module.surface,
+                border: `1px solid ${module.border}`,
+              };
+            }
+            if (props.variant === "outline") {
+              return {
+                borderColor: module.border,
+                color: module.color,
+              };
+            }
+            return {};
+          })(),
           color: "#E6EDF3",
           boxShadow: "0 8px 18px rgba(0, 0, 0, 0.22)",
         },

@@ -414,7 +414,7 @@ export default function CompanyKnowMorePage() {
       <PageShell width="full">
         <Center h="100vh">
           <Stack align="center" gap="md">
-            <Loader color="brand" />
+            <Loader color="knowmore" />
             <Text c="dimmed">Synchronizing Contextual Memory...</Text>
           </Stack>
         </Center>
@@ -442,11 +442,11 @@ export default function CompanyKnowMorePage() {
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
 
         <MetricGrid>
-          <MetricCard icon={Sparkles} color="blue" label="Knowledge Units" value={snapshot?.knowmoreCount ?? summary.total} detail="Derived evidence" />
-          <MetricCard icon={TrendingUp} color="orange" label="Feedback Yield" value={`${snapshot?.synthesisYield ?? 85}%`} detail="Calibrated units" />
-          <MetricCard icon={ShieldCheck} color="violet" label="Confidence" value={`${snapshot?.confidenceAvg ?? summary.avgConfidence}%`} detail="System certainty" />
-          <MetricCard icon={Target} color="green" label="Avg ICE" value={snapshot?.iceScoreAvg ?? summary.avgIceScore} detail="Strategic priority" />
-          <MetricCard icon={Bolt} color="cyan" label="Avg Ease" value={snapshot?.easeScoreAvg ?? summary.avgEase} detail="Implementation path" />
+          <MetricCard icon={Sparkles} color="knowmore" label="Knowledge Units" value={snapshot?.knowmoreCount ?? summary.total} detail="Derived evidence" />
+          <MetricCard icon={TrendingUp} color="review" label="Feedback Yield" value={`${snapshot?.synthesisYield ?? 85}%`} detail="Calibrated units" />
+          <MetricCard icon={ShieldCheck} color="strategy" label="Confidence" value={`${snapshot?.confidenceAvg ?? summary.avgConfidence}%`} detail="System certainty" />
+          <MetricCard icon={Target} color="knowmore" label="Avg ICE" value={snapshot?.iceScoreAvg ?? summary.avgIceScore} detail="Strategic priority" />
+          <MetricCard icon={Bolt} color="checklist" label="Avg Ease" value={snapshot?.easeScoreAvg ?? summary.avgEase} detail="Implementation path" />
         </MetricGrid>
 
         <Stack gap="lg">

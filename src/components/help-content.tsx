@@ -28,7 +28,7 @@ export function ManualPageContent() {
         <Group justify="space-between" align="center">
           <Stack gap={4}>
             <Group gap="sm">
-              <ThemeIcon color="brand">
+              <ThemeIcon color="ingress">
                 <FileText size={20} />
               </ThemeIcon>
               <Title order={1}>Operations Manual</Title>
@@ -58,7 +58,7 @@ export function ManualPageContent() {
                   "Sales decks, briefs, and internal files"
                 ].map((item, i) => (
                   <Group key={i} gap="sm" wrap="nowrap">
-                    <ThemeIcon size="xs" variant="subtle" color="brand" >
+                    <ThemeIcon size="xs" variant="subtle" color="ingress" >
                       <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
                     </ThemeIcon>
                     <Text>{item}</Text>
@@ -78,7 +78,7 @@ export function ManualPageContent() {
                   "Blocked until launch or budget approval"
                 ].map((item, i) => (
                   <Group key={i} gap="sm" wrap="nowrap">
-                    <ThemeIcon size="xs" variant="subtle" color="orange" >
+                    <ThemeIcon size="xs" variant="subtle" color="review" >
                       <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
                     </ThemeIcon>
                     <Text>{item}</Text>
@@ -93,7 +93,7 @@ export function ManualPageContent() {
           {manualSections.map((section) => (
             <Paper key={section.id} p="xl"   style={{ position: 'relative' }}>
               <Badge 
-                color="brand" 
+                color="ingress" 
                 size="xs" 
                 style={{ position: 'absolute', top: -10, left: 20 }}
               >
@@ -120,7 +120,7 @@ export function ManualPageContent() {
               component={Link} 
               href="/faq" 
               variant="light" 
-              color="brand"
+              color="ingress"
               leftSection={<CircleHelp size={18} />}
             >
               Access Intelligence FAQ
@@ -139,7 +139,7 @@ export function FaqPageContent() {
         <Group justify="space-between" align="center">
           <Stack gap={4}>
             <Group gap="sm">
-              <ThemeIcon color="indigo">
+              <ThemeIcon color="synthesis">
                 <HelpCircle size={20} />
               </ThemeIcon>
               <Title order={1}>Intelligence FAQ</Title>

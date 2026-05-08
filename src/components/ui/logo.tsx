@@ -13,7 +13,7 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
       <Group gap="xs">
         <ThemeIcon 
           size={iconSize + 8} 
-          color="brand"
+          color="ingress"
         >
           <LogoIcon size={iconSize} />
         </ThemeIcon>

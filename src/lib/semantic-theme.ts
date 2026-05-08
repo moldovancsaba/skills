@@ -10,6 +10,21 @@ export type ModuleTone =
   | "review"
   | "neutral";
 
+export type SemanticColor =
+  | ModuleTone
+  | "brand"
+  | "blue"
+  | "indigo"
+  | "teal"
+  | "green"
+  | "violet"
+  | "purple"
+  | "cyan"
+  | "orange"
+  | "amber"
+  | "knowledge"
+  | "execution";
+
 type ModuleDefinition = {
   color: string;
   surface: string;
@@ -88,6 +103,47 @@ export const MODULE_THEME: Record<ModuleTone, ModuleDefinition> = {
 
 export function getModuleTheme(tone: ModuleTone = "neutral") {
   return MODULE_THEME[tone];
+}
+
+export function resolveModuleTone(color?: SemanticColor | string): ModuleTone {
+  switch (color) {
+    case "ingress":
+    case "blue":
+    case "brand":
+      return "ingress";
+    case "synthesis":
+    case "indigo":
+      return "synthesis";
+    case "knowmore":
+    case "teal":
+    case "green":
+    case "knowledge":
+      return "knowmore";
+    case "strategy":
+    case "violet":
+    case "purple":
+      return "strategy";
+    case "checklist":
+    case "cyan":
+    case "execution":
+      return "checklist";
+    case "tactical":
+      return "tactical";
+    case "review":
+    case "orange":
+    case "amber":
+      return "review";
+    default:
+      return "neutral";
+  }
+}
+
+export function toneToMantineColor(tone: ModuleTone): ModuleTone | "gray" {
+  return tone === "neutral" ? "gray" : tone;
+}
+
+export function resolveMantineColor(color?: SemanticColor | string): ModuleTone | "gray" {
+  return toneToMantineColor(resolveModuleTone(color));
 }
 
 export function getModuleCssVars(tone: ModuleTone = "neutral"): CSSProperties {

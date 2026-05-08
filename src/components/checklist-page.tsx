@@ -284,7 +284,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
       <PageShell width="full">
         <Center h="60vh">
           <Stack align="center" gap="md">
-            <Loader color="brand" size="xl" variant="bars" />
+            <Loader color="checklist" size="xl" variant="bars" />
             <Text size="sm"    c="dimmed">Decrypting tactical intelligence...</Text>
           </Stack>
         </Center>
@@ -305,7 +305,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         <Box>
           <Group justify="space-between" align="center">
             <Stack gap={0}>
-              <Text size="xs"    c="brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Text size="xs" c="checklist" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {archived ? <Archive size={12} /> : <Sparkles size={12} />}
                 {archived ? "Archive" : "Active Intelligence"}
               </Text>
@@ -362,7 +362,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                   Clear Filters
                 </Button>
               ) : !archived ? (
-                <Button variant="filled" color="brand" onClick={() => router.push(`/${companyId}/data`)}>
+                <Button variant="filled" color="ingress" onClick={() => router.push(`/${companyId}/data`)}>
                   Open Data Ingress
                 </Button>
               ) : undefined

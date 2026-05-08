@@ -175,7 +175,7 @@ export function TaskReviewCard({
             p="sm" 
             style={{ 
               borderRadius: rem(8),
-              backgroundColor: 'light-dark(rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.2))',
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
               borderLeft: "4px solid var(--mantine-color-blue-6)"
             }}
           >

@@ -116,9 +116,8 @@ export function getSemanticSurfaceStyle(
     background: `linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)), ${module.surface}`,
     border: `1px solid ${module.border}`,
     boxShadow: elevated
-      ? `0 10px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255,255,255,0.03)`
+      ? `0 4px 12px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255,255,255,0.03)`
       : `0 1px 0 rgba(255,255,255,0.03) inset`,
-    backdropFilter: "blur(10px)",
   };
 }
 

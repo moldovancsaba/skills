@@ -461,8 +461,8 @@ export default function CompanyKnowMorePage() {
             <Group gap="xs">
               <Group gap={4} p={4} style={{ 
                 borderRadius: "var(--mantine-radius-md)", 
-                backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))', 
-                border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' 
+                backgroundColor: 'rgba(255, 255, 255, 0.03)', 
+                border: '1px solid rgba(255, 255, 255, 0.06)' 
               }}>
                 {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
                   <Button
@@ -480,8 +480,8 @@ export default function CompanyKnowMorePage() {
               </Group>
               <Group gap={4} p={4} style={{ 
                 borderRadius: "var(--mantine-radius-md)", 
-                backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))', 
-                border: '1px solid light-dark(rgba(0,0,0,0.05), rgba(255,255,255,0.05))' 
+                backgroundColor: 'rgba(255, 255, 255, 0.03)', 
+                border: '1px solid rgba(255, 255, 255, 0.06)' 
               }}>
                 {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
                   <Button

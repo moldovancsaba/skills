@@ -328,7 +328,7 @@ export function LinkCard({
           </Stack>
 
           {chartData && chartData.length > 0 && (
-            <Box mt="auto" pt="lg" style={{ filter: 'light-dark(grayscale(0.2) contrast(1.1), grayscale(0.5) contrast(1.2))' }}>
+            <Box mt="auto" pt="lg">
               <DashboardChart 
                 data={chartData} 
                 color={`var(--mantine-color-${variant}-6)`} 

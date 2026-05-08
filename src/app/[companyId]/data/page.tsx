@@ -508,7 +508,7 @@ export default function CompanyDataPage() {
 
             <Group gap="sm">
               <Group gap={4} p={4} style={{ 
-                backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))', 
+                backgroundColor: 'rgba(255, 255, 255, 0.03)', 
                 borderRadius: 8 
               }}>
                 {(["ALL", "INTERNAL", "COMPETITOR"] as const).map((type) => (
@@ -528,7 +528,7 @@ export default function CompanyDataPage() {
               </Group>
 
               <Group gap={4} p={4} style={{ 
-                backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))', 
+                backgroundColor: 'rgba(255, 255, 255, 0.03)', 
                 borderRadius: 8 
               }}>
                 {([ "CREATED", "UPDATED", ...(hasSortableIce ? (["ICE"] as const) : []) ] as const).map((sort) => (

@@ -51,8 +51,8 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
                   key={phrase} 
                   p="xs" 
                   style={{ 
-                    backgroundColor: 'light-dark(rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.2))',
-                    border: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`
+                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)'
                   }}
                 >
                   <Text size="xs" fs="italic" c="dimmed" >“{phrase}”</Text>

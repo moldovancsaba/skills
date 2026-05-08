@@ -214,11 +214,11 @@ export function KnowledgeReviewCard({
             p="md" 
             style={{ 
               borderRadius: "var(--mantine-radius-md)",
-              backgroundColor: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8))',
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
               borderLeft: `4px solid var(--mantine-color-${getCardColor()}-4)`,
-              borderTop: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`,
-              borderRight: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`,
-              borderBottom: `1px solid light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.05))`
+              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+              borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
             }}
           >
             <Group gap="xs" align="flex-start" wrap="nowrap">

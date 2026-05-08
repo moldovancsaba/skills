@@ -62,6 +62,7 @@ type NBAItem = {
 
 type TaskReviewCardProps = {
   item: NBAItem;
+  onOpenDetail?: (item: NBAItem) => void;
   isActionOpen: boolean;
   actionMode: ActionMode | null;
   isBusy: boolean;
@@ -93,6 +94,7 @@ type TaskReviewCardProps = {
 
 export function TaskReviewCard({
   item,
+  onOpenDetail,
   isActionOpen,
   actionMode,
   isBusy,
@@ -115,6 +117,10 @@ export function TaskReviewCard({
   onPostpone,
 }: TaskReviewCardProps) {
   const [traceOpen, setTraceOpen] = useState(false);
+  const stopCardClick = (event: { stopPropagation: () => void }, callback?: () => void) => {
+    event.stopPropagation();
+    callback?.();
+  };
 
   const logTaskInteraction = (interactionType: string, teachingWeight: number, payload?: Record<string, unknown>) => {
     void logClientInteraction({
@@ -144,7 +150,11 @@ export function TaskReviewCard({
   const iceColor = getIceBadgeColor(item.iceScore);
 
   return (
-    <UnifiedCard tone="checklist" style={{ opacity: item.processingStatus === "DECLINED" ? 0.6 : 1 }}>
+    <UnifiedCard
+      tone="checklist"
+      onClick={onOpenDetail ? () => onOpenDetail(item) : undefined}
+      style={{ opacity: item.processingStatus === "DECLINED" ? 0.6 : 1 }}
+    >
       <UnifiedCardHeader
         supporting={
           <Group justify="space-between" wrap="nowrap" style={{ width: '100%' }}>
@@ -192,7 +202,7 @@ export function TaskReviewCard({
             variant="filled" 
             color="knowmore" 
             leftSection={<CheckCheck size={14} />} 
-            onClick={() => onOpenAction(item, "DELIVER")} 
+            onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DELIVER"))}
             disabled={isBusy}
           >
             Delivered
@@ -202,7 +212,7 @@ export function TaskReviewCard({
             variant="light" 
             color="checklist" 
             leftSection={<Check size={14} />} 
-            onClick={() => onOpenAction(item, "ACCEPT")} 
+            onClick={(event) => stopCardClick(event, () => onOpenAction(item, "ACCEPT"))}
             disabled={isBusy}
           >
             Accept
@@ -212,7 +222,7 @@ export function TaskReviewCard({
             variant="outline" 
             color="red" 
             leftSection={<X size={14} />} 
-            onClick={() => onOpenAction(item, "DECLINE")} 
+            onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DECLINE"))}
             disabled={isBusy}
           >
             Decline
@@ -224,7 +234,7 @@ export function TaskReviewCard({
             size="xs" 
             color={copied ? "green" : "gray"}
             leftSection={copied ? <CheckCircle size={14} /> : <Share2 size={14} />}
-            onClick={() => onShare(item)}
+            onClick={(event) => stopCardClick(event, () => onShare(item))}
           >
             {copied ? "Copied" : "Share"}
           </Button>
@@ -253,6 +263,7 @@ export function TaskReviewCard({
                   onChange={(val) => onDeclineClassChange(val || "WRONG")}
                   size="xs"
                   allowDeselect={false}
+                  onClick={(event) => event.stopPropagation()}
                 />
               )}
 
@@ -270,13 +281,13 @@ export function TaskReviewCard({
                 <Button
                   size="xs"
                   color={actionMode === "DECLINE" ? "red" : actionMode === "DELIVER" ? "green" : "blue"}
-                  onClick={() => onSubmit(item.id, actionMode, annotation, actionMode === "MODIFY_ACCEPT" ? draftTitle : undefined, actionMode === "MODIFY_ACCEPT" ? draftDescription : undefined, declineClass)}
+                  onClick={(event) => stopCardClick(event, () => onSubmit(item.id, actionMode, annotation, actionMode === "MODIFY_ACCEPT" ? draftTitle : undefined, actionMode === "MODIFY_ACCEPT" ? draftDescription : undefined, declineClass))}
                   disabled={isBusy || (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))}
                   loading={isBusy}
                 >
                   Confirm
                 </Button>
-                <Button size="xs" variant="subtle" color="gray" onClick={onCloseAction} disabled={isBusy}>Cancel</Button>
+                <Button size="xs" variant="subtle" color="gray" onClick={(event) => stopCardClick(event, onCloseAction)} disabled={isBusy}>Cancel</Button>
               </Group>
             </Stack>
           </UnifiedCardSection>
@@ -293,7 +304,7 @@ export function TaskReviewCard({
                 variant="subtle"
                 color="gray"
                 leftSection={<Pin size={12} />}
-                onClick={() => logTaskInteraction("TASK_PIN_REQUEST", 30)}
+                onClick={(event) => stopCardClick(event, () => logTaskInteraction("TASK_PIN_REQUEST", 30))}
               >
                 Pin
               </Button>
@@ -304,7 +315,7 @@ export function TaskReviewCard({
                 variant="subtle"
                 color="gray"
                 leftSection={<RefreshCw size={12} />}
-                onClick={() => logTaskInteraction("TASK_REFRESH_REQUEST", 30)}
+                onClick={(event) => stopCardClick(event, () => logTaskInteraction("TASK_REFRESH_REQUEST", 30))}
               >
                 Refresh
               </Button>
@@ -315,12 +326,12 @@ export function TaskReviewCard({
                 variant="subtle"
                 color="strategy"
                 leftSection={<History size={12} />}
-                onClick={() => {
+                onClick={(event) => stopCardClick(event, () => {
                   logTaskInteraction("TRACE_VIEW_OPEN", 30, {
                     versionFamilyId: (item as any).versionFamilyId || item.id,
                   });
                   setTraceOpen(true);
-                }}
+                })}
               >
                 Trace
               </Button>
@@ -338,6 +349,7 @@ export function TaskReviewCard({
                   { value: "BACKLOG", label: "Backlog" },
                   { value: "TODO", label: "Next" },
                 ]}
+                onClick={(event) => event.stopPropagation()}
                 onChange={(val) => {
                   if (!val) return;
                   logTaskInteraction("TASK_MOVE_COLUMN", 70, {
@@ -355,7 +367,7 @@ export function TaskReviewCard({
               color="gray"
               leftSection={<Archive size={12} />}
               ml="auto"
-              onClick={() => logTaskInteraction("TASK_ARCHIVE_REQUEST", 35)}
+              onClick={(event) => stopCardClick(event, () => logTaskInteraction("TASK_ARCHIVE_REQUEST", 35))}
             >
               Archive
             </Button>

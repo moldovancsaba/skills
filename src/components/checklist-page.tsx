@@ -28,6 +28,7 @@ import {
   Center
 } from "@mantine/core";
 import { EmptyState, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
+import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
 import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowRight as ArrowRight, IconListCheck as ListCheck } from "@tabler/icons-react";
@@ -66,6 +67,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const [loading, setLoading] = useState(true);
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
   const [actionItemId, setActionItemId] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [annotation, setAnnotation] = useState("");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
@@ -155,6 +157,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   }, []);
 
   const openActionForm = useCallback((item: NBAItem, mode: ActionMode) => {
+    setSelectedItemId(item.id);
     setActionMode(mode);
     setActionItemId(item.id);
     setAnnotation(item.userAnnotation ?? "");
@@ -162,6 +165,11 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     setDraftDescription(item.description);
     setDeclineClass("WRONG");
   }, []);
+
+  const closeDetailModal = useCallback(() => {
+    setSelectedItemId(null);
+    resetActionForm();
+  }, [resetActionForm]);
 
   const handleFeedback = useCallback(async (
     itemId: string,
@@ -293,6 +301,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   }
 
   const filteredItems = items.filter((item) => matchesAllHashtags(item.hashtags, activeHashtags));
+  const selectedItem = items.find((item) => item.id === selectedItemId) ?? null;
 
   return (
     <PageShell width="full">
@@ -374,6 +383,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
               <Box key={item.id}>
                 <TaskReviewCard
                   item={item}
+                  onOpenDetail={(nextItem) => setSelectedItemId(nextItem.id)}
                   isActionOpen={actionItemId === item.id && actionMode !== null}
                   actionMode={actionMode}
                   isBusy={actingId === item.id}
@@ -400,6 +410,41 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           </UnifiedGrid>
         )}
       </Stack>
+
+      <UnifiedCardModal
+        opened={Boolean(selectedItem)}
+        onClose={closeDetailModal}
+        tone="checklist"
+        title={selectedItem?.title ?? "Checklist Item"}
+        subtitle={selectedItem ? `#${selectedItem.publicId ?? "—"} · Tactical execution unit` : undefined}
+        badge="Checklist"
+      >
+        {selectedItem ? (
+          <TaskReviewCard
+            item={selectedItem}
+            isActionOpen={actionItemId === selectedItem.id && actionMode !== null}
+            actionMode={actionMode}
+            isBusy={actingId === selectedItem.id}
+            copied={copiedId === selectedItem.id}
+            annotation={annotation}
+            draftTitle={draftTitle}
+            draftDescription={draftDescription}
+            activeHashtags={activeHashtags}
+            onOpenAction={openActionForm}
+            onCloseAction={resetActionForm}
+            onAnnotationChange={setAnnotation}
+            onDraftTitleChange={setDraftTitle}
+            onDraftDescriptionChange={setDraftDescription}
+            declineClass={declineClass}
+            onDeclineClassChange={setDeclineClass}
+            onToggleHashtag={toggleHashtagFilter}
+            onRemoveHashtag={(itemId: string, tag: string) => void removeTaskHashtag(itemId, tag)}
+            onSubmit={handleFeedback}
+            onShare={handleShare}
+            onPostpone={handlePostpone}
+          />
+        ) : null}
+      </UnifiedCardModal>
     </PageShell>
   );
 }

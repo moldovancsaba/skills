@@ -38,6 +38,7 @@ import {
   PipelineAccentHeader,
   UnifiedGrid,
 } from "@/components/ui/app-shell";
+import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
@@ -143,6 +144,7 @@ export default function CompanyKnowMorePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeFlashcardId, setActiveFlashcardId] = useState<string | null>(null);
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
+  const [selectedFlashcardId, setSelectedFlashcardId] = useState<string | null>(null);
   const [actionComment, setActionComment] = useState("");
   const [editedTitle, setEditedTitle] = useState("");
   const [editedBody, setEditedBody] = useState("");
@@ -232,12 +234,18 @@ export default function CompanyKnowMorePage() {
 
   const openActionForm = useCallback((flashcard: Flashcard, mode: ActionMode) => {
     setErrorMessage(null);
+    setSelectedFlashcardId(flashcard.id);
     setActiveFlashcardId(flashcard.id);
     setActionMode(mode);
     setActionComment("");
     setEditedTitle(flashcard.title);
     setEditedBody(flashcard.body);
   }, []);
+
+  const closeDetailModal = useCallback(() => {
+    setSelectedFlashcardId(null);
+    closeActionForm();
+  }, [closeActionForm]);
 
   const filteredFlashcards = useMemo(() => {
     return flashcards.filter((card) => {
@@ -269,6 +277,7 @@ export default function CompanyKnowMorePage() {
       avgEase: Math.round(totals.weight / visibleCards.length),
     };
   }, [flashcards, intelligenceFilter]);
+  const selectedFlashcard = flashcards.find((card) => card.id === selectedFlashcardId) ?? null;
 
   const handleActionSubmit = useCallback(async (flashcardId: string) => {
     if (!company || !actionMode) return;
@@ -527,6 +536,7 @@ export default function CompanyKnowMorePage() {
                   <React.Fragment key={flashcard.id}>
                     <KnowledgeReviewCard
                       flashcard={flashcard}
+                      onOpenDetail={(nextFlashcard) => setSelectedFlashcardId(nextFlashcard.id)}
                       isActionOpen={isActionOpen}
                       actionMode={actionMode}
                       isBusy={isBusy}
@@ -569,6 +579,42 @@ export default function CompanyKnowMorePage() {
           )}
         </Stack>
       </Stack>
+
+      <UnifiedCardModal
+        opened={Boolean(selectedFlashcard)}
+        onClose={closeDetailModal}
+        tone="knowmore"
+        title={selectedFlashcard?.title ?? "Knowmore"}
+        subtitle={selectedFlashcard ? `#${selectedFlashcard.publicId ?? "—"} · Contextual memory unit` : undefined}
+        badge="Knowmore"
+      >
+        {selectedFlashcard ? (
+          <KnowledgeReviewCard
+            flashcard={selectedFlashcard}
+            isActionOpen={activeFlashcardId === selectedFlashcard.id && actionMode !== null}
+            actionMode={actionMode}
+            isBusy={actingId === selectedFlashcard.id}
+            isGenerating={false}
+            actionComment={actionComment}
+            editedTitle={editedTitle}
+            editedBody={editedBody}
+            reviewStatusLabel={reviewStatusLabel}
+            kindLabel={kindLabel}
+            actionLabel={actionLabel}
+            onOpenAction={openActionForm}
+            onCloseAction={closeActionForm}
+            onActionCommentChange={setActionComment}
+            onEditedTitleChange={setEditedTitle}
+            onEditedBodyChange={setEditedBody}
+            onSubmit={(flashcardId) => void handleActionSubmit(flashcardId)}
+            activeHashtags={activeHashtags}
+            onToggleHashtag={toggleHashtagFilter}
+            onRemoveHashtag={(flashcardId, tag) => void removeFlashcardHashtag(flashcardId, tag)}
+            onCorrection={(input) => void handleCorrection(input)}
+            onConvert={(type) => handleConvert(selectedFlashcard.id, type)}
+          />
+        ) : null}
+      </UnifiedCardModal>
     </PageShell>
   );
 }

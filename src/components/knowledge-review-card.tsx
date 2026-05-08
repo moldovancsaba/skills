@@ -70,6 +70,7 @@ type IntelligenceType = "KNOWLEDGE" | "GOAL" | "TASK";
 
 type Props = {
   flashcard: Flashcard;
+  onOpenDetail?: (flashcard: Flashcard) => void;
   isActionOpen: boolean;
   actionMode: ActionMode | null;
   isBusy: boolean;
@@ -103,6 +104,7 @@ type Props = {
 
 export function KnowledgeReviewCard({
   flashcard,
+  onOpenDetail,
   isActionOpen,
   actionMode,
   isBusy,
@@ -126,6 +128,10 @@ export function KnowledgeReviewCard({
   cardType = "KNOWLEDGE",
   onConvert,
 }: Props) {
+  const stopCardClick = (event: { stopPropagation: () => void }, callback?: () => void) => {
+    event.stopPropagation();
+    callback?.();
+  };
   
   const getCardColor = () => {
     if (cardType === "GOAL") return "strategy";
@@ -140,7 +146,7 @@ export function KnowledgeReviewCard({
   };
 
   return (
-    <UnifiedCard tone={getCardTone()}>
+    <UnifiedCard tone={getCardTone()} onClick={onOpenDetail ? () => onOpenDetail(flashcard) : undefined}>
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">
@@ -202,7 +208,7 @@ export function KnowledgeReviewCard({
               variant={activeHashtags.includes(tag) ? "filled" : "outline"}
               color="gray"
               size="xs"
-              onClick={() => onToggleHashtag(tag)}
+              onClick={(event) => stopCardClick(event, () => onToggleHashtag(tag))}
             >
               #{tag}
             </Badge>
@@ -235,7 +241,7 @@ export function KnowledgeReviewCard({
             variant="filled" 
             color={getCardColor()} 
             leftSection={isBusy && actionMode === "ACCEPT" ? <Loader size={16} color="white" /> : <Check size={16} />}
-            onClick={() => onOpenAction(flashcard, "ACCEPT")}
+            onClick={(event) => stopCardClick(event, () => onOpenAction(flashcard, "ACCEPT"))}
             disabled={isBusy || isGenerating}
           >
             Accept
@@ -244,7 +250,7 @@ export function KnowledgeReviewCard({
             variant="outline" 
             color="red" 
             leftSection={<X size={16} />}
-            onClick={() => onOpenAction(flashcard, "DECLINE")}
+            onClick={(event) => stopCardClick(event, () => onOpenAction(flashcard, "DECLINE"))}
             disabled={isBusy || isGenerating}
           >
             Decline
@@ -253,7 +259,7 @@ export function KnowledgeReviewCard({
             variant="outline" 
             color="gray" 
             leftSection={<PencilLine size={16} />}
-            onClick={() => onOpenAction(flashcard, "MODIFY_ACCEPT")}
+            onClick={(event) => stopCardClick(event, () => onOpenAction(flashcard, "MODIFY_ACCEPT"))}
             disabled={isBusy || isGenerating}
           >
             Edit
@@ -282,8 +288,8 @@ export function KnowledgeReviewCard({
               />
               
               <Group gap="xs">
-                <Button size="sm" onClick={() => onSubmit(flashcard.id)} loading={isBusy}>Confirm Action</Button>
-                <Button size="sm" variant="subtle" color="gray" onClick={onCloseAction} disabled={isBusy}>Cancel</Button>
+                <Button size="sm" onClick={(event) => stopCardClick(event, () => onSubmit(flashcard.id))} loading={isBusy}>Confirm Action</Button>
+                <Button size="sm" variant="subtle" color="gray" onClick={(event) => stopCardClick(event, onCloseAction)} disabled={isBusy}>Cancel</Button>
               </Group>
             </Stack>
           </UnifiedCardSection>

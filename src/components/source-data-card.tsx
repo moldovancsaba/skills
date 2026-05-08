@@ -18,6 +18,7 @@ type SourceDataCardProps = {
   publicId: number | null;
   name: string;
   type: DataType;
+  onOpenDetail?: () => void;
   intelligenceType?: "INTERNAL" | "COMPETITOR";
   hashtags: string[];
   iceScore?: number;
@@ -40,6 +41,7 @@ export function SourceDataCard({
   publicId,
   name,
   type,
+  onOpenDetail,
   intelligenceType,
   hashtags,
   iceScore,
@@ -51,13 +53,17 @@ export function SourceDataCard({
 }: SourceDataCardProps) {
   const Icon = typeIcon[type];
   const isCompetitor = intelligenceType === "COMPETITOR";
+  const stopCardClick = (event: { stopPropagation: () => void }, callback?: () => void) => {
+    event.stopPropagation();
+    callback?.();
+  };
 
   const lines = name.split("\n");
   const firstLine = stripTechnicalMetadata(lines[0]);
   const bodyText = stripTechnicalMetadata(lines.slice(1).join("\n"));
 
   return (
-    <UnifiedCard tone="ingress">
+    <UnifiedCard tone="ingress" onClick={onOpenDetail}>
       <UnifiedCardHeader 
         supporting={
           <Group gap="xs">
@@ -103,7 +109,7 @@ export function SourceDataCard({
               variant={activeHashtags.includes(tag) ? "filled" : "outline"}
               color="ingress"
               size="xs"
-              onClick={() => onToggleHashtag?.(tag)}
+              onClick={(event) => stopCardClick(event, () => onToggleHashtag?.(tag))}
             >
               #{tag}
             </Badge>
@@ -112,11 +118,11 @@ export function SourceDataCard({
 
         <UnifiedCardActions>
           {onStartEdit && (
-            <Button variant="filled" color="ingress" size="sm" leftSection={<Pencil size={14} />} onClick={onStartEdit}>
+            <Button variant="filled" color="ingress" size="sm" leftSection={<Pencil size={14} />} onClick={(event) => stopCardClick(event, onStartEdit)}>
               Edit
             </Button>
           )}
-          <Button variant="outline" color="red" size="sm" leftSection={<Trash2 size={14} />} onClick={onDelete}>
+          <Button variant="outline" color="red" size="sm" leftSection={<Trash2 size={14} />} onClick={(event) => stopCardClick(event, onDelete)}>
             Delete
           </Button>
         </UnifiedCardActions>
@@ -127,17 +133,17 @@ export function SourceDataCard({
           <Text size="xs" c="dimmed">Intelligence Controls</Text>
           <Group gap="xs" wrap="wrap">
             <Tooltip label="Pin relevant evidence">
-              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<Pin size={12} />}>
+              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<Pin size={12} />} onClick={(event) => event.stopPropagation()}>
                 Pin
               </Button>
             </Tooltip>
             <Tooltip label="Refresh knowledge">
-              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<RefreshCw size={12} />}>
+              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<RefreshCw size={12} />} onClick={(event) => event.stopPropagation()}>
                 Refresh
               </Button>
             </Tooltip>
             <Tooltip label="Archive intelligence">
-              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<Archive size={12} />}>
+              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<Archive size={12} />} onClick={(event) => event.stopPropagation()}>
                 Archive
               </Button>
             </Tooltip>
@@ -147,9 +153,9 @@ export function SourceDataCard({
             <>
               <Divider my="xs" label="Convert Research Into" labelPosition="center" />
               <Group gap="xs" justify="center">
-                <Button variant="outline" size="compact-xs" color="knowmore" onClick={() => onConvert(id, "KNOWLEDGE")}>Knowledge</Button>
-                <Button variant="outline" size="compact-xs" color="strategy" onClick={() => onConvert(id, "GOAL")}>Goal</Button>
-                <Button variant="outline" size="compact-xs" color="checklist" onClick={() => onConvert(id, "TASK")}>Task</Button>
+                <Button variant="outline" size="compact-xs" color="knowmore" onClick={(event) => stopCardClick(event, () => onConvert(id, "KNOWLEDGE"))}>Knowledge</Button>
+                <Button variant="outline" size="compact-xs" color="strategy" onClick={(event) => stopCardClick(event, () => onConvert(id, "GOAL"))}>Goal</Button>
+                <Button variant="outline" size="compact-xs" color="checklist" onClick={(event) => stopCardClick(event, () => onConvert(id, "TASK"))}>Task</Button>
               </Group>
             </>
           )}

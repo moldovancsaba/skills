@@ -26,6 +26,7 @@ import {
 } from "@mantine/core";
 import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconFileText as ScrollText, IconFilter as ListFilter, IconSortAscending as SortAsc, IconUsers as Users, IconPencil as Edit2, IconInfoCircle as Info, IconDatabase as Database } from "@tabler/icons-react";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
+import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { SourceDataCard } from "@/components/source-data-card";
@@ -101,6 +102,7 @@ export default function CompanyDataPage() {
   const [items, setItems] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [fileCount, setFileCount] = useState(0);
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
@@ -309,6 +311,10 @@ export default function CompanyDataPage() {
     setSelectedFiles([]);
   };
 
+  const closeDetailModal = () => {
+    setSelectedDataId(null);
+  };
+
   const toggleHashtagFilter = (tag: string) => {
     const next = activeHashtags.includes(tag)
       ? activeHashtags.filter((item) => item !== tag)
@@ -360,6 +366,7 @@ export default function CompanyDataPage() {
   const sortedItems = sortDataItems(filteredItems, sortBy);
   const visibleItems = sortedItems.slice(0, visibleCount);
   const hasSortableIce = items.some((item) => typeof item.iceScore === "number");
+  const selectedDataItem = items.find((item) => item.id === selectedDataId) ?? null;
 
   if (loading) {
     return (
@@ -559,10 +566,14 @@ export default function CompanyDataPage() {
                     publicId={item.publicId}
                     name={item.name}
                     type={item.type}
+                    onOpenDetail={() => setSelectedDataId(item.id)}
                     intelligenceType={item.intelligenceType}
                     hashtags={item.hashtags ?? []}
                     iceScore={item.iceScore}
-                    onStartEdit={() => startEdit(item)}
+                    onStartEdit={() => {
+                      closeDetailModal();
+                      startEdit(item);
+                    }}
                     onDelete={() => deleteItem(item)}
                     activeHashtags={activeHashtags}
                     onToggleHashtag={toggleHashtagFilter}
@@ -596,6 +607,35 @@ export default function CompanyDataPage() {
           )}
         </Stack>
       </Stack>
+
+      <UnifiedCardModal
+        opened={Boolean(selectedDataItem)}
+        onClose={closeDetailModal}
+        tone="ingress"
+        title={selectedDataItem?.name.split("\n")[0] ?? "Data"}
+        subtitle={selectedDataItem ? `#${selectedDataItem.publicId ?? "—"} · Evidence unit` : undefined}
+        badge="Data"
+      >
+        {selectedDataItem ? (
+          <SourceDataCard
+            id={selectedDataItem.id}
+            publicId={selectedDataItem.publicId}
+            name={selectedDataItem.name}
+            type={selectedDataItem.type}
+            intelligenceType={selectedDataItem.intelligenceType}
+            hashtags={selectedDataItem.hashtags ?? []}
+            iceScore={selectedDataItem.iceScore}
+            onStartEdit={() => {
+              closeDetailModal();
+              startEdit(selectedDataItem);
+            }}
+            onDelete={() => deleteItem(selectedDataItem)}
+            activeHashtags={activeHashtags}
+            onToggleHashtag={toggleHashtagFilter}
+            onConvert={handleConvert}
+          />
+        ) : null}
+      </UnifiedCardModal>
     </PageShell>
   );
 }

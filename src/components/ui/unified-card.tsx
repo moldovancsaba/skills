@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode, CSSProperties } from "react";
+import type { ReactNode, CSSProperties, KeyboardEvent, MouseEvent } from "react";
 import { Card, Stack, Group, Title, Text, Box, rem } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { getSemanticHoverStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
@@ -11,6 +11,7 @@ type UnifiedCardProps = {
   mt?: string | number;
   tone?: ModuleTone;
   interactive?: boolean;
+  onClick?: (event: MouseEvent<HTMLDivElement>) => void;
 };
 
 type UnifiedCardTextProps = UnifiedCardProps & {
@@ -43,23 +44,32 @@ export function UnifiedCard({
   mt,
   tone = "neutral",
   interactive = false,
+  onClick,
 }: UnifiedCardProps) {
-  const baseStyle = getSemanticSurfaceStyle(tone, { interactive, elevated: true });
-  const hoverStyle = interactive ? getSemanticHoverStyle(tone) : null;
+  const isInteractive = interactive || Boolean(onClick);
+  const baseStyle = getSemanticSurfaceStyle(tone, { interactive: isInteractive, elevated: true });
+  const hoverStyle = isInteractive ? getSemanticHoverStyle(tone) : null;
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onClick(event as unknown as MouseEvent<HTMLDivElement>);
+  };
 
   return (
     <Card
       mt={mt}
       style={style ? { ...baseStyle, ...style } : baseStyle}
       onMouseEnter={
-        interactive
+        isInteractive
           ? (event) => {
               Object.assign((event.currentTarget as HTMLDivElement).style, hoverStyle ?? {});
             }
           : undefined
       }
       onMouseLeave={
-        interactive
+        isInteractive
           ? (event) => {
               Object.assign((event.currentTarget as HTMLDivElement).style, baseStyle);
               if (style) {
@@ -68,6 +78,10 @@ export function UnifiedCard({
             }
           : undefined
       }
+      onClick={onClick}
+      onKeyDown={onClick ? handleKeyDown : undefined}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
     >
       {children}
     </Card>

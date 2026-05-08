@@ -32,7 +32,10 @@ export function HashtagChipList({
         return (
           <Group key={tag} gap={2} align="center">
             <UnstyledButton 
-              onClick={() => onToggle?.(tag)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle?.(tag);
+              }}
               disabled={!onToggle}
               style={{ cursor: onToggle ? "pointer" : "default" }}
             >
@@ -51,7 +54,10 @@ export function HashtagChipList({
                 size="xs" 
                 variant="subtle" 
                 color="red" 
-                onClick={() => onRemove(tag)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemove(tag);
+                }}
                 
               >
                 <X size={10} />

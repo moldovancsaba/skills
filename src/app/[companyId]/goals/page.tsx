@@ -35,6 +35,7 @@ import {
   PipelineAccentHeader, 
   UnifiedGrid 
 } from "@/components/ui/app-shell";
+import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
 import { TaskReviewCard } from "@/components/task-review-card";
@@ -72,6 +73,7 @@ export default function GoalsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [actionItemId, setActionItemId] = useState<string | null>(null);
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [annotation, setAnnotation] = useState("");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
@@ -140,6 +142,7 @@ export default function GoalsPage() {
   }, [companyId, loadGoals, router, setCompany]);
 
   const openActionForm = (item: Goal, mode: ActionMode) => {
+    setSelectedGoalId(item.id);
     setActionMode(mode);
     setActionItemId(item.id);
     setAnnotation(item.userAnnotation ?? "");
@@ -155,6 +158,11 @@ export default function GoalsPage() {
     setDraftTitle("");
     setDraftDescription("");
     setDeclineClass("WRONG");
+  };
+
+  const closeDetailModal = () => {
+    setSelectedGoalId(null);
+    resetActionForm();
   };
 
   const handleSubmitFeedback = async (
@@ -206,6 +214,7 @@ export default function GoalsPage() {
     g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     g.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const selectedGoal = goals.find((goal) => goal.id === selectedGoalId) ?? null;
 
   const tip = getDashboardExpertTip({
     companyId,
@@ -285,6 +294,7 @@ export default function GoalsPage() {
               <TaskReviewCard
                 key={goal.id}
                 item={goal as any}
+                onOpenDetail={() => setSelectedGoalId(goal.id)}
                 isActionOpen={actionItemId === goal.id && actionMode !== null}
                 actionMode={actionMode}
                 isBusy={loading}
@@ -310,6 +320,40 @@ export default function GoalsPage() {
           </UnifiedGrid>
         )}
       </Stack>
+
+      <UnifiedCardModal
+        opened={Boolean(selectedGoal)}
+        onClose={closeDetailModal}
+        tone="strategy"
+        title={selectedGoal?.title ?? "Strategic Goal"}
+        subtitle={selectedGoal ? `#${selectedGoal.publicId ?? "—"} · Strategic objective` : undefined}
+        badge="Goals"
+      >
+        {selectedGoal ? (
+          <TaskReviewCard
+            item={selectedGoal as any}
+            isActionOpen={actionItemId === selectedGoal.id && actionMode !== null}
+            actionMode={actionMode}
+            isBusy={loading}
+            copied={copiedId === selectedGoal.id}
+            annotation={annotation}
+            draftTitle={draftTitle}
+            draftDescription={draftDescription}
+            onOpenAction={openActionForm as any}
+            onCloseAction={resetActionForm}
+            onAnnotationChange={setAnnotation}
+            onDraftTitleChange={setDraftTitle}
+            onDraftDescriptionChange={setDraftDescription}
+            declineClass={declineClass}
+            onDeclineClassChange={setDeclineClass}
+            activeHashtags={[]}
+            onToggleHashtag={() => {}}
+            onRemoveHashtag={() => {}}
+            onSubmit={handleSubmitFeedback}
+            onShare={handleShare as any}
+          />
+        ) : null}
+      </UnifiedCardModal>
     </PageShell>
   );
 }

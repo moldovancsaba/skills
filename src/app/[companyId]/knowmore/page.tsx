@@ -131,7 +131,7 @@ function kindLabel(kind: Flashcard["kind"]) {
 import { useIntelligenceSnapshot } from "@/hooks/use-intelligence-snapshot";
 
 export default function CompanyKnowMorePage() {
-  const PAGE_SIZE = 24;
+  const PAGE_SIZE = 12;
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
@@ -520,7 +520,7 @@ export default function CompanyKnowMorePage() {
             </Center>
           ) : (
             <UnifiedGrid>
-              {filteredFlashcards.map((flashcard, index) => {
+              {filteredFlashcards.map((flashcard) => {
                 const isActionOpen = activeFlashcardId === flashcard.id && actionMode !== null;
                 const isBusy = actingId === flashcard.id;
                 return (
@@ -549,18 +549,16 @@ export default function CompanyKnowMorePage() {
                       onCorrection={(input) => void handleCorrection(input)}
                       onConvert={(type) => handleConvert(flashcard.id, type)}
                     />
-
-                    {index === 1 && (
-                      <>
-                        <ExpertTipCard tip={tip} />
-                        <MemberList companyId={companyId} isOwner={isOwner} />
-                      </>
-                    )}
                   </React.Fragment>
                 );
               })}
             </UnifiedGrid>
           )}
+
+          <UnifiedGrid cols={{ base: 1, xl: 2 }}>
+            <ExpertTipCard tip={tip} />
+            <MemberList companyId={companyId} isOwner={isOwner} />
+          </UnifiedGrid>
 
           {hasMore && searchQuery.length === 0 && filterKind === "ALL" && activeHashtags.length === 0 && (
             <Group justify="center">

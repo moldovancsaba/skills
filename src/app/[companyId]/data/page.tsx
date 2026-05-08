@@ -85,7 +85,7 @@ function sortDataItems(items: DataItem[], sortBy: "ICE" | "CREATED" | "UPDATED")
 }
 
 export default function CompanyDataPage() {
-  const PAGE_SIZE = 24;
+  const PAGE_SIZE = 12;
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
@@ -552,7 +552,7 @@ export default function CompanyDataPage() {
             </Card>
           ) : (
             <UnifiedGrid>
-              {visibleItems.map((item, index) => (
+              {visibleItems.map((item) => (
                 <React.Fragment key={item.id}>
                   <SourceDataCard
                     id={item.id}
@@ -568,17 +568,15 @@ export default function CompanyDataPage() {
                     onToggleHashtag={toggleHashtagFilter}
                     onConvert={handleConvert}
                   />
-
-                  {index === 1 && (
-                    <>
-                      <ExpertTipCard tip={tip} />
-                      <MemberList companyId={companyId} isOwner={isOwner} />
-                    </>
-                  )}
                 </React.Fragment>
               ))}
             </UnifiedGrid>
           )}
+
+          <UnifiedGrid cols={{ base: 1, xl: 2 }}>
+            <ExpertTipCard tip={tip} />
+            <MemberList companyId={companyId} isOwner={isOwner} />
+          </UnifiedGrid>
 
           {(sortedItems.length > visibleItems.length || sourceHasMore) && (
             <Group justify="center">

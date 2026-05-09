@@ -3,7 +3,7 @@ import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, T
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getKnowledgeCardFreshness } from "@/lib/card-freshness";
 import { getSemanticCalloutStyle } from "@/lib/semantic-theme";
-import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { getDisplayableHumanComment, stripTechnicalMetadata } from "@/lib/ui-utils";
 import { CardShareAction } from "@/components/ui/card-share-action";
 import {
   UnifiedCard,
@@ -146,6 +146,7 @@ export function KnowledgeReviewCard({
     refreshedAt: flashcard.refreshedAt,
     lastActionAt: flashcard.lastActionAt,
   });
+  const displayableComment = getDisplayableHumanComment(flashcard.userAnnotation);
   
   const getCardColor = () => {
     if (cardType === "GOAL") return "strategy";
@@ -231,7 +232,7 @@ export function KnowledgeReviewCard({
           ))}
         </Group>
 
-        {flashcard.userAnnotation && (
+        {detailMode && displayableComment && (
           <Box
             p="md"
             style={{
@@ -242,7 +243,7 @@ export function KnowledgeReviewCard({
             <Group gap="xs" align="flex-start" wrap="nowrap">
               <MessageSquare size={16} style={{ marginTop: 4, opacity: 0.6 }} />
               <Text size="sm">
-                {stripTechnicalMetadata(flashcard.userAnnotation)}
+                {displayableComment}
               </Text>
             </Group>
           </Box>

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCircleCheck as CheckCircle2, IconGauge as Gauge, IconTimeline as Timeline, IconBolt as Zap } from "@tabler/icons-react";
 import { 
-  Card, 
   Stack, 
   Group, 
   Text, 
@@ -19,8 +18,9 @@ import {
   Title
 } from "@mantine/core";
 import { formatDistanceToNow } from 'date-fns';
-import { getModuleTheme, getSemanticSurfaceStyle } from "@/lib/semantic-theme";
+import { getModuleTheme } from "@/lib/semantic-theme";
 import { resolveStateTone } from "@/lib/ui-state";
+import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 
 type HealthData = {
   status: string;
@@ -85,7 +85,8 @@ export function IntelligencePulse() {
 
   if (!data || data.status === "OFFLINE") {
     return (
-      <Card>
+      <UnifiedCard tone="review">
+        <UnifiedCardBody>
         <Group gap="md" wrap="nowrap">
           <ThemeIcon color={resolveStateTone("danger")} variant="light">
             <AlertTriangle size={24} />
@@ -95,14 +96,15 @@ export function IntelligencePulse() {
             <Text size="xs" c="dimmed">The background worker is not responding. Strategic synthesis is currently paused.</Text>
           </Stack>
         </Group>
-      </Card>
+        </UnifiedCardBody>
+      </UnifiedCard>
     );
   }
 
   const failRate = parseFloat(data.metrics.failure_rate);
   const isHealthy = failRate < 10;
   const isWarning = failRate >= 10 && failRate < 20;
-  const statusColor = isHealthy ? "green" : isWarning ? "orange" : "red";
+  const statusColor = isHealthy ? "knowmore" : isWarning ? "review" : "review";
   const reviewTheme = getModuleTheme("review");
   const neutralTheme = getModuleTheme("neutral");
   const knowmoreTheme = getModuleTheme("knowmore");
@@ -110,7 +112,8 @@ export function IntelligencePulse() {
   return (
     <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
       {/* Real-time Status */}
-      <Card p="md" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
+      <UnifiedCard tone="neutral">
+        <UnifiedCardBody>
         <Stack gap="md">
           <Group justify="space-between">
             <Group gap="xs">
@@ -159,10 +162,12 @@ export function IntelligencePulse() {
             </Box>
           </Stack>
         </Stack>
-      </Card>
+        </UnifiedCardBody>
+      </UnifiedCard>
 
       {/* Throughput Yield */}
-      <Card p="md" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
+      <UnifiedCard tone="neutral">
+        <UnifiedCardBody>
         <Stack gap="md">
           <Group gap="xs">
             <ThemeIcon variant="transparent" color="ingress" size="sm">
@@ -197,10 +202,12 @@ export function IntelligencePulse() {
             </Group>
           </Stack>
         </Stack>
-      </Card>
+        </UnifiedCardBody>
+      </UnifiedCard>
 
       {/* Recent Performance */}
-      <Card p="md" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
+      <UnifiedCard tone="neutral">
+        <UnifiedCardBody>
         <Stack gap="md" h="100%">
           <Group gap="xs">
             <ThemeIcon variant="transparent" color="strategy" size="sm">
@@ -214,7 +221,7 @@ export function IntelligencePulse() {
               {data.metrics.cycleHistory.slice(-10).map((cycle, i) => {
                 const height = Math.max(10, Math.min(100, (cycle.ops / 10) * 100));
                 const fail = parseFloat(cycle.failRate);
-                const barColor = fail < 10 ? knowmoreTheme.color : fail < 20 ? reviewTheme.color : reviewTheme.border;
+                const barColor = fail < 10 ? knowmoreTheme.color : reviewTheme.color;
                 return (
                   <Tooltip 
                     key={i} 
@@ -231,8 +238,6 @@ export function IntelligencePulse() {
                         borderRadius: '2px 2px 0 0',
                         cursor: 'pointer'
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                      onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
                     />
                   </Tooltip>
                 );
@@ -252,7 +257,8 @@ export function IntelligencePulse() {
             </Group>
           </Group>
         </Stack>
-      </Card>
+        </UnifiedCardBody>
+      </UnifiedCard>
     </SimpleGrid>
   );
 }

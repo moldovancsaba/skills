@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconRoute as Route } from "@tabler/icons-react";
-import { Badge, Button, Group, Stack, Text, Box, ThemeIcon, Alert, rem } from "@mantine/core";
+import { Badge, Button, Group, Stack, Box, ThemeIcon, Alert } from "@mantine/core";
 import { getSemanticInsetStyle } from "@/lib/semantic-theme";
+import { BodyText, MetaText } from "@/components/ui/typography";
 
 import type { ExpertTip } from "@/content/help";
 import { 
@@ -17,7 +18,7 @@ type ExpertTipCardProps = {
 
 export function ExpertTipCard({ tip }: ExpertTipCardProps) {
   return (
-    <UnifiedCard tone="synthesis" style={{ height: '100%' }}>
+    <UnifiedCard tone="synthesis" layoutStyle={{ height: "100%" }}>
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">
@@ -45,7 +46,7 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
 
         {tip.samplePhrases && tip.samplePhrases.length > 0 && (
           <Stack gap="xs">
-            <Text size="xs"    c="dimmed">Suggested Phrasing</Text>
+            <MetaText>Suggested Phrasing</MetaText>
             <Stack gap={6}>
               {tip.samplePhrases.map((phrase) => (
                 <Box 
@@ -53,7 +54,7 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
                   p="xs" 
                   style={getSemanticInsetStyle("synthesis")}
                 >
-                  <Text size="xs" fs="italic" c="dimmed" >“{phrase}”</Text>
+                  <BodyText c="dimmed">“{phrase}”</BodyText>
                 </Box>
               ))}
             </Stack>

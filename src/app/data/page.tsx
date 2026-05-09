@@ -10,7 +10,6 @@ import {
   Title, 
   Text, 
   Button, 
-  Card, 
   Box, 
   ThemeIcon, 
   Badge,
@@ -24,6 +23,7 @@ import {
   Tooltip
 } from "@mantine/core";
 import { EmptyState, MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { SourceDataCard } from "@/components/source-data-card";
 import {
@@ -264,7 +264,8 @@ export default function GlobalDataCollectionPage() {
       />
 
       <Stack gap="xl">
-        <Card>
+        <UnifiedCard tone="ingress">
+          <UnifiedCardBody>
           <form onSubmit={handleSubmit}>
             <Stack gap="md">
               {editingId && (
@@ -320,7 +321,8 @@ export default function GlobalDataCollectionPage() {
               </Group>
             </Stack>
           </form>
-        </Card>
+          </UnifiedCardBody>
+        </UnifiedCard>
 
         {saved && (
           <Notice icon={CheckCircle} title="Unit Stored">

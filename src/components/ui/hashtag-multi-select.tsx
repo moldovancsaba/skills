@@ -135,7 +135,7 @@ export function HashtagMultiSelect({
               border: 'none',
               outline: 'none',
               color: 'var(--text-primary)',
-              fontSize: 'var(--mantine-font-size-sm)',
+              font: 'inherit',
               padding: '4px 0'
             }}
             placeholder={selected.length === 0 ? placeholder : ""}

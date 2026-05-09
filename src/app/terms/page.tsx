@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { Container, Title, Text, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
 import { IconShieldCheck as ShieldCheck, IconFileText as FileText, IconCpu as Cpu, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconRefresh as RefreshCw } from "@tabler/icons-react";
+import { SectionTitle } from "@/components/ui/typography";
 
 export const metadata: Metadata = {
   title: "Terms of Service - checklist OS",
@@ -28,7 +29,7 @@ export default function TermsPage() {
               <Activity size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" mb={4}>Acceptable Use</Title>
+              <SectionTitle>Acceptable Use</SectionTitle>
               <Text size="sm" c="dimmed">
                 You agree to use checklist only for lawful business purposes. 
                 You are responsible for all activity under your account. Access to the intelligence layer requires authorized SSO credentials.
@@ -43,7 +44,7 @@ export default function TermsPage() {
               <FileText size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" mb={4}>Data Ownership</Title>
+              <SectionTitle>Data Ownership</SectionTitle>
               <Text size="sm" c="dimmed">
                 You retain ownership of all data you input. By using our service, 
                 you grant us permission to process your data to provide AI-generated 
@@ -59,7 +60,7 @@ export default function TermsPage() {
               <Cpu size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" mb={4}>AI Service</Title>
+              <SectionTitle>AI Service</SectionTitle>
               <Text size="sm" c="dimmed">
                 Our AI generates marketing recommendations based on your data. 
                 Recommendations are suggestions only - you are responsible for evaluating 
@@ -75,7 +76,7 @@ export default function TermsPage() {
               <Activity size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" mb={4}>Service Availability</Title>
+              <SectionTitle>Service Availability</SectionTitle>
               <Text size="sm" c="dimmed">
                 We strive to keep the service available 24/7 but do not guarantee 
                 uptime. The autonomous background worker runs periodically to ensure memory synchronization.
@@ -90,7 +91,7 @@ export default function TermsPage() {
               <AlertTriangle size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" mb={4} c="review">Disclaimer</Title>
+              <SectionTitle>Disclaimer</SectionTitle>
               <Text size="sm" c="dimmed">
                 checklist provides AI-generated suggestions for marketing purposes only. 
                 We do not guarantee the accuracy or effectiveness of any recommendations. Implement at your own strategic risk.
@@ -105,7 +106,7 @@ export default function TermsPage() {
               <RefreshCw size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" mb={4}>Changes to Terms</Title>
+              <SectionTitle>Changes to Terms</SectionTitle>
               <Text size="sm" c="dimmed">
                 We may update these terms at any time. Continued use constitutes 
                 acceptance of updated terms.

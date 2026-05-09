@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Badge, Box, Center, Group, Loader, Paper, Stack, Text, ThemeIcon, rem } from "@mantine/core";
+import { Badge, Box, Center, Group, Loader, Stack, Text, ThemeIcon } from "@mantine/core";
 import { IconDatabase as Database, IconLayersIntersect as Layers, IconSparkles as Sparkles, IconTarget as Target, IconListCheck as ListCheck } from "@tabler/icons-react";
 import { PageShell } from "@/components/ui/app-shell";
-import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
-import { getSemanticInsetStyle } from "@/lib/semantic-theme";
+import { BodyText, MetaText } from "@/components/ui/typography";
+import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { SharedCardEntityType, SharedCardTone } from "@/lib/shared-card";
 
@@ -98,7 +98,7 @@ export default function SharedCardPage() {
             </ThemeIcon>
           </Group>
 
-          <UnifiedCard tone={card.tone} style={{ width: "100%" }}>
+          <UnifiedCard tone={card.tone} layoutStyle={{ width: "100%" }}>
             <UnifiedCardHeader
               clampTitle={false}
               supporting={
@@ -116,28 +116,16 @@ export default function SharedCardPage() {
               title={stripTechnicalMetadata(card.title)}
             />
             <UnifiedCardBody>
-              <Text size="lg" lh={1.7}>
-                {stripTechnicalMetadata(card.body)}
-              </Text>
+              <BodyText c="var(--text-primary)">{stripTechnicalMetadata(card.body)}</BodyText>
 
               {card.hashtags.length > 0 && (
-                <Paper
-                  p="md"
-                  style={{
-                    borderRadius: rem(12),
-                    ...getSemanticInsetStyle(card.tone),
-                  }}
-                >
-                  <Text size="sm" style={{ letterSpacing: "0.04em" }}>
-                    {card.hashtags.map((tag) => `#${String(tag).toUpperCase()}`).join(" ")}
-                  </Text>
-                </Paper>
+                <UnifiedCardSection tone={card.tone}>
+                  <BodyText c="var(--text-primary)">{card.hashtags.map((tag) => `#${String(tag).toUpperCase()}`).join(" ")}</BodyText>
+                </UnifiedCardSection>
               )}
 
               <Box>
-                <Text size="xs" c="dimmed">
-                  UUID: {card.id}
-                </Text>
+                <MetaText>UUID: {card.id}</MetaText>
               </Box>
             </UnifiedCardBody>
           </UnifiedCard>

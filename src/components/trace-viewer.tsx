@@ -6,7 +6,6 @@ import {
   Box, 
   Stack, 
   Group, 
-  Title, 
   Text, 
   ActionIcon, 
   ThemeIcon, 
@@ -15,6 +14,7 @@ import {
   rem,
   ScrollArea
 } from "@mantine/core";
+import { BodyText, MetaText, SectionTitle } from "@/components/ui/typography";
 
 interface TraceNode {
   id: string;
@@ -79,7 +79,7 @@ export function TraceViewer({
             <ThemeIcon variant="light" color="synthesis"  size="lg">
               <GitBranch size={20} />
             </ThemeIcon>
-            <Title order={2} size="h4"  >Intelligence Lineage</Title>
+            <SectionTitle>Intelligence Lineage</SectionTitle>
           </Group>
           <ActionIcon variant="subtle" color="gray" onClick={onClose}>
             <X size={20} />
@@ -123,12 +123,8 @@ export function TraceViewer({
                   </ThemeIcon>
                   
                   <Stack gap={2}>
-                    <Text size="10px"    c="dimmed">
-                      {node.type} • {new Date(node.timestamp).toLocaleTimeString()}
-                    </Text>
-                    <Text size="sm"  style={{ lineHeight: 1.4 }}>
-                      {node.title}
-                    </Text>
+                    <MetaText>{node.type} • {new Date(node.timestamp).toLocaleTimeString()}</MetaText>
+                    <BodyText c="var(--text-primary)">{node.title}</BodyText>
                   </Stack>
                 </Group>
               ))}

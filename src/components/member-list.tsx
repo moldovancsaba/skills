@@ -3,7 +3,7 @@
 import { 
   Stack, 
   Group, 
-  Text, 
+  Text,
   Avatar, 
   ActionIcon, 
   Tooltip, 
@@ -18,6 +18,7 @@ import {
   UnifiedCardHeader, 
   UnifiedCardBody 
 } from "@/components/ui/unified-card";
+import { BodyText, LabelText, MetaText } from "@/components/ui/typography";
 import { FormInput } from "@/components/ui/form-fields";
 import { Button } from "@mantine/core";
 import { IconUsers as Users, IconUserPlus as UserPlus, IconTrash as Trash2, IconShield as Shield, IconUser as UserIcon, IconMail as Mail } from "@tabler/icons-react";
@@ -97,17 +98,17 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
 
   if (loading) {
     return (
-      <UnifiedCard tone="ingress" style={{ height: '100%' }}>
+      <UnifiedCard tone="ingress" layoutStyle={{ height: "100%" }}>
         <Stack align="center" justify="center" h={200}>
           <Loader color="ingress" />
-          <Text size="xs" c="dimmed">Syncing Permissions...</Text>
+          <MetaText>Syncing Permissions...</MetaText>
         </Stack>
       </UnifiedCard>
     );
   }
 
   return (
-    <UnifiedCard tone="ingress" style={{ height: '100%' }}>
+    <UnifiedCard tone="ingress" layoutStyle={{ height: "100%" }}>
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">
@@ -169,13 +170,11 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                       {member.email[0].toUpperCase()}
                     </Avatar>
                     <Box style={{ flex: 1, minWidth: 0 }}>
-                      <Text size="sm" truncate>{member.email}</Text>
+                      <LabelText truncate>{member.email}</LabelText>
                       <Group gap="xs">
                         <Group gap={4}>
                           <Shield size={12} color={member.role === 'OWNER' ? 'var(--mantine-color-strategy-4)' : 'var(--mantine-color-ingress-4)'} />
-                          <Text size="10px" c="dimmed">
-                            {member.role === 'OWNER' ? 'Admin' : 'Member'}
-                          </Text>
+                          <MetaText>{member.role === 'OWNER' ? 'Admin' : 'Member'}</MetaText>
                         </Group>
                         <Badge color={member.acceptedAt ? resolveMantineColor("knowmore") : "gray"}>
                           {member.acceptedAt ? "Active" : "Pending"}

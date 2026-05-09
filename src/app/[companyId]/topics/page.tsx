@@ -193,7 +193,8 @@ export default function CompanyTopicsPage() {
           </Notice>
         )}
 
-        <Card style={getSemanticSurfaceStyle("synthesis")}>
+        <UnifiedCard tone="synthesis">
+          <UnifiedCardBody>
           <Stack gap="md">
             <Text size="xs" c="dimmed">Identify New Intelligence Frontier</Text>
             <Group gap="md" align="flex-end" wrap="nowrap">
@@ -213,7 +214,8 @@ export default function CompanyTopicsPage() {
               </Button>
             </Group>
           </Stack>
-        </Card>
+          </UnifiedCardBody>
+        </UnifiedCard>
 
         <Stack gap="xs">
           <Group gap="sm">

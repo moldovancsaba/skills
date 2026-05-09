@@ -21,7 +21,6 @@ import {
   Text,
   Group,
   Stack,
-  Paper,
   Badge,
   Loader,
   Center,
@@ -39,11 +38,12 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader, PipelineAccentHeader } from "@/components/ui/app-shell";
-import { UnifiedCardFreshnessBadge } from "@/components/ui/unified-card";
+import { UnifiedCard, UnifiedCardBody, UnifiedCardFreshnessBadge, UnifiedCardSection } from "@/components/ui/unified-card";
+import { MetaText } from "@/components/ui/typography";
 import { getTaskCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";
-import { getModuleTheme, getSemanticSurfaceStyle } from "@/lib/semantic-theme";
+import { getModuleTheme, getSemanticCalloutStyle } from "@/lib/semantic-theme";
 
 type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
@@ -245,15 +245,19 @@ function CardDetailModal({
               { label: "Confidence", value: item.confidence, color: "tactical" },
               { label: "Ease",       value: item.ease,       color: "strategy" },
             ].map(s => (
-              <Paper key={s.label} p="md" ta="center" style={getSemanticSurfaceStyle(s.color as any, { elevated: false })}>
-                <Text size="xl" c={s.color}>{s.value}</Text>
-                <Text size="xs" c="dimmed">{s.label}</Text>
-              </Paper>
+              <UnifiedCardSection key={s.label} tone={s.color as any}>
+                <Stack gap={2} align="center">
+                  <Text size="xl" c={s.color}>{s.value}</Text>
+                  <Text size="xs" c="dimmed">{s.label}</Text>
+                </Stack>
+              </UnifiedCardSection>
             ))}
-            <Paper p="md" ta="center" style={getSemanticSurfaceStyle("checklist", { elevated: false })}>
-              <Text size="xl" c="checklist">{Math.round(item.iceScore)}</Text>
-              <Text size="xs" c="checklist">ICE Score</Text>
-            </Paper>
+            <UnifiedCardSection tone="checklist">
+              <Stack gap={2} align="center">
+                <Text size="xl" c="checklist">{Math.round(item.iceScore)}</Text>
+                <Text size="xs" c="checklist">ICE Score</Text>
+              </Stack>
+            </UnifiedCardSection>
           </Group>
         </Box>
 
@@ -264,7 +268,7 @@ function CardDetailModal({
               <Sparkles size={14} color="var(--mantine-color-ingress-6)" />
               <Text size="xs" c="dimmed">AI Evaluation Signals</Text>
             </Group>
-            <Paper p="md" style={getSemanticSurfaceStyle("tactical", { elevated: false })}>
+            <UnifiedCardSection tone="tactical">
               <SimpleGrid cols={4}>
                 <Stack gap={2}>
                   <Text size="sm">{fmt(item.qualityScore)}</Text>
@@ -283,7 +287,7 @@ function CardDetailModal({
                   <Text size="xs" c="dimmed">State</Text>
                 </Stack>
               </SimpleGrid>
-            </Paper>
+            </UnifiedCardSection>
           </Box>
         )}
 
@@ -291,11 +295,11 @@ function CardDetailModal({
         {item.evaluationReason && (
           <Box>
             <Text size="xs" c="dimmed" mb="md">AI Judge Reasoning</Text>
-            <Paper p="md" style={{ ...getSemanticSurfaceStyle("review", { elevated: false }), borderLeft: '4px solid var(--mantine-color-review-4)' }}>
+            <Box p="md" style={getSemanticCalloutStyle("review")}>
               <Text size="sm">
                 &quot;{stripTechnicalMetadata(item.evaluationReason)}&quot;
               </Text>
-            </Paper>
+            </Box>
           </Box>
         )}
 
@@ -381,12 +385,8 @@ function CardDetailModal({
 
         {/* Timestamps */}
         <Group justify="flex-end" gap="xs">
-          <Text size="10px" c="dimmed">
-            COMMITTED: {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
-          </Text>
-          <Text size="10px" c="dimmed">
-            SYNCED: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : "—"}
-          </Text>
+          <MetaText>COMMITTED: {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}</MetaText>
+          <MetaText>SYNCED: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : "—"}</MetaText>
         </Group>
         </Stack>
       )}
@@ -592,12 +592,11 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                   style={{ flexShrink: 0 }}
                 >
                   {/* Column Header */}
-                  <Paper
-                    p="md"
-                    style={{
+                  <UnifiedCard
+                    tone={col.tone}
+                    layoutStyle={{
                       borderTop: `4px solid ${col.accent}`,
                       flexShrink: 0,
-                      ...getSemanticSurfaceStyle(col.tone)
                     }}
                   >
                     <Group justify="space-between" wrap="nowrap">
@@ -610,12 +609,12 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                       <Badge
                         size="sm"
                         variant="light"
-                        color={col.tone === "neutral" ? "dark" : col.tone}
+                        color={col.tone === "neutral" ? "gray" : col.tone}
                       >
                         {colItems.length}
                       </Badge>
                     </Group>
-                  </Paper>
+                  </UnifiedCard>
 
                   {/* Droppable */}
                   <Droppable droppableId={col.key}>
@@ -660,22 +659,22 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                           : provided.draggableProps.style?.transform,
                                       }}
                                     >
-                                      <Paper
-                                        p="md"
+                                      <UnifiedCard
+                                        tone={col.tone}
                                         onClick={(event) => {
                                           event.stopPropagation();
                                           event.preventDefault();
                                           handleOpenCard(item);
                                         }}
-                                        style={{
+                                        layoutStyle={{
                                           cursor: isActivelyDragging ? "grabbing" : "pointer",
                                           borderColor: isActivelyDragging
                                             ? col.accent
                                             : "transparent",
                                           userSelect: "none",
-                                          ...getSemanticSurfaceStyle(col.tone),
                                         }}
                                       >
+                                        <UnifiedCardBody>
                                         <Stack gap="xs">
                                           <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm">
                                             <Text size="xs" lineClamp={2} style={{ flex: 1 }}>
@@ -697,14 +696,15 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                               {item.candidateState}
                                             </Badge>
                                             <Group gap={4}>
-                                              <Text size="10px" c="dimmed">ICE</Text>
+                                              <MetaText>ICE</MetaText>
                                               <Text size="xs" style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
                                                 {Math.round(item.iceScore)}
                                               </Text>
                                             </Group>
                                           </Group>
                                         </Stack>
-                                      </Paper>
+                                        </UnifiedCardBody>
+                                      </UnifiedCard>
                                     </Box>
                                   );
                                 }}

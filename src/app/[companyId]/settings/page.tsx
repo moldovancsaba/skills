@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { IconBell as Bell, IconShieldCheck as ShieldCheck, IconKey as Key, IconSettings as SettingsIcon, IconCopy as Copy, IconRefresh as RefreshCcw, IconEye as Eye, IconEyeOff as EyeOff, IconMessage2 as MessageSquare, IconMail as Mail, IconDeviceMobile as Smartphone, IconWebhook as Webhook, IconGlobe as Globe, IconLanguage as Languages } from "@tabler/icons-react";
 import { 
-  Card, 
   Text, 
   Title, 
   Switch, 
@@ -23,9 +22,9 @@ import {
   SimpleGrid
 } from "@mantine/core";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
+import { UnifiedCard, UnifiedCardBody, UnifiedCardSection } from "@/components/ui/unified-card";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { notifications } from "@mantine/notifications";
-import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 type CommunicationSettings = {
   isEnabled: boolean;
@@ -162,7 +161,8 @@ export default function SettingsPage() {
 
       <Stack gap="xl">
         {/* Global Alerting Control */}
-        <Card style={getSemanticSurfaceStyle("review")}>
+        <UnifiedCard tone="review">
+          <UnifiedCardBody>
           <Group justify="space-between">
             <Stack gap={4}>
               <Group gap="sm">
@@ -180,10 +180,12 @@ export default function SettingsPage() {
               disabled={saving}
             />
           </Group>
-        </Card>
+          </UnifiedCardBody>
+        </UnifiedCard>
 
         {/* Organization Settings */}
-        <Card style={getSemanticSurfaceStyle("synthesis")}>
+        <UnifiedCard tone="synthesis">
+          <UnifiedCardBody>
           <Stack gap="lg">
             <Group justify="space-between" align="flex-start">
               <Stack gap={4}>
@@ -221,19 +223,21 @@ export default function SettingsPage() {
               </Button>
             </Group>
 
-            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", ...getSemanticSurfaceStyle("synthesis", { elevated: false }) }}>
+            <UnifiedCardSection tone="synthesis">
               <Text size="xs" c="dimmed" mb="xs">Policy Enforcement</Text>
               <Text size="xs" c="dimmed">
                 AI agents will strictly use only these permitted languages for flashcards and taskcards. 
                 checklist Purity Check: Any content detected in a disallowed language or containing mixed-language structures will be deleted immediately during synthesis.
               </Text>
-            </Box>
+            </UnifiedCardSection>
           </Stack>
-        </Card>
+          </UnifiedCardBody>
+        </UnifiedCard>
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           {/* Channel Configuration */}
-          <Card style={getSemanticSurfaceStyle("ingress")}>
+          <UnifiedCard tone="ingress">
+            <UnifiedCardBody>
             <Stack gap="md">
               <Group gap="sm">
                 <ThemeIcon color="ingress">
@@ -264,10 +268,12 @@ export default function SettingsPage() {
                 rightSectionWidth={60}
               />
             </Stack>
-          </Card>
+            </UnifiedCardBody>
+          </UnifiedCard>
 
           {/* Threshold Configuration */}
-          <Card style={getSemanticSurfaceStyle("review")}>
+          <UnifiedCard tone="review">
+            <UnifiedCardBody>
             <Stack gap="md">
               <Group gap="sm">
                 <ThemeIcon color="review">
@@ -295,11 +301,13 @@ export default function SettingsPage() {
                 </Text>
               </Stack>
             </Stack>
-          </Card>
+            </UnifiedCardBody>
+          </UnifiedCard>
         </SimpleGrid>
 
         {/* Two-Way Bridge Security */}
-        <Card style={getSemanticSurfaceStyle("tactical")}>
+        <UnifiedCard tone="tactical">
+          <UnifiedCardBody>
           <Stack gap="md">
             <Group gap="sm">
               <ThemeIcon color="tactical">
@@ -309,7 +317,7 @@ export default function SettingsPage() {
             </Group>
             <Text size="sm" c="dimmed">Use this key to send data into checklist memory from external scripts.</Text>
             
-            <Box p="md" style={{ borderRadius: "var(--mantine-radius-md)", ...getSemanticSurfaceStyle("tactical", { elevated: false }) }}>
+            <UnifiedCardSection tone="tactical">
               <Group justify="space-between">
                 <Text  size="sm" style={{ wordBreak: "break-all" }}>
                   {bridgeSecretDisplay}
@@ -326,7 +334,7 @@ export default function SettingsPage() {
                   </ActionIcon>
                 </Group>
               </Group>
-            </Box>
+            </UnifiedCardSection>
             <Text size="xs" c="dimmed">
               Newly generated keys are shown once, then stored hashed at rest. Use the `x-company-id`, `x-bridge-secret`, and `x-bridge-timestamp` headers when posting into the bridge.
             </Text>
@@ -334,23 +342,24 @@ export default function SettingsPage() {
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               <Stack gap={4}>
                 <Text size="xs" c="dimmed">Endpoint</Text>
-                <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", ...getSemanticSurfaceStyle("tactical", { elevated: false }) }}>
+                <UnifiedCardSection tone="tactical">
                   <Text  size="xs">
                     {typeof window !== 'undefined' ? window.location.origin : ''}/api/bridge/ingress
                   </Text>
-                </Box>
+                </UnifiedCardSection>
               </Stack>
               <Stack gap={4}>
                 <Text size="xs" c="dimmed">Example Request</Text>
-                <Box p="xs" style={{ borderRadius: "var(--mantine-radius-sm)", ...getSemanticSurfaceStyle("tactical", { elevated: false }) }}>
+                <UnifiedCardSection tone="tactical">
                   <Text  size="xs">
                     {`POST /api/bridge/ingress + headers: x-company-id, x-bridge-secret, x-bridge-timestamp`}
                   </Text>
-                </Box>
+                </UnifiedCardSection>
               </Stack>
             </SimpleGrid>
           </Stack>
-        </Card>
+          </UnifiedCardBody>
+        </UnifiedCard>
       </Stack>
     </PageShell>
   );

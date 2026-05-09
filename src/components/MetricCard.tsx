@@ -1,5 +1,6 @@
-import { Paper, Text, Group, Stack, rem } from "@mantine/core";
-import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
+import { Group, Stack, ThemeIcon } from "@mantine/core";
+import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
+import { LabelText, MetaText, SectionTitle } from "@/components/ui/typography";
 import { resolveStateTextColor } from "@/lib/ui-state";
 
 interface MetricCardProps {
@@ -8,10 +9,9 @@ interface MetricCardProps {
   change?: string;
   changeType?: "positive" | "negative" | "neutral";
   icon: any;
-  delay?: number;
 }
 
-const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon, delay = 0 }: MetricCardProps) => {
+const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon }: MetricCardProps) => {
   const getChangeColor = () => {
     if (changeType === "positive") return resolveStateTextColor("success");
     if (changeType === "negative") return resolveStateTextColor("danger");
@@ -19,35 +19,23 @@ const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon, 
   };
 
   return (
-    <div style={{ height: '100%' }}>
-      <Paper
-        p="md"
-        style={{
-          height: '100%',
-          ...getSemanticSurfaceStyle("neutral", { elevated: false }),
-        }}
-      >
+    <UnifiedCard tone="neutral" layoutStyle={{ height: "100%" }}>
+      <UnifiedCardBody>
         <Stack gap="xs">
           <Group justify="space-between" wrap="nowrap">
-            <Text size="xs"    c="dimmed">
-              {label}
-            </Text>
-            <Icon size={16} style={{ opacity: 0.5 }} />
+            <MetaText>{label}</MetaText>
+            <ThemeIcon color="gray">
+              <Icon size={16} />
+            </ThemeIcon>
           </Group>
-          
+
           <Group align="baseline" gap="sm">
-            <Text size="xl"  style={{ fontSize: rem(24) }}>
-              {value}
-            </Text>
-            {change && (
-              <Text size="xs"  c={getChangeColor()}>
-                {change}
-              </Text>
-            )}
+            <SectionTitle>{value}</SectionTitle>
+            {change ? <LabelText c={getChangeColor()}>{change}</LabelText> : null}
           </Group>
         </Stack>
-      </Paper>
-    </div>
+      </UnifiedCardBody>
+    </UnifiedCard>
   );
 };
 

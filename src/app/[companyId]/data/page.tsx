@@ -9,7 +9,6 @@ import {
   Text, 
   SegmentedControl, 
   FileButton, 
-  Card,
   ScrollArea,
   Box,
   Divider,
@@ -25,6 +24,7 @@ import {
 } from "@mantine/core";
 import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconFileText as ScrollText, IconFilter as ListFilter, IconSortAscending as SortAsc, IconUsers as Users, IconPencil as Edit2, IconInfoCircle as Info, IconDatabase as Database } from "@tabler/icons-react";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
+import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { FormTextarea } from "@/components/ui/form-fields";
 import { HashtagInput } from "@/components/ui/hashtag-input";
@@ -397,7 +397,8 @@ export default function CompanyDataPage() {
           title="Data Ingress" 
           icon={Database} 
         />
-        <Card>
+        <UnifiedCard tone="ingress">
+          <UnifiedCardBody>
           <form onSubmit={handleSubmit}>
             <Stack gap="lg">
               {editingId && (
@@ -478,7 +479,8 @@ export default function CompanyDataPage() {
               </Group>
             </Stack>
           </form>
-        </Card>
+          </UnifiedCardBody>
+        </UnifiedCard>
 
         {saved && (
           <Notice icon={CheckCircle} title="Unit Committed">
@@ -557,9 +559,11 @@ export default function CompanyDataPage() {
           </Group>
 
           {filteredItems.length === 0 ? (
-            <Card style={{ borderStyle: 'dashed' }} ta="center">
-              <Text size="sm" c="dimmed">No intelligence units match the current filters.</Text>
-            </Card>
+            <UnifiedCard tone="neutral" layoutStyle={{ borderStyle: "dashed" }}>
+              <UnifiedCardBody>
+                <Text size="sm" c="dimmed">No intelligence units match the current filters.</Text>
+              </UnifiedCardBody>
+            </UnifiedCard>
           ) : (
             <UnifiedGrid>
               {visibleItems.map((item) => (

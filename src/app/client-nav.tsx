@@ -258,21 +258,16 @@ export function ClientNav() {
                       backgroundColor: "transparent",
                       borderLeft: "2px solid transparent",
                       ...(pathname.includes(item.key) ? getSidebarActiveStyle(item.tone as ModuleTone) : {}),
+                      ...(!pathname.includes(item.key)
+                        ? {
+                            "&:hover": getSidebarHoverStyle(item.tone as ModuleTone),
+                          }
+                        : {}),
                     },
                     label: {
                       color: pathname.includes(item.key) ? "var(--nav-link-active)" : "var(--nav-link-inactive)",
                       fontWeight: 500,
                     },
-                  }}
-                  onMouseEnter={(event) => {
-                    if (!pathname.includes(item.key)) {
-                      Object.assign((event.currentTarget as HTMLAnchorElement).style, getSidebarHoverStyle(item.tone as ModuleTone));
-                    }
-                  }}
-                  onMouseLeave={(event) => {
-                    if (!pathname.includes(item.key)) {
-                      (event.currentTarget as HTMLAnchorElement).style.background = "transparent";
-                    }
                   }}
                 />
               ))}

@@ -1,263 +1,110 @@
 # Engineering Standards and Architecture Documentation
 
-**Title:** Engineering Standards and Architecture
-**Owner:** Chief Technology Officer (CTO)
-**Purpose:** Define coding standards, architectural principles, and technical quality gates for all engineering work
-**Status:** Active
-**Last Updated:** 2026-04-01
-**Version:** v1
-**Relevant Team:** Technology / Engineering
-**Source of Request:** CTO Operational Playbook
-**Next Review Date:** 2026-05-01
+**Title:** Engineering Standards and Architecture  
+**Owner:** Chief Technology Officer (CTO)  
+**Purpose:** Define coding standards, architectural principles, and technical quality gates for all engineering work  
+**Status:** Active  
+**Last Updated:** 2026-05-09  
+**Version:** v2  
+**Relevant Team:** Technology / Engineering  
 
----
+## 1. Repository Rule Hierarchy
 
-## 1. Engineering Standards
+Engineering must follow this precedence:
 
-### 1.1 Code Quality Standards
+1. `docs/RULEBOOK.md`
+2. `docs/SSOT.md`
+3. `docs/SYSTEM_DESIGN_LLD.md`
+4. `DESIGN_SYSTEM.md`
+5. `HANDOVER.md`
 
-#### Naming Conventions
-- Variables and functions: descriptive, intention-revealing names
-- No single-letter names except loop counters
-- Consistent casing per language convention
-- Avoid abbreviations unless universally understood
+No local team convention is allowed to override those documents.
 
-#### Code Organization
-- Single responsibility per function/module
-- Maximum function length: 50 lines (soft limit)
-- Logical grouping of related code
-- Clear separation of concerns
+## 2. Approved Stack
 
-#### Documentation Requirements
-- Public APIs documented with purpose, parameters, return values
-- Complex logic explained with inline comments
-- README required for all services/components
-- Architecture decisions recorded in ADR format
+Application stack:
 
-### 1.2 Code Review Standards
+- Next.js 16 App Router
+- React 18
+- Mantine 7
+- Tabler Icons
+- Prisma
+- MongoDB Atlas
+- Ollama
 
-#### Review Checklist
-- [ ] Code meets functional requirements
-- [ ] No security vulnerabilities introduced
-- [ ] Error handling is appropriate
-- [ ] Edge cases considered
-- [ ] Tests cover new/changed functionality
-- [ ] Documentation updated
-- [ ] Performance implications considered
-- [ ] No hardcoded secrets or credentials
-- [ ] Follows established patterns and conventions
+## 3. Frontend Architecture Rules
 
-#### Review Process
-1. Author creates pull request with description
-2. At least one peer reviewer assigned
-3. Reviewer comments within 24 hours
-4. Author addresses all comments
-5. Reviewer approves or requests changes
-6. Merge only after approval
+### 3.1 UI framework
 
-### 1.3 Testing Standards
+- Mantine only
+- no Tailwind utilities for product UI
+- no shadcn UI fragments for product UI
 
-#### Test Hierarchy
-- Unit tests: individual functions/methods
-- Integration tests: component interactions
-- End-to-end tests: critical user journeys
-- Performance tests: response time and throughput
+### 3.2 Card architecture
 
-#### Coverage Requirements
-- All new code: minimum 80% line coverage
-- Critical paths: 100% coverage
-- No decrease in overall coverage percentage
+- Mantine `Card` is the only approved base card primitive
+- `UnifiedCard` is the only approved feature-level product card API
+- `UnifiedCardModal` is the only approved modal content shell for product card content
+- feature code must not create parallel card shells
+- feature code must not use raw `Paper` for product card surfaces
 
-#### Test Quality Rules
-- Tests must be deterministic (no flaky tests)
-- Tests must be independent (no ordering dependencies)
-- Tests must be fast (unit tests < 1 second each)
-- Test names describe expected behavior
+### 3.3 Typography
 
-### 1.4 Security Standards
+- typography is centrally defined only
+- theme scale lives in `src/components/providers.tsx`
+- DS text roles live in `src/components/ui/typography.tsx`
+- feature code must not define local text scales
 
-#### Code Security
-- No secrets in code or configuration files
-- Use environment variables or secret management
-- Input validation on all external data
-- Output encoding to prevent injection
-- Authentication and authorization on all endpoints
+### 3.4 Interactions
 
-#### Dependency Management
-- Regular dependency updates (monthly minimum)
-- Automated vulnerability scanning
-- Pin dependency versions
-- Review new dependencies before adoption
+- hover and surface interaction behavior is centralized
+- no local transition systems
+- no local product-surface motion systems
 
-#### Access Control
-- Least privilege principle
-- Regular access reviews
-- Audit logging for sensitive operations
-- Multi-factor authentication for production access
+## 4. Coding Standards
 
-### 1.5 Version Control Standards
+### 4.1 Documentation synchronization
 
-#### Branch Strategy
-- Main branch: always deployable
-- Feature branches: one feature per branch
-- Branch naming: `feature/description`, `fix/description`, `hotfix/description`
-- Branches deleted after merge
+If a system contract changes, documentation must change in the same work.
 
-#### Commit Standards
-- Atomic commits (one logical change per commit)
-- Descriptive commit messages
-- Reference issue/ticket numbers
-- No broken builds on main branch
+Required minimum updates:
 
----
+- `docs/RULEBOOK.md`
+- `HANDOVER.md`
 
-## 2. Architecture Principles
+Plus all directly affected contract docs.
 
-### 2.1 Core Principles
+### 4.2 Design-system integrity
 
-1. **Simplicity First** — Choose the simplest solution that meets requirements
-2. **Document Decisions** — Every significant architectural choice recorded with rationale
-3. **Design for Failure** — Assume components will fail; design recovery paths
-4. **Security by Default** — Security is not an afterthought
-5. **Observability Built-In** — Monitoring, logging, and tracing from day one
-6. **Incremental Evolution** — Evolve architecture incrementally, not through big-bang rewrites
+Engineers must:
 
-### 2.2 Architecture Decision Records (ADRs)
+- use approved DS primitives
+- avoid local visual exceptions
+- harden static enforcement when a new drift pattern is found
 
-#### ADR Template
-```markdown
-# ADR-NNN: [Title]
+### 4.3 Review gate
 
-**Status:** Proposed | Accepted | Deprecated | Superseded
-**Date:** YYYY-MM-DD
-**Context:** [What is the issue that we're seeing?]
-**Decision:** [What is the change that we're proposing?]
-**Consequences:** [What becomes easier or more difficult?]
-**Alternatives Considered:** [What other options were evaluated?]
-```
+A UI change is not complete unless reviewers can answer:
 
-#### ADR Process
-1. Identify decision need
-2. Draft ADR with context and options
-3. Review with relevant stakeholders
-4. Record decision and rationale
-5. Store in approved location
-6. Update if decision changes
+- what stack is being used
+- which file is the source of truth
+- whether the change updated the AI brain docs
+- whether the change hardened enforcement if needed
 
-### 2.3 System Design Standards
+## 5. Quality Gates
 
-#### Scalability
-- Design for expected load + 50% headroom
-- Stateless services where possible
-- Horizontal scaling preferred over vertical
-- Database queries optimized and indexed
+Before merge:
 
-#### Reliability
-- Define SLOs for each service
-- Implement health checks
-- Design graceful degradation
-- Plan for disaster recovery
+- `npm run audit:docs`
+- `npm run lint`
+- `npm run audit:semantic`
+- `npx tsc --noEmit`
 
-#### Maintainability
-- Clear module boundaries
-- Minimal coupling between components
-- Consistent patterns across services
-- Comprehensive documentation
+## 6. Definition Of Done
 
----
+Engineering work is done only when:
 
-## 3. Technical Quality Gates
-
-### 3.1 Pre-Merge Gates
-
-All code must pass before merging:
-
-- [ ] All tests passing
-- [ ] Code review approved
-- [ ] Linting and formatting checks passed
-- [ ] Security scan clean
-- [ ] Documentation updated
-- [ ] No merge conflicts
-
-### 3.2 Pre-Release Gates
-
-All releases must pass before deployment:
-
-- [ ] All pre-merge gates passed
-- [ ] Staging environment validation complete
-- [ ] Performance benchmarks met
-- [ ] Rollback plan documented and tested
-- [ ] Release notes prepared
-- [ ] Stakeholders notified
-
-### 3.3 Post-Release Gates
-
-All releases must complete after deployment:
-
-- [ ] Production health checks passing
-- [ ] Monitoring alerts configured
-- [ ] Error rates within acceptable thresholds
-- [ ] Performance metrics within SLO
-- [ ] User-facing functionality verified
-
----
-
-## 4. Technology Stack Guidelines
-
-### 4.1 Technology Selection Criteria
-
-When evaluating new technologies:
-
-1. **Business Fit** — Does it solve our problem effectively?
-2. **Team Capability** — Can we support and maintain it?
-3. **Community Support** — Is there active development and support?
-4. **Security Track Record** — How well maintained is security?
-5. **Cost** — What are the licensing and operational costs?
-6. **Integration** — How well does it work with existing systems?
-
-### 4.2 Approved Technology List
-
-Maintain a current list of approved technologies:
-
-| Category | Approved Options | Notes |
-|----------|-----------------|-------|
-| Languages | [To be defined based on project needs] | |
-| Frameworks | [To be defined based on project needs] | |
-| Databases | [To be defined based on project needs] | |
-| Infrastructure | [To be defined based on project needs] | |
-| Monitoring | [To be defined based on project needs] | |
-
-### 4.3 Technology Retirement
-
-When retiring technology:
-
-1. Document reason for retirement
-2. Create migration plan
-3. Communicate timeline to stakeholders
-4. Execute migration
-5. Remove old technology
-6. Update documentation
-
----
-
-## 5. Definition of Done for Engineering Standards
-
-- [ ] Standards documented and accessible
-- [ ] Team trained on standards
-- [ ] Automated enforcement where possible
-- [ ] Review process established
-- [ ] Exception process defined
-- [ ] Regular compliance audits scheduled
-- [ ] Standards reviewed and updated quarterly
-
----
-
-**Definition of Done for this Document:**
-
-- [x] Engineering standards defined
-- [x] Architecture principles documented
-- [x] Quality gates established
-- [x] Technology selection criteria defined
-- [x] Review and update process specified
-- [x] Document stored in approved location
-- [x] Version and metadata complete
+- implementation follows the approved stack
+- no parallel architecture was introduced
+- documentation was updated with the same change
+- verification commands passed

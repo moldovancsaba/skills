@@ -12,18 +12,7 @@ export type ModuleTone =
 
 export type SemanticColor =
   | ModuleTone
-  | "brand"
-  | "blue"
-  | "indigo"
-  | "teal"
-  | "green"
-  | "violet"
-  | "purple"
-  | "cyan"
-  | "orange"
-  | "amber"
-  | "knowledge"
-  | "execution";
+  | "gray";
 
 type ModuleDefinition = {
   color: string;
@@ -54,35 +43,20 @@ export function getModuleTheme(tone: ModuleTone = "neutral") {
 export function resolveModuleTone(color?: SemanticColor | string): ModuleTone {
   switch (color) {
     case "ingress":
-    case "blue":
-    case "brand":
       return "ingress";
     case "synthesis":
-    case "indigo":
       return "synthesis";
     case "knowmore":
-    case "teal":
-    case "green":
-    case "knowledge":
       return "knowmore";
     case "strategy":
-    case "violet":
-    case "purple":
       return "strategy";
     case "checklist":
-    case "cyan":
-    case "execution":
       return "checklist";
     case "tactical":
       return "tactical";
     case "review":
-    case "orange":
-    case "amber":
       return "review";
     case "gray":
-    case "dark":
-    case "red":
-    case "yellow":
       return "neutral";
     default:
       if (typeof color === "string" && color.trim() && !warnedSemanticValues.has(color)) {

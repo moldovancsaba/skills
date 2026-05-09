@@ -1,8 +1,9 @@
 "use client";
 
 import { Line, LineChart, ResponsiveContainer, YAxis, XAxis, Tooltip } from "recharts";
-import { useMantineTheme, Box, Paper, Text } from "@mantine/core";
-import { getSemanticInsetStyle } from "@/lib/semantic-theme";
+import { useMantineTheme, Box } from "@mantine/core";
+import { UnifiedCardSection } from "@/components/ui/unified-card";
+import { MetaText } from "@/components/ui/typography";
 
 type ChartData = {
   date: string;
@@ -38,12 +39,9 @@ export function DashboardChart({ data, color }: DashboardChartProps) {
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
                 return (
-                  <Paper
-                    p={4}
-                    style={getSemanticInsetStyle("neutral")}
-                  >
-                    <Text size="xs" >{payload[0].value}</Text>
-                  </Paper>
+                  <UnifiedCardSection tone="neutral">
+                    <MetaText c="var(--text-primary)">{String(payload[0].value ?? "")}</MetaText>
+                  </UnifiedCardSection>
                 );
               }
               return null;

@@ -11,13 +11,13 @@ import {
   rem,
   Anchor,
   Group,
-  Card,
   Loader,
 } from "@mantine/core";
 import Link from "next/link";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/ui/app-shell";
+import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 
 const GoogleIcon = () => (
   <Box component="svg" w={20} h={20} viewBox="0 0 24 24">
@@ -50,7 +50,8 @@ function LoginContent() {
               </Text>
             </Box>
 
-            <Card p={rem(40)}>
+            <UnifiedCard tone="neutral">
+              <UnifiedCardBody>
               <Stack gap="xl">
                 <Stack gap="xs">
                   <Title order={2} ta="center">Secure Access Protocol</Title>
@@ -80,7 +81,8 @@ function LoginContent() {
                   </Group>
                 </Stack>
               </Stack>
-            </Card>
+              </UnifiedCardBody>
+            </UnifiedCard>
           </Stack>
         </Container>
       </Center>

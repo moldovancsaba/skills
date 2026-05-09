@@ -4,6 +4,7 @@ import { Box, Container, Group, Anchor, Text, rem } from "@mantine/core";
 import { APP_VERSION } from "@/lib/release";
 import Link from "next/link";
 import { getSemanticInsetStyle } from "@/lib/semantic-theme";
+import { MetaText } from "@/components/ui/typography";
 
 export function Footer() {
   return (
@@ -41,9 +42,7 @@ export function Footer() {
                 borderRadius: rem(6),
               }}
             >
-              <Text size="10px">
-                v{APP_VERSION}
-              </Text>
+              <MetaText c="var(--text-primary)">v{APP_VERSION}</MetaText>
             </Box>
           </Group>
         </Group>

@@ -1,128 +1,98 @@
-# checklist Product: System Operating Model (SSOT)
+# CHECKLIST Product SSOT
+
+This is the product and system single source of truth.
+
+It is subordinate only to [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md).
 
 ## 1. Product Purpose
-This is a checklist, continuously operating card intelligence system.
-Its function is to turn raw user input into structured, decision-ready business knowledge with minimal or no human intervention.
 
-The system must run as a full-cycle autonomous workflow on a local AI server, synchronising with the online application and database. It must be resilient, restartable, and designed to operate reliably without manual babysitting.
+CHECKLIST is a continuously operating, multi-tenant intelligence system that transforms raw business evidence into structured knowledge, goals, and tactical work.
 
-**Guiding principle:** Done is better than perfect.
+## 2. Core Model
 
----
+The product is card-based.
 
-## 2. Core Concept: The Card Model
-The whole product is built around cards. A card is the smallest useful unit of business intelligence.
+Primary user-facing layers:
 
-### Card Types
-- **DataCard**: Raw input captured from the user or ingested from external material (URLs, text, files). Starting point.
-- **FlashCard**: A structured intelligence unit derived from one or more DataCards. Represents a fact, insight, or pattern.
-- **TaskCard**: An actionable unit derived from one or more FlashCards. Represents a task, follow-up, or decision-support action.
+- Data
+- Topics
+- Knowmore
+- Goals
+- Checklist
+- Tactical
+- Review
 
----
+## 3. System Stack
 
-## 3. Deployment Model
-- **Online Web Application**: User-facing layer. Receives input, stores cards/logs/feedback, displays states.
-- **Local AI Server**: Autonomous processing engine. Periodically runs the loop, pulls data, updates memory, generates cards, pushes results back.
+Backend and orchestration:
 
----
+- Next.js
+- Prisma
+- MongoDB Atlas
+- Ollama
 
-## 4. High-Level Operating Principle
-The system runs in a continuous loop. For each cycle:
-1. Load active companies.
-2. Select the next company fairly (oldest last-visited).
-3. Pull new data and feedback.
-4. Teach local memory from all user feedback.
-5. Process cards through the agent pipeline.
-6. Update statuses, age labels, and expirations.
-7. Push results back to the online database.
-8. Continue with the next company.
+Frontend:
 
----
+- Mantine only
+- centralized Mantine theme
+- centralized semantic token layer
+- centralized card system through `UnifiedCard`
 
-## 5. Company Rotation Logic
-- **Rule:** Oldest last-visited company first.
-- Every active company participates in the same rotating queue to avoid starvation.
+## 4. Product UI SSOT
 
----
+The product UI contract is:
 
-## 6. Continuous System Loop (Detailed Steps)
-- **Step 1: Load companies** (active from DB).
-- **Step 2: Load runtime configuration** (No hardcoded operational thresholds).
-- **Step 3: Select company** (oldest AI visit timestamp).
-- **Step 4: Pull new remote data** (DataCards, updates, feedback, moderation).
-- **Step 5: Teach the local brain** (Feedback = strong learning material - Fast-Path).
-- **Step 6: Research Harvest** (Topic-driven strategic search).
-- **Step 7: Build or refresh DataCards** (convert raw material).
-- **Step 8: Run card-processing mini-loop** (agent pipeline).
-- **Step 9: Update ageing and expiration** (apply labels).
-- **Step 10: Push back to online database**.
-- **Step 11: Mark company processed** (update last-visited timestamp).
-- **Step 12: Move to next company**.
+- Mantine only
+- semantic tones only
+- Mantine `Card` as base primitive
+- `UnifiedCard` as feature-level card API
+- `UnifiedCardModal` as modal content shell
+- centralized typography
+- centralized interactions
 
----
+This contract is implemented in:
 
-## 7. Mini-Loop: Card Production and Promotion
-Runs **N** times per company per cycle (N is configurable, default = 3).
+- `src/components/providers.tsx`
+- `src/app/globals.css`
+- `src/lib/semantic-theme.ts`
+- `src/lib/ui-state.ts`
+- `src/lib/ui-interactions.ts`
+- `src/components/ui/typography.tsx`
+- `src/components/ui/unified-card.tsx`
+- `src/components/ui/unified-card-modal.tsx`
+- `src/components/ui/app-shell.tsx`
 
-### Stages
-- **A. Drafter: DataCard -> FlashCard**: Generates DRAFT FlashCards from DataCards.
-- **B. Drafter: FlashCard -> TaskCard**: Generates DRAFT TaskCards from FlashCards.
-- **C/D. Writer: DRAFT -> CHECKED**: Refines, de-duplicates, and validates cards using research/memory.
-- **E/F. Judge: CHECKED -> VERIFIED**: Final verification against quality floor; detects hallucinations/contractions.
+## 5. Processing Model
 
----
+The autonomous cycle remains:
 
-## 8. Agent Responsibilities
-- **Drafter**: Responsible for generation (Data -> Flash, Flash -> Task). Creates only DRAFT cards.
-- **Writer**: Responsible for refinement and enrichment. Promotes to CHECKED.
-- **Judge**: Responsible for verification and gatekeeping. Promotes to VERIFIED. Final quality gate.
+1. load companies
+2. select fairly
+3. pull new evidence and feedback
+4. teach memory
+5. process through the AI pipeline
+6. update statuses and expirations
+7. push results back
 
----
+## 6. AI Brain Rule
 
-## 9. Status Model (Option B)
-Separate fields for workflow and ageing:
-- **processing_status**: DRAFT / CHECKED / VERIFIED / DECLINED / ACCEPTED
-- **activity_state**: ACTIVE / STALE / EXPIRED / ARCHIVED
+In CHECKLIST, the “AI brain” is not just model prompts.
+It also includes the repository rule and handover documents that future agents use as operating memory.
 
----
+Whenever the live contract changes, the AI brain must be updated in the same work.
 
-## 10. Age Labels and Inactivity Handling
-Based on "meaningful touch" (refined, rewritten, checked, verified, etc.):
-- **ACTIVE**: Touched recently.
-- **STALE**: No touch for 30 days.
-- **ARCHIVED**: No touch for 90 days.
+Minimum required updates:
 
-**Reactivation Rule:** User-reactivated archived cards reset to ACTIVE (activity) and DRAFT (status).
+- `docs/RULEBOOK.md`
+- `HANDOVER.md`
 
----
+Plus every directly affected deeper contract doc.
 
-## 11. Expiration Rule
-- **EXPIRED**: No touch for 168 hours (7 days). Short-term operational inactivity.
+## 7. Completion Rule
 
----
+A change is incomplete if:
 
-## 12. Confidence Model and Quality Floor
-- Every transition carries a confidence score.
-- **Rule:** Accepted only if confidence is NOT below the configured lower-percentile threshold of its comparison group.
-- **Threshold**: Configurable from settings (e.g., 10th percentile), not hardcoded.
-- **Comparison Groups**: Must match (e.g., FlashCards vs FlashCards).
+- code changed
+- but the contract docs still describe the old system
 
----
-
-## 13. Lifecycle Outcome Model
-- **decision_status**: NONE / ACCEPTED / DECLINED
-- **processing_status**: DRAFT / CHECKED / VERIFIED
-- **activity_state**: ACTIVE / EXPIRED / STALE / ARCHIVED
-
----
-
-## 14. Feedback as Hard Knowledge
-- Every feedback event (positive/negative) is structural teaching material.
-- Must be embedded in memory/RAG/rules.
-- Directly influences future agent behavior.
-
----
-
-## 15. Reliability and Watchdog
-- Detect frozen states, restart broken pipelines, relaunch failed workers.
-- Log recovery actions. Durable processing engine.
+That is treated as a system integrity failure, not a documentation nice-to-have.

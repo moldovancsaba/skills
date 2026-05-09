@@ -1,18 +1,29 @@
 'use client';
 
 import type { ReactNode, CSSProperties, KeyboardEvent, MouseEvent } from "react";
-import { Card, Stack, Group, Title, Text, Box, Badge, rem } from "@mantine/core";
+import { Card, Stack, Group, Box, Badge, rem } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { getSemanticHoverStyle, getSemanticInsetStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
 import type { CardFreshnessState } from "@/lib/card-freshness";
+import { applySurfaceInteractionHandlers } from "@/lib/ui-interactions";
+import { BodyText, CardTitle } from "@/components/ui/typography";
 
 type UnifiedCardProps = {
   children: ReactNode;
-  style?: CSSProperties;
+  layoutStyle?: CSSProperties;
   mt?: string | number;
   tone?: ModuleTone;
   interactive?: boolean;
   onClick?: (event: MouseEvent<HTMLDivElement>) => void;
+};
+
+type UnifiedCardContentProps = {
+  children: ReactNode;
+  mt?: string | number;
+};
+
+type UnifiedCardSectionProps = UnifiedCardContentProps & {
+  tone?: ModuleTone;
 };
 
 type UnifiedCardTextProps = UnifiedCardProps & {
@@ -41,7 +52,7 @@ function getPreviewText(value: string, previewLength: number) {
 
 export function UnifiedCard({
   children,
-  style,
+  layoutStyle,
   mt,
   tone = "neutral",
   interactive = false,
@@ -61,20 +72,20 @@ export function UnifiedCard({
   return (
     <Card
       mt={mt}
-      style={style ? { ...baseStyle, ...style } : baseStyle}
+      style={layoutStyle ? { ...baseStyle, ...layoutStyle } : baseStyle}
       onMouseEnter={
         isInteractive
           ? (event) => {
-              Object.assign((event.currentTarget as HTMLDivElement).style, hoverStyle ?? {});
+              applySurfaceInteractionHandlers(event, hoverStyle ?? {});
             }
           : undefined
       }
       onMouseLeave={
         isInteractive
           ? (event) => {
-              Object.assign((event.currentTarget as HTMLDivElement).style, baseStyle);
-              if (style) {
-                Object.assign((event.currentTarget as HTMLDivElement).style, style);
+              applySurfaceInteractionHandlers(event, baseStyle);
+              if (layoutStyle) {
+                applySurfaceInteractionHandlers(event, layoutStyle);
               }
             }
           : undefined
@@ -104,8 +115,6 @@ export function UnifiedCardHeader({
   actions,
   clampTitle = true,
 }: UnifiedCardHeaderProps) {
-  const titleStyle = clampTitle ? { ...singleLineClampStyle, fontWeight: 650 } : { fontWeight: 650 };
-
   return (
     <Stack gap="md" mb="md">
       <Group justify="space-between" align="flex-start" wrap="nowrap">
@@ -113,19 +122,11 @@ export function UnifiedCardHeader({
           {supporting && <Group gap="xs" wrap="wrap">{supporting}</Group>}
           <Stack gap={4}>
             {typeof title === "string" ? (
-              <Title order={3} style={titleStyle}>
-                {stripTechnicalMetadata(title)}
-              </Title>
+              <CardTitle lineClamp={clampTitle ? 1 : undefined}>{stripTechnicalMetadata(title)}</CardTitle>
             ) : (
-              <Title order={3} style={titleStyle}>
-                {title}
-              </Title>
+              <Box style={clampTitle ? singleLineClampStyle : undefined}>{title}</Box>
             )}
-            {description && (
-              <Text c="var(--text-secondary)">
-                {description}
-              </Text>
-            )}
+            {description && <BodyText>{description}</BodyText>}
           </Stack>
         </Stack>
         {actions && <Box>{actions}</Box>}
@@ -152,13 +153,12 @@ export function UnifiedCardFreshnessBadge({ freshness }: UnifiedCardFreshnessBad
   );
 }
 
-export function UnifiedCardBody({ children, style, mt }: UnifiedCardProps) {
-  return <Stack gap="md" style={style} mt={mt}>{children}</Stack>;
+export function UnifiedCardBody({ children, mt }: UnifiedCardContentProps) {
+  return <Stack gap="md" mt={mt}>{children}</Stack>;
 }
 
 export function UnifiedCardText({
   children,
-  style,
   mt,
   previewLength = 100,
   disablePreview = false,
@@ -169,20 +169,17 @@ export function UnifiedCardText({
       : children;
 
   return (
-    <Text style={style} mt={mt} c="var(--text-secondary)" lh={1.6}>
-      {content}
-    </Text>
+    <BodyText mt={mt}>{content}</BodyText>
   );
 }
 
-export function UnifiedCardSection({ children, style, mt, tone = "neutral" }: UnifiedCardProps) {
+export function UnifiedCardSection({ children, mt, tone = "neutral" }: UnifiedCardSectionProps) {
   return (
     <Box
       p="md"
       style={{
         borderRadius: rem(12),
         ...getSemanticInsetStyle(tone),
-        ...style,
       }}
       mt={mt}
     >
@@ -191,11 +188,11 @@ export function UnifiedCardSection({ children, style, mt, tone = "neutral" }: Un
   );
 }
 
-export function UnifiedCardActions({ children, style, mt }: UnifiedCardProps) {
-  return <Group gap="sm" mt={mt || "md"} style={style}>{children}</Group>;
+export function UnifiedCardActions({ children, mt }: UnifiedCardContentProps) {
+  return <Group gap="sm" mt={mt || "md"}>{children}</Group>;
 }
 
-export function UnifiedCardFooter({ children, style, mt }: UnifiedCardProps) {
+export function UnifiedCardFooter({ children, mt }: UnifiedCardContentProps) {
   return (
     <Card.Section
       inheritPadding
@@ -203,7 +200,6 @@ export function UnifiedCardFooter({ children, style, mt }: UnifiedCardProps) {
       mt={mt || "xl"}
       style={{
         borderTop: "1px solid var(--surface-section-border)",
-        ...style,
       }}
     >
       {children}

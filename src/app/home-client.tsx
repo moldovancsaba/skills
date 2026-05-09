@@ -14,13 +14,13 @@ import {
   ThemeIcon,
   Button,
   Badge,
-  Card,
   Center
 } from "@mantine/core";
 import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListCheck, IconLayoutDashboard as LayoutDashboard, IconLayersIntersect as Layers, IconHistory as History } from "@tabler/icons-react";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
 import { EmptyState, LinkCard, Notice, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
+import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useState, useEffect, useCallback } from "react";
@@ -220,7 +220,8 @@ export default function Home() {
         </Group>
 
         {(canManageCompanies && (companies.length === 0 || showForm)) ? (
-          <Card>
+          <UnifiedCard tone="ingress">
+            <UnifiedCardBody>
             <Stack gap="lg">
               <Title order={3}>{editingId ? "Modify Intelligence Unit" : "Initialize New Unit"}</Title>
               <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany}>
@@ -256,7 +257,8 @@ export default function Home() {
                 </Stack>
               </form>
             </Stack>
-          </Card>
+            </UnifiedCardBody>
+          </UnifiedCard>
         ) : (
           <Stack gap={48}>
             {Array.isArray(companies) && companies.map((c: any) => (

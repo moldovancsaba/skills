@@ -7,6 +7,7 @@ const SEARCH_ROOTS = ["src/app", "src/components", "src/lib"];
 const forbiddenPatterns = [
   { label: "legacy brand color", regex: /color="brand"|c="brand"|var\(--mantine-color-brand/i },
   { label: "generic product color", regex: /color="(blue|green|orange|violet|cyan|teal|indigo)"/i },
+  { label: "legacy semantic alias in color prop", regex: /(color|variant|activeColor)\s*=\s*"(brand|blue|green|orange|violet|cyan|teal|indigo|amber|purple|knowledge|execution)"/i },
   { label: "legacy light-dark helper", regex: /light-dark\(/i },
   { label: "brand loader", regex: /Loader[^>]+color="brand"/i },
   { label: "undefined subtle surface token", regex: /var\(--surface-subtle\)/i },
@@ -17,10 +18,23 @@ const forbiddenPatterns = [
   { label: "hard-coded translucent light panel", regex: /rgba\(255,\s*255,\s*255,\s*0\.(03|05|06)\)/i },
   { label: "local transition declaration", regex: /transition:\s*['"]/i },
   { label: "mantine transition component", regex: /<Transition\b|\bTransition,\s*$/im },
+  { label: "unified card visual override", regex: /<UnifiedCard\b[^\n>]*\sstyle=\{/i },
+  { label: "unified card subcomponent visual override", regex: /<(UnifiedCardBody|UnifiedCardSection|UnifiedCardActions|UnifiedCardFooter)\b[^\n>]*\sstyle=\{/i },
 ];
 
 const allowedFiles = new Set([
   "src/components/providers.tsx",
+]);
+
+const rawSurfaceAllowlist = new Set([
+  "src/components/ui/app-shell.tsx",
+  "src/components/ui/unified-card.tsx",
+  "src/components/ui/unified-card-modal.tsx",
+]);
+
+const typographyOverrideAllowlist = new Set([
+  "src/components/providers.tsx",
+  "src/components/ui/typography.tsx",
 ]);
 
 function walk(dir) {
@@ -60,6 +74,31 @@ for (const root of SEARCH_ROOTS) {
           file: rel,
           label: pattern.label,
           match: match[0],
+        });
+      }
+    }
+
+    if (
+      (rel.startsWith("src/app/") || rel.startsWith("src/components/")) &&
+      !rawSurfaceAllowlist.has(rel)
+    ) {
+      const rawSurfaceMatch = content.match(/<(Card|Paper)\b/);
+      if (rawSurfaceMatch) {
+        findings.push({
+          file: rel,
+          label: "raw feature-level card surface",
+          match: rawSurfaceMatch[0],
+        });
+      }
+    }
+
+    if (!typographyOverrideAllowlist.has(rel)) {
+      const typographyOverrideMatch = content.match(/fontSize:|letterSpacing:|size="h[1-6]"|size="10px"/);
+      if (typographyOverrideMatch) {
+        findings.push({
+          file: rel,
+          label: "raw typography override",
+          match: typographyOverrideMatch[0],
         });
       }
     }

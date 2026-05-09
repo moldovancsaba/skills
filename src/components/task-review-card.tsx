@@ -25,10 +25,11 @@ import {
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { TraceViewer } from "@/components/trace-viewer";
 import { CardShareAction } from "@/components/ui/card-share-action";
+import { BodyText, MetaText } from "@/components/ui/typography";
 import { getGoalCardFreshness, getTaskCardFreshness } from "@/lib/card-freshness";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getSemanticCalloutStyle } from "@/lib/semantic-theme";
-import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { getDisplayableHumanComment, stripTechnicalMetadata } from "@/lib/ui-utils";
 import { logClientInteraction } from "@/lib/client-events";
 import { 
   UnifiedCard, 
@@ -154,6 +155,7 @@ export function TaskReviewCard({
 
   const iceColor = getIceBadgeColor(item.iceScore);
   const isAccepted = twoPhaseWorkflow && item.processingStatus === "ACCEPTED";
+  const displayableComment = getDisplayableHumanComment(item.userAnnotation);
   const freshness =
     item.refreshedAt || item.lastActionAt
       ? getGoalCardFreshness({
@@ -172,7 +174,7 @@ export function TaskReviewCard({
     <UnifiedCard
       tone="checklist"
       onClick={onOpenDetail ? () => onOpenDetail(item) : undefined}
-      style={{ opacity: item.processingStatus === "DECLINED" ? 0.6 : 1 }}
+      layoutStyle={{ opacity: item.processingStatus === "DECLINED" ? 0.6 : 1 }}
     >
       <UnifiedCardHeader
         clampTitle={!detailMode}
@@ -201,7 +203,7 @@ export function TaskReviewCard({
           onRemove={(tag) => onRemoveHashtag(item.id, tag)}
         />
 
-        {item.userAnnotation && (
+        {detailMode && displayableComment && (
           <Box
             p="sm"
             style={{
@@ -211,7 +213,7 @@ export function TaskReviewCard({
           >
             <Group gap="xs" wrap="nowrap" align="flex-start">
               <MessageSquare size={14} style={{ marginTop: rem(2), opacity: 0.7 }} />
-              <Text size="xs" c="dimmed">{stripTechnicalMetadata(item.userAnnotation)}</Text>
+              <MetaText>{displayableComment}</MetaText>
             </Group>
           </Box>
         )}

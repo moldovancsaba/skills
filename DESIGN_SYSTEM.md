@@ -1,28 +1,46 @@
 # CHECKLIST Design System
-**v0.15.3: Semantic Mantine Architecture**
 
-This is the current product design-system source of truth in prose form.
+This document defines the live product design system.
+It is subordinate to [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md) and must not conflict with it.
 
-Implementation authority lives in:
-- `src/app/globals.css`
-- `src/components/providers.tsx`
-- `src/lib/semantic-theme.ts`
-- `scripts/semantic-audit.mjs`
+## System Summary
 
-## Core Rules
+The CHECKLIST UI is:
 
-1. Mantine is the only UI system.
-2. Visual meaning is expressed through semantic tones, not raw hue names.
-3. Surfaces must be built from shared semantic helpers and global tokens.
-4. Light and dark mode are both first-class token sets.
-5. State styling must resolve through the product state layer, not raw `red/green/orange` conventions.
-6. Motion is globally disabled; feature code must not declare local transitions or animation wrappers.
-7. Component defaults belong in the theme layer, not in local feature code.
-8. Drift prevention is enforced through audit scripts, not documentation alone.
+- Mantine only
+- semantic-tone driven
+- Mantine-theme controlled
+- centralized around one card API
+- centrally typed for typography
+- centrally controlled for interactions
+
+## Canonical Product UI Stack
+
+- Mantine theme in [src/components/providers.tsx](/Users/Shared/Projects/checklist/src/components/providers.tsx)
+- global tokens in [src/app/globals.css](/Users/Shared/Projects/checklist/src/app/globals.css)
+- semantic surface helpers in [src/lib/semantic-theme.ts](/Users/Shared/Projects/checklist/src/lib/semantic-theme.ts)
+- state semantics in [src/lib/ui-state.ts](/Users/Shared/Projects/checklist/src/lib/ui-state.ts)
+- interaction helpers in [src/lib/ui-interactions.ts](/Users/Shared/Projects/checklist/src/lib/ui-interactions.ts)
+- typography primitives in [src/components/ui/typography.tsx](/Users/Shared/Projects/checklist/src/components/ui/typography.tsx)
+- card shell in [src/components/ui/unified-card.tsx](/Users/Shared/Projects/checklist/src/components/ui/unified-card.tsx)
+- modal shell in [src/components/ui/unified-card-modal.tsx](/Users/Shared/Projects/checklist/src/components/ui/unified-card-modal.tsx)
+- page/layout primitives in [src/components/ui/app-shell.tsx](/Users/Shared/Projects/checklist/src/components/ui/app-shell.tsx)
+
+## Core Non-Negotiable Rules
+
+1. Mantine is the only approved UI framework.
+2. Mantine `Card` is the only approved base primitive for product card surfaces.
+3. `UnifiedCard` is the only approved feature-level card API.
+4. `UnifiedCardModal` is the only approved modal content shell for card-driven surfaces.
+5. Semantic tones are the only approved product color vocabulary.
+6. Typography is centrally defined only.
+7. Interaction behavior is centralized only.
+8. Shared UI rules are enforced in code and by audit, not by convention alone.
 
 ## Semantic Tones
 
-Approved tones:
+Allowed tones:
+
 - `ingress`
 - `synthesis`
 - `knowmore`
@@ -32,19 +50,21 @@ Approved tones:
 - `review`
 - `neutral`
 
-Migration aliases:
-- `brand`, `blue` -> `ingress`
-- `indigo` -> `synthesis`
-- `teal`, `green`, `knowledge` -> `knowmore`
-- `violet`, `purple` -> `strategy`
-- `cyan`, `execution` -> `checklist`
-- `orange`, `amber` -> `review`
+Feature code must not use legacy hue aliases as product semantics.
 
 ## Surface Architecture
 
-Use the semantic helper layer in `src/lib/semantic-theme.ts`.
+Approved hierarchy:
 
-Primary helpers:
+- Mantine `Card`
+- `UnifiedCard`
+- `UnifiedCardBody`
+- `UnifiedCardSection`
+- `UnifiedCardActions`
+- `UnifiedCardFooter`
+
+Shared helper layer:
+
 - `getSemanticSurfaceStyle(tone, { elevated })`
 - `getSemanticHoverStyle(tone)`
 - `getSemanticInsetStyle(tone)`
@@ -52,52 +72,94 @@ Primary helpers:
 - `getSidebarActiveStyle(tone)`
 - `getSidebarHoverStyle(tone)`
 
-State helpers:
-- `resolveStateTone(state)`
-- `resolveStateTextColor(state)`
+Rules:
+
+- feature code uses `UnifiedCard` for product card surfaces
+- inset sections use `UnifiedCardSection` or approved semantic helpers
+- callouts use `getSemanticCalloutStyle(...)`
+- feature code must not inject arbitrary visual styling into the `UnifiedCard` family
+- raw `Paper` surfaces are not an approved product card path
+
+## Typography Architecture
+
+Typography sources of truth:
+
+- Mantine theme sizing and heading scale in `providers.tsx`
+- DS text primitives in `typography.tsx`
+
+Approved primitives:
+
+- `PageTitle`
+- `SectionTitle`
+- `CardTitle`
+- `BodyText`
+- `MetaText`
+- `LabelText`
+- `ActionLabel`
 
 Rules:
-- Cards and panels should use semantic surfaces, not one-off rgba backgrounds.
-- Inset areas inside cards should use `getSemanticInsetStyle(...)`.
-- Annotation or highlighted note panels should use `getSemanticCalloutStyle(...)`.
-- Navigation active states must use the sidebar semantic helpers.
+
+- no feature-level `fontSize`
+- no feature-level `letterSpacing`
+- no ad hoc title hierarchy
+- if a new text role is needed, add a DS primitive first
+
+## Interaction Architecture
+
+Approved interaction source:
+
+- `applySurfaceInteractionHandlers(...)`
+- shared card/nav primitives
+
+Rules:
+
+- no local hover recipes for product surfaces
+- no local transition declarations
+- no Mantine `Transition` wrappers for product surfaces
+- global no-motion rule remains authoritative
 
 ## Theme Defaults
 
-Defined centrally in `src/components/providers.tsx`:
-- `Inter` typography
+Centrally defined in `providers.tsx`:
+
+- `Inter` font family
 - `md` default radius
-- semantic color scales
-- component defaults for buttons, cards, badges, text, titles, inputs, modals, and dividers
+- shared semantic color scales
+- standardized `Button`, `Badge`, `Card`, `ThemeIcon`, `Text`, `Title`, `Input`, `Modal`, `Divider`
 
-## Prohibited Patterns
+## Forbidden Patterns
 
-The following are treated as design-system violations:
-- raw legacy color props like `color="brand"` or `color="orange"`
-- raw Mantine dark palette references like `var(--mantine-color-dark-4)`
-- undefined or ad hoc surface tokens like `var(--surface-subtle)`
-- hand-rolled translucent glass panels such as `rgba(255,255,255,0.03)` or `rgba(0,0,0,0.2)`
-- old `light-dark(...)` helpers
-- raw `red` state styling
-- local transition declarations or Mantine `Transition` wrappers
-- local parallel styling systems
+- `color="brand"`
+- `color="blue"`
+- `color="green"`
+- `color="orange"`
+- `color="violet"`
+- `color="cyan"`
+- `color="teal"`
+- `color="indigo"`
+- raw `Paper` product surfaces
+- feature-level raw `Card` product surfaces
+- direct `style` visual overrides on `UnifiedCard` family components
+- raw Mantine dark palette references for product styling
+- local `rgba(...)` glass recipes
+- local transitions
+- custom local typography scales
 
-## Global Information
+## Enforcement
 
-- Product UI uses a semantic multi-tone system, not the older marketing green-primary palette.
-- The marketing brand doc is not the product-theme source of truth.
-- `scripts/semantic-audit.mjs` should be expanded whenever a new category of drift is discovered.
+Required verification:
 
-## Architecture Guidance
+```bash
+npm run audit:docs
+npm run lint
+npm run audit:semantic
+npx tsc --noEmit
+```
 
-When building new UI:
-- start with the semantic tone
-- choose the matching shared surface helper
-- rely on theme defaults for component behavior
-- only use local style objects for layout or one-off structural constraints
+If a new drift pattern is discovered:
 
-When refactoring old UI:
-- replace raw color props with semantic tones
-- replace local rgba surfaces with semantic helper functions
-- remove duplicate border/radius/shadow logic
-- add new audit rules when a pattern is proven harmful
+1. fix code
+2. update this document
+3. update [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
+4. harden [scripts/semantic-audit.mjs](/Users/Shared/Projects/checklist/scripts/semantic-audit.mjs)
+5. update [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)

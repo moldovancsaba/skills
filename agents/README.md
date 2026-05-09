@@ -1,89 +1,33 @@
-# CHECKLIST Agent Configurations
+# CHECKLIST Agents
 
-This directory contains the agent configurations for the Strategic Intelligence OS.
+This directory contains agent configurations and prompts.
 
-## Agents to Create
+Before editing any agent prompt, role, workflow, or operating instruction, read:
 
-### 1. Intelligence Orchestrator
-Reports to: System Operator (CEO)
+1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
+2. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
+3. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
 
-```json
-{
-  "name": "Intelligence Orchestrator",
-  "role": "intelligence_orchestrator", 
-  "title": "Chief Strategy Officer",
-  "icon": "brain",
-  "adapterType": "codex_local",
-  "adapterConfig": {
-    "model": "o4-mini",
-    "cwd": "./checklist-local"
-  },
-  "capabilities": "Owns strategic synthesis, coordinates entity specialists, generates high-yield NBAs"
-}
-```
+## Agent Rules
 
-### 2. Product & Value Specialist
-Reports to: Intelligence Orchestrator
+- agents must follow the repository documentation hierarchy
+- agents must not invent stack rules that contradict the rulebook
+- agents must treat the handover and rulebook as AI brain memory
+- if agent-facing operating behavior changes, update the AI brain docs in the same work
 
-```json
-{
-  "name": "Product Specialist",
-  "role": "product_specialist",
-  "title": "Strategic Product Analyst",
-  "icon": "package",
-  "adapterType": "codex_local",
-  "adapterConfig": {
-    "model": "o4-mini"
-  },
-  "capabilities": "Analyzes products, identifies value gaps, recommends strategic improvements"
-}
-```
+## Current Expectations
 
-### 3. Market & Customer Specialist
-Reports to: Intelligence Orchestrator
+- Mantine-only product UI
+- `UnifiedCard` as the approved feature-level card API
+- centralized typography
+- centralized interaction behavior
+- semantic tones only
 
-```json
-{
-  "name": "Market Specialist", 
-  "role": "market_specialist",
-  "title": "Market Insights Analyst",
-  "icon": "users",
-  "adapterType": "codex_local",
-  "adapterConfig": {
-    "model": "o4-mini"
-  },
-  "capabilities": "Analyzes market data, identifies segments, harvests high-confidence insights"
-}
-```
+## Existing Prompt Files
 
-### 4. Competitive Intelligence Specialist
-Reports to: Intelligence Orchestrator
+- `agents/prompts/orchestrator.md`
+- `agents/prompts/product-specialist.md`
+- `agents/prompts/customer-specialist.md`
+- `agents/prompts/competitor-specialist.md`
 
-```json
-{
-  "name": "Competitive Specialist",
-  "role": "competitive_specialist", 
-  "title": "Strategic Intelligence Agent",
-  "icon": "search",
-  "adapterType": "codex_local",
-  "adapterConfig": {
-    "model": "o4-mini"
-  },
-  "capabilities": "Monitors competitors, analyzes positioning, flags strategic threats"
-}
-```
-
-## Agent Communication Flow
-
-1. Operator synchronizes data (products, customers, competitors, files).
-2. Entity specialists analyze their respective domains.
-3. Orchestrator synthesizes findings and generates high-yield checklist items (NBAs).
-4. Operator sees intelligence cards and can accept/decline actions.
-
-## Setup Required
-
-Run via system API or CLI:
-```bash
-# Initialize agents via the command line
-# Requires: SYSTEM_INGEST_SECRET and COMPANY_ID
-```
+Any future prompt or agent role must align with the current repository rulebook before it is considered valid.

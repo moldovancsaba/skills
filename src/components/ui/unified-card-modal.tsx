@@ -1,12 +1,13 @@
 'use client';
 
 import type { ReactNode } from "react";
-import { Modal, Group, Text, Badge, Stack } from "@mantine/core";
+import { Modal, Group, Badge, Stack } from "@mantine/core";
 import {
   getModuleTheme,
   getSemanticSurfaceStyle,
   type ModuleTone,
 } from "@/lib/semantic-theme";
+import { CardTitle, MetaText } from "@/components/ui/typography";
 
 type UnifiedCardModalProps = {
   opened: boolean;
@@ -68,12 +69,8 @@ export function UnifiedCardModal({
       title={
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Stack gap={4}>
-            <Text fw={650}>{title}</Text>
-            {subtitle ? (
-              <Text size="xs" c="var(--text-secondary)">
-                {subtitle}
-              </Text>
-            ) : null}
+            <CardTitle>{title}</CardTitle>
+            {subtitle ? <MetaText c="var(--text-secondary)">{subtitle}</MetaText> : null}
           </Stack>
           {badge ? (
             <Badge variant="light" color={tone === "neutral" ? "gray" : tone}>

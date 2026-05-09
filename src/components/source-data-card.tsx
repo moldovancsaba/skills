@@ -40,8 +40,6 @@ const typeIcon = {
   file: FileUp,
 } satisfies Record<DataType, typeof ScrollText>;
 
-const DATA_CARD_COLOR = "blue" as const;
-
 export function SourceDataCard({
   id,
   publicId,

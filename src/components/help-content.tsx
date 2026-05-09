@@ -6,19 +6,18 @@ import {
   Accordion, 
   Badge, 
   Button, 
-  Card, 
   Text, 
-  Title, 
   Stack, 
   Group, 
   ThemeIcon,
   rem,
   SimpleGrid,
   Box,
-  Paper,
   Anchor
 } from "@mantine/core";
 import { Notice, PageShell } from "@/components/ui/app-shell";
+import { BodyText, CardTitle, MetaText, PageTitle } from "@/components/ui/typography";
+import { UnifiedCard, UnifiedCardBody, UnifiedCardSection } from "@/components/ui/unified-card";
 import Link from "next/link";
 import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
@@ -32,11 +31,9 @@ export function ManualPageContent() {
               <ThemeIcon color="ingress">
                 <FileText size={20} />
               </ThemeIcon>
-              <Title order={1}>Operations Manual</Title>
+              <PageTitle>Operations Manual</PageTitle>
             </Group>
-            <Text size="xs" c="dimmed" ml={rem(44)}>
-              System Guidance & Best Practices
-            </Text>
+            <MetaText ml={rem(44)}>System Guidance & Best Practices</MetaText>
           </Stack>
           <Button component={Link} href="/faq" variant="subtle" color="gray" leftSection={<CircleHelp size={16} />}>
             Open FAQ
@@ -48,51 +45,55 @@ export function ManualPageContent() {
         </Notice>
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-          <Card p="xl" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
-            <Stack gap="lg">
-              <Title order={3}>Source Priority Layer</Title>
-              <Stack gap="sm">
-                {[
-                  "Product and pricing pages",
-                  "Competitor pricing and positioning pages",
-                  "Customer notes and interview summaries",
-                  "Sales decks, briefs, and internal files"
-                ].map((item, i) => (
-                  <Group key={i} gap="sm" wrap="nowrap">
-                    <ThemeIcon size="xs" variant="subtle" color="ingress" >
-                      <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
-                    </ThemeIcon>
-                    <Text>{item}</Text>
-                  </Group>
-                ))}
+          <UnifiedCard tone="neutral">
+            <UnifiedCardBody>
+              <Stack gap="lg">
+                <CardTitle>Source Priority Layer</CardTitle>
+                <Stack gap="sm">
+                  {[
+                    "Product and pricing pages",
+                    "Competitor pricing and positioning pages",
+                    "Customer notes and interview summaries",
+                    "Sales decks, briefs, and internal files"
+                  ].map((item, i) => (
+                    <Group key={i} gap="sm" wrap="nowrap">
+                      <ThemeIcon size="xs" variant="subtle" color="ingress" >
+                        <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
+                      </ThemeIcon>
+                      <BodyText c="var(--text-primary)">{item}</BodyText>
+                    </Group>
+                  ))}
+                </Stack>
               </Stack>
-            </Stack>
-          </Card>
-          <Card p="xl" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
-            <Stack gap="lg">
-              <Title order={3}>Calibration Vocabulary</Title>
-              <Stack gap="sm">
-                {[
-                  "Already doing this",
-                  "Not relevant for this company",
-                  "Too early, revisit after summer",
-                  "Blocked until launch or budget approval"
-                ].map((item, i) => (
-                  <Group key={i} gap="sm" wrap="nowrap">
-                    <ThemeIcon size="xs" variant="subtle" color="review" >
-                      <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
-                    </ThemeIcon>
-                    <Text>{item}</Text>
-                  </Group>
-                ))}
+            </UnifiedCardBody>
+          </UnifiedCard>
+          <UnifiedCard tone="neutral">
+            <UnifiedCardBody>
+              <Stack gap="lg">
+                <CardTitle>Calibration Vocabulary</CardTitle>
+                <Stack gap="sm">
+                  {[
+                    "Already doing this",
+                    "Not relevant for this company",
+                    "Too early, revisit after summer",
+                    "Blocked until launch or budget approval"
+                  ].map((item, i) => (
+                    <Group key={i} gap="sm" wrap="nowrap">
+                      <ThemeIcon size="xs" variant="subtle" color="review" >
+                        <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
+                      </ThemeIcon>
+                      <BodyText c="var(--text-primary)">{item}</BodyText>
+                    </Group>
+                  ))}
+                </Stack>
               </Stack>
-            </Stack>
-          </Card>
+            </UnifiedCardBody>
+          </UnifiedCard>
         </SimpleGrid>
 
         <Stack gap="xl">
           {manualSections.map((section) => (
-            <Paper key={section.id} p="xl" style={{ position: 'relative', ...getSemanticSurfaceStyle("neutral", { elevated: false }) }}>
+            <UnifiedCard key={section.id} tone="neutral" layoutStyle={{ position: "relative" }}>
               <Badge 
                 color="ingress" 
                 size="xs" 
@@ -101,33 +102,35 @@ export function ManualPageContent() {
                 {section.title}
               </Badge>
               <Stack gap="lg" mt="sm">
-                <Title order={3}>{section.summary}</Title>
+                <CardTitle>{section.summary}</CardTitle>
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                   {section.bullets.map((bullet) => (
-                    <Paper key={bullet} p="md" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
-                      <Text>{bullet}</Text>
-                    </Paper>
+                    <UnifiedCardSection key={bullet} tone="neutral">
+                      <BodyText c="var(--text-primary)">{bullet}</BodyText>
+                    </UnifiedCardSection>
                   ))}
                 </SimpleGrid>
               </Stack>
-            </Paper>
+            </UnifiedCard>
           ))}
         </Stack>
 
-        <Card p="xl"   ta="center" style={{ borderStyle: 'dashed' }}>
-          <Stack align="center" gap="md">
-            <Title order={3}>Need rapid operational support?</Title>
-            <Button 
-              component={Link} 
-              href="/faq" 
-              variant="light" 
-              color="ingress"
-              leftSection={<CircleHelp size={18} />}
-            >
-              Access Intelligence FAQ
-            </Button>
-          </Stack>
-        </Card>
+        <UnifiedCard tone="neutral" layoutStyle={{ borderStyle: "dashed" }}>
+          <UnifiedCardBody>
+            <Stack align="center" gap="md">
+              <CardTitle>Need rapid operational support?</CardTitle>
+              <Button 
+                component={Link} 
+                href="/faq" 
+                variant="light" 
+                color="ingress"
+                leftSection={<CircleHelp size={18} />}
+              >
+                Access Intelligence FAQ
+              </Button>
+            </Stack>
+          </UnifiedCardBody>
+        </UnifiedCard>
       </Stack>
     </PageShell>
   );
@@ -143,11 +146,9 @@ export function FaqPageContent() {
               <ThemeIcon color="synthesis">
                 <HelpCircle size={20} />
               </ThemeIcon>
-              <Title order={1}>Intelligence FAQ</Title>
+              <PageTitle>Intelligence FAQ</PageTitle>
             </Group>
-            <Text size="xs" c="dimmed" ml={rem(44)}>
-              Core Protocol Inquiries
-            </Text>
+            <MetaText ml={rem(44)}>Core Protocol Inquiries</MetaText>
           </Stack>
           <Anchor component={Link} href="/" size="xs" c="dimmed">
             Return to Dashboard →
@@ -158,22 +159,24 @@ export function FaqPageContent() {
           If the intelligence output feels weak, check source quality and calibration history first. System performance is a direct reflection of evidence fidelity.
         </Notice>
 
-        <Paper p="xl" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
+        <UnifiedCard tone="neutral">
+          <UnifiedCardBody>
           <Accordion variant="separated" >
             {faqItems.map((item) => (
               <Accordion.Item key={item.id} value={item.id} style={{ border: 'none', marginBottom: rem(12) }}>
                 <Accordion.Control>
-                  <Text size="sm">{item.question}</Text>
+                  <BodyText c="var(--text-primary)">{item.question}</BodyText>
                 </Accordion.Control>
                 <Accordion.Panel>
-                  <Paper p="md" style={{ ...getSemanticSurfaceStyle("neutral", { elevated: false }), borderLeft: '3px solid var(--mantine-color-ingress-6)' }}>
-                    <Text c="dimmed">{item.answer}</Text>
-                  </Paper>
+                  <UnifiedCardSection tone="neutral">
+                    <BodyText>{item.answer}</BodyText>
+                  </UnifiedCardSection>
                 </Accordion.Panel>
               </Accordion.Item>
             ))}
           </Accordion>
-        </Paper>
+          </UnifiedCardBody>
+        </UnifiedCard>
       </Stack>
     </PageShell>
   );

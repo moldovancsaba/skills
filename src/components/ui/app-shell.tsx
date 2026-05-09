@@ -5,8 +5,6 @@ import type { ReactNode } from "react";
 import { IconArrowLeft as ArrowLeft } from "@tabler/icons-react";
 import { 
   Container, 
-  Title, 
-  Text, 
   Group, 
   Stack, 
   SimpleGrid, 
@@ -24,6 +22,7 @@ import {
 } from "@mantine/core";
 
 import { DashboardChart } from "@/components/dashboard-chart";
+import { BodyText, CardTitle, LabelText, MetaText, PageTitle, SectionTitle } from "@/components/ui/typography";
 import {
   getModuleCssVars,
   getSemanticHoverStyle,
@@ -35,6 +34,7 @@ import {
   toneToMantineColor,
 } from "@/lib/semantic-theme";
 import { resolveStateTone } from "@/lib/ui-state";
+import { applySurfaceInteractionHandlers } from "@/lib/ui-interactions";
 
 type PageShellProps = {
   children: ReactNode;
@@ -88,12 +88,8 @@ export function PageHeader({
               {backLabel}
             </Anchor>
           )}
-          <Title order={1}>
-            {title}
-          </Title>
-            <Text c="dimmed">
-              {description}
-            </Text>
+          <PageTitle>{title}</PageTitle>
+          {description ? <BodyText>{description}</BodyText> : null}
         </Stack>
         {actions && <Group gap="sm">{actions}</Group>}
       </Group>
@@ -120,7 +116,7 @@ export function Notice({
       title={title} 
       icon={Icon && <Icon size={16} />}
     >
-      <Text size="sm">{children}</Text>
+      <BodyText c="var(--text-primary)">{children}</BodyText>
     </Alert>
   );
 }
@@ -184,7 +180,7 @@ export function MetricCard({
   label,
   value,
   detail,
-  color = "brand",
+  color = "ingress",
 }: MetricCardProps) {
   const tone = resolveModuleTone(color);
   const mantineColor = resolveMantineColor(color);
@@ -197,20 +193,12 @@ export function MetricCard({
             <Icon size={20} />
           </ThemeIcon>
           
-          <Text c="var(--text-secondary)" fw={500}>
-            {label}
-          </Text>
+          <MetaText c="var(--text-secondary)">{label}</MetaText>
         </Group>
 
         <Stack gap={4}>
-          <Text size="h2" fw={700}>
-            {value}
-          </Text>
-          {detail && (
-            <Text c={`var(--mantine-color-${mantineColor}-4)`}>
-              {detail}
-            </Text>
-          )}
+          <SectionTitle>{value}</SectionTitle>
+          {detail ? <BodyText c={`var(--mantine-color-${mantineColor}-4)`}>{detail}</BodyText> : null}
         </Stack>
       </Stack>
     </Card>
@@ -249,10 +237,8 @@ export function EmptyState({
           <Icon size={32} />
         </ThemeIcon>
         <Stack gap={4}>
-          <Title order={3}>{title}</Title>
-          <Text size="sm" c="dimmed" maw={400} mx="auto">
-            {description}
-          </Text>
+          <CardTitle>{title}</CardTitle>
+          {description ? <BodyText ta="center" maw={400} mx="auto">{description}</BodyText> : null}
         </Stack>
         <Group gap="sm">
           {primaryAction}
@@ -279,7 +265,7 @@ export function LinkCard({
   title,
   description,
   metric,
-  variant = "blue",
+  variant = "ingress",
   chartData,
 }: LinkCardProps) {
   const tone = resolveModuleTone(variant);
@@ -300,10 +286,10 @@ export function LinkCard({
           overflow: "hidden",
         }}
         onMouseEnter={(event) => {
-          Object.assign((event.currentTarget as HTMLDivElement).style, hoverStyle);
+          applySurfaceInteractionHandlers(event, hoverStyle);
         }}
         onMouseLeave={(event) => {
-          Object.assign((event.currentTarget as HTMLDivElement).style, {
+          applySurfaceInteractionHandlers(event, {
             ...baseStyle,
             ...getModuleCssVars(tone),
             overflow: "hidden",
@@ -317,19 +303,13 @@ export function LinkCard({
               <Icon size={20} />
             </ThemeIcon>
             {metric !== undefined && (
-              <Text c={`var(--mantine-color-${mantineColor}-4)`} fw={600}>
-                {metric}
-              </Text>
+              <LabelText c={`var(--mantine-color-${mantineColor}-4)`}>{metric}</LabelText>
             )}
           </Group>
 
           <Stack gap={6}>
-            <Text fw={650} size="lg">
-              {title}
-            </Text>
-            <Text c="var(--text-secondary)" lineClamp={2}>
-              {description}
-            </Text>
+            <CardTitle>{title}</CardTitle>
+            {description ? <BodyText lineClamp={2}>{description}</BodyText> : null}
           </Stack>
 
           {chartData && chartData.length > 0 && (
@@ -342,9 +322,7 @@ export function LinkCard({
           )}
 
           <Group justify="flex-end" mt="auto" pt="md">
-            <Text size="xs" c={`var(--mantine-color-${mantineColor}-4)`} fw={600}>
-              Access Layer →
-            </Text>
+            <MetaText c={`var(--mantine-color-${mantineColor}-4)`}>Access Layer →</MetaText>
           </Group>
         </Stack>
       </Card>
@@ -393,7 +371,7 @@ export function PipelineAccentHeader({
             <Icon size={20} />
           </ThemeIcon>
         )}
-        <Title order={2}>{title}</Title>
+        <SectionTitle>{title}</SectionTitle>
       </Group>
     </Stack>
   );

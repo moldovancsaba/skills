@@ -1,8 +1,8 @@
 export function getIceBadgeColor(iceScore: number): string {
-  if (iceScore >= 700) return "orange";
-  if (iceScore >= 500) return "violet";
-  if (iceScore >= 250) return "blue";
-  if (iceScore >= 100) return "cyan";
+  if (iceScore >= 700) return "review";
+  if (iceScore >= 500) return "strategy";
+  if (iceScore >= 250) return "ingress";
+  if (iceScore >= 100) return "checklist";
   return "gray";
 }
 

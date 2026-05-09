@@ -3,7 +3,7 @@ const path = require("path");
 const { getWorkerConfig, similarity, hashValue } = require("./shared");
 const { enforceLanguagePolicy } = require("./language-validator");
 const { fetchUrlContent } = require("./fetcher");
-const { CandidateState, toArchived, toGenerated } = require("./lifecycle");
+const { CandidateState, ReworkRoute, toArchived, toGenerated, toRework } = require("./lifecycle");
 const { recomputeFrontier, refillChecklistFromBacklog: frontierRefill } = require("./frontier");
 const {
   calculateKnowledgeIceScore,
@@ -15,6 +15,7 @@ const {
   deriveDataCardScoreProfile,
   deriveTopicCardScoreProfile,
 } = require("../../src/lib/upstream-card-scoring");
+const { detectEvidenceConflict, ensureCitationSnapshotsForEvidenceBatch } = require("./citations");
 
 /**
  * Shared maintenance and repair engine for scoring, lifecycle, and integrity work.
@@ -244,7 +245,7 @@ async function rescorePeriodicCards(prisma, company) {
   const activeWhere = {
     companyId: cid,
     activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
-    processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+    processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "REVIEW"] },
   };
   const auditTimestamp = new Date();
 
@@ -403,6 +404,196 @@ async function rescorePeriodicUpstreamCards(prisma, company) {
   return totalAudited;
 }
 
+async function backfillFlashcardCitationSnapshots(prisma, company) {
+  const cid = company.id;
+  const batchSize = await getWorkerConfig(prisma, company, "rescore_batch_size", 3);
+
+  const flashcards = await prisma.flashcard.findMany({
+    where: {
+      companyId: cid,
+      activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+      citationSnapshotIds: { isEmpty: true },
+    },
+    include: {
+      sources: true,
+    },
+    orderBy: { updatedAt: "asc" },
+    take: batchSize,
+  });
+
+  let updated = 0;
+  for (const flashcard of flashcards) {
+    const sourceIds = flashcard.sources
+      .filter((source) => source.sourceType === "SOURCE")
+      .map((source) => source.sourceId);
+    if (sourceIds.length === 0) continue;
+
+    const evidenceBatch = await prisma.source.findMany({
+      where: {
+        companyId: cid,
+        id: { in: sourceIds },
+      },
+    });
+    if (evidenceBatch.length === 0) continue;
+
+    const snapshots = await ensureCitationSnapshotsForEvidenceBatch(prisma, evidenceBatch);
+    const conflict = detectEvidenceConflict(evidenceBatch);
+
+    await prisma.flashcard.update({
+      where: { id: flashcard.id },
+      data: {
+        citationSnapshotIds: snapshots.map((snapshot) => snapshot.id),
+        conflictDetected: conflict.detected,
+        conflictSummary: conflict.summary,
+      },
+    });
+    updated += 1;
+  }
+
+  if (updated > 0) {
+    console.log(`[MAINTENANCE] ${company.name}: Backfilled citation snapshots on ${updated} flashcard(s).`);
+  }
+
+  return updated;
+}
+
+async function revisitOldestModifiedCandidates(prisma, company) {
+  const cid = company.id;
+  const batchSize = await getWorkerConfig(prisma, company, "maintenance_revisit_batch_size", 3);
+
+  const candidates = await prisma.nBAItem.findMany({
+    where: {
+      companyId: cid,
+      activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+      candidateState: { in: [CandidateState.GENERATED, CandidateState.REFINED, CandidateState.EVALUATED] },
+      status: { notIn: ["ARCHIVED", "COMPLETED"] },
+      OR: [
+        { userAnnotation: { not: null } },
+        {
+          feedback: {
+            some: {
+              OR: [
+                { annotation: { not: null } },
+                { modifiedTitle: { not: null } },
+                { modifiedDescription: { not: null } },
+              ],
+            },
+          },
+        },
+      ],
+    },
+    include: {
+      feedback: {
+        orderBy: { createdAt: "desc" },
+        take: 3,
+      },
+    },
+    orderBy: { updatedAt: "asc" },
+    take: batchSize * 4,
+  });
+
+  let queued = 0;
+  for (const candidate of candidates) {
+    if (queued >= batchSize) break;
+
+    const latestFeedback = candidate.feedback[0] || null;
+    const unresolved =
+      Boolean(candidate.userAnnotation) ||
+      Boolean(latestFeedback?.annotation) ||
+      Boolean(latestFeedback?.modifiedTitle) ||
+      Boolean(latestFeedback?.modifiedDescription);
+
+    if (!unresolved) continue;
+
+    await prisma.nBAItem.update({
+      where: { id: candidate.id },
+      data: {
+        ...toRework(
+          ReworkRoute.OLD_MODIFIED_UNRESOLVED,
+          "MAINTENANCE: oldest modified candidate with unresolved human correction",
+        ),
+        processingStatus: "DRAFT",
+        lastAuditedAt: null,
+      },
+    });
+    queued += 1;
+  }
+
+  console.log(`[MAINTENANCE] ${company.name}: revisit_oldest_modified_candidates queued ${queued} item(s).`);
+  return queued;
+}
+
+async function revisitDeclinedHighPotentialCandidates(prisma, company) {
+  const cid = company.id;
+  const batchSize = await getWorkerConfig(prisma, company, "maintenance_revisit_batch_size", 3);
+  const hopelessThreshold = await getWorkerConfig(prisma, company, "maintenance_decline_hopeless_threshold", 3);
+  const highPotentialIce = await getWorkerConfig(prisma, company, "maintenance_decline_high_potential_ice", 250);
+
+  const candidates = await prisma.nBAItem.findMany({
+    where: {
+      companyId: cid,
+      activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+      status: { notIn: ["ARCHIVED", "COMPLETED"] },
+      processingStatus: { in: ["DECLINED", "DRAFT", "CHECKED", "VERIFIED"] },
+      feedbackScore: { lt: 0 },
+      iceScore: { gte: highPotentialIce },
+    },
+    orderBy: { updatedAt: "asc" },
+    take: batchSize * 6,
+  });
+
+  let queued = 0;
+  for (const candidate of candidates) {
+    if (queued >= batchSize) break;
+
+    const declineEvents = await prisma.declineEvent.findMany({
+      where: { companyId: cid, nbaItemId: candidate.id },
+      orderBy: { createdAt: "desc" },
+      take: hopelessThreshold + 1,
+    });
+    if (declineEvents.length === 0) continue;
+
+    const latestDecline = declineEvents[0];
+    const unrecoverableClasses = new Set(["WRONG", "IRRELEVANT", "ALREADY_DONE", "IGNORANT_OUTPUT"]);
+    if (unrecoverableClasses.has(String(latestDecline.declineClass))) {
+      continue;
+    }
+
+    const latestMemory = await prisma.memoryEntry.findFirst({
+      where: { companyId: cid, active: true },
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true },
+    });
+
+    const memoryChangedSinceDecline =
+      latestMemory?.updatedAt && latestMemory.updatedAt > latestDecline.createdAt;
+    const hopeless =
+      declineEvents.length >= hopelessThreshold &&
+      !memoryChangedSinceDecline;
+
+    if (hopeless) {
+      continue;
+    }
+
+    await prisma.nBAItem.update({
+      where: { id: candidate.id },
+      data: {
+        ...toRework(
+          ReworkRoute.DECLINE_INFORMED_REWORK,
+          "MAINTENANCE: declined high-potential candidate recovered for another pass",
+        ),
+        processingStatus: "DRAFT",
+        activityState: "ACTIVE",
+        lastAuditedAt: null,
+      },
+    });
+    queued += 1;
+  }
+
+  console.log(`[MAINTENANCE] ${company.name}: revisit_declined_high_potential_candidates queued ${queued} item(s).`);
+  return queued;
+}
+
 // --- LIFECYCLE MANAGEMENT ---
 
 /**
@@ -455,9 +646,12 @@ async function runMaintenance(prisma, company) {
   // 0.25 Periodic rescoring across all active card layers with oldest-first queueing.
   await rescorePeriodicCards(prisma, company);
   await rescorePeriodicUpstreamCards(prisma, company);
+  await backfillFlashcardCitationSnapshots(prisma, company);
 
   // 0.5 Global inconsistency scrub
   await scrubCompanyRejections(prisma, cid);
+  await revisitOldestModifiedCandidates(prisma, company);
+  await revisitDeclinedHighPotentialCandidates(prisma, company);
 
   // 1. Flashcards Ageing
   // EXPIRED (7 days)
@@ -1004,6 +1198,9 @@ module.exports = {
   processUserFeedback,
   rescorePeriodicCards,
   rescorePeriodicUpstreamCards,
+  backfillFlashcardCitationSnapshots,
+  revisitOldestModifiedCandidates,
+  revisitDeclinedHighPotentialCandidates,
   scrubCompanyRejections,
   mergeDuplicates,
   enrichOldestCards,

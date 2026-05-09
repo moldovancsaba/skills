@@ -57,7 +57,57 @@ function computeFrontierScore(candidate) {
   // userPriority is represented by sortOrder. If sortOrder < 0, it acts as a massive boost.
   const userPriorityMultiplier = candidate.sortOrder < 0 ? Math.abs(candidate.sortOrder) * 10 : 1.0;
 
-  return stateWeight * qualityWeight * urgencyWeight * freshnessWeight * feedbackWeight * priorityWeight * userPriorityMultiplier;
+  const memoryMultiplier = candidate._memoryMultiplier ?? 1.0;
+
+  return stateWeight * qualityWeight * urgencyWeight * freshnessWeight * feedbackWeight * priorityWeight * userPriorityMultiplier * memoryMultiplier;
+}
+
+function tokenize(value) {
+  return String(value || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/g)
+    .filter((token) => token.length >= 4);
+}
+
+function computeFrontierMemoryMultiplier(candidate, entries = []) {
+  if (!entries.length) return 1.0;
+
+  const candidateTokens = new Set([
+    ...tokenize(candidate.title),
+    ...tokenize(candidate.description),
+    ...((candidate.hashtags || []).map((tag) => String(tag || "").toLowerCase().replace(/^#/, ""))),
+  ]);
+
+  if (candidateTokens.size === 0) return 1.0;
+
+  let multiplier = 1.0;
+  for (const entry of entries) {
+    const entryTokens = tokenize(entry.lessonContent);
+    const overlap = entryTokens.filter((token) => candidateTokens.has(token)).length;
+    if (overlap < 2) continue;
+
+    if (entry.lessonType === "HARD_CONSTRAINT" || entry.lessonType === "ANTI_PATTERN") {
+      multiplier *= 0.9;
+    } else if (entry.lessonType === "SUCCESS_PATTERN" || entry.lessonType === "SOFT_PREFERENCE") {
+      multiplier *= 1.08;
+    }
+  }
+
+  return Math.max(0.6, Math.min(1.4, multiplier));
+}
+
+async function loadFrontierMemoryEntries(prisma, companyId) {
+  const thirtyDaysAgo = new Date(Date.now() - ROT_DAYS * 24 * 60 * 60 * 1000 * 2);
+  return prisma.memoryEntry.findMany({
+    where: {
+      companyId,
+      active: true,
+      lessonType: { in: ["HARD_CONSTRAINT", "ANTI_PATTERN", "SOFT_PREFERENCE", "SUCCESS_PATTERN"] },
+      createdAt: { gte: thirtyDaysAgo },
+    },
+    orderBy: [{ weight: "desc" }, { updatedAt: "desc" }],
+    take: 20,
+  });
 }
 
 function computeImpliedFreshness(candidate) {
@@ -157,6 +207,7 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
 
   // 1. Load all eligible candidates
   const all = await loadEligibleCandidates(prisma, companyId);
+  const frontierMemoryEntries = await loadFrontierMemoryEntries(prisma, companyId);
 
   if (all.length === 0) {
     console.log(`[KANBAN] ${company.name}: No eligible candidates found.`);
@@ -164,7 +215,14 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   }
 
   // 2. Attach scores
-  const scored = all.map(c => ({ ...c, _frontierScore: computeFrontierScore(c) }));
+  const scored = all.map((candidate) => {
+    const memoryMultiplier = computeFrontierMemoryMultiplier(candidate, frontierMemoryEntries);
+    return {
+      ...candidate,
+      _memoryMultiplier: memoryMultiplier,
+      _frontierScore: computeFrontierScore({ ...candidate, _memoryMultiplier: memoryMultiplier }),
+    };
+  });
 
   // 3. Remove rotten items (unless they are the last resort)
   const fresh = scored.filter(c => !isRotten(c));
@@ -256,6 +314,7 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
         backlogThreshold: 250,
         roadmapThreshold: 100,
         manualPriority: item.sortOrder < 0,
+        memoryMultiplier: item._memoryMultiplier ?? 1,
       },
       rationale: item.sortOrder < 0 ? "User-prioritized hard anchor respected during frontier recompute" : "Column assigned by ICE threshold and frontier score",
       teachingWeight: targetColumn === "CHECKLIST" ? 80 : 60,

@@ -42,6 +42,7 @@ Approved product UI system:
 - first-class entity card surfaces must expose canonical ICE through the shared card header contract
 - semantic tones only for product color meaning
 - ICE updates, rescoring, and repair must run through shared scoring contracts and oldest-first maintenance or queue flows, not local ad hoc math
+- source-backed knowledge must persist durable citation snapshots and explicit conflict state; URL-only provenance is not accepted
 
 ## 3. What We Do Not Use
 

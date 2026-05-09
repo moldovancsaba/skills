@@ -38,6 +38,7 @@ model Company {
   intelligenceSnapshot IntelligenceSnapshot?
   strategicFeedback    StrategicFeedback[]
   pipelineJobs         PipelineJob[]
+  citationSnapshots    CitationSnapshot[]
   
   // Profile Validation Fields
   website             String?
@@ -156,6 +157,9 @@ model Flashcard {
   hashtagEvaluationPending Boolean              @default(true)
   lastHashtagError        String?
   evidence                Json?
+  citationSnapshotIds     String[]               @default([])
+  conflictDetected        Boolean                @default(false)
+  conflictSummary         String?
   feedbackConfidenceDelta Int                   @default(0)
   feedbackWeightDelta     Int                   @default(0)
   fingerprint             String?
@@ -181,6 +185,27 @@ model Flashcard {
 
   @@unique([companyId, fingerprint])
   @@index([companyId, processingStatus, cycleRunId])
+}
+
+model CitationSnapshot {
+  id            String   @id @default(uuid()) @map("_id")
+  companyId      String
+  sourceId       String?
+  sourcePublicId Int?
+  sourceType     String?
+  sourceName     String?
+  normalizedUrl  String?
+  excerpt        String
+  contentHash    String
+  fetchedAt      DateTime
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, sourceId, fetchedAt])
+  @@index([companyId, normalizedUrl, fetchedAt])
+  @@index([companyId, contentHash])
 }
 
 model FlashcardAction {
@@ -986,6 +1011,8 @@ enum ReworkRoute {
   MERGE           // Combine with a sibling candidate
   ENRICH          // Add supporting context or grounding
   DOWNRANK_ONLY   // Keep in pool but lower frontier priority
+  OLD_MODIFIED_UNRESOLVED
+  DECLINE_INFORMED_REWORK
 }
 
 enum Role {

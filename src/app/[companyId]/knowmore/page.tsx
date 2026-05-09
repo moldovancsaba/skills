@@ -90,7 +90,7 @@ type Flashcard = {
   confidenceScore: number;
   impact: number;
   weight: number;
-  processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
+  processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED" | "REVIEW";
   activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
   userAnnotation: string | null;
   hashtags: string[];
@@ -104,6 +104,8 @@ type Flashcard = {
   ischecklistResearch?: boolean;
   intelligenceType: "INTERNAL" | "COMPETITOR";
   iceScore: number;
+  conflictDetected?: boolean;
+  conflictSummary?: string | null;
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "CONVERT";

@@ -46,6 +46,7 @@ Frontend system:
 - first-class entity card surfaces must expose their canonical ICE score through the shared card header contract
 - Typography is defined centrally in the Mantine theme and DS typography primitives only
 - ICE management must run through the canonical scoring contract and the oldest-first maintenance queue across upstream cards, knowledge, goals, and tasks
+- source-backed Knowmore cards must persist durable citation snapshots and explicit conflict state instead of relying on raw URLs alone
 
 Worker queue controls:
 
@@ -57,6 +58,12 @@ Worker queue controls:
 - drag and drop switches affected jobs into `HUMAN_GUIDED`
 - `Reset to AI Only` clears manual queue influence and returns scheduling to shared AI logic
 - there is not a separate compact tweak dropdown/menu yet; the board itself is the shipped tweak surface
+
+Knowmore evidence durability:
+
+- citation snapshots persist normalized URL, excerpt, fetch timing, and content hash for source-backed knowledge
+- conflicting source evidence lowers knowledge confidence and forces explicit review state instead of silent merge certainty
+- oldest-first maintenance backfills missing citation snapshots and revisits unresolved/declined high-potential task candidates
 
 ## Frontend Sources Of Truth
 

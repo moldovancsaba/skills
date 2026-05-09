@@ -278,6 +278,7 @@ async function getStagedMemoryPrompt(prisma, company, stage, context = {}) {
     GENERATOR:  ["HARD_CONSTRAINT", "ANTI_PATTERN", "SUCCESS_PATTERN"], // aliases
     REFINER:    ["DUPLICATE_HINT", "ANTI_PATTERN", "HARD_CONSTRAINT"],
     EVALUATOR:  ["HARD_CONSTRAINT", "ANTI_PATTERN", "SOFT_PREFERENCE", "SUCCESS_PATTERN"],
+    FRONTIER:   ["HARD_CONSTRAINT", "SOFT_PREFERENCE", "SUCCESS_PATTERN"],
   };
   const relevantTypes = stageLessonTypes[stage] || stageLessonTypes.WRITING;
 

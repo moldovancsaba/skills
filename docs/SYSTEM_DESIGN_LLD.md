@@ -107,3 +107,10 @@ The repetitive-job system now has a first-class queue model:
 - score-health alerts can reprioritize queue work through the same shared contract
 - the shipped UI controls are drag/drop between queue columns, manual drag/drop ordering, and `Reset to AI Only`
 - there is no separate compact tweak menu in the current release; the board is the tweak surface
+
+## 7. Evidence Durability And Conflict Handling
+
+- source-backed Knowmore synthesis must persist durable `CitationSnapshot` records with normalized URL, excerpt, fetch timing, and content hash
+- flashcards reference snapshot IDs directly, so evidence survives URL drift and re-fetch changes
+- deterministic conflict detection lowers confidence and marks the flashcard for review instead of silently merging contradictory claims
+- oldest-first maintenance backfills missing citation snapshots on existing flashcards

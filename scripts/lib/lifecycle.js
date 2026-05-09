@@ -39,6 +39,8 @@ const ReworkRoute = {
   MERGE:        "MERGE",
   ENRICH:       "ENRICH",
   DOWNRANK_ONLY:"DOWNRANK_ONLY",
+  OLD_MODIFIED_UNRESOLVED: "OLD_MODIFIED_UNRESOLVED",
+  DECLINE_INFORMED_REWORK: "DECLINE_INFORMED_REWORK",
 };
 
 // States eligible for frontier surfacing (per spec §15.1)

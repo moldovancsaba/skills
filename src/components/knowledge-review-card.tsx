@@ -55,7 +55,7 @@ type Flashcard = {
   confidenceScore: number;
   impact: number;
   weight: number;
-  processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED";
+  processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED" | "REVIEW";
   activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
   userAnnotation: string | null;
   hashtags: string[];
@@ -69,6 +69,8 @@ type Flashcard = {
   ischecklistResearch?: boolean;
   intelligenceType: "INTERNAL" | "COMPETITOR";
   iceScore: number;
+  conflictDetected?: boolean;
+  conflictSummary?: string | null;
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "CONVERT";
@@ -202,6 +204,11 @@ export function KnowledgeReviewCard({
               {flashcard.intelligenceType === "COMPETITOR" ? "The Market" : "Internal"}
             </Badge>
             <UnifiedCardFreshnessBadge freshness={freshness} />
+            {flashcard.conflictDetected && (
+              <Badge variant="light" color="red" size="xs">
+                Conflict
+              </Badge>
+            )}
 
             <Group gap={4} ml="auto">
               <MetaText>ICE</MetaText>
@@ -244,6 +251,21 @@ export function KnowledgeReviewCard({
             <Group gap="xs" align="flex-start" wrap="nowrap">
               <MessageSquare size={16} style={{ marginTop: 4, opacity: 0.6 }} />
               <BodyText c="var(--text-primary)">{displayableComment}</BodyText>
+            </Group>
+          </Box>
+        )}
+
+        {detailMode && flashcard.conflictDetected && flashcard.conflictSummary && (
+          <Box
+            p="md"
+            style={{
+              borderRadius: "var(--mantine-radius-md)",
+              ...getSemanticCalloutStyle("review"),
+            }}
+          >
+            <Group gap="xs" align="flex-start" wrap="nowrap">
+              <MessageSquare size={16} style={{ marginTop: 4, opacity: 0.6 }} />
+              <BodyText c="var(--text-primary)">{flashcard.conflictSummary}</BodyText>
             </Group>
           </Box>
         )}

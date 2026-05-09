@@ -19,6 +19,7 @@
 const crypto = require("crypto");
 const CANONICALIZER_VERSION = "v2.0.0";
 const { deriveDataCardScoreProfile } = require("../../src/lib/upstream-card-scoring");
+const { ensureCitationSnapshotForSource } = require("./citations");
 
 // ---------------------------------------------------------------------------
 // 1. Canonicalization
@@ -106,6 +107,7 @@ async function ingestEvidenceUnit(prisma, opts) {
   });
 
   if (existing) {
+    await ensureCitationSnapshotForSource(prisma, existing);
     return { source: existing, isDuplicate: true };
   }
 
@@ -130,6 +132,8 @@ async function ingestEvidenceUnit(prisma, opts) {
       entityTag,
     },
   });
+
+  await ensureCitationSnapshotForSource(prisma, source);
 
   return { source, isDuplicate: false };
 }

@@ -59,6 +59,9 @@ The worker currently schedules work as a serial per-company cycle:
 7. retry one fail-safe queue slice through the secondary local model
 8. maintain one hashtag slice
 9. run one cleanup slice
+10. backfill one oldest citation / conflict slice
+11. revisit one oldest unresolved modified candidate
+12. revisit one oldest declined high-potential candidate
 
 After a company completes that cycle, it waits for the configured company-cycle cooldown before becoming due again.
 
@@ -66,6 +69,7 @@ Two runtime rules now matter for delivery:
 
 - generation is `done is better than perfect`: low-score but valid cards are allowed through so later cycles can improve them
 - malformed or empty JSON from the primary model no longer silently kills delivery; recommendation/task work is queued for a secondary local model retry
+- source-backed knowledge must stay explainable even when raw URLs drift; durable citation snapshots are part of the worker contract
 
 Current enrichment outputs may include:
 - conclusions

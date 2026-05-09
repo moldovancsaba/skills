@@ -137,6 +137,9 @@ type FlashcardDraft = {
   };
   supportingSources?: FlashcardLinkedSource[];
   refreshedAt: Date;
+  citationSnapshotIds?: string[];
+  conflictDetected?: boolean;
+  conflictSummary?: string | null;
 };
 
 type TopicRecord = {
@@ -1384,6 +1387,9 @@ function needsFlashcardUpdate(
     evidence: Prisma.JsonValue | null;
     feedbackWeightDelta: number;
     feedbackConfidenceDelta: number;
+    citationSnapshotIds: string[];
+    conflictDetected: boolean;
+    conflictSummary: string | null;
     status: FlashcardStatus;
     appVersion: string | null;
     brainVersion: string | null;
@@ -1411,6 +1417,9 @@ function needsFlashcardUpdate(
     existing.impact !== draft.impact ||
     existing.weight !== adjusted.weight ||
     JSON.stringify(existing.evidence) !== JSON.stringify(draft.evidence) ||
+    JSON.stringify(existing.citationSnapshotIds ?? []) !== JSON.stringify(draft.citationSnapshotIds ?? []) ||
+    existing.conflictDetected !== Boolean(draft.conflictDetected) ||
+    (existing.conflictSummary ?? null) !== (draft.conflictSummary ?? null) ||
     existing.status !== FlashcardStatus.ACTIVE ||
     existing.appVersion !== APP_VERSION ||
     existing.brainVersion !== BRAIN_VERSION ||
@@ -1715,6 +1724,9 @@ export async function syncBootstrapFlashcards(companyId: string) {
                 }),
                 hashtags: draft.hashtags,
                 evidence: draft.evidence ?? undefined,
+                citationSnapshotIds: draft.citationSnapshotIds ?? [],
+                conflictDetected: Boolean(draft.conflictDetected),
+                conflictSummary: draft.conflictSummary ?? null,
                 status: FlashcardStatus.ACTIVE,
                 appVersion: APP_VERSION,
                 brainVersion: BRAIN_VERSION,
@@ -1763,6 +1775,9 @@ export async function syncBootstrapFlashcards(companyId: string) {
           }),
           hashtags: draft.hashtags,
           evidence: draft.evidence ?? undefined,
+          citationSnapshotIds: draft.citationSnapshotIds ?? [],
+          conflictDetected: Boolean(draft.conflictDetected),
+          conflictSummary: draft.conflictSummary ?? null,
           status: FlashcardStatus.ACTIVE,
           createdBy: BOOTSTRAP_CREATED_BY,
           appVersion: APP_VERSION,
@@ -2026,7 +2041,7 @@ export async function listCompanyFlashcards(companyId: string) {
     where: {
       companyId,
       processingStatus: {
-        in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"]
+        in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "REVIEW"]
       },
       activityState: {
         in: ["ACTIVE", "STALE"]

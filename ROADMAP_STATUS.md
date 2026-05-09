@@ -23,6 +23,8 @@ Source of truth: [package.json](/Users/Shared/Projects/checklist/package.json) a
 - Periodic rescoring and maintenance operate oldest-first.
 - Score-health detection classifies dominant score and tuple concentration into `HEALTHY`, `WARNING`, `SUSPICIOUS`, and `CRITICAL`.
 - Planning drag-and-drop feeds human teaching signals back into task ICE scoring.
+- Source-backed Knowmore cards now retain durable citation snapshots and explicit conflict state.
+- Maintenance now revisits oldest unresolved modified candidates and declined high-potential candidates.
 
 ### Worker Queue
 - Repetitive local-AI jobs are persisted as `PipelineJob` records.

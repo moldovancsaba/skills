@@ -26,6 +26,8 @@ Read first:
 - worker scheduling supports explicit `AI_ONLY` and `HUMAN_GUIDED` modes
 - the shipped webapp tweak surface is the `Worker Queue` board, not a separate compact menu
 - current human controls are drag/drop between queue columns, drag/drop reordering, and `Reset to AI Only`
+- source-backed Knowmore cards now carry durable citation snapshots plus explicit conflict flags and summaries
+- maintenance now includes oldest-first revisit jobs for unresolved modified candidates and declined high-potential candidates
 
 ## Files That Matter Most
 

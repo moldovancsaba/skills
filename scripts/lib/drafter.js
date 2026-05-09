@@ -29,6 +29,7 @@ const {
   normalizeTaskScores,
 } = require("../../src/lib/scoring-contract");
 const { deriveFlashcardSourceSupport } = require("../../src/lib/upstream-card-scoring");
+const { detectEvidenceConflict, ensureCitationSnapshotsForEvidenceBatch } = require("./citations");
 
 // --- UTILITIES ---
 
@@ -180,6 +181,8 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
 
   const drafts = [];
   const evidenceIds = evidenceBatch.map(e => e.id);
+  const citationSnapshots = await ensureCitationSnapshotsForEvidenceBatch(prisma, evidenceBatch);
+  const conflict = detectEvidenceConflict(evidenceBatch);
   const versionFamilyId = crypto.randomUUID(); // shared across multi-output batch
   const supportProfiles = evidenceBatch.map((evidence) => deriveFlashcardSourceSupport(evidence, topic ? [topic] : []));
   const averageSupport = (key) => {
@@ -233,11 +236,19 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
         topicScore: supportProfiles[0]?.topicProfile ?? null,
       },
     });
-    const normalizedScores = normalizeKnowledgeScores({
+    let normalizedScores = normalizeKnowledgeScores({
       impact: groundedKnowledgeScores.impact,
       confidence: groundedKnowledgeScores.confidence,
       weight: groundedKnowledgeScores.effort,
     });
+    if (conflict.detected) {
+      normalizedScores = normalizeKnowledgeScores({
+        impact: normalizedScores.impact,
+        confidence: Math.max(1, normalizedScores.confidence - conflict.severity),
+        weight: normalizedScores.weight,
+      });
+      procStatus = "REVIEW";
+    }
     const freshnessScore = computeInitialFreshnessScore(evidenceBatch[0]);
     const fingerprint = hashValue(`GEN:FC:${company.id}:${evidenceBatch.map(e => e.id).join(",")}:${item.title}`);
 
@@ -269,6 +280,9 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       freshnessScore,
       iceScore: normalizedScores.iceScore,
       feedbackScore: 0,
+      citationSnapshotIds: citationSnapshots.map((snapshot) => snapshot.id),
+      conflictDetected: conflict.detected,
+      conflictSummary: conflict.summary,
       // Legacy source linking (for backward compat)
       sourceId: evidenceBatch[0].id,
       sourceType: "SOURCE",

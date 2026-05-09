@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
       refreshedAt: flashcard.refreshedAt,
       intelligenceType: flashcard.intelligenceType,
       iceScore: flashcard.iceScore,
+      conflictDetected: flashcard.conflictDetected,
+      conflictSummary: flashcard.conflictSummary,
       ischecklistResearch: flashcard.sources.some((source) => source.sourceType === "SOURCE" && researchHarvestIds.has(source.sourceId)),
     }));
 

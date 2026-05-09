@@ -3,6 +3,7 @@ const http = require("http");
 const { getHumanMemoryPrompt } = require("./lib/memory");
 const { getWorkerConfig } = require("./lib/shared");
 const { OLLAMA_MODEL } = require("./lib/core");
+const { runPipelineQueueBatch } = require("./lib/pipeline-jobs");
 const packageJson = require("../package.json");
 const APP_VERSION = packageJson.version;
 
@@ -49,11 +50,13 @@ async function runWorkerLoop() {
     
     await updateProgress(prisma, { stage: "MAINTENANCE" });
     await scrubDatabaseElemental(prisma);
+    await updateProgress(prisma, { stage: "PIPELINE_QUEUE" });
+    const queueOps = await runPipelineQueueBatch(prisma, 4);
     
     const result = await runSynthesisCycle(prisma);
     await updateProgress(prisma); 
     
-    console.log(`[SYNTHESIS] Cycle Complete (${result.operations} ops). Resting...`);
+    console.log(`[SYNTHESIS] Cycle Complete (${queueOps + result.operations} ops total; ${queueOps} pipeline-queue ops). Resting...`);
 
     const targetWakeTime = Date.now() + IDLE_INTERVAL;
     while (Date.now() < targetWakeTime) {

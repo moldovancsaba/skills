@@ -19,6 +19,9 @@ Read first:
 - typography is centrally defined in the theme and DS typography primitives only
 - interactions are centralized in the shared UI layer
 - semantic tones are the only approved product color vocabulary
+- repetitive local-AI work is represented as persisted `PipelineJob` queue records
+- the webapp `Worker Queue` is the primary HiTL steering surface for repetitive jobs
+- worker scheduling supports explicit `AI_ONLY` and `HUMAN_GUIDED` modes
 
 ## Files That Matter Most
 
@@ -33,12 +36,15 @@ Frontend:
 - [src/components/ui/unified-card.tsx](/Users/Shared/Projects/checklist/src/components/ui/unified-card.tsx)
 - [src/components/ui/unified-card-modal.tsx](/Users/Shared/Projects/checklist/src/components/ui/unified-card-modal.tsx)
 - [src/components/ui/app-shell.tsx](/Users/Shared/Projects/checklist/src/components/ui/app-shell.tsx)
+- [src/app/[companyId]/pipeline/page.tsx](/Users/Shared/Projects/checklist/src/app/[companyId]/pipeline/page.tsx)
 - [scripts/semantic-audit.mjs](/Users/Shared/Projects/checklist/scripts/semantic-audit.mjs)
 
 System:
 
 - [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 - [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
+- [src/lib/pipeline-queue.js](/Users/Shared/Projects/checklist/src/lib/pipeline-queue.js)
+- [scripts/lib/pipeline-jobs.js](/Users/Shared/Projects/checklist/scripts/lib/pipeline-jobs.js)
 
 ## Do Not Reintroduce
 
@@ -64,6 +70,8 @@ If you change any of these:
 - interaction primitives
 - AI pipeline stages
 - scoring rules
+- worker queue contract
+- scheduling mode contract
 
 Then you must update in the same work:
 
@@ -81,3 +89,10 @@ The work is not done until:
 - `npm run audit:docs` passes
 - `npm run audit:semantic` passes
 - `npx tsc --noEmit` passes
+
+## Pipeline Queue Notes
+
+- The worker now consumes persisted queue jobs before the broader synthesis cycle.
+- Human drag-and-drop on the `Worker Queue` board switches jobs into `HUMAN_GUIDED` mode.
+- `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
+- Score-health alert repair is now able to escalate queue work through the shared queue contract.

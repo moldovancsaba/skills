@@ -2,11 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import type { CompanyScoreHealth } from "@/lib/score-health";
 
 /**
- * useIntelligenceSnapshot Hook
- * v0.16.0
- * 
- * Centralized hook for State Snapshot Architecture.
- * Ensures every page reads from the same pre-calculated authority.
+ * Centralized intelligence snapshot hook.
+ *
+ * Every major page reads from the same pre-calculated snapshot authority
+ * so counts, health, and engine state stay consistent across the app.
  */
 
 export type IntelligenceSnapshot = {

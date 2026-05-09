@@ -1,10 +1,8 @@
 /**
- * TOPICS FOCUS PAGE
- * v0.15.0
- * 
- * Implements Unified Page Architecture:
- * - PageShell: Full-Width Layout
- * - UnifiedGrid: 3-Column Desktop Display
+ * Topics focus page.
+ *
+ * This route renders company topics through the shared page shell and
+ * unified grid/card architecture.
  */
 'use client';
 

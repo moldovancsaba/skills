@@ -1,55 +1,47 @@
-# CHECKLIST - Hardening Roadmap Status (v0.15.0)
+# CHECKLIST Roadmap Status
 
-## ✅ DELIVERED THIS SESSION (v0.15.0)
+This file tracks the current delivery state of the product.
+It is not a release banner and it must not duplicate version truth.
 
-### UI Hardening & Unification (Mantine-Only)
-- **Mantine-Only Restoration**: Purged 100% of legacy Tailwind utility classes and shadcn fragments from core pages (Data Ingress, Topics, Tactical Board, Knowmore, Goals, Checklist, and Review Gateway).
-- **Premium Design Unification**: Hardened `MetricCard` and `LinkCard` with high-yield glassmorphism, vibrant gradients, and sophisticated micro-animations.
-- **Unified Architecture**: Standardized strategic and tactical layers using the `PageShell` and `UnifiedGrid` patterns for total structural consistency.
+Current runtime version: `v0.15.3`
+Source of truth: [package.json](/Users/Shared/Projects/checklist/package.json) and [src/lib/release.ts](/Users/Shared/Projects/checklist/src/lib/release.ts)
 
-### Intelligence Clarity & Purity
-- **Global Metadata Filter**: Implemented `stripTechnicalMetadata()` utility to purge `[TRACE:...]` and `[TOPIC_ID:...]` markers from all end-user cards.
-- **Boundary Hardening**: Added shared sanitizers for feedback and annotation persistence so technical markers cannot leak back into user-facing text state.
-- **Taxonomy Hardening**: Applied the metadata filter across `TaskReviewCard`, `SourceDataCard`, and `KnowledgeReviewCard`, and action-form state seeding now strips technical metadata before display.
+## Delivered
 
-### Scoring & Refinement Foundations
-- **Canonical Scoring Contract**: Introduced a shared scoring contract for normalized `1-10` metrics across tasks, goals, and knowledge.
-- **Oldest-First Maintenance**: Periodic rescoring and true refinement/update queues now process oldest-updated items first.
-- **General Task Score Grounding**: Task scoring now uses shared normalization plus evidence/task-shape signals instead of trusting repeated raw tuples.
-- **Score Health Observability**: Added a shared score-health analyzer, a dashboard metric panel, and `audit:score-health` CLI reporting for per-company score clustering.
+### Product System
+- Mantine is the only approved product UI framework.
+- The multi-theme foundation is active through shared scheme-aware semantic tokens.
+- Shared cards, shared modals, and shared typography are the required UI contract.
 
-### Tactical Board Stability
-- **Drag-State Cleanup**: Fixed the tactical board so drag rotation/accent state clears immediately after drop instead of persisting until refresh.
+### Intelligence Quality
+- Technical metadata is stripped at render and persistence boundaries.
+- Card freshness badges are shared, centralized, and active across first-class entity cards.
+- Card permalinks use canonical UUID routes and support standalone card pages.
 
-### Shareable Card Permalinks
-- **UUID Card Routes**: Added canonical `/card/[cardId]` share routes for first-class cards.
-- **Standalone Landing Page**: Shared cards now render as non-interactive single-card pages outside the main app shell.
-- **Icon-Only Share Controls**: Card share affordances now use icon-only controls to preserve stable one-line actions.
+### Scoring And Maintenance
+- One canonical `1-10` scoring contract exists across upstream cards, knowledge, goals, and tasks.
+- Periodic rescoring and maintenance operate oldest-first.
+- Score-health detection classifies dominant score and tuple concentration into `HEALTHY`, `WARNING`, `SUSPICIOUS`, and `CRITICAL`.
+- Planning drag-and-drop feeds human teaching signals back into task ICE scoring.
 
-### Technical Foundations
-- **Build-Time Stability**: Validated 100% stable `next build` across the new Mantine architecture.
-- **Versioning**: Bumped repository to v0.15.0, reflecting the hardened, production-ready state.
-- **Documentation Sync**: Synchronized `README.md`, `brain.md`, and technical specs with the new Mantine-only methodology.
+### Worker Queue
+- Repetitive local-AI jobs are persisted as `PipelineJob` records.
+- The webapp `Worker Queue` is the primary HiTL steering surface for repetitive jobs.
+- Queue scheduling supports `AI_ONLY` and `HUMAN_GUIDED` control modes.
+- Suspicious and critical score-health states can enqueue repair-oriented worker jobs.
 
----
+## Active Priorities
 
-## 🚀 COMPLETED NEXT BEST ACTIONS (NBAs)
+1. Improve task and knowledge score discrimination so repeated tuples and repeated exact ICE values keep falling.
+2. Keep burning down remaining hardcoded styling from the audit, starting with the tactical board and shared high-traffic surfaces.
+3. Expand browser-level regression coverage for drag/drop, card sharing, theme behavior, and queue interactions.
+4. Continue strengthening the local worker queue so more background jobs move into the canonical queue contract.
 
-1. **Mantine-Only UI Restoration & Unification** [DELIVERED]
-2. **Global Metadata Filtering Implementation** [DELIVERED]
-3. **Production Build Validation & Branding Sync** [DELIVERED]
+## Future Pipeline
 
----
+- API and webhook ingestion for direct external source intake
+- CRM and external integration harvesting
+- Stronger recursive deliberation for high-stakes judging
+- Better queue intelligence and operator ergonomics for local AI control
 
-## 🔴 PENDING / FUTURE PIPELINE
-
-### Source Diversity
-- [ ] **#73 API/webhook ingestion**: Direct programmatic intake.
-- [ ] **#74 CRM integrations**: External context harvesting.
-
-### Advanced Intelligence
-- [ ] **v1.6.0 Recursive Deliberation**: Multi-pass tournament judging for high-stakes decisions.
-- [ ] **Autonomous Budgeting**: Fiscal forecasting based on tactical execution velocity.
-
----
-*Status Update: 2026-05-09. Project Board Synchronized (multi-theme, scoring, metadata, and tactical-board hardening).*
+Last updated: `2026-05-09`

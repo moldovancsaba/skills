@@ -7,8 +7,9 @@ import { computeCompanyScoreHealth } from "@/lib/score-health";
 export const dynamic = "force-dynamic";
 
 /**
- * UNIT DASHBOARD SUMMARY API
- * v0.16.0
+ * Unit dashboard summary API.
+ *
+ * Returns the canonical company summary used by the dashboard and nav.
  */
 
 export async function GET(
@@ -71,6 +72,13 @@ export async function GET(
             activityState: { in: ["ACTIVE", "STALE"] },
           },
         }),
+        prisma.pipelineJob.count({
+          where: {
+            companyId: cid,
+            status: { in: ["ACTIVE", "RUNNING", "FAILED"] },
+            queueColumn: { not: "PARKED" },
+          },
+        }),
       ]).then(([
         sourceCount,
         fileCount,
@@ -80,6 +88,7 @@ export async function GET(
         nbaItemCount,
         checklistCount,
         reviewCount,
+        pipelineJobCount,
       ]) => ({
         sources: sourceCount + fileCount,
         files: fileCount,
@@ -89,6 +98,7 @@ export async function GET(
         nbaItems: nbaItemCount,
         checklistCount,
         reviewCount,
+        pipelineJobs: pipelineJobCount,
       })),
     ]);
 
@@ -116,6 +126,7 @@ export async function GET(
       nbaItems: Math.max(snapshot?.tacticalBoardCount ?? 0, liveCounts.nbaItems),
       checklistCount: Math.max(snapshot?.checklistCount ?? 0, liveCounts.checklistCount, topTasks.length),
       reviewCount: Math.max(snapshot?.reviewGatewayCount ?? 0, liveCounts.reviewCount),
+      pipelineJobs: liveCounts.pipelineJobs,
     };
 
     return NextResponse.json({

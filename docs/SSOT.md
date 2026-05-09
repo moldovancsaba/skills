@@ -21,6 +21,7 @@ Primary user-facing layers:
 - Checklist
 - Tactical
 - Review
+- Worker Queue
 
 ## 3. System Stack
 
@@ -73,6 +74,13 @@ The autonomous cycle remains:
 5. process through the AI pipeline
 6. update statuses and expirations
 7. push results back
+
+The repetitive-job contract now also includes:
+
+- persisted `PipelineJob` queue records
+- explicit `AI_ONLY` vs `HUMAN_GUIDED` scheduling modes
+- a webapp `Worker Queue` board as the primary HiTL steering surface for repetitive jobs
+- one-step reset back to AI-only scheduling
 
 ## 6. AI Brain Rule
 

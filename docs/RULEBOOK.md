@@ -170,6 +170,8 @@ The AI brain must be updated immediately when any of these change:
 - card lifecycle rules
 - share/permalink behavior
 - user-facing system terminology
+- local worker queue contract
+- autonomous vs human-guided scheduling rules
 
 Required update matrix:
 
@@ -235,3 +237,17 @@ The workflow must enforce:
 - `npm run audit:semantic`
 - `npm run lint`
 - `npx tsc --noEmit`
+
+## 13. Pipeline Queue Rules
+
+The local AI pipeline queue is now a first-class system contract.
+
+Rules:
+
+- repetitive local-AI work must be representable as persisted `PipelineJob` records
+- the webapp `Worker Queue` is the primary human steering surface for repetitive jobs
+- worker execution must consume the persisted queue contract, not hidden module-local ordering alone
+- `AI_ONLY` and `HUMAN_GUIDED` are explicit scheduling modes
+- `Reset to AI only` must fully clear manual queue influence for the selected scope
+- suspicious or critical score-health states must be able to reprioritize queue work through the shared queue contract
+- fairness-sensitive recalculation work must continue to preserve oldest-first behavior unless explicitly human-overridden

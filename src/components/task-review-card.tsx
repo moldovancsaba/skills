@@ -1,9 +1,8 @@
 /**
- * checklist TASK CARD
- * v0.15.0
- * 
- * Refactored to pure Mantine-ONLY design system.
- * Unified with PageShell and UnifiedCard architecture.
+ * Shared task and goal card surface.
+ *
+ * This component owns the reusable card contract for task-like entities
+ * across checklist, goals, review, and planning surfaces.
  */
 import { useState } from "react";
 import { IconCalendar as CalendarIcon, IconCheck as Check, IconChecks as CheckCheck, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconHistory as History, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";

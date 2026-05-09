@@ -15,6 +15,7 @@ Primary layers:
 - database and persistence
 - autonomous AI loop
 - shared product UI system
+- persisted pipeline queue and scheduler contract
 
 ## 2. Frontend Architecture
 
@@ -93,3 +94,14 @@ When the system contract changes:
 5. run enforcement checks
 
 If step 2 through 4 do not happen, the system design work is incomplete.
+
+## 6. Pipeline Queue Architecture
+
+The repetitive-job system now has a first-class queue model:
+
+- `PipelineJob` persistence stores recurring/local-AI work as durable queue items
+- the worker claims repetitive work from that queue before the broader company synthesis cycle
+- `AI_ONLY` mode means scheduling is computed by the shared queue logic
+- `HUMAN_GUIDED` mode means the persisted queue column and manual order take precedence
+- the webapp `Worker Queue` board is the primary human steering surface
+- score-health alerts can reprioritize queue work through the same shared contract

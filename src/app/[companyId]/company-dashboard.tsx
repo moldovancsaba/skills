@@ -25,7 +25,7 @@ import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
-import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCirclesRelation as CirclesRelation } from "@tabler/icons-react";
+import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCirclesRelation as CirclesRelation, IconHelmet as HardHat } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { CompanyScoreHealth } from "@/lib/score-health";
 
@@ -67,7 +67,8 @@ export default function CompanyDashboard() {
     goals: 0,
     checklistCount: 0,
     nbaItems: 0,
-    reviewCount: 0
+    reviewCount: 0,
+    pipelineJobs: 0,
   });
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
   const [actionItemId, setActionItemId] = useState<string | null>(null);
@@ -341,6 +342,14 @@ export default function CompanyDashboard() {
           metric={counts.checklistCount}
           title="Checklist"
           chartData={chartSeries("checklist", "nba")}
+        />
+        <LinkCard
+          href={`/${companyId}/pipeline`}
+          icon={HardHat}
+          variant="review"
+          metric={counts.pipelineJobs}
+          title="Worker Queue"
+          chartData={chartSeries("pipelineJobs", "reviewGateway")}
         />
       </RouteCardGrid>
 

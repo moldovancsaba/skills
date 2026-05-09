@@ -1,10 +1,8 @@
 /**
- * KNOWMORE INTELLIGENCE PAGE
- * v0.15.0
- * 
- * Implements Unified Page Architecture:
- * - PageShell: Full-Width Layout
- * - UnifiedGrid: 3-Column Desktop Display
+ * Knowmore intelligence page.
+ *
+ * This route renders the company knowledge layer on top of the shared
+ * page shell and unified card/grid primitives.
  */
 'use client';
 

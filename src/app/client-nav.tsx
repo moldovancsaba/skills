@@ -86,6 +86,14 @@ const pipelineItems = [
     color: "checklist",
     tone: "checklist",
   },
+  {
+    key: "pipeline",
+    href: (companyId: string) => `/${companyId}/pipeline`,
+    label: "Worker Queue",
+    icon: HardHat,
+    color: "review",
+    tone: "review",
+  },
 ];
 
 export function ClientNav() {
@@ -145,7 +153,8 @@ export function ClientNav() {
             goals: data.counts?.goals || 0,
             nba: data.counts?.checklistCount || 0,
             tactical: data.counts?.nbaItems || 0,
-            review: data.counts?.reviewCount || 0
+            review: data.counts?.reviewCount || 0,
+            pipeline: data.counts?.pipelineJobs || 0,
           });
         }
       } catch (err) {

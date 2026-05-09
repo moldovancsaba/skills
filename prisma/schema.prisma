@@ -37,6 +37,7 @@ model Company {
   // State Snapshot Architecture (M4.0)
   intelligenceSnapshot IntelligenceSnapshot?
   strategicFeedback    StrategicFeedback[]
+  pipelineJobs         PipelineJob[]
   
   // Profile Validation Fields
   website             String?
@@ -540,6 +541,34 @@ model SystemCommand {
   @@index([status, issuedAt])
 }
 
+model PipelineJob {
+  id               String              @id @default(uuid()) @map("_id")
+  companyId        String
+  jobType          PipelineJobType
+  entityType       String              @default("COMPANY")
+  entityId         String?
+  status           PipelineJobStatus   @default(ACTIVE)
+  controlMode      PipelineControlMode @default(AI_ONLY)
+  queueColumn      PipelineQueueColumn @default(LATER)
+  manualSortOrder  Float               @default(0)
+  priorityScore    Float               @default(0)
+  reason           String?
+  sourceSignal     String?
+  lastError        String?
+  scheduledAt      DateTime?
+  lastTriedAt      DateTime?
+  lastCompletedAt  DateTime?
+  attemptCount     Int                 @default(0)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @default(now()) @updatedAt
+  company          Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, jobType])
+  @@index([companyId, queueColumn, manualSortOrder])
+  @@index([companyId, status, controlMode, priorityScore])
+  @@index([status, queueColumn, priorityScore, updatedAt])
+}
+
 model WorkerReport {
   id        String   @id @default(uuid()) @map("_id")
   type      String
@@ -849,6 +878,34 @@ enum GoalType {
   ENTER_NEW_MARKET
   BUILD_AWARENESS
   GENERATE_LEADS
+}
+
+enum PipelineJobType {
+  FEEDBACK_RECONCILIATION
+  CARD_RESCORING
+  FRONTIER_RECOMPUTE
+  FULL_MAINTENANCE
+  SCORE_ALERT_REPAIR
+  COMPANY_SYNTHESIS
+}
+
+enum PipelineJobStatus {
+  ACTIVE
+  RUNNING
+  PAUSED
+  FAILED
+}
+
+enum PipelineControlMode {
+  AI_ONLY
+  HUMAN_GUIDED
+}
+
+enum PipelineQueueColumn {
+  NOW
+  SOON
+  LATER
+  PARKED
 }
 
 enum NBAStatus {

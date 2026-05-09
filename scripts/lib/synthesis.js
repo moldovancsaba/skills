@@ -59,7 +59,7 @@ function getSynthesisProgress() {
 async function collectGlobalWorkerSettings(prisma) {
   return {
     supervisorContractVersion: 2,
-    schedulingMode: "company-serial-cycle"
+    schedulingMode: "pipeline-queue-aware"
   };
 }
 

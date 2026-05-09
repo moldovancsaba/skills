@@ -20,6 +20,38 @@ export type IntelligenceSnapshot = {
   confidenceAvg: number;
   iceScoreAvg: number;
   easeScoreAvg: number;
+  scoreHealth?: {
+    companyId: string;
+    generatedAt: string;
+    overallBand: "HEALTHY" | "WARNING" | "CRITICAL";
+    dominantSurface: "TASK" | "KNOWLEDGE" | "BALANCED";
+    taskcards: {
+      count: number;
+      uniqueIceScores: number;
+      uniqueTriples: number;
+      diversityRatio: number;
+      dominantIceScore: number | null;
+      dominantIceShare: number;
+      dominantTuple: {
+        label: string;
+        count: number;
+        share: number;
+      } | null;
+    };
+    knowledge: {
+      count: number;
+      uniqueIceScores: number;
+      uniqueTriples: number;
+      diversityRatio: number;
+      dominantIceScore: number | null;
+      dominantIceShare: number;
+      dominantTuple: {
+        label: string;
+        count: number;
+        share: number;
+      } | null;
+    };
+  };
   engineStatus: string;
   activeContext: string;
   activeTask: string;
@@ -61,6 +93,7 @@ export function useIntelligenceSnapshot(companyId: string | undefined) {
         confidenceAvg: data.metrics?.confidenceAvg || 0,
         iceScoreAvg: data.metrics?.iceScoreAvg || 0,
         easeScoreAvg: data.metrics?.easeScoreAvg || 0,
+        scoreHealth: data.metrics?.scoreHealth || undefined,
         engineStatus: data.state.engineStatus,
         activeContext: data.state.activeContext,
         activeTask: data.state.activeTask,

@@ -272,16 +272,18 @@ export function TaskReviewCard({
             </>
           )}
           
-          <Button 
-            ml="auto"
-            variant="subtle" 
-            size="xs" 
-            color={copied ? "green" : "gray"}
-            leftSection={copied ? <CheckCircle size={14} /> : <Share2 size={14} />}
-            onClick={(event) => stopCardClick(event, () => onShare(item))}
-          >
-            {copied ? "Copied" : "Share"}
-          </Button>
+          <Tooltip label={copied ? "Copied" : "Share card"}>
+            <ActionIcon
+              ml="auto"
+              variant="subtle"
+              size="lg"
+              color={copied ? "green" : "gray"}
+              onClick={(event) => stopCardClick(event, () => onShare(item))}
+              aria-label={copied ? "Copied" : "Share card"}
+            >
+              {copied ? <CheckCircle size={16} /> : <Share2 size={16} />}
+            </ActionIcon>
+          </Tooltip>
         </UnifiedCardActions>
 
         {isActionOpen && actionMode && (

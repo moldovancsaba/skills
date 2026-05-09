@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { APP_VERSION, BRAIN_VERSION } from "@/lib/release";
+import { computeCompanyScoreHealth } from "@/lib/score-health";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +25,11 @@ export async function GET(
     const cid = companyId;
     const now = new Date();
 
-    const [company, members, snapshot, liveCounts] = await Promise.all([
+    const [company, members, snapshot, scoreHealth, liveCounts] = await Promise.all([
       prisma.company.findUnique({ where: { id: cid } }),
       prisma.user.findMany({ where: { companyId: cid } }),
       prisma.intelligenceSnapshot.findUnique({ where: { companyId: cid } }),
+      computeCompanyScoreHealth(cid, prisma),
       Promise.all([
         prisma.source.count({ where: { companyId: cid } }),
         prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
@@ -127,6 +129,7 @@ export async function GET(
         confidenceAvg: snapshot?.confidenceAvg || 0,
         iceScoreAvg: snapshot?.iceScoreAvg || 0,
         easeScoreAvg: snapshot?.easeScoreAvg || 0,
+        scoreHealth,
       },
       versions: {
         app: APP_VERSION,

@@ -109,6 +109,10 @@ Each flashcard carries:
 - provenance/source links
 - review state
 
+UI/runtime contract:
+- the UUID is also the canonical card permalink key for shared single-card routes at `/card/[cardId]`
+- shared card pages are standalone, non-interactive views intended for focused review rather than workflow operations
+
 Some flashcards are sourced from AI-harvested public research rather than direct user-entered rows. Those are still normal flashcards in storage, but their source lineage points at `Source` rows tagged with:
 
 - `entityTag = "research-harvest"`
@@ -329,6 +333,7 @@ Important:
 - task generation/refinement must normalize through `src/lib/scoring-contract.js`
 - task scoring is grounded by source strength plus task specificity, urgency, and complexity signals
 - periodic rescoring runs oldest-updated-first across active card layers
+- score clustering is observable through the dashboard score-health panel and `npm run audit:score-health`
 
 ## Delivery modes
 

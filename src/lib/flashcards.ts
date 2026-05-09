@@ -1947,9 +1947,10 @@ export async function listCompanyFlashcards(companyId: string) {
     },
     include: FLASHCARD_INCLUDES,
     orderBy: [
-      { processingStatus: "asc" }, // VERIFIED first in enum? No, likely alphabetical. 
-      { confidenceScore: "desc" }, 
-      { publicId: "asc" }
+      { iceScore: "desc" },
+      { confidenceScore: "desc" },
+      { updatedAt: "desc" },
+      { publicId: "asc" },
     ],
   });
 }

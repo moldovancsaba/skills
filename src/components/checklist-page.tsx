@@ -33,6 +33,7 @@ import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterPara
 import { TaskReviewCard } from "@/components/task-review-card";
 import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowRight as ArrowRight, IconListCheck as ListCheck } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { buildCardShareUrl } from "@/lib/card-share";
 
 /**
  * Representational interface for a tactical intelligence unit (Task).
@@ -141,7 +142,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   }, [archived, company, loadchecklist]);
 
   const handleShare = useCallback(async (item: NBAItem) => {
-    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidenceScore}% | Ease: ${item.ease}\nICE Score: ${Math.round(item.iceScore)}`;
+    const text = buildCardShareUrl(item.id);
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(item.id);

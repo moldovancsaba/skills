@@ -8,6 +8,8 @@ import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
 import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 export const dynamic = 'force-dynamic';
 
+type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
+
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
   const isArchived = request.nextUrl.searchParams.get("archived") === "true";
@@ -46,7 +48,19 @@ export async function GET(request: NextRequest) {
 
     const items = await prisma.nBAItem.findMany({
       where,
-      orderBy: [{ sortOrder: "asc" }, { iceScore: "desc" }, { confidenceScore: "desc" }, { publicId: "asc" }],
+      orderBy: showAll || Boolean(kanbanColumn)
+        ? [
+            { sortOrder: "asc" as const },
+            { iceScore: "desc" as const },
+            { confidenceScore: "desc" as const },
+            { publicId: "asc" as const },
+          ]
+        : [
+            { iceScore: "desc" as const },
+            { confidenceScore: "desc" as const },
+            { updatedAt: "desc" as const },
+            { publicId: "asc" as const },
+          ],
     });
     return NextResponse.json(items);
   } catch (error) {
@@ -119,6 +133,92 @@ export async function PATCH(request: NextRequest) {
 
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
+
+    if (Array.isArray(data.destinationColumnOrderIds) && data.destinationColumn) {
+      const destinationColumn = String(data.destinationColumn) as NBAKanbanColumn;
+      const sourceColumn = (data.sourceColumn ? String(data.sourceColumn) : destinationColumn) as NBAKanbanColumn;
+      const destinationColumnOrderIds = data.destinationColumnOrderIds.filter((value: unknown): value is string => typeof value === "string");
+      const sourceColumnOrderIds = Array.isArray(data.sourceColumnOrderIds)
+        ? data.sourceColumnOrderIds.filter((value: unknown): value is string => typeof value === "string")
+        : [];
+
+      const touchedIds = [...new Set([...destinationColumnOrderIds, ...sourceColumnOrderIds])];
+      const manualSortForIndex = (index: number, total: number) => index - total;
+
+      await prisma.$transaction(async (tx) => {
+        for (const [index, itemId] of destinationColumnOrderIds.entries()) {
+          await tx.nBAItem.update({
+            where: { id: itemId },
+            data: {
+              kanbanColumn: destinationColumn,
+              sortOrder: manualSortForIndex(index, destinationColumnOrderIds.length),
+              updatedAt: new Date(),
+            },
+          });
+        }
+
+        for (const [index, itemId] of sourceColumnOrderIds.entries()) {
+          await tx.nBAItem.update({
+            where: { id: itemId },
+            data: {
+              kanbanColumn: sourceColumn,
+              sortOrder: manualSortForIndex(index, sourceColumnOrderIds.length),
+              updatedAt: new Date(),
+            },
+          });
+        }
+      }, TRANSACTION_SETTINGS);
+
+      const updated = await prisma.nBAItem.findUnique({ where: { id } });
+
+      await recordInteractionEventFromRequest(request, {
+        companyId: existing.companyId,
+        surface: "planning-board",
+        interactionType: "TASK_MANUAL_REORDER",
+        entityType: "TASK",
+        entityId: existing.id,
+        beforeState: {
+          kanbanColumn: existing.kanbanColumn,
+          sortOrder: existing.sortOrder,
+        },
+        afterState: {
+          kanbanColumn: updated?.kanbanColumn,
+          sortOrder: updated?.sortOrder,
+        },
+        payload: {
+          destinationColumn,
+          sourceColumn,
+          destinationColumnOrderIds,
+          sourceColumnOrderIds,
+          touchedIds,
+        },
+        teachingWeight: 95,
+      });
+
+      await recordOutcomeEvent({
+        companyId: existing.companyId,
+        actorType: "HUMAN",
+        entityType: "TASK",
+        entityId: existing.id,
+        outcomeType: "TASK_MANUAL_REORDER",
+        outcomeValue: `${sourceColumn}->${destinationColumn}`,
+        beforeState: {
+          kanbanColumn: existing.kanbanColumn,
+          sortOrder: existing.sortOrder,
+        },
+        afterState: {
+          kanbanColumn: updated?.kanbanColumn,
+          sortOrder: updated?.sortOrder,
+        },
+        payload: {
+          destinationColumnOrderIds,
+          sourceColumnOrderIds,
+        },
+        teachingWeight: 95,
+      });
+
+      return NextResponse.json(updated);
+    }
 
     const hasMetricOverride =
       data.impact !== undefined || data.confidence !== undefined || data.confidenceScore !== undefined || data.ease !== undefined;

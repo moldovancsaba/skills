@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "@mantine/core/styles.css";
 import "./globals.css";
-import { ClientNav } from "./client-nav";
-import { CookieBanner } from "@/lib/cookie-consent";
-import { AppShell, AppShellMain, ColorSchemeScript } from "@mantine/core";
+import { ColorSchemeScript } from "@mantine/core";
 import { Providers } from "@/components/providers";
+import { RootShell } from "@/components/root-shell";
 
 const colorSchemeStorageKey = "checklist-color-scheme";
 
@@ -45,19 +44,7 @@ export default function RootLayout({
       </head>
       <body className={`${fontBody.variable} ${fontDisplay.variable} font-body`}>
         <Providers>
-          <AppShell
-            padding="0"
-            navbar={{ width: 280, breakpoint: 'sm' }}
-            styles={{
-              main: { background: 'var(--mantine-color-body)' }
-            }}
-          >
-            <ClientNav />
-            <AppShellMain>
-              {children}
-            </AppShellMain>
-            <CookieBanner />
-          </AppShell>
+          <RootShell>{children}</RootShell>
         </Providers>
       </body>
     </html>

@@ -91,6 +91,69 @@ const COLUMN_OPTIONS = [
   { value: "CHECKLIST", label: "Now (Checklist)" },
 ];
 
+function reorderColumnItems(
+  items: NBAItem[],
+  draggableId: string,
+  source: { droppableId: string; index: number },
+  destination: { droppableId: string; index: number },
+) {
+  const sourceColumn = source.droppableId as NBAKanbanColumn;
+  const destinationColumn = destination.droppableId as NBAKanbanColumn;
+  const sourceItems = items
+    .filter((item) => item.kanbanColumn === sourceColumn)
+    .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0));
+  const destinationItems =
+    sourceColumn === destinationColumn
+      ? sourceItems
+      : items
+          .filter((item) => item.kanbanColumn === destinationColumn)
+          .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0));
+
+  const movingItem = sourceItems[source.index];
+  if (!movingItem || movingItem.id !== draggableId) {
+    return null;
+  }
+
+  const nextSourceItems = [...sourceItems];
+  nextSourceItems.splice(source.index, 1);
+
+  const nextDestinationItems =
+    sourceColumn === destinationColumn ? nextSourceItems : [...destinationItems];
+
+  nextDestinationItems.splice(destination.index, 0, {
+    ...movingItem,
+    kanbanColumn: destinationColumn,
+  });
+
+  const updatedItems = items.map((item) => {
+    if (item.id === movingItem.id) {
+      return { ...item, kanbanColumn: destinationColumn };
+    }
+    return item;
+  });
+
+  const manualizeColumn = (columnItems: NBAItem[]) =>
+    columnItems.map((item, index) => ({
+      ...item,
+      sortOrder: index - columnItems.length,
+    }));
+
+  const sourceManualized = sourceColumn === destinationColumn ? [] : manualizeColumn(nextSourceItems);
+  const destinationManualized = manualizeColumn(nextDestinationItems);
+  const patchedById = new Map<string, NBAItem>();
+
+  for (const item of sourceManualized) patchedById.set(item.id, item);
+  for (const item of destinationManualized) patchedById.set(item.id, item);
+
+  return {
+    nextItems: updatedItems.map((item) => patchedById.get(item.id) ?? item),
+    sourceColumn,
+    destinationColumn,
+    sourceColumnOrderIds: sourceColumn === destinationColumn ? undefined : sourceManualized.map((item) => item.id),
+    destinationColumnOrderIds: destinationManualized.map((item) => item.id),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Card Detail Modal
 // ---------------------------------------------------------------------------
@@ -400,20 +463,24 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
     openModal();
   };
 
-  const handleMoveItem = useCallback(async (itemId: string, column: string) => {
-    // Optimistic update
-    setItems(prev =>
-      prev.map(i =>
-        i.id === itemId
-          ? { ...i, kanbanColumn: column as NBAKanbanColumn, sortOrder: -(Date.now()) }
-          : i
-      )
-    );
+  const persistBoardReorder = useCallback(async (
+    itemId: string,
+    sourceColumn: NBAKanbanColumn,
+    destinationColumn: NBAKanbanColumn,
+    destinationColumnOrderIds: string[],
+    sourceColumnOrderIds?: string[],
+  ) => {
     try {
       await fetch(`/api/nba?id=${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kanbanColumn: column, sortOrder: -(Date.now()) }),
+        body: JSON.stringify({
+          kanbanColumn: destinationColumn,
+          destinationColumn,
+          sourceColumn,
+          destinationColumnOrderIds,
+          sourceColumnOrderIds,
+        }),
       });
     } catch {
       fetchItems();
@@ -429,8 +496,18 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
     setDraggingItemId(null);
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
-    await handleMoveItem(draggableId, destination.droppableId);
-  }, [handleMoveItem]);
+    const reordered = reorderColumnItems(items, draggableId, source, destination);
+    if (!reordered) return;
+
+    setItems(reordered.nextItems);
+    await persistBoardReorder(
+      draggableId,
+      reordered.sourceColumn,
+      reordered.destinationColumn,
+      reordered.destinationColumnOrderIds,
+      reordered.sourceColumnOrderIds,
+    );
+  }, [items, persistBoardReorder]);
 
   if (loading && items.length === 0) {
     return (
@@ -452,7 +529,34 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
         item={detailId ? items.find(i => i.id === detailId) || null : null}
         opened={modalOpened}
         onClose={() => { closeModal(); setDetailId(null); }}
-        onMove={handleMoveItem}
+        onMove={(itemId, column) => {
+          const item = items.find((entry) => entry.id === itemId);
+          if (!item || item.kanbanColumn === column) return;
+          const reordered = reorderColumnItems(
+            items,
+            itemId,
+            {
+              droppableId: item.kanbanColumn,
+              index: items
+                .filter((entry) => entry.kanbanColumn === item.kanbanColumn)
+                .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0))
+                .findIndex((entry) => entry.id === itemId),
+            },
+            {
+              droppableId: column,
+              index: items.filter((entry) => entry.kanbanColumn === column).length,
+            },
+          );
+          if (!reordered) return;
+          setItems(reordered.nextItems);
+          void persistBoardReorder(
+            itemId,
+            reordered.sourceColumn,
+            reordered.destinationColumn,
+            reordered.destinationColumnOrderIds,
+            reordered.sourceColumnOrderIds,
+          );
+        }}
         onDelete={handleDelete}
         onConvert={handleConvert}
       />

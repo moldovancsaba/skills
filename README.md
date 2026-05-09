@@ -78,12 +78,26 @@ End-user displays must be purged of technical trace information.
 - **Task ICE**: `impact * confidence * ease`, yielding a `1-1000` range.
 - **Knowledge/Goal ICE**: Derived from the same normalized base metrics through the shared scoring contract.
 - **Grounding Rule**: Task generation and refinement must route through `@/lib/scoring-contract` rather than trusting repeated raw tuples.
+- **Observability Rule**: Score clustering must be monitored through the shared score-health analyzer and `npm run audit:score-health`.
 
-### 5. Premium Design System Tokens
+### 5. Surface Ordering Contract
+- **Knowmore**: Rank cards from highest ICE to lowest ICE.
+- **Goals**: Rank cards from highest ICE to lowest ICE.
+- **Checklist**: Rank cards from highest ICE to lowest ICE.
+- **Planning**: Human-managed tactical order. AI places new or refreshed cards initially, then the user’s tactical moves take precedence.
+- **HITL Rule**: Manual Planning reorders are first-class teaching signals and must persist across refreshes and AI cycles.
+
+### 6. Premium Design System Tokens
 All interactive surfaces must use the hardened design language:
 - **Glassmorphism**: Use `backdropFilter: 'blur(10px)'` with low-opacity white backgrounds (`rgba(255, 255, 255, 0.02)`) and `1px` borders.
 - **Gradients**: Leverage Mantine's `gradient` variant for `ThemeIcon` and `Button` to ensure a high-yield aesthetic.
 - **Allowed Colors**: `blue`, `indigo`, `teal`, `violet`, `cyan`, `orange`, `brand`.
+
+### 7. Card Permalink Contract
+- **UUID Route**: First-class cards are shareable by UUID at `/card/[cardId]`.
+- **Standalone Surface**: The permalink route renders a single non-interactive landing page for the card, without operational action controls.
+- **Share Action**: Share controls must copy the canonical UUID permalink, not raw card text or an app-local route fragment.
+- **Layout Rule**: Share actions must use icon-only affordances to preserve one-line card action rows.
 
 ---
 

@@ -16,9 +16,15 @@
 - **Canonical Scoring Contract**: Introduced a shared scoring contract for normalized `1-10` metrics across tasks, goals, and knowledge.
 - **Oldest-First Maintenance**: Periodic rescoring and true refinement/update queues now process oldest-updated items first.
 - **General Task Score Grounding**: Task scoring now uses shared normalization plus evidence/task-shape signals instead of trusting repeated raw tuples.
+- **Score Health Observability**: Added a shared score-health analyzer, a dashboard metric panel, and `audit:score-health` CLI reporting for per-company score clustering.
 
 ### Tactical Board Stability
 - **Drag-State Cleanup**: Fixed the tactical board so drag rotation/accent state clears immediately after drop instead of persisting until refresh.
+
+### Shareable Card Permalinks
+- **UUID Card Routes**: Added canonical `/card/[cardId]` share routes for first-class cards.
+- **Standalone Landing Page**: Shared cards now render as non-interactive single-card pages outside the main app shell.
+- **Icon-Only Share Controls**: Card share affordances now use icon-only controls to preserve stable one-line actions.
 
 ### Technical Foundations
 - **Build-Time Stability**: Validated 100% stable `next build` across the new Mantine architecture.

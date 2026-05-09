@@ -17,15 +17,17 @@ import {
   Button,
   ActionIcon,
   Tooltip,
-  ThemeIcon
+  ThemeIcon,
+  Badge,
 } from "@mantine/core";
-import { LinkCard, PageHeader, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
+import { LinkCard, MetricCard, MetricGrid, PageHeader, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
 import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
-import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History } from "@tabler/icons-react";
+import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCirclesRelation as CirclesRelation } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { buildCardShareUrl } from "@/lib/card-share";
 
 type NBAItem = {
   id: string;
@@ -48,6 +50,39 @@ type NBAItem = {
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
+
+type ScoreHealth = {
+  companyId: string;
+  generatedAt: string;
+  overallBand: "HEALTHY" | "WARNING" | "CRITICAL";
+  dominantSurface: "TASK" | "KNOWLEDGE" | "BALANCED";
+  taskcards: {
+    count: number;
+    uniqueIceScores: number;
+    uniqueTriples: number;
+    diversityRatio: number;
+    dominantIceScore: number | null;
+    dominantIceShare: number;
+    dominantTuple: {
+      label: string;
+      count: number;
+      share: number;
+    } | null;
+  };
+  knowledge: {
+    count: number;
+    uniqueIceScores: number;
+    uniqueTriples: number;
+    diversityRatio: number;
+    dominantIceScore: number | null;
+    dominantIceShare: number;
+    dominantTuple: {
+      label: string;
+      count: number;
+      share: number;
+    } | null;
+  };
+};
 
 export default function CompanyDashboard() {
   const router = useRouter();
@@ -75,6 +110,7 @@ export default function CompanyDashboard() {
   const [declineClass, setDeclineClass] = useState<string>("WRONG");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [scoreHealth, setScoreHealth] = useState<ScoreHealth | null>(null);
 
   const chartSeries = useCallback((...keys: string[]) => {
     return chartData.map((point) => {
@@ -100,6 +136,7 @@ export default function CompanyDashboard() {
       setCounts(data.counts);
       setTopTasks(data.topTasks);
       setChartData(data.analytics);
+      setScoreHealth(data.metrics?.scoreHealth ?? null);
       
       const sessionRes = await fetch("/api/auth/session");
       if (sessionRes.ok) {
@@ -158,7 +195,7 @@ export default function CompanyDashboard() {
   }, []);
 
   const handleShare = useCallback(async (item: NBAItem) => {
-    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidenceScore}% | Ease: ${item.ease}`;
+    const text = buildCardShareUrl(item.id);
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(item.id);
@@ -280,6 +317,15 @@ export default function CompanyDashboard() {
     flashcardCount: counts.flashcards,
     pendingTaskCount: counts.goals,
   });
+  const scoreHealthColor =
+    scoreHealth?.overallBand === "CRITICAL"
+      ? "review"
+      : scoreHealth?.overallBand === "WARNING"
+        ? "strategy"
+        : "knowmore";
+  const taskTupleShare = scoreHealth?.taskcards.dominantTuple?.share ?? 0;
+  const taskDiversity = scoreHealth?.taskcards.diversityRatio ?? 0;
+  const dominantTupleLabel = scoreHealth?.taskcards.dominantTuple?.label ?? "—";
 
   return (
     <PageShell width="full">
@@ -343,6 +389,48 @@ export default function CompanyDashboard() {
       </RouteCardGrid>
 
       <Stack gap={rem(60)}>
+        <Stack gap="xl">
+          <Group justify="space-between" align="flex-end">
+            <Box>
+              <Title order={2}>Score Health</Title>
+              <Text c="dimmed">Live observability for score clustering, tuple repetition, and tactical score diversity.</Text>
+            </Box>
+            {scoreHealth && (
+              <Badge color={scoreHealthColor} size="lg" variant="light">
+                {scoreHealth.overallBand}
+              </Badge>
+            )}
+          </Group>
+
+          <MetricGrid cols={{ base: 1, md: 2, xl: 3 }}>
+            <MetricCard
+              icon={Activity}
+              color={scoreHealthColor}
+              label="Task Tuple Repeat"
+              value={scoreHealth ? `${Math.round(taskTupleShare * 100)}%` : "—"}
+              detail={scoreHealth ? `Dominant tuple ${dominantTupleLabel}` : "Awaiting score health sample"}
+            />
+            <MetricCard
+              icon={CirclesRelation}
+              color={scoreHealthColor}
+              label="Task ICE Diversity"
+              value={scoreHealth ? `${scoreHealth.taskcards.uniqueIceScores}/${scoreHealth.taskcards.count}` : "—"}
+              detail={scoreHealth ? `${Math.round(taskDiversity * 100)}% unique tuples across active tasks` : "Awaiting score health sample"}
+            />
+            <MetricCard
+              icon={AlertTriangle}
+              color={scoreHealth?.dominantSurface === "TASK" ? "review" : scoreHealth?.dominantSurface === "KNOWLEDGE" ? "knowmore" : scoreHealthColor}
+              label="Clustering Surface"
+              value={scoreHealth?.dominantSurface ?? "—"}
+              detail={
+                scoreHealth
+                  ? `Knowledge repeat ${Math.round((scoreHealth.knowledge.dominantTuple?.share ?? 0) * 100)}%`
+                  : "Awaiting score health sample"
+              }
+            />
+          </MetricGrid>
+        </Stack>
+
         <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
             <Box>

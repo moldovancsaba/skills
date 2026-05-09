@@ -12,6 +12,7 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "audit:semantic": "node scripts/semantic-audit.mjs",
+    "audit:score-health": "node scripts/audit-score-health.js",
     "smoke:routes": "node scripts/smoke-routes.mjs",
     "repair:raw-sources": "node scripts/repair-raw-sources.mjs",
     "repair:ice-scores": "node scripts/repair-ice-scores.js",

@@ -29,7 +29,12 @@ export async function GET(req: Request) {
 
   const goalcards = await prisma.goalcard.findMany({
     where: baseWhere,
-    orderBy: { createdAt: "desc" },
+    orderBy: [
+      { iceScore: "desc" },
+      { confidenceScore: "desc" },
+      { updatedAt: "desc" },
+      { publicId: "asc" },
+    ],
     select: {
       id: true,
       publicId: true,

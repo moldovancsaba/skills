@@ -33,10 +33,23 @@
 - **Shared Scoring Contract**: `src/lib/scoring-contract.js` is now the authoritative contract for normalized `1-10` metrics and derived ICE values.
 - **Evidence-Grounded Task Scoring**: Task generation/refinement no longer relies on raw repeated tuples alone; scores are grounded by source strength plus task specificity, urgency, and complexity signals.
 - **Fairness Rule**: Periodic rescoring and true refinement queues run oldest-updated-first to avoid starvation.
+- **Observability Surface**: Dashboard score-health metrics now expose tuple repetition, ICE diversity, and dominant clustering surface per company.
+- **Audit Job**: `npm run audit:score-health -- <companyId>` runs the same analyzer from the command line for targeted diagnosis.
 
 ### 5. Tactical Board Drag Stability
 - **Drag Lifecycle Fix**: Tactical board drag visuals are now tied to explicit drag lifecycle state instead of lingering per-card transforms.
 - **Invariant**: After drop, cards must immediately return to resting style without requiring a refresh.
+
+### 6. Surface Ordering Contract
+- **Knowmore / Goals / Checklist**: These are ranked AI surfaces and must display cards from highest ICE to lowest ICE.
+- **Planning**: This is the human-managed tactical board. AI performs initial placement for new or updated cards, but human tactical moves define the ongoing order/placement contract.
+- **Teaching Importance**: Planning drag-and-drop order is a core HITL signal and is persisted as explicit per-column manual order, not a transient UI effect.
+
+### 7. Card Sharing Contract
+- **Canonical Link**: Card sharing now uses the card UUID as the canonical permalink key.
+- **Standalone View**: `/card/[cardId]` renders a single-card landing page without interactive workflow buttons, suitable for focused sharing and review.
+- **Shell Rule**: Shared card pages bypass the normal navigation shell and render as standalone content.
+- **Control Rule**: Share actions are icon-only and copy the canonical permalink instead of raw card text.
 
 ## Open Gaps & Roadmap
 

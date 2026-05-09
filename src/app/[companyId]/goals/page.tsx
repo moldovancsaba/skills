@@ -40,6 +40,7 @@ import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { TaskReviewCard } from "@/components/task-review-card";
+import { buildCardShareUrl } from "@/lib/card-share";
 
 type Goal = {
   id: string;
@@ -209,7 +210,7 @@ export default function GoalsPage() {
   };
 
   const handleShare = async (item: Goal) => {
-    const text = `${item.title}\n\n${item.description}\n\nImpact: ${item.impact} | Confidence: ${item.confidenceScore}% | Ease: ${item.ease}`;
+    const text = buildCardShareUrl(item.id);
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(item.id);

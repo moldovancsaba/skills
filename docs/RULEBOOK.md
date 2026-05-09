@@ -251,5 +251,7 @@ Rules:
 - worker execution must consume the persisted queue contract, not hidden module-local ordering alone
 - `AI_ONLY` and `HUMAN_GUIDED` are explicit scheduling modes
 - `Reset to AI only` must fully clear manual queue influence for the selected scope
+- shipped human queue controls must remain simple: drag/drop between queue columns, drag/drop manual ordering, and `Reset to AI Only`
+- do not document or imply a separate tweak menu unless it actually exists in the webapp
 - suspicious or critical score-health states must be able to reprioritize queue work through the shared queue contract
 - fairness-sensitive recalculation work must continue to preserve oldest-first behavior unless explicitly human-overridden

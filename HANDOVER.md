@@ -24,6 +24,8 @@ Read first:
 - repetitive local-AI work is represented as persisted `PipelineJob` queue records
 - the webapp `Worker Queue` is the primary HiTL steering surface for repetitive jobs
 - worker scheduling supports explicit `AI_ONLY` and `HUMAN_GUIDED` modes
+- the shipped webapp tweak surface is the `Worker Queue` board, not a separate compact menu
+- current human controls are drag/drop between queue columns, drag/drop reordering, and `Reset to AI Only`
 
 ## Files That Matter Most
 

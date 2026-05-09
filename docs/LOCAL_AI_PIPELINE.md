@@ -150,6 +150,22 @@ This lane:
 
 This keeps internet-discovered knowledge inside the same unified raw-source pipeline instead of attaching it only as transient flashcard evidence.
 
+### Shipped HiTL queue controls
+
+The current human steering surface for repetitive local-AI work is the webapp `Worker Queue` board at `/:companyId/pipeline`.
+
+Current shipped controls:
+
+- drag and drop jobs between `Now`, `Soon`, `Later`, and `Parked`
+- drag and drop reordering within a queue column
+- one-step `Reset to AI Only`
+
+Behavior contract:
+
+- manual drag/drop moves switch the affected jobs into `HUMAN_GUIDED`
+- `Reset to AI Only` clears those manual overrides and returns scheduling to shared AI logic
+- there is no separate compact tweak menu in the current shipped UI; the board itself is the tweak surface
+
 Current selection contract:
 
 - **Topic-first Planning**: the lane now iterates through active `Topic` rows as the primary unit of work.

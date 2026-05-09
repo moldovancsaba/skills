@@ -1,15 +1,9 @@
 #!/usr/bin/env node
 /**
- * checklist GUARDIAN
- * v0.14.0-PRODUCTION (Hardened)
- * 
- * A production-grade watchdog for the trinity Worker (scripts/sync.js).
- * Responsibilities:
- *   - Launches sync.js as a child process.
- *   - Monitors it via the /health endpoint (Port 10005).
- *   - Detects crashes, hangs, and resource leaks.
- *   - Auto-restarts with exponential back-off (max 5 min).
- *   - Logs everything to logs/guardian.log with timestamps.
+ * Watchdog for the local AI worker process.
+ *
+ * Launches `scripts/sync.js`, monitors health and liveness, and restarts the
+ * worker when crashes, hangs, or resource failures are detected.
  */
 
 "use strict";
@@ -94,7 +88,7 @@ let useSafeMode        = false; // If true, tells worker to use fallback model
 let resourceStats      = { freeMem: 0, totalMem: 0, loadAvg: [] };
 let commandTimer       = null;
 
-// --- COMMAND BRIDGE (Phase 2) ---
+// --- Command bridge supervision ---
 
 /**
  * Polls the database for pending system commands issued from the web dashboard.
@@ -520,7 +514,7 @@ setTimeout(runSCIAudit, 30000);
 // Periodic heartbeat even when idle
 heartbeatTimer = setInterval(() => writeHeartbeat(), 15_000);
 
-// Periodic command bridge check (Phase 2)
+// Periodic command bridge check
 commandTimer = setInterval(pollCommands, 20_000); 
 
 // Periodic Kanban Orchestration

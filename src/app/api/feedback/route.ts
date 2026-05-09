@@ -5,12 +5,10 @@ import { verifyMembership } from "@/lib/permissions";
 import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
 
 /**
- * STRATEGIC FEEDBACK API
- * v0.16.0
- * 
- * Implements State Snapshot Architecture:
- * - ISOLATION: Writes exclusively to StrategicFeedback to prevent AI overwrites.
- * - UNIFIED: Handles Goal, Task, and Knowledge feedback in one stream.
+ * Strategic feedback API.
+ *
+ * Persists human feedback for goal, task, and knowledge entities in the
+ * shared strategic feedback stream without letting worker updates overwrite it.
  */
 
 export async function GET(request: NextRequest) {

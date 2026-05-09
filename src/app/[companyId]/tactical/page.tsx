@@ -1,8 +1,8 @@
 /**
- * TACTICAL BOARD PAGE
- * v1.1.0
- * 
- * Dynamic import with ssr:false is REQUIRED for @hello-pangea/dnd.
+ * Tactical board route.
+ *
+ * The board is dynamically imported with `ssr: false` because the drag-and-drop
+ * layer depends on browser-only APIs.
  */
 'use client';
 

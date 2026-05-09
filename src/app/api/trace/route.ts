@@ -3,15 +3,10 @@ import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 
 /**
- * INTELLIGENCE TRACE API (Phase 4)
- * v0.14.0-PRODUCTION
+ * Intelligence trace API.
  *
- * Reconstructs the Evidence → Flashcard → Task provenance chain
- * for a given versionFamilyId.
- *
- * Schema reality:
- *   - NBAItem has: versionFamilyId, sourceFlashcardIds[], generatedFromIds[]
- *   - Flashcard has: sources[] (FlashcardSource join), NO versionFamilyId
+ * Reconstructs the evidence -> flashcard -> task provenance chain for a
+ * version family using the current persisted schema relationships.
  */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);

@@ -1,9 +1,8 @@
 /**
- * checklist ID ORCHESTRATOR
- * v0.11.4-STABLE
- * 
- * Logic for managing sequential, human-readable Public IDs across all DataCards.
- * Implements transaction-safe reservation and backfill orchestration for Sources and Tasks.
+ * Public ID orchestration for shared card entities.
+ *
+ * Manages sequential, human-readable IDs and transaction-safe reservation
+ * across the supported public-facing card surfaces.
  */
 import { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/db";

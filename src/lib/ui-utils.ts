@@ -1,6 +1,5 @@
 /**
- * UI Utilities for the CHECKLIST OS.
- * v1.0.0
+ * Shared UI sanitization and display helpers.
  */
 
 const TECHNICAL_METADATA_PATTERN = /\[(?:TRACE|TOPIC_ID):[^\]]*\]/gi;

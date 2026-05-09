@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
 /**
- * SYSTEM COMMAND API (Phase 2)
- * v0.14.0-PRODUCTION
- * 
- * Secure endpoint for issuing remote commands to the local Trinity Guardian.
+ * System command API for the local worker and guardian control plane.
  */
 export async function POST(req: Request) {
   try {

@@ -1,11 +1,8 @@
 /**
- * checklist checklist INTERFACE
- * v0.11.5-STABLE
- * 
- * Orchestrates the full lifecycle of Next Best Action (NBA) items.
- * Implements adaptive state filtering:
- *   - Active: DRAFT, CHECKED, VERIFIED
- *   - Archived: ACCEPTED, DECLINED, EXPIRED, ARCHIVED
+ * Checklist page surface for taskcard review and action handling.
+ *
+ * This component owns the main checklist experience for active and archived
+ * tactical items in the shared product card system.
  */
 'use client';
 
@@ -84,7 +81,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     const res = await fetch(`/api/nba?companyId=${cid}${archived ? "&archived=true" : ""}`);
     const data = await res.json();
     
-    // API now handles the filtering standard (v0.11.5)
+    // The API owns the canonical archived vs active filtering contract.
     setItems(data);
     setLoading(false);
   }, [archived]);

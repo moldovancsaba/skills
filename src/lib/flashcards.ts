@@ -1,9 +1,8 @@
 /**
- * checklist FLASHCARD ENGINE
- * v0.11.4-STABLE
- * 
- * Core business logic for generating, refining, and managing Flashcards and Taskcards.
- * Handles induction from sources, similarity checks, and strategic alignment.
+ * Shared flashcard and downstream card engine.
+ *
+ * Owns the core business logic for generating, refining, scoring, and
+ * managing knowledge cards and their downstream task/goal derivatives.
  */
 
 // @ts-nocheck

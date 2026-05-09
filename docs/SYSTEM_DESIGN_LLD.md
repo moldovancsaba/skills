@@ -105,3 +105,5 @@ The repetitive-job system now has a first-class queue model:
 - `HUMAN_GUIDED` mode means the persisted queue column and manual order take precedence
 - the webapp `Worker Queue` board is the primary human steering surface
 - score-health alerts can reprioritize queue work through the same shared contract
+- the shipped UI controls are drag/drop between queue columns, manual drag/drop ordering, and `Reset to AI Only`
+- there is no separate compact tweak menu in the current release; the board is the tweak surface

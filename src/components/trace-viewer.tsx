@@ -24,9 +24,6 @@ interface TraceNode {
 }
 
 /**
- * INTELLIGENCE TRACE VIEWER (Phase 4)
- * v0.14.0-PRODUCTION
- * 
  * Visualizes the provenance chain of an intelligence unit.
  */
 export function TraceViewer({ 

@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * TACTICAL BOARD
- * v1.1.0
+ * Planning and tactical board surface.
  *
- * NOTE: This file must ONLY be imported via dynamic({ ssr: false }) from the
- * page component. @hello-pangea/dnd uses browser-only pointer/DOM APIs.
+ * This file must only be imported through `dynamic(..., { ssr: false })`
+ * from the page layer because `@hello-pangea/dnd` depends on browser-only
+ * pointer and DOM APIs.
  */
 
 import { useState, useEffect, useCallback } from "react";

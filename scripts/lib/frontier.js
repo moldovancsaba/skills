@@ -1,20 +1,8 @@
 /**
- * TRINITY FRONTIER ORCHESTRATOR
- * M3.1 — 5-Horizon Kanban Distribution & Manual Priority Harvesting
- * v1.2.0-PRODUCTION
+ * Frontier placement and tactical horizon orchestration.
  *
- * Implements the recomputeFrontier function from Trinity formal production definition §15.
- * 
- * Orchestrates taskcards across 5 tactical horizons based on ICE thresholds (§24):
- *   - CHECKLIST: ICE >= 700 (max 3, unless manual)
- *   - TODO:      ICE >= 500
- *   - BACKLOG:   ICE >= 250
- *   - ROADMAP:   ICE >= 100
- *   - IDEABANK:  ICE < 100
- *
- * Manual Priority (§24.5):
- *   User-defined drags set sortOrder < 0. These are "Hard Anchors" that override 
- *   ICE thresholds and force the candidate to the CHECKLIST/TODO horizons.
+ * Recomputes planning/checklist placement across the five tactical horizons
+ * while preserving explicit human ordering anchors where they exist.
  */
 const { CandidateState } = require("./lifecycle");
 const { recordDecisionEvent, recordOutcomeEvent } = require("./audit-ledger");

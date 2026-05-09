@@ -3,7 +3,7 @@
 This file tracks the current delivery state of the product.
 It is not a release banner and it must not duplicate version truth.
 
-Current runtime version: `v0.15.3`
+Current runtime version: `v0.15.4`
 Source of truth: [package.json](/Users/Shared/Projects/checklist/package.json) and [src/lib/release.ts](/Users/Shared/Projects/checklist/src/lib/release.ts)
 
 ## Delivered

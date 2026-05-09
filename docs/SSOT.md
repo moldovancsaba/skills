@@ -81,6 +81,8 @@ The repetitive-job contract now also includes:
 - explicit `AI_ONLY` vs `HUMAN_GUIDED` scheduling modes
 - a webapp `Worker Queue` board as the primary HiTL steering surface for repetitive jobs
 - one-step reset back to AI-only scheduling
+- drag/drop queue column changes and drag/drop manual ordering as the shipped human-tweak controls
+- no separate compact tweak menu today; the board itself is the canonical tweak surface
 
 ## 6. AI Brain Rule
 

@@ -47,6 +47,17 @@ Frontend system:
 - Typography is defined centrally in the Mantine theme and DS typography primitives only
 - ICE management must run through the canonical scoring contract and the oldest-first maintenance queue across upstream cards, knowledge, goals, and tasks
 
+Worker queue controls:
+
+- the webapp implementation is a `Worker Queue` board at `/:companyId/pipeline`
+- the shipped human controls are:
+  - drag and drop jobs between `Now`, `Soon`, `Later`, and `Parked`
+  - drag and drop reordering inside a column
+  - one-step `Reset to AI Only`
+- drag and drop switches affected jobs into `HUMAN_GUIDED`
+- `Reset to AI Only` clears manual queue influence and returns scheduling to shared AI logic
+- there is not a separate compact tweak dropdown/menu yet; the board itself is the shipped tweak surface
+
 ## Frontend Sources Of Truth
 
 These files define the live UI contract:

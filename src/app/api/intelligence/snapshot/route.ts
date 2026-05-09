@@ -3,11 +3,10 @@ import { prisma } from "@/lib/db";
 import crypto from "crypto";
 
 /**
- * INTELLIGENCE SNAPSHOT PUSH API
- * v0.16.0
- * 
- * Sole authority for dashboard metrics and global state.
- * Only accessible via Local AI Server with bridge secret.
+ * Intelligence snapshot ingestion API.
+ *
+ * Receives the authoritative dashboard snapshot from the local AI worker
+ * over the bridge-secret protected channel.
  */
 
 export async function POST(request: NextRequest) {

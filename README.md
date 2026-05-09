@@ -45,6 +45,7 @@ Frontend system:
 - `UnifiedCardModal` is the only approved modal content shell for product cards
 - first-class entity card surfaces must expose their canonical ICE score through the shared card header contract
 - Typography is defined centrally in the Mantine theme and DS typography primitives only
+- ICE management must run through the canonical scoring contract and the oldest-first maintenance queue across upstream cards, knowledge, goals, and tasks
 
 ## Frontend Sources Of Truth
 

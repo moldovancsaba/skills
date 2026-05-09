@@ -11,6 +11,10 @@ const {
   normalizeKnowledgeScores,
   normalizeTaskScores,
 } = require("../../src/lib/scoring-contract");
+const {
+  deriveDataCardScoreProfile,
+  deriveTopicCardScoreProfile,
+} = require("../../src/lib/upstream-card-scoring");
 
 /**
  * checklist MAINTENANCE ENGINE
@@ -138,19 +142,20 @@ async function processUserFeedback(prisma, company) {
       newConf = 10;
     }
 
-    // b. Recalculate ICE Score Locally
-    const newIce = newImpact * newConf * newEase;
+    // b. Recalculate ICE through the canonical task-scoring contract
+    const normalizedTaskScores = normalizeTaskScores({
+      impact: newImpact,
+      confidence: newConf,
+      ease: newEase,
+    });
 
     // c. Update NBA Item Intelligence
     await prisma.nBAItem.update({
       where: { id: item.id },
       data: {
-        impact: newImpact,
-        confidence: newConf,
-        confidenceScore: newConf,
-        ease: newEase,
-        iceScore: Math.max(1, Math.min(1000, newIce)),
-        updatedAt: new Date()
+        ...normalizedTaskScores,
+        updatedAt: new Date(),
+        lastAuditedAt: null,
       }
     });
 
@@ -181,7 +186,8 @@ async function processUserFeedback(prisma, company) {
               confidence: Math.max(1, Math.min(10, currentConf + delta.confidence)),
               weight: Math.max(1, Math.min(10, currentWeight + delta.weight)),
             }),
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            lastAuditedAt: null,
           }
         });
       }
@@ -305,6 +311,102 @@ async function rescorePeriodicCards(prisma, company) {
   return totalAudited;
 }
 
+async function rescorePeriodicUpstreamCards(prisma, company) {
+  const cid = company.id;
+  const batchSize = await getWorkerConfig(prisma, company, "rescore_batch_size", 3);
+
+  const [sources, topics, files] = await Promise.all([
+    prisma.source.findMany({
+      where: { companyId: cid },
+      orderBy: [{ updatedAt: "asc" }],
+      take: batchSize,
+    }),
+    prisma.topic.findMany({
+      where: { companyId: cid },
+      orderBy: [{ updatedAt: "asc" }],
+      take: batchSize,
+    }),
+    prisma.uploadedSourceFile.findMany({
+      where: { companyId: cid },
+      orderBy: [{ updatedAt: "asc" }],
+      take: batchSize,
+    }),
+  ]);
+
+  for (const source of sources) {
+    const profile = deriveDataCardScoreProfile({
+      content: source.content,
+      hashtags: source.hashtags,
+      entityTag: source.entityTag,
+      aiClusters: source.aiClusters,
+      metadata: source.metadata,
+      intelligenceType: source.intelligenceType,
+      sourceName: source.entityTag,
+    });
+
+    await prisma.source.update({
+      where: { id: source.id },
+      data: {
+        confidence: profile.confidence,
+        confidenceScore: profile.confidence,
+        impact: profile.impact,
+        weight: profile.weight,
+        iceScore: profile.iceScore,
+      },
+    });
+  }
+
+  for (const topic of topics) {
+    const profile = deriveTopicCardScoreProfile({
+      label: topic.label,
+      notes: topic.notes,
+      active: topic.active,
+      sortOrder: topic.sortOrder,
+      hashtags: topic.hashtags,
+    });
+
+    await prisma.topic.update({
+      where: { id: topic.id },
+      data: {
+        confidence: profile.confidence,
+        confidenceScore: profile.confidence,
+        impact: profile.impact,
+        weight: profile.weight,
+        iceScore: profile.iceScore,
+      },
+    });
+  }
+
+  for (const file of files) {
+    const profile = deriveDataCardScoreProfile({
+      name: file.name,
+      content: file.name,
+      hashtags: file.hashtags,
+      entityTag: file.entityTag,
+      metadata: { mimeType: file.mimeType, sizeBytes: file.sizeBytes },
+      sourceName: file.name,
+    });
+
+    await prisma.uploadedSourceFile.update({
+      where: { id: file.id },
+      data: {
+        confidence: profile.confidence,
+        confidenceScore: profile.confidence,
+        impact: profile.impact,
+        weight: profile.weight,
+        iceScore: profile.iceScore,
+      },
+    });
+  }
+
+  const totalAudited = sources.length + topics.length + files.length;
+  if (totalAudited > 0) {
+    console.log(`[RESCORE] ${company.name}: Audited ${sources.length} sources, ${topics.length} topics, ${files.length} uploaded files through the upstream scoring contract.`);
+  }
+
+  return totalAudited;
+}
+
 // --- LIFECYCLE MANAGEMENT ---
 
 /**
@@ -358,6 +460,7 @@ async function runMaintenance(prisma, company) {
 
   // 0.25 Periodic rescoring across all active card layers with oldest-first queueing.
   await rescorePeriodicCards(prisma, company);
+  await rescorePeriodicUpstreamCards(prisma, company);
 
   // 0.5 Global Inconsistency Scrub (v0.11.5 Harden)
   await scrubCompanyRejections(prisma, cid);
@@ -914,6 +1017,7 @@ module.exports = {
   scrubDatabaseElemental,
   processUserFeedback,
   rescorePeriodicCards,
+  rescorePeriodicUpstreamCards,
   scrubCompanyRejections,
   mergeDuplicates,
   enrichOldestCards,

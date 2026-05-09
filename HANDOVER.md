@@ -20,6 +20,7 @@ Read first:
 - typography is centrally defined in the theme and DS typography primitives only
 - interactions are centralized in the shared UI layer
 - semantic tones are the only approved product color vocabulary
+- ICE management is centralized through shared scoring contracts plus oldest-first maintenance and queue flows across upstream cards, knowledge, goals, and tasks
 - repetitive local-AI work is represented as persisted `PipelineJob` queue records
 - the webapp `Worker Queue` is the primary HiTL steering surface for repetitive jobs
 - worker scheduling supports explicit `AI_ONLY` and `HUMAN_GUIDED` modes

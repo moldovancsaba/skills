@@ -150,6 +150,9 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
     staleFlashcards,
     staleGoals,
     staleTasks,
+    staleSources,
+    staleTopics,
+    staleFiles,
     scoreHealth,
   ] = await Promise.all([
     prisma.feedback.count({
@@ -212,6 +215,24 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         ],
       },
     }),
+    prisma.source.count({
+      where: {
+        companyId,
+        updatedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    }),
+    prisma.topic.count({
+      where: {
+        companyId,
+        updatedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    }),
+    prisma.uploadedSourceFile.count({
+      where: {
+        companyId,
+        updatedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    }),
     computeCompanyScoreHealth(companyId, prisma),
   ]);
 
@@ -221,7 +242,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
     activeTaskCount,
     activeKnowledgeCount,
     sourceCount,
-    staleAuditCount: staleFlashcards + staleGoals + staleTasks,
+    staleAuditCount: staleFlashcards + staleGoals + staleTasks + staleSources + staleTopics + staleFiles,
     scoreHealth,
   };
 }

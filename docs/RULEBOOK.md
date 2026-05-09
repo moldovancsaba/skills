@@ -41,6 +41,7 @@ Approved product UI system:
 - `UnifiedCardModal` as the only approved modal content shell for product cards
 - first-class entity card surfaces must expose canonical ICE through the shared card header contract
 - semantic tones only for product color meaning
+- ICE updates, rescoring, and repair must run through shared scoring contracts and oldest-first maintenance or queue flows, not local ad hoc math
 
 ## 3. What We Do Not Use
 

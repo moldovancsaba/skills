@@ -448,6 +448,11 @@ model Source {
   companyId       String
   publicId        Int?     @unique
   content         String
+  confidence      Int      @default(5)
+  impact          Int      @default(5)
+  weight          Int      @default(5)
+  confidenceScore Float    @default(5)
+  iceScore        Float    @default(0)
   canonicalContent String?
   canonicalContentHash String?
   canonicalizerVersion String?   @default("v1.4.0")
@@ -478,6 +483,11 @@ model Topic {
   id        String   @id @default(uuid()) @map("_id")
   companyId String
   label     String
+  confidence      Int      @default(5)
+  impact          Int      @default(5)
+  weight          Int      @default(5)
+  confidenceScore Float    @default(5)
+  iceScore        Float    @default(0)
   hashtags  String[] @default([])
   hashtagMaintainedAt DateTime?
   hashtagEvaluationPending Boolean @default(true)
@@ -697,6 +707,11 @@ model UploadedSourceFile {
   publicId  Int?     @unique
   companyId String
   name      String
+  confidence      Int      @default(5)
+  impact          Int      @default(5)
+  weight          Int      @default(5)
+  confidenceScore Float    @default(5)
+  iceScore        Float    @default(0)
   hashtags  String[] @default([])
   hashtagMaintainedAt DateTime?
   hashtagEvaluationPending Boolean @default(true)

@@ -19,6 +19,8 @@ import {
   Title
 } from "@mantine/core";
 import { formatDistanceToNow } from 'date-fns';
+import { getModuleTheme, getSemanticSurfaceStyle } from "@/lib/semantic-theme";
+import { resolveStateTone } from "@/lib/ui-state";
 
 type HealthData = {
   status: string;
@@ -85,11 +87,11 @@ export function IntelligencePulse() {
     return (
       <Card>
         <Group gap="md" wrap="nowrap">
-          <ThemeIcon color="red" variant="light">
+          <ThemeIcon color={resolveStateTone("danger")} variant="light">
             <AlertTriangle size={24} />
           </ThemeIcon>
           <Stack gap={2}>
-            <Title order={4} c="red">Intelligence Engine Offline</Title>
+            <Title order={4} c="review">Intelligence Engine Offline</Title>
             <Text size="xs" c="dimmed">The background worker is not responding. Strategic synthesis is currently paused.</Text>
           </Stack>
         </Group>
@@ -101,11 +103,14 @@ export function IntelligencePulse() {
   const isHealthy = failRate < 10;
   const isWarning = failRate >= 10 && failRate < 20;
   const statusColor = isHealthy ? "green" : isWarning ? "orange" : "red";
+  const reviewTheme = getModuleTheme("review");
+  const neutralTheme = getModuleTheme("neutral");
+  const knowmoreTheme = getModuleTheme("knowmore");
 
   return (
     <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
       {/* Real-time Status */}
-      <Card p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
+      <Card p="md" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
         <Stack gap="md">
           <Group justify="space-between">
             <Group gap="xs">
@@ -125,7 +130,7 @@ export function IntelligencePulse() {
                   {data.activeModel || data.settings?.failsafeModel?.split('|')[0]?.split(':')[1]?.trim() || "TRINITY-V1"}
                 </Text>
               </Group>
-              <Text size="sm" c="white" truncate>{data.currentCompany || "Idle Rotation"}</Text>
+              <Text size="sm" c="var(--text-primary)" truncate>{data.currentCompany || "Idle Rotation"}</Text>
               <Text size="xs" c="dimmed" truncate mt={2}>
                 {data.activeTask || "Scanning for signal..."}
               </Text>
@@ -145,8 +150,7 @@ export function IntelligencePulse() {
                       h={rem(4)} 
                       style={{ 
                         borderRadius: rem(2),
-                        backgroundColor: isActive ? 'var(--mantine-color-orange-filled)' : 'var(--mantine-color-dark-4)',
-                        transition: 'all 0.3s ease'
+                        backgroundColor: isActive ? reviewTheme.color : neutralTheme.border,
                       }} 
                     />
                   );
@@ -158,7 +162,7 @@ export function IntelligencePulse() {
       </Card>
 
       {/* Throughput Yield */}
-      <Card p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
+      <Card p="md" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
         <Stack gap="md">
           <Group gap="xs">
             <ThemeIcon variant="transparent" color="ingress" size="sm">
@@ -196,7 +200,7 @@ export function IntelligencePulse() {
       </Card>
 
       {/* Recent Performance */}
-      <Card p="md" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
+      <Card p="md" style={getSemanticSurfaceStyle("neutral", { elevated: false })}>
         <Stack gap="md" h="100%">
           <Group gap="xs">
             <ThemeIcon variant="transparent" color="strategy" size="sm">
@@ -210,7 +214,7 @@ export function IntelligencePulse() {
               {data.metrics.cycleHistory.slice(-10).map((cycle, i) => {
                 const height = Math.max(10, Math.min(100, (cycle.ops / 10) * 100));
                 const fail = parseFloat(cycle.failRate);
-                const barColor = fail < 10 ? "var(--mantine-color-green-filled)" : fail < 20 ? "var(--mantine-color-orange-filled)" : "var(--mantine-color-red-filled)";
+                const barColor = fail < 10 ? knowmoreTheme.color : fail < 20 ? reviewTheme.color : reviewTheme.border;
                 return (
                   <Tooltip 
                     key={i} 
@@ -225,7 +229,6 @@ export function IntelligencePulse() {
                         backgroundColor: barColor,
                         opacity: 0.4,
                         borderRadius: '2px 2px 0 0',
-                        transition: 'all 0.2s ease',
                         cursor: 'pointer'
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
@@ -244,7 +247,7 @@ export function IntelligencePulse() {
           <Group justify="space-between" mt="auto">
             <Text size="xs" c="dimmed">Last 10 Cycles</Text>
             <Group gap={6}>
-              <Box h={6} w={6} style={{ borderRadius: '50%', backgroundColor: 'var(--mantine-color-green-filled)' }} />
+              <Box h={6} w={6} style={{ borderRadius: '50%', backgroundColor: knowmoreTheme.color }} />
               <Text size="xs" c="dimmed">Success</Text>
             </Group>
           </Group>

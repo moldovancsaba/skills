@@ -3,18 +3,22 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Badge, Box, Center, Group, Loader, Paper, Stack, Text, ThemeIcon, rem } from "@mantine/core";
-import { IconSparkles as Sparkles, IconTarget as Target, IconListCheck as ListCheck } from "@tabler/icons-react";
+import { IconDatabase as Database, IconLayersIntersect as Layers, IconSparkles as Sparkles, IconTarget as Target, IconListCheck as ListCheck } from "@tabler/icons-react";
 import { PageShell } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
+import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import type { SharedCardEntityType, SharedCardTone } from "@/lib/shared-card";
 
 type SharedCard = {
   id: string;
   companyId: string;
-  entityType: "TASK" | "GOAL" | "KNOWLEDGE";
+  entityType: SharedCardEntityType;
   title: string;
   body: string;
-  processingStatus: string;
+  statusLabel: string;
+  subtypeLabel?: string | null;
+  tone: SharedCardTone;
   iceScore: number;
   hashtags: string[];
   createdAt?: string | null;
@@ -22,10 +26,12 @@ type SharedCard = {
   publicId?: number | null;
 };
 
-function toneForEntity(entityType: SharedCard["entityType"]) {
-  if (entityType === "GOAL") return "strategy";
-  if (entityType === "KNOWLEDGE") return "knowmore";
-  return "checklist";
+function iconForEntity(entityType: SharedCard["entityType"]) {
+  if (entityType === "DATA") return <Database size={22} />;
+  if (entityType === "TOPIC") return <Layers size={22} />;
+  if (entityType === "GOAL") return <Target size={22} />;
+  if (entityType === "KNOWLEDGE") return <Sparkles size={22} />;
+  return <ListCheck size={22} />;
 }
 
 export default function SharedCardPage() {
@@ -82,32 +88,28 @@ export default function SharedCardPage() {
     );
   }
 
-  const tone = toneForEntity(card.entityType);
-
   return (
     <PageShell width="md">
       <Center style={{ minHeight: "100vh" }}>
         <Stack gap="xl" maw={760} w="100%">
           <Group justify="center">
-            <ThemeIcon color={tone} size="xl" radius="xl">
-              {card.entityType === "GOAL" ? (
-                <Target size={22} />
-              ) : card.entityType === "KNOWLEDGE" ? (
-                <Sparkles size={22} />
-              ) : (
-                <ListCheck size={22} />
-              )}
+            <ThemeIcon color={card.tone} size="xl" radius="xl">
+              {iconForEntity(card.entityType)}
             </ThemeIcon>
           </Group>
 
-          <UnifiedCard tone={tone} style={{ width: "100%" }}>
+          <UnifiedCard tone={card.tone} style={{ width: "100%" }}>
             <UnifiedCardHeader
               clampTitle={false}
               supporting={
                 <Group justify="space-between" wrap="nowrap" style={{ width: "100%" }}>
-                  <Badge color={tone}>ICE {Math.round(card.iceScore)}</Badge>
+                  {card.iceScore > 0 ? (
+                    <Badge color={card.tone}>ICE {Math.round(card.iceScore)}</Badge>
+                  ) : (
+                    <Badge color={card.tone}>{card.statusLabel}</Badge>
+                  )}
                   <Text size="sm" c="dimmed">
-                    {card.entityType} | {card.processingStatus}
+                    {card.statusLabel}{card.subtypeLabel ? ` | ${card.subtypeLabel}` : ""}
                   </Text>
                 </Group>
               }
@@ -123,8 +125,7 @@ export default function SharedCardPage() {
                   p="md"
                   style={{
                     borderRadius: rem(12),
-                    backgroundColor: "var(--surface-subtle)",
-                    border: "1px solid var(--surface-section-border)",
+                    ...getSemanticInsetStyle(card.tone),
                   }}
                 >
                   <Text size="sm" style={{ letterSpacing: "0.04em" }}>

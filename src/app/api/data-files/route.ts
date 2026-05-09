@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
 import { verifyMembership } from "@/lib/permissions";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
+import { enrichUploadedFile } from "@/lib/file-enrichment";
+import { deriveDataCardScoreProfile } from "@/lib/upstream-card-scoring";
 import {
   ensureSourcePublicIds,
   nextSourcePublicId,
@@ -44,6 +46,11 @@ export async function GET(request: NextRequest) {
         publicId: true,
         companyId: true,
         name: true,
+        confidence: true,
+        confidenceScore: true,
+        impact: true,
+        weight: true,
+        iceScore: true,
         hashtags: true,
         entityTag: true,
         mimeType: true,
@@ -91,12 +98,32 @@ export async function POST(request: NextRequest) {
 
         const publicId = await nextSourcePublicId(tx);
         const arrayBuffer = await file.arrayBuffer();
+        const enriched = await enrichUploadedFile({
+          name: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+          hashtags,
+          content: Buffer.from(arrayBuffer),
+        });
+        const scoreProfile = deriveDataCardScoreProfile({
+          name: file.name,
+          content: enriched.extractedText || file.name,
+          hashtags,
+          entityTag,
+          metadata: enriched.watchedContent ?? null,
+          sourceName: file.name,
+        });
 
         const saved = await tx.uploadedSourceFile.create({
           data: {
             publicId,
             companyId,
             name: file.name,
+            confidence: scoreProfile.confidence,
+            confidenceScore: scoreProfile.confidence,
+            impact: scoreProfile.impact,
+            weight: scoreProfile.weight,
+            iceScore: scoreProfile.iceScore,
             hashtags,
             entityTag,
             mimeType: file.type || "application/octet-stream",
@@ -108,6 +135,11 @@ export async function POST(request: NextRequest) {
             publicId: true,
             companyId: true,
             name: true,
+            confidence: true,
+            confidenceScore: true,
+            impact: true,
+            weight: true,
+            iceScore: true,
             hashtags: true,
             entityTag: true,
             mimeType: true,
@@ -159,18 +191,47 @@ export async function PATCH(request: NextRequest) {
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
 
+    const enriched = await enrichUploadedFile({
+      name: data.name ?? existing.name,
+      mimeType: existing.mimeType,
+      sizeBytes: existing.sizeBytes,
+      hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags),
+      content: Buffer.from(existing.content),
+    });
+    const nextData = {
+      name: data.name ?? existing.name,
+      hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags),
+      entityTag: data.entityTag !== undefined ? data.entityTag : existing.entityTag,
+    };
+    const scoreProfile = deriveDataCardScoreProfile({
+      name: nextData.name,
+      content: enriched.extractedText || nextData.name,
+      hashtags: nextData.hashtags,
+      entityTag: nextData.entityTag,
+      metadata: enriched.watchedContent ?? null,
+      sourceName: nextData.name,
+    });
+
     const file = await prisma.uploadedSourceFile.update({
       where: { id },
       data: {
-        name: data.name ?? existing.name,
-        hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags),
-        entityTag: data.entityTag !== undefined ? data.entityTag : existing.entityTag,
+        ...nextData,
+        confidence: scoreProfile.confidence,
+        confidenceScore: scoreProfile.confidence,
+        impact: scoreProfile.impact,
+        weight: scoreProfile.weight,
+        iceScore: scoreProfile.iceScore,
         updatedAt: new Date(),
       },
       select: {
         id: true,
         companyId: true,
         name: true,
+        confidence: true,
+        confidenceScore: true,
+        impact: true,
+        weight: true,
+        iceScore: true,
         hashtags: true,
         entityTag: true,
         updatedAt: true,

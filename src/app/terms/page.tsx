@@ -86,11 +86,11 @@ export default function TermsPage() {
           <Divider variant="dashed" />
 
           <Group wrap="nowrap" align="flex-start" gap="xl">
-            <ThemeIcon variant="subtle" color="red">
+            <ThemeIcon variant="subtle" color="review">
               <AlertTriangle size={24} />
             </ThemeIcon>
             <Box>
-              <Title order={2} size="h4" mb={4} c="red">Disclaimer</Title>
+              <Title order={2} size="h4" mb={4} c="review">Disclaimer</Title>
               <Text size="sm" c="dimmed">
                 checklist provides AI-generated suggestions for marketing purposes only. 
                 We do not guarantee the accuracy or effectiveness of any recommendations. Implement at your own strategic risk.

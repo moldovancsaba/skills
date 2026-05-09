@@ -39,7 +39,14 @@ function clampMetric(value, min = SCORE_MIN, max = SCORE_MAX) {
     return min;
   }
 
-  return Math.max(min, Math.min(max, Math.round(numeric)));
+  const canonical =
+    numeric > SCORE_MAX
+      ? numeric <= 100
+        ? numeric / 10
+        : SCORE_MAX
+      : numeric;
+
+  return Math.max(min, Math.min(max, Math.round(canonical)));
 }
 
 function normalizeScoreTriplet(input = {}, aliases = {}) {
@@ -141,19 +148,113 @@ function deriveComplexitySignal(title = "", description = "") {
   return clampMetric(score);
 }
 
+function deriveEvidenceStrengthSignal(input = {}) {
+  const evidence =
+    input.evidence && typeof input.evidence === "object"
+      ? input.evidence
+      : null;
+  const hashtags = Array.isArray(input.hashtags) ? input.hashtags : [];
+  const title = String(input.title || "");
+  const body = String(input.body || input.description || "");
+  const urls = Array.isArray(evidence?.urls) ? evidence.urls : [];
+  const supportingSourceIds = Array.isArray(evidence?.supportingSourceIds) ? evidence.supportingSourceIds : [];
+  const jsonEvidenceLength = evidence ? JSON.stringify(evidence).length : 0;
+
+  let score = 3;
+  if (body.length >= 120) score += 2;
+  if (body.length >= 260) score += 1;
+  if (title.length >= 24) score += 1;
+  score += Math.min(2, hashtags.length);
+  score += Math.min(2, urls.length);
+  score += Math.min(2, supportingSourceIds.length);
+  if (jsonEvidenceLength >= 300) score += 1;
+  if (jsonEvidenceLength >= 900) score += 1;
+  return clampMetric(score);
+}
+
+function deriveKnowledgeKindSignal(kind = "") {
+  switch (String(kind || "").toUpperCase()) {
+    case "PRICE":
+    case "RECOMMENDATION":
+    case "FORECAST":
+      return 9;
+    case "CONCLUSION":
+    case "EVALUATION":
+    case "JUDGMENT":
+    case "COMPARISON":
+      return 8;
+    case "NEWS":
+    case "RESEARCH":
+      return 7;
+    case "EXPLANATION":
+    case "SUMMARY":
+      return 6;
+    case "GOSSIP":
+      return 4;
+    default:
+      return 6;
+  }
+}
+
+function groundKnowledgeScores(input = {}) {
+  const base = normalizeScoreTriplet(input);
+  const specificity = deriveSpecificitySignal(input.title, input.body ?? input.description);
+  const evidenceStrength = deriveEvidenceStrengthSignal(input);
+  const complexity = deriveComplexitySignal(input.title, input.body ?? input.description);
+  const kindSignal = deriveKnowledgeKindSignal(input.kind);
+  const sourceImpact = clampMetric(input.sourceImpact ?? base.impact);
+  const sourceConfidence = clampMetric(input.sourceConfidence ?? base.confidence);
+  const sourceWeight = clampMetric(input.sourceWeight ?? base.effort);
+  const topicImpact = input.topicImpact != null ? clampMetric(input.topicImpact) : null;
+  const topicConfidence = input.topicConfidence != null ? clampMetric(input.topicConfidence) : null;
+  const topicWeight = input.topicWeight != null ? clampMetric(input.topicWeight) : null;
+
+  return {
+    impact: clampMetric(
+      (
+        base.impact * 2 +
+        sourceImpact * 2 +
+        (topicImpact ?? kindSignal) +
+        kindSignal +
+        evidenceStrength
+      ) / 7,
+    ),
+    confidence: clampMetric(
+      (
+        base.confidence * 2 +
+        sourceConfidence * 2 +
+        (topicConfidence ?? evidenceStrength) +
+        evidenceStrength +
+        specificity
+      ) / 7,
+    ),
+    effort: clampMetric(
+      (
+        base.effort * 2 +
+        sourceWeight * 2 +
+        (topicWeight ?? complexity) +
+        complexity +
+        evidenceStrength
+      ) / 7,
+    ),
+  };
+}
+
 function groundTaskScores(input = {}) {
   const base = normalizeScoreTriplet(input);
   const sourceImpact = clampMetric(input.sourceImpact ?? input.flashcardImpact ?? base.impact);
   const sourceConfidence = clampMetric(input.sourceConfidence ?? input.flashcardConfidence ?? base.confidence);
   const sourceWeight = clampMetric(input.sourceWeight ?? input.flashcardWeight ?? base.effort);
+  const sourceIceScore = Number.isFinite(Number(input.sourceIceScore)) ? Number(input.sourceIceScore) : null;
+  const sourceIceSignal = sourceIceScore == null ? null : clampMetric(sourceIceScore / KNOWLEDGE_ICE_DIVISOR);
   const specificity = deriveSpecificitySignal(input.title, input.description);
   const urgency = deriveUrgencySignal(input.kind, input.title, input.description);
   const complexity = deriveComplexitySignal(input.title, input.description);
 
   return {
-    impact: clampMetric((base.impact * 3 + sourceImpact * 2 + urgency) / 6),
-    confidence: clampMetric((base.confidence * 2 + sourceConfidence * 2 + specificity) / 5),
-    effort: clampMetric((base.effort * 2 + sourceWeight + complexity * 2) / 5),
+    impact: clampMetric((base.impact * 3 + sourceImpact * 2 + urgency + (sourceIceSignal ?? urgency)) / 7),
+    confidence: clampMetric((base.confidence * 2 + sourceConfidence * 2 + specificity + (sourceIceSignal ?? specificity)) / 6),
+    effort: clampMetric((base.effort * 2 + sourceWeight + complexity * 2 + (sourceIceSignal ?? complexity)) / 6),
   };
 }
 
@@ -175,6 +276,9 @@ module.exports = {
   deriveSpecificitySignal,
   deriveUrgencySignal,
   deriveComplexitySignal,
+  deriveEvidenceStrengthSignal,
+  deriveKnowledgeKindSignal,
+  groundKnowledgeScores,
   groundTaskScores,
   enrichTaskDraftScores,
 };

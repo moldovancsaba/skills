@@ -138,6 +138,26 @@ export function getSemanticHoverStyle(tone: ModuleTone = "neutral"): CSSProperti
   };
 }
 
+export function getSemanticInsetStyle(tone: ModuleTone = "neutral"): CSSProperties {
+  const toneTheme = getModuleTheme(tone);
+
+  return {
+    ...getModuleCssVars(tone),
+    background: `linear-gradient(180deg, var(--surface-hover-top), var(--surface-hover-bottom)), ${toneTheme.hoverSurface}`,
+    border: "1px solid var(--surface-section-border)",
+    boxShadow: "var(--surface-shadow-flat)",
+  };
+}
+
+export function getSemanticCalloutStyle(tone: ModuleTone = "neutral"): CSSProperties {
+  const toneTheme = getModuleTheme(tone);
+
+  return {
+    ...getSemanticInsetStyle(tone),
+    borderLeft: `4px solid rgb(${toneTheme.rgb})`,
+  };
+}
+
 export function getSidebarActiveStyle(tone: ModuleTone = "neutral"): CSSProperties {
   const toneTheme = getModuleTheme(tone);
   return {

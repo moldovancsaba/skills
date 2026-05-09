@@ -3,6 +3,7 @@ import { Badge, Button, Group, Stack, Text, Divider, Tooltip } from "@mantine/co
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getDataCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { CardShareAction } from "@/components/ui/card-share-action";
 import { 
   UnifiedCard, 
   UnifiedCardFreshnessBadge,
@@ -133,9 +134,12 @@ export function SourceDataCard({
               Edit
             </Button>
           )}
-          <Button variant="outline" color="red" size="sm" leftSection={<Trash2 size={14} />} onClick={(event) => stopCardClick(event, onDelete)}>
+          <Button variant="outline" color="review" size="sm" leftSection={<Trash2 size={14} />} onClick={(event) => stopCardClick(event, onDelete)}>
             Delete
           </Button>
+          <Group ml="auto">
+            <CardShareAction cardId={id} />
+          </Group>
         </UnifiedCardActions>
       </UnifiedCardBody>
 

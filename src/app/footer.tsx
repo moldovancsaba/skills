@@ -3,6 +3,7 @@
 import { Box, Container, Group, Anchor, Text, rem } from "@mantine/core";
 import { APP_VERSION } from "@/lib/release";
 import Link from "next/link";
+import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 
 export function Footer() {
   return (
@@ -11,9 +12,11 @@ export function Footer() {
       mt="auto" 
       py="md" 
       style={{ 
-        borderTop: '1px solid var(--mantine-color-dark-4)',
-        backgroundColor: 'rgba(0,0,0,0.2)',
-        backdropFilter: 'blur(10px)'
+        ...getSemanticInsetStyle("neutral"),
+        borderTop: '1px solid var(--surface-section-border)',
+        borderRight: 'none',
+        borderBottom: 'none',
+        borderLeft: 'none',
       }}
     >
       <Container size="7xl">
@@ -34,7 +37,8 @@ export function Footer() {
               px="xs" 
               py={2} 
               style={{ 
-                backgroundColor: 'var(--mantine-color-dark-6)',
+                ...getSemanticInsetStyle("neutral"),
+                borderRadius: rem(6),
               }}
             >
               <Text size="10px">

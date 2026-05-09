@@ -18,8 +18,11 @@ CHECKLIST evolved into a semantic-token-driven Mantine UI system with these core
 - One token layer: global CSS variables define surfaces, text, borders, gradients, shadows, and semantic module tones.
 - One semantic color model: UI colors are chosen by product meaning, not arbitrary hue names.
 - One surface language: cards, sections, nav items, and modals all inherit the same tokenized surface treatment.
+- One helper layer: semantic surfaces are consumed through shared helper functions rather than repeated inline glass recipes.
 - One dark/light system: both modes have full token sets rather than ad hoc overrides.
 - One anti-fragmentation rule: no parallel styling systems, no legacy color shortcuts, no “just this one component” exceptions.
+- One state layer: success, warning, danger, info, and muted UI states should map through shared product semantics rather than generic library defaults.
+- One motion rule: if the product disables motion globally, feature code should not keep local transition declarations around.
 
 If another agent is refactoring a project based on this system, the biggest goal is not “copy the colors.” The goal is to reproduce the architecture:
 
@@ -92,6 +95,14 @@ Why we learned this:
 
 Why we learned this:
 - Teams create inconsistency fastest through repeated “small” local component overrides.
+
+### 2.5a State semantics must be centralized
+
+- Error, warning, success, info, and muted states should resolve through a shared helper layer.
+- Do not let random components choose `red`, `green`, or `orange` independently.
+
+Why we learned this:
+- Surface semantics become clean first; state semantics are usually where inconsistency survives the longest.
 
 ### 2.6 Add drift-prevention automation
 
@@ -456,6 +467,25 @@ background: linear-gradient(180deg, var(--surface-hover-top), var(--surface-hove
 box-shadow: 0 0 0 1px rgba(tone.rgb, 0.24), 0 10px 24px tone.glow
 ```
 
+### 6.2a Inset semantic surface
+
+Use for filter trays, internal card panels, and compact embedded surfaces:
+
+```text
+background: linear-gradient(180deg, var(--surface-hover-top), var(--surface-hover-bottom)), tone.hoverSurface
+border: 1px solid var(--surface-section-border)
+box-shadow: var(--surface-shadow-flat)
+```
+
+### 6.2b Semantic callout surface
+
+Use for annotations, notes, status callouts, and review strips:
+
+```text
+semantic inset surface
++ left border accent in the tone rgb/color
+```
+
 ### 6.3 Sidebar active state
 
 Use:
@@ -495,6 +525,12 @@ CHECKLIST uses an audit script to block old patterns. Another project should do 
   - `color="indigo"`
 - `light-dark(...)`
 - loaders that still use `color="brand"`
+- raw dark palette references like `var(--mantine-color-dark-4)`
+- undefined surface tokens like `var(--surface-subtle)`
+- local translucent glass recipes like `rgba(255,255,255,0.03)` or `rgba(0,0,0,0.2)`
+- raw danger/success/warning colors applied ad hoc
+- local transition declarations when the system contract is no-motion
+- local transition wrapper components that contradict the global motion policy
 
 ### 7.2 Why these are forbidden
 

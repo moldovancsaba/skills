@@ -34,6 +34,16 @@ async function main() {
         `Top task tuple: ${report.taskcards.dominantTuple.label} (${report.taskcards.dominantTuple.count} cards)`
       );
     }
+    if (report.alerts.length > 0) {
+      console.log("Alerts:");
+      for (const alert of report.alerts.slice(0, 6)) {
+        console.log(
+          `- [${alert.severity}] ${alert.scope} ${alert.metric}: ${alert.detail} Threshold ${Math.round(alert.thresholdShare * 100)}%`
+        );
+      }
+    } else {
+      console.log("Alerts: none");
+    }
   }
 }
 

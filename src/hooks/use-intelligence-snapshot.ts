@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { CompanyScoreHealth } from "@/lib/score-health";
 
 /**
  * useIntelligenceSnapshot Hook
@@ -20,38 +21,7 @@ export type IntelligenceSnapshot = {
   confidenceAvg: number;
   iceScoreAvg: number;
   easeScoreAvg: number;
-  scoreHealth?: {
-    companyId: string;
-    generatedAt: string;
-    overallBand: "HEALTHY" | "WARNING" | "CRITICAL";
-    dominantSurface: "TASK" | "KNOWLEDGE" | "BALANCED";
-    taskcards: {
-      count: number;
-      uniqueIceScores: number;
-      uniqueTriples: number;
-      diversityRatio: number;
-      dominantIceScore: number | null;
-      dominantIceShare: number;
-      dominantTuple: {
-        label: string;
-        count: number;
-        share: number;
-      } | null;
-    };
-    knowledge: {
-      count: number;
-      uniqueIceScores: number;
-      uniqueTriples: number;
-      diversityRatio: number;
-      dominantIceScore: number | null;
-      dominantIceShare: number;
-      dominantTuple: {
-        label: string;
-        count: number;
-        share: number;
-      } | null;
-    };
-  };
+  scoreHealth?: CompanyScoreHealth;
   engineStatus: string;
   activeContext: string;
   activeTask: string;

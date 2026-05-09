@@ -77,7 +77,7 @@ function AuthContent() {
           </Box>
 
           {authError && (
-            <Alert color="red" title="Access Denied">
+            <Alert color="review" title="Access Denied">
               {authError === "sso_not_configured" 
                 ? "SSO protocol mismatch. Contact systems administrator."
                 : `Security anomaly detected: ${authError}`}

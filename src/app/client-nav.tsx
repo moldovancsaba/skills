@@ -210,8 +210,7 @@ export function ClientNav() {
                 onClick={() => company?.id && router.push(`/${company.id}`)}
                 styles={{
                   root: {
-                    background: "linear-gradient(90deg, rgba(245,158,11,0.24), rgba(245,158,11,0.08))",
-                    borderLeft: "2px solid var(--module-review-color)",
+                    ...getSidebarActiveStyle("review"),
                   },
                   label: { color: "var(--nav-company-label)" },
                   description: { color: "var(--nav-company-description)" },
@@ -309,7 +308,6 @@ export function ClientNav() {
             p="xs"
             style={{
               borderRadius: 'var(--mantine-radius-md)',
-              transition: 'background-color 0.2s ease',
             }}
             className="theme-toggle-button"
           >
@@ -359,7 +357,7 @@ export function ClientNav() {
                 )}
                 <Menu.Divider />
                 <Menu.Item
-                  color="red"
+                  color="review"
                   leftSection={<LogOut size={14} />}
                   onClick={handleLogout}
                 >

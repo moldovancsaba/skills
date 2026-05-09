@@ -6,9 +6,8 @@
  * Unified with PageShell and UnifiedCard architecture.
  */
 import { useState } from "react";
-import { IconCalendar as CalendarIcon, IconCheck as Check, IconChecks as CheckCheck, IconCircleCheck as CheckCircle, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconShare as Share2, IconX as X, IconHistory as History, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";
+import { IconCalendar as CalendarIcon, IconCheck as Check, IconChecks as CheckCheck, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconHistory as History, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";
 import { 
-  Card, 
   Text, 
   Badge, 
   Button, 
@@ -16,20 +15,19 @@ import {
   Stack, 
   TextInput, 
   Textarea, 
-  ActionIcon, 
   Tooltip, 
   rem, 
   Select, 
-  Loader, 
   Divider, 
   Box,
-  ThemeIcon
+  Loader
 } from "@mantine/core";
-import { useClipboard } from "@mantine/hooks";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { TraceViewer } from "@/components/trace-viewer";
+import { CardShareAction } from "@/components/ui/card-share-action";
 import { getGoalCardFreshness, getTaskCardFreshness } from "@/lib/card-freshness";
 import { getIceBadgeColor } from "@/lib/ice-colors";
+import { getSemanticCalloutStyle } from "@/lib/semantic-theme";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { logClientInteraction } from "@/lib/client-events";
 import { 
@@ -75,7 +73,6 @@ type TaskReviewCardProps = {
   isActionOpen: boolean;
   actionMode: ActionMode | null;
   isBusy: boolean;
-  copied: boolean;
   annotation: string;
   draftTitle: string;
   draftDescription: string;
@@ -97,7 +94,6 @@ type TaskReviewCardProps = {
     modifiedDescription?: string,
     declineClass?: string,
   ) => void;
-  onShare: (item: NBAItem) => void;
   onPostpone?: (itemId: string, column: string) => void;
 };
 
@@ -109,7 +105,6 @@ export function TaskReviewCard({
   isActionOpen,
   actionMode,
   isBusy,
-  copied,
   annotation,
   draftTitle,
   draftDescription,
@@ -124,7 +119,6 @@ export function TaskReviewCard({
   onToggleHashtag,
   onRemoveHashtag,
   onSubmit,
-  onShare,
   onPostpone,
 }: TaskReviewCardProps) {
   const [traceOpen, setTraceOpen] = useState(false);
@@ -208,12 +202,11 @@ export function TaskReviewCard({
         />
 
         {item.userAnnotation && (
-          <Box 
-            p="sm" 
-            style={{ 
+          <Box
+            p="sm"
+            style={{
               borderRadius: rem(8),
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              borderLeft: "4px solid var(--mantine-color-blue-6)"
+              ...getSemanticCalloutStyle("checklist"),
             }}
           >
             <Group gap="xs" wrap="nowrap" align="flex-start">
@@ -239,7 +232,7 @@ export function TaskReviewCard({
               <Button
                 size="xs"
                 variant="outline"
-                color="red"
+                color="review"
                 leftSection={<Archive size={14} />}
                 onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DELETE"))}
                 disabled={isBusy}
@@ -262,7 +255,7 @@ export function TaskReviewCard({
               <Button 
                 size="xs" 
                 variant="outline" 
-                color="red" 
+                color="review" 
                 leftSection={<X size={14} />} 
                 onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DECLINE"))}
                 disabled={isBusy}
@@ -272,18 +265,9 @@ export function TaskReviewCard({
             </>
           )}
           
-          <Tooltip label={copied ? "Copied" : "Share card"}>
-            <ActionIcon
-              ml="auto"
-              variant="subtle"
-              size="lg"
-              color={copied ? "green" : "gray"}
-              onClick={(event) => stopCardClick(event, () => onShare(item))}
-              aria-label={copied ? "Copied" : "Share card"}
-            >
-              {copied ? <CheckCircle size={16} /> : <Share2 size={16} />}
-            </ActionIcon>
-          </Tooltip>
+          <Group ml="auto">
+            <CardShareAction cardId={item.id} />
+          </Group>
         </UnifiedCardActions>
 
         {isActionOpen && actionMode && (

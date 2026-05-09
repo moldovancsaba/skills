@@ -122,6 +122,7 @@ function normalizeRefinedTaskScores(raw = {}, fallback = {}) {
     sourceImpact: fallback.impact,
     sourceConfidence: fallback.confidence ?? fallback.confidenceScore,
     sourceWeight: fallback.ease,
+    sourceIceScore: fallback.iceScore,
   });
 
   return normalizeTaskScores({

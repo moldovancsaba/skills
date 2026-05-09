@@ -171,6 +171,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
       sourceImpact: taskCard.impact,
       sourceConfidence: taskCard.confidenceScore ?? taskCard.confidence,
       sourceWeight: taskCard.ease,
+      sourceIceScore: taskCard.iceScore,
     });
     const normalizedScores = normalizeTaskScores({
       impact: groundedScores.impact,

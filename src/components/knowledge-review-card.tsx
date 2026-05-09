@@ -2,7 +2,9 @@ import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as Pencil
 import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader } from "@mantine/core";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getKnowledgeCardFreshness } from "@/lib/card-freshness";
+import { getSemanticCalloutStyle } from "@/lib/semantic-theme";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import { CardShareAction } from "@/components/ui/card-share-action";
 import {
   UnifiedCard,
   UnifiedCardActions,
@@ -230,15 +232,11 @@ export function KnowledgeReviewCard({
         </Group>
 
         {flashcard.userAnnotation && (
-          <Box 
-            p="md" 
-            style={{ 
+          <Box
+            p="md"
+            style={{
               borderRadius: "var(--mantine-radius-md)",
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              borderLeft: `4px solid var(--mantine-color-${getCardColor()}-4)`,
-              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-              borderRight: '1px solid rgba(255, 255, 255, 0.06)',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+              ...getSemanticCalloutStyle(getCardTone()),
             }}
           >
             <Group gap="xs" align="flex-start" wrap="nowrap">
@@ -262,7 +260,7 @@ export function KnowledgeReviewCard({
           </Button>
           <Button 
             variant="outline" 
-            color="red" 
+            color="review" 
             leftSection={<X size={16} />}
             onClick={(event) => stopCardClick(event, () => onOpenAction(flashcard, "DECLINE"))}
             disabled={isBusy || isGenerating}
@@ -278,6 +276,9 @@ export function KnowledgeReviewCard({
           >
             Edit
           </Button>
+          <Group ml="auto">
+            <CardShareAction cardId={flashcard.id} />
+          </Group>
         </UnifiedCardActions>
 
         {isActionOpen && actionMode && (

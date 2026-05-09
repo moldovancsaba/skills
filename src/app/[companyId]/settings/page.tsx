@@ -96,7 +96,7 @@ export default function SettingsPage() {
         notifications.show({ title: "Settings saved", message: "Communication preferences updated successfully." });
       }
     } catch (error) {
-      notifications.show({ title: "Error", message: "Failed to save settings.", color: "red" });
+      notifications.show({ title: "Error", message: "Failed to save settings.", color: "review" });
     } finally {
       setSaving(false);
     }
@@ -116,7 +116,7 @@ export default function SettingsPage() {
         notifications.show({ title: "Organization saved", message: "Language and organization settings updated." });
       }
     } catch (error) {
-      notifications.show({ title: "Error", message: "Failed to save organization settings.", color: "red" });
+      notifications.show({ title: "Error", message: "Failed to save organization settings.", color: "review" });
     } finally {
       setSaving(false);
     }
@@ -134,7 +134,7 @@ export default function SettingsPage() {
         notifications.show({ title: "Secret regenerated", message: "A new Bridge API Key has been issued." });
       }
     } catch (error) {
-      notifications.show({ title: "Error", message: "Failed to regenerate secret.", color: "red" });
+      notifications.show({ title: "Error", message: "Failed to regenerate secret.", color: "review" });
     } finally {
       setSaving(false);
     }
@@ -147,7 +147,7 @@ export default function SettingsPage() {
   };
 
   if (loading) return <Box p="xl" ta="center"><Text>Loading OS configuration...</Text></Box>;
-  if (!settings) return <Box p="xl" ta="center"><Text c="red">Error: Settings context not found.</Text></Box>;
+  if (!settings) return <Box p="xl" ta="center"><Text c="review">Error: Settings context not found.</Text></Box>;
 
   const bridgeSecretDisplay = settings.bridgeSecret
     ? showSecret

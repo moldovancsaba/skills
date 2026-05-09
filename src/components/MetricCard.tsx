@@ -1,5 +1,6 @@
 import { Paper, Text, Group, Stack, rem } from "@mantine/core";
 import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
+import { resolveStateTextColor } from "@/lib/ui-state";
 
 interface MetricCardProps {
   label: string;
@@ -12,9 +13,9 @@ interface MetricCardProps {
 
 const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon, delay = 0 }: MetricCardProps) => {
   const getChangeColor = () => {
-    if (changeType === "positive") return "green";
-    if (changeType === "negative") return "red";
-    return "dimmed";
+    if (changeType === "positive") return resolveStateTextColor("success");
+    if (changeType === "negative") return resolveStateTextColor("danger");
+    return resolveStateTextColor("muted");
   };
 
   return (

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { normalizeHashtag, normalizeHashtagList } from "@/lib/hashtags";
 import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
+import { deriveDataCardScoreProfile, deriveTopicCardScoreProfile } from "@/lib/upstream-card-scoring";
 
 function removeTag(values: string[] | null | undefined, tag: string) {
   return normalizeHashtagList(values).filter((item) => item !== tag);
@@ -62,19 +63,80 @@ export async function POST(request: NextRequest) {
         data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
       });
     } else if (entityType === HashtagEntityType.TOPIC) {
+      const topic = await prisma.topic.findUnique({ where: { id: entityId } });
+      if (!topic) {
+        return NextResponse.json({ error: "Topic not found" }, { status: 404 });
+      }
+      const scoreProfile = deriveTopicCardScoreProfile({
+        label: topic.label,
+        notes: topic.notes,
+        active: topic.active,
+        sortOrder: topic.sortOrder,
+        hashtags: nextHashtags,
+      });
       await prisma.topic.update({
         where: { id: entityId },
-        data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
+        data: {
+          hashtags: nextHashtags,
+          confidence: scoreProfile.confidence,
+          confidenceScore: scoreProfile.confidence,
+          impact: scoreProfile.impact,
+          weight: scoreProfile.weight,
+          iceScore: scoreProfile.iceScore,
+          updatedAt: new Date(),
+          hashtagEvaluationPending: true,
+        },
       });
     } else if (entityType === HashtagEntityType.FILE) {
+      const file = await prisma.uploadedSourceFile.findUnique({ where: { id: entityId } });
+      if (!file) {
+        return NextResponse.json({ error: "File not found" }, { status: 404 });
+      }
+      const scoreProfile = deriveDataCardScoreProfile({
+        name: file.name,
+        content: file.name,
+        hashtags: nextHashtags,
+        entityTag: file.entityTag,
+        sourceName: file.name,
+      });
       await prisma.uploadedSourceFile.update({
         where: { id: entityId },
-        data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
+        data: {
+          hashtags: nextHashtags,
+          confidence: scoreProfile.confidence,
+          confidenceScore: scoreProfile.confidence,
+          impact: scoreProfile.impact,
+          weight: scoreProfile.weight,
+          iceScore: scoreProfile.iceScore,
+          updatedAt: new Date(),
+          hashtagEvaluationPending: true,
+        },
       });
     } else {
+      const source = await prisma.source.findUnique({ where: { id: entityId } });
+      if (!source) {
+        return NextResponse.json({ error: "Source not found" }, { status: 404 });
+      }
+      const scoreProfile = deriveDataCardScoreProfile({
+        content: source.content,
+        hashtags: nextHashtags,
+        entityTag: source.entityTag,
+        aiClusters: source.aiClusters,
+        metadata: source.metadata,
+        intelligenceType: source.intelligenceType,
+      });
       await prisma.source.update({
         where: { id: entityId },
-        data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
+        data: {
+          hashtags: nextHashtags,
+          confidence: scoreProfile.confidence,
+          confidenceScore: scoreProfile.confidence,
+          impact: scoreProfile.impact,
+          weight: scoreProfile.weight,
+          iceScore: scoreProfile.iceScore,
+          updatedAt: new Date(),
+          hashtagEvaluationPending: true,
+        },
       });
     }
 

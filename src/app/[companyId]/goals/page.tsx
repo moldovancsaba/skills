@@ -27,6 +27,7 @@ import {
   IconPlus as Plus 
 } from "@tabler/icons-react";
 import { 
+  EmptyState,
   MetricCard, 
   MetricGrid, 
   Notice, 
@@ -40,7 +41,6 @@ import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { TaskReviewCard } from "@/components/task-review-card";
-import { buildCardShareUrl } from "@/lib/card-share";
 
 type Goal = {
   id: string;
@@ -84,7 +84,6 @@ export default function GoalsPage() {
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
   const [declineClass, setDeclineClass] = useState("WRONG");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadGoals = useCallback(async (cid: string) => {
     setLoading(true);
@@ -209,17 +208,6 @@ export default function GoalsPage() {
     setLoading(false);
   };
 
-  const handleShare = async (item: Goal) => {
-    const text = buildCardShareUrl(item.id);
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedId(item.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch (error) {
-      console.error("Failed to copy", error);
-    }
-  };
-
   const filteredGoals = goals.filter(g => 
     g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     g.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -296,7 +284,11 @@ export default function GoalsPage() {
 
         {filteredGoals.length === 0 ? (
           <Center h="20vh">
-            <Text c="dimmed">No strategic goals match your criteria.</Text>
+            <EmptyState
+              icon={Target}
+              tone="strategy"
+              title="No strategic goals match your criteria"
+            />
           </Center>
         ) : (
           <UnifiedGrid>
@@ -309,7 +301,6 @@ export default function GoalsPage() {
                 isActionOpen={actionItemId === goal.id && actionMode !== null}
                 actionMode={actionMode}
                 isBusy={loading}
-                copied={copiedId === goal.id}
                 annotation={annotation}
                 draftTitle={draftTitle}
                 draftDescription={draftDescription}
@@ -324,7 +315,6 @@ export default function GoalsPage() {
                 onToggleHashtag={() => {}}
                 onRemoveHashtag={() => {}}
                 onSubmit={handleSubmitFeedback}
-                onShare={handleShare as any}
               />
             ))}
             <ExpertTipCard tip={tip} />
@@ -348,7 +338,6 @@ export default function GoalsPage() {
             isActionOpen={actionItemId === selectedGoal.id && actionMode !== null}
             actionMode={actionMode}
             isBusy={loading}
-            copied={copiedId === selectedGoal.id}
             annotation={annotation}
             draftTitle={draftTitle}
             draftDescription={draftDescription}
@@ -363,7 +352,6 @@ export default function GoalsPage() {
             onToggleHashtag={() => {}}
             onRemoveHashtag={() => {}}
             onSubmit={handleSubmitFeedback}
-            onShare={handleShare as any}
           />
         ) : null}
       </UnifiedCardModal>

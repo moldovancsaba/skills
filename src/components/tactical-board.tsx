@@ -361,7 +361,7 @@ function CardDetailModal({
         <Group justify="space-between">
           <Button 
             variant="subtle" 
-            color="red" 
+            color="review" 
             size="xs"
             leftSection={<Trash2 size={16} />} 
             onClick={() => onDelete(item.id)}
@@ -630,7 +630,6 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                             ? `2px dashed ${col.accent}`
                             : "2px dashed transparent",
                           backgroundColor: snapshot.isDraggingOver ? `${col.accent}10` : "transparent",
-                          transition: "all 0.15s ease",
                           display: 'flex',
                           flexDirection: 'column',
                           minHeight: 0
@@ -659,7 +658,6 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                         transform: isActivelyDragging
                                           ? `${provided.draggableProps.style?.transform ?? ""} rotate(1deg) scale(1.02)`.trim()
                                           : provided.draggableProps.style?.transform,
-                                        transition: provided.draggableProps.style?.transition ?? "transform 0.15s ease",
                                       }}
                                     >
                                       <Paper
@@ -674,7 +672,6 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                           borderColor: isActivelyDragging
                                             ? col.accent
                                             : "transparent",
-                                          transition: "all 0.15s ease",
                                           userSelect: "none",
                                           ...getSemanticSurfaceStyle(col.tone),
                                         }}

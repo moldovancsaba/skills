@@ -27,7 +27,7 @@ import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCirclesRelation as CirclesRelation } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
-import { buildCardShareUrl } from "@/lib/card-share";
+import type { CompanyScoreHealth } from "@/lib/score-health";
 
 type NBAItem = {
   id: string;
@@ -50,39 +50,6 @@ type NBAItem = {
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
-
-type ScoreHealth = {
-  companyId: string;
-  generatedAt: string;
-  overallBand: "HEALTHY" | "WARNING" | "CRITICAL";
-  dominantSurface: "TASK" | "KNOWLEDGE" | "BALANCED";
-  taskcards: {
-    count: number;
-    uniqueIceScores: number;
-    uniqueTriples: number;
-    diversityRatio: number;
-    dominantIceScore: number | null;
-    dominantIceShare: number;
-    dominantTuple: {
-      label: string;
-      count: number;
-      share: number;
-    } | null;
-  };
-  knowledge: {
-    count: number;
-    uniqueIceScores: number;
-    uniqueTriples: number;
-    diversityRatio: number;
-    dominantIceScore: number | null;
-    dominantIceShare: number;
-    dominantTuple: {
-      label: string;
-      count: number;
-      share: number;
-    } | null;
-  };
-};
 
 export default function CompanyDashboard() {
   const router = useRouter();
@@ -108,9 +75,8 @@ export default function CompanyDashboard() {
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
   const [declineClass, setDeclineClass] = useState<string>("WRONG");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
-  const [scoreHealth, setScoreHealth] = useState<ScoreHealth | null>(null);
+  const [scoreHealth, setScoreHealth] = useState<CompanyScoreHealth | null>(null);
 
   const chartSeries = useCallback((...keys: string[]) => {
     return chartData.map((point) => {
@@ -192,17 +158,6 @@ export default function CompanyDashboard() {
     setDraftTitle(item.title);
     setDraftDescription(item.description);
     setDeclineClass("WRONG");
-  }, []);
-
-  const handleShare = useCallback(async (item: NBAItem) => {
-    const text = buildCardShareUrl(item.id);
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedId(item.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch (error) {
-      console.error("Failed to copy", error);
-    }
   }, []);
 
   const handleFeedback = useCallback(async (
@@ -320,12 +275,13 @@ export default function CompanyDashboard() {
   const scoreHealthColor =
     scoreHealth?.overallBand === "CRITICAL"
       ? "review"
-      : scoreHealth?.overallBand === "WARNING"
+      : scoreHealth?.overallBand === "WARNING" || scoreHealth?.overallBand === "SUSPICIOUS"
         ? "strategy"
         : "knowmore";
   const taskTupleShare = scoreHealth?.taskcards.dominantTuple?.share ?? 0;
   const taskDiversity = scoreHealth?.taskcards.diversityRatio ?? 0;
   const dominantTupleLabel = scoreHealth?.taskcards.dominantTuple?.label ?? "—";
+  const topScoreAlert = scoreHealth?.alerts[0] ?? null;
 
   return (
     <PageShell width="full">
@@ -408,24 +364,34 @@ export default function CompanyDashboard() {
               color={scoreHealthColor}
               label="Task Tuple Repeat"
               value={scoreHealth ? `${Math.round(taskTupleShare * 100)}%` : "—"}
-              detail={scoreHealth ? `Dominant tuple ${dominantTupleLabel}` : "Awaiting score health sample"}
+              detail={
+                scoreHealth
+                  ? `${scoreHealth.taskcards.dominantTupleSeverity} · dominant tuple ${dominantTupleLabel}`
+                  : "Awaiting score health sample"
+              }
             />
             <MetricCard
               icon={CirclesRelation}
               color={scoreHealthColor}
               label="Task ICE Diversity"
               value={scoreHealth ? `${scoreHealth.taskcards.uniqueIceScores}/${scoreHealth.taskcards.count}` : "—"}
-              detail={scoreHealth ? `${Math.round(taskDiversity * 100)}% unique tuples across active tasks` : "Awaiting score health sample"}
+              detail={
+                scoreHealth
+                  ? `${scoreHealth.taskcards.diversitySeverity} · ${Math.round(taskDiversity * 100)}% unique tuples across active tasks`
+                  : "Awaiting score health sample"
+              }
             />
             <MetricCard
               icon={AlertTriangle}
               color={scoreHealth?.dominantSurface === "TASK" ? "review" : scoreHealth?.dominantSurface === "KNOWLEDGE" ? "knowmore" : scoreHealthColor}
-              label="Clustering Surface"
-              value={scoreHealth?.dominantSurface ?? "—"}
+              label="Score Alert"
+              value={topScoreAlert?.severity ?? scoreHealth?.dominantSurface ?? "—"}
               detail={
-                scoreHealth
-                  ? `Knowledge repeat ${Math.round((scoreHealth.knowledge.dominantTuple?.share ?? 0) * 100)}%`
-                  : "Awaiting score health sample"
+                topScoreAlert
+                  ? topScoreAlert.detail
+                  : scoreHealth
+                    ? `Knowledge repeat ${Math.round((scoreHealth.knowledge.dominantTuple?.share ?? 0) * 100)}%`
+                    : "Awaiting score health sample"
               }
             />
           </MetricGrid>
@@ -456,7 +422,6 @@ export default function CompanyDashboard() {
                 isActionOpen={actionItemId === task.id && actionMode !== null}
                 actionMode={actionMode}
                 isBusy={loading}
-                copied={copiedId === task.id}
                 annotation={annotation}
                 draftTitle={draftTitle}
                 draftDescription={draftDescription}
@@ -471,7 +436,6 @@ export default function CompanyDashboard() {
                 onToggleHashtag={() => {}}
                 onRemoveHashtag={() => {}}
                 onSubmit={handleFeedback}
-                onShare={handleShare}
                 onPostpone={handlePostpone}
               />
             ))}

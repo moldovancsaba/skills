@@ -46,6 +46,7 @@ import { getDashboardExpertTip } from "@/content/help";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { useStore } from "@/lib/store";
 import { calculateKnowledgeIceScore } from "@/lib/scoring-contract";
+import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 import React from "react";
 
 type Company = {
@@ -475,16 +476,15 @@ export default function CompanyKnowMorePage() {
               style={{ flex: 1, maxWidth: 400 }}
             />
             <Group gap="xs">
-              <Group gap={4} p={4} style={{ 
-                borderRadius: "var(--mantine-radius-md)", 
-                backgroundColor: 'rgba(255, 255, 255, 0.03)', 
-                border: '1px solid rgba(255, 255, 255, 0.06)' 
+              <Group gap={4} p={4} style={{
+                borderRadius: "var(--mantine-radius-md)",
+                ...getSemanticSurfaceStyle("neutral", { elevated: false }),
               }}>
                 {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
                   <Button
                     key={type}
                     variant={intelligenceFilter === type ? "light" : "subtle"}
-                    color={intelligenceFilter === type ? (type === "COMPETITOR" ? "orange" : "brand") : "gray"}
+                    color={intelligenceFilter === type ? (type === "COMPETITOR" ? "review" : "ingress") : "gray"}
                     size="compact-xs"
                     h={30}
                     px="md"
@@ -494,16 +494,15 @@ export default function CompanyKnowMorePage() {
                   </Button>
                 ))}
               </Group>
-              <Group gap={4} p={4} style={{ 
-                borderRadius: "var(--mantine-radius-md)", 
-                backgroundColor: 'rgba(255, 255, 255, 0.03)', 
-                border: '1px solid rgba(255, 255, 255, 0.06)' 
+              <Group gap={4} p={4} style={{
+                borderRadius: "var(--mantine-radius-md)",
+                ...getSemanticSurfaceStyle("neutral", { elevated: false }),
               }}>
                 {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
                   <Button
                     key={kind}
                     variant={filterKind === kind ? "light" : "subtle"}
-                    color={filterKind === kind ? "brand" : "gray"}
+                    color={filterKind === kind ? "ingress" : "gray"}
                     size="compact-xs"
                     h={30}
                     px="md"
@@ -518,21 +517,16 @@ export default function CompanyKnowMorePage() {
 
           {filteredFlashcards.length === 0 ? (
             <Center h={rem(400)}>
-             <Card style={{ borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
-              <Stack align="center" gap="xl">
-                <ThemeIcon color="gray" size={64} >
-                  <Sparkles size={32} />
-                </ThemeIcon>
-                <Stack gap="xs">
-                  <Title order={3}>Memory Layer Silent</Title>
-                  <Text c="dimmed" maw={400} mx="auto">
-                    {searchQuery || filterKind !== "ALL" || activeHashtags.length > 0 
-                      ? "No knowledge units match the current strategic filters."
-                      : "The memory layer is awaiting evidence unit ingress to begin synthesis."}
-                  </Text>
-                </Stack>
-              </Stack>
-            </Card>
+              <EmptyState
+                icon={Sparkles}
+                tone="knowmore"
+                title="Memory Layer Silent"
+                description={
+                  searchQuery || filterKind !== "ALL" || activeHashtags.length > 0
+                    ? "No knowledge units match the current strategic filters."
+                    : "The memory layer is awaiting evidence unit ingress to begin synthesis."
+                }
+              />
             </Center>
           ) : (
             <UnifiedGrid>

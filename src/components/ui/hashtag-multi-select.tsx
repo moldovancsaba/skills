@@ -12,13 +12,12 @@ import {
   ActionIcon, 
   ScrollArea, 
   UnstyledButton,
-  Transition,
   rem,
-  TextInput,
   ThemeIcon
 } from "@mantine/core";
 import { useClickOutside } from "@mantine/hooks";
 import { normalizeHashtag } from "@/lib/hashtags";
+import { getSemanticHoverStyle, getSemanticInsetStyle, getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 interface HashtagMultiSelectProps {
   label?: string;
@@ -84,7 +83,7 @@ export function HashtagMultiSelect({
         </Text>
       )}
       
-      <Box 
+      <Box
         pos="relative"
         onClick={() => {
           setIsOpen(true);
@@ -93,10 +92,9 @@ export function HashtagMultiSelect({
         style={{
           minHeight: rem(42),
           borderRadius: 'var(--mantine-radius-md)',
-          border: `1px solid ${error ? 'var(--mantine-color-red-filled)' : isOpen ? 'var(--mantine-color-ingress-filled)' : 'var(--mantine-color-dark-4)'}`,
-          backgroundColor: 'rgba(0,0,0,0.2)',
+          ...getSemanticInsetStyle(isOpen ? "ingress" : "neutral"),
+          borderColor: error ? "var(--module-review-color)" : isOpen ? "var(--module-ingress-color)" : "var(--surface-section-border)",
           padding: '4px 12px',
-          transition: 'all 0.2s ease',
           display: 'flex',
           flexWrap: 'wrap',
           gap: rem(6),
@@ -136,7 +134,7 @@ export function HashtagMultiSelect({
               backgroundColor: 'transparent',
               border: 'none',
               outline: 'none',
-              color: 'white',
+              color: 'var(--text-primary)',
               fontSize: 'var(--mantine-font-size-sm)',
               padding: '4px 0'
             }}
@@ -151,23 +149,20 @@ export function HashtagMultiSelect({
           />
         </Group>
 
-        <Transition mounted={isOpen && (filteredSuggestions.length > 0 || showAddNew)} transition="pop-top-left" duration={200} timingFunction="ease">
-          {(styles) => (
-            <Box 
-              style={{
-                ...styles,
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
-                zIndex: 1000,
-                marginTop: rem(8),
-                borderRadius: 'var(--mantine-radius-lg)',
-                border: '1px solid var(--mantine-color-dark-4)',
-                backgroundColor: 'rgba(20, 20, 20, 0.95)',
-                padding: rem(4)
-              }}
-            >
+        {isOpen && (filteredSuggestions.length > 0 || showAddNew) && (
+          <Box
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              zIndex: 1000,
+              marginTop: rem(8),
+              borderRadius: 'var(--mantine-radius-lg)',
+              ...getSemanticSurfaceStyle("neutral", { elevated: true }),
+              padding: rem(4)
+            }}
+          >
               <ScrollArea.Autosize mah={240}>
                 <Stack gap={2}>
                   {filteredSuggestions.map((suggestion) => (
@@ -178,13 +173,15 @@ export function HashtagMultiSelect({
                         handleAddTag(suggestion);
                       }}
                       p="xs"
-                      style={(theme) => ({
+                      style={{
                         borderRadius: 'var(--mantine-radius-md)',
-                        transition: 'background 0.2s ease',
-                        '&:hover': {
-                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        }
-                      })}
+                      }}
+                      onMouseEnter={(event) => {
+                        Object.assign(event.currentTarget.style, getSemanticHoverStyle("ingress"));
+                      }}
+                      onMouseLeave={(event) => {
+                        Object.assign(event.currentTarget.style, { background: "transparent", boxShadow: "none" });
+                      }}
                     >
                       <Group justify="space-between">
                         <Group gap="xs">
@@ -193,7 +190,7 @@ export function HashtagMultiSelect({
                           </ThemeIcon>
                           <Text>{suggestion}</Text>
                         </Group>
-                        <Check size={14} color="var(--mantine-color-ingress-filled)" style={{ opacity: 0.6 }} />
+                        <Check size={14} color="var(--module-ingress-color)" style={{ opacity: 0.6 }} />
                       </Group>
                     </UnstyledButton>
                   ))}
@@ -205,15 +202,22 @@ export function HashtagMultiSelect({
                         handleAddTag(inputValue);
                       }}
                       p="xs"
-                      style={(theme) => ({
+                      style={{
                         borderRadius: 'var(--mantine-radius-md)',
-                        borderTop: '1px solid var(--mantine-color-dark-4)',
+                        borderTop: '1px solid var(--surface-section-border)',
                         marginTop: rem(2),
                         paddingTop: rem(8),
-                        '&:hover': {
-                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        }
-                      })}
+                      }}
+                      onMouseEnter={(event) => {
+                        Object.assign(event.currentTarget.style, getSemanticHoverStyle("ingress"));
+                      }}
+                      onMouseLeave={(event) => {
+                        Object.assign(event.currentTarget.style, {
+                          background: "transparent",
+                          boxShadow: "none",
+                          borderTop: '1px solid var(--surface-section-border)',
+                        });
+                      }}
                     >
                       <Group gap="xs">
                         <ThemeIcon variant="light" color="ingress" size="sm" >
@@ -227,12 +231,11 @@ export function HashtagMultiSelect({
                   )}
                 </Stack>
               </ScrollArea.Autosize>
-            </Box>
-          )}
-        </Transition>
+          </Box>
+        )}
       </Box>
       
-      {error && <Text c="red" mt={2}>{error}</Text>}
+      {error && <Text c="review" mt={2}>{error}</Text>}
     </Stack>
   );
 }

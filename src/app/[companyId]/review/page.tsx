@@ -21,7 +21,7 @@ import {
   Card,
   rem
 } from "@mantine/core";
-import { PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
+import { EmptyState, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardActions } from "@/components/ui/unified-card";
 import { calculateKnowledgeIceScore, calculateTaskIceScore } from "@/lib/scoring-contract";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
@@ -139,19 +139,12 @@ export default function ReviewDashboard() {
         />
         {items.length === 0 ? (
           <Center h={rem(400)}>
-            <Card style={{ ...getSemanticSurfaceStyle("review", { elevated: false }), borderStyle: 'dashed', backgroundColor: 'transparent' }} ta="center">
-              <Stack align="center" gap="xl">
-                <ThemeIcon color="gray" size={64}>
-                  <History size={32} />
-                </ThemeIcon>
-                <Stack gap="xs">
-                  <Title order={3}>Structural Integrity Verified</Title>
-                  <Text c="dimmed" maw={400} mx="auto">
-                    The synthesis engine is successfully grading all intelligence inside the established Axioms. No manual corrections required.
-                  </Text>
-                </Stack>
-              </Stack>
-            </Card>
+            <EmptyState
+              icon={History}
+              tone="review"
+              title="Structural Integrity Verified"
+              description="The synthesis engine is successfully grading all intelligence inside the established Axioms. No manual corrections required."
+            />
           </Center>
         ) : (
           <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">

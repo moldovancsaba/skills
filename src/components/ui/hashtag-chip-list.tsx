@@ -53,7 +53,7 @@ export function HashtagChipList({
               <ActionIcon 
                 size="xs" 
                 variant="subtle" 
-                color="red" 
+                color="review" 
                 onClick={(event) => {
                   event.stopPropagation();
                   onRemove(tag);

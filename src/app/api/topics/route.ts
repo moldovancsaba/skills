@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
 import { verifyMembership } from "@/lib/permissions";
+import { deriveTopicCardScoreProfile } from "@/lib/upstream-card-scoring";
 
 function normalizeTopicLabel(value: unknown) {
   return String(value || "").trim();
@@ -48,13 +49,25 @@ export async function POST(request: NextRequest) {
     });
 
     const created = await prisma.topic.create({
-      data: {
-        companyId,
-        label,
-        active: data.active !== false,
-        sortOrder: (maxTopic?.sortOrder ?? -1) + 1,
-        notes: typeof data.notes === "string" ? data.notes.trim() || null : null,
-      },
+      data: (() => {
+        const topicData = {
+          companyId,
+          label,
+          active: data.active !== false,
+          sortOrder: (maxTopic?.sortOrder ?? -1) + 1,
+          notes: typeof data.notes === "string" ? data.notes.trim() || null : null,
+          hashtags: Array.isArray(data.hashtags) ? data.hashtags.filter((item: unknown): item is string => typeof item === "string") : [],
+        };
+        const scoreProfile = deriveTopicCardScoreProfile(topicData);
+        return {
+          ...topicData,
+          confidence: scoreProfile.confidence,
+          confidenceScore: scoreProfile.confidence,
+          impact: scoreProfile.impact,
+          weight: scoreProfile.weight,
+          iceScore: scoreProfile.iceScore,
+        };
+      })(),
     });
 
     await recordInteractionEventFromRequest(request, {
@@ -93,13 +106,26 @@ export async function PATCH(request: NextRequest) {
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
 
+    const nextData = {
+      label: data.label !== undefined ? normalizeTopicLabel(data.label) : existing.label,
+      active: data.active !== undefined ? Boolean(data.active) : existing.active,
+      sortOrder: data.sortOrder !== undefined ? Number(data.sortOrder) : existing.sortOrder,
+      notes: data.notes !== undefined ? (typeof data.notes === "string" ? data.notes.trim() || null : null) : existing.notes,
+      hashtags: data.hashtags !== undefined && Array.isArray(data.hashtags)
+        ? data.hashtags.filter((item: unknown): item is string => typeof item === "string")
+        : existing.hashtags,
+    };
+    const scoreProfile = deriveTopicCardScoreProfile(nextData);
+
     const updated = await prisma.topic.update({
       where: { id },
       data: {
-        label: data.label !== undefined ? normalizeTopicLabel(data.label) : existing.label,
-        active: data.active !== undefined ? Boolean(data.active) : existing.active,
-        sortOrder: data.sortOrder !== undefined ? Number(data.sortOrder) : existing.sortOrder,
-        notes: data.notes !== undefined ? (typeof data.notes === "string" ? data.notes.trim() || null : null) : existing.notes,
+        ...nextData,
+        confidence: scoreProfile.confidence,
+        confidenceScore: scoreProfile.confidence,
+        impact: scoreProfile.impact,
+        weight: scoreProfile.weight,
+        iceScore: scoreProfile.iceScore,
       },
     });
 

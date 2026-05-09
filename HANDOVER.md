@@ -35,6 +35,7 @@
 - **Fairness Rule**: Periodic rescoring and true refinement queues run oldest-updated-first to avoid starvation.
 - **Observability Surface**: Dashboard score-health metrics now expose tuple repetition, ICE diversity, and dominant clustering surface per company.
 - **Audit Job**: `npm run audit:score-health -- <companyId>` runs the same analyzer from the command line for targeted diagnosis.
+- **Alert Contract**: Shared score-health thresholds are now explicit and machine-readable: exact score share `>8%` is suspicious / `>12%` critical, exact tuple share `>3%` suspicious / `>8%` critical, and unique tuple ratio `<20%` suspicious / `<10%` critical.
 
 ### 5. Tactical Board Drag Stability
 - **Drag Lifecycle Fix**: Tactical board drag visuals are now tied to explicit drag lifecycle state instead of lingering per-card transforms.
@@ -44,6 +45,7 @@
 - **Knowmore / Goals / Checklist**: These are ranked AI surfaces and must display cards from highest ICE to lowest ICE.
 - **Planning**: This is the human-managed tactical board. AI performs initial placement for new or updated cards, but human tactical moves define the ongoing order/placement contract.
 - **Teaching Importance**: Planning drag-and-drop order is a core HITL signal and is persisted as explicit per-column manual order, not a transient UI effect.
+- **Scoring Feedback**: Planning moves across at least two horizons now teach task scoring directly. Earlier moves apply `+2 confidence` and `+1 impact`; later moves apply `-2 confidence` and `-1 impact`, then the task re-enters the oldest-first rescore queue through `lastAuditedAt = null`.
 
 ### 7. Card Sharing Contract
 - **Canonical Link**: Card sharing now uses the card UUID as the canonical permalink key.

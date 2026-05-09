@@ -34,6 +34,7 @@ import {
   type SemanticColor,
   toneToMantineColor,
 } from "@/lib/semantic-theme";
+import { resolveStateTone } from "@/lib/ui-state";
 
 type PageShellProps = {
   children: ReactNode;
@@ -114,8 +115,8 @@ export function Notice({
   variant = "default",
 }: NoticeProps) {
   return (
-    <Alert 
-      color={variant === "destructive" ? "red" : "brand"} 
+    <Alert
+      color={variant === "destructive" ? resolveStateTone("danger") : resolveStateTone("info")}
       title={title} 
       icon={Icon && <Icon size={16} />}
     >
@@ -222,6 +223,7 @@ type EmptyStateProps = {
   description?: string;
   primaryAction?: ReactNode;
   secondaryAction?: ReactNode;
+  tone?: SemanticColor;
 };
 
 export function EmptyState({
@@ -230,11 +232,20 @@ export function EmptyState({
   description,
   primaryAction,
   secondaryAction,
+  tone = "neutral",
 }: EmptyStateProps) {
+  const resolvedTone = resolveModuleTone(tone);
   return (
-    <Card style={{ borderStyle: "dashed", backgroundColor: 'transparent' }} ta="center">
+    <Card
+      style={{
+        ...getSemanticSurfaceStyle(resolvedTone, { elevated: false }),
+        borderStyle: "dashed",
+        backgroundColor: "transparent",
+      }}
+      ta="center"
+    >
       <Stack align="center" gap="md">
-        <ThemeIcon color="gray" size={64}>
+        <ThemeIcon color={resolveMantineColor(tone)} size={64}>
           <Icon size={32} />
         </ThemeIcon>
         <Stack gap={4}>

@@ -23,10 +23,12 @@ const { CandidateState, toGenerated } = require("./lifecycle");
 const { computeInitialFreshnessScore } = require("./evidence");
 const {
   calculateKnowledgeIceScore,
+  groundKnowledgeScores,
   groundTaskScores,
   normalizeKnowledgeScores,
   normalizeTaskScores,
 } = require("../../src/lib/scoring-contract");
+const { deriveFlashcardSourceSupport } = require("../../src/lib/upstream-card-scoring");
 
 // --- UTILITIES ---
 
@@ -179,6 +181,16 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
   const drafts = [];
   const evidenceIds = evidenceBatch.map(e => e.id);
   const versionFamilyId = crypto.randomUUID(); // shared across multi-output batch
+  const supportProfiles = evidenceBatch.map((evidence) => deriveFlashcardSourceSupport(evidence, topic ? [topic] : []));
+  const averageSupport = (key) => {
+    if (supportProfiles.length === 0) return undefined;
+    const values = supportProfiles
+      .map((profile) => profile.supportSignals?.[key])
+      .filter((value) => Number.isFinite(Number(value)))
+      .map(Number);
+    if (values.length === 0) return undefined;
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+  };
 
   for (const item of finalDraftsArray) {
     if (!item.title || !item.body) continue;
@@ -200,10 +212,31 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       procStatus = "REVIEW";
     }
 
-    const normalizedScores = normalizeKnowledgeScores({
+    const groundedKnowledgeScores = groundKnowledgeScores({
       impact,
       confidence,
       weight,
+      kind: item.kind,
+      title: item.title,
+      body: joinBody(item.body),
+      hashtags: Array.isArray(item.semanticTags) ? item.semanticTags.slice(0, 5) :
+                Array.isArray(item.hashtags) ? item.hashtags.slice(0, 5) : [],
+      sourceImpact: averageSupport("sourceImpact"),
+      sourceConfidence: averageSupport("sourceConfidence"),
+      sourceWeight: averageSupport("sourceWeight"),
+      topicImpact: averageSupport("topicImpact"),
+      topicConfidence: averageSupport("topicConfidence"),
+      topicWeight: averageSupport("topicWeight"),
+      evidence: {
+        evidenceIds,
+        sourceScore: supportProfiles[0]?.sourceProfile ?? null,
+        topicScore: supportProfiles[0]?.topicProfile ?? null,
+      },
+    });
+    const normalizedScores = normalizeKnowledgeScores({
+      impact: groundedKnowledgeScores.impact,
+      confidence: groundedKnowledgeScores.confidence,
+      weight: groundedKnowledgeScores.effort,
     });
     const freshnessScore = computeInitialFreshnessScore(evidenceBatch[0]);
     const fingerprint = hashValue(`GEN:FC:${company.id}:${evidenceBatch.map(e => e.id).join(",")}:${item.title}`);
@@ -324,6 +357,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       sourceImpact: flashCard.impact,
       sourceConfidence: flashCard.confidenceScore ?? flashCard.confidence,
       sourceWeight: flashCard.weight ?? flashCard.ease,
+      sourceIceScore: flashCard.iceScore,
       kind: item.kind,
       title: item.title,
       description: item.description,

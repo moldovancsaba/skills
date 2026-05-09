@@ -18,6 +18,7 @@
 
 const crypto = require("crypto");
 const CANONICALIZER_VERSION = "v2.0.0";
+const { deriveDataCardScoreProfile } = require("../../src/lib/upstream-card-scoring");
 
 // ---------------------------------------------------------------------------
 // 1. Canonicalization
@@ -91,6 +92,13 @@ async function ingestEvidenceUnit(prisma, opts) {
 
   const contentCanonical = canonicalizeContent(content);
   const canonicalContentHash = computeContentHash(contentCanonical);
+  const scoreProfile = deriveDataCardScoreProfile({
+    content,
+    entityTag,
+    metadata,
+    hashtags: [],
+    aiClusters: [],
+  });
 
   // --- Exact-hash deduplication ---
   const existing = await prisma.source.findFirst({
@@ -106,6 +114,11 @@ async function ingestEvidenceUnit(prisma, opts) {
     data: {
       companyId,
       content,
+      confidence: scoreProfile.confidence,
+      confidenceScore: scoreProfile.confidence,
+      impact: scoreProfile.impact,
+      weight: scoreProfile.weight,
+      iceScore: scoreProfile.iceScore,
       canonicalContent: contentCanonical,
       canonicalContentHash,
       canonicalizerVersion: CANONICALIZER_VERSION,

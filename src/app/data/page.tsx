@@ -19,12 +19,11 @@ import {
   rem,
   Center,
   Loader,
-  Transition,
   Divider,
   ActionIcon,
   Tooltip
 } from "@mantine/core";
-import { MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { EmptyState, MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { SourceDataCard } from "@/components/source-data-card";
 import {
@@ -324,27 +323,15 @@ export default function GlobalDataCollectionPage() {
         </Card>
 
         {saved && (
-          <Transition mounted={saved} transition="fade" duration={400}>
-            {(styles) => (
-              <Box style={styles}>
-                <Notice icon={CheckCircle} title="Unit Stored">
-                  The intelligence unit has been committed to the local buffer. Autonomous synthesis will begin shortly.
-                </Notice>
-              </Box>
-            )}
-          </Transition>
+          <Notice icon={CheckCircle} title="Unit Stored">
+            The intelligence unit has been committed to the local buffer. Autonomous synthesis will begin shortly.
+          </Notice>
         )}
 
         {errorMessage && (
-          <Transition mounted={!!errorMessage} transition="fade" duration={400}>
-            {(styles) => (
-              <Box style={styles}>
-                <Notice variant="destructive" title="Ingress Failure">
-                  {errorMessage}
-                </Notice>
-              </Box>
-            )}
-          </Transition>
+          <Notice variant="destructive" title="Ingress Failure">
+            {errorMessage}
+          </Notice>
         )}
 
         <MetricGrid cols={{ base: 1, sm: 2 }}>
@@ -368,9 +355,12 @@ export default function GlobalDataCollectionPage() {
           </Group>
           
           {filteredItems.length === 0 ? (
-            <Card style={{ borderStyle: 'dashed' }} ta="center">
-              <Text size="sm" c="dimmed">Inventory empty. Awaiting first ingress.</Text>
-            </Card>
+            <EmptyState
+              icon={FileText}
+              tone="ingress"
+              title="Inventory empty"
+              description="Awaiting first ingress."
+            />
           ) : (
             <Stack gap="md">
               {filteredItems.map((item) => (

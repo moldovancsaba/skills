@@ -11,6 +11,7 @@ import {
   TRANSACTION_SETTINGS,
 } from "@/lib/source-public-ids";
 import { ensureUnifiedSources } from "@/lib/sources";
+import { deriveDataCardScoreProfile } from "@/lib/upstream-card-scoring";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -79,6 +80,14 @@ export async function POST(request: NextRequest) {
 
     const created = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
+      const scoreProfile = deriveDataCardScoreProfile({
+        content,
+        hashtags: normalizeHashtagList(data.hashtags),
+        entityTag: typeof data.entityTag === "string" && data.entityTag.trim() ? data.entityTag.trim() : null,
+        aiClusters: normalizeHashtagList(data.aiClusters),
+        metadata: data.metadata ?? null,
+        intelligenceType: data.intelligenceType === "COMPETITOR" ? "COMPETITOR" : "INTERNAL",
+      });
       return tx.source.create({
         data: {
           companyId,
@@ -89,6 +98,11 @@ export async function POST(request: NextRequest) {
           aiClusters: normalizeHashtagList(data.aiClusters),
           metadata: data.metadata ?? null,
           intelligenceType: data.intelligenceType === "COMPETITOR" ? "COMPETITOR" : "INTERNAL",
+          confidence: scoreProfile.confidence,
+          confidenceScore: scoreProfile.confidence,
+          impact: scoreProfile.impact,
+          weight: scoreProfile.weight,
+          iceScore: scoreProfile.iceScore,
         },
       });
     }, TRANSACTION_SETTINGS);
@@ -126,18 +140,28 @@ export async function PATCH(request: NextRequest) {
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
 
+    const nextData = {
+      content: typeof data.content === "string" ? data.content.trim() || existing.content : existing.content,
+      hashtags: data.hashtags !== undefined ? normalizeHashtagList(data.hashtags) : existing.hashtags,
+      entityTag:
+        data.entityTag !== undefined
+          ? (typeof data.entityTag === "string" && data.entityTag.trim() ? data.entityTag.trim() : null)
+          : existing.entityTag,
+      aiClusters: data.aiClusters !== undefined ? normalizeHashtagList(data.aiClusters) : existing.aiClusters,
+      metadata: data.metadata !== undefined ? data.metadata : existing.metadata,
+      intelligenceType: data.intelligenceType === "COMPETITOR" || data.intelligenceType === "INTERNAL" ? data.intelligenceType : existing.intelligenceType,
+    };
+    const scoreProfile = deriveDataCardScoreProfile(nextData);
+
     const updated = await prisma.source.update({
       where: { id },
       data: {
-        content: typeof data.content === "string" ? data.content.trim() || existing.content : existing.content,
-        hashtags: data.hashtags !== undefined ? normalizeHashtagList(data.hashtags) : existing.hashtags,
-        entityTag:
-          data.entityTag !== undefined
-            ? (typeof data.entityTag === "string" && data.entityTag.trim() ? data.entityTag.trim() : null)
-            : existing.entityTag,
-        aiClusters: data.aiClusters !== undefined ? normalizeHashtagList(data.aiClusters) : existing.aiClusters,
-        metadata: data.metadata !== undefined ? data.metadata : existing.metadata,
-        intelligenceType: data.intelligenceType === "COMPETITOR" || data.intelligenceType === "INTERNAL" ? data.intelligenceType : existing.intelligenceType,
+        ...nextData,
+        confidence: scoreProfile.confidence,
+        confidenceScore: scoreProfile.confidence,
+        impact: scoreProfile.impact,
+        weight: scoreProfile.weight,
+        iceScore: scoreProfile.iceScore,
       },
     });
 

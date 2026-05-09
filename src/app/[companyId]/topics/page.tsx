@@ -27,12 +27,11 @@ import {
   Center,
   Loader,
   Box,
-  Transition,
   Divider,
   ThemeIcon
 } from "@mantine/core";
 import { IconGripVertical as GripVertical, IconPlus as Plus, IconTrash as Trash2, IconArrowUp as ArrowUp, IconArrowDown as ArrowDown, IconInfoCircle as Info, IconLayoutList as LayoutList, IconLayersIntersect as Layers } from "@tabler/icons-react";
-import { Notice, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
+import { EmptyState, Notice, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { 
   UnifiedCard, 
   UnifiedCardFreshnessBadge,
@@ -42,6 +41,7 @@ import {
 } from "@/components/ui/unified-card";
 import { getTopicCardFreshness } from "@/lib/card-freshness";
 import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
+import { CardShareAction } from "@/components/ui/card-share-action";
 
 type Topic = {
   id: string;
@@ -266,7 +266,6 @@ export default function CompanyTopicsPage() {
                 style={{ 
                   opacity: draggingId === topic.id ? 0.4 : 1,
                   cursor: draggingId === topic.id ? 'grabbing' : 'grab',
-                  transition: 'opacity 0.2s ease'
                 }}
               >
                 <UnifiedCard tone="synthesis">
@@ -322,13 +321,14 @@ export default function CompanyTopicsPage() {
                           </Group>
 
                           <Group gap="sm">
+                            <CardShareAction cardId={topic.id} color="synthesis" size="lg" />
                             <ThemeIcon variant="transparent" color="synthesis" opacity={0.35}>
                               <GripVertical size={16} />
                             </ThemeIcon>
                             <Tooltip label="Archive Focus">
                               <ActionIcon 
                                 variant="light" 
-                                color="red" 
+                                color="review" 
                                 size="lg"
                                 onClick={() => void removeTopic(topic)}
                               >
@@ -347,14 +347,12 @@ export default function CompanyTopicsPage() {
         </UnifiedGrid>
 
         {orderedTopics.length === 0 && (
-          <Card style={{ ...getSemanticSurfaceStyle("synthesis", { elevated: false }), borderStyle: 'dashed' }} ta="center">
-            <Stack align="center" gap="md">
-              <ThemeIcon color="gray" size="xl" >
-                <LayoutList size={24} />
-              </ThemeIcon>
-              <Text size="sm" c="dimmed">No focus topics established. Define your first intelligence frontier above.</Text>
-            </Stack>
-          </Card>
+          <EmptyState
+            icon={LayoutList}
+            tone="synthesis"
+            title="No focus topics established"
+            description="Define your first intelligence frontier above."
+          />
         )}
       </Stack>
     </PageShell>

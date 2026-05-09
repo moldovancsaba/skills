@@ -3,7 +3,7 @@
 import type { ReactNode, CSSProperties, KeyboardEvent, MouseEvent } from "react";
 import { Card, Stack, Group, Title, Text, Box, Badge, rem } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
-import { getSemanticHoverStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
+import { getSemanticHoverStyle, getSemanticInsetStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
 import type { CardFreshnessState } from "@/lib/card-freshness";
 
 type UnifiedCardProps = {
@@ -181,9 +181,7 @@ export function UnifiedCardSection({ children, style, mt, tone = "neutral" }: Un
       p="md"
       style={{
         borderRadius: rem(12),
-        background: "linear-gradient(180deg, var(--surface-hover-top), var(--surface-hover-bottom)), var(--module-hover-surface, var(--surface-elevated))",
-        border: "1px solid var(--surface-section-border)",
-        ...getSemanticSurfaceStyle(tone, { elevated: false }),
+        ...getSemanticInsetStyle(tone),
         ...style,
       }}
       mt={mt}

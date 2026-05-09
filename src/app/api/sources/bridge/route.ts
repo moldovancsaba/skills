@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { verifyIngestSecret } from "@/lib/ingest-auth";
 import { normalizeHashtagList } from "@/lib/hashtags";
 import { nextSourcePublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
+import { deriveDataCardScoreProfile } from "@/lib/upstream-card-scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -45,11 +46,25 @@ export async function POST(request: NextRequest) {
 
       const created = await prisma.$transaction(async (tx) => {
         const publicId = await nextSourcePublicId(tx);
+        const scoreProfile = deriveDataCardScoreProfile({
+          content,
+          hashtags,
+          metadata: {
+            customerName,
+            opportunityValue,
+            isContextSignal: true,
+          },
+        });
         return tx.source.create({
           data: {
             companyId,
             publicId,
             content,
+            confidence: scoreProfile.confidence,
+            confidenceScore: scoreProfile.confidence,
+            impact: scoreProfile.impact,
+            weight: scoreProfile.weight,
+            iceScore: scoreProfile.iceScore,
             hashtags,
             sourceType: "BRIDGE",
             provenance: "crm-bridge",

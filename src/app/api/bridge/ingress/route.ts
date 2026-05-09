@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { nextSourcePublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
+import { deriveDataCardScoreProfile } from "@/lib/upstream-card-scoring";
 import crypto from "crypto";
 
 export const dynamic = 'force-dynamic';
@@ -90,11 +91,27 @@ export async function POST(request: NextRequest) {
     // 4. Atomic Ingestion
     const created = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
+      const persistedContent = `[Bridge Inbound from ${sender}]: ${content}`;
+      const scoreProfile = deriveDataCardScoreProfile({
+        content: persistedContent,
+        entityTag: sender,
+        hashtags: ["#bridge", "#inbound"],
+        metadata: {
+          bridgeChannel: settings.channel,
+          senderVerified: settings.handle === sender,
+          v: "2.0.0",
+        },
+      });
       return tx.source.create({
         data: {
           companyId,
           publicId,
-          content: `[Bridge Inbound from ${sender}]: ${content}`,
+          content: persistedContent,
+          confidence: scoreProfile.confidence,
+          confidenceScore: scoreProfile.confidence,
+          impact: scoreProfile.impact,
+          weight: scoreProfile.weight,
+          iceScore: scoreProfile.iceScore,
           entityTag: sender,
           hashtags: ["#bridge", "#inbound"],
           metadata: {

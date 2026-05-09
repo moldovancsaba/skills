@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconRoute as Route } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Box, ThemeIcon, Alert, rem } from "@mantine/core";
+import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 
 import type { ExpertTip } from "@/content/help";
 import { 
@@ -50,10 +51,7 @@ export function ExpertTipCard({ tip }: ExpertTipCardProps) {
                 <Box 
                   key={phrase} 
                   p="xs" 
-                  style={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)'
-                  }}
+                  style={getSemanticInsetStyle("synthesis")}
                 >
                   <Text size="xs" fs="italic" c="dimmed" >“{phrase}”</Text>
                 </Box>

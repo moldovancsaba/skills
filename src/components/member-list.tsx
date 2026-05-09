@@ -148,7 +148,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                     Invite
                   </Button>
                 </Group>
-                {error && <Text size="xs" c="red">{error}</Text>}
+                {error && <Text size="xs" c="review">{error}</Text>}
               </Stack>
             </form>
           )}
@@ -188,7 +188,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                     <Tooltip label="Revoke Access">
                       <ActionIcon
                         variant="subtle"
-                        color="red"
+                        color="review"
                         onClick={() => handleRemove(member.id)}
                         size="lg"
                       >

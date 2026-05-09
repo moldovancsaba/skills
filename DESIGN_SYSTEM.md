@@ -1,75 +1,103 @@
-# Checklist Design System
-**v0.15.0: Hardened Mantine-Only Architecture**
+# CHECKLIST Design System
+**v0.15.3: Semantic Mantine Architecture**
 
-Unified component patterns for a premium, production-ready strategic intelligence interface.
+This is the current product design-system source of truth in prose form.
 
-## Core Principle: Mantine-Only Mandate
+Implementation authority lives in:
+- `src/app/globals.css`
+- `src/components/providers.tsx`
+- `src/lib/semantic-theme.ts`
+- `scripts/semantic-audit.mjs`
 
-**CHECKLIST** enforces a strict Mantine-only architecture.
-1. **No Ad-hoc Utility Classes**: All layout and styling must be handled via Mantine primitives (`Stack`, `Group`, `Grid`, `Box`, `Paper`, `Card`).
-2. **Design Tokens Only**: Use only the hardened design tokens for colors, shadows, and spacing. 
-3. **Architectural Purity**: No legacy Tailwind, shadcn, Radix, or parallel UI-system fragments may remain in the product UI.
+## Core Rules
 
-## Premium Visual Language (Hardened)
+1. Mantine is the only UI system.
+2. Visual meaning is expressed through semantic tones, not raw hue names.
+3. Surfaces must be built from shared semantic helpers and global tokens.
+4. Light and dark mode are both first-class token sets.
+5. State styling must resolve through the product state layer, not raw `red/green/orange` conventions.
+6. Motion is globally disabled; feature code must not declare local transitions or animation wrappers.
+7. Component defaults belong in the theme layer, not in local feature code.
+8. Drift prevention is enforced through audit scripts, not documentation alone.
 
-- **Typography**: Uses **Inter** for all UI elements, emphasizing high contrast and tight tracking (`-0.5px` for headings).
-- **Glassmorphism**: Primary surfaces use `backdropFilter: 'blur(10px)'` with low-opacity backgrounds (`rgba(255, 255, 255, 0.02)`) and `1px` borders for a premium, high-yield aesthetic.
-- **Vibrant Gradients**: Leveraging Mantine's `gradient` variant for `LinkCard`, `MetricCard`, and primary buttons to ensure visual excellence.
-- **Layers**: 
-  - **Data Ingress**: `blue`
-  - **Topic Synthesis**: `indigo`
-  - **Knowmore**: `teal`
-  - **Strategic Goals**: `violet`
-  - **Checklist**: `blue`
-  - **Tactical Board**: `cyan`
-  - **Alerts/Review**: `orange`
+## Semantic Tones
 
-## Intelligence Clarity (Metadata Filtering)
+Approved tones:
+- `ingress`
+- `synthesis`
+- `knowmore`
+- `strategy`
+- `checklist`
+- `tactical`
+- `review`
+- `neutral`
 
-End-user displays must be purged of technical implementation details.
-- **Filtering Utility**: Wrap all user-facing text (titles, descriptions, labels) in `stripTechnicalMetadata()` from `@/lib/ui-utils`.
-- **Constraint**: `[TRACE:...]` and `[TOPIC_ID:...]` markers are strictly for internal debugging and must never be visible to the end user.
+Migration aliases:
+- `brand`, `blue` -> `ingress`
+- `indigo` -> `synthesis`
+- `teal`, `green`, `knowledge` -> `knowmore`
+- `violet`, `purple` -> `strategy`
+- `cyan`, `execution` -> `checklist`
+- `orange`, `amber` -> `review`
 
-## Core Layout Components (Hardened)
+## Surface Architecture
 
-### `PageShell`
-The root container for all pages. Handles viewport-aware scaling and consistent vertical spacing.
-- **Mandatory Usage**: Every primary intelligence route must be wrapped in a `PageShell`.
+Use the semantic helper layer in `src/lib/semantic-theme.ts`.
 
-### `UnifiedGrid`
-The standard responsive layout engine for strategic and tactical layers.
-- **Desktop**: 3-column grid.
-- **Mobile**: 1-column stack.
+Primary helpers:
+- `getSemanticSurfaceStyle(tone, { elevated })`
+- `getSemanticHoverStyle(tone)`
+- `getSemanticInsetStyle(tone)`
+- `getSemanticCalloutStyle(tone)`
+- `getSidebarActiveStyle(tone)`
+- `getSidebarHoverStyle(tone)`
 
-### `RouteCardGrid`
-The standard responsive layout engine for the six core intelligence route cards.
-- **Desktop**: 6-column grid.
-- **Tablet**: 2-column grid.
-- **Mobile**: 1-column stack.
-- **Usage**: Company overview and Operation Unit dashboard navigation strips must use `RouteCardGrid` so the six core layers share one global layout contract.
+State helpers:
+- `resolveStateTone(state)`
+- `resolveStateTextColor(state)`
 
-### `MetricCard`
-A high-visibility data surface re-engineered with glassmorphism and background blurs.
-- **Usage**: Core dashboard metrics and strategic KPIs.
+Rules:
+- Cards and panels should use semantic surfaces, not one-off rgba backgrounds.
+- Inset areas inside cards should use `getSemanticInsetStyle(...)`.
+- Annotation or highlighted note panels should use `getSemanticCalloutStyle(...)`.
+- Navigation active states must use the sidebar semantic helpers.
 
-### `LinkCard`
-Premium navigation unit featuring gradients and micro-animations.
-- **Usage**: Main dashboard routing and layer-to-layer transitions.
+## Theme Defaults
 
-## Unified Card Family
+Defined centrally in `src/components/providers.tsx`:
+- `Inter` typography
+- `md` default radius
+- semantic color scales
+- component defaults for buttons, cards, badges, text, titles, inputs, modals, and dividers
 
-Import from `@/components/ui/unified-card` for all first-class objects:
-- `UnifiedCard` (Root)
-- `UnifiedCardHeader` (Metadata/Title)
-- `UnifiedCardBody` (Description/Content)
-- `UnifiedCardFooter` (Controls/Lineage)
+## Prohibited Patterns
 
-## What NOT to Use
+The following are treated as design-system violations:
+- raw legacy color props like `color="brand"` or `color="orange"`
+- raw Mantine dark palette references like `var(--mantine-color-dark-4)`
+- undefined or ad hoc surface tokens like `var(--surface-subtle)`
+- hand-rolled translucent glass panels such as `rgba(255,255,255,0.03)` or `rgba(0,0,0,0.2)`
+- old `light-dark(...)` helpers
+- raw `red` state styling
+- local transition declarations or Mantine `Transition` wrappers
+- local parallel styling systems
 
-❌ **DO NOT** use Tailwind utility classes (e.g., `flex h-10 w-full rounded-md border...`).
-❌ **DO NOT** use legacy `shadcn/ui` components.
-❌ **DO NOT** hand-roll page shells or action links; use the design system primitives.
+## Global Information
 
----
+- Product UI uses a semantic multi-tone system, not the older marketing green-primary palette.
+- The marketing brand doc is not the product-theme source of truth.
+- `scripts/semantic-audit.mjs` should be expanded whenever a new category of drift is discovered.
 
-Last Updated: 2026-05-08 (v0.15.3 Mantine-only terminology sync)
+## Architecture Guidance
+
+When building new UI:
+- start with the semantic tone
+- choose the matching shared surface helper
+- rely on theme defaults for component behavior
+- only use local style objects for layout or one-off structural constraints
+
+When refactoring old UI:
+- replace raw color props with semantic tones
+- replace local rgba surfaces with semantic helper functions
+- remove duplicate border/radius/shadow logic
+- add new audit rules when a pattern is proven harmful

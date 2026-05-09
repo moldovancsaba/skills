@@ -79,6 +79,8 @@ End-user displays must be purged of technical trace information.
 - **Knowledge/Goal ICE**: Derived from the same normalized base metrics through the shared scoring contract.
 - **Grounding Rule**: Task generation and refinement must route through `@/lib/scoring-contract` rather than trusting repeated raw tuples.
 - **Observability Rule**: Score clustering must be monitored through the shared score-health analyzer and `npm run audit:score-health`.
+- **Health Contract**: Exact score share above `8%` is suspicious and above `12%` is critical; exact tuple share above `3%` is suspicious and above `8%` is critical.
+- **Diversity Contract**: Unique tuple ratio below `20%` is suspicious and below `10%` is critical.
 
 ### 5. Surface Ordering Contract
 - **Knowmore**: Rank cards from highest ICE to lowest ICE.
@@ -86,6 +88,8 @@ End-user displays must be purged of technical trace information.
 - **Checklist**: Rank cards from highest ICE to lowest ICE.
 - **Planning**: Human-managed tactical order. AI places new or refreshed cards initially, then the user’s tactical moves take precedence.
 - **HITL Rule**: Manual Planning reorders are first-class teaching signals and must persist across refreshes and AI cycles.
+- **Planning Teaching Rule**: Moving a task across at least two tactical horizons teaches the task scorer. Earlier moves increase `confidence` by `2` and `impact` by `1`; later moves decrease `confidence` by `2` and `impact` by `1`.
+- **Rescore Queue Rule**: Human-taught planning moves reset the task into the oldest-first rescore queue by clearing `lastAuditedAt`, so canonical recalculation resumes from the oldest modified cards first.
 
 ### 6. Premium Design System Tokens
 All interactive surfaces must use the hardened design language:

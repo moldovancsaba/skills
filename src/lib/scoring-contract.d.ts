@@ -11,7 +11,10 @@ export type CanonicalTripletInput = {
   ease?: number | null;
   title?: string | null;
   description?: string | null;
+  body?: string | null;
   kind?: string | null;
+  evidence?: unknown;
+  hashtags?: string[] | null;
 };
 
 export function clampMetric(value: number | null | undefined, min?: number, max?: number): number;
@@ -45,10 +48,25 @@ export function normalizeGoalScores(input?: CanonicalTripletInput): {
 export function deriveSpecificitySignal(title?: string | null, description?: string | null): number;
 export function deriveUrgencySignal(kind?: string | null, title?: string | null, description?: string | null): number;
 export function deriveComplexitySignal(title?: string | null, description?: string | null): number;
+export function deriveEvidenceStrengthSignal(input?: CanonicalTripletInput): number;
+export function deriveKnowledgeKindSignal(kind?: string | null): number;
+export function groundKnowledgeScores(input?: CanonicalTripletInput & {
+  sourceImpact?: number | null;
+  sourceConfidence?: number | null;
+  sourceWeight?: number | null;
+  topicImpact?: number | null;
+  topicConfidence?: number | null;
+  topicWeight?: number | null;
+}): {
+  impact: number;
+  confidence: number;
+  effort: number;
+};
 export function groundTaskScores(input?: CanonicalTripletInput & {
   sourceImpact?: number | null;
   sourceConfidence?: number | null;
   sourceWeight?: number | null;
+  sourceIceScore?: number | null;
   flashcardImpact?: number | null;
   flashcardConfidence?: number | null;
   flashcardWeight?: number | null;

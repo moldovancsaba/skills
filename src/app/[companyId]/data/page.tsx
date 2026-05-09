@@ -22,7 +22,6 @@ import {
   ThemeIcon,
   Tooltip,
   ActionIcon,
-  Transition
 } from "@mantine/core";
 import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconFileText as ScrollText, IconFilter as ListFilter, IconSortAscending as SortAsc, IconUsers as Users, IconPencil as Edit2, IconInfoCircle as Info, IconDatabase as Database } from "@tabler/icons-react";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
@@ -34,6 +33,7 @@ import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
 import React from "react";
+import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 import {
   matchesAllHashtags,
   normalizeSourceHashtags,
@@ -431,7 +431,7 @@ export default function CompanyDataPage() {
                       )}
                     </FileButton>
                     {selectedFiles.length > 0 && (
-                      <Button variant="subtle" color="red" size="xs" onClick={() => setSelectedFiles([])}>
+                      <Button variant="subtle" color="review" size="xs" onClick={() => setSelectedFiles([])}>
                         Clear Queue ({selectedFiles.length})
                       </Button>
                     )}
@@ -517,9 +517,9 @@ export default function CompanyDataPage() {
             </Group>
 
             <Group gap="sm">
-              <Group gap={4} p={4} style={{ 
-                backgroundColor: 'rgba(255, 255, 255, 0.03)', 
-                borderRadius: 8 
+              <Group gap={4} p={4} style={{
+                borderRadius: 8,
+                ...getSemanticSurfaceStyle("neutral", { elevated: false }),
               }}>
                 {(["ALL", "INTERNAL", "COMPETITOR"] as const).map((type) => (
                   <Button
@@ -527,7 +527,7 @@ export default function CompanyDataPage() {
                     variant={listIntelligenceFilter === type ? "light" : "subtle"}
                     size="compact-xs"
                     color={listIntelligenceFilter === type 
-                      ? (type === "COMPETITOR" ? "orange" : (type === "INTERNAL" ? "blue" : "gray"))
+                      ? (type === "COMPETITOR" ? "review" : (type === "INTERNAL" ? "ingress" : "gray"))
                       : "gray"
                     }
                     onClick={() => setListIntelligenceFilter(type)}
@@ -537,9 +537,9 @@ export default function CompanyDataPage() {
                 ))}
               </Group>
 
-              <Group gap={4} p={4} style={{ 
-                backgroundColor: 'rgba(255, 255, 255, 0.03)', 
-                borderRadius: 8 
+              <Group gap={4} p={4} style={{
+                borderRadius: 8,
+                ...getSemanticSurfaceStyle("neutral", { elevated: false }),
               }}>
                 {([ "CREATED", "UPDATED", ...(hasSortableIce ? (["ICE"] as const) : []) ] as const).map((sort) => (
                   <Button

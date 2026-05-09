@@ -38,13 +38,14 @@ import {
   normalizeSourceHashtags,
   stripSourceTypeHashtags,
 } from "@/lib/hashtags";
+import { deriveFlashcardSourceSupport } from "@/lib/upstream-card-scoring";
 import {
   enrichCompetitorSeed,
   enrichProductSeed,
   shouldEnrichCompetitor,
   shouldEnrichProduct,
 } from "@/lib/url-enrichment";
-import { calculateKnowledgeIceScore, clampMetric } from "@/lib/scoring-contract";
+import { calculateKnowledgeIceScore, clampMetric, groundKnowledgeScores } from "@/lib/scoring-contract";
 import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
 
 // --- TYPES ---
@@ -57,6 +58,11 @@ type BaseSourceRecord = {
   sourceName: string;
   knowledgeName: string;
   hashtags: string[];
+  confidence?: number;
+  confidenceScore?: number;
+  impact?: number;
+  weight?: number;
+  iceScore?: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -132,6 +138,20 @@ type FlashcardDraft = {
   };
   supportingSources?: FlashcardLinkedSource[];
   refreshedAt: Date;
+};
+
+type TopicRecord = {
+  id: string;
+  label: string;
+  hashtags: string[];
+  active: boolean;
+  sortOrder: number;
+  notes?: string | null;
+  confidence?: number;
+  confidenceScore?: number;
+  impact?: number;
+  weight?: number;
+  iceScore?: number;
 };
 
 type FlashcardActionInput = {
@@ -601,7 +621,7 @@ function sharedSourceContext(left: UnifiedSource, right: UnifiedSource) {
  * @param {SourceRecord[]} context - Related sources for comparative synthesis
  * @returns {FlashcardDraft[]} Array of potential intelligence drafts
  */
-function buildSourceDrafts(source: UnifiedSource, context: SourceRecord[]) {
+function buildSourceDrafts(source: UnifiedSource, context: SourceRecord[], topicContext: TopicRecord[]) {
   const drafts: FlashcardDraft[] = [];
   const sourceName = displaySourceName(sourceDisplayName(source));
   const evidenceBase = {
@@ -636,6 +656,7 @@ function buildSourceDrafts(source: UnifiedSource, context: SourceRecord[]) {
         clamp(confidence + 4, 58, 90),
         { ...evidenceBase, insightIndex: index },
         `source-insight-${index}-${value}`,
+        topicContext,
       ),
     );
   });
@@ -652,6 +673,7 @@ function buildSourceDrafts(source: UnifiedSource, context: SourceRecord[]) {
         82,
         evidenceBase,
         `source-price-${value}`,
+        topicContext,
       ),
     );
   });
@@ -685,6 +707,7 @@ function buildSourceDrafts(source: UnifiedSource, context: SourceRecord[]) {
           sharedContext,
         },
         `source-synthesis-${related.id}-${sharedContext.join("-")}`,
+        topicContext,
       );
       draft.supportingSources = [{
         type: related.type,
@@ -738,16 +761,38 @@ function competitorEvidenceSignals(source: CompetitorSource) {
  * @param {string} seed - Seed for fingerprinting
  * @returns {FlashcardDraft} Standardized draft object
  */
-function makeDraft(source: SourceRecord, kind: FlashcardKind, title: string, body: string, confidence: number, impact: number, weight: number, evidence: Prisma.InputJsonValue | null, seed: string): FlashcardDraft {
+function makeDraft(source: SourceRecord, kind: FlashcardKind, title: string, body: string, confidence: number, impact: number, weight: number, evidence: Prisma.InputJsonValue | null, seed: string, topicContext: TopicRecord[] = []): FlashcardDraft {
+  const support = deriveFlashcardSourceSupport(source, topicContext);
+  const mergedEvidence =
+    evidence && typeof evidence === "object"
+      ? {
+          ...(evidence as Record<string, unknown>),
+          sourceScore: support.sourceProfile,
+          topicScore: support.topicProfile,
+          matchedTopics: support.matchedTopics ?? [],
+        }
+      : evidence;
+  const grounded = groundKnowledgeScores({
+    confidence,
+    impact,
+    weight,
+    kind,
+    title,
+    body,
+    evidence: mergedEvidence,
+    hashtags: stripSourceTypeHashtags(source.hashtags),
+    ...support.supportSignals,
+  });
+
   return {
     kind,
     fingerprint: buildFingerprint(source, kind, seed),
     title,
     body: sentenceize(body),
-    confidence: clampMetric(confidence),
-    impact: clampMetric(impact),
-    weight: clampMetric(weight),
-    evidence,
+    confidence: grounded.confidence,
+    impact: grounded.impact,
+    weight: grounded.effort,
+    evidence: (mergedEvidence as Prisma.InputJsonValue | null) ?? null,
     hashtags: stripSourceTypeHashtags(source.hashtags),
     source: {
       type: source.type,
@@ -760,7 +805,7 @@ function makeDraft(source: SourceRecord, kind: FlashcardKind, title: string, bod
   };
 }
 
-function buildProductDrafts(source: ProductSource, context: SourceRecord[]) {
+function buildProductDrafts(source: ProductSource, context: SourceRecord[], topicContext: TopicRecord[]) {
   const drafts: FlashcardDraft[] = [];
   const sections = parseLabeledSections(source.description);
   const sourceName = displaySourceName(source.knowledgeName);
@@ -794,6 +839,7 @@ function buildProductDrafts(source: ProductSource, context: SourceRecord[]) {
           kind === FlashcardKind.RECOMMENDATION ? 80 : 76,
           { ...evidenceBase, section: label },
           `analysis-${label}-${index}-${value}`,
+          topicContext,
         ),
       );
     });
@@ -814,6 +860,7 @@ function buildProductDrafts(source: ProductSource, context: SourceRecord[]) {
         70,
         { ...evidenceBase, section: "newsSignals" },
         `news-${index}-${value}`,
+        topicContext,
       ),
     );
   });
@@ -835,6 +882,7 @@ function buildProductDrafts(source: ProductSource, context: SourceRecord[]) {
           kind === FlashcardKind.RECOMMENDATION ? 82 : 74,
           { ...evidenceBase, section: label },
           `${label}-${index}-${value}`,
+          topicContext,
         ),
       );
     });
@@ -852,6 +900,7 @@ function buildProductDrafts(source: ProductSource, context: SourceRecord[]) {
         77,
         evidenceBase,
         `price-${source.pricing}`,
+        topicContext,
       ),
     );
   }
@@ -871,6 +920,7 @@ function buildProductDrafts(source: ProductSource, context: SourceRecord[]) {
         68,
         evidenceBase,
         `feature-${index}-${feature}`,
+        topicContext,
       ),
     );
   });
@@ -903,6 +953,7 @@ function buildProductDrafts(source: ProductSource, context: SourceRecord[]) {
             },
           },
           `comparison-${competitor.id}`,
+          topicContext,
         ),
       );
     }
@@ -911,7 +962,7 @@ function buildProductDrafts(source: ProductSource, context: SourceRecord[]) {
   return drafts;
 }
 
-function buildCustomerDrafts(source: CustomerSource) {
+function buildCustomerDrafts(source: CustomerSource, topicContext: TopicRecord[]) {
   const drafts: FlashcardDraft[] = [];
   const sourceName = displaySourceName(source.knowledgeName);
   const evidenceBase = {
@@ -934,6 +985,7 @@ function buildCustomerDrafts(source: CustomerSource) {
         79,
         evidenceBase,
         `pain-${index}-${painPoint}`,
+        topicContext,
       ),
     );
   });
@@ -950,6 +1002,7 @@ function buildCustomerDrafts(source: CustomerSource) {
         75,
         evidenceBase,
         `channel-${index}-${channel}`,
+        topicContext,
       ),
     );
   });
@@ -966,6 +1019,7 @@ function buildCustomerDrafts(source: CustomerSource) {
         73,
         evidenceBase,
         `notes-${source.notes}`,
+        topicContext,
       ),
     );
   }
@@ -973,7 +1027,7 @@ function buildCustomerDrafts(source: CustomerSource) {
   return drafts;
 }
 
-function buildCompetitorDrafts(source: CompetitorSource, context: SourceRecord[]) {
+function buildCompetitorDrafts(source: CompetitorSource, context: SourceRecord[], topicContext: TopicRecord[]) {
   const drafts: FlashcardDraft[] = [];
   const sections = parseLabeledSections(source.positioning);
   const sourceName = displaySourceName(source.knowledgeName);
@@ -1008,6 +1062,7 @@ function buildCompetitorDrafts(source: CompetitorSource, context: SourceRecord[]
           kind === FlashcardKind.RECOMMENDATION ? 82 : 78,
           { ...evidenceBase, section: label },
           `analysis-${label}-${index}-${value}`,
+          topicContext,
         ),
       );
     });
@@ -1028,6 +1083,7 @@ function buildCompetitorDrafts(source: CompetitorSource, context: SourceRecord[]
         74,
         { ...evidenceBase, section: "newsSignals" },
         `news-${index}-${value}`,
+        topicContext,
       ),
     );
   });
@@ -1049,6 +1105,7 @@ function buildCompetitorDrafts(source: CompetitorSource, context: SourceRecord[]
           kind === FlashcardKind.RECOMMENDATION ? 84 : 76,
           { ...evidenceBase, section: label },
           `${label}-${index}-${value}`,
+          topicContext,
         ),
       );
     });
@@ -1066,6 +1123,7 @@ function buildCompetitorDrafts(source: CompetitorSource, context: SourceRecord[]
         79,
         evidenceBase,
         `price-${source.pricing}`,
+        topicContext,
       ),
     );
   }
@@ -1098,6 +1156,7 @@ function buildCompetitorDrafts(source: CompetitorSource, context: SourceRecord[]
             },
           },
           `comparison-${product.id}`,
+          topicContext,
         ),
       );
     }
@@ -1106,7 +1165,7 @@ function buildCompetitorDrafts(source: CompetitorSource, context: SourceRecord[]
   return drafts;
 }
 
-function buildFileDrafts(source: FileSource) {
+function buildFileDrafts(source: FileSource, topicContext: TopicRecord[]) {
   const drafts: FlashcardDraft[] = [];
   const sourceName = displaySourceName(source.knowledgeName);
   const evidenceBase = {
@@ -1145,6 +1204,7 @@ function buildFileDrafts(source: FileSource) {
         76,
         evidenceBase,
         `file-summary-${summary}`,
+        topicContext,
       ),
     );
   }
@@ -1162,6 +1222,7 @@ function buildFileDrafts(source: FileSource) {
           kind === FlashcardKind.RECOMMENDATION ? 82 : 76,
           { ...evidenceBase, section: label, analysis },
           `file-${label}-${index}-${value}`,
+          topicContext,
         ),
       );
     });
@@ -1193,23 +1254,23 @@ function isPublishableSource(source: SourceRecord) {
   return extractSourceInsights(source as UnifiedSource, 2).length > 0;
 }
 
-function buildFlashcardDrafts(source: UnifiedSource, context: SourceRecord[]) {
+function buildFlashcardDrafts(source: UnifiedSource, context: SourceRecord[], topicContext: TopicRecord[]) {
   if (source.entityTag === "product") {
-    return buildProductDrafts(source as any, context);
+    return buildProductDrafts(source as any, context, topicContext);
   }
   if (source.entityTag === "competitor") {
-    return buildCompetitorDrafts(source as any, context);
+    return buildCompetitorDrafts(source as any, context, topicContext);
   }
   if (source.entityTag === "customer") {
-    return buildCustomerDrafts(source as any);
+    return buildCustomerDrafts(source as any, topicContext);
   }
 
   // Fallback to generic source or file specific drafting
   if ((source as any).type === "FILE") {
-    return buildFileDrafts(source as any);
+    return buildFileDrafts(source as any, topicContext);
   }
 
-  return buildSourceDrafts(source, context);
+  return buildSourceDrafts(source, context, topicContext);
 }
 
 function resolveDisplayContent(existing: { manualTitle: string | null; manualBody: string | null }, draft: FlashcardDraft) {
@@ -1512,6 +1573,11 @@ async function loadCompanySources(companyId: string) {
           metadata: source.metadata,
         }),
         hashtags: normalizeSourceHashtags(source.hashtags),
+        confidence: source.confidence,
+        confidenceScore: source.confidenceScore,
+        impact: source.impact,
+        weight: source.weight,
+        iceScore: source.iceScore,
         content: source.content,
         entityTag: normalizeText(source.entityTag),
         aiClusters: normalizeSourceHashtags(source.aiClusters),
@@ -1538,6 +1604,11 @@ async function loadCompanySources(companyId: string) {
         mimeType: file.mimeType,
         sizeBytes: file.sizeBytes,
         hashtags: normalizeSourceHashtags(file.hashtags, "product"),
+        confidence: file.confidence,
+        confidenceScore: file.confidenceScore,
+        impact: file.impact,
+        weight: file.weight,
+        iceScore: file.iceScore,
         extractedText: enriched.extractedText,
         watchedContent: (enriched.watchedContent as Prisma.JsonValue | undefined) ?? null,
         createdAt: file.createdAt,
@@ -1559,9 +1630,26 @@ export async function syncCompanyKnowledge(companyId: string) {
 export async function syncBootstrapFlashcards(companyId: string) {
   await ensureSourcePublicIds(companyId);
   const sources = await loadCompanySources(companyId);
+  const topics = await prisma.topic.findMany({
+    where: { companyId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      label: true,
+      hashtags: true,
+      active: true,
+      sortOrder: true,
+      notes: true,
+      confidence: true,
+      confidenceScore: true,
+      impact: true,
+      weight: true,
+      iceScore: true,
+    },
+  });
   const candidateDrafts = sources
     .filter(isPublishableSource)
-    .flatMap((source) => buildFlashcardDrafts(source, sources));
+    .flatMap((source) => buildFlashcardDrafts(source, sources, topics));
 
   return withSerializableRetry(() =>
     prisma.$transaction(async (tx) => {

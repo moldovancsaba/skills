@@ -20,10 +20,11 @@ import {
 import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListCheck, IconLayoutDashboard as LayoutDashboard, IconLayersIntersect as Layers, IconHistory as History } from "@tabler/icons-react";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
-import { LinkCard, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
+import { EmptyState, LinkCard, Notice, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useState, useEffect, useCallback } from "react";
+import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 
 export default function Home() {
   const router = useRouter();
@@ -190,9 +191,9 @@ export default function Home() {
       <Stack gap="xl">
 
         {error && (
-          <Alert icon={<AlertCircle size={16} />} title="Synchronization Failure" color="red">
+          <Notice icon={AlertCircle} title="Synchronization Failure" variant="destructive">
             {error}
-          </Alert>
+          </Notice>
         )}
 
         <Group justify="flex-end" gap="lg">
@@ -260,7 +261,7 @@ export default function Home() {
           <Stack gap={48}>
             {Array.isArray(companies) && companies.map((c: any) => (
               <Box key={c.id}>
-                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: '1px solid var(--surface-section-border)' }}>
                   <Stack gap={4}>
                     <Group gap="sm">
                       <Title 
@@ -290,7 +291,7 @@ export default function Home() {
                         </ActionIcon>
                       </Tooltip>
                       <Tooltip label="Purge Unit">
-                        <ActionIcon onClick={() => handleDeleteCompany(c.id)} variant="light" color="red" size="lg">
+                        <ActionIcon onClick={() => handleDeleteCompany(c.id)} variant="light" color="review" size="lg">
                           <Trash2 size={18} />
                         </ActionIcon>
                       </Tooltip>
@@ -360,11 +361,12 @@ export default function Home() {
             ))}
 
             {!canManageCompanies && companies.length === 0 && (
-              <Card>
-                <Text c="dimmed">
-                  No intelligence units are currently provisioned for this account.
-                </Text>
-              </Card>
+              <EmptyState
+                icon={Database}
+                tone="ingress"
+                title="No intelligence units are currently provisioned"
+                description="This account does not yet have an active operating unit."
+              />
             )}
           </Stack>
         )}

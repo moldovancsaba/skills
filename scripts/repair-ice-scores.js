@@ -1,5 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const {
+  calculateKnowledgeIceScore,
+  groundKnowledgeScores,
   normalizeGoalScores,
   normalizeKnowledgeScores,
   normalizeTaskScores,
@@ -11,6 +13,11 @@ async function repairFlashcards() {
   const flashcards = await prisma.flashcard.findMany({
     select: {
       id: true,
+      title: true,
+      body: true,
+      kind: true,
+      hashtags: true,
+      evidence: true,
       confidence: true,
       confidenceScore: true,
       impact: true,
@@ -22,11 +29,23 @@ async function repairFlashcards() {
   let updated = 0;
 
   for (const flashcard of flashcards) {
-    const normalized = normalizeKnowledgeScores({
+    const grounded = groundKnowledgeScores({
+      title: flashcard.title,
+      body: flashcard.body,
+      kind: flashcard.kind,
+      hashtags: flashcard.hashtags,
+      evidence: flashcard.evidence,
       confidence: flashcard.confidenceScore ?? flashcard.confidence,
       impact: flashcard.impact,
       weight: flashcard.weight,
     });
+    const normalized = {
+      confidence: grounded.confidence,
+      confidenceScore: grounded.confidence,
+      impact: grounded.impact,
+      weight: grounded.effort,
+      iceScore: calculateKnowledgeIceScore(grounded),
+    };
 
     if (
       normalized.confidence !== flashcard.confidence ||

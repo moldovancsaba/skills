@@ -23,6 +23,7 @@ import {
 } from "@mantine/core";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardSection } from "@/components/ui/unified-card";
+import { BodyText, MetaText, SectionTitle } from "@/components/ui/typography";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { notifications } from "@mantine/notifications";
 
@@ -165,13 +166,13 @@ export default function SettingsPage() {
           <UnifiedCardBody>
           <Group justify="space-between">
             <Stack gap={4}>
-              <Group gap="sm">
-                <ThemeIcon color="review">
-                  <Bell size={18} />
-                </ThemeIcon>
-                <Title order={3}>Alerting Layer</Title>
+                <Group gap="sm">
+                  <ThemeIcon color="review">
+                    <Bell size={18} />
+                  </ThemeIcon>
+                <SectionTitle>Alerting Layer</SectionTitle>
               </Group>
-              <Text size="sm" c="dimmed">Enable or disable automated AI discoveries and task alerts.</Text>
+              <BodyText>Enable or disable automated AI discoveries and task alerts.</BodyText>
             </Stack>
             <Switch 
               size="lg"
@@ -193,9 +194,9 @@ export default function SettingsPage() {
                   <ThemeIcon color="synthesis">
                     <Languages size={18} />
                   </ThemeIcon>
-                  <Title order={3}>Language Management</Title>
+                  <SectionTitle>Language Management</SectionTitle>
                 </Group>
-                <Text size="sm" c="dimmed">Define which languages the AI is allowed to use for intelligence synthesis.</Text>
+                <BodyText>Define which languages the AI is allowed to use for intelligence synthesis.</BodyText>
               </Stack>
               <Badge color="synthesis" size="sm">
                 {companySettings?.allowedLanguages.length || 0} Enabled
@@ -224,11 +225,11 @@ export default function SettingsPage() {
             </Group>
 
             <UnifiedCardSection tone="synthesis">
-              <Text size="xs" c="dimmed" mb="xs">Policy Enforcement</Text>
-              <Text size="xs" c="dimmed">
+              <MetaText mb="xs">Policy Enforcement</MetaText>
+              <MetaText>
                 AI agents will strictly use only these permitted languages for flashcards and taskcards. 
                 checklist Purity Check: Any content detected in a disallowed language or containing mixed-language structures will be deleted immediately during synthesis.
-              </Text>
+              </MetaText>
             </UnifiedCardSection>
           </Stack>
           </UnifiedCardBody>
@@ -243,7 +244,7 @@ export default function SettingsPage() {
                 <ThemeIcon color="ingress">
                   <Smartphone size={18} />
                 </ThemeIcon>
-                <Title order={3}>Notification Channel</Title>
+                <SectionTitle>Notification Channel</SectionTitle>
               </Group>
               <Select 
                 label="Channel"
@@ -279,7 +280,7 @@ export default function SettingsPage() {
                 <ThemeIcon color="review">
                   <ShieldCheck size={18} />
                 </ThemeIcon>
-                <Title order={3}>Sensitivity & Priority</Title>
+                <SectionTitle>Sensitivity & Priority</SectionTitle>
               </Group>
               <Stack gap="xs">
                 <Group justify="space-between">
@@ -296,9 +297,7 @@ export default function SettingsPage() {
                   disabled={saving}
                   color="review"
                 />
-                <Text size="xs" c="dimmed">
-                  Higher score = Fewer, higher-quality notifications.
-                </Text>
+                <MetaText>Higher score = Fewer, higher-quality notifications.</MetaText>
               </Stack>
             </Stack>
             </UnifiedCardBody>
@@ -313,9 +312,9 @@ export default function SettingsPage() {
               <ThemeIcon color="tactical">
                 <Key size={18} />
               </ThemeIcon>
-              <Title order={3}>Communication Bridge API</Title>
+              <SectionTitle>Communication Bridge API</SectionTitle>
             </Group>
-            <Text size="sm" c="dimmed">Use this key to send data into checklist memory from external scripts.</Text>
+            <BodyText>Use this key to send data into checklist memory from external scripts.</BodyText>
             
             <UnifiedCardSection tone="tactical">
               <Group justify="space-between">
@@ -335,25 +334,25 @@ export default function SettingsPage() {
                 </Group>
               </Group>
             </UnifiedCardSection>
-            <Text size="xs" c="dimmed">
+            <MetaText>
               Newly generated keys are shown once, then stored hashed at rest. Use the `x-company-id`, `x-bridge-secret`, and `x-bridge-timestamp` headers when posting into the bridge.
-            </Text>
+            </MetaText>
 
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               <Stack gap={4}>
-                <Text size="xs" c="dimmed">Endpoint</Text>
+                <MetaText>Endpoint</MetaText>
                 <UnifiedCardSection tone="tactical">
-                  <Text  size="xs">
+                  <MetaText c="var(--text-primary)">
                     {typeof window !== 'undefined' ? window.location.origin : ''}/api/bridge/ingress
-                  </Text>
+                  </MetaText>
                 </UnifiedCardSection>
               </Stack>
               <Stack gap={4}>
-                <Text size="xs" c="dimmed">Example Request</Text>
+                <MetaText>Example Request</MetaText>
                 <UnifiedCardSection tone="tactical">
-                  <Text  size="xs">
+                  <MetaText c="var(--text-primary)">
                     {`POST /api/bridge/ingress + headers: x-company-id, x-bridge-secret, x-bridge-timestamp`}
-                  </Text>
+                  </MetaText>
                 </UnifiedCardSection>
               </Stack>
             </SimpleGrid>

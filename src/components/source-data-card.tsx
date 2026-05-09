@@ -4,6 +4,7 @@ import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getDataCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { CardShareAction } from "@/components/ui/card-share-action";
+import { MetaText } from "@/components/ui/typography";
 import { 
   UnifiedCard, 
   UnifiedCardFreshnessBadge,
@@ -96,9 +97,7 @@ export function SourceDataCard({
                   ICE {Math.round(iceScore)}
                 </Badge>
               )}
-              <Text size="xs" c="dimmed">
-                #{publicId || id.slice(0, 8)}
-              </Text>
+              <MetaText>#{publicId || id.slice(0, 8)}</MetaText>
             </Group>
           </Group>
         } 
@@ -143,7 +142,7 @@ export function SourceDataCard({
 
       <UnifiedCardFooter>
         <Stack gap="sm">
-          <Text size="xs" c="dimmed">Intelligence Controls</Text>
+          <MetaText>Intelligence Controls</MetaText>
           <Group gap="xs" wrap="wrap">
             <Tooltip label="Pin relevant evidence">
               <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<Pin size={12} />} onClick={(event) => event.stopPropagation()}>

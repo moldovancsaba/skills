@@ -5,6 +5,7 @@ import { getKnowledgeCardFreshness } from "@/lib/card-freshness";
 import { getSemanticCalloutStyle } from "@/lib/semantic-theme";
 import { getDisplayableHumanComment, stripTechnicalMetadata } from "@/lib/ui-utils";
 import { CardShareAction } from "@/components/ui/card-share-action";
+import { BodyText, MetaText } from "@/components/ui/typography";
 import {
   UnifiedCard,
   UnifiedCardActions,
@@ -203,7 +204,7 @@ export function KnowledgeReviewCard({
             <UnifiedCardFreshnessBadge freshness={freshness} />
 
             <Group gap={4} ml="auto">
-              <Text size="xs" c="dimmed">ICE</Text>
+              <MetaText>ICE</MetaText>
               <Badge color={getIceBadgeColor(flashcard.iceScore)}>
                 {Math.round(flashcard.iceScore)}
               </Badge>
@@ -242,9 +243,7 @@ export function KnowledgeReviewCard({
           >
             <Group gap="xs" align="flex-start" wrap="nowrap">
               <MessageSquare size={16} style={{ marginTop: 4, opacity: 0.6 }} />
-              <Text size="sm">
-                {displayableComment}
-              </Text>
+              <BodyText c="var(--text-primary)">{displayableComment}</BodyText>
             </Group>
           </Box>
         )}
@@ -285,7 +284,7 @@ export function KnowledgeReviewCard({
         {isActionOpen && actionMode && (
           <UnifiedCardSection>
             <Stack gap="md">
-              <Text  size="xs"   c="dimmed">{actionLabel(actionMode)}</Text>
+              <MetaText>{actionLabel(actionMode)}</MetaText>
               
               {actionMode === "MODIFY_ACCEPT" && (
                 <Stack gap="sm">
@@ -314,9 +313,7 @@ export function KnowledgeReviewCard({
 
       {flashcard.refreshedAt && (
         <UnifiedCardFooter>
-          <Text size="xs" c="dimmed">
-            Last Synthesis: {new Date(flashcard.refreshedAt).toLocaleDateString()}
-          </Text>
+          <MetaText>Last Synthesis: {new Date(flashcard.refreshedAt).toLocaleDateString()}</MetaText>
         </UnifiedCardFooter>
       )}
     </UnifiedCard>

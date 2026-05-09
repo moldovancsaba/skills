@@ -275,7 +275,7 @@ export function TaskReviewCard({
         {isActionOpen && actionMode && (
           <UnifiedCardSection>
             <Stack gap="sm">
-              <Text size="xs" c="dimmed">
+              <MetaText>
                 {actionMode === "DECLINE"
                   ? "Decline Task"
                   : actionMode === "MODIFY_ACCEPT"
@@ -285,7 +285,7 @@ export function TaskReviewCard({
                       : actionMode === "DELETE"
                         ? "Delete Accepted Task"
                         : "Accept Task"}
-              </Text>
+              </MetaText>
 
               {actionMode === "MODIFY_ACCEPT" && (
                 <Stack gap="sm">
@@ -320,7 +320,7 @@ export function TaskReviewCard({
               <Group gap="xs">
                 <Button
                   size="xs"
-                  color={actionMode === "DECLINE" || actionMode === "DELETE" ? "red" : actionMode === "DELIVER" ? "green" : "blue"}
+                  color={actionMode === "DECLINE" || actionMode === "DELETE" ? "review" : actionMode === "DELIVER" ? "knowmore" : "ingress"}
                   onClick={(event) => stopCardClick(event, () => onSubmit(item.id, actionMode, annotation, actionMode === "MODIFY_ACCEPT" ? draftTitle : undefined, actionMode === "MODIFY_ACCEPT" ? draftDescription : undefined, declineClass))}
                   disabled={isBusy || (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))}
                   loading={isBusy}
@@ -336,7 +336,7 @@ export function TaskReviewCard({
 
       <UnifiedCardFooter>
         <Stack gap="xs">
-          <Text size="xs" c="dimmed">Intelligence controls</Text>
+          <MetaText>Intelligence controls</MetaText>
           <Group gap={6}>
             <Tooltip label="Pin relevant evidence">
               <Button

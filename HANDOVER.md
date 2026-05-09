@@ -16,6 +16,7 @@ Read first:
 - Mantine `Card` is the base card primitive
 - `UnifiedCard` is the only approved feature-level product card API
 - `UnifiedCardModal` is the only approved modal content shell for card content
+- first-class entity cards must expose canonical ICE visibly through the shared card header contract
 - typography is centrally defined in the theme and DS typography primitives only
 - interactions are centralized in the shared UI layer
 - semantic tones are the only approved product color vocabulary

@@ -43,6 +43,7 @@ Frontend system:
 - Mantine `Card` is the only approved base for product card surfaces
 - `UnifiedCard` is the only approved product card API for feature code
 - `UnifiedCardModal` is the only approved modal content shell for product cards
+- first-class entity card surfaces must expose their canonical ICE score through the shared card header contract
 - Typography is defined centrally in the Mantine theme and DS typography primitives only
 
 ## Frontend Sources Of Truth

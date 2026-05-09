@@ -8,6 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { getIceBadgeColor } from "@/lib/ice-colors";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { 
   Stack, 
@@ -48,6 +49,10 @@ type Topic = {
   active: boolean;
   sortOrder: number;
   notes?: string | null;
+  iceScore: number;
+  confidenceScore: number;
+  impact: number;
+  weight: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -228,23 +233,28 @@ export default function CompanyTopicsPage() {
         <UnifiedGrid>
           {orderedTopics.map((topic, index) => {
             const supportingBadge = (
-              <Group gap={6}>
-                <MantineBadge variant="outline" color="gray" size="xs">
-                  {index + 1}
+              <Group gap={6} justify="space-between" wrap="nowrap" style={{ width: "100%" }}>
+                <Group gap={6}>
+                  <MantineBadge variant="outline" color="gray" size="xs">
+                    {index + 1}
+                  </MantineBadge>
+                  <MantineBadge 
+                    variant="light" 
+                    color={topic.active ? "knowmore" : "gray"} 
+                    size="xs"
+                  >
+                    {topic.active ? "ACTIVE" : "PAUSED"}
+                  </MantineBadge>
+                  <UnifiedCardFreshnessBadge
+                    freshness={getTopicCardFreshness({
+                      createdAt: topic.createdAt,
+                      updatedAt: topic.updatedAt,
+                    })}
+                  />
+                </Group>
+                <MantineBadge variant="light" color={getIceBadgeColor(topic.iceScore)} size="xs">
+                  ICE {Math.round(topic.iceScore)}
                 </MantineBadge>
-                <MantineBadge 
-                  variant="light" 
-                  color={topic.active ? "knowmore" : "gray"} 
-                  size="xs"
-                >
-                  {topic.active ? "ACTIVE" : "PAUSED"}
-                </MantineBadge>
-                <UnifiedCardFreshnessBadge
-                  freshness={getTopicCardFreshness({
-                    createdAt: topic.createdAt,
-                    updatedAt: topic.updatedAt,
-                  })}
-                />
               </Group>
             );
 

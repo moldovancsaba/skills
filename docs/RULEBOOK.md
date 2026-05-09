@@ -39,6 +39,7 @@ Approved product UI system:
 - Mantine `Card` as the only approved base card primitive
 - `UnifiedCard` as the only approved feature-level product card API
 - `UnifiedCardModal` as the only approved modal content shell for product cards
+- first-class entity card surfaces must expose canonical ICE through the shared card header contract
 - semantic tones only for product color meaning
 
 ## 3. What We Do Not Use

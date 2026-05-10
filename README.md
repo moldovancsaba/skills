@@ -59,6 +59,14 @@ Worker queue controls:
 - `Reset to AI Only` clears manual queue influence and returns scheduling to shared AI logic
 - there is not a separate compact tweak dropdown/menu yet; the board itself is the shipped tweak surface
 
+New operator surfaces:
+
+- `/:companyId/search` provides unified internal retrieval plus grounded answers over company context
+- `/:companyId/observability` provides mission-control visibility into worker health, queue pressure, score health, and recent outcomes
+- `/:companyId/workflows` provides bounded workflow blueprints and enrichment-waterfall policy management
+- active workflow blueprints are not passive records: they materialize into claimable `WORKFLOW_BLUEPRINT` queue jobs and execute through the shared worker queue
+- enrichment-waterfall policies now affect runtime provider selection for URL intelligence instead of living as config-only records
+
 Knowmore evidence durability:
 
 - citation snapshots persist normalized URL, excerpt, fetch timing, and content hash for source-backed knowledge

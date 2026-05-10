@@ -70,8 +70,15 @@ function getJobIcon(jobType: PipelineJobRecord["jobType"]) {
   }
 }
 
-function getJobLabel(jobType: PipelineJobRecord["jobType"]) {
-  switch (jobType) {
+function getJobLabel(job: PipelineJobRecord) {
+  if (job.jobType === "WORKFLOW_BLUEPRINT") {
+    const blueprintName = (job.reason || "").split(" is active as a bounded workflow blueprint")[0]?.trim();
+    if (blueprintName) {
+      return blueprintName;
+    }
+  }
+
+  switch (job.jobType) {
     case "FEEDBACK_RECONCILIATION":
       return "Feedback Reconciliation";
     case "CARD_RESCORING":
@@ -85,7 +92,7 @@ function getJobLabel(jobType: PipelineJobRecord["jobType"]) {
     case "COMPANY_SYNTHESIS":
       return "Company Synthesis";
     default:
-      return jobType;
+      return job.jobType;
   }
 }
 
@@ -347,7 +354,7 @@ export default function PipelineQueuePage() {
                                           </Badge>
                                         </Group>
                                       }
-                                      title={getJobLabel(job.jobType)}
+                                      title={getJobLabel(job)}
                                       description={`Priority ${Math.round(job.priorityScore)}`}
                                     />
                                     <UnifiedCardBody>

@@ -114,3 +114,11 @@ The repetitive-job system now has a first-class queue model:
 - flashcards reference snapshot IDs directly, so evidence survives URL drift and re-fetch changes
 - deterministic conflict detection lowers confidence and marks the flashcard for review instead of silently merging contradictory claims
 - oldest-first maintenance backfills missing citation snapshots on existing flashcards
+
+## 8. Search, Answers, And Workflow Foundations
+
+- `internal-search.ts` is the shared retrieval boundary for internal cards, queue jobs, and workflow blueprints
+- `grounded-answers.ts` builds bounded evidence-backed answers on top of the internal search layer
+- `observability.ts` aggregates heartbeat, queue, score-health, worker reports, and recent outcomes for mission-control surfaces
+- `workflow-blueprints.ts` owns the persisted bounded workflow-builder contract and default blueprint registry; active blueprints are synchronized into `PipelineJob` records and executed by the shared queue worker
+- `enrichment-waterfall.ts` owns the persisted provider-ordering and fallback policy contract for enrichment governance, and `url-enrichment.ts` consumes that policy at runtime for product/competitor research

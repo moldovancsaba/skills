@@ -25,7 +25,7 @@ import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
-import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCirclesRelation as CirclesRelation, IconHelmet as HardHat } from "@tabler/icons-react";
+import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCirclesRelation as CirclesRelation, IconHelmet as HardHat, IconSearch as Search, IconGitBranch as GitBranch, IconRadar2 as Radar } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { CompanyScoreHealth } from "@/lib/score-health";
 
@@ -350,6 +350,30 @@ export default function CompanyDashboard() {
           metric={counts.pipelineJobs}
           title="Worker Queue"
           chartData={chartSeries("pipelineJobs", "reviewGateway")}
+        />
+      </RouteCardGrid>
+
+      <RouteCardGrid cols={{ base: 1, md: 3 }} mb="xl">
+        <LinkCard
+          href={`/${companyId}/search`}
+          icon={Search}
+          variant="knowmore"
+          title="Search & Answers"
+          description="Unified retrieval across cards, queue work, and grounded answers over company context."
+        />
+        <LinkCard
+          href={`/${companyId}/workflows`}
+          icon={GitBranch}
+          variant="review"
+          title="Workflows"
+          description="Bounded workflow blueprints and enrichment waterfall controls for operator-guided automation."
+        />
+        <LinkCard
+          href={`/${companyId}/observability`}
+          icon={Radar}
+          variant="strategy"
+          title="Observability"
+          description="Mission control for worker health, queue pressure, score health, and recent system outcomes."
         />
       </RouteCardGrid>
 

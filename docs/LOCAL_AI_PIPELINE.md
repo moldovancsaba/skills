@@ -116,6 +116,8 @@ Each flashcard carries:
 UI/runtime contract:
 - the UUID is also the canonical card permalink key for shared single-card routes at `/card/[cardId]`
 - shared card pages are standalone, non-interactive views intended for focused review rather than workflow operations
+- active workflow blueprints are synchronized into claimable `WORKFLOW_BLUEPRINT` pipeline jobs, so workflow configuration can directly steer local-AI execution
+- enrichment waterfall policies now influence runtime product/competitor URL research provider selection instead of remaining passive config
 
 Some flashcards are sourced from AI-harvested public research rather than direct user-entered rows. Those are still normal flashcards in storage, but their source lineage points at `Source` rows tagged with:
 

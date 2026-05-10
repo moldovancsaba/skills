@@ -90,3 +90,15 @@ Every skill integration must include:
 - Expected outputs.
 - Related skills.
 - Framework steps.
+
+## 2026 Market Feature Research
+
+Research artifact:
+
+- [docs/INDUSTRY_LEADER_PLATFORM_RESEARCH_2026-05-10.md](/Users/Shared/Projects/checklist/docs/INDUSTRY_LEADER_PLATFORM_RESEARCH_2026-05-10.md)
+
+New ideabank direction:
+
+- expand beyond skill integrations into research-backed product capabilities
+- prioritize connected search, durable evidence, workflow orchestration, observability, and GTM enrichment patterns from current market leaders
+- express those opportunities as high-quality GitHub issues using the standard Objective / Unified Context / Scope / Constraints / Acceptance Checks structure

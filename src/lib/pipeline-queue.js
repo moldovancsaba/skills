@@ -9,6 +9,8 @@ const PIPELINE_JOB_TYPES = Object.freeze([
   "COMPANY_SYNTHESIS",
 ]);
 
+const MANAGED_PIPELINE_JOB_TYPES = Object.freeze([...PIPELINE_JOB_TYPES, "WORKFLOW_BLUEPRINT"]);
+
 const PIPELINE_QUEUE_COLUMNS = Object.freeze(["NOW", "SOON", "LATER", "PARKED"]);
 const PIPELINE_CONTROL_MODES = Object.freeze(["AI_ONLY", "HUMAN_GUIDED"]);
 const PIPELINE_JOB_STATUSES = Object.freeze(["ACTIVE", "RUNNING", "PAUSED", "FAILED"]);
@@ -27,6 +29,7 @@ const JOB_LABELS = Object.freeze({
   FULL_MAINTENANCE: "Full Maintenance",
   SCORE_ALERT_REPAIR: "Score Alert Repair",
   COMPANY_SYNTHESIS: "Company Synthesis",
+  WORKFLOW_BLUEPRINT: "Workflow Blueprint",
 });
 
 function getPipelineJobLabel(jobType) {
@@ -254,7 +257,14 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
   for (const jobType of PIPELINE_JOB_TYPES) {
     const autoProfile = buildAutoJobProfile(jobType, signals);
     const existing = await prisma.pipelineJob.findUnique({
-      where: { companyId_jobType: { companyId, jobType } },
+      where: {
+        companyId_jobType_entityType_entityId: {
+          companyId,
+          jobType,
+          entityType: "COMPANY",
+          entityId: companyId,
+        },
+      },
     });
 
     if (!existing) {
@@ -291,6 +301,97 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
               : "ACTIVE",
       },
     }));
+  }
+
+  const workflowBlueprints = await prisma.workflowBlueprint.findMany({
+    where: {
+      companyId,
+      status: { in: ["ACTIVE", "PAUSED"] },
+    },
+    orderBy: [{ updatedAt: "asc" }],
+  });
+  const liveWorkflowIds = new Set(workflowBlueprints.map((item) => item.id));
+
+  for (const blueprint of workflowBlueprints) {
+    const queueColumn = blueprint.queueColumn ?? "LATER";
+    const basePriority =
+      queueColumn === "NOW"
+        ? 110
+        : queueColumn === "SOON"
+          ? 84
+          : queueColumn === "LATER"
+            ? 52
+            : 0;
+    const alertBoost =
+      blueprint.triggerType === "SCORE_ALERT"
+        ? signals.scoreHealth?.overallBand === "CRITICAL"
+          ? 18
+          : signals.scoreHealth?.overallBand === "SUSPICIOUS"
+            ? 10
+            : 0
+        : 0;
+    const workflowReason = `${blueprint.name} is active as a bounded workflow blueprint under ${blueprint.controlMode.toLowerCase().replace("_", "-")} control.`;
+    const existing = await prisma.pipelineJob.findUnique({
+      where: {
+        companyId_jobType_entityType_entityId: {
+          companyId,
+          jobType: "WORKFLOW_BLUEPRINT",
+          entityType: "WORKFLOW_BLUEPRINT",
+          entityId: blueprint.id,
+        },
+      },
+    });
+
+    if (!existing) {
+      jobs.push(await prisma.pipelineJob.create({
+        data: {
+          companyId,
+          jobType: "WORKFLOW_BLUEPRINT",
+          entityType: "WORKFLOW_BLUEPRINT",
+          entityId: blueprint.id,
+          status: blueprint.status === "PAUSED" ? "PAUSED" : "ACTIVE",
+          controlMode: blueprint.controlMode,
+          queueColumn,
+          manualSortOrder: 0,
+          priorityScore: roundPriority(basePriority + alertBoost),
+          reason: workflowReason,
+          sourceSignal: `workflow:${blueprint.templateKey ?? blueprint.id}`,
+        },
+      }));
+      continue;
+    }
+
+    jobs.push(await prisma.pipelineJob.update({
+      where: { id: existing.id },
+      data: {
+        controlMode: blueprint.controlMode,
+        queueColumn: blueprint.controlMode === "AI_ONLY" ? queueColumn : existing.queueColumn,
+        status:
+          existing.status === "RUNNING"
+            ? existing.status
+            : blueprint.status === "PAUSED"
+              ? "PAUSED"
+              : "ACTIVE",
+        priorityScore: roundPriority(basePriority + alertBoost),
+        reason: workflowReason,
+        sourceSignal: `workflow:${blueprint.templateKey ?? blueprint.id}`,
+      },
+    }));
+  }
+
+  const staleWorkflowJobs = await prisma.pipelineJob.findMany({
+    where: {
+      companyId,
+      jobType: "WORKFLOW_BLUEPRINT",
+      entityType: "WORKFLOW_BLUEPRINT",
+    },
+    select: { id: true, entityId: true },
+  });
+  const removableIds = staleWorkflowJobs
+    .filter((job) => !job.entityId || !liveWorkflowIds.has(job.entityId))
+    .map((job) => job.id);
+  if (removableIds.length > 0) {
+    await prisma.pipelineJob.deleteMany({ where: { id: { in: removableIds } } });
   }
 
   return jobs;
@@ -447,6 +548,7 @@ async function failPipelineJob(prisma, jobId, error) {
 
 module.exports = {
   PIPELINE_JOB_TYPES,
+  MANAGED_PIPELINE_JOB_TYPES,
   PIPELINE_QUEUE_COLUMNS,
   PIPELINE_CONTROL_MODES,
   PIPELINE_JOB_STATUSES,

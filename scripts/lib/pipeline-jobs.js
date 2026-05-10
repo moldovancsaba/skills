@@ -52,6 +52,54 @@ async function executePipelineJob(prisma, job) {
       ops += await performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext);
       return ops;
     }
+    case "WORKFLOW_BLUEPRINT": {
+      const blueprint = job.entityId
+        ? await prisma.workflowBlueprint.findUnique({ where: { id: job.entityId } })
+        : null;
+      if (!blueprint || blueprint.status !== "ACTIVE") {
+        return 0;
+      }
+
+      const cycleRunId = crypto.randomUUID();
+      const workerContext = {
+        cycleRunId,
+        workerId: `workflow-blueprint:${process.pid}`,
+      };
+      await processMemoryUpdates(prisma, company);
+      const memoryPrompt = await getHumanMemoryPrompt(prisma, company);
+      const steps = Array.isArray(blueprint.steps) ? blueprint.steps : [];
+      const kinds = new Set(
+        steps
+          .map((step) => (step && typeof step === "object" ? step.kind : null))
+          .filter((value) => typeof value === "string"),
+      );
+      let ops = 0;
+
+      if (kinds.has("QUEUE")) {
+        ops += await processFeedbackEvents(prisma, company);
+      }
+      if (kinds.has("ENRICH")) {
+        ops += await performCompanyScrubbing(prisma, company, memoryPrompt, null, workerContext);
+      }
+      if (kinds.has("SEARCH")) {
+        ops += 1;
+      }
+      if (kinds.has("ANSWER")) {
+        ops += await performCompanyWriting(prisma, company, memoryPrompt, null, workerContext);
+      }
+      if (kinds.has("REVIEW")) {
+        ops += await performCompanyJudging(prisma, company, memoryPrompt, null, workerContext);
+      }
+      if (kinds.has("RESCORE")) {
+        ops += await rescorePeriodicCards(prisma, company);
+      }
+      if (kinds.has("QUEUE") || kinds.has("REVIEW") || kinds.has("RESCORE")) {
+        await recomputeFrontier(prisma, company);
+        ops += 1;
+      }
+
+      return ops;
+    }
     default:
       return 0;
   }

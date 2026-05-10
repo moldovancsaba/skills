@@ -39,6 +39,8 @@ model Company {
   strategicFeedback    StrategicFeedback[]
   pipelineJobs         PipelineJob[]
   citationSnapshots    CitationSnapshot[]
+  workflowBlueprints   WorkflowBlueprint[]
+  enrichmentPolicies   EnrichmentWaterfallPolicy[]
   
   // Profile Validation Fields
   website             String?
@@ -588,10 +590,48 @@ model PipelineJob {
   updatedAt        DateTime            @default(now()) @updatedAt
   company          Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  @@unique([companyId, jobType])
+  @@unique([companyId, jobType, entityType, entityId])
   @@index([companyId, queueColumn, manualSortOrder])
   @@index([companyId, status, controlMode, priorityScore])
   @@index([status, queueColumn, priorityScore, updatedAt])
+}
+
+model WorkflowBlueprint {
+  id             String   @id @default(uuid()) @map("_id")
+  companyId      String
+  name           String
+  description    String?
+  status         WorkflowBlueprintStatus @default(ACTIVE)
+  controlMode    PipelineControlMode @default(AI_ONLY)
+  queueColumn    PipelineQueueColumn @default(LATER)
+  triggerType    String
+  entityType     String?  @default("COMPANY")
+  templateKey    String?
+  steps          Json     @default("[]")
+  metadata       Json?    @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status, updatedAt])
+  @@index([companyId, queueColumn, controlMode])
+}
+
+model EnrichmentWaterfallPolicy {
+  id             String   @id @default(uuid()) @map("_id")
+  companyId      String
+  name           String
+  entityType     String
+  enabled        Boolean  @default(true)
+  priority       Int      @default(0)
+  providerKey    String
+  strategy       String   @default("FALLBACK")
+  config         Json?    @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, entityType, enabled, priority])
 }
 
 model WorkerReport {
@@ -912,6 +952,7 @@ enum PipelineJobType {
   FULL_MAINTENANCE
   SCORE_ALERT_REPAIR
   COMPANY_SYNTHESIS
+  WORKFLOW_BLUEPRINT
 }
 
 enum PipelineJobStatus {
@@ -931,6 +972,12 @@ enum PipelineQueueColumn {
   SOON
   LATER
   PARKED
+}
+
+enum WorkflowBlueprintStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
 }
 
 enum NBAStatus {

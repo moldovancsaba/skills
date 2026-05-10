@@ -22,6 +22,9 @@ Primary user-facing layers:
 - Tactical
 - Review
 - Worker Queue
+- Search & Answers
+- Observability
+- Workflows
 
 ## 3. System Stack
 
@@ -83,6 +86,14 @@ The repetitive-job contract now also includes:
 - one-step reset back to AI-only scheduling
 - drag/drop queue column changes and drag/drop manual ordering as the shipped human-tweak controls
 - no separate compact tweak menu today; the board itself is the canonical tweak surface
+
+The current intelligence-operations contract also includes:
+
+- one unified internal search layer across cards, queue work, and workflow blueprints
+- one grounded answer layer over company context using explicit evidence objects
+- one observability surface for worker health, queue pressure, score-health, and recent outcomes
+- persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active
+- persisted enrichment waterfall policies for provider ordering and fallback governance, applied at runtime during URL intelligence enrichment
 
 ## 6. AI Brain Rule
 

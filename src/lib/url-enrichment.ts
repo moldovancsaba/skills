@@ -1,3 +1,5 @@
+import { listCompanyEnrichmentPolicies } from "@/lib/enrichment-waterfall";
+
 type UrlInsight = {
   url: string;
   finalUrl: string;
@@ -9,6 +11,7 @@ type UrlInsight = {
 };
 
 type ProductSeed = {
+  companyId?: string | null;
   name?: string | null;
   description?: string | null;
   pricing?: string | null;
@@ -18,6 +21,7 @@ type ProductSeed = {
 };
 
 type CompetitorSeed = {
+  companyId?: string | null;
   name?: string | null;
   pricing?: string | null;
   strengths?: string[];
@@ -604,7 +608,13 @@ async function callLocalSummarizer(
   stockSignal: StockSignal | null,
 ) {
   const evidence = buildEvidenceText(insights);
-  if (!evidence) {
+  const newsText = buildNewsText(newsSignals);
+  const searchText = buildSearchText(searchSignals);
+  const stockText = buildStockText(stockSignal);
+  const hasPublicSignals = Boolean(
+    collapseWhitespace([newsText, searchText, stockText].filter(Boolean).join(" ")),
+  );
+  if (!evidence && !hasPublicSignals) {
     return null;
   }
 
@@ -624,7 +634,7 @@ async function callLocalSummarizer(
           { role: "system", content: system },
           {
             role: "user",
-            content: `Build decision-grade business intelligence from this source evidence.\n\nWebsite evidence:\n${evidence}\n\nPublic news signals:\n${buildNewsText(newsSignals)}\n\nPublic web search signals:\n${buildSearchText(searchSignals)}\n\nStock signal:\n${buildStockText(stockSignal)}`,
+            content: `Build decision-grade business intelligence from this source evidence.\n\nWebsite evidence:\n${evidence || "(none available)"}\n\nPublic news signals:\n${newsText}\n\nPublic web search signals:\n${searchText}\n\nStock signal:\n${stockText}`,
           },
         ],
       }),
@@ -791,9 +801,10 @@ function hasMinimumBusinessEvidence(
   insights: UrlInsight[],
   primarySignals: string[],
   secondarySignals: string[],
+  auxiliarySignalCount = 0,
 ) {
   if (insights.length === 0) {
-    return false;
+    return primarySignals.length + secondarySignals.length + auxiliarySignalCount >= 4;
   }
 
   if (insights.every(isPlatformShellInsight)) {
@@ -801,6 +812,27 @@ function hasMinimumBusinessEvidence(
   }
 
   return primarySignals.length + secondarySignals.length >= 2;
+}
+
+async function resolveEnabledProviders(
+  companyId: string | null | undefined,
+  entityType: string,
+  fallback: string[],
+) {
+  if (!companyId) {
+    return fallback;
+  }
+
+  try {
+    const policies = await listCompanyEnrichmentPolicies(companyId);
+    const enabled = policies
+      .filter((policy) => policy.entityType === entityType && policy.enabled)
+      .sort((left, right) => left.priority - right.priority)
+      .map((policy) => policy.providerKey);
+    return enabled.length > 0 ? enabled : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function filterRelevantNewsSignals(
@@ -1085,6 +1117,16 @@ export function presentRawSourceName(name: string, urls: string[] = []) {
 }
 
 export async function enrichProductSeed(seed: ProductSeed) {
+  const enabledProviders = await resolveEnabledProviders(seed.companyId, "PRODUCT", [
+    "WEBSITE_INSIGHTS",
+    "NEWS_SIGNALS",
+    "WEB_SEARCH",
+    "STOCK_SIGNAL",
+  ]);
+  const allowsWebsite = enabledProviders.includes("WEBSITE_INSIGHTS");
+  const allowsNews = enabledProviders.includes("NEWS_SIGNALS");
+  const allowsSearch = enabledProviders.includes("WEB_SEARCH");
+  const allowsStock = enabledProviders.includes("STOCK_SIGNAL");
   const urls = uniqueShortStrings(
     [...(seed.urls ?? []), ...(looksLikeUrl(seed.name) ? [seed.name ?? ""] : [])].map(
       canonicalizeUrl,
@@ -1104,21 +1146,19 @@ export async function enrichProductSeed(seed: ProductSeed) {
     };
   }
 
-  const insights = (await Promise.all(urls.map(fetchUrlInsight))).filter(
-    (item): item is UrlInsight => Boolean(item),
-  );
-  const newsSignals =
-    insights.length > 0
-      ? await fetchNewsSignals(sanitizeEntityName(preferredExistingName) ?? deriveNameFromUrl(urls[0] ?? ""), urls[0])
-      : [];
-  const searchSignals =
-    insights.length > 0
-      ? await fetchWebSearchSignals(sanitizeEntityName(preferredExistingName) ?? deriveNameFromUrl(urls[0] ?? ""), urls[0])
-      : [];
-  const stockSignal = insights.length > 0 ? await fetchStockSignal(inferTicker(insights)) : null;
+  const seedName = sanitizeEntityName(preferredExistingName) ?? deriveNameFromUrl(urls[0] ?? "");
+  const insights = allowsWebsite
+    ? (await Promise.all(urls.map(fetchUrlInsight))).filter((item): item is UrlInsight => Boolean(item))
+    : [];
+  const newsSignals = allowsNews ? await fetchNewsSignals(seedName, urls[0]) : [];
+  const searchSignals = allowsSearch ? await fetchWebSearchSignals(seedName, urls[0]) : [];
+  const stockSignal = allowsStock ? await fetchStockSignal(inferTicker(insights)) : null;
   const aiSummary =
-    insights.length > 0 ? await callLocalSummarizer("product", insights, newsSignals, searchSignals, stockSignal) : null;
-  const aiFailed = insights.length > 0 && !aiSummary;
+    insights.length > 0 || newsSignals.length > 0 || searchSignals.length > 0 || stockSignal
+      ? await callLocalSummarizer("product", insights, newsSignals, searchSignals, stockSignal)
+      : null;
+  const aiFailed =
+    (insights.length > 0 || newsSignals.length > 0 || searchSignals.length > 0 || Boolean(stockSignal)) && !aiSummary;
   if (aiFailed) {
     logUrlEnrichmentFailure("product", seed.name, urls, "ai-summary-missing-or-invalid");
   }
@@ -1140,7 +1180,12 @@ export async function enrichProductSeed(seed: ProductSeed) {
   const secondarySignals = filterBusinessSignals([
     ...(Array.isArray(aiSummary?.evaluations) ? aiSummary.evaluations : []),
   ]);
-  const passedQualityGate = !aiFailed && hasMinimumBusinessEvidence(insights, primarySignals, secondarySignals);
+  const passedQualityGate = !aiFailed && hasMinimumBusinessEvidence(
+    insights,
+    primarySignals,
+    secondarySignals,
+    relevantNewsSignals.length + relevantSearchSignals.length + (stockSignal ? 1 : 0),
+  );
   const decisionBody = buildDecisionBody([
     ["Conclusions", passedQualityGate ? filterLowValueConclusions((aiSummary?.conclusions as string[]) ?? []) : []],
     ["Evaluation", passedQualityGate ? filterLowValueConclusions((aiSummary?.evaluations as string[]) ?? []) : []],
@@ -1200,6 +1245,16 @@ export async function enrichProductSeed(seed: ProductSeed) {
 }
 
 export async function enrichCompetitorSeed(seed: CompetitorSeed) {
+  const enabledProviders = await resolveEnabledProviders(seed.companyId, "COMPETITOR", [
+    "WEBSITE_INSIGHTS",
+    "NEWS_SIGNALS",
+    "WEB_SEARCH",
+    "STOCK_SIGNAL",
+  ]);
+  const allowsWebsite = enabledProviders.includes("WEBSITE_INSIGHTS");
+  const allowsNews = enabledProviders.includes("NEWS_SIGNALS");
+  const allowsSearch = enabledProviders.includes("WEB_SEARCH");
+  const allowsStock = enabledProviders.includes("STOCK_SIGNAL");
   const urls = uniqueShortStrings(
     [...(seed.urls ?? []), ...(looksLikeUrl(seed.name) ? [seed.name ?? ""] : [])].map(
       canonicalizeUrl,
@@ -1221,21 +1276,19 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
     };
   }
 
-  const insights = (await Promise.all(urls.map(fetchUrlInsight))).filter(
-    (item): item is UrlInsight => Boolean(item),
-  );
-  const newsSignals =
-    insights.length > 0
-      ? await fetchNewsSignals(sanitizeEntityName(preferredExistingName) ?? deriveNameFromUrl(urls[0] ?? ""), urls[0])
-      : [];
-  const searchSignals =
-    insights.length > 0
-      ? await fetchWebSearchSignals(sanitizeEntityName(preferredExistingName) ?? deriveNameFromUrl(urls[0] ?? ""), urls[0])
-      : [];
-  const stockSignal = insights.length > 0 ? await fetchStockSignal(inferTicker(insights)) : null;
+  const seedName = sanitizeEntityName(preferredExistingName) ?? deriveNameFromUrl(urls[0] ?? "");
+  const insights = allowsWebsite
+    ? (await Promise.all(urls.map(fetchUrlInsight))).filter((item): item is UrlInsight => Boolean(item))
+    : [];
+  const newsSignals = allowsNews ? await fetchNewsSignals(seedName, urls[0]) : [];
+  const searchSignals = allowsSearch ? await fetchWebSearchSignals(seedName, urls[0]) : [];
+  const stockSignal = allowsStock ? await fetchStockSignal(inferTicker(insights)) : null;
   const aiSummary =
-    insights.length > 0 ? await callLocalSummarizer("competitor", insights, newsSignals, searchSignals, stockSignal) : null;
-  const aiFailed = insights.length > 0 && !aiSummary;
+    insights.length > 0 || newsSignals.length > 0 || searchSignals.length > 0 || Boolean(stockSignal)
+      ? await callLocalSummarizer("competitor", insights, newsSignals, searchSignals, stockSignal)
+      : null;
+  const aiFailed =
+    (insights.length > 0 || newsSignals.length > 0 || searchSignals.length > 0 || Boolean(stockSignal)) && !aiSummary;
   if (aiFailed) {
     logUrlEnrichmentFailure("competitor", seed.name, urls, "ai-summary-missing-or-invalid");
   }
@@ -1261,7 +1314,12 @@ export async function enrichCompetitorSeed(seed: CompetitorSeed) {
   const secondarySignals = filterBusinessSignals([
     ...(Array.isArray(aiSummary?.evaluations) ? aiSummary.evaluations : []),
   ]);
-  const passedQualityGate = !aiFailed && hasMinimumBusinessEvidence(insights, primarySignals, secondarySignals);
+  const passedQualityGate = !aiFailed && hasMinimumBusinessEvidence(
+    insights,
+    primarySignals,
+    secondarySignals,
+    relevantNewsSignals.length + relevantSearchSignals.length + (stockSignal ? 1 : 0),
+  );
   const decisionBody = buildDecisionBody([
     ["Conclusions", passedQualityGate ? filterLowValueConclusions((aiSummary?.conclusions as string[]) ?? []) : []],
     ["Evaluation", passedQualityGate ? filterLowValueConclusions((aiSummary?.evaluations as string[]) ?? []) : []],

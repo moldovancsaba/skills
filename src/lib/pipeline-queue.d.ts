@@ -4,7 +4,8 @@ export type PipelineJobType =
   | "FRONTIER_RECOMPUTE"
   | "FULL_MAINTENANCE"
   | "SCORE_ALERT_REPAIR"
-  | "COMPANY_SYNTHESIS";
+  | "COMPANY_SYNTHESIS"
+  | "WORKFLOW_BLUEPRINT";
 
 export type PipelineQueueColumn = "NOW" | "SOON" | "LATER" | "PARKED";
 export type PipelineControlMode = "AI_ONLY" | "HUMAN_GUIDED";

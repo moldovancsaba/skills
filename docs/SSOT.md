@@ -95,14 +95,15 @@ The current intelligence-operations contract also includes:
 - one blended tactical priority profile that keeps ICE visible while ranking work through explainable ICE, quality, urgency, freshness, human-signal, risk, lifecycle-state, and memory inputs
 - one grounded answer layer over company context using explicit evidence objects
 - grounded answers now expose intent, confidence, and evidence-group framing as first-class contract fields
-- one observability surface for worker health, queue pressure, score-health, and recent outcomes
-- observability also owns bounded repair actions for queue sync, score-repair escalation, and failed-job recovery
+- one observability surface for worker health, queue pressure, score-health, AI workload budget pressure, and recent outcomes
+- observability also owns bounded repair and budget actions for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active
 - persisted enrichment waterfall policies for provider ordering and fallback governance, applied at runtime during URL intelligence enrichment
 - one advisory evaluation bench for replaying seeded synthetic intelligence cases before recommendation, grounded-answer, ranking, workflow, and data-readiness changes are promoted
 - evaluation failures can be explicitly published into Observability as `EVAL_GATE_FAILED` outcome events; normal replay does not mutate production company data
 - one content-generation surface that turns existing company, product, goal, topic, and competitor context into saved `CreativeDraft` records for email subjects, ads, social posts, and landing-page copy
 - content generation is draft-only in the current contract: no automated posting, no image generation, and no multi-language generation
+- one AI workload budget-governor layer that persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records for company/feature attribution, estimated cost, workload units, retry pressure, reviewable budget events, and explicit operator-applied controls
 - one athlete-facing daily app beside the coach/operator app, backed by `AthleteActivityLog`, where athletes can see assigned checklist work, record activity, readiness, intensity, sleep, soreness, stress, mood, hydration, body weight, pain/nutrition notes, and completion evidence
 - one coach-facing athlete records view where admins can review team daily submissions, completion evidence, load, readiness, sleep, soreness, and pain flags
 - completing coach-assigned work from the athlete app records an athlete outcome and archives the assigned checklist item as completed

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { getCompanyBudgetSnapshot } from "@/lib/budget-governor";
 import { prisma } from "@/lib/db";
 import { computeCompanyScoreHealth } from "@/lib/score-health";
 
@@ -15,7 +16,7 @@ async function readJsonFile<T>(filePath: string): Promise<T | null> {
 }
 
 export async function getCompanyObservabilitySnapshot(companyId: string) {
-  const [guardianHeartbeat, scoreHealth, activeJobs, workerReports, recentEvents] = await Promise.all([
+  const [guardianHeartbeat, scoreHealth, activeJobs, workerReports, recentEvents, budget] = await Promise.all([
     readJsonFile<Record<string, unknown>>(GUARDIAN_HEARTBEAT_PATH),
     computeCompanyScoreHealth(companyId, prisma),
     prisma.pipelineJob.findMany({
@@ -32,6 +33,7 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
       orderBy: [{ createdAt: "desc" }],
       take: 10,
     }),
+    getCompanyBudgetSnapshot(companyId),
   ]);
 
   const failedJobs = activeJobs.filter((job) => job.status === "FAILED").length;
@@ -52,12 +54,14 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
       escalateScoreRepair: Boolean(criticalAlert || scoreHealth?.overallBand === "SUSPICIOUS"),
       recoverFailedJobs: failedJobs > 0,
       reviewEvaluationFailures: evaluationFailures.length > 0,
+      reviewBudgetPressure: budget.pressure !== "NORMAL" || budget.openEvents.length > 0,
       syncQueue: true,
     },
     evaluation: {
       recentFailures: evaluationFailures,
       failedGateCount: evaluationFailures.length,
     },
+    budget,
     workerReports,
     recentEvents,
   };

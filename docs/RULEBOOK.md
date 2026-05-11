@@ -214,6 +214,14 @@ Content generation rules:
 - generated copy must be persisted as `CreativeDraft` records and must remain editable outside the generator
 - content generation must record audit/generation events so future feedback loops can distinguish draft creation from campaign performance
 
+Budget governor rules:
+
+- AI workload usage must be attributed by company and feature before it is used for budget pressure or controls
+- estimated cost, workload units, retries, external requests, and runtime must remain visibly distinguishable from actual invoiced provider spend
+- budget controls must be explicit operator-applied policies or events; they must not silently suppress critical evidence, safety, evaluation, or human-guided queue work
+- budget events must distinguish high-cost high-value work from likely waste such as retry storms, repeated failed jobs, or low-value repeated generation
+- Observability is the first budget-governor surface; budget controls must stay bounded to throttle, batch, cache/reuse, review-required, or pause policies until the system has stronger outcome evidence
+
 Athlete app rules:
 
 - athlete-facing recording must be separate from coach/operator planning surfaces while reusing the same company membership boundary

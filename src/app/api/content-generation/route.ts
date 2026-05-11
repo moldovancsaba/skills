@@ -1,6 +1,7 @@
 import { CreativeDraftType } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { recordGenerationEvent, recordInteractionEventFromRequest } from "@/lib/audit-ledger";
+import { recordAiWorkloadUsage } from "@/lib/budget-governor";
 import { generateContentBundle, serializeContentSection, type ContentTone } from "@/lib/content-generation";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
 
     const tone = normalizeTone(data.tone);
     const campaignBrief = typeof data.campaignBrief === "string" ? data.campaignBrief.trim() : "";
+    const startedAt = Date.now();
     const [company, productSources, competitorSources, goals, topics, tasks] = await Promise.all([
       prisma.company.findUnique({ where: { id: companyId } }),
       prisma.source.findMany({
@@ -178,6 +180,23 @@ export async function POST(request: NextRequest) {
     const createdDrafts = await prisma.$transaction(
       draftPayloads(companyId, bundle).map((payload) => prisma.creativeDraft.create({ data: payload })),
     );
+
+    await recordAiWorkloadUsage({
+      companyId,
+      feature: "content-generation",
+      jobType: "CONTENT_GENERATION_RUN",
+      entityType: "CREATIVE_DRAFT_BUNDLE",
+      entityId: companyId,
+      workloadUnits: createdDrafts.length,
+      runtimeMs: Date.now() - startedAt,
+      outputTokens: JSON.stringify(bundle).length,
+      valueSignal: "DRAFT_CREATED",
+      metadata: {
+        tone,
+        campaignBriefPresent: Boolean(campaignBrief),
+        draftCount: createdDrafts.length,
+      },
+    });
 
     await recordInteractionEventFromRequest(request, {
       companyId,

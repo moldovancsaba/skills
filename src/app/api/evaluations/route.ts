@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordOutcomeEvent } from "@/lib/audit-ledger";
+import { recordAiWorkloadUsage } from "@/lib/budget-governor";
 import {
   EVALUATION_SUITES,
   SEEDED_EVALUATION_CASES,
@@ -48,7 +49,23 @@ export async function POST(request: NextRequest) {
 
     const candidate = (data.candidate || {}) as EvaluationVariant;
     const persistObservability = Boolean(data.persistObservability);
+    const startedAt = Date.now();
     const comparison = compareEvaluationVariants(candidate);
+    await recordAiWorkloadUsage({
+      companyId,
+      feature: "evaluation-bench",
+      jobType: "EVALUATION_REPLAY",
+      entityType: "EVALUATION_SUITE",
+      entityId: comparison.candidate.suiteId,
+      workloadUnits: comparison.candidate.cases.length,
+      runtimeMs: Date.now() - startedAt,
+      valueSignal: comparison.candidate.failedCases.length > 0 ? "SAFETY_GATE" : "REGRESSION_CHECK",
+      metadata: {
+        aggregateScore: comparison.candidate.aggregateScore,
+        passRate: comparison.candidate.passRate,
+        failedCases: comparison.candidate.failedCases.length,
+      },
+    });
 
     if (persistObservability && comparison.candidate.failedCases.length > 0) {
       await recordOutcomeEvent({

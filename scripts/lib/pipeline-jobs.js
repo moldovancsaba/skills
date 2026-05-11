@@ -105,14 +105,50 @@ async function executePipelineJob(prisma, job) {
   }
 }
 
+function estimatePipelineJobCostMicros({ workloadUnits, runtimeMs, retryCount }) {
+  return Math.max(0, Math.round((workloadUnits || 1) * 2500 + (runtimeMs || 0) * 2 + (retryCount || 0) * 1000));
+}
+
+async function recordPipelineJobUsage(prisma, job, input) {
+  if (!prisma.aiWorkloadUsage) return null;
+  const workloadUnits = Math.max(0.1, Number(input.workloadUnits || 1));
+  const runtimeMs = Math.max(0, Math.round(Number(input.runtimeMs || 0)));
+  const retryCount = Math.max(0, Math.round(Number(input.retryCount || 0)));
+  return prisma.aiWorkloadUsage.create({
+    data: {
+      companyId: job.companyId,
+      feature: "pipeline-queue",
+      jobType: job.jobType,
+      provider: "local-worker",
+      entityType: job.entityType || "COMPANY",
+      entityId: job.entityId || job.companyId,
+      usageKind: "ESTIMATED",
+      workloadUnits,
+      runtimeMs,
+      localComputeMs: runtimeMs,
+      retryCount,
+      estimatedCostMicros: estimatePipelineJobCostMicros({ workloadUnits, runtimeMs, retryCount }),
+      valueSignal: input.valueSignal || "QUEUE_WORK",
+      metadata: {
+        status: input.status,
+        queueColumn: job.queueColumn,
+        controlMode: job.controlMode,
+        reason: input.reason || null,
+      },
+    },
+  });
+}
+
 async function runPipelineQueueBatch(prisma, limit = 3) {
   await syncAllCompanyPipelineJobs(prisma);
   const claimed = await claimNextPipelineJobs(prisma, limit);
   let executed = 0;
 
   for (const job of claimed) {
+    const startedAt = Date.now();
     try {
       const result = await executePipelineJob(prisma, job);
+      const workloadUnits = typeof result === "number" ? Math.max(1, result) : 1;
       await completePipelineJob(
         prisma,
         job.id,
@@ -120,10 +156,26 @@ async function runPipelineQueueBatch(prisma, limit = 3) {
           ? `${job.jobType} completed with ${result} operation(s).`
           : `${job.jobType} completed successfully.`,
       );
+      await recordPipelineJobUsage(prisma, job, {
+        status: "COMPLETED",
+        workloadUnits,
+        runtimeMs: Date.now() - startedAt,
+        retryCount: job.attemptCount || 0,
+        valueSignal: workloadUnits > 0 ? "QUEUE_WORK_COMPLETED" : "NO_OP",
+        reason: typeof result === "number" ? `${result} operation(s)` : "completed",
+      });
       executed += 1;
     } catch (error) {
       console.error(`[PIPELINE QUEUE] ${job.jobType} failed for ${job.company?.name ?? job.companyId}:`, error.message);
       await failPipelineJob(prisma, job.id, error);
+      await recordPipelineJobUsage(prisma, job, {
+        status: "FAILED",
+        workloadUnits: 1,
+        runtimeMs: Date.now() - startedAt,
+        retryCount: (job.attemptCount || 0) + 1,
+        valueSignal: "RETRY_WASTE_RISK",
+        reason: error.message,
+      });
     }
   }
 

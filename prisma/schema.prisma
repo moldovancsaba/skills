@@ -42,6 +42,9 @@ model Company {
   citationSnapshots    CitationSnapshot[]
   workflowBlueprints   WorkflowBlueprint[]
   enrichmentPolicies   EnrichmentWaterfallPolicy[]
+  aiWorkloadUsages     AiWorkloadUsage[]
+  budgetPolicies       BudgetPolicy[]
+  budgetEvents         BudgetEvent[]
   
   // Profile Validation Fields
   website             String?
@@ -618,6 +621,77 @@ model PipelineJob {
   @@index([companyId, queueColumn, manualSortOrder])
   @@index([companyId, status, controlMode, priorityScore])
   @@index([status, queueColumn, priorityScore, updatedAt])
+}
+
+model AiWorkloadUsage {
+  id                  String   @id @default(uuid()) @map("_id")
+  companyId           String
+  feature             String
+  jobType             String?
+  provider            String?  @default("local")
+  modelName           String?
+  entityType          String?  @default("SYSTEM")
+  entityId            String?
+  usageKind           String   @default("ESTIMATED")
+  status              String   @default("RECORDED")
+  workloadUnits       Float    @default(1)
+  runtimeMs           Int      @default(0)
+  localComputeMs      Int      @default(0)
+  inputTokens         Int      @default(0)
+  outputTokens        Int      @default(0)
+  externalRequests    Int      @default(0)
+  retryCount          Int      @default(0)
+  estimatedCostMicros Int      @default(0)
+  actualCostMicros    Int?
+  valueSignal         String?  @default("UNKNOWN")
+  metadata            Json?    @default("{}")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, feature, createdAt])
+  @@index([companyId, jobType, createdAt])
+  @@index([companyId, usageKind, createdAt])
+}
+
+model BudgetPolicy {
+  id                      String   @id @default(uuid()) @map("_id")
+  companyId               String
+  feature                 String
+  status                  String   @default("ACTIVE")
+  dailyEstimatedCostMicros Int     @default(250000)
+  dailyWorkloadUnitsLimit Float    @default(100)
+  retryLimit              Int      @default(5)
+  externalRequestLimit    Int      @default(50)
+  controlMode             String   @default("MONITOR")
+  controls                Json?    @default("{}")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @default(now()) @updatedAt
+  company                 Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, feature])
+  @@index([companyId, status, updatedAt])
+}
+
+model BudgetEvent {
+  id                  String   @id @default(uuid()) @map("_id")
+  companyId           String
+  feature             String
+  eventType           String
+  severity            String   @default("INFO")
+  status              String   @default("OPEN")
+  recommendation      String
+  valueAssessment     String   @default("UNKNOWN")
+  evidence            Json?    @default("{}")
+  appliedControl      String?
+  actorEmail          String?
+  resolvedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status, severity, createdAt])
+  @@index([companyId, feature, createdAt])
 }
 
 model WorkflowBlueprint {

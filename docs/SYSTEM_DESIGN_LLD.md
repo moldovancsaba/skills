@@ -121,6 +121,7 @@ The repetitive-job system now has a first-class queue model:
 - `internal-search.ts` also owns result counts, entity-layer filtering, and ranking boosts from ICE and freshness
 - `grounded-answers.ts` builds bounded evidence-backed answers on top of the internal search layer, including explicit intent/confidence/evidence-group fields
 - `observability.ts` aggregates heartbeat, queue, score-health, worker reports, and recent outcomes for mission-control surfaces, and drives bounded repair recommendations
+- `budget-governor.ts` owns workload usage attribution, virtual/default budget policies, budget-pressure summaries, recommended budget events, and explicit control application for queue/evaluation/content/observability work
 - `workflow-blueprints.ts` owns the persisted bounded workflow-builder contract and default blueprint registry; active blueprints are synchronized into `PipelineJob` records and executed by the shared queue worker
 - `enrichment-waterfall.ts` owns the persisted provider-ordering and fallback policy contract for enrichment governance, and `url-enrichment.ts` consumes that policy at runtime for product/competitor research
 
@@ -156,3 +157,13 @@ The repetitive-job system now has a first-class queue model:
 - `/:companyId/athlete` is the athlete-facing surface for coach-assigned work, activity recording, wellness/body metrics, readiness notes, pain/nutrition notes, and completion evidence
 - `/:companyId/athletes` is the coach-facing records surface for team daily submissions, load, completion evidence, readiness, sleep, soreness, and pain flags
 - completing assigned work from the athlete app records an audit/outcome event and moves the linked checklist item to completed/archived state
+
+## 13. Budget Governor Architecture
+
+- `AiWorkloadUsage` stores company/feature attribution for queue jobs, evaluation replays, content-generation runs, observability actions, and future model/provider calls
+- `BudgetPolicy` stores per-company feature controls and thresholds for estimated daily cost, workload units, retries, external requests, and control mode
+- `BudgetEvent` stores reviewable budget pressure, anomaly, and control-application events with evidence and value assessment
+- budget values are estimated by default and must remain visibly distinct from actual provider spend
+- queue worker completion/failure, evaluation POSTs, content-generation POSTs, and observability actions all record workload usage in the first slice
+- Observability renders budget pressure, workload attribution, recommended budget events, and bounded controls for throttling queue work, batching evaluations, and cache/reuse policy
+- budget controls must not silently erase human-guided queue ordering or suppress critical evidence/safety work

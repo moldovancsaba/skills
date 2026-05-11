@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
 import { verifyMembership } from "@/lib/permissions";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
+import { computeBlendedPriorityProfile } from "@/lib/scoring-contract";
 import { applyPlanningHitlScoreAdjustment, type NBAKanbanColumn } from "@/lib/planning-hitl";
 import { ensurechecklistPublicIds, nextchecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
@@ -61,7 +62,30 @@ export async function GET(request: NextRequest) {
             { publicId: "asc" as const },
           ],
     });
-    return NextResponse.json(items);
+    const enriched = items.map((item) => ({
+      ...item,
+      priorityProfile: computeBlendedPriorityProfile(item),
+    }));
+
+    enriched.sort((left, right) => {
+      const leftManual = (left.sortOrder ?? 0) !== 0;
+      const rightManual = (right.sortOrder ?? 0) !== 0;
+      if ((showAll || Boolean(kanbanColumn)) && leftManual !== rightManual) {
+        return leftManual ? -1 : 1;
+      }
+      if ((showAll || Boolean(kanbanColumn)) && leftManual && rightManual && left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder;
+      }
+      const leftPriority = left.priorityProfile?.score ?? 0;
+      const rightPriority = right.priorityProfile?.score ?? 0;
+      if (leftPriority !== rightPriority) return rightPriority - leftPriority;
+      if ((right.confidenceScore ?? 0) !== (left.confidenceScore ?? 0)) {
+        return (right.confidenceScore ?? 0) - (left.confidenceScore ?? 0);
+      }
+      return (left.publicId ?? Number.MAX_SAFE_INTEGER) - (right.publicId ?? Number.MAX_SAFE_INTEGER);
+    });
+
+    return NextResponse.json(enriched);
   } catch (error) {
     console.error("[API:NBA] Get failure:", error);
     // Iron-Clad: Never return a non-array crash object to the dashboard

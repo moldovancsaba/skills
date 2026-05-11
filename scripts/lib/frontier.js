@@ -6,6 +6,7 @@
  */
 const { CandidateState } = require("./lifecycle");
 const { recordDecisionEvent, recordOutcomeEvent } = require("./audit-ledger");
+const { computeBlendedPriorityProfile } = require("../../src/lib/scoring-contract");
 
 // ---------------------------------------------------------------------------
 // 1. Configuration
@@ -34,32 +35,10 @@ const ROT_DAYS = 14;
  * @returns {number} frontier score (higher = more surfaceable)
  */
 function computeFrontierScore(candidate) {
-  const stateWeight = STATE_WEIGHTS[candidate.candidateState] ?? 0.45;
-
-  const qualityWeight = candidate.qualityScore !== null && candidate.qualityScore !== undefined
-    ? candidate.qualityScore
-    : (candidate.iceScore || 0) / 1000; // normalize legacy ICE
-
-  const urgencyWeight = candidate.urgencyScore !== null && candidate.urgencyScore !== undefined
-    ? candidate.urgencyScore
-    : (candidate.impact || 5) / 10;
-
-  const freshnessWeight = candidate.freshnessScore !== null && candidate.freshnessScore !== undefined
-    ? candidate.freshnessScore
-    : computeImpliedFreshness(candidate);
-
-  const feedbackWeight = normalizeFeedbackScore(candidate.feedbackScore || 0);
-
-  // Priority boost for explicitly topic-pinned or high-ICE items
-  const priorityWeight = candidate.iceScore >= 500 ? 1.1 : 1.0;
-
-  // Kanban Manual Priority Override (§24)
-  // userPriority is represented by sortOrder. If sortOrder < 0, it acts as a massive boost.
-  const userPriorityMultiplier = candidate.sortOrder < 0 ? Math.abs(candidate.sortOrder) * 10 : 1.0;
-
-  const memoryMultiplier = candidate._memoryMultiplier ?? 1.0;
-
-  return stateWeight * qualityWeight * urgencyWeight * freshnessWeight * feedbackWeight * priorityWeight * userPriorityMultiplier * memoryMultiplier;
+  return computeBlendedPriorityProfile({
+    ...candidate,
+    memoryMultiplier: candidate._memoryMultiplier ?? 1,
+  }).score;
 }
 
 function tokenize(value) {
@@ -108,19 +87,6 @@ async function loadFrontierMemoryEntries(prisma, companyId) {
     orderBy: [{ weight: "desc" }, { updatedAt: "desc" }],
     take: 20,
   });
-}
-
-function computeImpliedFreshness(candidate) {
-  const ageMs = Date.now() - new Date(candidate.updatedAt || candidate.createdAt || Date.now()).getTime();
-  const windowMs = 30 * 24 * 60 * 60 * 1000;
-  return Math.max(0.1, 1 - ageMs / windowMs);
-}
-
-function normalizeFeedbackScore(raw) {
-  // Clamp accumulated feedback signal to [0.5, 2.0] multiplier range
-  if (raw > 0) return Math.min(2.0, 1.0 + raw * 0.1);
-  if (raw < 0) return Math.max(0.5, 1.0 + raw * 0.1);
-  return 1.0;
 }
 
 function isRotten(candidate) {
@@ -217,10 +183,15 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   // 2. Attach scores
   const scored = all.map((candidate) => {
     const memoryMultiplier = computeFrontierMemoryMultiplier(candidate, frontierMemoryEntries);
+    const priorityProfile = computeBlendedPriorityProfile({
+      ...candidate,
+      memoryMultiplier,
+    });
     return {
       ...candidate,
       _memoryMultiplier: memoryMultiplier,
-      _frontierScore: computeFrontierScore({ ...candidate, _memoryMultiplier: memoryMultiplier }),
+      _priorityProfile: priorityProfile,
+      _frontierScore: priorityProfile.score,
     };
   });
 
@@ -235,18 +206,20 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   deduplicated.sort((a, b) => b._frontierScore - a._frontierScore);
 
   // ---------------------------------------------------------------------------
-  // 6. ICE-Threshold Column Distribution (§24)
+  // 6. Blended-Priority Column Distribution (§24)
   // ---------------------------------------------------------------------------
-  // Cards earn their column by ICE score. Higher ICE = closer to execution.
+  // Cards earn their AI-selected column by blended priority, not raw ICE alone.
+  // ICE remains the visible card score; frontier placement blends ICE, quality,
+  // urgency, freshness, human signal, risk, lifecycle state, and memory signal.
   // Thresholds are intentional gates — a card must improve to advance.
   //
-  //   CHECKLIST  : ICE >= 700 (hard-capped at FRONTIER_MAX_SIZE = 3)
-  //   TODO       : ICE >= 500
-  //   BACKLOG    : ICE >= 250
-  //   ROADMAP    : ICE >= 100
-  //   IDEABANK   : ICE <  100  (default holding pen for all new cards)
+  //   CHECKLIST  : priority >= 700 (hard-capped at FRONTIER_MAX_SIZE = 3)
+  //   TODO       : priority >= 500
+  //   BACKLOG    : priority >= 250
+  //   ROADMAP    : priority >= 100
+  //   IDEABANK   : priority <  100  (default holding pen for all new cards)
 
-  const ICE_THRESHOLD = {
+  const PRIORITY_THRESHOLD = {
     CHECKLIST: 700,
     TODO:      500,
     BACKLOG:   250,
@@ -262,7 +235,7 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   ];
 
   for (const item of deduplicated) {
-    const ice = item.iceScore || 0;
+    const priority = item._priorityProfile?.score ?? item._frontierScore ?? 0;
 
     // Respect user-set hard priority (sortOrder < 0) — Anchor in their current column
     if (item.sortOrder < 0 && item.kanbanColumn) {
@@ -274,13 +247,13 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
       } else {
         targetCol.items.push(item);
       }
-    } else if (ice >= ICE_THRESHOLD.CHECKLIST && columnMap[0].items.length < FRONTIER_MAX_SIZE) {
+    } else if (priority >= PRIORITY_THRESHOLD.CHECKLIST && columnMap[0].items.length < FRONTIER_MAX_SIZE) {
       columnMap[0].items.push(item);
-    } else if (ice >= ICE_THRESHOLD.TODO) {
+    } else if (priority >= PRIORITY_THRESHOLD.TODO) {
       columnMap[1].items.push(item);
-    } else if (ice >= ICE_THRESHOLD.BACKLOG) {
+    } else if (priority >= PRIORITY_THRESHOLD.BACKLOG) {
       columnMap[2].items.push(item);
-    } else if (ice >= ICE_THRESHOLD.ROADMAP) {
+    } else if (priority >= PRIORITY_THRESHOLD.ROADMAP) {
       columnMap[3].items.push(item);
     } else {
       columnMap[4].items.push(item);
@@ -308,15 +281,18 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
         frontierRank: rank + 1,
       },
       payload: {
-        frontierScore: item._frontierScore,
-        checklistThreshold: 700,
-        todoThreshold: 500,
-        backlogThreshold: 250,
-        roadmapThreshold: 100,
+        blendedPriorityScore: item._frontierScore,
+        priorityProfile: item._priorityProfile,
+        checklistThreshold: PRIORITY_THRESHOLD.CHECKLIST,
+        todoThreshold: PRIORITY_THRESHOLD.TODO,
+        backlogThreshold: PRIORITY_THRESHOLD.BACKLOG,
+        roadmapThreshold: PRIORITY_THRESHOLD.ROADMAP,
         manualPriority: item.sortOrder < 0,
         memoryMultiplier: item._memoryMultiplier ?? 1,
       },
-      rationale: item.sortOrder < 0 ? "User-prioritized hard anchor respected during frontier recompute" : "Column assigned by ICE threshold and frontier score",
+      rationale: item.sortOrder < 0
+        ? "User-prioritized hard anchor respected during blended-priority frontier recompute"
+        : `Column assigned by blended priority: ${item._priorityProfile?.reasons?.join(", ") ?? "no reasons"}`,
       teachingWeight: targetColumn === "CHECKLIST" ? 80 : 60,
       cycleRunId,
     });
@@ -356,7 +332,8 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
             scheduledDate: group.column === "CHECKLIST" ? new Date() : null,
           },
           payload: {
-            frontierScore: item._frontierScore,
+            blendedPriorityScore: item._frontierScore,
+            priorityProfile: item._priorityProfile,
           },
           teachingWeight: group.column === "CHECKLIST" ? 80 : 60,
           cycleRunId,

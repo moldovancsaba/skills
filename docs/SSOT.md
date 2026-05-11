@@ -99,6 +99,17 @@ The current intelligence-operations contract also includes:
 - observability also owns bounded repair actions for queue sync, score-repair escalation, and failed-job recovery
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active
 - persisted enrichment waterfall policies for provider ordering and fallback governance, applied at runtime during URL intelligence enrichment
+- one advisory evaluation bench for replaying seeded synthetic intelligence cases before recommendation, grounded-answer, ranking, workflow, and data-readiness changes are promoted
+- evaluation failures can be explicitly published into Observability as `EVAL_GATE_FAILED` outcome events; normal replay does not mutate production company data
+- one content-generation surface that turns existing company, product, goal, topic, and competitor context into saved `CreativeDraft` records for email subjects, ads, social posts, and landing-page copy
+- content generation is draft-only in the current contract: no automated posting, no image generation, and no multi-language generation
+
+Tactical placement contract:
+
+- `iceScore` remains the visible score on task cards
+- `priorityProfile` is the ranking explanation used for tactical ordering and frontier placement
+- human drag/drop anchors remain explicit human guidance and are not silently erased by AI scoring
+- priority thresholds are applied to blended priority scores, not raw ICE alone
 
 ## 6. AI Brain Rule
 

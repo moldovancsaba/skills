@@ -67,6 +67,19 @@ type NBAItem = {
   qualityScore?: number | null;
   urgencyScore?: number | null;
   freshnessScore?: number | null;
+  priorityProfile?: {
+    score: number;
+    manualAnchor: boolean;
+    components: {
+      ice: number;
+      quality: number;
+      urgency: number;
+      freshness: number;
+      human: number;
+      risk: number;
+    };
+    reasons: string[];
+  } | null;
 };
 
 const COLUMNS: {
@@ -76,11 +89,11 @@ const COLUMNS: {
   accent: string;
   tone: "neutral" | "strategy" | "ingress" | "tactical" | "checklist";
 }[] = [
-  { key: "IDEABANK",  label: "Idea Bank", description: "Someday · ICE < 100",  accent: getModuleTheme("neutral").color, tone: "neutral" },
-  { key: "ROADMAP",   label: "Roadmap",   description: "Later · ICE ≥ 100",    accent: getModuleTheme("strategy").color, tone: "strategy" },
-  { key: "BACKLOG",   label: "Backlog",   description: "Sooner · ICE ≥ 250",   accent: getModuleTheme("ingress").color, tone: "ingress" },
-  { key: "TODO",      label: "Next",      description: "Soon · ICE ≥ 500",     accent: getModuleTheme("tactical").color, tone: "tactical" },
-  { key: "CHECKLIST", label: "Now",       description: "Active · ICE ≥ 700",   accent: getModuleTheme("checklist").color, tone: "checklist" },
+  { key: "IDEABANK",  label: "Idea Bank", description: "Someday · priority < 100",  accent: getModuleTheme("neutral").color, tone: "neutral" },
+  { key: "ROADMAP",   label: "Roadmap",   description: "Later · priority ≥ 100",    accent: getModuleTheme("strategy").color, tone: "strategy" },
+  { key: "BACKLOG",   label: "Backlog",   description: "Sooner · priority ≥ 250",   accent: getModuleTheme("ingress").color, tone: "ingress" },
+  { key: "TODO",      label: "Next",      description: "Soon · priority ≥ 500",     accent: getModuleTheme("tactical").color, tone: "tactical" },
+  { key: "CHECKLIST", label: "Now",       description: "Active · priority ≥ 700",   accent: getModuleTheme("checklist").color, tone: "checklist" },
 ];
 
 const COLUMN_OPTIONS = [
@@ -262,31 +275,36 @@ function CardDetailModal({
         </Box>
 
         {/* AI Scores */}
-        {(item.qualityScore != null || item.urgencyScore != null || item.freshnessScore != null) && (
+        {(item.priorityProfile || item.qualityScore != null || item.urgencyScore != null || item.freshnessScore != null) && (
           <Box>
             <Group gap="xs" mb="md">
               <Sparkles size={14} color="var(--mantine-color-ingress-6)" />
-              <Text size="xs" c="dimmed">AI Evaluation Signals</Text>
+              <Text size="xs" c="dimmed">Blended Priority Signals</Text>
             </Group>
             <UnifiedCardSection tone="tactical">
               <SimpleGrid cols={4}>
                 <Stack gap={2}>
-                  <Text size="sm">{fmt(item.qualityScore)}</Text>
-                  <Text size="xs" c="dimmed">Quality</Text>
+                  <Text size="sm">{item.priorityProfile ? Math.round(item.priorityProfile.score) : "—"}</Text>
+                  <Text size="xs" c="dimmed">Priority</Text>
                 </Stack>
                 <Stack gap={2}>
-                  <Text size="sm">{fmt(item.urgencyScore)}</Text>
-                  <Text size="xs" c="dimmed">Urgency</Text>
+                  <Text size="sm">{item.priorityProfile ? fmt(item.priorityProfile.components.human) : "—"}</Text>
+                  <Text size="xs" c="dimmed">Human</Text>
                 </Stack>
                 <Stack gap={2}>
-                  <Text size="sm">{fmt(item.freshnessScore)}</Text>
-                  <Text size="xs" c="dimmed">Freshness</Text>
+                  <Text size="sm">{item.priorityProfile ? fmt(item.priorityProfile.components.risk) : "—"}</Text>
+                  <Text size="xs" c="dimmed">Risk</Text>
                 </Stack>
                 <Stack gap={2}>
                   <Badge color="tactical">{item.candidateState}</Badge>
                   <Text size="xs" c="dimmed">State</Text>
                 </Stack>
               </SimpleGrid>
+              {item.priorityProfile?.reasons?.length ? (
+                <Text size="xs" c="dimmed" mt="sm">
+                  {item.priorityProfile.reasons.slice(0, 4).join(" · ")}
+                </Text>
+              ) : null}
             </UnifiedCardSection>
           </Box>
         )}
@@ -696,9 +714,9 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                               {item.candidateState}
                                             </Badge>
                                             <Group gap={4}>
-                                              <MetaText>ICE</MetaText>
+                                              <MetaText>{item.priorityProfile ? "PRIORITY" : "ICE"}</MetaText>
                                               <Text size="xs" style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
-                                                {Math.round(item.iceScore)}
+                                                {Math.round(item.priorityProfile?.score ?? item.iceScore)}
                                               </Text>
                                             </Group>
                                           </Group>

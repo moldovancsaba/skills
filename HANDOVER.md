@@ -21,6 +21,7 @@ Read first:
 - interactions are centralized in the shared UI layer
 - semantic tones are the only approved product color vocabulary
 - ICE management is centralized through shared scoring contracts plus oldest-first maintenance and queue flows across upstream cards, knowledge, goals, and tasks
+- tactical prioritization now uses the shared blended priority profile from `scoring-contract.js`; ICE remains visible, but placement also explains quality, urgency, freshness, human signal, risk, lifecycle state, and memory inputs
 - repetitive local-AI work is represented as persisted `PipelineJob` queue records
 - the webapp `Worker Queue` is the primary HiTL steering surface for repetitive jobs
 - worker scheduling supports explicit `AI_ONLY` and `HUMAN_GUIDED` modes
@@ -35,6 +36,10 @@ Read first:
 - workflow blueprints and enrichment waterfall policies are persisted system contracts, not local page-only state
 - active workflow blueprints now become first-class `PipelineJob` records that the worker can claim and execute
 - enrichment waterfall policy now influences runtime URL-intelligence provider selection for product and competitor research paths
+- the webapp now exposes `Evaluation Bench` as the first advisory promotion-gate surface for recommendation, grounded-answer, search, KPI, workflow, competitor, and data-readiness behavior
+- evaluation runs use synthetic fixtures by default and only write to Observability when an operator explicitly publishes failed gates
+- the webapp now exposes `Content Generation` for producing email subject lines, ad copy, social posts, and landing-page copy from existing company, product, goal, topic, and competitor context
+- content generation persists outputs as `CreativeDraft` records and records generation/audit events without automated posting
 
 ## Files That Matter Most
 
@@ -58,6 +63,8 @@ System:
 - [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
 - [src/lib/pipeline-queue.js](/Users/Shared/Projects/checklist/src/lib/pipeline-queue.js)
 - [scripts/lib/pipeline-jobs.js](/Users/Shared/Projects/checklist/scripts/lib/pipeline-jobs.js)
+- [src/lib/evaluation-bench.ts](/Users/Shared/Projects/checklist/src/lib/evaluation-bench.ts)
+- [src/lib/content-generation.ts](/Users/Shared/Projects/checklist/src/lib/content-generation.ts)
 
 ## Do Not Reintroduce
 
@@ -109,3 +116,6 @@ The work is not done until:
 - Human drag-and-drop on the `Worker Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now able to escalate queue work through the shared queue contract.
+- Frontier recompute assigns tactical columns by blended priority thresholds, not raw ICE alone, while preserving manual human drag/drop anchors.
+- Evaluation bench replay is advisory first: synthetic fixtures and rubric gates compare baseline vs candidate behavior without production writes unless failed gates are explicitly published to Observability.
+- Content generation is draft-only: it can create and persist channel-specific copy, but it must not post externally or generate images in the first release.

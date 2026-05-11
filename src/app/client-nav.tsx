@@ -256,7 +256,17 @@ export function ClientNav() {
                   rightSection={
                     <Group gap={4}>
                       {counts[item.key] !== undefined && (
-                        <Badge size="xs" color={item.color} circle>
+                        <Badge
+                          size="xs"
+                          color={item.color}
+                          px={6}
+                          miw={30}
+                          styles={{
+                            label: {
+                              fontVariantNumeric: "tabular-nums",
+                            },
+                          }}
+                        >
                           {counts[item.key]}
                         </Badge>
                       )}

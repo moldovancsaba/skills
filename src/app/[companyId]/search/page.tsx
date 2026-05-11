@@ -6,7 +6,7 @@ import { Badge, Button, Checkbox, Group, Loader, SimpleGrid, Stack, TextInput } 
 import { IconSearch as SearchIcon, IconSparkles as Sparkles } from "@tabler/icons-react";
 import { Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
-import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
+import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
 import type { SearchEntityType, SearchResultRecord } from "@/lib/internal-search";
 import type { GroundedAnswer } from "@/lib/grounded-answers";
 
@@ -156,6 +156,29 @@ export default function SearchPage() {
                   </Badge>
                 ))}
               </Group>
+            ) : null}
+            {answer.evidence.length > 0 ? (
+              <Stack gap="xs">
+                <MetaText>Cited evidence</MetaText>
+                {answer.evidence.map((item) => (
+                  <UnifiedCardSection key={`${item.entityType}:${item.id}`} tone="knowmore">
+                    <Stack gap="xs">
+                      <Group justify="space-between" align="flex-start">
+                        <Stack gap={4} style={{ flex: 1 }}>
+                          <Badge variant="outline" color="gray" w="fit-content">
+                            {toneLabel(item.entityType)}
+                          </Badge>
+                          <BodyText>{item.title}</BodyText>
+                        </Stack>
+                        <Button component="a" href={item.href} variant="subtle" rightSection={<Sparkles size={14} />}>
+                          Open
+                        </Button>
+                      </Group>
+                      <MetaText>{item.snippet}</MetaText>
+                    </Stack>
+                  </UnifiedCardSection>
+                ))}
+              </Stack>
             ) : null}
             <Stack gap="xs">
               <MetaText>Recommended next actions</MetaText>

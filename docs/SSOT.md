@@ -95,6 +95,7 @@ The current intelligence-operations contract also includes:
 - one blended tactical priority profile that keeps ICE visible while ranking work through explainable ICE, quality, urgency, freshness, human-signal, risk, lifecycle-state, and memory inputs
 - one grounded answer layer over company context using explicit evidence objects
 - grounded answers now expose intent, confidence, evidence-group framing, and the applied entity-layer scope as first-class contract fields
+- grounded answers must visibly surface cited evidence cards in the operator UI, not just aggregate evidence counts
 - one observability surface for worker health, queue pressure, score-health, AI workload budget pressure, and recent outcomes
 - observability also owns bounded repair and budget actions for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active

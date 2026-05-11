@@ -66,6 +66,7 @@ New operator surfaces:
 - Search now supports entity-layer filters, ranked counts, and grounded-answer confidence/evidence-group framing
 - first-class entity search results now deep-link into the canonical shared `/card/[uuid]` card route instead of dropping operators onto module-level index pages
 - grounded answers now obey the active entity-layer filter scope instead of synthesizing from hidden layers outside the operator-selected search boundary
+- grounded answers now visibly render their cited evidence cards inside the answer surface so operators can inspect the supporting cards without leaving the search workflow blind
 - `/:companyId/observability` provides mission-control visibility into worker health, queue pressure, score health, AI workload budget pressure, and recent outcomes
 - Observability now exposes bounded repair and budget actions for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls
 - `/:companyId/workflows` provides bounded workflow blueprints and enrichment-waterfall policy management

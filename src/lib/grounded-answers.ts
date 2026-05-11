@@ -69,8 +69,6 @@ const DEFAULT_ENTITY_TYPES: SearchEntityType[] = [
   "TASK",
   "PIPELINE_JOB",
   "WORKFLOW_BLUEPRINT",
-  "VOC_THEME",
-  "VOC_ACTION_BRIEF",
 ];
 
 export async function buildGroundedAnswer(

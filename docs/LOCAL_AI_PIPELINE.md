@@ -393,6 +393,17 @@ The first athlete app contract is a daily recording loop beside the coach/operat
 - completed assigned work writes audit/outcome events and archives the linked checklist item as completed
 - wearable integrations, medical claims, public sharing, and payment flows are out of scope for this first slice
 
+## Budget governor
+
+The first AI workload budget-governor slice is an observability-first control loop:
+
+- `AiWorkloadUsage` records estimated workload units, runtime, retries, request counts, and cost dimensions for queue jobs, evaluation replays, content generation, and observability actions
+- `BudgetPolicy` records per-company feature thresholds and explicit controls such as throttle, batch, cache/reuse, review-required, or pause
+- `BudgetEvent` records reviewable budget pressure and applied controls with evidence and value assessment
+- the pipeline queue records usage on completed and failed queue jobs so retry storms and high-value work can be separated
+- evaluation and content-generation APIs record usage when operators run those surfaces
+- Observability shows budget pressure, usage by feature, recommendations, and bounded controls without silently overriding human-guided scheduling or critical safety/evidence work
+
 ## Delivery modes
 
 There is one supported hosted execution mode:

@@ -63,6 +63,7 @@ New operator surfaces:
 
 - `/:companyId/search` provides unified internal retrieval plus grounded answers over company context
 - Search now supports entity-layer filters, ranked counts, and grounded-answer confidence/evidence-group framing
+- first-class entity search results now deep-link into the canonical shared `/card/[uuid]` card route instead of dropping operators onto module-level index pages
 - `/:companyId/observability` provides mission-control visibility into worker health, queue pressure, score health, and recent outcomes
 - Observability now exposes bounded repair actions for queue sync, score-repair escalation, and failed-job recovery
 - `/:companyId/workflows` provides bounded workflow blueprints and enrichment-waterfall policy management

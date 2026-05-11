@@ -91,6 +91,8 @@ The current intelligence-operations contract also includes:
 
 - one unified internal search layer across cards, queue work, and workflow blueprints
 - search responses now include entity-type filters, per-layer counts, and ranking that blends text overlap with ICE/freshness cues
+- first-class entity search results deep-link into the canonical shared `/card/[uuid]` detail route for Data, Topics, Knowmore, Goals, and Tasks
+- one blended tactical priority profile that keeps ICE visible while ranking work through explainable ICE, quality, urgency, freshness, human-signal, risk, lifecycle-state, and memory inputs
 - one grounded answer layer over company context using explicit evidence objects
 - grounded answers now expose intent, confidence, and evidence-group framing as first-class contract fields
 - one observability surface for worker health, queue pressure, score-health, and recent outcomes

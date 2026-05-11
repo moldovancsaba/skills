@@ -101,6 +101,10 @@ function byScore<T extends { score: number; updatedAt: string }>(left: T, right:
   return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
 }
 
+function sharedCardHref(cardId: string) {
+  return `/card/${cardId}`;
+}
+
 export async function searchCompanyContext(
   companyId: string,
   query: string,
@@ -198,7 +202,7 @@ export async function searchCompanyContext(
       entityType: "SOURCE",
       title: source.entityTag?.trim() || `Data ${source.publicId ?? ""}`.trim(),
       snippet: collapseWhitespace(source.content),
-      href: `/${companyId}/data`,
+      href: sharedCardHref(source.id),
       tone: "ingress",
       iceScore: source.iceScore ?? null,
       updatedAt: source.updatedAt.toISOString(),
@@ -221,7 +225,7 @@ export async function searchCompanyContext(
       entityType: "TOPIC",
       title: topic.label,
       snippet: collapseWhitespace(topic.notes || "Strategic topic for synthesis and recurring AI research."),
-      href: `/${companyId}/topics`,
+      href: sharedCardHref(topic.id),
       tone: "synthesis",
       iceScore: topic.iceScore ?? null,
       updatedAt: topic.updatedAt.toISOString(),
@@ -243,7 +247,7 @@ export async function searchCompanyContext(
       entityType: "FLASHCARD",
       title: flashcard.title,
       snippet: collapseWhitespace(flashcard.body),
-      href: `/${companyId}/knowmore`,
+      href: sharedCardHref(flashcard.id),
       tone: "knowmore",
       iceScore: flashcard.iceScore ?? null,
       updatedAt: flashcard.updatedAt.toISOString(),
@@ -266,7 +270,7 @@ export async function searchCompanyContext(
       entityType: "GOALCARD",
       title: goalcard.title,
       snippet: collapseWhitespace(goalcard.body),
-      href: `/${companyId}/goals`,
+      href: sharedCardHref(goalcard.id),
       tone: "strategy",
       iceScore: goalcard.iceScore ?? null,
       updatedAt: goalcard.updatedAt.toISOString(),
@@ -288,7 +292,7 @@ export async function searchCompanyContext(
       entityType: "TASK",
       title: task.title,
       snippet: collapseWhitespace(task.description || ""),
-      href: `/${companyId}/${task.kanbanColumn === "CHECKLIST" ? "nba" : "tactical"}`,
+      href: sharedCardHref(task.id),
       tone: task.kanbanColumn === "CHECKLIST" ? "checklist" : "strategy",
       iceScore: task.iceScore ?? null,
       updatedAt: task.updatedAt.toISOString(),

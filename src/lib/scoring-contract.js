@@ -32,6 +32,20 @@ const COMPLEXITY_KEYWORDS = [
   "prototype",
   "experiment",
 ];
+const PRIORITY_SCORE_MAX = 1000;
+const PRIORITY_WEIGHTS = Object.freeze({
+  ice: 0.36,
+  quality: 0.20,
+  urgency: 0.16,
+  freshness: 0.12,
+  human: 0.10,
+  risk: 0.06,
+});
+const PRIORITY_STATE_MULTIPLIERS = Object.freeze({
+  EVALUATED: 1,
+  REFINED: 0.86,
+  GENERATED: 0.72,
+});
 
 function clampMetric(value, min = SCORE_MIN, max = SCORE_MAX) {
   const numeric = Number(value);
@@ -77,6 +91,124 @@ function calculateTaskIceScore(input = {}) {
 function calculateKnowledgeIceScore(input = {}) {
   const { impact, confidence, effort } = normalizeScoreTriplet(input);
   return Number(((impact * confidence * effort) / KNOWLEDGE_ICE_DIVISOR).toFixed(1));
+}
+
+function clampUnit(value, fallback = 0) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return Math.max(0, Math.min(1, fallback));
+  }
+  return Math.max(0, Math.min(1, numeric));
+}
+
+function normalizeIceSignal(iceScore, maxScore = PRIORITY_SCORE_MAX) {
+  const numeric = Number(iceScore);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  return clampUnit(numeric / maxScore);
+}
+
+function computeImpliedFreshnessSignal(input = {}) {
+  if (input.freshnessScore !== null && input.freshnessScore !== undefined) {
+    return clampUnit(input.freshnessScore);
+  }
+
+  const rawDate = input.updatedAt ?? input.createdAt;
+  const timestamp = rawDate ? new Date(rawDate).getTime() : Date.now();
+  if (!Number.isFinite(timestamp)) return 0.5;
+
+  const windowDays = Number.isFinite(Number(input.freshnessWindowDays))
+    ? Math.max(1, Number(input.freshnessWindowDays))
+    : 30;
+  const ageMs = Math.max(0, Date.now() - timestamp);
+  const windowMs = windowDays * 24 * 60 * 60 * 1000;
+  return Math.max(0.1, clampUnit(1 - ageMs / windowMs));
+}
+
+function computeHumanPrioritySignal(input = {}) {
+  const feedbackScore = Number(input.feedbackScore ?? 0);
+  const feedbackSignal = feedbackScore > 0
+    ? Math.min(1, 0.55 + feedbackScore * 0.08)
+    : feedbackScore < 0
+      ? Math.max(0, 0.45 + feedbackScore * 0.08)
+      : 0.5;
+  const manualAnchorSignal = Number(input.sortOrder ?? 0) < 0 ? 1 : 0;
+  const humanGuidedSignal = String(input.controlMode || "").toUpperCase() === "HUMAN_GUIDED" ? 0.85 : 0;
+  return clampUnit(Math.max(feedbackSignal, manualAnchorSignal, humanGuidedSignal));
+}
+
+function computeRiskPrioritySignal(input = {}) {
+  const confidence = clampMetric(input.confidenceScore ?? input.confidence ?? 5);
+  const activityState = String(input.activityState || "").toUpperCase();
+  const processingStatus = String(input.processingStatus || "").toUpperCase();
+  const rottenAt = input.rottenAt ? new Date(input.rottenAt).getTime() : null;
+  let risk = 0.25;
+
+  if (activityState === "STALE" || activityState === "EXPIRED") risk += 0.2;
+  if (processingStatus === "REVIEW" || processingStatus === "DECLINED") risk += 0.18;
+  if (Number.isFinite(rottenAt) && rottenAt < Date.now()) risk += 0.2;
+  if (confidence <= 4) risk += 0.16;
+  if (confidence >= 8) risk -= 0.08;
+
+  return clampUnit(risk);
+}
+
+function describePriorityBand(value, high, medium, label) {
+  if (value >= high) return `${label}:high`;
+  if (value >= medium) return `${label}:medium`;
+  return `${label}:low`;
+}
+
+function computeBlendedPriorityProfile(input = {}) {
+  const iceSignal = normalizeIceSignal(input.iceScore, input.priorityIceMax ?? PRIORITY_SCORE_MAX);
+  const qualitySignal = clampUnit(input.qualityScore, iceSignal);
+  const urgencySignal = clampUnit(
+    input.urgencyScore,
+    clampMetric(input.impact ?? 5) / SCORE_MAX,
+  );
+  const freshnessSignal = computeImpliedFreshnessSignal(input);
+  const humanSignal = computeHumanPrioritySignal(input);
+  const riskSignal = computeRiskPrioritySignal(input);
+  const stateMultiplier =
+    PRIORITY_STATE_MULTIPLIERS[String(input.candidateState || "").toUpperCase()] ?? 0.78;
+  const rawMemoryMultiplier = Number(input.memoryMultiplier ?? input._memoryMultiplier ?? 1);
+  const boundedMemoryMultiplier = Number.isFinite(rawMemoryMultiplier)
+    ? Math.max(0.6, Math.min(1.4, rawMemoryMultiplier))
+    : 1;
+  const weighted =
+    iceSignal * PRIORITY_WEIGHTS.ice +
+    qualitySignal * PRIORITY_WEIGHTS.quality +
+    urgencySignal * PRIORITY_WEIGHTS.urgency +
+    freshnessSignal * PRIORITY_WEIGHTS.freshness +
+    humanSignal * PRIORITY_WEIGHTS.human +
+    riskSignal * PRIORITY_WEIGHTS.risk;
+  const score = Number((weighted * stateMultiplier * boundedMemoryMultiplier * PRIORITY_SCORE_MAX).toFixed(2));
+  const manualAnchor = Number(input.sortOrder ?? 0) < 0;
+
+  return {
+    score,
+    manualAnchor,
+    stateMultiplier,
+    memoryMultiplier: boundedMemoryMultiplier,
+    components: {
+      ice: Number(iceSignal.toFixed(3)),
+      quality: Number(qualitySignal.toFixed(3)),
+      urgency: Number(urgencySignal.toFixed(3)),
+      freshness: Number(freshnessSignal.toFixed(3)),
+      human: Number(humanSignal.toFixed(3)),
+      risk: Number(riskSignal.toFixed(3)),
+    },
+    weights: PRIORITY_WEIGHTS,
+    reasons: [
+      describePriorityBand(iceSignal, 0.7, 0.35, "ice"),
+      describePriorityBand(qualitySignal, 0.75, 0.45, "quality"),
+      describePriorityBand(urgencySignal, 0.75, 0.45, "urgency"),
+      describePriorityBand(freshnessSignal, 0.75, 0.35, "freshness"),
+      describePriorityBand(humanSignal, 0.8, 0.55, "human-signal"),
+      describePriorityBand(riskSignal, 0.65, 0.35, "risk"),
+      manualAnchor ? "manual-anchor:preserved" : "manual-anchor:none",
+      `state:${String(input.candidateState || "UNKNOWN").toLowerCase()}`,
+    ],
+  };
 }
 
 function normalizeTaskScores(input = {}) {
@@ -266,10 +398,19 @@ module.exports = {
   SCORE_MIN,
   SCORE_MAX,
   KNOWLEDGE_ICE_DIVISOR,
+  PRIORITY_SCORE_MAX,
+  PRIORITY_WEIGHTS,
+  PRIORITY_STATE_MULTIPLIERS,
   clampMetric,
+  clampUnit,
   normalizeScoreTriplet,
   calculateTaskIceScore,
   calculateKnowledgeIceScore,
+  normalizeIceSignal,
+  computeImpliedFreshnessSignal,
+  computeHumanPrioritySignal,
+  computeRiskPrioritySignal,
+  computeBlendedPriorityProfile,
   normalizeTaskScores,
   normalizeKnowledgeScores,
   normalizeGoalScores,

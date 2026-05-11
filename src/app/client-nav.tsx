@@ -19,7 +19,7 @@ import {
   Badge,
   Button
 } from "@mantine/core";
-import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconCircleCheck as CheckCircle2, IconTarget as Target, IconSparkles as Sparkles, IconBolt as Zap, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History } from "@tabler/icons-react";
+import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconFlask as Flask, IconPencil as Pencil, IconRun as Run, IconUsers as Users } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
@@ -94,6 +94,38 @@ const pipelineItems = [
     color: "review",
     tone: "review",
   },
+  {
+    key: "evaluations",
+    href: (companyId: string) => `/${companyId}/evaluations`,
+    label: "Evaluations",
+    icon: Flask,
+    color: "strategy",
+    tone: "strategy",
+  },
+  {
+    key: "content-generation",
+    href: (companyId: string) => `/${companyId}/content-generation`,
+    label: "Content",
+    icon: Pencil,
+    color: "knowmore",
+    tone: "knowmore",
+  },
+  {
+    key: "athlete",
+    href: (companyId: string) => `/${companyId}/athlete`,
+    label: "Athlete App",
+    icon: Run,
+    color: "checklist",
+    tone: "checklist",
+  },
+  {
+    key: "athletes",
+    href: (companyId: string) => `/${companyId}/athletes`,
+    label: "Athletes",
+    icon: Users,
+    color: "strategy",
+    tone: "strategy",
+  },
 ];
 
 export function ClientNav() {
@@ -155,6 +187,10 @@ export function ClientNav() {
             tactical: data.counts?.nbaItems || 0,
             review: data.counts?.reviewCount || 0,
             pipeline: data.counts?.pipelineJobs || 0,
+            evaluations: 0,
+            "content-generation": data.counts?.creativeDrafts || 0,
+            athlete: data.counts?.athleteActivityLogs || 0,
+            athletes: data.counts?.athleteActivityLogs || 0,
           });
         }
       } catch (err) {
@@ -226,60 +262,75 @@ export function ClientNav() {
                 }}
               />
 
-              {pipelineItems.map((item) => (
-                <NavLink
-                  key={item.key}
-                  label={item.label}
-                  leftSection={
-                    <ThemeIcon color={item.color}>
-                      <item.icon size={14} />
-                    </ThemeIcon>
-                  }
-                  rightSection={
-                    <Group gap={4}>
-                      {counts[item.key] !== undefined && (
-                        <Badge size="xs" color={item.color} circle>
-                          {counts[item.key]}
-                        </Badge>
-                      )}
-                      <ChevronRight size={14} strokeOpacity={0.5} />
-                    </Group>
-                  }
-                  onClick={() => {
-                    const companyId = company?.id || companyIdFromUrl;
-                    if (!companyId) return;
-                    void logClientInteraction({
-                      companyId,
-                      surface: "global-navigation",
-                      interactionType: "PIPELINE_ROUTE_SELECT",
-                      entityType: "ROUTE",
-                      entityId: item.key,
-                      payload: { href: item.href(companyId), label: item.label },
-                      teachingWeight: 30,
-                    });
-                    router.push(item.href(companyId));
-                  }}
-                  active={pathname.includes(item.key)}
-                  variant="subtle"
-                  color={item.color}
-                  styles={{
-                    root: {
-                      backgroundColor: "transparent",
-                      borderLeft: "2px solid transparent",
-                      ...(pathname.includes(item.key) ? getSidebarActiveStyle(item.tone as ModuleTone) : {}),
-                      ...(!pathname.includes(item.key)
-                        ? {
-                            "&:hover": getSidebarHoverStyle(item.tone as ModuleTone),
-                          }
-                        : {}),
-                    },
-                    label: {
-                      color: pathname.includes(item.key) ? "var(--nav-link-active)" : "var(--nav-link-inactive)",
-                      fontWeight: 500,
-                    },
-                  }}
-                />
-              ))}
+              {pipelineItems.map((item) => {
+                const companyId = company?.id || companyIdFromUrl;
+                const itemHref = companyId ? item.href(companyId) : "";
+                const isActive = Boolean(pathname && itemHref && (pathname === itemHref || pathname.startsWith(`${itemHref}/`)));
+
+                return (
+                  <NavLink
+                    key={item.key}
+                    label={item.label}
+                    leftSection={
+                      <ThemeIcon color={item.color}>
+                        <item.icon size={14} />
+                      </ThemeIcon>
+                    }
+                    rightSection={
+                      <Group gap={4}>
+                        {counts[item.key] !== undefined && (
+                          <Badge
+                            size="xs"
+                            color={item.color}
+                            px={6}
+                            miw={30}
+                            styles={{
+                              label: {
+                                fontVariantNumeric: "tabular-nums",
+                              },
+                            }}
+                          >
+                            {counts[item.key]}
+                          </Badge>
+                        )}
+                        <ChevronRight size={14} strokeOpacity={0.5} />
+                      </Group>
+                    }
+                    onClick={() => {
+                      if (!companyId) return;
+                      void logClientInteraction({
+                        companyId,
+                        surface: "global-navigation",
+                        interactionType: "PIPELINE_ROUTE_SELECT",
+                        entityType: "ROUTE",
+                        entityId: item.key,
+                        payload: { href: itemHref, label: item.label },
+                        teachingWeight: 30,
+                      });
+                      router.push(itemHref);
+                    }}
+                    active={isActive}
+                    variant="subtle"
+                    color={item.color}
+                    styles={{
+                      root: {
+                        backgroundColor: "transparent",
+                        borderLeft: "2px solid transparent",
+                        ...(isActive ? getSidebarActiveStyle(item.tone as ModuleTone) : {}),
+                        ...(!isActive
+                          ? {
+                              "&:hover": getSidebarHoverStyle(item.tone as ModuleTone),
+                            }
+                          : {}),
+                      },
+                      label: {
+                        color: isActive ? "var(--nav-link-active)" : "var(--nav-link-inactive)",
+                        fontWeight: 500,
+                      },
+                    }}
+                  />
+                );
+              })}
             </Stack>
           ) : (
             <Box px="md" py="xl">

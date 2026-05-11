@@ -28,6 +28,7 @@ model Company {
   topics              Topic[]
   uploadedSourceFiles UploadedSourceFile[]
   creativeDrafts      CreativeDraft[]
+  athleteActivityLogs AthleteActivityLog[]
   workerConfig        Json?                 @default("{}")
   lastAIVisited       DateTime?
   users               User[]
@@ -123,6 +124,29 @@ model Feedback {
   deliveryComment     String?     // High-value memory input on DELIVER
   actorId             String?     // User who performed the action
   nbaItem             NBAItem     @relation(fields: [nbaItemId], references: [id])
+}
+
+model AthleteActivityLog {
+  id              String   @id @default(uuid()) @map("_id")
+  companyId       String
+  athleteEmail    String
+  athleteName     String?
+  nbaItemId       String?
+  activityDate    DateTime @default(now())
+  activityType    String   @default("TRAINING")
+  title           String
+  notes           String?
+  durationMinutes Int?
+  intensity       Int?
+  readiness       Int?
+  completionState String   @default("RECORDED")
+  metrics         Json?    @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, athleteEmail, activityDate])
+  @@index([companyId, nbaItemId, activityDate])
 }
 
 enum IntelligenceType {

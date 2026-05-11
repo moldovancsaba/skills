@@ -46,6 +46,7 @@ Frontend system:
 - first-class entity card surfaces must expose their canonical ICE score through the shared card header contract
 - Typography is defined centrally in the Mantine theme and DS typography primitives only
 - ICE management must run through the canonical scoring contract and the oldest-first maintenance queue across upstream cards, knowledge, goals, and tasks
+- tactical placement uses the shared blended priority contract: ICE remains visible, while ranking also accounts for quality, urgency, freshness, human signal, risk, lifecycle state, and memory signal
 - source-backed Knowmore cards must persist durable citation snapshots and explicit conflict state instead of relying on raw URLs alone
 
 Worker queue controls:
@@ -69,6 +70,10 @@ New operator surfaces:
 - `/:companyId/workflows` provides bounded workflow blueprints and enrichment-waterfall policy management
 - active workflow blueprints are not passive records: they materialize into claimable `WORKFLOW_BLUEPRINT` queue jobs and execute through the shared worker queue
 - enrichment-waterfall policies now affect runtime provider selection for URL intelligence instead of living as config-only records
+- `/:companyId/evaluations` provides an advisory evaluation bench for recommendation, grounded-answer, search, KPI, workflow, competitor, and data-readiness behavior before intelligence changes are promoted
+- `/:companyId/content-generation` generates and saves evidence-aware email subjects, platform ad copy, social posts, and landing-page sections from product and competitor context
+- `/:companyId/athlete` provides an athlete-facing daily app for coach-assigned work, activity recording, wellness/body metrics, readiness notes, and completion records
+- `/:companyId/athletes` provides a coach-facing athlete records view for daily team logs, completion evidence, load, sleep, soreness, readiness, and pain flags
 
 Knowmore evidence durability:
 

@@ -355,8 +355,43 @@ Important:
 - the app no longer uses mixed confidence scales
 - task generation/refinement must normalize through `src/lib/scoring-contract.js`
 - task scoring is grounded by source strength plus task specificity, urgency, and complexity signals
+- tactical placement uses the shared blended priority profile, not raw ICE alone
+- blended priority combines ICE, quality, urgency, freshness, human signal, risk, lifecycle state, and memory signal
+- `priorityProfile` exposes component-level reasons so ranking is inspectable
+- operator drag/drop anchors remain explicit human signal and are preserved ahead of AI-only ordering
 - periodic rescoring runs oldest-updated-first across active card layers
 - score clustering is observable through the dashboard score-health panel and `npm run audit:score-health`
+
+## Evaluation bench
+
+The first recommendation and agent evaluation contract is advisory:
+
+- `src/lib/evaluation-bench.ts` owns seeded synthetic fixture cases and rubrics for grounded answers, search ranking, KPI pulse behavior, workflow replay, competitive-change briefings, data-readiness warnings, and recommendation generation
+- `/api/evaluations` runs baseline-vs-candidate comparisons behind company membership checks
+- replay does not mutate production company data by default
+- failed gates can be explicitly published as `EVAL_GATE_FAILED` outcome events so Observability and pre-production evals share vocabulary
+- high-risk failed cases return `REVIEW_REQUIRED` or `BLOCK` promotion metadata before future enforcement is introduced
+
+## Content generation
+
+The first content-generation contract is draft-only:
+
+- `src/lib/content-generation.ts` derives channel-specific marketing copy from existing company, product, competitor, goal, topic, and task context
+- `/api/content-generation` persists generated outputs as `CreativeDraft` records and records generation/audit events
+- generated bundles include five email subject lines, Facebook/Google/LinkedIn ad copy, Twitter/LinkedIn/Facebook social posts, and landing-page hero/benefit/CTA sections
+- tone selection is explicit and bounded to clear, bold, executive, friendly, or technical
+- no automated posting, image generation, or multi-language output is part of this release
+
+## Athlete app
+
+The first athlete app contract is a daily recording loop beside the coach/operator app:
+
+- `AthleteActivityLog` stores athlete-entered activity, wellness/readiness, sleep, soreness, stress, mood, hydration, body weight, pain/nutrition notes, duration, intensity, notes, completion state, and optional linked checklist work
+- `/api/athlete` exposes the current athlete's assigned work plus their daily record behind normal company membership checks, with an admin-scoped team summary mode for coaches
+- `/:companyId/athlete` lets athletes see what the coach set, record training/recovery/nutrition/wellness/match/note entries, and mark assigned work complete
+- `/:companyId/athletes` lets coaches review team daily records, completion evidence, readiness, load, sleep, soreness, and pain flags
+- completed assigned work writes audit/outcome events and archives the linked checklist item as completed
+- wearable integrations, medical claims, public sharing, and payment flows are out of scope for this first slice
 
 ## Delivery modes
 

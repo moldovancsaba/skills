@@ -123,3 +123,36 @@ The repetitive-job system now has a first-class queue model:
 - `observability.ts` aggregates heartbeat, queue, score-health, worker reports, and recent outcomes for mission-control surfaces, and drives bounded repair recommendations
 - `workflow-blueprints.ts` owns the persisted bounded workflow-builder contract and default blueprint registry; active blueprints are synchronized into `PipelineJob` records and executed by the shared queue worker
 - `enrichment-waterfall.ts` owns the persisted provider-ordering and fallback policy contract for enrichment governance, and `url-enrichment.ts` consumes that policy at runtime for product/competitor research
+
+## 9. Blended Priority Architecture
+
+- `scoring-contract.js` owns `computeBlendedPriorityProfile`
+- the profile returns a bounded priority score, component signals, weights, lifecycle and memory multipliers, and short reason labels
+- frontier recomputation uses the blended priority score for rank and tactical column thresholds while preserving raw ICE as the visible card score
+- tactical API responses include `priorityProfile` so the board can explain why an item is ranked where it is
+- manual planning anchors from drag/drop remain first-class human signal and are preserved ahead of AI-only priority ordering
+
+## 10. Evaluation Bench Architecture
+
+- `evaluation-bench.ts` owns the seeded synthetic fixtures, case definitions, rubric weights, replay scorer, baseline-vs-candidate comparison, and promotion-gate metadata
+- `/api/evaluations` runs the bench behind normal company membership checks and is non-mutating by default
+- `/:companyId/evaluations` is the operator surface for running advisory replay, reviewing case-level reasons, and comparing candidate behavior to the current baseline
+- failed gates can be explicitly published to Observability as `EVAL_GATE_FAILED` outcome events so eval failures and production regressions share terminology
+- evaluation cases use synthetic fixture markers and tenant-isolation scoring so the bench does not reward cross-tenant or live-data leakage
+
+## 11. Content Generation Architecture
+
+- `content-generation.ts` owns the deterministic first-slice content-generation contract for tone profiles, positioning extraction, platform limits, and channel-specific output formatting
+- `/api/content-generation` runs behind normal company membership checks, reads existing company/product/competitor/goal/topic/task context, and persists generated outputs as `CreativeDraft` records
+- `/:companyId/content-generation` is the operator surface for choosing tone, adding an optional campaign brief, generating content, copying outputs, and reviewing recent drafts
+- generated bundles include exactly five email subject lines, Facebook/Google/LinkedIn ad copy, Twitter/LinkedIn/Facebook social posts, and landing-page hero/benefit/CTA copy
+- the current release is draft-only: it does not post externally, generate images, or claim multi-language output
+
+## 12. Athlete App Architecture
+
+- `AthleteActivityLog` is the persisted daily athlete record, keyed by company, athlete email, activity date, and optional assigned checklist item
+- `athlete-activity.ts` owns activity-type normalization, bounded score/duration/metrics handling, day-window calculation, and daily/team summary math
+- `/api/athlete` runs behind normal company membership checks for self records and supports an admin-scoped `scope=team` view for coach review
+- `/:companyId/athlete` is the athlete-facing surface for coach-assigned work, activity recording, wellness/body metrics, readiness notes, pain/nutrition notes, and completion evidence
+- `/:companyId/athletes` is the coach-facing records surface for team daily submissions, load, completion evidence, readiness, sleep, soreness, and pain flags
+- completing assigned work from the athlete app records an audit/outcome event and moves the linked checklist item to completed/archived state

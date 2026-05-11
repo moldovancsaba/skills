@@ -1,9 +1,10 @@
-import { searchCompanyContext, type SearchResultRecord } from "@/lib/internal-search";
+import { searchCompanyContext, type SearchEntityType, type SearchResultRecord } from "@/lib/internal-search";
 
 export type GroundedAnswer = {
   question: string;
   intent: "execution" | "strategy" | "evidence" | "knowledge";
   confidence: "LOW" | "MEDIUM" | "HIGH";
+  appliedEntityTypes: SearchEntityType[];
   summary: string;
   evidence: Array<{
     id: string;
@@ -60,8 +61,25 @@ function filterByIntent(results: SearchResultRecord[], intent: string) {
   return results.filter((item) => item.entityType === "FLASHCARD" || item.entityType === "SOURCE" || item.entityType === "TOPIC");
 }
 
-export async function buildGroundedAnswer(companyId: string, question: string) {
-  const search = await searchCompanyContext(companyId, question, 12);
+const DEFAULT_ENTITY_TYPES: SearchEntityType[] = [
+  "SOURCE",
+  "TOPIC",
+  "FLASHCARD",
+  "GOALCARD",
+  "TASK",
+  "PIPELINE_JOB",
+  "WORKFLOW_BLUEPRINT",
+  "VOC_THEME",
+  "VOC_ACTION_BRIEF",
+];
+
+export async function buildGroundedAnswer(
+  companyId: string,
+  question: string,
+  filters: { entityTypes?: SearchEntityType[] } = {},
+) {
+  const appliedEntityTypes = filters.entityTypes?.length ? filters.entityTypes : DEFAULT_ENTITY_TYPES;
+  const search = await searchCompanyContext(companyId, question, 12, { entityTypes: appliedEntityTypes });
   const results = search.items;
   const intent = inferIntent(question);
   const preferred = filterByIntent(results, intent);
@@ -72,6 +90,7 @@ export async function buildGroundedAnswer(companyId: string, question: string) {
       question,
       intent,
       confidence: "LOW",
+      appliedEntityTypes,
       summary: "No grounded answer is available yet because the current company context does not contain enough matching evidence.",
       evidence: [],
       evidenceGroups: [],
@@ -115,6 +134,7 @@ export async function buildGroundedAnswer(companyId: string, question: string) {
     question,
     intent,
     confidence,
+    appliedEntityTypes,
     summary,
     evidence: evidence.map((item) => ({
       id: item.id,

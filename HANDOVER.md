@@ -32,6 +32,7 @@ Read first:
 - the webapp now exposes `Search & Answers`, `Observability`, and `Workflows` as first implementation slices for the next ideabank wave
 - `Search & Answers` now supports entity filters, result counts, and grounded-answer confidence/evidence grouping
 - first-class entity search results now open the canonical shared `/card/[uuid]` detail route rather than only module landing pages
+- grounded answers now respect the active search entity-filter scope and expose that applied scope back to the operator
 - `Observability` now supports bounded queue repair actions and AI workload budget controls directly from the webapp mission-control surface
 - workflow blueprints and enrichment waterfall policies are persisted system contracts, not local page-only state
 - active workflow blueprints now become first-class `PipelineJob` records that the worker can claim and execute

@@ -74,7 +74,7 @@ export default function SearchPage() {
         fetch("/api/answers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyId, question: query }),
+          body: JSON.stringify({ companyId, question: query, entityTypes: selectedTypes }),
         }),
       ]);
       const searchData = await searchResponse.json();
@@ -139,6 +139,7 @@ export default function SearchPage() {
                 <Badge variant="light" color="knowmore">Grounded</Badge>
                 <Badge variant="light" color="review">{answer.evidence.length} evidence cards</Badge>
                 <Badge variant="light" color="strategy">{answer.intent}</Badge>
+                <Badge variant="light" color="gray">{answer.appliedEntityTypes.length} layers</Badge>
                 <Badge variant="light" color={answer.confidence === "HIGH" ? "knowmore" : answer.confidence === "MEDIUM" ? "strategy" : "review"}>
                   {answer.confidence} confidence
                 </Badge>

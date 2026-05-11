@@ -19,7 +19,7 @@ import {
   Badge,
   Button
 } from "@mantine/core";
-import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconFlask as Flask, IconPencil as Pencil } from "@tabler/icons-react";
+import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconFlask as Flask, IconPencil as Pencil, IconRun as Run } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
@@ -110,6 +110,14 @@ const pipelineItems = [
     color: "knowmore",
     tone: "knowmore",
   },
+  {
+    key: "athlete",
+    href: (companyId: string) => `/${companyId}/athlete`,
+    label: "Athlete App",
+    icon: Run,
+    color: "checklist",
+    tone: "checklist",
+  },
 ];
 
 export function ClientNav() {
@@ -173,6 +181,7 @@ export function ClientNav() {
             pipeline: data.counts?.pipelineJobs || 0,
             evaluations: 0,
             "content-generation": data.counts?.creativeDrafts || 0,
+            athlete: data.counts?.athleteActivityLogs || 0,
           });
         }
       } catch (err) {

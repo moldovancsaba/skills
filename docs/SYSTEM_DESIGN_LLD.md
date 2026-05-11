@@ -147,3 +147,11 @@ The repetitive-job system now has a first-class queue model:
 - `/:companyId/content-generation` is the operator surface for choosing tone, adding an optional campaign brief, generating content, copying outputs, and reviewing recent drafts
 - generated bundles include exactly five email subject lines, Facebook/Google/LinkedIn ad copy, Twitter/LinkedIn/Facebook social posts, and landing-page hero/benefit/CTA copy
 - the current release is draft-only: it does not post externally, generate images, or claim multi-language output
+
+## 12. Athlete App Architecture
+
+- `AthleteActivityLog` is the persisted daily athlete record, keyed by company, athlete email, activity date, and optional assigned checklist item
+- `athlete-activity.ts` owns activity-type normalization, bounded score/duration handling, day-window calculation, and daily summary math
+- `/api/athlete` runs behind normal company membership checks and returns the current athlete's assigned work plus their daily activity log
+- `/:companyId/athlete` is the athlete-facing surface for coach-assigned work, activity recording, wellness/readiness notes, and completion evidence
+- completing assigned work from the athlete app records an audit/outcome event and moves the linked checklist item to completed/archived state

@@ -214,6 +214,14 @@ Content generation rules:
 - generated copy must be persisted as `CreativeDraft` records and must remain editable outside the generator
 - content generation must record audit/generation events so future feedback loops can distinguish draft creation from campaign performance
 
+Athlete app rules:
+
+- athlete-facing recording must be separate from coach/operator planning surfaces while reusing the same company membership boundary
+- daily athlete records must persist as `AthleteActivityLog` entries with activity type, date, optional linked assigned work, duration, intensity, readiness, notes, and completion state
+- athlete completion of coach-assigned work must record audit/outcome events and must not silently erase the original checklist context
+- athlete forms must support training, recovery, nutrition, wellness, match, and note records without requiring coach intervention
+- the first athlete app release must not add public sharing, medical claims, payment, or external wearable integrations
+
 ## 10. Mandatory Completion Rules
 
 Work is not complete if any of the following are true:

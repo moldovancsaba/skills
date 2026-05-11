@@ -103,6 +103,8 @@ The current intelligence-operations contract also includes:
 - evaluation failures can be explicitly published into Observability as `EVAL_GATE_FAILED` outcome events; normal replay does not mutate production company data
 - one content-generation surface that turns existing company, product, goal, topic, and competitor context into saved `CreativeDraft` records for email subjects, ads, social posts, and landing-page copy
 - content generation is draft-only in the current contract: no automated posting, no image generation, and no multi-language generation
+- one athlete-facing daily app beside the coach/operator app, backed by `AthleteActivityLog`, where athletes can see assigned checklist work, record activity, readiness, intensity, notes, and completion evidence
+- completing coach-assigned work from the athlete app records an athlete outcome and archives the assigned checklist item as completed
 
 Tactical placement contract:
 

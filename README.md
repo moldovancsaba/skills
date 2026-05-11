@@ -72,6 +72,7 @@ New operator surfaces:
 - enrichment-waterfall policies now affect runtime provider selection for URL intelligence instead of living as config-only records
 - `/:companyId/evaluations` provides an advisory evaluation bench for recommendation, grounded-answer, search, KPI, workflow, competitor, and data-readiness behavior before intelligence changes are promoted
 - `/:companyId/content-generation` generates and saves evidence-aware email subjects, platform ad copy, social posts, and landing-page sections from product and competitor context
+- `/:companyId/athlete` provides an athlete-facing daily app for coach-assigned work, activity recording, wellness/readiness notes, and completion records
 
 Knowmore evidence durability:
 

@@ -40,6 +40,8 @@ Read first:
 - evaluation runs use synthetic fixtures by default and only write to Observability when an operator explicitly publishes failed gates
 - the webapp now exposes `Content Generation` for producing email subject lines, ad copy, social posts, and landing-page copy from existing company, product, goal, topic, and competitor context
 - content generation persists outputs as `CreativeDraft` records and records generation/audit events without automated posting
+- the webapp now exposes `Athlete App` beside the coach/operator surfaces so athletes can see coach-assigned checklist work, record daily activity, and mark assigned work complete
+- athlete records persist as `AthleteActivityLog` entries keyed by company, athlete email, day, and optional assigned task
 
 ## Files That Matter Most
 
@@ -65,6 +67,7 @@ System:
 - [scripts/lib/pipeline-jobs.js](/Users/Shared/Projects/checklist/scripts/lib/pipeline-jobs.js)
 - [src/lib/evaluation-bench.ts](/Users/Shared/Projects/checklist/src/lib/evaluation-bench.ts)
 - [src/lib/content-generation.ts](/Users/Shared/Projects/checklist/src/lib/content-generation.ts)
+- [src/lib/athlete-activity.ts](/Users/Shared/Projects/checklist/src/lib/athlete-activity.ts)
 
 ## Do Not Reintroduce
 
@@ -119,3 +122,4 @@ The work is not done until:
 - Frontier recompute assigns tactical columns by blended priority thresholds, not raw ICE alone, while preserving manual human drag/drop anchors.
 - Evaluation bench replay is advisory first: synthetic fixtures and rubric gates compare baseline vs candidate behavior without production writes unless failed gates are explicitly published to Observability.
 - Content generation is draft-only: it can create and persist channel-specific copy, but it must not post externally or generate images in the first release.
+- Athlete app is athlete-facing: it records daily activity and completion evidence but does not replace the coach/operator planning surfaces.

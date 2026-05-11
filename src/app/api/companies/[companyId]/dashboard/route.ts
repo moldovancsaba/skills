@@ -90,6 +90,12 @@ export async function GET(
             companyId: cid,
           },
         }),
+        prisma.vocTheme.count({
+          where: {
+            companyId: cid,
+            status: "ACTIVE",
+          },
+        }),
       ]).then(([
         sourceCount,
         fileCount,
@@ -102,6 +108,7 @@ export async function GET(
         pipelineJobCount,
         creativeDraftCount,
         athleteActivityLogCount,
+        vocThemeCount,
       ]) => ({
         sources: sourceCount + fileCount,
         files: fileCount,
@@ -114,6 +121,7 @@ export async function GET(
         pipelineJobs: pipelineJobCount,
         creativeDrafts: creativeDraftCount,
         athleteActivityLogs: athleteActivityLogCount,
+        vocThemes: vocThemeCount,
       })),
     ]);
 
@@ -144,6 +152,7 @@ export async function GET(
       pipelineJobs: liveCounts.pipelineJobs,
       creativeDrafts: liveCounts.creativeDrafts,
       athleteActivityLogs: liveCounts.athleteActivityLogs,
+      vocThemes: liveCounts.vocThemes,
     };
 
     return NextResponse.json({

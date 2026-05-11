@@ -404,6 +404,18 @@ The first AI workload budget-governor slice is an observability-first control lo
 - evaluation and content-generation APIs record usage when operators run those surfaces
 - Observability shows budget pressure, usage by feature, recommendations, and bounded controls without silently overriding human-guided scheduling or critical safety/evidence work
 
+## Voice of customer
+
+The first VoC signal-fusion slice makes customer language durable and searchable:
+
+- `VocSignal` stores reviews, support notes, survey responses, sales objections, social/listening snippets, cancellation reasons, interview notes, and manual notes with provenance metadata
+- `voc-signal-fusion.ts` normalizes channel/sentiment/urgency and groups signals into transparent deterministic themes
+- `VocTheme` stores affected segments, supporting excerpts, sentiment mix, confidence, recurrence, freshness, and review state
+- `VocActionBrief` stores root-cause hypotheses and recommended next work backed by the theme evidence excerpts
+- `/api/voc` records signals and recomputes themes/briefs behind company membership checks
+- `/:companyId/voc` gives operators a customer-voice surface beside Knowmore, Goals, Checklist, and Search & Answers
+- search and grounded answers include customer themes and briefs as retrievable company context
+
 ## Delivery modes
 
 There is one supported hosted execution mode:

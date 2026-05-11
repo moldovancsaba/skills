@@ -19,7 +19,7 @@ import {
   Badge,
   Button
 } from "@mantine/core";
-import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconFlask as Flask, IconPencil as Pencil, IconRun as Run, IconUsers as Users } from "@tabler/icons-react";
+import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconFlask as Flask, IconPencil as Pencil, IconRun as Run, IconUsers as Users, IconMessageCircle as MessageCircle } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
@@ -111,6 +111,14 @@ const pipelineItems = [
     tone: "knowmore",
   },
   {
+    key: "voc",
+    href: (companyId: string) => `/${companyId}/voc`,
+    label: "Customer Voice",
+    icon: MessageCircle,
+    color: "strategy",
+    tone: "strategy",
+  },
+  {
     key: "athlete",
     href: (companyId: string) => `/${companyId}/athlete`,
     label: "Athlete App",
@@ -189,6 +197,7 @@ export function ClientNav() {
             pipeline: data.counts?.pipelineJobs || 0,
             evaluations: 0,
             "content-generation": data.counts?.creativeDrafts || 0,
+            voc: data.counts?.vocThemes || 0,
             athlete: data.counts?.athleteActivityLogs || 0,
             athletes: data.counts?.athleteActivityLogs || 0,
           });

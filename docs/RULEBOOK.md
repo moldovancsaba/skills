@@ -222,6 +222,14 @@ Budget governor rules:
 - budget events must distinguish high-cost high-value work from likely waste such as retry storms, repeated failed jobs, or low-value repeated generation
 - Observability is the first budget-governor surface; budget controls must stay bounded to throttle, batch, cache/reuse, review-required, or pause policies until the system has stronger outcome evidence
 
+Voice-of-customer rules:
+
+- customer-language signals must preserve channel, provenance, segment/lifecycle metadata when available, sentiment, urgency, and source excerpt
+- themes and action briefs must preserve supporting excerpts and signal IDs; customer evidence must not become an unsourced summary
+- sentiment must not be the only prioritization signal; recurrence, urgency, freshness, segment impact, and confidence must also contribute
+- contradictory or mixed signals must lower confidence or create an explicit review state rather than silently averaging away disagreement
+- the first release must not add public social-listening automation, contact-center agent automation, survey-builder parity, or medical/legal-style customer claims
+
 Athlete app rules:
 
 - athlete-facing recording must be separate from coach/operator planning surfaces while reusing the same company membership boundary

@@ -45,6 +45,9 @@ model Company {
   aiWorkloadUsages     AiWorkloadUsage[]
   budgetPolicies       BudgetPolicy[]
   budgetEvents         BudgetEvent[]
+  vocSignals           VocSignal[]
+  vocThemes            VocTheme[]
+  vocActionBriefs      VocActionBrief[]
   
   // Profile Validation Fields
   website             String?
@@ -692,6 +695,74 @@ model BudgetEvent {
 
   @@index([companyId, status, severity, createdAt])
   @@index([companyId, feature, createdAt])
+}
+
+model VocSignal {
+  id              String   @id @default(uuid()) @map("_id")
+  companyId       String
+  channel         String   @default("NOTE")
+  sourceLabel     String?
+  customerSegment String?
+  lifecycleStage  String?
+  sentiment       String   @default("NEUTRAL")
+  urgency         Int      @default(3)
+  accountValue    Float?
+  title           String
+  excerpt         String
+  provenanceUrl   String?
+  occurredAt      DateTime @default(now())
+  metadata        Json?    @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, channel, occurredAt])
+  @@index([companyId, sentiment, urgency])
+}
+
+model VocTheme {
+  id                  String   @id @default(uuid()) @map("_id")
+  companyId           String
+  status              String   @default("ACTIVE")
+  title               String
+  summary             String
+  rootCauseHypothesis String
+  affectedSegments    String[] @default([])
+  signalIds           String[] @default([])
+  supportingExcerpts  Json?    @default("[]")
+  sentimentMix        Json?    @default("{}")
+  trendDirection      String   @default("STABLE")
+  confidence          Int      @default(50)
+  impactScore         Int      @default(5)
+  recurrenceScore     Int      @default(1)
+  freshnessScore      Int      @default(5)
+  reviewState         String   @default("READY")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status, confidence])
+  @@index([companyId, reviewState, updatedAt])
+}
+
+model VocActionBrief {
+  id               String   @id @default(uuid()) @map("_id")
+  companyId        String
+  themeId          String?
+  status           String   @default("DRAFT")
+  title            String
+  rootCause        String
+  affectedSegment  String?
+  recommendedWork  String
+  nextStepType     String   @default("CHECKLIST")
+  priorityScore    Float    @default(0)
+  evidence         Json?    @default("[]")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status, priorityScore])
+  @@index([companyId, themeId, createdAt])
 }
 
 model WorkflowBlueprint {

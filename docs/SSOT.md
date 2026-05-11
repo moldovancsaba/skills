@@ -104,6 +104,8 @@ The current intelligence-operations contract also includes:
 - one content-generation surface that turns existing company, product, goal, topic, and competitor context into saved `CreativeDraft` records for email subjects, ads, social posts, and landing-page copy
 - content generation is draft-only in the current contract: no automated posting, no image generation, and no multi-language generation
 - one AI workload budget-governor layer that persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records for company/feature attribution, estimated cost, workload units, retry pressure, reviewable budget events, and explicit operator-applied controls
+- one voice-of-customer signal-fusion layer that persists `VocSignal`, `VocTheme`, and `VocActionBrief` records for customer-language evidence, themes, root-cause hypotheses, confidence/review state, and source-backed action briefs
+- customer voice themes and action briefs participate in Search & Answers as first-class retrievable evidence/work objects
 - one athlete-facing daily app beside the coach/operator app, backed by `AthleteActivityLog`, where athletes can see assigned checklist work, record activity, readiness, intensity, sleep, soreness, stress, mood, hydration, body weight, pain/nutrition notes, and completion evidence
 - one coach-facing athlete records view where admins can review team daily submissions, completion evidence, load, readiness, sleep, soreness, and pain flags
 - completing coach-assigned work from the athlete app records an athlete outcome and archives the assigned checklist item as completed

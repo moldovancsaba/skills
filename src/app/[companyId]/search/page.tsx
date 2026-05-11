@@ -26,6 +26,10 @@ function toneLabel(entityType: SearchResultRecord["entityType"]) {
       return "Worker Queue";
     case "WORKFLOW_BLUEPRINT":
       return "Workflow";
+    case "VOC_THEME":
+      return "Customer Theme";
+    case "VOC_ACTION_BRIEF":
+      return "Customer Brief";
   }
 }
 
@@ -43,6 +47,8 @@ export default function SearchPage() {
     TASK: 0,
     PIPELINE_JOB: 0,
     WORKFLOW_BLUEPRINT: 0,
+    VOC_THEME: 0,
+    VOC_ACTION_BRIEF: 0,
   });
   const [answer, setAnswer] = useState<GroundedAnswer | null>(null);
   const [selectedTypes, setSelectedTypes] = useState<SearchEntityType[]>([
@@ -53,6 +59,8 @@ export default function SearchPage() {
     "TASK",
     "PIPELINE_JOB",
     "WORKFLOW_BLUEPRINT",
+    "VOC_THEME",
+    "VOC_ACTION_BRIEF",
   ]);
 
   const entityOptions: Array<{ value: SearchEntityType; label: string }> = [
@@ -63,6 +71,8 @@ export default function SearchPage() {
     { value: "TASK", label: "Tasks" },
     { value: "PIPELINE_JOB", label: "Queue" },
     { value: "WORKFLOW_BLUEPRINT", label: "Workflows" },
+    { value: "VOC_THEME", label: "Customer Themes" },
+    { value: "VOC_ACTION_BRIEF", label: "Customer Briefs" },
   ];
 
   const runSearch = useCallback(async () => {
@@ -88,6 +98,8 @@ export default function SearchPage() {
         TASK: 0,
         PIPELINE_JOB: 0,
         WORKFLOW_BLUEPRINT: 0,
+        VOC_THEME: 0,
+        VOC_ACTION_BRIEF: 0,
       });
       setAnswer(answerData);
     } finally {

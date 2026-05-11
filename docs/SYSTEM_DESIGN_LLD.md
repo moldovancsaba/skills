@@ -122,6 +122,7 @@ The repetitive-job system now has a first-class queue model:
 - `grounded-answers.ts` builds bounded evidence-backed answers on top of the internal search layer, including explicit intent/confidence/evidence-group fields
 - `observability.ts` aggregates heartbeat, queue, score-health, worker reports, and recent outcomes for mission-control surfaces, and drives bounded repair recommendations
 - `budget-governor.ts` owns workload usage attribution, virtual/default budget policies, budget-pressure summaries, recommended budget events, and explicit control application for queue/evaluation/content/observability work
+- `voc-signal-fusion.ts` owns customer-signal normalization, channel/sentiment constraints, deterministic theme grouping, confidence scoring, and action-brief payload construction
 - `workflow-blueprints.ts` owns the persisted bounded workflow-builder contract and default blueprint registry; active blueprints are synchronized into `PipelineJob` records and executed by the shared queue worker
 - `enrichment-waterfall.ts` owns the persisted provider-ordering and fallback policy contract for enrichment governance, and `url-enrichment.ts` consumes that policy at runtime for product/competitor research
 
@@ -167,3 +168,13 @@ The repetitive-job system now has a first-class queue model:
 - queue worker completion/failure, evaluation POSTs, content-generation POSTs, and observability actions all record workload usage in the first slice
 - Observability renders budget pressure, workload attribution, recommended budget events, and bounded controls for throttling queue work, batching evaluations, and cache/reuse policy
 - budget controls must not silently erase human-guided queue ordering or suppress critical evidence/safety work
+
+## 14. Voice Of Customer Architecture
+
+- `VocSignal` stores source customer language with channel, provenance, segment, lifecycle stage, sentiment, urgency, account value, and excerpt metadata
+- `VocTheme` stores fused themes with supporting signal IDs, source excerpts, affected segments, sentiment mix, trend direction, confidence, recurrence, and review state
+- `VocActionBrief` stores source-backed next-work recommendations with root cause, affected segment, priority, status, and evidence excerpts
+- `/api/voc` runs behind normal company membership checks and supports listing signals/themes/briefs plus recording new customer-language evidence
+- `/:companyId/voc` is the operator surface for recording customer signals and reviewing fused themes/action briefs
+- `internal-search.ts` and grounded answers include `VOC_THEME` and `VOC_ACTION_BRIEF` records so customer evidence can inform answers and execution queries
+- the first release uses deterministic transparent grouping and must not claim social-listening automation, contact-center automation, or sentiment-only prioritization

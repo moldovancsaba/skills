@@ -7,7 +7,9 @@ export type SearchEntityType =
   | "GOALCARD"
   | "TASK"
   | "PIPELINE_JOB"
-  | "WORKFLOW_BLUEPRINT";
+  | "WORKFLOW_BLUEPRINT"
+  | "VOC_THEME"
+  | "VOC_ACTION_BRIEF";
 
 export type SearchResultRecord = {
   id: string;
@@ -87,6 +89,10 @@ function entityWeight(entityType: SearchEntityType) {
       return 5;
     case "SOURCE":
       return 4;
+    case "VOC_ACTION_BRIEF":
+      return 4;
+    case "VOC_THEME":
+      return 4;
     case "WORKFLOW_BLUEPRINT":
       return 3;
     case "PIPELINE_JOB":
@@ -123,6 +129,8 @@ export async function searchCompanyContext(
         TASK: 0,
         PIPELINE_JOB: 0,
         WORKFLOW_BLUEPRINT: 0,
+        VOC_THEME: 0,
+        VOC_ACTION_BRIEF: 0,
       } satisfies Record<SearchEntityType, number>,
       total: 0,
     } satisfies SearchResponsePayload;
@@ -135,9 +143,11 @@ export async function searchCompanyContext(
     "TASK",
     "PIPELINE_JOB",
     "WORKFLOW_BLUEPRINT",
+    "VOC_THEME",
+    "VOC_ACTION_BRIEF",
   ]);
 
-  const [sources, topics, flashcards, goalcards, tasks, pipelineJobs, workflowBlueprints] = await Promise.all([
+  const [sources, topics, flashcards, goalcards, tasks, pipelineJobs, workflowBlueprints, vocThemes, vocBriefs] = await Promise.all([
     prisma.source.findMany({
       where: { companyId },
       orderBy: [{ updatedAt: "desc" }],
@@ -184,6 +194,16 @@ export async function searchCompanyContext(
       where: { companyId, status: { in: ["ACTIVE", "PAUSED"] } },
       orderBy: [{ updatedAt: "desc" }],
       take: 30,
+    }),
+    prisma.vocTheme.findMany({
+      where: { companyId, status: "ACTIVE" },
+      orderBy: [{ confidence: "desc" }, { updatedAt: "desc" }],
+      take: 40,
+    }),
+    prisma.vocActionBrief.findMany({
+      where: { companyId, status: { in: ["DRAFT", "READY"] } },
+      orderBy: [{ priorityScore: "desc" }, { updatedAt: "desc" }],
+      take: 40,
     }),
   ]);
 
@@ -343,6 +363,50 @@ export async function searchCompanyContext(
     });
   }
 
+  for (const theme of vocThemes) {
+    const score =
+      overlapScore(queryTokens, theme.title, theme.summary, theme.rootCauseHypothesis, theme.affectedSegments.join(" ")) +
+      freshnessBoost(theme.updatedAt) +
+      entityWeight("VOC_THEME");
+    if (score <= 0) continue;
+    results.push({
+      id: theme.id,
+      publicId: null,
+      entityType: "VOC_THEME",
+      title: theme.title,
+      snippet: collapseWhitespace(theme.summary),
+      href: `/${companyId}/voc`,
+      tone: "strategy",
+      iceScore: null,
+      updatedAt: theme.updatedAt.toISOString(),
+      status: theme.reviewState,
+      score,
+      supportingLabel: `${theme.confidence}% confidence`,
+    });
+  }
+
+  for (const brief of vocBriefs) {
+    const score =
+      overlapScore(queryTokens, brief.title, brief.rootCause, brief.recommendedWork, brief.affectedSegment) +
+      freshnessBoost(brief.updatedAt) +
+      entityWeight("VOC_ACTION_BRIEF");
+    if (score <= 0) continue;
+    results.push({
+      id: brief.id,
+      publicId: null,
+      entityType: "VOC_ACTION_BRIEF",
+      title: brief.title,
+      snippet: collapseWhitespace(brief.recommendedWork),
+      href: `/${companyId}/voc`,
+      tone: "checklist",
+      iceScore: null,
+      updatedAt: brief.updatedAt.toISOString(),
+      status: brief.status,
+      score,
+      supportingLabel: `Priority ${Math.round(brief.priorityScore)}`,
+    });
+  }
+
   const filtered = results.filter((item) => allowedTypes.has(item.entityType));
   const counts = filtered.reduce((acc, item) => {
     acc[item.entityType] += 1;
@@ -355,6 +419,8 @@ export async function searchCompanyContext(
     TASK: 0,
     PIPELINE_JOB: 0,
     WORKFLOW_BLUEPRINT: 0,
+    VOC_THEME: 0,
+    VOC_ACTION_BRIEF: 0,
   } satisfies Record<SearchEntityType, number>);
 
   return {

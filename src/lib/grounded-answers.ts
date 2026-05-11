@@ -44,20 +44,24 @@ function entityLabel(entityType: SearchResultRecord["entityType"]) {
       return "Worker Queue";
     case "WORKFLOW_BLUEPRINT":
       return "Workflow";
+    case "VOC_THEME":
+      return "Customer Theme";
+    case "VOC_ACTION_BRIEF":
+      return "Customer Brief";
   }
 }
 
 function filterByIntent(results: SearchResultRecord[], intent: string) {
   if (intent === "execution") {
-    return results.filter((item) => item.entityType === "TASK" || item.entityType === "PIPELINE_JOB");
+    return results.filter((item) => item.entityType === "TASK" || item.entityType === "PIPELINE_JOB" || item.entityType === "VOC_ACTION_BRIEF");
   }
   if (intent === "strategy") {
-    return results.filter((item) => item.entityType === "GOALCARD" || item.entityType === "TOPIC" || item.entityType === "TASK");
+    return results.filter((item) => item.entityType === "GOALCARD" || item.entityType === "TOPIC" || item.entityType === "TASK" || item.entityType === "VOC_THEME");
   }
   if (intent === "evidence") {
-    return results.filter((item) => item.entityType === "SOURCE" || item.entityType === "FLASHCARD" || item.entityType === "TOPIC");
+    return results.filter((item) => item.entityType === "SOURCE" || item.entityType === "FLASHCARD" || item.entityType === "TOPIC" || item.entityType === "VOC_THEME");
   }
-  return results.filter((item) => item.entityType === "FLASHCARD" || item.entityType === "SOURCE" || item.entityType === "TOPIC");
+  return results.filter((item) => item.entityType === "FLASHCARD" || item.entityType === "SOURCE" || item.entityType === "TOPIC" || item.entityType === "VOC_THEME");
 }
 
 export async function buildGroundedAnswer(companyId: string, question: string) {

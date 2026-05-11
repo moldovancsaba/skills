@@ -42,6 +42,8 @@ Read first:
 - content generation persists outputs as `CreativeDraft` records and records generation/audit events without automated posting
 - AI workload governance now persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records so queue, evaluation, content-generation, and observability work can be attributed by company and feature
 - budget controls are operator-applied and reviewable: queue throttling, evaluation batching, and cache/reuse policy changes do not silently suppress critical evidence work
+- the webapp now exposes `Customer Voice` for recording reviews/support/survey/sales/social/interview signals and fusing them into evidence-backed themes and action briefs
+- customer voice records persist as `VocSignal`, `VocTheme`, and `VocActionBrief` entries and are available to Search & Answers
 - the webapp now exposes `Athlete App` beside the coach/operator surfaces so athletes can see coach-assigned checklist work, record daily activity, wellness/body metrics, and mark assigned work complete
 - the webapp also exposes `Athletes` as the coach-facing records view for team daily logs, completion evidence, readiness, load, sleep, soreness, and pain flags
 - athlete records persist as `AthleteActivityLog` entries keyed by company, athlete email, day, and optional assigned task
@@ -126,5 +128,6 @@ The work is not done until:
 - Evaluation bench replay is advisory first: synthetic fixtures and rubric gates compare baseline vs candidate behavior without production writes unless failed gates are explicitly published to Observability.
 - Content generation is draft-only: it can create and persist channel-specific copy, but it must not post externally or generate images in the first release.
 - Budget governor is observability-first: usage/cost values are estimates unless explicitly marked actual, and controls are recorded as events/policies rather than hidden scheduling overrides.
+- Customer voice fusion is evidence-first: themes and briefs preserve source excerpts, segment metadata, confidence, review state, and root-cause hypotheses.
 - Athlete app is athlete-facing: it records daily activity, wellness/body metrics, and completion evidence but does not replace the coach/operator planning surfaces.
 - Athlete records is coach-facing: it can summarize team submissions, but planning and assignment still stay in the coach/operator checklist surfaces.

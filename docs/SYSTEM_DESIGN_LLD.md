@@ -151,7 +151,8 @@ The repetitive-job system now has a first-class queue model:
 ## 12. Athlete App Architecture
 
 - `AthleteActivityLog` is the persisted daily athlete record, keyed by company, athlete email, activity date, and optional assigned checklist item
-- `athlete-activity.ts` owns activity-type normalization, bounded score/duration handling, day-window calculation, and daily summary math
-- `/api/athlete` runs behind normal company membership checks and returns the current athlete's assigned work plus their daily activity log
-- `/:companyId/athlete` is the athlete-facing surface for coach-assigned work, activity recording, wellness/readiness notes, and completion evidence
+- `athlete-activity.ts` owns activity-type normalization, bounded score/duration/metrics handling, day-window calculation, and daily/team summary math
+- `/api/athlete` runs behind normal company membership checks for self records and supports an admin-scoped `scope=team` view for coach review
+- `/:companyId/athlete` is the athlete-facing surface for coach-assigned work, activity recording, wellness/body metrics, readiness notes, pain/nutrition notes, and completion evidence
+- `/:companyId/athletes` is the coach-facing records surface for team daily submissions, load, completion evidence, readiness, sleep, soreness, and pain flags
 - completing assigned work from the athlete app records an audit/outcome event and moves the linked checklist item to completed/archived state

@@ -217,9 +217,10 @@ Content generation rules:
 Athlete app rules:
 
 - athlete-facing recording must be separate from coach/operator planning surfaces while reusing the same company membership boundary
-- daily athlete records must persist as `AthleteActivityLog` entries with activity type, date, optional linked assigned work, duration, intensity, readiness, notes, and completion state
+- daily athlete records must persist as `AthleteActivityLog` entries with activity type, date, optional linked assigned work, duration, intensity, readiness, wellness/body metrics, notes, and completion state
+- coach-facing athlete record review must require admin-level company membership while athlete self-entry uses normal company membership
 - athlete completion of coach-assigned work must record audit/outcome events and must not silently erase the original checklist context
-- athlete forms must support training, recovery, nutrition, wellness, match, and note records without requiring coach intervention
+- athlete forms must support training, recovery, nutrition, wellness, match, note, sleep, soreness, stress, mood, hydration, body-weight, pain, and nutrition records without requiring coach intervention
 - the first athlete app release must not add public sharing, medical claims, payment, or external wearable integrations
 
 ## 10. Mandatory Completion Rules

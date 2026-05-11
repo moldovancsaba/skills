@@ -50,6 +50,16 @@ type AthleteLog = {
   completionState: string;
   createdAt: string;
   nbaItemId?: string | null;
+  metrics?: {
+    sleepHours?: number;
+    soreness?: number;
+    stress?: number;
+    mood?: number;
+    hydration?: number;
+    bodyWeight?: number;
+    painArea?: string;
+    nutritionNote?: string;
+  } | null;
 };
 
 type AthletePayload = {
@@ -66,6 +76,9 @@ type AthletePayload = {
     totalMinutes: number;
     averageReadiness: number | null;
     averageIntensity: number | null;
+    averageSleepHours: number | null;
+    averageSoreness: number | null;
+    painReports: number;
   };
 };
 
@@ -84,6 +97,14 @@ export default function AthletePage() {
   const [durationMinutes, setDurationMinutes] = useState<number | "">(45);
   const [intensity, setIntensity] = useState<number | "">(6);
   const [readiness, setReadiness] = useState<number | "">(7);
+  const [sleepHours, setSleepHours] = useState<number | "">(8);
+  const [soreness, setSoreness] = useState<number | "">(3);
+  const [stress, setStress] = useState<number | "">(3);
+  const [mood, setMood] = useState<number | "">(7);
+  const [hydration, setHydration] = useState<number | "">(7);
+  const [bodyWeight, setBodyWeight] = useState<number | "">("");
+  const [painArea, setPainArea] = useState("");
+  const [nutritionNote, setNutritionNote] = useState("");
 
   const loadDay = useCallback(async () => {
     setLoading(true);
@@ -108,6 +129,14 @@ export default function AthletePage() {
     setDurationMinutes(45);
     setIntensity(6);
     setReadiness(7);
+    setSleepHours(8);
+    setSoreness(3);
+    setStress(3);
+    setMood(7);
+    setHydration(7);
+    setBodyWeight("");
+    setPainArea("");
+    setNutritionNote("");
     setActivityType("TRAINING");
   };
 
@@ -130,6 +159,16 @@ export default function AthletePage() {
           durationMinutes,
           intensity,
           readiness,
+          metrics: {
+            sleepHours,
+            soreness,
+            stress,
+            mood,
+            hydration,
+            bodyWeight,
+            painArea,
+            nutritionNote,
+          },
           nbaItemId: work?.id,
           completionState: options?.completed ? "COMPLETED" : "RECORDED",
         }),
@@ -139,7 +178,7 @@ export default function AthletePage() {
     } finally {
       setSaving(false);
     }
-  }, [activityType, companyId, date, durationMinutes, intensity, loadDay, notes, readiness, title]);
+  }, [activityType, bodyWeight, companyId, date, durationMinutes, hydration, intensity, loadDay, mood, notes, nutritionNote, painArea, readiness, sleepHours, soreness, stress, title]);
 
   if (loading) {
     return (
@@ -157,6 +196,9 @@ export default function AthletePage() {
     totalMinutes: 0,
     averageReadiness: null,
     averageIntensity: null,
+    averageSleepHours: null,
+    averageSoreness: null,
+    painReports: 0,
   };
   const assignedWork = data?.assignedWork || [];
   const logs = data?.logs || [];
@@ -179,7 +221,7 @@ export default function AthletePage() {
         <MetricCard icon={CalendarCheck} color="checklist" label="Coach Set" value={assignedWork.length} detail="Open assigned items" />
         <MetricCard icon={Checks} color="knowmore" label="Completed" value={summary.completed} detail={`${summary.totalLogs} records today`} />
         <MetricCard icon={Activity} color="tactical" label="Minutes" value={summary.totalMinutes} detail="Recorded training time" />
-        <MetricCard icon={Heartbeat} color="review" label="Readiness" value={summary.averageReadiness ?? "—"} detail={`Intensity ${summary.averageIntensity ?? "—"}`} />
+        <MetricCard icon={Heartbeat} color="review" label="Readiness" value={summary.averageReadiness ?? "—"} detail={`Sleep ${summary.averageSleepHours ?? "—"}h · soreness ${summary.averageSoreness ?? "—"}`} />
       </SimpleGrid>
 
       <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
@@ -240,6 +282,30 @@ export default function AthletePage() {
               <NumberInput label="Intensity" min={1} max={10} value={intensity} onChange={(value) => setIntensity(typeof value === "number" ? value : "")} />
               <NumberInput label="Readiness" min={1} max={10} value={readiness} onChange={(value) => setReadiness(typeof value === "number" ? value : "")} />
             </SimpleGrid>
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+              <NumberInput label="Sleep hours" min={0} max={24} decimalScale={1} value={sleepHours} onChange={(value) => setSleepHours(typeof value === "number" ? value : "")} />
+              <NumberInput label="Soreness" min={1} max={10} value={soreness} onChange={(value) => setSoreness(typeof value === "number" ? value : "")} />
+              <NumberInput label="Stress" min={1} max={10} value={stress} onChange={(value) => setStress(typeof value === "number" ? value : "")} />
+            </SimpleGrid>
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+              <NumberInput label="Mood" min={1} max={10} value={mood} onChange={(value) => setMood(typeof value === "number" ? value : "")} />
+              <NumberInput label="Hydration" min={1} max={10} value={hydration} onChange={(value) => setHydration(typeof value === "number" ? value : "")} />
+              <NumberInput label="Body weight" min={20} max={400} decimalScale={1} value={bodyWeight} onChange={(value) => setBodyWeight(typeof value === "number" ? value : "")} />
+            </SimpleGrid>
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <TextInput
+                label="Pain area"
+                placeholder="None, left knee, shoulder..."
+                value={painArea}
+                onChange={(event) => setPainArea(event.currentTarget.value)}
+              />
+              <TextInput
+                label="Nutrition note"
+                placeholder="Meals, supplements, hydration..."
+                value={nutritionNote}
+                onChange={(event) => setNutritionNote(event.currentTarget.value)}
+              />
+            </SimpleGrid>
             <Textarea
               label="Notes"
               placeholder="Pain, energy, RPE, sets/reps, food, sleep, coach feedback..."
@@ -271,6 +337,7 @@ export default function AthletePage() {
                 <Table.Th>Minutes</Table.Th>
                 <Table.Th>Intensity</Table.Th>
                 <Table.Th>Readiness</Table.Th>
+                <Table.Th>Wellness</Table.Th>
                 <Table.Th>Status</Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -287,6 +354,12 @@ export default function AthletePage() {
                   <Table.Td>{log.durationMinutes ?? "—"}</Table.Td>
                   <Table.Td>{log.intensity ?? "—"}</Table.Td>
                   <Table.Td>{log.readiness ?? "—"}</Table.Td>
+                  <Table.Td>
+                    <MetaText>
+                      Sleep {log.metrics?.sleepHours ?? "—"}h · sore {log.metrics?.soreness ?? "—"}
+                      {log.metrics?.painArea ? ` · pain ${log.metrics.painArea}` : ""}
+                    </MetaText>
+                  </Table.Td>
                   <Table.Td>
                     <Badge variant="light" color={log.completionState === "COMPLETED" ? "knowmore" : "gray"}>
                       {log.completionState}

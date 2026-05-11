@@ -386,9 +386,10 @@ The first content-generation contract is draft-only:
 
 The first athlete app contract is a daily recording loop beside the coach/operator app:
 
-- `AthleteActivityLog` stores athlete-entered activity, wellness/readiness, duration, intensity, notes, completion state, and optional linked checklist work
-- `/api/athlete` exposes the current athlete's assigned work plus their daily record behind normal company membership checks
+- `AthleteActivityLog` stores athlete-entered activity, wellness/readiness, sleep, soreness, stress, mood, hydration, body weight, pain/nutrition notes, duration, intensity, notes, completion state, and optional linked checklist work
+- `/api/athlete` exposes the current athlete's assigned work plus their daily record behind normal company membership checks, with an admin-scoped team summary mode for coaches
 - `/:companyId/athlete` lets athletes see what the coach set, record training/recovery/nutrition/wellness/match/note entries, and mark assigned work complete
+- `/:companyId/athletes` lets coaches review team daily records, completion evidence, readiness, load, sleep, soreness, and pain flags
 - completed assigned work writes audit/outcome events and archives the linked checklist item as completed
 - wearable integrations, medical claims, public sharing, and payment flows are out of scope for this first slice
 

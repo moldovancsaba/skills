@@ -4,9 +4,11 @@ import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/aud
 import {
   clampAthleteScore,
   dayBounds,
+  normalizeAthleteMetrics,
   normalizeActivityType,
   normalizeDurationMinutes,
   summarizeAthleteDay,
+  summarizeAthleteTeam,
 } from "@/lib/athlete-activity";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
@@ -17,20 +19,52 @@ function normalizeText(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
-function parseMetrics(value: unknown): Prisma.InputJsonValue {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return value as Prisma.InputJsonObject;
-}
-
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
   const { safeDate, start, end } = dayBounds(request.nextUrl.searchParams.get("date"));
+  const scope = request.nextUrl.searchParams.get("scope");
   if (!companyId) {
     return NextResponse.json({ error: "companyId required" }, { status: 400 });
   }
 
-  const auth = await verifyMembership(request, companyId);
+  const auth = await verifyMembership(request, companyId, scope === "team" ? "ADMIN" : undefined);
   if (auth.error) return auth.error;
+
+  if (scope === "team") {
+    const [assignedWork, logs] = await Promise.all([
+      prisma.nBAItem.findMany({
+        where: {
+          companyId,
+          activityState: { in: ["ACTIVE", "STALE"] },
+          processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "REVIEW"] },
+          kanbanColumn: { in: ["TODO", "CHECKLIST"] },
+          OR: [
+            { scheduledDate: null },
+            { scheduledDate: { lte: end } },
+          ],
+        },
+        orderBy: [{ scheduledDate: "asc" }, { sortOrder: "asc" }, { iceScore: "desc" }],
+        take: 50,
+      }),
+      prisma.athleteActivityLog.findMany({
+        where: {
+          companyId,
+          activityDate: { gte: start, lte: end },
+        },
+        orderBy: [{ createdAt: "desc" }],
+        take: 200,
+      }),
+    ]);
+
+    return NextResponse.json({
+      date: safeDate,
+      scope: "team",
+      assignedWork,
+      logs,
+      summary: summarizeAthleteDay(logs),
+      athleteSummaries: summarizeAthleteTeam(logs),
+    });
+  }
 
   const athleteEmail = auth.session.email.trim().toLowerCase();
   const [assignedWork, logs] = await Promise.all([
@@ -105,7 +139,7 @@ export async function POST(request: NextRequest) {
         intensity: clampAthleteScore(data.intensity),
         readiness: clampAthleteScore(data.readiness),
         completionState,
-        metrics: parseMetrics(data.metrics),
+        metrics: normalizeAthleteMetrics(data.metrics) as Prisma.InputJsonValue,
       },
     });
 
@@ -149,6 +183,7 @@ export async function POST(request: NextRequest) {
         durationMinutes: created.durationMinutes,
         intensity: created.intensity,
         readiness: created.readiness,
+        metrics: created.metrics,
       },
       teachingWeight: completionState === "COMPLETED" ? 80 : 45,
     });

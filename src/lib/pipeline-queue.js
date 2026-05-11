@@ -535,6 +535,53 @@ async function completePipelineJob(prisma, jobId, reason = null) {
   });
 }
 
+async function escalateCompanyPipelineJob(prisma, companyId, jobType, entityType = "COMPANY", entityId = companyId) {
+  await syncCompanyPipelineJobs(prisma, companyId);
+  const job = await prisma.pipelineJob.findUnique({
+    where: {
+      companyId_jobType_entityType_entityId: {
+        companyId,
+        jobType,
+        entityType,
+        entityId,
+      },
+    },
+  });
+  if (!job) {
+    return null;
+  }
+
+  return prisma.pipelineJob.update({
+    where: { id: job.id },
+    data: {
+      controlMode: "AI_ONLY",
+      queueColumn: "NOW",
+      status: "ACTIVE",
+      priorityScore: Math.max(job.priorityScore ?? 0, 150),
+      lastError: null,
+      reason: `Escalated for immediate operator-guided repair. ${job.reason ?? ""}`.trim(),
+      updatedAt: new Date(),
+    },
+  });
+}
+
+async function recoverFailedCompanyPipelineJobs(prisma, companyId) {
+  await prisma.pipelineJob.updateMany({
+    where: {
+      companyId,
+      status: "FAILED",
+    },
+    data: {
+      status: "ACTIVE",
+      lastError: null,
+      queueColumn: "NOW",
+      controlMode: "AI_ONLY",
+      updatedAt: new Date(),
+    },
+  });
+  return listCompanyPipelineJobs(prisma, companyId);
+}
+
 async function failPipelineJob(prisma, jobId, error) {
   return prisma.pipelineJob.update({
     where: { id: jobId },
@@ -563,6 +610,8 @@ module.exports = {
   applyManualPipelineQueueMove,
   claimNextPipelineJobs,
   completePipelineJob,
+  escalateCompanyPipelineJob,
+  recoverFailedCompanyPipelineJobs,
   failPipelineJob,
   sortPipelineJobs,
 };

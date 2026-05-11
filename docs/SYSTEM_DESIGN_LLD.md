@@ -118,7 +118,8 @@ The repetitive-job system now has a first-class queue model:
 ## 8. Search, Answers, And Workflow Foundations
 
 - `internal-search.ts` is the shared retrieval boundary for internal cards, queue jobs, and workflow blueprints
-- `grounded-answers.ts` builds bounded evidence-backed answers on top of the internal search layer
-- `observability.ts` aggregates heartbeat, queue, score-health, worker reports, and recent outcomes for mission-control surfaces
+- `internal-search.ts` also owns result counts, entity-layer filtering, and ranking boosts from ICE and freshness
+- `grounded-answers.ts` builds bounded evidence-backed answers on top of the internal search layer, including explicit intent/confidence/evidence-group fields
+- `observability.ts` aggregates heartbeat, queue, score-health, worker reports, and recent outcomes for mission-control surfaces, and drives bounded repair recommendations
 - `workflow-blueprints.ts` owns the persisted bounded workflow-builder contract and default blueprint registry; active blueprints are synchronized into `PipelineJob` records and executed by the shared queue worker
 - `enrichment-waterfall.ts` owns the persisted provider-ordering and fallback policy contract for enrichment governance, and `url-enrichment.ts` consumes that policy at runtime for product/competitor research

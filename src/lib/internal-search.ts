@@ -24,6 +24,16 @@ export type SearchResultRecord = {
   supportingLabel?: string | null;
 };
 
+export type SearchFilters = {
+  entityTypes?: SearchEntityType[];
+};
+
+export type SearchResponsePayload = {
+  items: SearchResultRecord[];
+  counts: Record<SearchEntityType, number>;
+  total: number;
+};
+
 function tokenize(value: string) {
   return String(value || "")
     .toLowerCase()
@@ -53,16 +63,75 @@ function overlapScore(queryTokens: string[], ...fields: Array<string | null | un
   return score;
 }
 
+function freshnessBoost(updatedAt: Date) {
+  const ageHours = Math.max(1, (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60));
+  if (ageHours <= 24) return 6;
+  if (ageHours <= 24 * 7) return 3;
+  return 0;
+}
+
+function iceBoost(iceScore: number | null | undefined) {
+  if (typeof iceScore !== "number" || Number.isNaN(iceScore)) return 0;
+  return Math.min(12, Math.round(iceScore / 50));
+}
+
+function entityWeight(entityType: SearchEntityType) {
+  switch (entityType) {
+    case "FLASHCARD":
+      return 8;
+    case "TASK":
+      return 7;
+    case "GOALCARD":
+      return 6;
+    case "TOPIC":
+      return 5;
+    case "SOURCE":
+      return 4;
+    case "WORKFLOW_BLUEPRINT":
+      return 3;
+    case "PIPELINE_JOB":
+      return 2;
+    default:
+      return 0;
+  }
+}
+
 function byScore<T extends { score: number; updatedAt: string }>(left: T, right: T) {
   if (right.score !== left.score) return right.score - left.score;
   return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
 }
 
-export async function searchCompanyContext(companyId: string, query: string, limit = 24) {
+export async function searchCompanyContext(
+  companyId: string,
+  query: string,
+  limit = 24,
+  filters: SearchFilters = {},
+) {
   const queryTokens = tokenize(query);
   if (queryTokens.length === 0) {
-    return [] as SearchResultRecord[];
+    return {
+      items: [] as SearchResultRecord[],
+      counts: {
+        SOURCE: 0,
+        TOPIC: 0,
+        FLASHCARD: 0,
+        GOALCARD: 0,
+        TASK: 0,
+        PIPELINE_JOB: 0,
+        WORKFLOW_BLUEPRINT: 0,
+      } satisfies Record<SearchEntityType, number>,
+      total: 0,
+    } satisfies SearchResponsePayload;
   }
+  const allowedTypes = new Set(filters.entityTypes?.length ? filters.entityTypes : [
+    "SOURCE",
+    "TOPIC",
+    "FLASHCARD",
+    "GOALCARD",
+    "TASK",
+    "PIPELINE_JOB",
+    "WORKFLOW_BLUEPRINT",
+  ]);
 
   const [sources, topics, flashcards, goalcards, tasks, pipelineJobs, workflowBlueprints] = await Promise.all([
     prisma.source.findMany({
@@ -117,7 +186,11 @@ export async function searchCompanyContext(companyId: string, query: string, lim
   const results: SearchResultRecord[] = [];
 
   for (const source of sources) {
-    const score = overlapScore(queryTokens, source.entityTag, source.content, source.hashtags.join(" "));
+    const score =
+      overlapScore(queryTokens, source.entityTag, source.content, source.hashtags.join(" ")) +
+      freshnessBoost(source.updatedAt) +
+      iceBoost(source.iceScore) +
+      entityWeight("SOURCE");
     if (score <= 0) continue;
     results.push({
       id: source.id,
@@ -136,7 +209,11 @@ export async function searchCompanyContext(companyId: string, query: string, lim
   }
 
   for (const topic of topics) {
-    const score = overlapScore(queryTokens, topic.label, topic.notes, topic.hashtags.join(" "));
+    const score =
+      overlapScore(queryTokens, topic.label, topic.notes, topic.hashtags.join(" ")) +
+      freshnessBoost(topic.updatedAt) +
+      iceBoost(topic.iceScore) +
+      entityWeight("TOPIC");
     if (score <= 0) continue;
     results.push({
       id: topic.id,
@@ -154,7 +231,11 @@ export async function searchCompanyContext(companyId: string, query: string, lim
   }
 
   for (const flashcard of flashcards) {
-    const score = overlapScore(queryTokens, flashcard.title, flashcard.body, flashcard.hashtags.join(" "));
+    const score =
+      overlapScore(queryTokens, flashcard.title, flashcard.body, flashcard.hashtags.join(" ")) +
+      freshnessBoost(flashcard.updatedAt) +
+      iceBoost(flashcard.iceScore) +
+      entityWeight("FLASHCARD");
     if (score <= 0) continue;
     results.push({
       id: flashcard.id,
@@ -173,7 +254,11 @@ export async function searchCompanyContext(companyId: string, query: string, lim
   }
 
   for (const goalcard of goalcards) {
-    const score = overlapScore(queryTokens, goalcard.title, goalcard.body, goalcard.hashtags.join(" "));
+    const score =
+      overlapScore(queryTokens, goalcard.title, goalcard.body, goalcard.hashtags.join(" ")) +
+      freshnessBoost(goalcard.updatedAt) +
+      iceBoost(goalcard.iceScore) +
+      entityWeight("GOALCARD");
     if (score <= 0) continue;
     results.push({
       id: goalcard.id,
@@ -191,7 +276,11 @@ export async function searchCompanyContext(companyId: string, query: string, lim
   }
 
   for (const task of tasks) {
-    const score = overlapScore(queryTokens, task.title, task.description, task.hashtags.join(" "));
+    const score =
+      overlapScore(queryTokens, task.title, task.description, task.hashtags.join(" ")) +
+      freshnessBoost(task.updatedAt) +
+      iceBoost(task.iceScore) +
+      entityWeight("TASK");
     if (score <= 0) continue;
     results.push({
       id: task.id,
@@ -210,7 +299,7 @@ export async function searchCompanyContext(companyId: string, query: string, lim
 
   for (const job of pipelineJobs) {
     const haystack = [job.jobType, job.reason, job.sourceSignal, job.entityType, job.queueColumn, job.controlMode].join(" ");
-    const score = overlapScore(queryTokens, haystack);
+    const score = overlapScore(queryTokens, haystack) + freshnessBoost(job.updatedAt) + entityWeight("PIPELINE_JOB");
     if (score <= 0) continue;
     results.push({
       id: job.id,
@@ -229,7 +318,10 @@ export async function searchCompanyContext(companyId: string, query: string, lim
   }
 
   for (const workflow of workflowBlueprints) {
-    const score = overlapScore(queryTokens, workflow.name, workflow.description, workflow.triggerType, workflow.templateKey);
+    const score =
+      overlapScore(queryTokens, workflow.name, workflow.description, workflow.triggerType, workflow.templateKey) +
+      freshnessBoost(workflow.updatedAt) +
+      entityWeight("WORKFLOW_BLUEPRINT");
     if (score <= 0) continue;
     results.push({
       id: workflow.id,
@@ -247,5 +339,23 @@ export async function searchCompanyContext(companyId: string, query: string, lim
     });
   }
 
-  return results.sort(byScore).slice(0, limit);
+  const filtered = results.filter((item) => allowedTypes.has(item.entityType));
+  const counts = filtered.reduce((acc, item) => {
+    acc[item.entityType] += 1;
+    return acc;
+  }, {
+    SOURCE: 0,
+    TOPIC: 0,
+    FLASHCARD: 0,
+    GOALCARD: 0,
+    TASK: 0,
+    PIPELINE_JOB: 0,
+    WORKFLOW_BLUEPRINT: 0,
+  } satisfies Record<SearchEntityType, number>);
+
+  return {
+    items: filtered.sort(byScore).slice(0, limit),
+    counts,
+    total: filtered.length,
+  } satisfies SearchResponsePayload;
 }

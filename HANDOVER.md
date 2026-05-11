@@ -29,6 +29,8 @@ Read first:
 - source-backed Knowmore cards now carry durable citation snapshots plus explicit conflict flags and summaries
 - maintenance now includes oldest-first revisit jobs for unresolved modified candidates and declined high-potential candidates
 - the webapp now exposes `Search & Answers`, `Observability`, and `Workflows` as first implementation slices for the next ideabank wave
+- `Search & Answers` now supports entity filters, result counts, and grounded-answer confidence/evidence grouping
+- `Observability` now supports bounded queue repair actions directly from the webapp mission-control surface
 - workflow blueprints and enrichment waterfall policies are persisted system contracts, not local page-only state
 - active workflow blueprints now become first-class `PipelineJob` records that the worker can claim and execute
 - enrichment waterfall policy now influences runtime URL-intelligence provider selection for product and competitor research paths

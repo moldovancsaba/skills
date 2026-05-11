@@ -90,8 +90,11 @@ The repetitive-job contract now also includes:
 The current intelligence-operations contract also includes:
 
 - one unified internal search layer across cards, queue work, and workflow blueprints
+- search responses now include entity-type filters, per-layer counts, and ranking that blends text overlap with ICE/freshness cues
 - one grounded answer layer over company context using explicit evidence objects
+- grounded answers now expose intent, confidence, and evidence-group framing as first-class contract fields
 - one observability surface for worker health, queue pressure, score-health, and recent outcomes
+- observability also owns bounded repair actions for queue sync, score-repair escalation, and failed-job recovery
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active
 - persisted enrichment waterfall policies for provider ordering and fallback governance, applied at runtime during URL intelligence enrichment
 

@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Badge, Group, Loader, SimpleGrid, Stack, Table } from "@mantine/core";
-import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconHeartbeat as Heartbeat, IconListCheck as ListCheck } from "@tabler/icons-react";
+import { Badge, Button, Group, Loader, SimpleGrid, Stack, Table } from "@mantine/core";
+import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconHeartbeat as Heartbeat, IconListCheck as ListCheck, IconRefresh as RefreshIcon, IconStethoscope as Stethoscope } from "@tabler/icons-react";
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
-import { BodyText, MetaText, SectionTitle } from "@/components/ui/typography";
+import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
 
 export default function ObservabilityPage() {
@@ -13,18 +13,37 @@ export default function ObservabilityPage() {
   const companyId = params.companyId as string;
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/observability?companyId=${companyId}`);
+      setData(await response.json());
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId]);
 
   useEffect(() => {
-    const run = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/observability?companyId=${companyId}`);
-        setData(await response.json());
-      } finally {
-        setLoading(false);
-      }
-    };
-    void run();
+    const timer = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadData]);
+
+  const runAction = useCallback(async (action: string) => {
+    setActionLoading(action);
+    try {
+      const response = await fetch("/api/observability", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId, action }),
+      });
+      setData(await response.json());
+    } finally {
+      setActionLoading(null);
+    }
   }, [companyId]);
 
   if (loading) {
@@ -60,6 +79,43 @@ export default function ObservabilityPage() {
           {scoreHealth.alerts[0].message}
         </Notice>
       ) : null}
+
+      <UnifiedCard tone="review">
+        <UnifiedCardHeader title="Repair Actions" />
+        <UnifiedCardBody>
+          <Group gap="sm">
+            <Button
+              leftSection={<RefreshIcon size={16} />}
+              variant="light"
+              color="review"
+              loading={actionLoading === "SYNC_QUEUE"}
+              onClick={() => void runAction("SYNC_QUEUE")}
+            >
+              Sync Queue
+            </Button>
+            <Button
+              leftSection={<Stethoscope size={16} />}
+              variant="light"
+              color="strategy"
+              disabled={!data?.recommendedActions?.escalateScoreRepair}
+              loading={actionLoading === "ESCALATE_SCORE_REPAIR"}
+              onClick={() => void runAction("ESCALATE_SCORE_REPAIR")}
+            >
+              Escalate Score Repair
+            </Button>
+            <Button
+              leftSection={<AlertTriangle size={16} />}
+              variant="light"
+              color="checklist"
+              disabled={!data?.recommendedActions?.recoverFailedJobs}
+              loading={actionLoading === "RECOVER_FAILED_JOBS"}
+              onClick={() => void runAction("RECOVER_FAILED_JOBS")}
+            >
+              Recover Failed Jobs
+            </Button>
+          </Group>
+        </UnifiedCardBody>
+      </UnifiedCard>
 
       <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
         <UnifiedCard tone="review">

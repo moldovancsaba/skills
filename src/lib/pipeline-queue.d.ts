@@ -60,4 +60,12 @@ export function applyManualPipelineQueueMove(
 ): Promise<{ moved: PipelineJobRecord | null; jobs: PipelineJobRecord[] }>;
 export function claimNextPipelineJobs(prisma: unknown, limit?: number): Promise<PipelineJobRecord[]>;
 export function completePipelineJob(prisma: unknown, jobId: string, reason?: string | null): Promise<PipelineJobRecord>;
+export function escalateCompanyPipelineJob(
+  prisma: unknown,
+  companyId: string,
+  jobType: PipelineJobType,
+  entityType?: string,
+  entityId?: string,
+): Promise<PipelineJobRecord | null>;
+export function recoverFailedCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
 export function failPipelineJob(prisma: unknown, jobId: string, error: unknown): Promise<PipelineJobRecord>;

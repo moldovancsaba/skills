@@ -2,12 +2,12 @@
 
 import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
-import { Badge, Button, Group, Loader, SimpleGrid, Stack, TextInput } from "@mantine/core";
+import { Badge, Button, Checkbox, Group, Loader, SimpleGrid, Stack, TextInput } from "@mantine/core";
 import { IconSearch as SearchIcon, IconSparkles as Sparkles } from "@tabler/icons-react";
 import { Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
-import { BodyText, CardTitle, MetaText } from "@/components/ui/typography";
+import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
-import type { SearchResultRecord } from "@/lib/internal-search";
+import type { SearchEntityType, SearchResultRecord } from "@/lib/internal-search";
 import type { GroundedAnswer } from "@/lib/grounded-answers";
 
 function toneLabel(entityType: SearchResultRecord["entityType"]) {
@@ -35,14 +35,42 @@ export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchResultRecord[]>([]);
+  const [counts, setCounts] = useState<Record<SearchEntityType, number>>({
+    SOURCE: 0,
+    TOPIC: 0,
+    FLASHCARD: 0,
+    GOALCARD: 0,
+    TASK: 0,
+    PIPELINE_JOB: 0,
+    WORKFLOW_BLUEPRINT: 0,
+  });
   const [answer, setAnswer] = useState<GroundedAnswer | null>(null);
+  const [selectedTypes, setSelectedTypes] = useState<SearchEntityType[]>([
+    "SOURCE",
+    "TOPIC",
+    "FLASHCARD",
+    "GOALCARD",
+    "TASK",
+    "PIPELINE_JOB",
+    "WORKFLOW_BLUEPRINT",
+  ]);
+
+  const entityOptions: Array<{ value: SearchEntityType; label: string }> = [
+    { value: "SOURCE", label: "Data" },
+    { value: "TOPIC", label: "Topics" },
+    { value: "FLASHCARD", label: "Knowmore" },
+    { value: "GOALCARD", label: "Goals" },
+    { value: "TASK", label: "Tasks" },
+    { value: "PIPELINE_JOB", label: "Queue" },
+    { value: "WORKFLOW_BLUEPRINT", label: "Workflows" },
+  ];
 
   const runSearch = useCallback(async () => {
     if (!query.trim()) return;
     setLoading(true);
     try {
       const [searchResponse, answerResponse] = await Promise.all([
-        fetch(`/api/search?companyId=${companyId}&q=${encodeURIComponent(query)}`),
+        fetch(`/api/search?companyId=${companyId}&q=${encodeURIComponent(query)}&entityTypes=${selectedTypes.join(",")}`),
         fetch("/api/answers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -52,11 +80,20 @@ export default function SearchPage() {
       const searchData = await searchResponse.json();
       const answerData = await answerResponse.json();
       setResults(Array.isArray(searchData.items) ? searchData.items : []);
+      setCounts(searchData.counts || {
+        SOURCE: 0,
+        TOPIC: 0,
+        FLASHCARD: 0,
+        GOALCARD: 0,
+        TASK: 0,
+        PIPELINE_JOB: 0,
+        WORKFLOW_BLUEPRINT: 0,
+      });
       setAnswer(answerData);
     } finally {
       setLoading(false);
     }
-  }, [companyId, query]);
+  }, [companyId, query, selectedTypes]);
 
   return (
     <PageShell width="full">
@@ -78,6 +115,21 @@ export default function SearchPage() {
         </Button>
       </Group>
 
+      <Checkbox.Group
+        value={selectedTypes}
+        onChange={(value) => setSelectedTypes(value as SearchEntityType[])}
+      >
+        <Group gap="md">
+          {entityOptions.map((option) => (
+            <Checkbox
+              key={option.value}
+              value={option.value}
+              label={`${option.label} (${counts[option.value] ?? 0})`}
+            />
+          ))}
+        </Group>
+      </Checkbox.Group>
+
       {answer ? (
         <UnifiedCard tone="knowmore">
           <UnifiedCardHeader
@@ -86,11 +138,24 @@ export default function SearchPage() {
               <Group gap="xs">
                 <Badge variant="light" color="knowmore">Grounded</Badge>
                 <Badge variant="light" color="review">{answer.evidence.length} evidence cards</Badge>
+                <Badge variant="light" color="strategy">{answer.intent}</Badge>
+                <Badge variant="light" color={answer.confidence === "HIGH" ? "knowmore" : answer.confidence === "MEDIUM" ? "strategy" : "review"}>
+                  {answer.confidence} confidence
+                </Badge>
               </Group>
             }
           />
           <UnifiedCardBody>
             <BodyText>{answer.summary}</BodyText>
+            {answer.evidenceGroups.length > 0 ? (
+              <Group gap="xs">
+                {answer.evidenceGroups.map((group) => (
+                  <Badge key={group.entityType} variant="outline" color="gray">
+                    {group.label} {group.count}
+                  </Badge>
+                ))}
+              </Group>
+            ) : null}
             <Stack gap="xs">
               <MetaText>Recommended next actions</MetaText>
               {answer.nextActions.map((item) => (
@@ -99,6 +164,19 @@ export default function SearchPage() {
             </Stack>
           </UnifiedCardBody>
         </UnifiedCard>
+      ) : null}
+
+      {results.length > 0 ? (
+        <Group gap="xs">
+          <Badge variant="light" color="review">{results.length} ranked results</Badge>
+          {entityOptions.map((option) =>
+            counts[option.value] > 0 ? (
+              <Badge key={option.value} variant="outline" color="gray">
+                {option.label} {counts[option.value]}
+              </Badge>
+            ) : null,
+          )}
+        </Group>
       ) : null}
 
       {results.length === 0 && !loading ? (

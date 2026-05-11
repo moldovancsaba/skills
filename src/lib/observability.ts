@@ -36,6 +36,7 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
 
   const failedJobs = activeJobs.filter((job) => job.status === "FAILED").length;
   const runningJobs = activeJobs.filter((job) => job.status === "RUNNING").length;
+  const criticalAlert = scoreHealth?.alerts?.find((alert: any) => alert.severity === "CRITICAL") ?? null;
 
   return {
     guardianHeartbeat,
@@ -45,6 +46,11 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
       runningJobs,
       failedJobs,
       jobs: activeJobs,
+    },
+    recommendedActions: {
+      escalateScoreRepair: Boolean(criticalAlert || scoreHealth?.overallBand === "SUSPICIOUS"),
+      recoverFailedJobs: failedJobs > 0,
+      syncQueue: true,
     },
     workerReports,
     recentEvents,

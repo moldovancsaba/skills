@@ -205,7 +205,7 @@ export function KnowledgeReviewCard({
             </Badge>
             <UnifiedCardFreshnessBadge freshness={freshness} />
             {flashcard.conflictDetected && (
-              <Badge variant="light" color="red" size="xs">
+              <Badge variant="light" color="review" size="xs">
                 Conflict
               </Badge>
             )}

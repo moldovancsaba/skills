@@ -120,6 +120,23 @@ function clampMetric(value, min = SCORE_MIN, max = SCORE_MAX) {
   return Number(bounded.toFixed(1));
 }
 
+function clampMetricPrecise(value, min = SCORE_MIN, max = SCORE_MAX, precision = 2) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return Number(min.toFixed(precision));
+  }
+
+  const canonical =
+    numeric > SCORE_MAX
+      ? numeric <= 100
+        ? numeric / 10
+        : SCORE_MAX
+      : numeric;
+
+  const bounded = Math.max(min, Math.min(max, canonical));
+  return Number(bounded.toFixed(precision));
+}
+
 function roundMetricToInt(value, min = SCORE_MIN, max = SCORE_MAX) {
   return Math.max(min, Math.min(max, Math.round(clampMetric(value, min, max))));
 }
@@ -443,9 +460,9 @@ function blendScoreTriplets(agentInput = {}, calibratedInput = {}, agentWeight =
     agent,
     calibrated,
     final: {
-      impact: Number((agent.impact * safeAgentWeight + calibrated.impact * calibratedWeight).toFixed(1)),
-      confidence: Number((agent.confidence * safeAgentWeight + calibrated.confidence * calibratedWeight).toFixed(1)),
-      effort: Number((agent.effort * safeAgentWeight + calibrated.effort * calibratedWeight).toFixed(1)),
+      impact: clampMetricPrecise(agent.impact * safeAgentWeight + calibrated.impact * calibratedWeight),
+      confidence: clampMetricPrecise(agent.confidence * safeAgentWeight + calibrated.confidence * calibratedWeight),
+      effort: clampMetricPrecise(agent.effort * safeAgentWeight + calibrated.effort * calibratedWeight),
     },
   };
 }
@@ -754,12 +771,12 @@ function weightedSignalAverage(entries = [], fallback = SCORE_MIN) {
     .filter(Boolean);
 
   if (normalized.length === 0) {
-    return clampMetric(fallback);
+    return clampMetricPrecise(fallback);
   }
 
   const weightedSum = normalized.reduce((sum, entry) => sum + entry.value * entry.weight, 0);
   const totalWeight = normalized.reduce((sum, entry) => sum + entry.weight, 0);
-  return clampMetric(weightedSum / totalWeight);
+  return clampMetricPrecise(weightedSum / totalWeight);
 }
 
 function groundKnowledgeScores(input = {}) {
@@ -825,7 +842,7 @@ function groundKnowledgeScores(input = {}) {
       ...(historyConfidence != null ? [{ value: historyConfidence, weight: 2 }] : []),
       ...(historySupport != null ? [{ value: historySupport, weight: 1 }] : []),
     ], base.confidence),
-    effort: clampMetric(
+    effort: clampMetricPrecise(
       (
         factors.effort.baseEffort * 2 +
         factors.effort.sourceWeight * 2 +

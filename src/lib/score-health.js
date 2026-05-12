@@ -220,7 +220,7 @@ function computeScoreHealthMetrics(records, effortKey) {
       iceCounts.set(normalizedIce, (iceCounts.get(normalizedIce) ?? 0) + 1);
     }
 
-    const tupleLabel = `${Number(profileTriplet.impact).toFixed(1)}|${Number(profileTriplet.confidence).toFixed(1)}|${Number(profileTriplet.effort).toFixed(1)}`;
+    const tupleLabel = `${Number(profileTriplet.impact).toFixed(2)}|${Number(profileTriplet.confidence).toFixed(2)}|${Number(profileTriplet.effort).toFixed(2)}`;
     tupleCounts.set(tupleLabel, (tupleCounts.get(tupleLabel) ?? 0) + 1);
   }
 

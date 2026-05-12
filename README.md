@@ -69,6 +69,7 @@ New operator surfaces:
 - grounded answers now visibly render their cited evidence cards inside the answer surface so operators can inspect the supporting cards without leaving the search workflow blind
 - grounded answers now also show the named allowed scope layers directly in the answer panel, not just a numeric layer count
 - Search & Answers no longer silently widens to all layers when the operator deselects every layer; it now requires at least one explicit search layer before running
+- Search & Answers now clears stale ranked results and grounded answers immediately when the operator changes the selected layers, so visible output always matches the active scope
 - `/:companyId/observability` provides mission-control visibility into worker health, queue pressure, score health, AI workload budget pressure, and recent outcomes
 - Observability now exposes bounded repair and budget actions for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls
 - `/:companyId/workflows` provides bounded workflow blueprints and enrichment-waterfall policy management

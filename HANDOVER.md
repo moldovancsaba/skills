@@ -36,6 +36,7 @@ Read first:
 - grounded answers now visibly render their cited evidence cards inside the answer panel, not just summary text and counts
 - grounded answers now render the named allowed scope layers in the answer panel so operators can verify the synthesis boundary at a glance
 - Search & Answers now requires at least one explicitly selected layer and no longer silently falls back to all layers when the selection is empty
+- Search & Answers now clears stale results and grounded answers immediately when layer selection changes, so the visible answer/result state cannot lag behind the active scope
 - `Observability` now supports bounded queue repair actions and AI workload budget controls directly from the webapp mission-control surface
 - workflow blueprints and enrichment waterfall policies are persisted system contracts, not local page-only state
 - active workflow blueprints now become first-class `PipelineJob` records that the worker can claim and execute

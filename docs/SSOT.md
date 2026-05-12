@@ -98,6 +98,7 @@ The current intelligence-operations contract also includes:
 - grounded answers must visibly surface cited evidence cards in the operator UI, not just aggregate evidence counts
 - grounded answers must also render the named allowed scope layers in the operator UI so the synthesis boundary is explicit and reviewable
 - Search & Answers must require at least one explicit allowed layer and must not silently widen back to all layers when the operator scope selection is empty
+- Search & Answers must clear stale result and answer state when the allowed layer selection changes so the visible output always reflects the current scope
 - one observability surface for worker health, queue pressure, score-health, AI workload budget pressure, and recent outcomes
 - observability also owns bounded repair and budget actions for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active

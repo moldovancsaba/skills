@@ -154,6 +154,9 @@ export default function SearchPage() {
         value={selectedTypes}
         onChange={(value) => {
           setSelectedTypes(value as SearchEntityType[]);
+          setResults([]);
+          setAnswer(null);
+          setCounts(EMPTY_COUNTS);
           if (selectionError) setSelectionError(null);
         }}
       >

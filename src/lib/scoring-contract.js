@@ -392,8 +392,8 @@ function computePriorityCohortProfiles(inputs = [], options = {}) {
     const bucketCount = bucketCounts.get(bucket) ?? 1;
     const percentile = total <= 1 ? 1 : 1 - rankIndex / (total - 1);
     const crowdRatio = maxBucketCount > 1 ? (bucketCount - 1) / (maxBucketCount - 1) : 0;
-    const spreadBoost = Number(((percentile - 0.5) * 160).toFixed(2));
-    const densityPenalty = Number((crowdRatio * 60).toFixed(2));
+    const spreadBoost = Number(((percentile - 0.5) * 190).toFixed(2));
+    const densityPenalty = Number((crowdRatio * 70).toFixed(2));
     const anchorBoost = entry.profile?.manualAnchor ? 28 : 0;
     const humanBoost = Number((((entry.profile?.components?.human ?? 0) - 0.5) * 36).toFixed(2));
     const riskBoost = Number((((entry.profile?.components?.risk ?? 0) - 0.35) * 24).toFixed(2));

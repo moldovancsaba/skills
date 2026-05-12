@@ -7,6 +7,7 @@ const {
   persistKnowledgeScoresFromProfile,
   persistTaskScoresFromProfile,
 } = require("../src/lib/scoring-contract");
+const { computeHistoryAwareTaskSignals } = require("./lib/history-scoring");
 
 const prisma = new PrismaClient();
 
@@ -210,6 +211,7 @@ async function repairTasks(batchSize) {
       take: batchSize,
       select: {
         id: true,
+        companyId: true,
         createdAt: true,
         title: true,
         description: true,
@@ -228,6 +230,11 @@ async function repairTasks(batchSize) {
     for (const task of tasks) {
       processed += 1;
       const priorRationale = readScoreProfileRationale(task.scoreProfile);
+      const historySignals = await computeHistoryAwareTaskSignals(prisma, task.companyId, {
+        title: task.title,
+        description: task.description,
+        hashtags: [],
+      });
       const grounded = groundTaskScores({
         impact: task.impact,
         confidence: task.confidenceScore ?? task.confidence,
@@ -239,6 +246,11 @@ async function repairTasks(batchSize) {
         sourceConfidence: priorRationale.sourceConfidence,
         sourceWeight: priorRationale.sourceWeight,
         sourceIceScore: priorRationale.sourceIceScore,
+        historyImpact: historySignals.historyImpact,
+        historyConfidence: historySignals.historyConfidence,
+        historySupport: historySignals.historySupport,
+        historyEase: historySignals.historyEase,
+        historyDifficulty: historySignals.historyDifficulty,
       });
       const scoreProfile = buildScoreProfile({
         scoreKind: "TASK",
@@ -255,6 +267,17 @@ async function repairTasks(batchSize) {
           sourceConfidence: priorRationale.sourceConfidence ?? null,
           sourceWeight: priorRationale.sourceWeight ?? null,
           sourceIceScore: priorRationale.sourceIceScore ?? null,
+          historyImpact: historySignals.historyImpact ?? null,
+          historyConfidence: historySignals.historyConfidence ?? null,
+          historySupport: historySignals.historySupport ?? null,
+          historyEase: historySignals.historyEase ?? null,
+          historyDifficulty: historySignals.historyDifficulty ?? null,
+          historyPositiveMatches: historySignals.positiveMatches ?? 0,
+          historyNegativeMatches: historySignals.negativeMatches ?? 0,
+          historyAverageSimilarity: historySignals.averageSimilarity ?? 0,
+          historyDeliveredMatches: historySignals.deliveredMatches ?? 0,
+          historyAcceptedMatches: historySignals.acceptedMatches ?? 0,
+          historyFrictionMatches: historySignals.frictionMatches ?? 0,
         },
       });
       const normalized = {

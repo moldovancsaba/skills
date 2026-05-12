@@ -1,0 +1,121 @@
+name: Feature delivery
+description: Create a delivery-ready issue that meets the SSOT execution standard
+title: ""
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: One clear sentence describing what must be achieved.
+      placeholder: State the concrete outcome this issue must achieve.
+    validations:
+      required: true
+
+  - type: textarea
+    id: unified_context
+    attributes:
+      label: Unified Context
+      description: Explain the surrounding system, linked work, and why this exists now.
+      placeholder: Provide the operational, product, and dependency context.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the current gap, failure, or risk.
+      placeholder: What is broken, missing, risky, or unclear today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: Describe the target state after this issue is complete.
+      placeholder: What should be true when this work is done?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Define both in-scope and out-of-scope boundaries.
+      value: |
+        In scope:
+        - item
+        - item
+
+        Out of scope:
+        - item
+        - item
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Hard requirements the implementation must not violate.
+      placeholder: |
+        - preserve current behavior X
+        - no secret exposure
+        - keep compatibility with Y
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_checks
+    attributes:
+      label: Acceptance Checks
+      description: Observable checks that prove the issue is complete.
+      value: |
+        - [ ] check
+        - [ ] check
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Upstream issues, PRs, or explicit "none".
+      placeholder: |
+        - issue or PR link
+        - decision or prerequisite
+        - none
+    validations:
+      required: true
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks
+      description: Operational, product, delivery, or safety risks.
+      placeholder: |
+        - risk
+        - risk
+    validations:
+      required: true
+
+  - type: textarea
+    id: delivery_artifact
+    attributes:
+      label: Delivery Artifact
+      description: The expected implementation package, shipped output, or decision package.
+      placeholder: Describe the output expected from this issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: developer_notes
+    attributes:
+      label: Developer Notes
+      description: Suggested implementation surfaces, interfaces, or design decisions.
+      placeholder: |
+        - suggested implementation surface
+        - design decision to preserve
+    validations:
+      required: true

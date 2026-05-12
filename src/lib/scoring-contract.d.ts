@@ -51,6 +51,19 @@ export type ScoreTriplet = {
   effort: number;
 };
 
+export type ScoreFactorSignal = {
+  label: string;
+  signal: number;
+};
+
+export type ScoreFactorBucket = Record<string, ScoreFactorSignal>;
+
+export type ScoreFactorCollection = {
+  impact: ScoreFactorBucket;
+  confidence: ScoreFactorBucket;
+  effort: ScoreFactorBucket;
+};
+
 export type ScoreProfile = {
   version: number;
   scoreKind: string;
@@ -58,6 +71,30 @@ export type ScoreProfile = {
   agent: ScoreTriplet;
   calibrated: ScoreTriplet;
   final: ScoreTriplet & { iceScore: number };
+  factors?: {
+    agent: ScoreFactorCollection;
+    calibrated: ScoreFactorCollection;
+    final: {
+      impact: {
+        blendedScore: number;
+        agentScore: number;
+        calibratedScore: number;
+        dominantSignals: Array<{ key: string; label: string; signal: number }>;
+      };
+      confidence: {
+        blendedScore: number;
+        agentScore: number;
+        calibratedScore: number;
+        dominantSignals: Array<{ key: string; label: string; signal: number }>;
+      };
+      effort: {
+        blendedScore: number;
+        agentScore: number;
+        calibratedScore: number;
+        dominantSignals: Array<{ key: string; label: string; signal: number }>;
+      };
+    };
+  };
   rationale: Record<string, unknown> | null;
   generatedAt: string;
 };
@@ -88,6 +125,8 @@ export function buildScoreProfile(input?: {
   scoreKind?: string | null;
   agent?: CanonicalTripletInput;
   calibrated?: CanonicalTripletInput;
+  agentFactors?: Partial<ScoreFactorCollection> | null;
+  calibratedFactors?: Partial<ScoreFactorCollection> | null;
   agentWeight?: number | null;
   rationale?: Record<string, unknown> | null;
 }): ScoreProfile;
@@ -158,10 +197,14 @@ export function groundKnowledgeScores(input?: CanonicalTripletInput & {
   topicImpact?: number | null;
   topicConfidence?: number | null;
   topicWeight?: number | null;
+  historyImpact?: number | null;
+  historyConfidence?: number | null;
+  historySupport?: number | null;
 }): {
   impact: number;
   confidence: number;
   effort: number;
+  factors: ScoreFactorCollection;
 };
 export function groundTaskScores(input?: CanonicalTripletInput & {
   sourceImpact?: number | null;
@@ -171,7 +214,10 @@ export function groundTaskScores(input?: CanonicalTripletInput & {
   flashcardImpact?: number | null;
   flashcardConfidence?: number | null;
   flashcardWeight?: number | null;
-}): { impact: number; confidence: number; effort: number };
+  historyImpact?: number | null;
+  historyConfidence?: number | null;
+  historySupport?: number | null;
+}): { impact: number; confidence: number; effort: number; factors: ScoreFactorCollection };
 export function enrichTaskDraftScores(input?: CanonicalTripletInput & {
   sourceImpact?: number | null;
   sourceConfidence?: number | null;
@@ -179,4 +225,7 @@ export function enrichTaskDraftScores(input?: CanonicalTripletInput & {
   flashcardImpact?: number | null;
   flashcardConfidence?: number | null;
   flashcardWeight?: number | null;
-}): { impact: number; confidence: number; effort: number };
+  historyImpact?: number | null;
+  historyConfidence?: number | null;
+  historySupport?: number | null;
+}): { impact: number; confidence: number; effort: number; factors: ScoreFactorCollection };

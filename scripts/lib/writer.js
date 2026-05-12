@@ -15,6 +15,7 @@ const {
   groundTaskScores,
   persistTaskScoresFromProfile,
 } = require("../../src/lib/scoring-contract");
+const { computeHistoryAwareTaskSignals } = require("./history-scoring");
 
 // --- UTILITIES ---
 
@@ -165,6 +166,11 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
     confidence = parseBoundedScore(raw.confidenceScore, 1, 10);
     impact = parseBoundedScore(raw.impact, 1, 10);
     ease = parseBoundedScore(raw.ease, 1, 10);
+    const historySignals = await computeHistoryAwareTaskSignals(prisma, taskCard.companyId, {
+      title: raw.title,
+      description: raw.description,
+      hashtags: Array.isArray(raw.semanticTags) ? raw.semanticTags.slice(0, 5) : taskCard.hashtags,
+    });
     const groundedScores = groundTaskScores({
       impact,
       confidence,
@@ -176,6 +182,9 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
       sourceConfidence: taskCard.confidenceScore ?? taskCard.confidence,
       sourceWeight: taskCard.ease,
       sourceIceScore: taskCard.iceScore,
+      historyImpact: historySignals.historyImpact,
+      historyConfidence: historySignals.historyConfidence,
+      historySupport: historySignals.historySupport,
     });
     const scoreProfile = buildScoreProfile({
       scoreKind: "TASK",
@@ -191,6 +200,12 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
         sourceWeight: taskCard.ease,
         sourceIceScore: taskCard.iceScore,
         refinerStage: "writer",
+        historyImpact: historySignals.historyImpact,
+        historyConfidence: historySignals.historyConfidence,
+        historySupport: historySignals.historySupport,
+        historyPositiveMatches: historySignals.positiveMatches,
+        historyNegativeMatches: historySignals.negativeMatches,
+        historyAverageSimilarity: historySignals.averageSimilarity,
       },
     });
     const normalizedScores = persistTaskScoresFromProfile(scoreProfile);

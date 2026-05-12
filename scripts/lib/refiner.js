@@ -28,6 +28,7 @@ const {
   groundTaskScores,
   persistTaskScoresFromProfile,
 } = require("../../src/lib/scoring-contract");
+const { computeHistoryAwareTaskSignals } = require("./history-scoring");
 
 // ---------------------------------------------------------------------------
 // 1. Neighborhood Detection
@@ -115,7 +116,12 @@ function selectChampion(neighborhood) {
   });
 }
 
-function normalizeRefinedTaskScores(raw = {}, fallback = {}) {
+async function normalizeRefinedTaskScores(prisma, raw = {}, fallback = {}) {
+  const historySignals = await computeHistoryAwareTaskSignals(prisma, fallback.companyId, {
+    title: raw.title ?? fallback.title,
+    description: raw.description ?? raw.body ?? fallback.description ?? fallback.body,
+    hashtags: Array.isArray(raw.semanticTags) ? raw.semanticTags.slice(0, 5) : fallback.hashtags,
+  });
   const grounded = groundTaskScores({
     impact: raw.impact ?? fallback.impact,
     confidence: raw.confidence ?? raw.confidenceScore ?? fallback.confidence ?? fallback.confidenceScore,
@@ -127,6 +133,9 @@ function normalizeRefinedTaskScores(raw = {}, fallback = {}) {
     sourceConfidence: fallback.confidence ?? fallback.confidenceScore,
     sourceWeight: fallback.ease,
     sourceIceScore: fallback.iceScore,
+    historyImpact: historySignals.historyImpact,
+    historyConfidence: historySignals.historyConfidence,
+    historySupport: historySignals.historySupport,
   });
 
   const scoreProfile = buildScoreProfile({
@@ -143,6 +152,12 @@ function normalizeRefinedTaskScores(raw = {}, fallback = {}) {
       sourceWeight: fallback.ease,
       sourceIceScore: fallback.iceScore,
       refinerStage: "trinity-refiner",
+      historyImpact: historySignals.historyImpact,
+      historyConfidence: historySignals.historyConfidence,
+      historySupport: historySignals.historySupport,
+      historyPositiveMatches: historySignals.positiveMatches,
+      historyNegativeMatches: historySignals.negativeMatches,
+      historyAverageSimilarity: historySignals.averageSimilarity,
     },
   });
   return {
@@ -192,7 +207,7 @@ async function mergeNeighborhood(neighborhood, context, memoryPrompt) {
     )
   )];
 
-  const mergedScores = normalizeRefinedTaskScores(raw, champion);
+  const mergedScores = await normalizeRefinedTaskScores(prisma, raw, champion);
   const merged = {
     ...champion,
     title: truncate(raw.title, 160),
@@ -258,7 +273,7 @@ async function enrichCandidate(candidate, context, memoryPrompt) {
   const raw = unifyObject(res);
   if (!raw || !raw.title) return candidate;
 
-  const enrichedScores = normalizeRefinedTaskScores(raw, candidate);
+  const enrichedScores = await normalizeRefinedTaskScores(prisma, raw, candidate);
   return {
     ...candidate,
     title: truncate(raw.title, 160),
@@ -296,7 +311,7 @@ async function refineAsIs(candidate, context, memoryPrompt) {
   const raw = unifyObject(res);
   if (!raw || !raw.title) return candidate;
 
-  const refinedScores = normalizeRefinedTaskScores(raw, candidate);
+  const refinedScores = await normalizeRefinedTaskScores(prisma, raw, candidate);
   return {
     ...candidate,
     title: truncate(raw.title, 160),

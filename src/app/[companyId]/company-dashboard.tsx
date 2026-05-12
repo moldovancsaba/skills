@@ -286,7 +286,7 @@ export default function CompanyDashboard() {
 
   return (
     <PageShell width="full">
-      <RouteCardGrid mb="xl">
+      <RouteCardGrid cols={{ base: 1, sm: 2, lg: 5 }} mb="xl">
         <LinkCard
           href={`/${companyId}/data`}
           icon={Database}
@@ -346,7 +346,7 @@ export default function CompanyDashboard() {
         <LinkCard
           href={`/${companyId}/pipeline`}
           icon={HardHat}
-          variant="review"
+          variant="gray"
           metric={counts.pipelineJobs}
           title="Worker Queue"
           chartData={chartSeries("pipelineJobs", "reviewGateway")}

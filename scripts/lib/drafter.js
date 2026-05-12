@@ -32,6 +32,10 @@ const {
 } = require("../../src/lib/scoring-contract");
 const { deriveFlashcardSourceSupport } = require("../../src/lib/upstream-card-scoring");
 const { detectEvidenceConflict, ensureCitationSnapshotsForEvidenceBatch } = require("./citations");
+const {
+  computeHistoryAwareKnowledgeSignals,
+  computeHistoryAwareTaskSignals,
+} = require("./history-scoring");
 
 // --- UTILITIES ---
 
@@ -217,6 +221,13 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       procStatus = "REVIEW";
     }
 
+    const knowledgeHistorySignals = await computeHistoryAwareKnowledgeSignals(prisma, company.id, {
+      title: item.title,
+      body: joinBody(item.body),
+      hashtags: Array.isArray(item.semanticTags) ? item.semanticTags.slice(0, 5) :
+        Array.isArray(item.hashtags) ? item.hashtags.slice(0, 5) : [],
+    });
+
     const groundedKnowledgeScores = groundKnowledgeScores({
       impact,
       confidence,
@@ -232,6 +243,9 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       topicImpact: averageSupport("topicImpact"),
       topicConfidence: averageSupport("topicConfidence"),
       topicWeight: averageSupport("topicWeight"),
+      historyImpact: knowledgeHistorySignals.historyImpact,
+      historyConfidence: knowledgeHistorySignals.historyConfidence,
+      historySupport: knowledgeHistorySignals.historySupport,
       evidence: {
         evidenceIds,
         sourceScore: supportProfiles[0]?.sourceProfile ?? null,
@@ -253,6 +267,12 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
         topicImpact: averageSupport("topicImpact"),
         topicConfidence: averageSupport("topicConfidence"),
         topicWeight: averageSupport("topicWeight"),
+        historyImpact: knowledgeHistorySignals.historyImpact,
+        historyConfidence: knowledgeHistorySignals.historyConfidence,
+        historySupport: knowledgeHistorySignals.historySupport,
+        historyPositiveMatches: knowledgeHistorySignals.positiveMatches,
+        historyNegativeMatches: knowledgeHistorySignals.negativeMatches,
+        historyAverageSimilarity: knowledgeHistorySignals.averageSimilarity,
         evidenceIds,
       },
     });
@@ -391,6 +411,11 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       procStatus = "REVIEW";
     }
 
+    const taskHistorySignals = await computeHistoryAwareTaskSignals(prisma, company.id, {
+      title: item.title,
+      description: item.description,
+      hashtags: Array.isArray(item.semanticTags) ? item.semanticTags.slice(0, 5) : [],
+    });
     const groundedScores = groundTaskScores({
       impact,
       confidence,
@@ -402,6 +427,9 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       kind: item.kind,
       title: item.title,
       description: item.description,
+      historyImpact: taskHistorySignals.historyImpact,
+      historyConfidence: taskHistorySignals.historyConfidence,
+      historySupport: taskHistorySignals.historySupport,
     });
     const scoreProfile = buildScoreProfile({
       scoreKind: "TASK",
@@ -417,6 +445,12 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
         sourceWeight: flashCard.weight ?? flashCard.ease,
         sourceIceScore: flashCard.iceScore,
         sourceFlashcardId: flashCard.id,
+        historyImpact: taskHistorySignals.historyImpact,
+        historyConfidence: taskHistorySignals.historyConfidence,
+        historySupport: taskHistorySignals.historySupport,
+        historyPositiveMatches: taskHistorySignals.positiveMatches,
+        historyNegativeMatches: taskHistorySignals.negativeMatches,
+        historyAverageSimilarity: taskHistorySignals.averageSimilarity,
       },
     });
     const normalizedTaskScores = persistTaskScoresFromProfile(scoreProfile);

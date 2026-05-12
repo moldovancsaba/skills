@@ -135,6 +135,7 @@ Tactical placement contract:
 - `priorityProfile` is the ranking explanation used for tactical ordering and frontier placement
 - human drag/drop anchors remain explicit human guidance and are not silently erased by AI scoring
 - priority is assigned by blended relative rank inside the active peer pool, not raw ICE alone
+- score calibration is history-aware: accepted, declined, modified, and delivered company outcomes are valid first-class inputs for new-card impact/confidence scoring
 
 ## 6. AI Brain Rule
 

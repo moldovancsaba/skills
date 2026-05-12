@@ -1,6 +1,20 @@
 const { defaultPrisma, computeCompanyScoreHealth } = require("../src/lib/score-health");
 const prisma = defaultPrisma;
 
+function formatDominantSignals(value) {
+  const signals = Array.isArray(value) ? value : [];
+  if (signals.length === 0) return "none";
+  return signals
+    .slice(0, 3)
+    .map((entry) => `${entry.label}:${Number(entry.signal).toFixed(1)}`)
+    .join(", ");
+}
+
+function extractFactorTrace(profile, dimension) {
+  if (!profile || typeof profile !== "object") return "none";
+  return formatDominantSignals(profile?.factors?.final?.[dimension]?.dominantSignals);
+}
+
 async function main() {
   const companyId = process.argv[2];
 
@@ -20,6 +34,30 @@ async function main() {
 
   for (const company of companies) {
     const report = await computeCompanyScoreHealth(company.id);
+    const [topTask, topKnowledge] = await Promise.all([
+      prisma.nBAItem.findFirst({
+        where: {
+          companyId: company.id,
+          activityState: { in: ["ACTIVE", "STALE"] },
+        },
+        orderBy: [{ iceScore: "desc" }, { updatedAt: "desc" }],
+        select: {
+          title: true,
+          scoreProfile: true,
+        },
+      }),
+      prisma.flashcard.findFirst({
+        where: {
+          companyId: company.id,
+          activityState: { in: ["ACTIVE", "STALE"] },
+        },
+        orderBy: [{ iceScore: "desc" }, { updatedAt: "desc" }],
+        select: {
+          title: true,
+          scoreProfile: true,
+        },
+      }),
+    ]);
     console.log(`\n# ${company.name} (${company.id})`);
     console.log(`Band: ${report.overallBand}`);
     console.log(`Dominant surface: ${report.dominantSurface}`);
@@ -32,6 +70,16 @@ async function main() {
     if (report.taskcards.dominantTuple) {
       console.log(
         `Top task tuple: ${report.taskcards.dominantTuple.label} (${report.taskcards.dominantTuple.count} cards)`
+      );
+    }
+    if (topTask) {
+      console.log(
+        `Top task factor trace: ${topTask.title} | impact[${extractFactorTrace(topTask.scoreProfile, "impact")}] confidence[${extractFactorTrace(topTask.scoreProfile, "confidence")}] ease[${extractFactorTrace(topTask.scoreProfile, "effort")}]`
+      );
+    }
+    if (topKnowledge) {
+      console.log(
+        `Top knowledge factor trace: ${topKnowledge.title} | impact[${extractFactorTrace(topKnowledge.scoreProfile, "impact")}] confidence[${extractFactorTrace(topKnowledge.scoreProfile, "confidence")}] weight[${extractFactorTrace(topKnowledge.scoreProfile, "effort")}]`
       );
     }
     if (report.alerts.length > 0) {

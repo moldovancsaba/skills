@@ -22,6 +22,7 @@ Read first:
 - semantic tones are the only approved product color vocabulary
 - ICE management is centralized through shared scoring contracts plus oldest-first maintenance and queue flows across upstream cards, knowledge, goals, and tasks
 - score provenance is now part of the contract: agent score proposal, calibrated heuristic score, and final blended score must remain inspectable in persisted `scoreProfile` data
+- score calibration now also has to consume company-specific accepted, declined, modified, and delivered history when deriving new-card impact and confidence
 - tactical prioritization now uses the shared blended priority profile from `scoring-contract.js`; ICE remains visible, but placement also explains quality, urgency, freshness, human signal, risk, lifecycle state, and memory inputs
 - frontier placement is relative-rank based inside the current candidate pool, with human anchors preserved ahead of AI-only ordering
 - repetitive local-AI work is represented as persisted `PipelineJob` queue records

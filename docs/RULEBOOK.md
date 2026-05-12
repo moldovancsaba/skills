@@ -316,6 +316,7 @@ Rules:
 - `src/lib/scoring-contract.js` owns the canonical blended priority profile
 - the blended profile must expose both a numeric priority score and component-level reasons
 - the scoring contract must preserve decimal internal score precision even if legacy storage fields or UI surfaces round for compatibility
+- the scoring contract must treat company-specific accepted, declined, modified, and delivered history as first-class calibration input for new-card impact/confidence where history exists
 - supported priority components are ICE, quality, urgency, freshness, human signal, risk, lifecycle state, and memory signal
 - human-guided planning anchors must remain visible and must not be silently erased by AI reprioritization
 - frontier placement and tactical board ordering must use blended priority where available

@@ -233,17 +233,96 @@ function blendScoreTriplets(agentInput = {}, calibratedInput = {}, agentWeight =
   };
 }
 
+function normalizeFactorSignals(input = {}, labels = {}) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(input)
+      .map(([key, value]) => {
+        const signal = clampMetric(value);
+        return [
+          key,
+          {
+            label: labels[key] ?? key,
+            signal,
+          },
+        ];
+      })
+      .filter(([, value]) => Number.isFinite(value.signal)),
+  );
+}
+
+function normalizeFactorCollection(input = {}) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return {
+      impact: {},
+      confidence: {},
+      effort: {},
+    };
+  }
+
+  return {
+    impact: normalizeFactorSignals(input.impact, input.impactLabels),
+    confidence: normalizeFactorSignals(input.confidence, input.confidenceLabels),
+    effort: normalizeFactorSignals(input.effort, input.effortLabels),
+  };
+}
+
+function rankFactorSignals(factors = {}, limit = 3) {
+  return Object.entries(factors)
+    .map(([key, value]) => ({
+      key,
+      label: value?.label ?? key,
+      signal: clampMetric(value?.signal),
+    }))
+    .filter((entry) => Number.isFinite(entry.signal))
+    .sort((left, right) => right.signal - left.signal)
+    .slice(0, limit);
+}
+
+function buildFinalFactorCollection(agentTriplet, calibratedTriplet, agentFactors, calibratedFactors, agentWeight) {
+  const calibratedWeight = 1 - agentWeight;
+
+  return {
+    impact: {
+      blendedScore: agentTriplet.impact * agentWeight + calibratedTriplet.impact * calibratedWeight,
+      agentScore: agentTriplet.impact,
+      calibratedScore: calibratedTriplet.impact,
+      dominantSignals: rankFactorSignals(calibratedFactors.impact),
+    },
+    confidence: {
+      blendedScore: agentTriplet.confidence * agentWeight + calibratedTriplet.confidence * calibratedWeight,
+      agentScore: agentTriplet.confidence,
+      calibratedScore: calibratedTriplet.confidence,
+      dominantSignals: rankFactorSignals(calibratedFactors.confidence),
+    },
+    effort: {
+      blendedScore: agentTriplet.effort * agentWeight + calibratedTriplet.effort * calibratedWeight,
+      agentScore: agentTriplet.effort,
+      calibratedScore: calibratedTriplet.effort,
+      dominantSignals: rankFactorSignals(calibratedFactors.effort),
+    },
+  };
+}
+
 function buildScoreProfile(input = {}) {
   const scoreKind = String(input.scoreKind || "TASK").toUpperCase();
   const blend = blendScoreTriplets(input.agent, input.calibrated, input.agentWeight);
+  const agentWeight = clampUnit(input.agentWeight, 0.6);
+  const agentFactors = normalizeFactorCollection(input.agentFactors);
+  const calibratedFactors = normalizeFactorCollection(
+    input.calibratedFactors ?? input.calibrated?.factors,
+  );
   const finalIceScore = scoreKind === "KNOWLEDGE"
     ? calculateKnowledgeIceScore(blend.final)
     : calculateTaskIceScore(blend.final);
 
   return {
-    version: 2,
+    version: 3,
     scoreKind,
-    agentWeight: clampUnit(input.agentWeight, 0.6),
+    agentWeight,
     agent: blend.agent,
     calibrated: blend.calibrated,
     final: {
@@ -251,6 +330,17 @@ function buildScoreProfile(input = {}) {
       confidence: blend.final.confidence,
       effort: blend.final.effort,
       iceScore: finalIceScore,
+    },
+    factors: {
+      agent: agentFactors,
+      calibrated: calibratedFactors,
+      final: buildFinalFactorCollection(
+        blend.agent,
+        blend.calibrated,
+        agentFactors,
+        calibratedFactors,
+        agentWeight,
+      ),
     },
     rationale: input.rationale || null,
     generatedAt: new Date().toISOString(),
@@ -403,6 +493,25 @@ function deriveKnowledgeKindSignal(kind = "") {
   }
 }
 
+function weightedSignalAverage(entries = [], fallback = SCORE_MIN) {
+  const normalized = entries
+    .map((entry) => {
+      if (!entry) return null;
+      const value = clampMetric(entry.value ?? entry.signal ?? fallback);
+      const weight = Math.max(0, Number(entry.weight ?? 1));
+      return weight > 0 ? { value, weight } : null;
+    })
+    .filter(Boolean);
+
+  if (normalized.length === 0) {
+    return clampMetric(fallback);
+  }
+
+  const weightedSum = normalized.reduce((sum, entry) => sum + entry.value * entry.weight, 0);
+  const totalWeight = normalized.reduce((sum, entry) => sum + entry.weight, 0);
+  return clampMetric(weightedSum / totalWeight);
+}
+
 function groundKnowledgeScores(input = {}) {
   const base = normalizeScoreTriplet(input);
   const specificity = deriveSpecificitySignal(input.title, input.body ?? input.description);
@@ -415,35 +524,67 @@ function groundKnowledgeScores(input = {}) {
   const topicImpact = input.topicImpact != null ? clampMetric(input.topicImpact) : null;
   const topicConfidence = input.topicConfidence != null ? clampMetric(input.topicConfidence) : null;
   const topicWeight = input.topicWeight != null ? clampMetric(input.topicWeight) : null;
+  const historyImpact = input.historyImpact != null ? clampMetric(input.historyImpact) : null;
+  const historyConfidence = input.historyConfidence != null ? clampMetric(input.historyConfidence) : null;
+  const historySupport = input.historySupport != null ? clampMetric(input.historySupport) : null;
+
+  const factors = {
+    impact: {
+      baseImpact: base.impact,
+      sourceImpact,
+      topicImpact: topicImpact ?? kindSignal,
+      kindSignal,
+      evidenceStrength,
+      ...(historyImpact != null ? { historyImpact } : {}),
+      ...(historySupport != null ? { historySupport } : {}),
+    },
+    confidence: {
+      baseConfidence: base.confidence,
+      sourceConfidence,
+      topicConfidence: topicConfidence ?? evidenceStrength,
+      evidenceStrength,
+      specificity,
+      ...(historyConfidence != null ? { historyConfidence } : {}),
+      ...(historySupport != null ? { historySupport } : {}),
+    },
+    effort: {
+      baseEffort: base.effort,
+      sourceWeight,
+      topicWeight: topicWeight ?? complexity,
+      complexity,
+      evidenceStrength,
+    },
+  };
 
   return {
-    impact: clampMetric(
-      (
-        base.impact * 2 +
-        sourceImpact * 2 +
-        (topicImpact ?? kindSignal) +
-        kindSignal +
-        evidenceStrength
-      ) / 7,
-    ),
-    confidence: clampMetric(
-      (
-        base.confidence * 2 +
-        sourceConfidence * 2 +
-        (topicConfidence ?? evidenceStrength) +
-        evidenceStrength +
-        specificity
-      ) / 7,
-    ),
+    impact: weightedSignalAverage([
+      { value: factors.impact.baseImpact, weight: 2 },
+      { value: factors.impact.sourceImpact, weight: 2 },
+      { value: factors.impact.topicImpact, weight: 1 },
+      { value: factors.impact.kindSignal, weight: 1 },
+      { value: factors.impact.evidenceStrength, weight: 1 },
+      ...(historyImpact != null ? [{ value: historyImpact, weight: 2 }] : []),
+      ...(historySupport != null ? [{ value: historySupport, weight: 1 }] : []),
+    ], base.impact),
+    confidence: weightedSignalAverage([
+      { value: factors.confidence.baseConfidence, weight: 2 },
+      { value: factors.confidence.sourceConfidence, weight: 2 },
+      { value: factors.confidence.topicConfidence, weight: 1 },
+      { value: factors.confidence.evidenceStrength, weight: 1 },
+      { value: factors.confidence.specificity, weight: 1 },
+      ...(historyConfidence != null ? [{ value: historyConfidence, weight: 2 }] : []),
+      ...(historySupport != null ? [{ value: historySupport, weight: 1 }] : []),
+    ], base.confidence),
     effort: clampMetric(
       (
-        base.effort * 2 +
-        sourceWeight * 2 +
-        (topicWeight ?? complexity) +
-        complexity +
-        evidenceStrength
+        factors.effort.baseEffort * 2 +
+        factors.effort.sourceWeight * 2 +
+        factors.effort.topicWeight +
+        factors.effort.complexity +
+        factors.effort.evidenceStrength
       ) / 7,
     ),
+    factors,
   };
 }
 
@@ -457,11 +598,61 @@ function groundTaskScores(input = {}) {
   const specificity = deriveSpecificitySignal(input.title, input.description);
   const urgency = deriveUrgencySignal(input.kind, input.title, input.description);
   const complexity = deriveComplexitySignal(input.title, input.description);
+  const historyImpact = input.historyImpact != null ? clampMetric(input.historyImpact) : null;
+  const historyConfidence = input.historyConfidence != null ? clampMetric(input.historyConfidence) : null;
+  const historySupport = input.historySupport != null ? clampMetric(input.historySupport) : null;
+
+  const factors = {
+    impact: {
+      baseImpact: base.impact,
+      sourceImpact,
+      urgency,
+      sourceIceSignal: sourceIceSignal ?? urgency,
+      ...(historyImpact != null ? { historyImpact } : {}),
+      ...(historySupport != null ? { historySupport } : {}),
+    },
+    confidence: {
+      baseConfidence: base.confidence,
+      sourceConfidence,
+      specificity,
+      sourceIceSignal: sourceIceSignal ?? specificity,
+      ...(historyConfidence != null ? { historyConfidence } : {}),
+      ...(historySupport != null ? { historySupport } : {}),
+    },
+    effort: {
+      baseEffort: base.effort,
+      sourceWeight,
+      complexity,
+      sourceIceSignal: sourceIceSignal ?? complexity,
+    },
+  };
 
   return {
-    impact: clampMetric((base.impact * 3 + sourceImpact * 2 + urgency + (sourceIceSignal ?? urgency)) / 7),
-    confidence: clampMetric((base.confidence * 2 + sourceConfidence * 2 + specificity + (sourceIceSignal ?? specificity)) / 6),
-    effort: clampMetric((base.effort * 2 + sourceWeight + complexity * 2 + (sourceIceSignal ?? complexity)) / 6),
+    impact: weightedSignalAverage([
+      { value: factors.impact.baseImpact, weight: 3 },
+      { value: factors.impact.sourceImpact, weight: 2 },
+      { value: factors.impact.urgency, weight: 1 },
+      { value: factors.impact.sourceIceSignal, weight: 1 },
+      ...(historyImpact != null ? [{ value: historyImpact, weight: 2 }] : []),
+      ...(historySupport != null ? [{ value: historySupport, weight: 1 }] : []),
+    ], base.impact),
+    confidence: weightedSignalAverage([
+      { value: factors.confidence.baseConfidence, weight: 2 },
+      { value: factors.confidence.sourceConfidence, weight: 2 },
+      { value: factors.confidence.specificity, weight: 1 },
+      { value: factors.confidence.sourceIceSignal, weight: 1 },
+      ...(historyConfidence != null ? [{ value: historyConfidence, weight: 2 }] : []),
+      ...(historySupport != null ? [{ value: historySupport, weight: 1 }] : []),
+    ], base.confidence),
+    effort: clampMetric(
+      (
+        factors.effort.baseEffort * 2 +
+        factors.effort.sourceWeight +
+        factors.effort.complexity * 2 +
+        factors.effort.sourceIceSignal
+      ) / 6,
+    ),
+    factors,
   };
 }
 

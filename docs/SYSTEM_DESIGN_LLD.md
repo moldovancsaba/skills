@@ -131,11 +131,13 @@ The repetitive-job system now has a first-class queue model:
 - `scoring-contract.js` owns `computeBlendedPriorityProfile`
 - the profile returns a bounded priority score, component signals, weights, lifecycle and memory multipliers, and short reason labels
 - each scored card may also persist a `scoreProfile` JSON object that keeps agent proposal, calibrated heuristic score, and final blended score together
+- score profiles preserve decimal internal precision for tuple health and rescoring compatibility even where legacy fields or UI surfaces round for display
 - generator/refiner scoring may also inject company-history calibration from accepted, declined, modified, and delivered cards before the final score is persisted
 - task scoring converts a delivery-difficulty model into the persisted `ease` signal so the system does not confuse long text with hard execution
 - frontier recomputation uses blended priority plus relative peer ranking for tactical column assignment while preserving raw ICE as the visible card score
 - tactical API responses include `priorityProfile` so the board can explain why an item is ranked where it is
 - manual planning anchors from drag/drop remain first-class human signal and are preserved ahead of AI-only priority ordering
+- `score-health.js` plus `scripts/repair-ice-scores.js` form the maintenance side of the scoring architecture: one measures clustering and one resynchronizes historical cards onto the live shared contract
 
 ## 10. Budget Governor Architecture
 

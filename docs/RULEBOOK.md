@@ -316,9 +316,11 @@ Rules:
 - `src/lib/scoring-contract.js` owns the canonical blended priority profile
 - the blended profile must expose both a numeric priority score and component-level reasons
 - the scoring contract must preserve decimal internal score precision even if legacy storage fields or UI surfaces round for compatibility
+- the live scoring contract is considered closed architecture, not an open speculative overhaul; future work must extend it through the shared scorer, score-health audit, and bounded repair path instead of inventing parallel scoring systems
 - the scoring contract must treat company-specific accepted, declined, modified, and delivered history as first-class calibration input for new-card impact/confidence where history exists
 - task `ease` must not be inferred from text complexity alone; it must be calibrated from delivery difficulty factors such as dependencies, coordination, expertise burden, time-to-value, and delivery history
 - supported priority components are ICE, quality, urgency, freshness, human signal, risk, lifecycle state, and memory signal
+- historical flashcard and task rescoring must use the bounded `scripts/repair-ice-scores.js` path and remain compatible with score-health observability
 - human-guided planning anchors must remain visible and must not be silently erased by AI reprioritization
 - frontier placement and tactical board ordering must use blended priority where available
 - frontier placement should be relative-rank based inside the active pool, not raw fixed ICE thresholds alone

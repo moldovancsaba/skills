@@ -342,9 +342,10 @@ The detailed program and issue breakdown live in:
 The current canonical scoring contract is:
 
 ```text
-Impact: 1-10 integer
-Confidence: 1-10 integer
-Ease: 1-10 integer
+Impact: 1-10 visible range
+Confidence: 1-10 visible range
+Ease: 1-10 visible range
+Internal score math: decimal precision through shared scoreProfile
 Task ICE = impact * confidence * ease
 Task range: 1-1000
 ```
@@ -353,13 +354,18 @@ Important:
 
 - the app no longer uses mixed confidence scales
 - task generation/refinement must normalize through `src/lib/scoring-contract.js`
-- task scoring is grounded by source strength plus task specificity, urgency, and complexity signals
+- score generation persists `scoreProfile` provenance: agent proposal, calibrated factor traces, and final blended score
+- task and knowledge scoring are history-aware: accepted, declined, modified, and delivered company outcomes are valid calibration inputs
+- task scoring is grounded by source strength plus task specificity, urgency, and delivery-difficulty signals
+- task `ease` is calibrated from dependencies, coordination burden, expertise requirement, time-to-value, and delivery history
 - tactical placement uses the shared blended priority profile, not raw ICE alone
 - blended priority combines ICE, quality, urgency, freshness, human signal, risk, lifecycle state, and memory signal
 - `priorityProfile` exposes component-level reasons so ranking is inspectable
 - operator drag/drop anchors remain explicit human signal and are preserved ahead of AI-only ordering
 - periodic rescoring runs oldest-updated-first across active card layers
 - score clustering is observable through the dashboard score-health panel and `npm run audit:score-health`
+- bounded historical rescoring uses `scripts/repair-ice-scores.js` so flashcards and taskcards can be safely resynchronized onto the live scoring contract
+- the scoring-accuracy overhaul is considered complete architecture work; remaining warnings are maintenance inputs for observability and repair
 
 ## Budget governor
 

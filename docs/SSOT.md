@@ -137,6 +137,9 @@ Tactical placement contract:
 - priority is assigned by blended relative rank inside the active peer pool, not raw ICE alone
 - score calibration is history-aware: accepted, declined, modified, and delivered company outcomes are valid first-class inputs for new-card impact/confidence scoring
 - task ease is calibrated from delivery difficulty and then persisted as an ease signal; dependencies, coordination burden, expertise, time-to-value, and delivery history are part of that contract
+- internal score precision remains decimal-first inside `scoreProfile` and score-health tuple auditing, even where compatibility fields or UI badges still round for display
+- bounded historical repair/backfill is part of the contract, so flashcards and taskcards can be resynchronized onto the live scoring model without one-off migration logic
+- the scoring-accuracy track is closed as architecture work: residual warnings now flow through score-health monitoring and repair, not through local alternative scoring implementations
 
 ## 6. AI Brain Rule
 

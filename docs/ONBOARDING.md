@@ -31,6 +31,7 @@ CHECKLIST is a multi-tenant autonomous intelligence system with:
 - raw `Paper` surfaces are not allowed for product cards
 - local type scales are not allowed
 - changing the system without updating the AI brain docs is not allowed
+- the old “synthetic ICE overhaul” is not an open project anymore; the live scoring contract is already factorized, history-aware, delivery-difficulty-aware, and precision-preserving
 
 ## Required First Commands
 
@@ -70,3 +71,11 @@ If you change:
 - scoring rules
 
 Then you must update the governing docs in the same work.
+
+## Scoring Onboarding
+
+- `src/lib/scoring-contract.js` is the only place allowed to own canonical ICE and priority math
+- visible `iceScore` is not the only ranking signal; task placement comes from `priorityProfile`
+- `scoreProfile` is part of the live data contract and must preserve agent proposal, calibrated factors, and final blended score
+- historical rescoring must run through `scripts/repair-ice-scores.js`, not one-off local scripts
+- score-health warnings are maintenance inputs; do not “fix” them by adding local ranking shortcuts in feature code

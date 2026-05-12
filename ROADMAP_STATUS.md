@@ -20,6 +20,11 @@ Source of truth: [package.json](/Users/Shared/Projects/checklist/package.json) a
 
 ### Scoring And Maintenance
 - One canonical `1-10` scoring contract exists across upstream cards, knowledge, goals, and tasks.
+- Internal score math now preserves decimal precision in `scoreProfile` and score-health tuple auditing even when visible compatibility fields round.
+- Score provenance is live: agent proposal, calibrated factor traces, and final blended score are persisted together.
+- Score calibration is history-aware across accepted, declined, modified, and delivered outcomes.
+- Task ease is modeled from delivery difficulty rather than text complexity alone.
+- Historical flashcards and taskcards have been backfilled onto the live scoring contract through the bounded repair path.
 - Periodic rescoring and maintenance operate oldest-first.
 - Score-health detection classifies dominant score and tuple concentration into `HEALTHY`, `WARNING`, `SUSPICIOUS`, and `CRITICAL`.
 - Planning drag-and-drop feeds human teaching signals back into task ICE scoring.
@@ -34,10 +39,10 @@ Source of truth: [package.json](/Users/Shared/Projects/checklist/package.json) a
 
 ## Active Priorities
 
-1. Improve task and knowledge score discrimination so repeated tuples and repeated exact ICE values keep falling.
-2. Keep burning down remaining hardcoded styling from the audit, starting with the tactical board and shared high-traffic surfaces.
-3. Expand browser-level regression coverage for drag/drop, card sharing, theme behavior, and queue interactions.
-4. Continue strengthening the local worker queue so more background jobs move into the canonical queue contract.
+1. Keep burning down remaining hardcoded styling from the audit, starting with the tactical board and shared high-traffic surfaces.
+2. Expand browser-level regression coverage for drag/drop, card sharing, theme behavior, and queue interactions.
+3. Continue strengthening the local worker queue so more background jobs move into the canonical queue contract.
+4. Harden answer trust with better conflict surfacing, evidence drill-down, and answer-to-action routing.
 
 ## Future Pipeline
 
@@ -46,4 +51,4 @@ Source of truth: [package.json](/Users/Shared/Projects/checklist/package.json) a
 - Stronger recursive deliberation for high-stakes judging
 - Better queue intelligence and operator ergonomics for local AI control
 
-Last updated: `2026-05-09`
+Last updated: `2026-05-13`

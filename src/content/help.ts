@@ -78,6 +78,17 @@ export const manualSections: HelpSection[] = [
     ],
   },
   {
+    id: "scores-and-priority",
+    title: "Read ICE and priority the right way",
+    summary: "ICE is the visible card score, but checklist ranks action work with a broader priority model.",
+    bullets: [
+      "ICE expresses impact, confidence, and ease for the specific card and company context.",
+      "Priority uses ICE plus quality, urgency, freshness, human guidance, lifecycle state, risk, and company memory to decide ordering.",
+      "Two cards can have similar ICE and still appear in a different order when one is fresher, more urgent, more trusted, or more human-guided.",
+      "The best way to improve future scores is still better evidence and sharper accept, decline, modify, and delivery feedback.",
+    ],
+  },
+  {
     id: "troubleshooting",
     title: "Troubleshoot weak output systematically",
     summary: "When the system feels off, the fastest fix is usually better inputs and better feedback.",
@@ -85,6 +96,7 @@ export const manualSections: HelpSection[] = [
       "If tasks are generic, add sharper pricing, market, and audience evidence.",
       "If flashcards feel wrong, decline them with specific reasons instead of silently ignoring them.",
       "If tasks are good but mistimed, say what prerequisite is missing so the AI team can learn to postpone rather than discard.",
+      "If the rank order feels surprising, check whether urgency, readiness, delivery difficulty, or older human feedback is separating cards with similar visible ICE.",
       "If a company has very little data, start on the Data page before judging the rest of the system.",
     ],
   },
@@ -120,6 +132,18 @@ export const faqItems: FaqItem[] = [
     question: "What makes a flashcard trustworthy?",
     answer:
       "A trustworthy flashcard has clear evidence behind it, matches the company context, and survives review. If it feels off, call out what is unsupported, stale, overconfident, or aimed at the wrong audience.",
+  },
+  {
+    id: "ice-vs-priority",
+    question: "What is the difference between ICE and priority?",
+    answer:
+      "ICE is the visible score on cards. Priority is the broader ranking model used for tactical ordering. Priority keeps ICE visible but also accounts for urgency, freshness, human guidance, quality, risk, lifecycle state, and company-specific history.",
+  },
+  {
+    id: "how-scores-improve",
+    question: "How does the system improve its scores over time?",
+    answer:
+      "The system learns from better evidence, flashcard review, task review, and delivered work. Accepted, declined, modified, and delivered outcomes all feed the scoring contract, so precise feedback improves future impact, confidence, ease, and ordering.",
   },
   {
     id: "why-weak-suggestions",

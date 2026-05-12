@@ -24,8 +24,10 @@ Read first:
 - score provenance is now part of the contract: agent score proposal, calibrated heuristic score, and final blended score must remain inspectable in persisted `scoreProfile` data
 - score calibration now also has to consume company-specific accepted, declined, modified, and delivered history when deriving new-card impact and confidence
 - task ease is now defined through delivery difficulty: dependencies, coordination burden, expertise requirement, time-to-value, and delivery history must inform the final ease signal
+- the scoring-overhaul execution track is closed: factorized score traces, history-aware calibration, delivery-difficulty ease, relative-rank priority, precision-preserving tuple health, and bounded historical repair are all part of the normal live contract now
 - tactical prioritization now uses the shared blended priority profile from `scoring-contract.js`; ICE remains visible, but placement also explains quality, urgency, freshness, human signal, risk, lifecycle state, and memory inputs
 - frontier placement is relative-rank based inside the current candidate pool, with human anchors preserved ahead of AI-only ordering
+- remaining score-health warnings are maintenance and observability work, not permission to reopen local or ad hoc scoring math
 - repetitive local-AI work is represented as persisted `PipelineJob` queue records
 - the webapp `Worker Queue` is the primary HiTL steering surface for repetitive jobs
 - worker scheduling supports explicit `AI_ONLY` and `HUMAN_GUIDED` modes
@@ -125,5 +127,6 @@ The work is not done until:
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now able to escalate queue work through the shared queue contract.
 - Frontier recompute assigns tactical columns by relative blended-priority rank, not raw ICE alone, while preserving manual human drag/drop anchors.
+- Historical flashcard and task rescoring must continue through the bounded `scripts/repair-ice-scores.js` path; do not replace it with one-off bulk rewrites.
 - Budget governor is observability-first: usage/cost values are estimates unless explicitly marked actual, and controls are recorded as events/policies rather than hidden scheduling overrides.
 - Future autonomous implementation selection must ignore ideabank-only items unless an operator explicitly promotes them into an active delivery column first.

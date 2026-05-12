@@ -79,8 +79,10 @@ Frontend system:
 - score generation must persist score provenance: agent proposal, calibrated heuristic score, and final blended score profile
 - score calibration must consume company-specific history from accepted, declined, modified, and delivered cards when deriving new-card impact and confidence
 - task `ease` must be calibrated as delivery difficulty converted into an ease signal, using dependencies, coordination burden, expertise requirement, time-to-value, and delivery history
+- the scoring overhaul track is now closed: the live contract is factorized, history-aware, delivery-difficulty-aware, precision-preserving, and maintained through bounded repair/backfill plus score-health observability
 - tactical placement uses the shared blended priority contract: ICE remains visible, while ranking also accounts for quality, urgency, freshness, human signal, risk, lifecycle state, and memory signal
 - tactical columns are assigned by relative peer ranking plus human anchors, not by raw fixed ICE thresholds alone
+- residual score-health warnings are now treated as monitored maintenance signals, not as an open architecture program
 - source-backed Knowmore cards must persist durable citation snapshots and explicit conflict state instead of relying on raw URLs alone
 
 Worker queue controls:

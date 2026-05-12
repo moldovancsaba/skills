@@ -48,21 +48,23 @@ function entityOptionLabel(entityType: SearchEntityType) {
   }
 }
 
+const EMPTY_COUNTS: Record<SearchEntityType, number> = {
+  SOURCE: 0,
+  TOPIC: 0,
+  FLASHCARD: 0,
+  GOALCARD: 0,
+  TASK: 0,
+  PIPELINE_JOB: 0,
+  WORKFLOW_BLUEPRINT: 0,
+};
+
 export default function SearchPage() {
   const params = useParams();
   const companyId = params.companyId as string;
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchResultRecord[]>([]);
-  const [counts, setCounts] = useState<Record<SearchEntityType, number>>({
-    SOURCE: 0,
-    TOPIC: 0,
-    FLASHCARD: 0,
-    GOALCARD: 0,
-    TASK: 0,
-    PIPELINE_JOB: 0,
-    WORKFLOW_BLUEPRINT: 0,
-  });
+  const [counts, setCounts] = useState<Record<SearchEntityType, number>>(EMPTY_COUNTS);
   const [answer, setAnswer] = useState<GroundedAnswer | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [selectedTypes, setSelectedTypes] = useState<SearchEntityType[]>([
@@ -108,15 +110,7 @@ export default function SearchPage() {
       const searchData = await searchResponse.json();
       const answerData = await answerResponse.json();
       setResults(Array.isArray(searchData.items) ? searchData.items : []);
-      setCounts(searchData.counts || {
-        SOURCE: 0,
-        TOPIC: 0,
-        FLASHCARD: 0,
-        GOALCARD: 0,
-        TASK: 0,
-        PIPELINE_JOB: 0,
-        WORKFLOW_BLUEPRINT: 0,
-      });
+      setCounts(searchData.counts || EMPTY_COUNTS);
       setAnswer(answerData);
     } finally {
       setLoading(false);
@@ -136,7 +130,13 @@ export default function SearchPage() {
           placeholder="What matters most for this account right now?"
           value={query}
           onChange={(event) => {
-            setQuery(event.currentTarget.value);
+            const nextValue = event.currentTarget.value;
+            setQuery(nextValue);
+            if (!nextValue.trim()) {
+              setResults([]);
+              setAnswer(null);
+              setCounts(EMPTY_COUNTS);
+            }
             if (selectionError) setSelectionError(null);
           }}
           flex={1}

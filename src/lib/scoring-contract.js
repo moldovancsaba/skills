@@ -101,6 +101,7 @@ const PRIORITY_STATE_MULTIPLIERS = Object.freeze({
   REFINED: 0.86,
   GENERATED: 0.72,
 });
+const PRIORITY_DENSITY_BUCKET_SIZE = 15;
 
 function clampMetric(value, min = SCORE_MIN, max = SCORE_MAX) {
   const numeric = Number(value);
@@ -196,6 +197,89 @@ function computeHumanPrioritySignal(input = {}) {
   return clampUnit(Math.max(feedbackSignal, manualAnchorSignal, humanGuidedSignal));
 }
 
+function scoreProfileRationale(input = {}) {
+  const rationale = input?.scoreProfile?.rationale;
+  return rationale && typeof rationale === "object" ? rationale : null;
+}
+
+function deriveQualityPrioritySignal(input = {}, fallback = 0.5) {
+  if (input.qualityScore !== null && input.qualityScore !== undefined) {
+    return clampUnit(input.qualityScore, fallback);
+  }
+
+  const rationale = scoreProfileRationale(input);
+  const confidenceSignal = clampMetric(
+    input.confidenceScore ??
+    input.confidence ??
+    input.scoreProfile?.final?.confidence ??
+    fallback * SCORE_MAX,
+  ) / SCORE_MAX;
+  const evidenceSignal = clampUnit(
+    rationale?.evidenceStrength ??
+    rationale?.sourceConfidenceSignal ??
+    rationale?.specificity ??
+    rationale?.supportStrength ??
+    confidenceSignal,
+    confidenceSignal,
+  );
+  const historySignal = clampUnit(
+    rationale?.historyConfidence ??
+    rationale?.historySupport ??
+    rationale?.historyAcceptance ??
+    rationale?.historySuccess ??
+    confidenceSignal,
+    confidenceSignal,
+  );
+
+  return clampUnit(
+    confidenceSignal * 0.45 +
+    evidenceSignal * 0.30 +
+    historySignal * 0.25,
+    fallback,
+  );
+}
+
+function deriveUrgencyPrioritySignal(input = {}, fallback = 0.5) {
+  if (input.urgencyScore !== null && input.urgencyScore !== undefined) {
+    return clampUnit(input.urgencyScore, fallback);
+  }
+
+  const rationale = scoreProfileRationale(input);
+  const keywordUrgency = deriveUrgencySignal(input.kind, input.title, input.description) / SCORE_MAX;
+  const impactUrgency = clampMetric(
+    input.impact ??
+    input.scoreProfile?.final?.impact ??
+    fallback * SCORE_MAX,
+  ) / SCORE_MAX;
+  const freshnessUrgency = computeImpliedFreshnessSignal(input);
+  const state = String(input.candidateState || "").toUpperCase();
+  const scheduledAt = input.scheduledDate ? new Date(input.scheduledDate).getTime() : null;
+  const imminentScheduleSignal =
+    Number.isFinite(scheduledAt) && scheduledAt <= Date.now() + 3 * 24 * 60 * 60 * 1000 ? 1 : 0;
+  const historyUrgency = clampUnit(
+    rationale?.historyImpact ??
+    rationale?.historyPriority ??
+    rationale?.historyDeliveryPressure ??
+    impactUrgency,
+    impactUrgency,
+  );
+  const stateUrgency =
+    state === "EVALUATED" ? 0.82 :
+    state === "REFINED" ? 0.66 :
+    state === "GENERATED" ? 0.52 :
+    0.46;
+
+  return clampUnit(
+    keywordUrgency * 0.28 +
+    impactUrgency * 0.26 +
+    freshnessUrgency * 0.16 +
+    historyUrgency * 0.18 +
+    stateUrgency * 0.07 +
+    imminentScheduleSignal * 0.05,
+    fallback,
+  );
+}
+
 function computeRiskPrioritySignal(input = {}) {
   const confidence = clampMetric(input.confidenceScore ?? input.confidence ?? 5);
   const activityState = String(input.activityState || "").toUpperCase();
@@ -220,9 +304,9 @@ function describePriorityBand(value, high, medium, label) {
 
 function computeBlendedPriorityProfile(input = {}) {
   const iceSignal = normalizeIceSignal(input.iceScore, input.priorityIceMax ?? PRIORITY_SCORE_MAX);
-  const qualitySignal = clampUnit(input.qualityScore, iceSignal);
-  const urgencySignal = clampUnit(
-    input.urgencyScore,
+  const qualitySignal = deriveQualityPrioritySignal(input, iceSignal);
+  const urgencySignal = deriveUrgencyPrioritySignal(
+    input,
     clampMetric(input.impact ?? 5) / SCORE_MAX,
   );
   const freshnessSignal = computeImpliedFreshnessSignal(input);
@@ -269,6 +353,82 @@ function computeBlendedPriorityProfile(input = {}) {
       `state:${String(input.candidateState || "UNKNOWN").toLowerCase()}`,
     ],
   };
+}
+
+function computePriorityCohortProfiles(inputs = [], options = {}) {
+  const bucketSize = Number.isFinite(Number(options.bucketSize))
+    ? Math.max(5, Number(options.bucketSize))
+    : PRIORITY_DENSITY_BUCKET_SIZE;
+  const baseProfiles = inputs.map((input, index) => ({
+    input,
+    index,
+    profile: computeBlendedPriorityProfile(input),
+  }));
+
+  if (baseProfiles.length <= 1) {
+    return baseProfiles.map((entry) => entry.profile);
+  }
+
+  const sorted = [...baseProfiles].sort((left, right) => {
+    const leftScore = left.profile?.score ?? 0;
+    const rightScore = right.profile?.score ?? 0;
+    if (rightScore !== leftScore) return rightScore - leftScore;
+    return left.index - right.index;
+  });
+
+  const bucketCounts = new Map();
+  for (const entry of sorted) {
+    const bucket = Math.round((entry.profile?.score ?? 0) / bucketSize);
+    bucketCounts.set(bucket, (bucketCounts.get(bucket) ?? 0) + 1);
+  }
+
+  const total = sorted.length;
+  const maxBucketCount = Math.max(...bucketCounts.values());
+  const adjustedByIndex = new Array(total);
+
+  for (const [rankIndex, entry] of sorted.entries()) {
+    const baseScore = entry.profile?.score ?? 0;
+    const bucket = Math.round(baseScore / bucketSize);
+    const bucketCount = bucketCounts.get(bucket) ?? 1;
+    const percentile = total <= 1 ? 1 : 1 - rankIndex / (total - 1);
+    const crowdRatio = maxBucketCount > 1 ? (bucketCount - 1) / (maxBucketCount - 1) : 0;
+    const spreadBoost = Number(((percentile - 0.5) * 160).toFixed(2));
+    const densityPenalty = Number((crowdRatio * 60).toFixed(2));
+    const anchorBoost = entry.profile?.manualAnchor ? 28 : 0;
+    const humanBoost = Number((((entry.profile?.components?.human ?? 0) - 0.5) * 36).toFixed(2));
+    const riskBoost = Number((((entry.profile?.components?.risk ?? 0) - 0.35) * 24).toFixed(2));
+    const adjustedScore = Number(
+      Math.max(
+        0,
+        Math.min(
+          PRIORITY_SCORE_MAX,
+          baseScore + spreadBoost + anchorBoost + humanBoost + riskBoost - densityPenalty,
+        ),
+      ).toFixed(2),
+    );
+
+    adjustedByIndex[entry.index] = {
+      ...entry.profile,
+      baseScore,
+      score: adjustedScore,
+      cohort: {
+        rank: rankIndex + 1,
+        total,
+        percentile: Number(percentile.toFixed(4)),
+        bucket,
+        bucketCount,
+        spreadBoost,
+        densityPenalty,
+      },
+      reasons: [
+        ...(entry.profile?.reasons ?? []),
+        `rank:${rankIndex + 1}/${total}`,
+        bucketCount > 1 ? `density:${bucketCount}` : "density:clear",
+      ],
+    };
+  }
+
+  return adjustedByIndex;
 }
 
 function blendScoreTriplets(agentInput = {}, calibratedInput = {}, agentWeight = 0.6) {
@@ -789,6 +949,7 @@ module.exports = {
   computeHumanPrioritySignal,
   computeRiskPrioritySignal,
   computeBlendedPriorityProfile,
+  computePriorityCohortProfiles,
   blendScoreTriplets,
   buildScoreProfile,
   scoreProfileTriplet,

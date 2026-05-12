@@ -2,11 +2,29 @@ export type ScoreHealthSeverity = "HEALTHY" | "WARNING" | "SUSPICIOUS" | "CRITIC
 
 export type ScoreHealthAlert = {
   scope: "TASK" | "KNOWLEDGE";
-  metric: "dominantIceScore" | "dominantTuple" | "uniqueTupleRatio";
+  metric: "dominantIceScore" | "dominantTuple" | "uniqueTupleRatio" | "dominantPriorityBand" | "uniquePriorityRatio";
   severity: ScoreHealthSeverity;
   actualShare: number;
   thresholdShare: number;
   detail: string;
+};
+
+export type PriorityHealthSurface = {
+  count: number;
+  uniquePriorityScores: number;
+  uniquePriorityBands: number;
+  priorityDiversityRatio: number;
+  dominantPriorityScore: number | null;
+  dominantPriorityShare: number;
+  dominantPriorityBand: {
+    label: string;
+    count: number;
+    share: number;
+  } | null;
+  dominantPrioritySeverity: ScoreHealthSeverity;
+  priorityDiversitySeverity: ScoreHealthSeverity;
+  overallSeverity: ScoreHealthSeverity;
+  alerts: ScoreHealthAlert[];
 };
 
 export type ScoreHealthSurface = {
@@ -26,6 +44,7 @@ export type ScoreHealthSurface = {
   diversitySeverity: ScoreHealthSeverity;
   overallSeverity: ScoreHealthSeverity;
   alerts: ScoreHealthAlert[];
+  priorityHealth?: PriorityHealthSurface;
 };
 
 export type ScoreHealthThresholds = {
@@ -42,6 +61,18 @@ export type ScoreHealthThresholds = {
     criticalMin: number;
   };
   uniqueTupleRatio: {
+    healthyMin: number;
+    warningMax: number;
+    suspiciousMax: number;
+    criticalMax: number;
+  };
+  priorityBandShare: {
+    healthyMax: number;
+    warningMin: number;
+    suspiciousMin: number;
+    criticalMin: number;
+  };
+  uniquePriorityRatio: {
     healthyMin: number;
     warningMax: number;
     suspiciousMax: number;

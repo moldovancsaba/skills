@@ -69,6 +69,7 @@ type NBAItem = {
   freshnessScore?: number | null;
   priorityProfile?: {
     score: number;
+    baseScore?: number;
     manualAnchor: boolean;
     components: {
       ice: number;
@@ -79,6 +80,15 @@ type NBAItem = {
       risk: number;
     };
     reasons: string[];
+    cohort?: {
+      rank: number;
+      total: number;
+      percentile: number;
+      bucket: number;
+      bucketCount: number;
+      spreadBoost: number;
+      densityPenalty: number;
+    };
   } | null;
 };
 
@@ -282,11 +292,17 @@ function CardDetailModal({
               <Text size="xs" c="dimmed">Blended Priority Signals</Text>
             </Group>
             <UnifiedCardSection tone="tactical">
-              <SimpleGrid cols={4}>
+              <SimpleGrid cols={item.priorityProfile?.cohort ? 6 : 4}>
                 <Stack gap={2}>
                   <Text size="sm">{item.priorityProfile ? Math.round(item.priorityProfile.score) : "—"}</Text>
                   <Text size="xs" c="dimmed">Priority</Text>
                 </Stack>
+                {item.priorityProfile?.baseScore != null ? (
+                  <Stack gap={2}>
+                    <Text size="sm">{Math.round(item.priorityProfile.baseScore)}</Text>
+                    <Text size="xs" c="dimmed">Base</Text>
+                  </Stack>
+                ) : null}
                 <Stack gap={2}>
                   <Text size="sm">{item.priorityProfile ? fmt(item.priorityProfile.components.human) : "—"}</Text>
                   <Text size="xs" c="dimmed">Human</Text>
@@ -299,10 +315,28 @@ function CardDetailModal({
                   <Badge color="tactical">{item.candidateState}</Badge>
                   <Text size="xs" c="dimmed">State</Text>
                 </Stack>
+                {item.priorityProfile?.cohort ? (
+                  <Stack gap={2}>
+                    <Text size="sm">
+                      {item.priorityProfile.cohort.rank}/{item.priorityProfile.cohort.total}
+                    </Text>
+                    <Text size="xs" c="dimmed">Rank</Text>
+                  </Stack>
+                ) : null}
+                {item.priorityProfile?.cohort ? (
+                  <Stack gap={2}>
+                    <Text size="sm">
+                      {item.priorityProfile.cohort.bucketCount > 1
+                        ? `-${Math.round(item.priorityProfile.cohort.densityPenalty)}`
+                        : `+${Math.round(item.priorityProfile.cohort.spreadBoost)}`}
+                    </Text>
+                    <Text size="xs" c="dimmed">Cohort</Text>
+                  </Stack>
+                ) : null}
               </SimpleGrid>
               {item.priorityProfile?.reasons?.length ? (
                 <Text size="xs" c="dimmed" mt="sm">
-                  {item.priorityProfile.reasons.slice(0, 4).join(" · ")}
+                  {item.priorityProfile.reasons.slice(0, 6).join(" · ")}
                 </Text>
               ) : null}
             </UnifiedCardSection>

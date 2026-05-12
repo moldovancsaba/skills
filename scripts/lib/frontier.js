@@ -6,7 +6,7 @@
  */
 const { CandidateState } = require("./lifecycle");
 const { recordDecisionEvent, recordOutcomeEvent } = require("./audit-ledger");
-const { computeBlendedPriorityProfile } = require("../../src/lib/scoring-contract");
+const { computeBlendedPriorityProfile, computePriorityCohortProfiles } = require("../../src/lib/scoring-contract");
 
 // ---------------------------------------------------------------------------
 // 1. Configuration
@@ -181,15 +181,20 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   }
 
   // 2. Attach scores
-  const scored = all.map((candidate) => {
-    const memoryMultiplier = computeFrontierMemoryMultiplier(candidate, frontierMemoryEntries);
-    const priorityProfile = computeBlendedPriorityProfile({
+  const scoredInputs = all.map((candidate) => ({
+    ...candidate,
+    _memoryMultiplier: computeFrontierMemoryMultiplier(candidate, frontierMemoryEntries),
+  }));
+  const scoredProfiles = computePriorityCohortProfiles(
+    scoredInputs.map((candidate) => ({
       ...candidate,
-      memoryMultiplier,
-    });
+      memoryMultiplier: candidate._memoryMultiplier,
+    })),
+  );
+  const scored = scoredInputs.map((candidate, index) => {
+    const priorityProfile = scoredProfiles[index];
     return {
       ...candidate,
-      _memoryMultiplier: memoryMultiplier,
       _priorityProfile: priorityProfile,
       _frontierScore: priorityProfile.score,
     };

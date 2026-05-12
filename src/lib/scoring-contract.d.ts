@@ -136,6 +136,7 @@ export function scoreProfileTriplet(
 ): ScoreTriplet;
 export function computeBlendedPriorityProfile(input?: CanonicalTripletInput): {
   score: number;
+  baseScore?: number;
   manualAnchor: boolean;
   stateMultiplier: number;
   memoryMultiplier: number;
@@ -149,7 +150,20 @@ export function computeBlendedPriorityProfile(input?: CanonicalTripletInput): {
   };
   weights: typeof PRIORITY_WEIGHTS;
   reasons: string[];
+  cohort?: {
+    rank: number;
+    total: number;
+    percentile: number;
+    bucket: number;
+    bucketCount: number;
+    spreadBoost: number;
+    densityPenalty: number;
+  };
 };
+export function computePriorityCohortProfiles(
+  inputs?: CanonicalTripletInput[],
+  options?: { bucketSize?: number | null },
+): Array<ReturnType<typeof computeBlendedPriorityProfile>>;
 export function persistTaskScoresFromProfile(profile?: ScoreProfile | Record<string, unknown> | null): {
   impact: number;
   confidence: number;

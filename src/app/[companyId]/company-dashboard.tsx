@@ -281,6 +281,7 @@ export default function CompanyDashboard() {
         : "knowmore";
   const taskTupleShare = scoreHealth?.taskcards.dominantTuple?.share ?? 0;
   const taskDiversity = scoreHealth?.taskcards.diversityRatio ?? 0;
+  const priorityBandShare = scoreHealth?.taskcards.priorityHealth?.dominantPriorityBand?.share ?? 0;
   const dominantTupleLabel = scoreHealth?.taskcards.dominantTuple?.label ?? "—";
   const topScoreAlert = scoreHealth?.alerts[0] ?? null;
 
@@ -406,11 +407,11 @@ export default function CompanyDashboard() {
             <MetricCard
               icon={CirclesRelation}
               color={scoreHealthColor}
-              label="Task ICE Diversity"
-              value={scoreHealth ? `${scoreHealth.taskcards.uniqueIceScores}/${scoreHealth.taskcards.count}` : "—"}
+              label="Task Priority Crowd"
+              value={scoreHealth ? `${Math.round(priorityBandShare * 100)}%` : "—"}
               detail={
                 scoreHealth
-                  ? `${scoreHealth.taskcards.diversitySeverity} · ${Math.round(taskDiversity * 100)}% unique tuples across active tasks`
+                  ? `${scoreHealth.taskcards.priorityHealth?.dominantPrioritySeverity ?? "HEALTHY"} · dominant band ${scoreHealth.taskcards.priorityHealth?.dominantPriorityBand?.label ?? "—"}`
                   : "Awaiting score health sample"
               }
             />
@@ -425,6 +426,17 @@ export default function CompanyDashboard() {
                   : scoreHealth
                     ? `Knowledge repeat ${Math.round((scoreHealth.knowledge.dominantTuple?.share ?? 0) * 100)}%`
                     : "Awaiting score health sample"
+              }
+            />
+            <MetricCard
+              icon={CirclesRelation}
+              color={scoreHealthColor}
+              label="Task ICE Diversity"
+              value={scoreHealth ? `${scoreHealth.taskcards.uniqueIceScores}/${scoreHealth.taskcards.count}` : "—"}
+              detail={
+                scoreHealth
+                  ? `${scoreHealth.taskcards.diversitySeverity} · ${Math.round(taskDiversity * 100)}% unique tuples across active tasks`
+                  : "Awaiting score health sample"
               }
             />
           </MetricGrid>

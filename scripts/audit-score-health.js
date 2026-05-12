@@ -64,6 +64,11 @@ async function main() {
     console.log(
       `Tasks: ${report.taskcards.count} total | ${report.taskcards.uniqueIceScores} unique ICE | ${report.taskcards.uniqueTriples} unique tuples | dominant tuple share ${Math.round((report.taskcards.dominantTuple?.share ?? 0) * 100)}%`
     );
+    if (report.taskcards.priorityHealth) {
+      console.log(
+        `Task priority: ${report.taskcards.priorityHealth.uniquePriorityScores} unique scores | ${report.taskcards.priorityHealth.uniquePriorityBands} unique bands | dominant band share ${Math.round((report.taskcards.priorityHealth.dominantPriorityBand?.share ?? 0) * 100)}%`
+      );
+    }
     console.log(
       `Knowledge: ${report.knowledge.count} total | ${report.knowledge.uniqueIceScores} unique ICE | ${report.knowledge.uniqueTriples} unique tuples | dominant tuple share ${Math.round((report.knowledge.dominantTuple?.share ?? 0) * 100)}%`
     );

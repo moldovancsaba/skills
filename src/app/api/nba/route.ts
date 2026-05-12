@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
 import { verifyMembership } from "@/lib/permissions";
 import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
-import { computeBlendedPriorityProfile } from "@/lib/scoring-contract";
+import { computePriorityCohortProfiles } from "@/lib/scoring-contract";
 import { applyPlanningHitlScoreAdjustment, type NBAKanbanColumn } from "@/lib/planning-hitl";
 import { ensurechecklistPublicIds, nextchecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
@@ -62,9 +62,10 @@ export async function GET(request: NextRequest) {
             { publicId: "asc" as const },
           ],
     });
-    const enriched = items.map((item) => ({
+    const priorityProfiles = computePriorityCohortProfiles(items);
+    const enriched = items.map((item, index) => ({
       ...item,
-      priorityProfile: computeBlendedPriorityProfile(item),
+      priorityProfile: priorityProfiles[index],
     }));
 
     enriched.sort((left, right) => {

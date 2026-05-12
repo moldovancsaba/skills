@@ -5,7 +5,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_POLICIES = [
   { feature: "pipeline-queue", dailyEstimatedCostMicros: 250000, dailyWorkloadUnitsLimit: 120, retryLimit: 6, externalRequestLimit: 20 },
-  { feature: "content-generation", dailyEstimatedCostMicros: 200000, dailyWorkloadUnitsLimit: 80, retryLimit: 4, externalRequestLimit: 10 },
   { feature: "evaluation-bench", dailyEstimatedCostMicros: 150000, dailyWorkloadUnitsLimit: 60, retryLimit: 3, externalRequestLimit: 5 },
   { feature: "observability", dailyEstimatedCostMicros: 75000, dailyWorkloadUnitsLimit: 40, retryLimit: 4, externalRequestLimit: 5 },
 ];
@@ -224,7 +223,7 @@ function recommendedBudgetEvents(params: {
       eventType: "FAILED_EVAL_REPLAY",
       severity: "INFO",
       valueAssessment: "HIGH_COST_HIGH_VALUE_REVIEW",
-      recommendation: "Keep eval usage visible, but treat failed gates as valuable safety work before throttling.",
+      recommendation: "Keep evaluation replay visible as internal quality-governance work before promoting candidate behavior.",
       evidence: { evaluationFailureCount: params.evaluationFailureCount },
     });
   }

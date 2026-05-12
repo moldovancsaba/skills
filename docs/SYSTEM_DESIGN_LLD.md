@@ -121,7 +121,8 @@ The repetitive-job system now has a first-class queue model:
 - `internal-search.ts` also owns result counts, entity-layer filtering, and ranking boosts from ICE and freshness
 - `grounded-answers.ts` builds bounded evidence-backed answers on top of the internal search layer, including explicit intent/confidence/evidence-group fields
 - `observability.ts` aggregates heartbeat, queue, score-health, worker reports, and recent outcomes for mission-control surfaces, and drives bounded repair recommendations
-- `budget-governor.ts` owns workload usage attribution, virtual/default budget policies, budget-pressure summaries, recommended budget events, and explicit control application for queue/evaluation/content/observability work
+- `evaluation-bench.ts` is an internal admin-only replay and promotion-gate module used for AI quality governance, not a normal end-user checklist page
+- `budget-governor.ts` owns workload usage attribution, virtual/default budget policies, budget-pressure summaries, recommended budget events, and explicit control application for queue, workflow, search/answer, and observability work
 - `workflow-blueprints.ts` owns the persisted bounded workflow-builder contract and default blueprint registry; active blueprints are synchronized into `PipelineJob` records and executed by the shared queue worker
 - `enrichment-waterfall.ts` owns the persisted provider-ordering and fallback policy contract for enrichment governance, and `url-enrichment.ts` consumes that policy at runtime for product/competitor research
 
@@ -133,37 +134,12 @@ The repetitive-job system now has a first-class queue model:
 - tactical API responses include `priorityProfile` so the board can explain why an item is ranked where it is
 - manual planning anchors from drag/drop remain first-class human signal and are preserved ahead of AI-only priority ordering
 
-## 10. Evaluation Bench Architecture
+## 10. Budget Governor Architecture
 
-- `evaluation-bench.ts` owns the seeded synthetic fixtures, case definitions, rubric weights, replay scorer, baseline-vs-candidate comparison, and promotion-gate metadata
-- `/api/evaluations` runs the bench behind normal company membership checks and is non-mutating by default
-- `/:companyId/evaluations` is the operator surface for running advisory replay, reviewing case-level reasons, and comparing candidate behavior to the current baseline
-- failed gates can be explicitly published to Observability as `EVAL_GATE_FAILED` outcome events so eval failures and production regressions share terminology
-- evaluation cases use synthetic fixture markers and tenant-isolation scoring so the bench does not reward cross-tenant or live-data leakage
-
-## 11. Content Generation Architecture
-
-- `content-generation.ts` owns the deterministic first-slice content-generation contract for tone profiles, positioning extraction, platform limits, and channel-specific output formatting
-- `/api/content-generation` runs behind normal company membership checks, reads existing company/product/competitor/goal/topic/task context, and persists generated outputs as `CreativeDraft` records
-- `/:companyId/content-generation` is the operator surface for choosing tone, adding an optional campaign brief, generating content, copying outputs, and reviewing recent drafts
-- generated bundles include exactly five email subject lines, Facebook/Google/LinkedIn ad copy, Twitter/LinkedIn/Facebook social posts, and landing-page hero/benefit/CTA copy
-- the current release is draft-only: it does not post externally, generate images, or claim multi-language output
-
-## 12. Athlete App Architecture
-
-- `AthleteActivityLog` is the persisted daily athlete record, keyed by company, athlete email, activity date, and optional assigned checklist item
-- `athlete-activity.ts` owns activity-type normalization, bounded score/duration/metrics handling, day-window calculation, and daily/team summary math
-- `/api/athlete` runs behind normal company membership checks for self records and supports an admin-scoped `scope=team` view for coach review
-- `/:companyId/athlete` is the athlete-facing surface for coach-assigned work, activity recording, wellness/body metrics, readiness notes, pain/nutrition notes, and completion evidence
-- `/:companyId/athletes` is the coach-facing records surface for team daily submissions, load, completion evidence, readiness, sleep, soreness, and pain flags
-- completing assigned work from the athlete app records an audit/outcome event and moves the linked checklist item to completed/archived state
-
-## 13. Budget Governor Architecture
-
-- `AiWorkloadUsage` stores company/feature attribution for queue jobs, evaluation replays, content-generation runs, observability actions, and future model/provider calls
+- `AiWorkloadUsage` stores company/feature attribution for queue jobs, workflow execution, search/answer work, observability actions, and future model/provider calls
 - `BudgetPolicy` stores per-company feature controls and thresholds for estimated daily cost, workload units, retries, external requests, and control mode
 - `BudgetEvent` stores reviewable budget pressure, anomaly, and control-application events with evidence and value assessment
 - budget values are estimated by default and must remain visibly distinct from actual provider spend
-- queue worker completion/failure, evaluation POSTs, content-generation POSTs, and observability actions all record workload usage in the first slice
-- Observability renders budget pressure, workload attribution, recommended budget events, and bounded controls for throttling queue work, batching evaluations, and cache/reuse policy
+- queue worker completion/failure, workflow execution, search/answer operations, and observability actions all record workload usage in the first slice
+- Observability renders budget pressure, workload attribution, recommended budget events, and bounded controls for throttling queue work and cache/reuse policy
 - budget controls must not silently erase human-guided queue ordering or suppress critical evidence/safety work

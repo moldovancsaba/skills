@@ -2,6 +2,36 @@
 
 CHECKLIST is a multi-tenant autonomous intelligence system built on a strict Mantine-only product UI and a recurrent AI pipeline.
 
+## Product Boundary
+
+CHECKLIST is a general-purpose company decision-maker, task manager, and AI support system.
+
+Checklist-core includes:
+
+- evidence ingestion and enrichment
+- knowledge synthesis
+- grounded answers and search
+- goals, planning, checklist work, and review
+- worker queue steering
+- observability and bounded workflows
+
+Checklist-core does not include first-class vertical products such as:
+
+- athlete or coach apps
+- marketing content studios
+- campaign execution suites
+- SEO workbenches
+- lead-scoring CRMs
+- email-sequencing tools
+- objection-handling playbooks as standalone product surfaces
+
+Allowed internal governance exception:
+
+- `Evaluation Bench` may exist as an admin-only internal quality-governance surface for replay, regression, and promotion gating
+- it is not a normal end-user checklist module and should stay outside the main navigation
+
+Those ideas may exist as research or future opportunities, but they belong in `IDEABANK` or in a dedicated external project board until they are explicitly reframed into the general CHECKLIST decision-support contract.
+
 This repository has one non-negotiable rule:
 
 - if the system contract changes, the documentation contract must change in the same work
@@ -60,6 +90,12 @@ Worker queue controls:
 - `Reset to AI Only` clears manual queue influence and returns scheduling to shared AI logic
 - there is not a separate compact tweak dropdown/menu yet; the board itself is the shipped tweak surface
 
+Backlog execution rule:
+
+- autonomous implementation and normal engineering work may pull from active delivery columns only
+- `IDEABANK` is research storage, not an execution source
+- ideabank or vertical-experiment items must not be surfaced in the main checklist navigation or core product docs unless they are explicitly promoted out of ideabank
+
 New operator surfaces:
 
 - `/:companyId/search` provides unified internal retrieval plus grounded answers over company context
@@ -75,10 +111,6 @@ New operator surfaces:
 - `/:companyId/workflows` provides bounded workflow blueprints and enrichment-waterfall policy management
 - active workflow blueprints are not passive records: they materialize into claimable `WORKFLOW_BLUEPRINT` queue jobs and execute through the shared worker queue
 - enrichment-waterfall policies now affect runtime provider selection for URL intelligence instead of living as config-only records
-- `/:companyId/evaluations` provides an advisory evaluation bench for recommendation, grounded-answer, search, KPI, workflow, competitor, and data-readiness behavior before intelligence changes are promoted
-- `/:companyId/content-generation` generates and saves evidence-aware email subjects, platform ad copy, social posts, and landing-page sections from product and competitor context
-- `/:companyId/athlete` provides an athlete-facing daily app for coach-assigned work, activity recording, wellness/body metrics, readiness notes, and completion records
-- `/:companyId/athletes` provides a coach-facing athlete records view for daily team logs, completion evidence, load, sleep, soreness, readiness, and pain flags
 
 Knowmore evidence durability:
 

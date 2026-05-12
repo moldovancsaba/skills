@@ -10,16 +10,15 @@ import {
   Text,
   Avatar,
   Menu,
-  ActionIcon,
   rem,
-  Divider,
   UnstyledButton,
   ScrollArea,
   ThemeIcon,
   Badge,
-  Button
+  Divider,
+  Button,
 } from "@mantine/core";
-import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconFlask as Flask, IconPencil as Pencil, IconRun as Run, IconUsers as Users } from "@tabler/icons-react";
+import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
@@ -94,38 +93,6 @@ const pipelineItems = [
     color: "review",
     tone: "review",
   },
-  {
-    key: "evaluations",
-    href: (companyId: string) => `/${companyId}/evaluations`,
-    label: "Evaluations",
-    icon: Flask,
-    color: "strategy",
-    tone: "strategy",
-  },
-  {
-    key: "content-generation",
-    href: (companyId: string) => `/${companyId}/content-generation`,
-    label: "Content",
-    icon: Pencil,
-    color: "knowmore",
-    tone: "knowmore",
-  },
-  {
-    key: "athlete",
-    href: (companyId: string) => `/${companyId}/athlete`,
-    label: "Athlete App",
-    icon: Run,
-    color: "checklist",
-    tone: "checklist",
-  },
-  {
-    key: "athletes",
-    href: (companyId: string) => `/${companyId}/athletes`,
-    label: "Athletes",
-    icon: Users,
-    color: "strategy",
-    tone: "strategy",
-  },
 ];
 
 export function ClientNav() {
@@ -187,10 +154,6 @@ export function ClientNav() {
             tactical: data.counts?.nbaItems || 0,
             review: data.counts?.reviewCount || 0,
             pipeline: data.counts?.pipelineJobs || 0,
-            evaluations: 0,
-            "content-generation": data.counts?.creativeDrafts || 0,
-            athlete: data.counts?.athleteActivityLogs || 0,
-            athletes: data.counts?.athleteActivityLogs || 0,
           });
         }
       } catch (err) {

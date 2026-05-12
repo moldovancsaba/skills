@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Badge, Button, Group, Loader, Progress, SimpleGrid, Stack, Table } from "@mantine/core";
 import {
   IconAlertTriangle as AlertTriangle,
@@ -28,17 +28,26 @@ function gateColor(status?: string) {
 
 export default function EvaluationsPage() {
   const params = useParams();
+  const router = useRouter();
   const companyId = params.companyId as string;
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`/api/evaluations?companyId=${companyId}`);
-      setData(await response.json());
+      const payload = await response.json();
+      if (!response.ok) {
+        setErrorMessage(payload.error || "Admin access required");
+        setData(null);
+        return;
+      }
+      setErrorMessage(null);
+      setData(payload);
     } finally {
       setLoading(false);
     }
@@ -65,7 +74,13 @@ export default function EvaluationsPage() {
           },
         }),
       });
-      setData(await response.json());
+      const payload = await response.json();
+      if (!response.ok) {
+        setErrorMessage(payload.error || "Admin access required");
+        return;
+      }
+      setErrorMessage(null);
+      setData(payload);
     } finally {
       setRunning(false);
       setPublishing(false);
@@ -97,14 +112,15 @@ export default function EvaluationsPage() {
   return (
     <PageShell width="full">
       <PageHeader
-        title="Evaluation Bench"
-        description="Synthetic replay and promotion gates for recommendation, grounded-answer, search, KPI, workflow, competitor, and data-readiness behavior."
+        title="Internal Evaluation Bench"
+        description="Admin-only synthetic replay and promotion gates for recommendation, grounded-answer, search, KPI, workflow, competitor, and data-readiness behavior."
         actions={
           <>
             <Button
               leftSection={<Refresh size={16} />}
               variant="light"
               color="review"
+              disabled={Boolean(errorMessage)}
               loading={running}
               onClick={() => void runBench(false)}
             >
@@ -114,7 +130,7 @@ export default function EvaluationsPage() {
               leftSection={<ArrowUpRight size={16} />}
               variant="light"
               color="strategy"
-              disabled={failedCases.length === 0}
+              disabled={Boolean(errorMessage) || failedCases.length === 0}
               loading={publishing}
               onClick={() => void runBench(true)}
             >
@@ -124,6 +140,19 @@ export default function EvaluationsPage() {
         }
       />
 
+      {errorMessage ? (
+        <Notice title="Admin access required" icon={AlertTriangle} variant="destructive">
+          {errorMessage}
+          {" "}This evaluation surface is internal and available only to company admins, owners, or superadmins.
+          <br />
+          <Button mt="sm" size="xs" variant="light" color="gray" onClick={() => router.push(`/${companyId}/observability`)}>
+            Return to Observability
+          </Button>
+        </Notice>
+      ) : null}
+
+      {data ? (
+        <>
       <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
         <MetricCard icon={Flask} color="review" label="Candidate Score" value={`${scorePercent(candidate?.aggregateScore)}%`} detail={candidate?.label || "candidate"} />
         <MetricCard icon={Checks} color="checklist" label="Pass Rate" value={`${scorePercent(candidate?.passRate)}%`} detail={`${candidate?.trends?.passedCases ?? 0}/${candidate?.trends?.totalCases ?? 0} cases`} />
@@ -234,6 +263,8 @@ export default function EvaluationsPage() {
           </SimpleGrid>
         </UnifiedCardBody>
       </UnifiedCard>
+        </>
+      ) : null}
     </PageShell>
   );
 }

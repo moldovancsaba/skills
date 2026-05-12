@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Badge, Button, Group, Loader, SimpleGrid, Stack, Table } from "@mantine/core";
 import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCoins as Coins, IconGauge as Gauge, IconHeartbeat as Heartbeat, IconListCheck as ListCheck, IconRefresh as RefreshIcon, IconStethoscope as Stethoscope } from "@tabler/icons-react";
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
@@ -10,6 +10,7 @@ import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui
 
 export default function ObservabilityPage() {
   const params = useParams();
+  const router = useRouter();
   const companyId = params.companyId as string;
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,6 +67,17 @@ export default function ObservabilityPage() {
       <PageHeader
         title="Observability"
         description="Mission control for worker health, queue pressure, scoring integrity, and recent system outcomes."
+        actions={
+          <Button
+            size="xs"
+            variant="light"
+            color="review"
+            leftSection={<Stethoscope size={14} />}
+            onClick={() => router.push(`/${companyId}/evaluations`)}
+          >
+            Internal Evaluation Bench
+          </Button>
+        }
       />
 
       <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
@@ -152,7 +164,7 @@ export default function ObservabilityPage() {
                 loading={actionLoading === "BUDGET_CACHE_REUSE"}
                 onClick={() => void runAction("BUDGET_CACHE_REUSE")}
               >
-                Cache / Reuse
+                Cache / Reuse Ops
               </Button>
             </SimpleGrid>
 

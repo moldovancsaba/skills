@@ -41,15 +41,10 @@ Read first:
 - workflow blueprints and enrichment waterfall policies are persisted system contracts, not local page-only state
 - active workflow blueprints now become first-class `PipelineJob` records that the worker can claim and execute
 - enrichment waterfall policy now influences runtime URL-intelligence provider selection for product and competitor research paths
-- the webapp now exposes `Evaluation Bench` as the first advisory promotion-gate surface for recommendation, grounded-answer, search, KPI, workflow, competitor, and data-readiness behavior
-- evaluation runs use synthetic fixtures by default and only write to Observability when an operator explicitly publishes failed gates
-- the webapp now exposes `Content Generation` for producing email subject lines, ad copy, social posts, and landing-page copy from existing company, product, goal, topic, and competitor context
-- content generation persists outputs as `CreativeDraft` records and records generation/audit events without automated posting
-- AI workload governance now persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records so queue, evaluation, content-generation, and observability work can be attributed by company and feature
+- AI workload governance now persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records so queue, workflow, search/answer, and observability work can be attributed by company and feature
+- checklist-core is a general company decision-maker, task manager, and AI support system; vertical athlete, campaign-studio, or GTM-execution products do not belong in the core product contract
+- the one allowed internal exception is `Evaluation Bench`, which may exist as an admin-only AI quality and regression surface under the observability/governance umbrella
 - budget controls are operator-applied and reviewable: queue throttling, evaluation batching, and cache/reuse policy changes do not silently suppress critical evidence work
-- the webapp now exposes `Athlete App` beside the coach/operator surfaces so athletes can see coach-assigned checklist work, record daily activity, wellness/body metrics, and mark assigned work complete
-- the webapp also exposes `Athletes` as the coach-facing records view for team daily logs, completion evidence, readiness, load, sleep, soreness, and pain flags
-- athlete records persist as `AthleteActivityLog` entries keyed by company, athlete email, day, and optional assigned task
 
 ## Files That Matter Most
 
@@ -73,9 +68,6 @@ System:
 - [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
 - [src/lib/pipeline-queue.js](/Users/Shared/Projects/checklist/src/lib/pipeline-queue.js)
 - [scripts/lib/pipeline-jobs.js](/Users/Shared/Projects/checklist/scripts/lib/pipeline-jobs.js)
-- [src/lib/evaluation-bench.ts](/Users/Shared/Projects/checklist/src/lib/evaluation-bench.ts)
-- [src/lib/content-generation.ts](/Users/Shared/Projects/checklist/src/lib/content-generation.ts)
-- [src/lib/athlete-activity.ts](/Users/Shared/Projects/checklist/src/lib/athlete-activity.ts)
 
 ## Do Not Reintroduce
 
@@ -86,6 +78,7 @@ System:
 - local transition or hover systems for product surfaces
 - alternative card shells
 - “one-off” visual exceptions without updating the rulebook and audit
+- athlete/coaching products, content-studio products, and GTM-execution products in the checklist navigation or checklist-core docs
 
 ## Mandatory Update Rule
 
@@ -128,8 +121,5 @@ The work is not done until:
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now able to escalate queue work through the shared queue contract.
 - Frontier recompute assigns tactical columns by blended priority thresholds, not raw ICE alone, while preserving manual human drag/drop anchors.
-- Evaluation bench replay is advisory first: synthetic fixtures and rubric gates compare baseline vs candidate behavior without production writes unless failed gates are explicitly published to Observability.
-- Content generation is draft-only: it can create and persist channel-specific copy, but it must not post externally or generate images in the first release.
 - Budget governor is observability-first: usage/cost values are estimates unless explicitly marked actual, and controls are recorded as events/policies rather than hidden scheduling overrides.
-- Athlete app is athlete-facing: it records daily activity, wellness/body metrics, and completion evidence but does not replace the coach/operator planning surfaces.
-- Athlete records is coach-facing: it can summarize team submissions, but planning and assignment still stay in the coach/operator checklist surfaces.
+- Future autonomous implementation selection must ignore ideabank-only items unless an operator explicitly promotes them into an active delivery column first.

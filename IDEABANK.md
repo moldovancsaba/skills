@@ -1,5 +1,17 @@
 # IDEABANK: Strategic Skills Integration
 
+## Execution Boundary
+
+`IDEABANK` is research storage, not an implementation queue.
+
+Rules:
+
+- items kept in ideabank are not checklist-core delivery commitments
+- autonomous maintenance and normal engineering work must not implement directly from ideabank
+- ideabank items must be explicitly promoted into an active delivery column before they can become normal implementation work
+- vertical ideas that do not belong to the general CHECKLIST decision-maker/task-manager/AI-support contract should remain in ideabank or move to a dedicated external product board
+- athlete-specific ideas do not belong to checklist-core and should live on the dedicated athlete project board instead
+
 Collecting high-yield strategic skills from the ecosystem to power our AI-driven strategic intelligence operating system.
 
 ## Objective

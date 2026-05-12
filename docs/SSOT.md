@@ -8,6 +8,21 @@ It is subordinate only to [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/do
 
 CHECKLIST is a continuously operating, multi-tenant intelligence system that transforms raw business evidence into structured knowledge, goals, and tactical work.
 
+It is a general company decision-maker, task manager, and AI support system.
+
+It is not the product SSOT for:
+
+- athlete-facing apps
+- coach-facing athlete operations
+- standalone content-generation studios
+- campaign execution suites
+- SEO, outreach, or CRM verticals as first-class app surfaces
+
+Internal governance exception:
+
+- `Evaluation Bench` may exist as an admin-only internal quality-governance route for synthetic replay, regression checks, and promotion gates
+- it is not a normal end-user checklist surface and should not return to the main module navigation
+
 ## 2. Core Model
 
 The product is card-based.
@@ -25,6 +40,8 @@ Primary user-facing layers:
 - Search & Answers
 - Observability
 - Workflows
+
+Anything outside those layers belongs to `IDEABANK`, a dedicated external product board, or a future explicitly approved promotion into checklist-core.
 
 ## 3. System Stack
 
@@ -87,6 +104,12 @@ The repetitive-job contract now also includes:
 - drag/drop queue column changes and drag/drop manual ordering as the shipped human-tweak controls
 - no separate compact tweak menu today; the board itself is the canonical tweak surface
 
+Backlog contract:
+
+- active implementation work may come from delivery-oriented project columns
+- `IDEABANK` is explicitly non-executable by default
+- ideabank and vertical-experiment items must be promoted out of ideabank before they can become normal checklist implementation work
+
 The current intelligence-operations contract also includes:
 
 - one unified internal search layer across cards, queue work, and workflow blueprints
@@ -103,14 +126,7 @@ The current intelligence-operations contract also includes:
 - observability also owns bounded repair and budget actions for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active
 - persisted enrichment waterfall policies for provider ordering and fallback governance, applied at runtime during URL intelligence enrichment
-- one advisory evaluation bench for replaying seeded synthetic intelligence cases before recommendation, grounded-answer, ranking, workflow, and data-readiness changes are promoted
-- evaluation failures can be explicitly published into Observability as `EVAL_GATE_FAILED` outcome events; normal replay does not mutate production company data
-- one content-generation surface that turns existing company, product, goal, topic, and competitor context into saved `CreativeDraft` records for email subjects, ads, social posts, and landing-page copy
-- content generation is draft-only in the current contract: no automated posting, no image generation, and no multi-language generation
 - one AI workload budget-governor layer that persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records for company/feature attribution, estimated cost, workload units, retry pressure, reviewable budget events, and explicit operator-applied controls
-- one athlete-facing daily app beside the coach/operator app, backed by `AthleteActivityLog`, where athletes can see assigned checklist work, record activity, readiness, intensity, sleep, soreness, stress, mood, hydration, body weight, pain/nutrition notes, and completion evidence
-- one coach-facing athlete records view where admins can review team daily submissions, completion evidence, load, readiness, sleep, soreness, and pain flags
-- completing coach-assigned work from the athlete app records an athlete outcome and archives the assigned checklist item as completed
 
 Tactical placement contract:
 

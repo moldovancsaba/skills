@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "companyId required" }, { status: 400 });
   }
 
-  const auth = await verifyMembership(request, companyId);
+  const auth = await verifyMembership(request, companyId, "ADMIN");
   if (auth.error) return auth.error;
 
   const comparison = compareEvaluationVariants();
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "companyId required" }, { status: 400 });
     }
 
-    const auth = await verifyMembership(request, companyId);
+    const auth = await verifyMembership(request, companyId, "ADMIN");
     if (auth.error) return auth.error;
 
     const candidate = (data.candidate || {}) as EvaluationVariant;

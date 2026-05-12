@@ -73,11 +73,10 @@ Two runtime rules now matter for delivery:
 
 Current enrichment outputs may include:
 - conclusions
-- evaluations
 - judgments
 - recommendations
 - comparisons
-- pricing signals
+- risks and opportunities
 - forecasts
 - news-like signals
 
@@ -362,46 +361,14 @@ Important:
 - periodic rescoring runs oldest-updated-first across active card layers
 - score clustering is observable through the dashboard score-health panel and `npm run audit:score-health`
 
-## Evaluation bench
-
-The first recommendation and agent evaluation contract is advisory:
-
-- `src/lib/evaluation-bench.ts` owns seeded synthetic fixture cases and rubrics for grounded answers, search ranking, KPI pulse behavior, workflow replay, competitive-change briefings, data-readiness warnings, and recommendation generation
-- `/api/evaluations` runs baseline-vs-candidate comparisons behind company membership checks
-- replay does not mutate production company data by default
-- failed gates can be explicitly published as `EVAL_GATE_FAILED` outcome events so Observability and pre-production evals share vocabulary
-- high-risk failed cases return `REVIEW_REQUIRED` or `BLOCK` promotion metadata before future enforcement is introduced
-
-## Content generation
-
-The first content-generation contract is draft-only:
-
-- `src/lib/content-generation.ts` derives channel-specific marketing copy from existing company, product, competitor, goal, topic, and task context
-- `/api/content-generation` persists generated outputs as `CreativeDraft` records and records generation/audit events
-- generated bundles include five email subject lines, Facebook/Google/LinkedIn ad copy, Twitter/LinkedIn/Facebook social posts, and landing-page hero/benefit/CTA sections
-- tone selection is explicit and bounded to clear, bold, executive, friendly, or technical
-- no automated posting, image generation, or multi-language output is part of this release
-
-## Athlete app
-
-The first athlete app contract is a daily recording loop beside the coach/operator app:
-
-- `AthleteActivityLog` stores athlete-entered activity, wellness/readiness, sleep, soreness, stress, mood, hydration, body weight, pain/nutrition notes, duration, intensity, notes, completion state, and optional linked checklist work
-- `/api/athlete` exposes the current athlete's assigned work plus their daily record behind normal company membership checks, with an admin-scoped team summary mode for coaches
-- `/:companyId/athlete` lets athletes see what the coach set, record training/recovery/nutrition/wellness/match/note entries, and mark assigned work complete
-- `/:companyId/athletes` lets coaches review team daily records, completion evidence, readiness, load, sleep, soreness, and pain flags
-- completed assigned work writes audit/outcome events and archives the linked checklist item as completed
-- wearable integrations, medical claims, public sharing, and payment flows are out of scope for this first slice
-
 ## Budget governor
 
 The first AI workload budget-governor slice is an observability-first control loop:
 
-- `AiWorkloadUsage` records estimated workload units, runtime, retries, request counts, and cost dimensions for queue jobs, evaluation replays, content generation, and observability actions
+- `AiWorkloadUsage` records estimated workload units, runtime, retries, request counts, and cost dimensions for queue jobs and observability actions
 - `BudgetPolicy` records per-company feature thresholds and explicit controls such as throttle, batch, cache/reuse, review-required, or pause
 - `BudgetEvent` records reviewable budget pressure and applied controls with evidence and value assessment
 - the pipeline queue records usage on completed and failed queue jobs so retry storms and high-value work can be separated
-- evaluation and content-generation APIs record usage when operators run those surfaces
 - Observability shows budget pressure, usage by feature, recommendations, and bounded controls without silently overriding human-guided scheduling or critical safety/evidence work
 
 ## Delivery modes

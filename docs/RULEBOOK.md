@@ -176,6 +176,7 @@ The AI brain must be updated immediately when any of these change:
 - user-facing system terminology
 - local worker queue contract
 - autonomous vs human-guided scheduling rules
+- product-boundary rules
 
 Required update matrix:
 
@@ -198,22 +199,6 @@ Required update matrix:
   - update `HANDOVER.md`
   - update `DESIGN_SYSTEM_AGENT_HANDOFF.md` if UI-related
 
-Evaluation bench rules:
-
-- intelligence changes that affect recommendations, grounded answers, retrieval, workflow behavior, KPI pulses, competitor briefings, or data-readiness warnings must be representable as seeded evaluation cases
-- evaluation replay must be non-mutating by default and must use synthetic fixture data unless an operator explicitly requests Observability publication
-- case results must expose explainable rubric scores and reasons, not only aggregate percentages
-- failed high-risk gates start as `REVIEW_REQUIRED` or `BLOCK` metadata; enforcement can become stricter only after the rubric is stable
-- eval failures published to Observability must use `EVAL_GATE_FAILED` so production regressions and pre-production gates share vocabulary
-
-Content generation rules:
-
-- generated marketing copy must be grounded in existing company, product, competitor, goal, topic, or task context
-- the first release is draft-only and must not automate posting, image generation, or external campaign activation
-- channel outputs must preserve platform-specific formats and character-limit metadata
-- generated copy must be persisted as `CreativeDraft` records and must remain editable outside the generator
-- content generation must record audit/generation events so future feedback loops can distinguish draft creation from campaign performance
-
 Budget governor rules:
 
 - AI workload usage must be attributed by company and feature before it is used for budget pressure or controls
@@ -222,16 +207,45 @@ Budget governor rules:
 - budget events must distinguish high-cost high-value work from likely waste such as retry storms, repeated failed jobs, or low-value repeated generation
 - Observability is the first budget-governor surface; budget controls must stay bounded to throttle, batch, cache/reuse, review-required, or pause policies until the system has stronger outcome evidence
 
-Athlete app rules:
+## 10. Product Boundary And Backlog Rules
 
-- athlete-facing recording must be separate from coach/operator planning surfaces while reusing the same company membership boundary
-- daily athlete records must persist as `AthleteActivityLog` entries with activity type, date, optional linked assigned work, duration, intensity, readiness, wellness/body metrics, notes, and completion state
-- coach-facing athlete record review must require admin-level company membership while athlete self-entry uses normal company membership
-- athlete completion of coach-assigned work must record audit/outcome events and must not silently erase the original checklist context
-- athlete forms must support training, recovery, nutrition, wellness, match, note, sleep, soreness, stress, mood, hydration, body-weight, pain, and nutrition records without requiring coach intervention
-- the first athlete app release must not add public sharing, medical claims, payment, or external wearable integrations
+Checklist-core must stay within this product definition:
 
-## 10. Mandatory Completion Rules
+- general company decision-maker
+- task manager
+- AI support system
+
+Checklist-core may include:
+
+- evidence ingestion and enrichment
+- knowledge synthesis
+- grounded answers and search
+- goals, planning, checklist work, and review
+- worker queue steering
+- observability
+- bounded workflows
+- evidence-backed forecasting, benchmarking, policy, and decision-support layers that serve general company operations
+
+Checklist-core must not quietly expand into first-class vertical products such as:
+
+- athlete or coach apps
+- marketing content studios
+- email-sequencing tools
+- SEO workbenches
+- lead-scoring or outbound-sales execution systems
+- objection-handling playbook products
+- channel-execution suites
+
+Rules:
+
+- vertical or experimental ideas belong in `IDEABANK` until explicitly promoted
+- autonomous implementation must work from active delivery columns, not from the `IDEABANK` column
+- issue labels or ideabank titles do not override board state; if an item is in `IDEABANK`, it is research-only by default
+- ideabank or vertical items must not be exposed in checklist navigation, checklist product SSOT docs, or checklist-core release claims
+- athlete-specific work does not belong on the checklist project board; it belongs on the dedicated athlete project board
+- the only allowed internal exception is `Evaluation Bench` as an admin-only AI quality-governance surface; it must stay outside the main checklist navigation and be framed as internal observability/governance tooling
+
+## 11. Mandatory Completion Rules
 
 Work is not complete if any of the following are true:
 
@@ -240,7 +254,7 @@ Work is not complete if any of the following are true:
 - a legacy pattern was removed but the docs still permit it
 - a lower-priority handover contradicts the live system
 
-## 11. Enforcement
+## 12. Enforcement
 
 Required checks for UI and architecture work:
 

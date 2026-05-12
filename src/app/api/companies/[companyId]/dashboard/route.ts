@@ -79,17 +79,6 @@ export async function GET(
             queueColumn: { not: "PARKED" },
           },
         }),
-        prisma.creativeDraft.count({
-          where: {
-            companyId: cid,
-            status: { in: ["DRAFT", "APPROVED"] },
-          },
-        }),
-        prisma.athleteActivityLog.count({
-          where: {
-            companyId: cid,
-          },
-        }),
       ]).then(([
         sourceCount,
         fileCount,
@@ -100,8 +89,6 @@ export async function GET(
         checklistCount,
         reviewCount,
         pipelineJobCount,
-        creativeDraftCount,
-        athleteActivityLogCount,
       ]) => ({
         sources: sourceCount + fileCount,
         files: fileCount,
@@ -112,8 +99,6 @@ export async function GET(
         checklistCount,
         reviewCount,
         pipelineJobs: pipelineJobCount,
-        creativeDrafts: creativeDraftCount,
-        athleteActivityLogs: athleteActivityLogCount,
       })),
     ]);
 
@@ -142,8 +127,6 @@ export async function GET(
       checklistCount: Math.max(snapshot?.checklistCount ?? 0, liveCounts.checklistCount, topTasks.length),
       reviewCount: Math.max(snapshot?.reviewGatewayCount ?? 0, liveCounts.reviewCount),
       pipelineJobs: liveCounts.pipelineJobs,
-      creativeDrafts: liveCounts.creativeDrafts,
-      athleteActivityLogs: liveCounts.athleteActivityLogs,
     };
 
     return NextResponse.json({

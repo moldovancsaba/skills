@@ -29,22 +29,16 @@ The database connection string is an internal deployment concern and should not 
 GET /api/companies
 ```
 
-### Products by company
+### Sources by company
 
 ```http
-GET /api/products?companyId=<company-id>
+GET /api/sources?companyId=<company-id>
 ```
 
-### Customers by company
+### Topics by company
 
 ```http
-GET /api/customers?companyId=<company-id>
-```
-
-### Competitors by company
-
-```http
-GET /api/competitors?companyId=<company-id>
+GET /api/topics?companyId=<company-id>
 ```
 
 ### Uploaded files by company

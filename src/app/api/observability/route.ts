@@ -62,13 +62,6 @@ export async function PATCH(request: NextRequest) {
         control: "BATCH",
         actorEmail: auth.session.email,
       });
-    } else if (action === "BUDGET_CACHE_REUSE") {
-      await applyBudgetControl({
-        companyId,
-        feature: "content-generation",
-        control: "CACHE_REUSE",
-        actorEmail: auth.session.email,
-      });
     } else {
       return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
     }

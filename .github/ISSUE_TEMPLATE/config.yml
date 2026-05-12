@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Project board (main)
+    url: https://github.com/orgs/sovereignsquad/projects/3
+    about: Review the canonical project board before opening new delivery work.

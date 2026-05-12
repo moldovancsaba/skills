@@ -7,7 +7,10 @@ const {
   persistKnowledgeScoresFromProfile,
   persistTaskScoresFromProfile,
 } = require("../src/lib/scoring-contract");
-const { computeHistoryAwareTaskSignals } = require("./lib/history-scoring");
+const {
+  computeHistoryAwareKnowledgeSignals,
+  computeHistoryAwareTaskSignals,
+} = require("./lib/history-scoring");
 
 const prisma = new PrismaClient();
 
@@ -81,6 +84,7 @@ async function repairFlashcards(batchSize) {
       take: batchSize,
       select: {
         id: true,
+        companyId: true,
         createdAt: true,
         title: true,
         body: true,
@@ -100,6 +104,11 @@ async function repairFlashcards(batchSize) {
 
     for (const flashcard of flashcards) {
       processed += 1;
+      const historySignals = await computeHistoryAwareKnowledgeSignals(prisma, flashcard.companyId, {
+        title: flashcard.title,
+        body: flashcard.body,
+        hashtags: flashcard.hashtags,
+      });
       const grounded = groundKnowledgeScores({
         title: flashcard.title,
         body: flashcard.body,
@@ -109,6 +118,9 @@ async function repairFlashcards(batchSize) {
         confidence: flashcard.confidenceScore ?? flashcard.confidence,
         impact: flashcard.impact,
         weight: flashcard.weight,
+        historyImpact: historySignals.historyImpact,
+        historyConfidence: historySignals.historyConfidence,
+        historySupport: historySignals.historySupport,
       });
       const scoreProfile = buildScoreProfile({
         scoreKind: "KNOWLEDGE",
@@ -121,6 +133,12 @@ async function repairFlashcards(batchSize) {
         rationale: {
           repairScript: true,
           batched: true,
+          historyImpact: historySignals.historyImpact ?? null,
+          historyConfidence: historySignals.historyConfidence ?? null,
+          historySupport: historySignals.historySupport ?? null,
+          historyPositiveMatches: historySignals.positiveMatches ?? 0,
+          historyNegativeMatches: historySignals.negativeMatches ?? 0,
+          historyAverageSimilarity: historySignals.averageSimilarity ?? 0,
         },
       });
       const normalized = {

@@ -64,6 +64,7 @@ export default function SearchPage() {
     WORKFLOW_BLUEPRINT: 0,
   });
   const [answer, setAnswer] = useState<GroundedAnswer | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const [selectedTypes, setSelectedTypes] = useState<SearchEntityType[]>([
     "SOURCE",
     "TOPIC",
@@ -86,6 +87,14 @@ export default function SearchPage() {
 
   const runSearch = useCallback(async () => {
     if (!query.trim()) return;
+    if (selectedTypes.length === 0) {
+      setSelectionError("Select at least one layer before running Search & Answers.");
+      setResults([]);
+      setAnswer(null);
+      return;
+    }
+
+    setSelectionError(null);
     setLoading(true);
     try {
       const [searchResponse, answerResponse] = await Promise.all([
@@ -126,17 +135,27 @@ export default function SearchPage() {
           label="Question or search query"
           placeholder="What matters most for this account right now?"
           value={query}
-          onChange={(event) => setQuery(event.currentTarget.value)}
+          onChange={(event) => {
+            setQuery(event.currentTarget.value);
+            if (selectionError) setSelectionError(null);
+          }}
           flex={1}
         />
-        <Button leftSection={loading ? <Loader size={16} color="white" /> : <SearchIcon size={16} />} onClick={() => void runSearch()}>
+        <Button
+          leftSection={loading ? <Loader size={16} color="white" /> : <SearchIcon size={16} />}
+          onClick={() => void runSearch()}
+          disabled={!query.trim() || selectedTypes.length === 0}
+        >
           Search
         </Button>
       </Group>
 
       <Checkbox.Group
         value={selectedTypes}
-        onChange={(value) => setSelectedTypes(value as SearchEntityType[])}
+        onChange={(value) => {
+          setSelectedTypes(value as SearchEntityType[]);
+          if (selectionError) setSelectionError(null);
+        }}
       >
         <Group gap="md">
           {entityOptions.map((option) => (
@@ -148,6 +167,12 @@ export default function SearchPage() {
           ))}
         </Group>
       </Checkbox.Group>
+
+      {selectionError ? (
+        <Notice title="Select Search Layers">
+          {selectionError}
+        </Notice>
+      ) : null}
 
       {answer ? (
         <UnifiedCard tone="knowmore">

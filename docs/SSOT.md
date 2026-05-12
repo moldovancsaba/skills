@@ -116,6 +116,7 @@ The current intelligence-operations contract also includes:
 - search responses now include entity-type filters, per-layer counts, and ranking that blends text overlap with ICE/freshness cues
 - first-class entity search results deep-link into the canonical shared `/card/[uuid]` detail route for Data, Topics, Knowmore, Goals, and Tasks
 - one blended tactical priority profile that keeps ICE visible while ranking work through explainable ICE, quality, urgency, freshness, human-signal, risk, lifecycle-state, and memory inputs
+- one persisted score provenance profile per scored card, preserving agent proposal, calibrated heuristic score, and final blended score
 - one grounded answer layer over company context using explicit evidence objects
 - grounded answers now expose intent, confidence, evidence-group framing, and the applied entity-layer scope as first-class contract fields
 - grounded answers must visibly surface cited evidence cards in the operator UI, not just aggregate evidence counts
@@ -133,7 +134,7 @@ Tactical placement contract:
 - `iceScore` remains the visible score on task cards
 - `priorityProfile` is the ranking explanation used for tactical ordering and frontier placement
 - human drag/drop anchors remain explicit human guidance and are not silently erased by AI scoring
-- priority thresholds are applied to blended priority scores, not raw ICE alone
+- priority is assigned by blended relative rank inside the active peer pool, not raw ICE alone
 
 ## 6. AI Brain Rule
 

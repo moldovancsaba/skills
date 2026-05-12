@@ -32,6 +32,7 @@ async function repairSources() {
           impact: profile.impact,
           weight: profile.weight,
           iceScore: profile.iceScore,
+          scoreProfile: profile.scoreProfile ?? null,
         },
       });
       updated += 1;
@@ -69,6 +70,7 @@ async function repairTopics() {
           impact: profile.impact,
           weight: profile.weight,
           iceScore: profile.iceScore,
+          scoreProfile: profile.scoreProfile ?? null,
         },
       });
       updated += 1;
@@ -107,6 +109,7 @@ async function repairFiles() {
           impact: profile.impact,
           weight: profile.weight,
           iceScore: profile.iceScore,
+          scoreProfile: profile.scoreProfile ?? null,
         },
       });
       updated += 1;

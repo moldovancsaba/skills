@@ -101,6 +101,14 @@ function parseBoundedInt(val, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
+function parseBoundedScore(val, min, max, precision = 1) {
+  const n = Number.parseFloat(val);
+  if (!Number.isFinite(n)) return min;
+  const bounded = Math.max(min, Math.min(max, n));
+  const factor = 10 ** precision;
+  return Math.round(bounded * factor) / factor;
+}
+
 function stripTechnicalMetadata(text) {
   if (!text) return "";
   return String(text)
@@ -142,6 +150,7 @@ module.exports = {
   tokenizeText,
   unique,
   parseBoundedInt,
+  parseBoundedScore,
   stripTechnicalMetadata,
   sanitizeUserFacingText,
   nextPublicId

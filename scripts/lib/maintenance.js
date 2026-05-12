@@ -349,6 +349,7 @@ async function rescorePeriodicUpstreamCards(prisma, company) {
         impact: profile.impact,
         weight: profile.weight,
         iceScore: profile.iceScore,
+        scoreProfile: profile.scoreProfile ?? null,
       },
     });
   }
@@ -370,6 +371,7 @@ async function rescorePeriodicUpstreamCards(prisma, company) {
         impact: profile.impact,
         weight: profile.weight,
         iceScore: profile.iceScore,
+        scoreProfile: profile.scoreProfile ?? null,
       },
     });
   }
@@ -392,6 +394,7 @@ async function rescorePeriodicUpstreamCards(prisma, company) {
         impact: profile.impact,
         weight: profile.weight,
         iceScore: profile.iceScore,
+        scoreProfile: profile.scoreProfile ?? null,
       },
     });
   }

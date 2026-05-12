@@ -42,6 +42,19 @@ function normalizeIceValue(value) {
   return Number(value.toFixed(1));
 }
 
+function extractProfileTriplet(record, effortKey) {
+  const profile = record?.scoreProfile && typeof record.scoreProfile === "object"
+    ? record.scoreProfile
+    : null;
+  const final = profile?.final && typeof profile.final === "object" ? profile.final : null;
+  return {
+    impact: typeof final?.impact === "number" ? final.impact : record.impact ?? 0,
+    confidence: typeof final?.confidence === "number" ? final.confidence : record.confidenceScore ?? 0,
+    effort: typeof final?.effort === "number" ? final.effort : record[effortKey] ?? 0,
+    iceScore: typeof final?.iceScore === "number" ? final.iceScore : record.iceScore,
+  };
+}
+
 function resolveShareSeverity(share, thresholds) {
   if (share >= thresholds.criticalMin) return "CRITICAL";
   if (share >= thresholds.suspiciousMin) return "SUSPICIOUS";
@@ -175,12 +188,13 @@ function computeScoreHealthMetrics(records, effortKey) {
   const tupleCounts = new Map();
 
   for (const record of records) {
-    const normalizedIce = normalizeIceValue(record.iceScore);
+    const profileTriplet = extractProfileTriplet(record, effortKey);
+    const normalizedIce = normalizeIceValue(profileTriplet.iceScore);
     if (normalizedIce !== null) {
       iceCounts.set(normalizedIce, (iceCounts.get(normalizedIce) ?? 0) + 1);
     }
 
-    const tupleLabel = `${record.impact ?? 0}|${record.confidenceScore ?? 0}|${record[effortKey] ?? 0}`;
+    const tupleLabel = `${Number(profileTriplet.impact).toFixed(1)}|${Number(profileTriplet.confidence).toFixed(1)}|${Number(profileTriplet.effort).toFixed(1)}`;
     tupleCounts.set(tupleLabel, (tupleCounts.get(tupleLabel) ?? 0) + 1);
   }
 
@@ -224,6 +238,7 @@ async function computeCompanyScoreHealth(companyId, prismaClient = defaultPrisma
         confidenceScore: true,
         ease: true,
         iceScore: true,
+        scoreProfile: true,
       },
     }),
     prismaClient.flashcard.findMany({
@@ -236,6 +251,7 @@ async function computeCompanyScoreHealth(companyId, prismaClient = defaultPrisma
         confidenceScore: true,
         weight: true,
         iceScore: true,
+        scoreProfile: true,
       },
     }),
   ]);

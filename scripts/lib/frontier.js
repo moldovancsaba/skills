@@ -146,8 +146,8 @@ async function loadEligibleCandidates(prisma, companyId) {
       processingStatus: { in: ["VERIFIED", "CHECKED", "DRAFT"] },
     },
     orderBy: [
-      { iceScore: "desc" },
-      { updatedAt: "desc" },
+      { updatedAt: "asc" },
+      { createdAt: "asc" },
     ],
     take: 200, // Load enough to rank from
   });
@@ -203,7 +203,26 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   const deduplicated = collapseDuplicateClusters(pool);
 
   // 5. Global Rank by frontier score descending
-  deduplicated.sort((a, b) => b._frontierScore - a._frontierScore);
+  deduplicated.sort((left, right) => {
+    const leftProfile = left._priorityProfile || { components: {} };
+    const rightProfile = right._priorityProfile || { components: {} };
+    if ((right._frontierScore || 0) !== (left._frontierScore || 0)) {
+      return (right._frontierScore || 0) - (left._frontierScore || 0);
+    }
+    if ((rightProfile.components?.human || 0) !== (leftProfile.components?.human || 0)) {
+      return (rightProfile.components?.human || 0) - (leftProfile.components?.human || 0);
+    }
+    if ((rightProfile.components?.urgency || 0) !== (leftProfile.components?.urgency || 0)) {
+      return (rightProfile.components?.urgency || 0) - (leftProfile.components?.urgency || 0);
+    }
+    if ((rightProfile.components?.risk || 0) !== (leftProfile.components?.risk || 0)) {
+      return (rightProfile.components?.risk || 0) - (leftProfile.components?.risk || 0);
+    }
+    if ((rightProfile.components?.freshness || 0) !== (leftProfile.components?.freshness || 0)) {
+      return (rightProfile.components?.freshness || 0) - (leftProfile.components?.freshness || 0);
+    }
+    return new Date(left.updatedAt || left.createdAt || 0) - new Date(right.updatedAt || right.createdAt || 0);
+  });
 
   // ---------------------------------------------------------------------------
   // 6. Blended-Priority Column Distribution (§24)
@@ -219,13 +238,6 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   //   ROADMAP    : priority >= 100
   //   IDEABANK   : priority <  100  (default holding pen for all new cards)
 
-  const PRIORITY_THRESHOLD = {
-    CHECKLIST: 700,
-    TODO:      500,
-    BACKLOG:   250,
-    ROADMAP:   100,
-  };
-
   const columnMap = [
     { items: [], column: "CHECKLIST" },
     { items: [], column: "TODO" },
@@ -234,8 +246,18 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
     { items: [], column: "IDEABANK" },
   ];
 
-  for (const item of deduplicated) {
-    const priority = item._priorityProfile?.score ?? item._frontierScore ?? 0;
+  const rankCount = deduplicated.length;
+  const relativeBandForIndex = (index) => {
+    const percentile = rankCount <= 1 ? 1 : 1 - index / (rankCount - 1);
+    if (index < FRONTIER_MAX_SIZE) return "CHECKLIST";
+    if (percentile >= 0.82) return "TODO";
+    if (percentile >= 0.52) return "BACKLOG";
+    if (percentile >= 0.24) return "ROADMAP";
+    return "IDEABANK";
+  };
+
+  for (const [index, item] of deduplicated.entries()) {
+    const targetByRank = relativeBandForIndex(index);
 
     // Respect user-set hard priority (sortOrder < 0) — Anchor in their current column
     if (item.sortOrder < 0 && item.kanbanColumn) {
@@ -247,13 +269,13 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
       } else {
         targetCol.items.push(item);
       }
-    } else if (priority >= PRIORITY_THRESHOLD.CHECKLIST && columnMap[0].items.length < FRONTIER_MAX_SIZE) {
+    } else if (targetByRank === "CHECKLIST" && columnMap[0].items.length < FRONTIER_MAX_SIZE) {
       columnMap[0].items.push(item);
-    } else if (priority >= PRIORITY_THRESHOLD.TODO) {
+    } else if (targetByRank === "TODO") {
       columnMap[1].items.push(item);
-    } else if (priority >= PRIORITY_THRESHOLD.BACKLOG) {
+    } else if (targetByRank === "BACKLOG") {
       columnMap[2].items.push(item);
-    } else if (priority >= PRIORITY_THRESHOLD.ROADMAP) {
+    } else if (targetByRank === "ROADMAP") {
       columnMap[3].items.push(item);
     } else {
       columnMap[4].items.push(item);

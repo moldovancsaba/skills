@@ -121,6 +121,7 @@ async function ingestEvidenceUnit(prisma, opts) {
       impact: scoreProfile.impact,
       weight: scoreProfile.weight,
       iceScore: scoreProfile.iceScore,
+      scoreProfile: scoreProfile.scoreProfile ?? null,
       canonicalContent: contentCanonical,
       canonicalContentHash,
       canonicalizerVersion: CANONICALIZER_VERSION,

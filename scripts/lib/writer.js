@@ -7,10 +7,14 @@
  */
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, trinity_WRITE_TIMEOUT_MS } = require("./core");
-const { truncate, hashValue, getWorkerConfig, parseBoundedInt, getStageModels, similarity, nextPublicId } = require("./shared");
+const { truncate, hashValue, getWorkerConfig, parseBoundedScore, getStageModels, similarity, nextPublicId } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject } = require("./synthesis-utils");
-const { groundTaskScores, normalizeTaskScores } = require("../../src/lib/scoring-contract");
+const {
+  buildScoreProfile,
+  groundTaskScores,
+  persistTaskScoresFromProfile,
+} = require("../../src/lib/scoring-contract");
 
 // --- UTILITIES ---
 
@@ -69,7 +73,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
     strategicContext,
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nEnsure this refinement supports: ${topic.notes || topic.label}\n` : "",
     "Return a SINGLE JSON object with: title, body, kind, hashtags, confidenceScore.",
-    "checklist AXIOM: You MUST generate a strict integer for confidenceScore. The scale is STRICTLY 1 to 10. NO zeros. NO percentages.",
+    "checklist AXIOM: You MUST generate a decimal confidenceScore on a 1.0 to 10.0 scale with up to one decimal place. NO zeros. NO percentages.",
     "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
     "STRATEGIC FOCUS: If refining a [SubjectCard], ensure the language reflects the strategy defined in the policy.",
     memoryPrompt
@@ -85,7 +89,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
   let confidence;
   let procStatus = "CHECKED";
   try {
-    confidence = parseBoundedInt(raw.confidenceScore, 1, 10);
+    confidence = parseBoundedScore(raw.confidenceScore, 1, 10);
   } catch (e) {
     // Axiom 2: Human Review Circuit
     confidence = 1;
@@ -143,7 +147,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
     strategicContext,
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nAlign this task refinement with the following objective: ${topic.notes || topic.label}\n` : "",
     "Return a SINGLE JSON object with: title, description, kind, impact, confidenceScore, ease.",
-    "checklist AXIOM: You MUST generate strict integer scores for confidenceScore, impact, and ease. The scale is STRICTLY 1 to 10 (1=Lowest, 10=Highest). NO zeros. NO percentages.",
+    "checklist AXIOM: You MUST generate decimal scores for confidenceScore, impact, and ease on a 1.0 to 10.0 scale with up to one decimal place. NO zeros. NO percentages.",
     "SCORING DISCIPLINE: Score impact, confidence, and ease independently from the actual task. Do not repeat stock score triplets unless the task substance truly matches.",
     "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
     memoryPrompt
@@ -158,9 +162,9 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
   let confidence, impact, ease, iceScore;
   let procStatus = "CHECKED";
   try {
-    confidence = parseBoundedInt(raw.confidenceScore, 1, 10);
-    impact = parseBoundedInt(raw.impact, 1, 10);
-    ease = parseBoundedInt(raw.ease, 1, 10);
+    confidence = parseBoundedScore(raw.confidenceScore, 1, 10);
+    impact = parseBoundedScore(raw.impact, 1, 10);
+    ease = parseBoundedScore(raw.ease, 1, 10);
     const groundedScores = groundTaskScores({
       impact,
       confidence,
@@ -173,15 +177,28 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
       sourceWeight: taskCard.ease,
       sourceIceScore: taskCard.iceScore,
     });
-    const normalizedScores = normalizeTaskScores({
-      impact: groundedScores.impact,
-      confidence: groundedScores.confidence,
-      ease: groundedScores.effort,
+    const scoreProfile = buildScoreProfile({
+      scoreKind: "TASK",
+      agent: {
+        impact,
+        confidence,
+        effort: ease,
+      },
+      calibrated: groundedScores,
+      rationale: {
+        sourceImpact: taskCard.impact,
+        sourceConfidence: taskCard.confidenceScore ?? taskCard.confidence,
+        sourceWeight: taskCard.ease,
+        sourceIceScore: taskCard.iceScore,
+        refinerStage: "writer",
+      },
     });
+    const normalizedScores = persistTaskScoresFromProfile(scoreProfile);
     impact = normalizedScores.impact;
     confidence = normalizedScores.confidence;
     ease = normalizedScores.ease;
     iceScore = normalizedScores.iceScore;
+    raw._scoreProfile = scoreProfile;
   } catch (e) {
     // Axiom 2: Human Review Circuit
     confidence = 1; impact = 1; ease = 1; iceScore = 1;
@@ -204,6 +221,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
     confidence: confidence,
     ease,
     iceScore,
+    scoreProfile: raw._scoreProfile || null,
     processingStatus: procStatus,
     status: "CHECKED", // Legacy Sync
     activityState: "ACTIVE"

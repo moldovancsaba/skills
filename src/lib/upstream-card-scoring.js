@@ -3,6 +3,8 @@ const {
   calculateKnowledgeIceScore,
   deriveComplexitySignal,
   deriveSpecificitySignal,
+  buildScoreProfile,
+  persistKnowledgeScoresFromProfile,
   groundKnowledgeScores,
 } = require("./scoring-contract");
 
@@ -68,15 +70,31 @@ function deriveDataCardScoreProfile(source = {}) {
     evidence: metadata,
     hashtags,
   });
-  const impact = grounded.impact;
-  const confidence = grounded.confidence;
-  const weight = grounded.effort;
+  const scoreProfile = buildScoreProfile({
+    scoreKind: "KNOWLEDGE",
+    agentWeight: 0,
+    agent: {
+      impact: baseImpact,
+      confidence: baseConfidence,
+      effort: baseWeight,
+    },
+    calibrated: grounded,
+    rationale: {
+      origin: "upstream-datacard",
+      competitorBoost,
+      metadataRichness,
+      hashtagCount: hashtags.length,
+      urlCount: urls.length,
+    },
+  });
+  const persisted = persistKnowledgeScoresFromProfile(scoreProfile);
 
   return {
-    impact,
-    confidence,
-    weight,
-    iceScore: calculateKnowledgeIceScore({ impact, confidence, weight }),
+    impact: persisted.impact,
+    confidence: persisted.confidenceScore,
+    weight: persisted.weight,
+    iceScore: persisted.iceScore,
+    scoreProfile,
   };
 }
 
@@ -112,15 +130,30 @@ function deriveTopicCardScoreProfile(topic = {}) {
     hashtags,
     evidence: { sortOrder: topic.sortOrder, active: topic.active },
   });
-  const impact = grounded.impact;
-  const confidence = grounded.confidence;
-  const weight = grounded.effort;
+  const scoreProfile = buildScoreProfile({
+    scoreKind: "KNOWLEDGE",
+    agentWeight: 0,
+    agent: {
+      impact: baseImpact,
+      confidence: baseConfidence,
+      effort: baseWeight,
+    },
+    calibrated: grounded,
+    rationale: {
+      origin: "upstream-topic",
+      activeBoost,
+      priorityBand,
+      hashtagCount: hashtags.length,
+    },
+  });
+  const persisted = persistKnowledgeScoresFromProfile(scoreProfile);
 
   return {
-    impact,
-    confidence,
-    weight,
-    iceScore: calculateKnowledgeIceScore({ impact, confidence, weight }),
+    impact: persisted.impact,
+    confidence: persisted.confidenceScore,
+    weight: persisted.weight,
+    iceScore: persisted.iceScore,
+    scoreProfile,
   };
 }
 

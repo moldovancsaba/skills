@@ -42,20 +42,59 @@ export type CanonicalTripletInput = {
   memoryMultiplier?: number | null;
   _memoryMultiplier?: number | null;
   priorityIceMax?: number | null;
+  scoreProfile?: unknown;
+};
+
+export type ScoreTriplet = {
+  impact: number;
+  confidence: number;
+  effort: number;
+};
+
+export type ScoreProfile = {
+  version: number;
+  scoreKind: string;
+  agentWeight: number;
+  agent: ScoreTriplet;
+  calibrated: ScoreTriplet;
+  final: ScoreTriplet & { iceScore: number };
+  rationale: Record<string, unknown> | null;
+  generatedAt: string;
 };
 
 export function clampMetric(value: number | null | undefined, min?: number, max?: number): number;
+export function roundMetricToInt(value: number | null | undefined, min?: number, max?: number): number;
 export function clampUnit(value: number | null | undefined, fallback?: number): number;
 export function normalizeScoreTriplet(
   input?: CanonicalTripletInput,
   aliases?: CanonicalTripletInput,
-): { impact: number; confidence: number; effort: number };
+): ScoreTriplet;
 export function calculateTaskIceScore(input?: CanonicalTripletInput): number;
 export function calculateKnowledgeIceScore(input?: CanonicalTripletInput): number;
 export function normalizeIceSignal(iceScore?: number | null, maxScore?: number): number;
 export function computeImpliedFreshnessSignal(input?: CanonicalTripletInput): number;
 export function computeHumanPrioritySignal(input?: CanonicalTripletInput): number;
 export function computeRiskPrioritySignal(input?: CanonicalTripletInput): number;
+export function blendScoreTriplets(
+  agentInput?: CanonicalTripletInput,
+  calibratedInput?: CanonicalTripletInput,
+  agentWeight?: number,
+): {
+  agent: ScoreTriplet;
+  calibrated: ScoreTriplet;
+  final: ScoreTriplet;
+};
+export function buildScoreProfile(input?: {
+  scoreKind?: string | null;
+  agent?: CanonicalTripletInput;
+  calibrated?: CanonicalTripletInput;
+  agentWeight?: number | null;
+  rationale?: Record<string, unknown> | null;
+}): ScoreProfile;
+export function scoreProfileTriplet(
+  profile?: ScoreProfile | Record<string, unknown> | null,
+  fallbacks?: CanonicalTripletInput,
+): ScoreTriplet;
 export function computeBlendedPriorityProfile(input?: CanonicalTripletInput): {
   score: number;
   manualAnchor: boolean;
@@ -71,6 +110,20 @@ export function computeBlendedPriorityProfile(input?: CanonicalTripletInput): {
   };
   weights: typeof PRIORITY_WEIGHTS;
   reasons: string[];
+};
+export function persistTaskScoresFromProfile(profile?: ScoreProfile | Record<string, unknown> | null): {
+  impact: number;
+  confidence: number;
+  confidenceScore: number;
+  ease: number;
+  iceScore: number;
+};
+export function persistKnowledgeScoresFromProfile(profile?: ScoreProfile | Record<string, unknown> | null): {
+  impact: number;
+  confidence: number;
+  confidenceScore: number;
+  weight: number;
+  iceScore: number;
 };
 export function normalizeTaskScores(input?: CanonicalTripletInput): {
   impact: number;

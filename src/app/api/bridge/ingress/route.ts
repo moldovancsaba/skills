@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { nextSourcePublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { deriveDataCardScoreProfile } from "@/lib/upstream-card-scoring";
 import crypto from "crypto";
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
           impact: scoreProfile.impact,
           weight: scoreProfile.weight,
           iceScore: scoreProfile.iceScore,
+          scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
           entityTag: sender,
           hashtags: ["#bridge", "#inbound"],
           metadata: {

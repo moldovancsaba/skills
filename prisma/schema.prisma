@@ -182,6 +182,7 @@ model Flashcard {
   intelligenceType        IntelligenceType      @default(INTERNAL)
   lastAuditedAt           DateTime?
   iceScore                Float                 @default(0)
+  scoreProfile            Json?                 @default("{}")
   company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actions                 FlashcardAction[]
   corrections             FlashcardCorrection[]
@@ -303,6 +304,7 @@ model Goalcard {
   intelligenceType        IntelligenceType      @default(INTERNAL)
   lastAuditedAt           DateTime?
   iceScore                Float                 @default(0)
+  scoreProfile            Json?                 @default("{}")
   company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actions                 GoalcardAction[]
   corrections             GoalcardCorrection[]
@@ -414,6 +416,7 @@ model NBAItem {
   urgencyScore       Float?     // time-sensitivity 0-1
   freshnessScore     Float?     // evidence freshness 0-1
   feedbackScore      Float?     @default(0) // cumulative feedback signal
+  scoreProfile       Json?      @default("{}")
   evaluationReason   String?    // Evaluator's stated reason for disposition
   rottenAt           DateTime?  // when this candidate becomes stale and needs rework
   // Trinity Lineage (M1.3)
@@ -483,6 +486,7 @@ model Source {
   weight          Int      @default(5)
   confidenceScore Float    @default(5)
   iceScore        Float    @default(0)
+  scoreProfile    Json?    @default("{}")
   canonicalContent String?
   canonicalContentHash String?
   canonicalizerVersion String?   @default("v1.4.0")
@@ -518,6 +522,7 @@ model Topic {
   weight          Int      @default(5)
   confidenceScore Float    @default(5)
   iceScore        Float    @default(0)
+  scoreProfile    Json?    @default("{}")
   hashtags  String[] @default([])
   hashtagMaintainedAt DateTime?
   hashtagEvaluationPending Boolean @default(true)
@@ -842,6 +847,7 @@ model UploadedSourceFile {
   weight          Int      @default(5)
   confidenceScore Float    @default(5)
   iceScore        Float    @default(0)
+  scoreProfile    Json?    @default("{}")
   hashtags  String[] @default([])
   hashtagMaintainedAt DateTime?
   hashtagEvaluationPending Boolean @default(true)

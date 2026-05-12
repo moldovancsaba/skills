@@ -3,6 +3,7 @@ export type UpstreamScoreProfile = {
   confidence: number;
   weight: number;
   iceScore: number;
+  scoreProfile?: Record<string, unknown> | null;
 };
 
 export function deriveDataCardScoreProfile(source?: Record<string, unknown>): UpstreamScoreProfile;

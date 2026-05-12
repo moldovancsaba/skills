@@ -42,7 +42,9 @@ Approved product UI system:
 - first-class entity card surfaces must expose canonical ICE through the shared card header contract
 - semantic tones only for product color meaning
 - ICE updates, rescoring, and repair must run through shared scoring contracts and oldest-first maintenance or queue flows, not local ad hoc math
+- score generation must persist provenance between agent proposal, calibrated heuristic score, and final blended score profile
 - tactical placement must use the shared blended priority contract, which keeps ICE visible but ranks work through explainable ICE, quality, urgency, freshness, human-signal, risk, lifecycle-state, and memory inputs
+- tactical placement must use relative ranking within the active peer pool; fixed scalar thresholds are not sufficient on their own
 - source-backed knowledge must persist durable citation snapshots and explicit conflict state; URL-only provenance is not accepted
 
 ## 3. What We Do Not Use
@@ -313,7 +315,9 @@ Rules:
 
 - `src/lib/scoring-contract.js` owns the canonical blended priority profile
 - the blended profile must expose both a numeric priority score and component-level reasons
+- the scoring contract must preserve decimal internal score precision even if legacy storage fields or UI surfaces round for compatibility
 - supported priority components are ICE, quality, urgency, freshness, human signal, risk, lifecycle state, and memory signal
 - human-guided planning anchors must remain visible and must not be silently erased by AI reprioritization
 - frontier placement and tactical board ordering must use blended priority where available
+- frontier placement should be relative-rank based inside the active pool, not raw fixed ICE thresholds alone
 - feature code must not invent local ranking math for tactical placement

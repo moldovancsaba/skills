@@ -21,7 +21,9 @@ Read first:
 - interactions are centralized in the shared UI layer
 - semantic tones are the only approved product color vocabulary
 - ICE management is centralized through shared scoring contracts plus oldest-first maintenance and queue flows across upstream cards, knowledge, goals, and tasks
+- score provenance is now part of the contract: agent score proposal, calibrated heuristic score, and final blended score must remain inspectable in persisted `scoreProfile` data
 - tactical prioritization now uses the shared blended priority profile from `scoring-contract.js`; ICE remains visible, but placement also explains quality, urgency, freshness, human signal, risk, lifecycle state, and memory inputs
+- frontier placement is relative-rank based inside the current candidate pool, with human anchors preserved ahead of AI-only ordering
 - repetitive local-AI work is represented as persisted `PipelineJob` queue records
 - the webapp `Worker Queue` is the primary HiTL steering surface for repetitive jobs
 - worker scheduling supports explicit `AI_ONLY` and `HUMAN_GUIDED` modes
@@ -120,6 +122,6 @@ The work is not done until:
 - Human drag-and-drop on the `Worker Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now able to escalate queue work through the shared queue contract.
-- Frontier recompute assigns tactical columns by blended priority thresholds, not raw ICE alone, while preserving manual human drag/drop anchors.
+- Frontier recompute assigns tactical columns by relative blended-priority rank, not raw ICE alone, while preserving manual human drag/drop anchors.
 - Budget governor is observability-first: usage/cost values are estimates unless explicitly marked actual, and controls are recorded as events/policies rather than hidden scheduling overrides.
 - Future autonomous implementation selection must ignore ideabank-only items unless an operator explicitly promotes them into an active delivery column first.

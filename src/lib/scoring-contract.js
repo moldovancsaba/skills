@@ -34,12 +34,12 @@ const COMPLEXITY_KEYWORDS = [
 ];
 const PRIORITY_SCORE_MAX = 1000;
 const PRIORITY_WEIGHTS = Object.freeze({
-  ice: 0.36,
+  ice: 0.22,
   quality: 0.20,
-  urgency: 0.16,
-  freshness: 0.12,
-  human: 0.10,
-  risk: 0.06,
+  urgency: 0.18,
+  freshness: 0.14,
+  human: 0.16,
+  risk: 0.10,
 });
 const PRIORITY_STATE_MULTIPLIERS = Object.freeze({
   EVALUATED: 1,
@@ -60,7 +60,12 @@ function clampMetric(value, min = SCORE_MIN, max = SCORE_MAX) {
         : SCORE_MAX
       : numeric;
 
-  return Math.max(min, Math.min(max, Math.round(canonical)));
+  const bounded = Math.max(min, Math.min(max, canonical));
+  return Number(bounded.toFixed(1));
+}
+
+function roundMetricToInt(value, min = SCORE_MIN, max = SCORE_MAX) {
+  return Math.max(min, Math.min(max, Math.round(clampMetric(value, min, max))));
 }
 
 function normalizeScoreTriplet(input = {}, aliases = {}) {
@@ -85,12 +90,12 @@ function normalizeScoreTriplet(input = {}, aliases = {}) {
 
 function calculateTaskIceScore(input = {}) {
   const { impact, confidence, effort } = normalizeScoreTriplet(input);
-  return impact * confidence * effort;
+  return Number((impact * confidence * effort).toFixed(2));
 }
 
 function calculateKnowledgeIceScore(input = {}) {
   const { impact, confidence, effort } = normalizeScoreTriplet(input);
-  return Number(((impact * confidence * effort) / KNOWLEDGE_ICE_DIVISOR).toFixed(1));
+  return Number(((impact * confidence * effort) / KNOWLEDGE_ICE_DIVISOR).toFixed(2));
 }
 
 function clampUnit(value, fallback = 0) {
@@ -211,28 +216,98 @@ function computeBlendedPriorityProfile(input = {}) {
   };
 }
 
-function normalizeTaskScores(input = {}) {
-  const triplet = normalizeScoreTriplet(input);
+function blendScoreTriplets(agentInput = {}, calibratedInput = {}, agentWeight = 0.6) {
+  const safeAgentWeight = clampUnit(agentWeight, 0.6);
+  const calibratedWeight = 1 - safeAgentWeight;
+  const agent = normalizeScoreTriplet(agentInput);
+  const calibrated = normalizeScoreTriplet(calibratedInput);
 
   return {
-    impact: triplet.impact,
-    confidence: triplet.confidence,
-    confidenceScore: triplet.confidence,
-    ease: triplet.effort,
-    iceScore: calculateTaskIceScore(triplet),
+    agent,
+    calibrated,
+    final: {
+      impact: Number((agent.impact * safeAgentWeight + calibrated.impact * calibratedWeight).toFixed(1)),
+      confidence: Number((agent.confidence * safeAgentWeight + calibrated.confidence * calibratedWeight).toFixed(1)),
+      effort: Number((agent.effort * safeAgentWeight + calibrated.effort * calibratedWeight).toFixed(1)),
+    },
   };
+}
+
+function buildScoreProfile(input = {}) {
+  const scoreKind = String(input.scoreKind || "TASK").toUpperCase();
+  const blend = blendScoreTriplets(input.agent, input.calibrated, input.agentWeight);
+  const finalIceScore = scoreKind === "KNOWLEDGE"
+    ? calculateKnowledgeIceScore(blend.final)
+    : calculateTaskIceScore(blend.final);
+
+  return {
+    version: 2,
+    scoreKind,
+    agentWeight: clampUnit(input.agentWeight, 0.6),
+    agent: blend.agent,
+    calibrated: blend.calibrated,
+    final: {
+      impact: blend.final.impact,
+      confidence: blend.final.confidence,
+      effort: blend.final.effort,
+      iceScore: finalIceScore,
+    },
+    rationale: input.rationale || null,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+function scoreProfileTriplet(profile = {}, fallbacks = {}) {
+  const final = profile && typeof profile === "object" ? profile.final : null;
+  return normalizeScoreTriplet({
+    impact: final?.impact ?? fallbacks.impact,
+    confidence: final?.confidence ?? fallbacks.confidence ?? fallbacks.confidenceScore,
+    effort: final?.effort ?? final?.ease ?? fallbacks.effort ?? fallbacks.ease ?? fallbacks.weight,
+  });
+}
+
+function persistTaskScoresFromProfile(profile = {}) {
+  const final = scoreProfileTriplet(profile);
+  return {
+    impact: roundMetricToInt(final.impact),
+    confidence: roundMetricToInt(final.confidence),
+    confidenceScore: roundMetricToInt(final.confidence),
+    ease: roundMetricToInt(final.effort),
+    iceScore: Number(calculateTaskIceScore(final).toFixed(2)),
+  };
+}
+
+function persistKnowledgeScoresFromProfile(profile = {}) {
+  const final = scoreProfileTriplet(profile);
+  return {
+    impact: roundMetricToInt(final.impact),
+    confidence: roundMetricToInt(final.confidence),
+    confidenceScore: roundMetricToInt(final.confidence),
+    weight: roundMetricToInt(final.effort),
+    iceScore: Number(calculateKnowledgeIceScore(final).toFixed(2)),
+  };
+}
+
+function normalizeTaskScores(input = {}) {
+  const triplet = normalizeScoreTriplet(input);
+  return persistTaskScoresFromProfile({
+    final: {
+      impact: triplet.impact,
+      confidence: triplet.confidence,
+      effort: triplet.effort,
+    },
+  });
 }
 
 function normalizeKnowledgeScores(input = {}) {
   const triplet = normalizeScoreTriplet(input);
-
-  return {
-    impact: triplet.impact,
-    confidence: triplet.confidence,
-    confidenceScore: triplet.confidence,
-    weight: triplet.effort,
-    iceScore: calculateKnowledgeIceScore(triplet),
-  };
+  return persistKnowledgeScoresFromProfile({
+    final: {
+      impact: triplet.impact,
+      confidence: triplet.confidence,
+      effort: triplet.effort,
+    },
+  });
 }
 
 function normalizeGoalScores(input = {}) {
@@ -411,6 +486,11 @@ module.exports = {
   computeHumanPrioritySignal,
   computeRiskPrioritySignal,
   computeBlendedPriorityProfile,
+  blendScoreTriplets,
+  buildScoreProfile,
+  scoreProfileTriplet,
+  persistTaskScoresFromProfile,
+  persistKnowledgeScoresFromProfile,
   normalizeTaskScores,
   normalizeKnowledgeScores,
   normalizeGoalScores,

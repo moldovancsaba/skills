@@ -16,17 +16,19 @@
 const crypto = require("crypto");
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, trinity_DRAFT_TIMEOUT_MS } = require("./core");
-const { truncate, hashValue, nextPublicId, getWorkerConfig, parseBoundedInt, getStageModels } = require("./shared");
+const { truncate, hashValue, nextPublicId, getWorkerConfig, parseBoundedScore, getStageModels } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyArray } = require("./synthesis-utils");
 const { CandidateState, toGenerated } = require("./lifecycle");
 const { computeInitialFreshnessScore } = require("./evidence");
 const {
-  calculateKnowledgeIceScore,
+  buildScoreProfile,
   groundKnowledgeScores,
   groundTaskScores,
   normalizeKnowledgeScores,
   normalizeTaskScores,
+  persistKnowledgeScoresFromProfile,
+  persistTaskScoresFromProfile,
 } = require("../../src/lib/scoring-contract");
 const { deriveFlashcardSourceSupport } = require("../../src/lib/upstream-card-scoring");
 const { detectEvidenceConflict, ensureCitationSnapshotsForEvidenceBatch } = require("./citations");
@@ -131,7 +133,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
     "  - 'TASKCARD': Specific actionable directive or execution step (What the company MUST DO).",
     "Example: For a tech company, 'Achieve Social Media Dominance' is a GOALCARD. For a marketing agency, it is a FLASHCARD (Capability).",
     "\nRequired fields per item: title, body, category, kind, confidence, impact, weight, semanticTags (array of 3-5 lowercase hashtag strings).",
-    "AXIOM: Strict integer scores for confidence, impact, weight. Scale: 1-10. NO zeros. NO percentages.",
+    "AXIOM: Return decimal scores for confidence, impact, and weight on a 1.0-10.0 scale with up to one decimal place. NO zeros. NO percentages.",
     "COVERAGE OVER POLISH: Prefer extracting more distinct insights over perfecting fewer.",
     "Required field [intelligenceType]: Categorize as 'INTERNAL' if the insight is about the company's own operations/performance, or 'COMPETITOR' if it is about market competitors or industry benchmarks.",
     "Format: Return a JSON array of objects.",
@@ -207,9 +209,9 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
     let procStatus = "DRAFT";
 
     try {
-      confidence = parseBoundedInt(item.confidence, 1, 10);
-      impact = parseBoundedInt(item.impact, 1, 10);
-      weight = parseBoundedInt(item.weight, 1, 10);
+      confidence = parseBoundedScore(item.confidence, 1, 10);
+      impact = parseBoundedScore(item.impact, 1, 10);
+      weight = parseBoundedScore(item.weight, 1, 10);
     } catch (e) {
       confidence = 1; impact = 1; weight = 1;
       procStatus = "REVIEW";
@@ -236,17 +238,41 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
         topicScore: supportProfiles[0]?.topicProfile ?? null,
       },
     });
-    let normalizedScores = normalizeKnowledgeScores({
-      impact: groundedKnowledgeScores.impact,
-      confidence: groundedKnowledgeScores.confidence,
-      weight: groundedKnowledgeScores.effort,
+    let scoreProfile = buildScoreProfile({
+      scoreKind: "KNOWLEDGE",
+      agent: {
+        impact,
+        confidence,
+        effort: weight,
+      },
+      calibrated: groundedKnowledgeScores,
+      rationale: {
+        sourceImpact: averageSupport("sourceImpact"),
+        sourceConfidence: averageSupport("sourceConfidence"),
+        sourceWeight: averageSupport("sourceWeight"),
+        topicImpact: averageSupport("topicImpact"),
+        topicConfidence: averageSupport("topicConfidence"),
+        topicWeight: averageSupport("topicWeight"),
+        evidenceIds,
+      },
     });
+    let normalizedScores = persistKnowledgeScoresFromProfile(scoreProfile);
     if (conflict.detected) {
-      normalizedScores = normalizeKnowledgeScores({
-        impact: normalizedScores.impact,
-        confidence: Math.max(1, normalizedScores.confidence - conflict.severity),
-        weight: normalizedScores.weight,
+      scoreProfile = buildScoreProfile({
+        scoreKind: "KNOWLEDGE",
+        agent: scoreProfile.final,
+        calibrated: {
+          impact: scoreProfile.final.impact,
+          confidence: Math.max(1, scoreProfile.final.confidence - conflict.severity),
+          effort: scoreProfile.final.effort,
+        },
+        rationale: {
+          ...(scoreProfile.rationale || {}),
+          conflictDetected: true,
+          conflictSeverity: conflict.severity,
+        },
       });
+      normalizedScores = persistKnowledgeScoresFromProfile(scoreProfile);
       procStatus = "REVIEW";
     }
     const freshnessScore = computeInitialFreshnessScore(evidenceBatch[0]);
@@ -262,6 +288,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       confidence: normalizedScores.confidence,
       impact: normalizedScores.impact,
       weight: normalizedScores.weight,
+      scoreProfile,
       processingStatus: procStatus,
       activityState: "ACTIVE",
       status: "ACTIVE",
@@ -324,7 +351,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     topic ? `\n### [PRIMARY STRATEGIC GOAL: ${topic.label}]\nEnsure this task directly supports the following objective: ${topic.notes || topic.label}\n` : "",
     tacticalGuidance ? `\n### [TACTICAL GUIDANCE]\n${tacticalGuidance}\n` : "",
     "Required fields: title, description, kind, impact, confidence, ease, semanticTags (array of 3-5 lowercase strings).",
-    "AXIOM: Strict integer scores for confidence, impact, ease. Scale: 1-10. NO zeros.",
+    "AXIOM: Return decimal scores for confidence, impact, and ease on a 1.0-10.0 scale with up to one decimal place. NO zeros.",
     "SCORING DISCIPLINE: Score each dimension independently from the actual task text. Impact = business upside, confidence = evidence strength and clarity, ease = implementation effort. Do not reuse favorite tuples across tasks.",
     "SCORING RATIONALE: Titles or descriptions that differ materially should usually not receive identical triplets unless the evidence truly supports it.",
     "ACTIONABILITY REQUIREMENT: Every task must be concretely executable by a real human in a business context.",
@@ -356,9 +383,9 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     let procStatus = "DRAFT";
 
     try {
-      confidence = parseBoundedInt(item.confidence, 1, 10);
-      impact = parseBoundedInt(item.impact, 1, 10);
-      ease = parseBoundedInt(item.ease, 1, 10);
+      confidence = parseBoundedScore(item.confidence, 1, 10);
+      impact = parseBoundedScore(item.impact, 1, 10);
+      ease = parseBoundedScore(item.ease, 1, 10);
     } catch (e) {
       confidence = 1; impact = 1; ease = 1;
       procStatus = "REVIEW";
@@ -376,11 +403,23 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       title: item.title,
       description: item.description,
     });
-    const normalizedTaskScores = normalizeTaskScores({
-      impact: groundedScores.impact,
-      confidence: groundedScores.confidence,
-      ease: groundedScores.effort,
+    const scoreProfile = buildScoreProfile({
+      scoreKind: "TASK",
+      agent: {
+        impact,
+        confidence,
+        effort: ease,
+      },
+      calibrated: groundedScores,
+      rationale: {
+        sourceImpact: flashCard.impact,
+        sourceConfidence: flashCard.confidenceScore ?? flashCard.confidence,
+        sourceWeight: flashCard.weight ?? flashCard.ease,
+        sourceIceScore: flashCard.iceScore,
+        sourceFlashcardId: flashCard.id,
+      },
     });
+    const normalizedTaskScores = persistTaskScoresFromProfile(scoreProfile);
 
     drafts.push({
       id: crypto.randomUUID(),
@@ -394,6 +433,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       confidence: normalizedTaskScores.confidence,
       ease: normalizedTaskScores.ease,
       iceScore: normalizedTaskScores.iceScore,
+      scoreProfile,
       processingStatus: procStatus,
       activityState: "ACTIVE",
       status: "PENDING",

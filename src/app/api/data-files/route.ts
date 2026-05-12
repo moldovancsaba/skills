@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
             impact: scoreProfile.impact,
             weight: scoreProfile.weight,
             iceScore: scoreProfile.iceScore,
+            scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
             hashtags,
             entityTag,
             mimeType: file.type || "application/octet-stream",
@@ -221,6 +223,7 @@ export async function PATCH(request: NextRequest) {
         impact: scoreProfile.impact,
         weight: scoreProfile.weight,
         iceScore: scoreProfile.iceScore,
+        scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
         updatedAt: new Date(),
       },
       select: {

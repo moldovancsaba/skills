@@ -1,5 +1,6 @@
 import { HashtagEntityType, HashtagFeedbackAction } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { normalizeHashtag, normalizeHashtagList } from "@/lib/hashtags";
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
           impact: scoreProfile.impact,
           weight: scoreProfile.weight,
           iceScore: scoreProfile.iceScore,
+          scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
           updatedAt: new Date(),
           hashtagEvaluationPending: true,
         },
@@ -108,6 +110,7 @@ export async function POST(request: NextRequest) {
           impact: scoreProfile.impact,
           weight: scoreProfile.weight,
           iceScore: scoreProfile.iceScore,
+          scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
           updatedAt: new Date(),
           hashtagEvaluationPending: true,
         },
@@ -134,6 +137,7 @@ export async function POST(request: NextRequest) {
           impact: scoreProfile.impact,
           weight: scoreProfile.weight,
           iceScore: scoreProfile.iceScore,
+          scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
           updatedAt: new Date(),
           hashtagEvaluationPending: true,
         },

@@ -1,10 +1,10 @@
 const { PrismaClient } = require("@prisma/client");
 const {
-  calculateKnowledgeIceScore,
+  buildScoreProfile,
   groundKnowledgeScores,
   normalizeGoalScores,
-  normalizeKnowledgeScores,
-  normalizeTaskScores,
+  persistKnowledgeScoresFromProfile,
+  persistTaskScoresFromProfile,
 } = require("../src/lib/scoring-contract");
 
 const prisma = new PrismaClient();
@@ -39,12 +39,21 @@ async function repairFlashcards() {
       impact: flashcard.impact,
       weight: flashcard.weight,
     });
+    const scoreProfile = buildScoreProfile({
+      scoreKind: "KNOWLEDGE",
+      agent: {
+        confidence: flashcard.confidenceScore ?? flashcard.confidence,
+        impact: flashcard.impact,
+        effort: flashcard.weight,
+      },
+      calibrated: grounded,
+      rationale: {
+        repairScript: true,
+      },
+    });
     const normalized = {
-      confidence: grounded.confidence,
-      confidenceScore: grounded.confidence,
-      impact: grounded.impact,
-      weight: grounded.effort,
-      iceScore: calculateKnowledgeIceScore(grounded),
+      ...persistKnowledgeScoresFromProfile(scoreProfile),
+      scoreProfile,
     };
 
     if (
@@ -119,11 +128,26 @@ async function repairTasks() {
   let updated = 0;
 
   for (const task of tasks) {
-    const normalized = normalizeTaskScores({
-      confidence: task.confidenceScore ?? task.confidence,
-      impact: task.impact,
-      ease: task.ease,
+    const scoreProfile = buildScoreProfile({
+      scoreKind: "TASK",
+      agent: {
+        confidence: task.confidenceScore ?? task.confidence,
+        impact: task.impact,
+        effort: task.ease,
+      },
+      calibrated: {
+        confidence: task.confidenceScore ?? task.confidence,
+        impact: task.impact,
+        effort: task.ease,
+      },
+      rationale: {
+        repairScript: true,
+      },
     });
+    const normalized = {
+      ...persistTaskScoresFromProfile(scoreProfile),
+      scoreProfile,
+    };
 
     if (
       normalized.confidence !== task.confidence ||

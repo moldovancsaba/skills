@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { verifyIngestSecret } from "@/lib/ingest-auth";
 import { normalizeHashtagList } from "@/lib/hashtags";
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
             impact: scoreProfile.impact,
             weight: scoreProfile.weight,
             iceScore: scoreProfile.iceScore,
+            scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
             hashtags: normalizedHashtags,
             sourceType: "BRIDGE",
             provenance: provenance || "api-ingress",

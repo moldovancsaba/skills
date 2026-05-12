@@ -19,11 +19,15 @@
  */
 const { callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, trinity_WRITE_TIMEOUT_MS } = require("./core");
-const { truncate, hashValue, getWorkerConfig, getStageModels, similarity, parseBoundedInt, nextPublicId } = require("./shared");
+const { truncate, hashValue, getWorkerConfig, getStageModels, similarity, parseBoundedScore, nextPublicId } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject, unifyArray } = require("./synthesis-utils");
 const { CandidateState, toRefined, toSuppressed } = require("./lifecycle");
-const { groundTaskScores, normalizeTaskScores } = require("../../src/lib/scoring-contract");
+const {
+  buildScoreProfile,
+  groundTaskScores,
+  persistTaskScoresFromProfile,
+} = require("../../src/lib/scoring-contract");
 
 // ---------------------------------------------------------------------------
 // 1. Neighborhood Detection
@@ -125,11 +129,26 @@ function normalizeRefinedTaskScores(raw = {}, fallback = {}) {
     sourceIceScore: fallback.iceScore,
   });
 
-  return normalizeTaskScores({
-    impact: grounded.impact,
-    confidence: grounded.confidence,
-    ease: grounded.effort,
+  const scoreProfile = buildScoreProfile({
+    scoreKind: "TASK",
+    agent: {
+      impact: raw.impact ?? fallback.impact,
+      confidence: raw.confidence ?? raw.confidenceScore ?? fallback.confidence ?? fallback.confidenceScore,
+      effort: raw.ease ?? fallback.ease,
+    },
+    calibrated: grounded,
+    rationale: {
+      sourceImpact: fallback.impact,
+      sourceConfidence: fallback.confidence ?? fallback.confidenceScore,
+      sourceWeight: fallback.ease,
+      sourceIceScore: fallback.iceScore,
+      refinerStage: "trinity-refiner",
+    },
   });
+  return {
+    ...persistTaskScoresFromProfile(scoreProfile),
+    scoreProfile,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +203,7 @@ async function mergeNeighborhood(neighborhood, context, memoryPrompt) {
     confidenceScore: mergedScores.confidenceScore,
     ease: mergedScores.ease,
     iceScore: mergedScores.iceScore,
+    scoreProfile: mergedScores.scoreProfile,
     hashtags: Array.isArray(raw.semanticTags) ? raw.semanticTags.slice(0, 5) : (champion.hashtags || []),
     // Trinity lineage: merge all sources
     generatedFromIds: mergedGeneratedFromIds,
@@ -249,6 +269,7 @@ async function enrichCandidate(candidate, context, memoryPrompt) {
     confidenceScore: enrichedScores.confidenceScore,
     ease: enrichedScores.ease,
     iceScore: enrichedScores.iceScore,
+    scoreProfile: enrichedScores.scoreProfile,
     ...toRefined({ evaluationReason: "ENRICH: underspecified candidate strengthened" }),
     refinedFromId: candidate.id,
     processingStatus: "CHECKED",
@@ -265,7 +286,7 @@ async function refineAsIs(candidate, context, memoryPrompt) {
     "Improve the language and make claims more specific and business-relevant.",
     context || "",
     "Return a single JSON object: { title, description, impact, confidence, ease, hashtags }",
-    "AXIOM: Integer scores 1-10 for impact, confidence, ease. NO zeros.",
+    "AXIOM: Decimal scores 1.0-10.0 for impact, confidence, ease with up to one decimal place. NO zeros.",
     memoryPrompt || ""
   ].join("\n");
 
@@ -286,6 +307,7 @@ async function refineAsIs(candidate, context, memoryPrompt) {
     confidenceScore: refinedScores.confidenceScore,
     ease: refinedScores.ease,
     iceScore: refinedScores.iceScore,
+    scoreProfile: refinedScores.scoreProfile,
     hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : (candidate.hashtags || []),
     ...toRefined({ evaluationReason: "REFINE_AS_IS: standard refinement" }),
     refinedFromId: candidate.id,
@@ -295,7 +317,7 @@ async function refineAsIs(candidate, context, memoryPrompt) {
 }
 
 function parseSafe(val, fallback) {
-  try { return parseBoundedInt(val, 1, 10); } catch { return fallback; }
+  try { return parseBoundedScore(val, 1, 10); } catch { return fallback; }
 }
 
 // ---------------------------------------------------------------------------

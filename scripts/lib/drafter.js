@@ -430,6 +430,8 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       historyImpact: taskHistorySignals.historyImpact,
       historyConfidence: taskHistorySignals.historyConfidence,
       historySupport: taskHistorySignals.historySupport,
+      historyEase: taskHistorySignals.historyEase,
+      historyDifficulty: taskHistorySignals.historyDifficulty,
     });
     const scoreProfile = buildScoreProfile({
       scoreKind: "TASK",
@@ -448,9 +450,14 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
         historyImpact: taskHistorySignals.historyImpact,
         historyConfidence: taskHistorySignals.historyConfidence,
         historySupport: taskHistorySignals.historySupport,
+        historyEase: taskHistorySignals.historyEase,
+        historyDifficulty: taskHistorySignals.historyDifficulty,
         historyPositiveMatches: taskHistorySignals.positiveMatches,
         historyNegativeMatches: taskHistorySignals.negativeMatches,
         historyAverageSimilarity: taskHistorySignals.averageSimilarity,
+        historyDeliveredMatches: taskHistorySignals.deliveredMatches,
+        historyAcceptedMatches: taskHistorySignals.acceptedMatches,
+        historyFrictionMatches: taskHistorySignals.frictionMatches,
       },
     });
     const normalizedTaskScores = persistTaskScoresFromProfile(scoreProfile);

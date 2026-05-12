@@ -32,6 +32,61 @@ const COMPLEXITY_KEYWORDS = [
   "prototype",
   "experiment",
 ];
+const DEPENDENCY_KEYWORDS = [
+  "approve",
+  "approval",
+  "stakeholder",
+  "vendor",
+  "integration",
+  "dependency",
+  "dependencies",
+  "cross-functional",
+  "handoff",
+  "legal",
+  "finance",
+  "ops",
+];
+const COORDINATION_KEYWORDS = [
+  "team",
+  "teams",
+  "meeting",
+  "align",
+  "alignment",
+  "coordinate",
+  "workshop",
+  "review",
+  "committee",
+  "partner",
+  "customer",
+  "leadership",
+];
+const EXPERTISE_KEYWORDS = [
+  "strategy",
+  "technical",
+  "engineering",
+  "analytics",
+  "research",
+  "pricing",
+  "forecast",
+  "architecture",
+  "compliance",
+  "security",
+  "diagnostic",
+  "benchmark",
+];
+const TIME_TO_VALUE_KEYWORDS = [
+  "quarter",
+  "quarters",
+  "month",
+  "months",
+  "roadmap",
+  "program",
+  "rollout",
+  "pilot",
+  "migration",
+  "transformation",
+  "launch",
+];
 const PRIORITY_SCORE_MAX = 1000;
 const PRIORITY_WEIGHTS = Object.freeze({
   ice: 0.22,
@@ -445,6 +500,39 @@ function deriveComplexitySignal(title = "", description = "") {
   return clampMetric(score);
 }
 
+function deriveDependencyLoadSignal(title = "", description = "") {
+  const text = `${title} ${description}`.trim();
+  const keywordHits = countKeywordHits(text, DEPENDENCY_KEYWORDS);
+  const listHits = (text.match(/[,;]/g) || []).length;
+  const dependencyPhrases = (text.match(/\bafter\b|\bbefore\b|\brequires\b|\bdepends on\b/gi) || []).length;
+  return clampMetric(2 + Math.min(4, keywordHits) + Math.min(2, listHits) + Math.min(2, dependencyPhrases));
+}
+
+function deriveCoordinationBurdenSignal(title = "", description = "") {
+  const text = `${title} ${description}`.trim();
+  const keywordHits = countKeywordHits(text, COORDINATION_KEYWORDS);
+  const pluralityHits = (text.match(/\bwith\b|\bacross\b|\band\b/gi) || []).length;
+  return clampMetric(2 + Math.min(4, keywordHits) + Math.min(3, pluralityHits));
+}
+
+function deriveExpertiseRequirementSignal(title = "", description = "") {
+  const text = `${title} ${description}`.trim();
+  const keywordHits = countKeywordHits(text, EXPERTISE_KEYWORDS);
+  const technicalMarkers = (text.match(/\bapi\b|\bsql\b|\bkpi\b|\bml\b|\bai\b|\bops\b/gi) || []).length;
+  return clampMetric(2 + Math.min(4, keywordHits) + Math.min(2, technicalMarkers));
+}
+
+function deriveTimeToValueDifficultySignal(title = "", description = "") {
+  const text = `${title} ${description}`.trim();
+  const keywordHits = countKeywordHits(text, TIME_TO_VALUE_KEYWORDS);
+  const timeframeHits = (text.match(/\bweek\b|\bmonth\b|\bquarter\b|\bmilestone\b|\bphase\b/gi) || []).length;
+  return clampMetric(2 + Math.min(4, keywordHits) + Math.min(2, timeframeHits));
+}
+
+function convertDifficultyToEaseSignal(value) {
+  return clampMetric(SCORE_MAX + SCORE_MIN - clampMetric(value) + 1);
+}
+
 function deriveEvidenceStrengthSignal(input = {}) {
   const evidence =
     input.evidence && typeof input.evidence === "object"
@@ -598,9 +686,24 @@ function groundTaskScores(input = {}) {
   const specificity = deriveSpecificitySignal(input.title, input.description);
   const urgency = deriveUrgencySignal(input.kind, input.title, input.description);
   const complexity = deriveComplexitySignal(input.title, input.description);
+  const dependencyLoad = deriveDependencyLoadSignal(input.title, input.description);
+  const coordinationBurden = deriveCoordinationBurdenSignal(input.title, input.description);
+  const expertiseRequirement = deriveExpertiseRequirementSignal(input.title, input.description);
+  const timeToValueDifficulty = deriveTimeToValueDifficultySignal(input.title, input.description);
+  const deliveryDifficulty = weightedSignalAverage([
+    { value: complexity, weight: 2 },
+    { value: dependencyLoad, weight: 2 },
+    { value: coordinationBurden, weight: 2 },
+    { value: expertiseRequirement, weight: 2 },
+    { value: timeToValueDifficulty, weight: 1 },
+  ], complexity);
+  const deliveryEaseSignal = convertDifficultyToEaseSignal(deliveryDifficulty);
   const historyImpact = input.historyImpact != null ? clampMetric(input.historyImpact) : null;
   const historyConfidence = input.historyConfidence != null ? clampMetric(input.historyConfidence) : null;
   const historySupport = input.historySupport != null ? clampMetric(input.historySupport) : null;
+  const historyEase = input.historyEase != null ? clampMetric(input.historyEase) : null;
+  const historyDifficulty = input.historyDifficulty != null ? clampMetric(input.historyDifficulty) : null;
+  const historyDifficultyEase = historyDifficulty == null ? null : convertDifficultyToEaseSignal(historyDifficulty);
 
   const factors = {
     impact: {
@@ -623,7 +726,16 @@ function groundTaskScores(input = {}) {
       baseEffort: base.effort,
       sourceWeight,
       complexity,
-      sourceIceSignal: sourceIceSignal ?? complexity,
+      sourceIceSignal: sourceIceSignal ?? deliveryEaseSignal,
+      dependencyLoad,
+      coordinationBurden,
+      expertiseRequirement,
+      timeToValueDifficulty,
+      deliveryDifficulty,
+      deliveryEaseSignal,
+      ...(historyEase != null ? { historyEase } : {}),
+      ...(historyDifficulty != null ? { historyDifficulty } : {}),
+      ...(historyDifficultyEase != null ? { historyDifficultyEase } : {}),
     },
   };
 
@@ -644,14 +756,14 @@ function groundTaskScores(input = {}) {
       ...(historyConfidence != null ? [{ value: historyConfidence, weight: 2 }] : []),
       ...(historySupport != null ? [{ value: historySupport, weight: 1 }] : []),
     ], base.confidence),
-    effort: clampMetric(
-      (
-        factors.effort.baseEffort * 2 +
-        factors.effort.sourceWeight +
-        factors.effort.complexity * 2 +
-        factors.effort.sourceIceSignal
-      ) / 6,
-    ),
+    effort: weightedSignalAverage([
+      { value: factors.effort.baseEffort, weight: 2 },
+      { value: factors.effort.sourceWeight, weight: 1 },
+      { value: factors.effort.deliveryEaseSignal, weight: 2 },
+      { value: factors.effort.sourceIceSignal, weight: 1 },
+      ...(historyEase != null ? [{ value: historyEase, weight: 2 }] : []),
+      ...(historyDifficultyEase != null ? [{ value: historyDifficultyEase, weight: 1.5 }] : []),
+    ], base.effort),
     factors,
   };
 }
@@ -688,6 +800,10 @@ module.exports = {
   deriveSpecificitySignal,
   deriveUrgencySignal,
   deriveComplexitySignal,
+  deriveDependencyLoadSignal,
+  deriveCoordinationBurdenSignal,
+  deriveExpertiseRequirementSignal,
+  deriveTimeToValueDifficultySignal,
   deriveEvidenceStrengthSignal,
   deriveKnowledgeKindSignal,
   groundKnowledgeScores,

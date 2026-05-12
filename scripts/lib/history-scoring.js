@@ -104,6 +104,66 @@ function aggregateHistoryOutcome(entries = [], candidate = {}) {
   };
 }
 
+function aggregateTaskDifficultyHistory(entries = [], candidate = {}) {
+  const scored = entries
+    .map((entry) => {
+      const sim = combinedSimilarity(entry, candidate);
+      if (sim < 0.18) return null;
+      return {
+        sim,
+        action: entry.action,
+        ease: clampMetric(entry.ease ?? 5),
+      };
+    })
+    .filter(Boolean);
+
+  if (scored.length === 0) {
+    return {
+      historyEase: null,
+      historyDifficulty: null,
+      deliveredMatches: 0,
+      acceptedMatches: 0,
+      frictionMatches: 0,
+    };
+  }
+
+  const delivered = scored.filter((entry) => entry.action === "DELIVER");
+  const accepted = scored.filter((entry) => entry.action === "ACCEPT" || entry.action === "MODIFY_ACCEPT");
+  const friction = scored.filter((entry) => entry.action === "DECLINE" || entry.action === "ACCEPT" || entry.action === "MODIFY_ACCEPT");
+
+  const weightedAverage = (entriesForAverage) => {
+    if (entriesForAverage.length === 0) return null;
+    const total = entriesForAverage.reduce((sum, entry) => sum + entry.sim, 0);
+    return total > 0
+      ? entriesForAverage.reduce((sum, entry) => sum + entry.ease * entry.sim, 0) / total
+      : null;
+  };
+
+  const deliveredEase = weightedAverage(delivered);
+  const acceptedEase = weightedAverage(accepted);
+  const frictionWeight = friction.reduce((sum, entry) => sum + entry.sim, 0);
+  const deliveredWeight = delivered.reduce((sum, entry) => sum + entry.sim, 0);
+  const totalWeight = Math.max(0.001, frictionWeight + deliveredWeight);
+  const frictionDelta = (frictionWeight - deliveredWeight) / totalWeight;
+  const historyDifficulty = clampMetric(5 + frictionDelta * 2.5);
+  const difficultyEase = clampMetric(11 - historyDifficulty);
+  const blendedEase = deliveredEase == null
+    ? acceptedEase == null
+      ? difficultyEase
+      : clampMetric((acceptedEase + difficultyEase) / 2)
+    : acceptedEase == null
+      ? clampMetric((deliveredEase + difficultyEase) / 2)
+      : clampMetric((deliveredEase * 2 + acceptedEase + difficultyEase) / 4);
+
+  return {
+    historyEase: blendedEase,
+    historyDifficulty,
+    deliveredMatches: delivered.length,
+    acceptedMatches: accepted.length,
+    frictionMatches: friction.length,
+  };
+}
+
 async function loadCompanyHistory(prisma, companyId) {
   const cacheKey = String(companyId);
   const cached = HISTORY_CACHE.get(cacheKey);
@@ -147,6 +207,7 @@ async function loadCompanyHistory(prisma, companyId) {
             hashtags: true,
             impact: true,
             confidenceScore: true,
+            ease: true,
           },
         },
       },
@@ -168,6 +229,8 @@ async function loadCompanyHistory(prisma, companyId) {
       hashtags: entry.nbaItem?.hashtags || [],
       impact: entry.nbaItem?.impact,
       confidence: entry.nbaItem?.confidenceScore,
+      ease: entry.nbaItem?.ease,
+      action: entry.action,
       outcomeSignal: TASK_ACTION_SIGNAL[entry.action] ?? 0,
     })),
   };
@@ -186,7 +249,10 @@ async function computeHistoryAwareKnowledgeSignals(prisma, companyId, candidate 
 
 async function computeHistoryAwareTaskSignals(prisma, companyId, candidate = {}) {
   const history = await loadCompanyHistory(prisma, companyId);
-  return aggregateHistoryOutcome(history.tasks, candidate);
+  return {
+    ...aggregateHistoryOutcome(history.tasks, candidate),
+    ...aggregateTaskDifficultyHistory(history.tasks, candidate),
+  };
 }
 
 module.exports = {

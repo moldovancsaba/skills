@@ -136,6 +136,7 @@ Tactical placement contract:
 - human drag/drop anchors remain explicit human guidance and are not silently erased by AI scoring
 - priority is assigned by blended relative rank inside the active peer pool, not raw ICE alone
 - score calibration is history-aware: accepted, declined, modified, and delivered company outcomes are valid first-class inputs for new-card impact/confidence scoring
+- task ease is calibrated from delivery difficulty and then persisted as an ease signal; dependencies, coordination burden, expertise, time-to-value, and delivery history are part of that contract
 
 ## 6. AI Brain Rule
 

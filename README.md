@@ -78,6 +78,7 @@ Frontend system:
 - ICE management must run through the canonical scoring contract and the oldest-first maintenance queue across upstream cards, knowledge, goals, and tasks
 - score generation must persist score provenance: agent proposal, calibrated heuristic score, and final blended score profile
 - score calibration must consume company-specific history from accepted, declined, modified, and delivered cards when deriving new-card impact and confidence
+- task `ease` must be calibrated as delivery difficulty converted into an ease signal, using dependencies, coordination burden, expertise requirement, time-to-value, and delivery history
 - tactical placement uses the shared blended priority contract: ICE remains visible, while ranking also accounts for quality, urgency, freshness, human signal, risk, lifecycle state, and memory signal
 - tactical columns are assigned by relative peer ranking plus human anchors, not by raw fixed ICE thresholds alone
 - source-backed Knowmore cards must persist durable citation snapshots and explicit conflict state instead of relying on raw URLs alone

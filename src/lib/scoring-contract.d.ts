@@ -188,6 +188,10 @@ export function normalizeGoalScores(input?: CanonicalTripletInput): {
 export function deriveSpecificitySignal(title?: string | null, description?: string | null): number;
 export function deriveUrgencySignal(kind?: string | null, title?: string | null, description?: string | null): number;
 export function deriveComplexitySignal(title?: string | null, description?: string | null): number;
+export function deriveDependencyLoadSignal(title?: string | null, description?: string | null): number;
+export function deriveCoordinationBurdenSignal(title?: string | null, description?: string | null): number;
+export function deriveExpertiseRequirementSignal(title?: string | null, description?: string | null): number;
+export function deriveTimeToValueDifficultySignal(title?: string | null, description?: string | null): number;
 export function deriveEvidenceStrengthSignal(input?: CanonicalTripletInput): number;
 export function deriveKnowledgeKindSignal(kind?: string | null): number;
 export function groundKnowledgeScores(input?: CanonicalTripletInput & {
@@ -217,6 +221,8 @@ export function groundTaskScores(input?: CanonicalTripletInput & {
   historyImpact?: number | null;
   historyConfidence?: number | null;
   historySupport?: number | null;
+  historyEase?: number | null;
+  historyDifficulty?: number | null;
 }): { impact: number; confidence: number; effort: number; factors: ScoreFactorCollection };
 export function enrichTaskDraftScores(input?: CanonicalTripletInput & {
   sourceImpact?: number | null;
@@ -228,4 +234,6 @@ export function enrichTaskDraftScores(input?: CanonicalTripletInput & {
   historyImpact?: number | null;
   historyConfidence?: number | null;
   historySupport?: number | null;
+  historyEase?: number | null;
+  historyDifficulty?: number | null;
 }): { impact: number; confidence: number; effort: number; factors: ScoreFactorCollection };

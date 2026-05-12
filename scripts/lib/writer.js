@@ -185,6 +185,8 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
       historyImpact: historySignals.historyImpact,
       historyConfidence: historySignals.historyConfidence,
       historySupport: historySignals.historySupport,
+      historyEase: historySignals.historyEase,
+      historyDifficulty: historySignals.historyDifficulty,
     });
     const scoreProfile = buildScoreProfile({
       scoreKind: "TASK",
@@ -203,9 +205,14 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
         historyImpact: historySignals.historyImpact,
         historyConfidence: historySignals.historyConfidence,
         historySupport: historySignals.historySupport,
+        historyEase: historySignals.historyEase,
+        historyDifficulty: historySignals.historyDifficulty,
         historyPositiveMatches: historySignals.positiveMatches,
         historyNegativeMatches: historySignals.negativeMatches,
         historyAverageSimilarity: historySignals.averageSimilarity,
+        historyDeliveredMatches: historySignals.deliveredMatches,
+        historyAcceptedMatches: historySignals.acceptedMatches,
+        historyFrictionMatches: historySignals.frictionMatches,
       },
     });
     const normalizedScores = persistTaskScoresFromProfile(scoreProfile);

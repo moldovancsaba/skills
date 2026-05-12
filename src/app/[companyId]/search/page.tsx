@@ -29,6 +29,25 @@ function toneLabel(entityType: SearchResultRecord["entityType"]) {
   }
 }
 
+function entityOptionLabel(entityType: SearchEntityType) {
+  switch (entityType) {
+    case "SOURCE":
+      return "Data";
+    case "TOPIC":
+      return "Topics";
+    case "FLASHCARD":
+      return "Knowmore";
+    case "GOALCARD":
+      return "Goals";
+    case "TASK":
+      return "Tasks";
+    case "PIPELINE_JOB":
+      return "Queue";
+    case "WORKFLOW_BLUEPRINT":
+      return "Workflows";
+  }
+}
+
 export default function SearchPage() {
   const params = useParams();
   const companyId = params.companyId as string;
@@ -156,6 +175,18 @@ export default function SearchPage() {
                   </Badge>
                 ))}
               </Group>
+            ) : null}
+            {answer.appliedEntityTypes.length > 0 ? (
+              <Stack gap="xs">
+                <MetaText>Answer scope</MetaText>
+                <Group gap="xs">
+                  {answer.appliedEntityTypes.map((entityType) => (
+                    <Badge key={entityType} variant="outline" color="gray">
+                      {entityOptionLabel(entityType)}
+                    </Badge>
+                  ))}
+                </Group>
+              </Stack>
             ) : null}
             {answer.evidence.length > 0 ? (
               <Stack gap="xs">

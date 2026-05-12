@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { IconDatabase as Database, IconSearch as Search, IconSparkles as Sparkles, IconTarget as Target, IconBolt as Bolt, IconFilter as Filter, IconLayoutList as LayoutList, IconTrendingUp as TrendingUp, IconShieldCheck as ShieldCheck } from "@tabler/icons-react";
+import { IconDatabase as Database, IconSearch as Search, IconSparkles as Sparkles, IconTarget as Target, IconBolt as Bolt, IconFilter as Filter, IconLayoutList as LayoutList, IconTrendingUp as TrendingUp, IconShieldCheck as ShieldCheck, IconRefresh as RefreshIcon, IconStethoscope as Stethoscope, IconAlertTriangle as AlertTriangle } from "@tabler/icons-react";
 import { 
   Badge, 
   Button, 
@@ -106,6 +106,26 @@ type Flashcard = {
   iceScore: number;
   conflictDetected?: boolean;
   conflictSummary?: string | null;
+  generatedFromIds?: string[];
+  versionFamilyId?: string | null;
+  duplicateClusterId?: string | null;
+  refinedFromId?: string | null;
+};
+
+type KnowmoreHealth = {
+  healthState: "HEALTHY" | "STALE" | "DELAYED" | "FAILED";
+  reviewCount: number;
+  staleCount: number;
+  correctionBacklog: number;
+  failedJobs: number;
+  scoreBand: string;
+  alerts: Array<{ severity: string; message: string }>;
+  jobs: Array<{ id: string; jobType: string; status: string; queueColumn: string }>;
+  recommendedActions: {
+    sync: boolean;
+    repair: boolean;
+    recover: boolean;
+  };
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "CONVERT";
@@ -161,6 +181,8 @@ export default function CompanyKnowMorePage() {
   const [isOwner, setIsOwner] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [health, setHealth] = useState<KnowmoreHealth | null>(null);
+  const [healthActionLoading, setHealthActionLoading] = useState<string | null>(null);
 
   const loadFlashcards = useCallback(async (cid: string) => {
     const response = await fetchJson<{ items: Flashcard[]; hasMore: boolean; total: number }>(
@@ -169,6 +191,11 @@ export default function CompanyKnowMorePage() {
     setFlashcards(response.items);
     setHasMore(response.hasMore);
     setTotalCount(response.total);
+  }, []);
+
+  const loadHealth = useCallback(async (cid: string) => {
+    const response = await fetchJson<KnowmoreHealth>(`/api/knowmore/health?companyId=${encodeURIComponent(cid)}`);
+    setHealth(response);
   }, []);
 
   const loadMoreFlashcards = useCallback(async () => {
@@ -194,7 +221,10 @@ export default function CompanyKnowMorePage() {
       }
 
       setCompany(found);
-      await loadFlashcards(found.id);
+      await Promise.all([
+        loadFlashcards(found.id),
+        loadHealth(found.id),
+      ]);
 
       const [members, sessionRes] = await Promise.all([
         fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
@@ -213,7 +243,7 @@ export default function CompanyKnowMorePage() {
     } finally {
       setLoading(false);
     }
-  }, [loadFlashcards, router]);
+  }, [loadFlashcards, loadHealth, router]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -307,32 +337,26 @@ export default function CompanyKnowMorePage() {
     setErrorMessage(null);
 
     try {
-      // JOURNAL FEEDBACK (Isolated)
-      const payload = {
-        companyId: company.id,
-        entityId: flashcardId,
-        entityType: "KNOWLEDGE",
-        action: actionMode,
-        annotation: trimmedComment || undefined,
-        modifiedTitle: actionMode === "MODIFY_ACCEPT" ? trimmedTitle : undefined,
-        modifiedDescription: actionMode === "MODIFY_ACCEPT" ? trimmedBody : undefined,
-      };
-
-      await fetch("/api/feedback", {
+      await fetchJson("/api/knowmore/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          flashcardId,
+          action: actionMode,
+          annotation: trimmedComment || undefined,
+          modifiedTitle: actionMode === "MODIFY_ACCEPT" ? trimmedTitle : undefined,
+          modifiedBody: actionMode === "MODIFY_ACCEPT" ? trimmedBody : undefined,
+        }),
       });
 
-      // Optimistically update list or reload
-      await loadFlashcards(company.id);
+      await Promise.all([loadFlashcards(company.id), loadHealth(company.id)]);
       closeActionForm();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setActingId(null);
     }
-  }, [actionComment, actionMode, closeActionForm, company, editedBody, editedTitle, loadFlashcards]);
+  }, [actionComment, actionMode, closeActionForm, company, editedBody, editedTitle, loadFlashcards, loadHealth]);
 
   const handleConvert = useCallback(async (id: string, targetType: string) => {
     if (!company) return;
@@ -385,12 +409,12 @@ export default function CompanyKnowMorePage() {
 
       if (["HIDE", "MARK_WRONG", "SUPPRESS_SOURCE"].includes(input.correctionType)) {
         if (input.correctionType === "SUPPRESS_SOURCE") {
-          await loadFlashcards(company.id);
+          await Promise.all([loadFlashcards(company.id), loadHealth(company.id)]);
         } else {
           setFlashcards(prev => prev.filter(f => f.id !== input.flashcardId));
         }
       } else {
-        await loadFlashcards(company.id);
+        await Promise.all([loadFlashcards(company.id), loadHealth(company.id)]);
       }
       closeActionForm();
     } catch (error) {
@@ -398,7 +422,24 @@ export default function CompanyKnowMorePage() {
     } finally {
       setActingId(null);
     }
-  }, [closeActionForm, company, loadFlashcards]);
+  }, [closeActionForm, company, loadFlashcards, loadHealth]);
+
+  const runHealthAction = useCallback(async (action: string) => {
+    if (!company) return;
+    setHealthActionLoading(action);
+    try {
+      const response = await fetchJson<KnowmoreHealth>("/api/knowmore/health", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId: company.id, action }),
+      });
+      setHealth(response);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setHealthActionLoading(null);
+    }
+  }, [company]);
 
   const toggleHashtagFilter = useCallback((tag: string) => {
     const next = activeHashtags.includes(tag) ? activeHashtags.filter((item) => item !== tag) : [...activeHashtags, tag];
@@ -457,6 +498,16 @@ export default function CompanyKnowMorePage() {
           icon={Sparkles} 
         />
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
+        {health ? (
+          <Notice
+            title={`Knowmore Health: ${health.healthState}`}
+            icon={health.healthState === "FAILED" ? AlertTriangle : Stethoscope}
+            variant={health.healthState === "HEALTHY" ? "default" : "destructive"}
+          >
+            {health.alerts[0]?.message ??
+              `Review ${health.reviewCount} card(s), stale ${health.staleCount}, correction backlog ${health.correctionBacklog}, failed jobs ${health.failedJobs}.`}
+          </Notice>
+        ) : null}
 
         <MetricGrid>
           <MetricCard icon={Sparkles} color="knowmore" label="Knowledge Units" value={snapshot?.knowmoreCount ?? summary.total} detail="Derived evidence" />
@@ -465,6 +516,38 @@ export default function CompanyKnowMorePage() {
           <MetricCard icon={Target} color="knowmore" label="Avg ICE" value={snapshot?.iceScoreAvg ?? summary.avgIceScore} detail="Strategic priority" />
           <MetricCard icon={Bolt} color="checklist" label="Avg Ease" value={snapshot?.easeScoreAvg ?? summary.avgEase} detail="Implementation path" />
         </MetricGrid>
+
+        <Group gap="sm">
+          <Button
+            variant="light"
+            color="knowmore"
+            leftSection={<RefreshIcon size={16} />}
+            loading={healthActionLoading === "SYNC_KNOWMORE"}
+            onClick={() => void runHealthAction("SYNC_KNOWMORE")}
+          >
+            Sync Knowmore
+          </Button>
+          <Button
+            variant="light"
+            color="strategy"
+            leftSection={<Stethoscope size={16} />}
+            loading={healthActionLoading === "REQUEST_KNOWMORE_REPAIR"}
+            disabled={!health?.recommendedActions?.repair}
+            onClick={() => void runHealthAction("REQUEST_KNOWMORE_REPAIR")}
+          >
+            Request Repair
+          </Button>
+          <Button
+            variant="light"
+            color="review"
+            leftSection={<AlertTriangle size={16} />}
+            loading={healthActionLoading === "RECOVER_KNOWMORE_JOBS"}
+            disabled={!health?.recommendedActions?.recover}
+            onClick={() => void runHealthAction("RECOVER_KNOWMORE_JOBS")}
+          >
+            Recover Failed Jobs
+          </Button>
+        </Group>
 
         <Stack gap="lg">
           <Group justify="space-between" align="center">

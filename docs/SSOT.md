@@ -117,6 +117,7 @@ The current intelligence-operations contract also includes:
 - first-class entity search results deep-link into the canonical shared `/card/[uuid]` detail route for Data, Topics, Knowmore, Goals, and Tasks
 - one blended tactical priority profile that keeps ICE visible while ranking work through explainable ICE, quality, urgency, freshness, human-signal, risk, lifecycle-state, and memory inputs
 - one persisted score provenance profile per scored card, preserving agent proposal, calibrated heuristic score, and final blended score
+- one direct Knowmore correction surface for pin/hide/wrong/refresh/source-suppression controls, persisted as durable correction events
 - one grounded answer layer over company context using explicit evidence objects
 - grounded answers now expose intent, confidence, evidence-group framing, and the applied entity-layer scope as first-class contract fields
 - grounded answers must visibly surface cited evidence cards in the operator UI, not just aggregate evidence counts
@@ -125,6 +126,7 @@ The current intelligence-operations contract also includes:
 - Search & Answers must clear stale result and answer state when the allowed layer selection changes so the visible output always reflects the current scope
 - one observability surface for worker health, queue pressure, score-health, AI workload budget pressure, and recent outcomes
 - observability also owns bounded repair and budget actions for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls
+- Knowmore owns its own operator-visible health and bounded repair surface on top of the shared queue and score-health model
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active
 - persisted enrichment waterfall policies for provider ordering and fallback governance, applied at runtime during URL intelligence enrichment
 - one AI workload budget-governor layer that persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records for company/feature attribution, estimated cost, workload units, retry pressure, reviewable budget events, and explicit operator-applied controls
@@ -140,6 +142,8 @@ Tactical placement contract:
 - internal score precision remains decimal-first inside `scoreProfile` and score-health tuple auditing, even where compatibility fields or UI badges still round for display
 - bounded historical repair/backfill is part of the contract, so flashcards and taskcards can be resynchronized onto the live scoring model without one-off migration logic
 - the scoring-accuracy track is closed as architecture work: residual warnings now flow through score-health monitoring and repair, not through local alternative scoring implementations
+- task `DELIVER` is a separate executed-in-reality signal, not a synonym for `ACCEPT`
+- flashcards and tasks both carry lineage fields (`versionFamilyId`, `duplicateClusterId`, `generatedFromIds`, `refinedFromId`) so refinement, suppression, and downstream reward can remain explainable
 
 ## 6. AI Brain Rule
 

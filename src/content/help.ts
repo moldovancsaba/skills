@@ -63,6 +63,7 @@ export const manualSections: HelpSection[] = [
       "Accept a flashcard when it is directionally right and useful for decisions.",
       "Decline a flashcard when it is wrong, misleading, outdated, or too weakly supported.",
       "Use Modify + accept when the idea is useful but the wording needs correction.",
+      "Use direct correction controls when review alone is not enough: pin strong knowledge, hide noise, mark wrong facts, request refresh, or suppress a bad source.",
       "State what is missing: missing evidence, wrong audience, stale claim, or overconfident conclusion.",
     ],
   },
@@ -95,6 +96,7 @@ export const manualSections: HelpSection[] = [
     bullets: [
       "If tasks are generic, add sharper pricing, market, and audience evidence.",
       "If flashcards feel wrong, decline them with specific reasons instead of silently ignoring them.",
+      "If a flashcard is structurally wrong or keeps coming back, use the direct Knowmore correction controls instead of repeating the same review comment.",
       "If tasks are good but mistimed, say what prerequisite is missing so the AI team can learn to postpone rather than discard.",
       "If the rank order feels surprising, check whether urgency, readiness, delivery difficulty, or older human feedback is separating cards with similar visible ICE.",
       "If a company has very little data, start on the Data page before judging the rest of the system.",
@@ -144,6 +146,12 @@ export const faqItems: FaqItem[] = [
     question: "How does the system improve its scores over time?",
     answer:
       "The system learns from better evidence, flashcard review, task review, and delivered work. Accepted, declined, modified, and delivered outcomes all feed the scoring contract, so precise feedback improves future impact, confidence, ease, and ordering.",
+  },
+  {
+    id: "how-to-repair-knowmore",
+    question: "What should I do if Knowmore looks stale or wrong?",
+    answer:
+      "Use the Knowmore health actions first: sync, request repair, or recover failed jobs. On individual cards, use direct correction controls like pin, hide, mark wrong, request refresh, or suppress a bad source so the worker has a precise corrective signal to consume.",
   },
   {
     id: "why-weak-suggestions",

@@ -28,6 +28,8 @@ Read first:
 - tactical prioritization now uses the shared blended priority profile from `scoring-contract.js`; ICE remains visible, but placement also explains quality, urgency, freshness, human signal, risk, lifecycle state, and memory inputs
 - frontier placement is relative-rank based inside the current candidate pool, with human anchors preserved ahead of AI-only ordering
 - remaining score-health warnings are maintenance and observability work, not permission to reopen local or ad hoc scoring math
+- Knowmore corrections are now first-class operator controls in the product surface: `PIN`, `HIDE`, `MARK_WRONG`, `REQUEST_REFRESH`, and `SUPPRESS_SOURCE`
+- Knowmore health is now an explicit surface contract with `HEALTHY`, `STALE`, `DELAYED`, and `FAILED` states plus bounded repair actions
 - repetitive local-AI work is represented as persisted `PipelineJob` queue records
 - the webapp `Worker Queue` is the primary HiTL steering surface for repetitive jobs
 - worker scheduling supports explicit `AI_ONLY` and `HUMAN_GUIDED` modes
@@ -48,6 +50,8 @@ Read first:
 - active workflow blueprints now become first-class `PipelineJob` records that the worker can claim and execute
 - enrichment waterfall policy now influences runtime URL-intelligence provider selection for product and competitor research paths
 - AI workload governance now persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records so queue, workflow, search/answer, and observability work can be attributed by company and feature
+- task feedback now writes directly into the canonical worker feedback stream, so `DELIVER` reward propagation and lifecycle handling are not bypassed by the webapp task surface
+- flashcards now persist lineage family/cluster/origin fields alongside task lineage so duplicate suppression and future traceability are not task-only capabilities
 - checklist-core is a general company decision-maker, task manager, and AI support system; vertical athlete, campaign-studio, or GTM-execution products do not belong in the core product contract
 - the one allowed internal exception is `Evaluation Bench`, which may exist as an admin-only AI quality and regression surface under the observability/governance umbrella
 - budget controls are operator-applied and reviewable: queue throttling, evaluation batching, and cache/reuse policy changes do not silently suppress critical evidence work
@@ -128,5 +132,6 @@ The work is not done until:
 - Score-health alert repair is now able to escalate queue work through the shared queue contract.
 - Frontier recompute assigns tactical columns by relative blended-priority rank, not raw ICE alone, while preserving manual human drag/drop anchors.
 - Historical flashcard and task rescoring must continue through the bounded `scripts/repair-ice-scores.js` path; do not replace it with one-off bulk rewrites.
+- The Refiner now owns duplicate-cluster tagging and split-aware task refinement in addition to merge/suppress/enrich behavior. Do not collapse it back into text-only rewriting.
 - Budget governor is observability-first: usage/cost values are estimates unless explicitly marked actual, and controls are recorded as events/policies rather than hidden scheduling overrides.
 - Future autonomous implementation selection must ignore ideabank-only items unless an operator explicitly promotes them into an active delivery column first.

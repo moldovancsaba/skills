@@ -306,6 +306,8 @@ Rules:
 - do not document or imply a separate tweak menu unless it actually exists in the webapp
 - suspicious or critical score-health states must be able to reprioritize queue work through the shared queue contract
 - fairness-sensitive recalculation work must continue to preserve oldest-first behavior unless explicitly human-overridden
+- Knowmore must expose explicit operator repair visibility and bounded recovery controls rather than forcing support teams to infer knowledge-health state from generic logs
+- direct flashcard/source corrections must remain durable, auditable, and consumable by the worker without relying on downstream task feedback alone
 
 ## 14. Blended Priority Rules
 
@@ -325,3 +327,5 @@ Rules:
 - frontier placement and tactical board ordering must use blended priority where available
 - frontier placement should be relative-rank based inside the active pool, not raw fixed ICE thresholds alone
 - feature code must not invent local ranking math for tactical placement
+- task `DELIVER` must remain a stronger first-class outcome than `ACCEPT` and must feed the canonical worker feedback stream plus lineage reward propagation
+- task and knowledge lineage fields must be written at generation and refinement time so duplicate suppression, merge/split operations, and downstream reward propagation remain traceable

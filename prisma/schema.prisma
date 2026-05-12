@@ -183,6 +183,10 @@ model Flashcard {
   lastAuditedAt           DateTime?
   iceScore                Float                 @default(0)
   scoreProfile            Json?                 @default("{}")
+  versionFamilyId         String?
+  duplicateClusterId      String?
+  generatedFromIds        String[]               @default([])
+  refinedFromId           String?
   company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actions                 FlashcardAction[]
   corrections             FlashcardCorrection[]
@@ -190,6 +194,8 @@ model Flashcard {
 
   @@unique([companyId, fingerprint])
   @@index([companyId, processingStatus, cycleRunId])
+  @@index([companyId, duplicateClusterId])
+  @@index([companyId, versionFamilyId])
 }
 
 model CitationSnapshot {

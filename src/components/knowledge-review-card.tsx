@@ -1,4 +1,4 @@
-import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconSparkles as Sparkles, IconArchive as Archive, IconTarget as Target, IconLayoutDashboard as LayoutDashboard } from "@tabler/icons-react";
+import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconSparkles as Sparkles, IconArchive as Archive, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconEyeOff as EyeOff, IconAlertTriangle as AlertTriangle, IconBan as Ban } from "@tabler/icons-react";
 import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader } from "@mantine/core";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getKnowledgeCardFreshness } from "@/lib/card-freshness";
@@ -71,6 +71,10 @@ type Flashcard = {
   iceScore: number;
   conflictDetected?: boolean;
   conflictSummary?: string | null;
+  generatedFromIds?: string[];
+  versionFamilyId?: string | null;
+  duplicateClusterId?: string | null;
+  refinedFromId?: string | null;
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "CONVERT";
@@ -303,6 +307,74 @@ export function KnowledgeReviewCard({
           </Group>
         </UnifiedCardActions>
 
+        {onCorrection ? (
+          <UnifiedCardActions>
+            <Button
+              variant="subtle"
+              color="strategy"
+              size="compact-sm"
+              leftSection={<Pin size={14} />}
+              onClick={(event) => stopCardClick(event, () => onCorrection({ flashcardId: flashcard.id, correctionType: "PIN" }))}
+              disabled={isBusy || isGenerating}
+            >
+              Pin
+            </Button>
+            <Button
+              variant="subtle"
+              color="knowmore"
+              size="compact-sm"
+              leftSection={<RefreshCw size={14} />}
+              onClick={(event) => stopCardClick(event, () => onCorrection({ flashcardId: flashcard.id, correctionType: "REQUEST_REFRESH" }))}
+              disabled={isBusy || isGenerating}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="subtle"
+              color="review"
+              size="compact-sm"
+              leftSection={<AlertTriangle size={14} />}
+              onClick={(event) => stopCardClick(event, () => onCorrection({ flashcardId: flashcard.id, correctionType: "MARK_WRONG" }))}
+              disabled={isBusy || isGenerating}
+            >
+              Mark Wrong
+            </Button>
+            <Button
+              variant="subtle"
+              color="gray"
+              size="compact-sm"
+              leftSection={<EyeOff size={14} />}
+              onClick={(event) => stopCardClick(event, () => onCorrection({ flashcardId: flashcard.id, correctionType: "HIDE" }))}
+              disabled={isBusy || isGenerating}
+            >
+              Hide
+            </Button>
+            {detailMode && flashcard.sources[0] ? (
+              <Button
+                variant="subtle"
+                color="review"
+                size="compact-sm"
+                leftSection={<Ban size={14} />}
+                onClick={(event) =>
+                  stopCardClick(event, () =>
+                    onCorrection({
+                      flashcardId: flashcard.id,
+                      correctionType: "SUPPRESS_SOURCE",
+                      sourceType: flashcard.sources[0].sourceType,
+                      sourceId: flashcard.sources[0].sourceId,
+                      sourcePublicId: flashcard.sources[0].sourcePublicId,
+                      sourceName: flashcard.sources[0].sourceName,
+                    }),
+                  )
+                }
+                disabled={isBusy || isGenerating}
+              >
+                Suppress Source
+              </Button>
+            ) : null}
+          </UnifiedCardActions>
+        ) : null}
+
         {isActionOpen && actionMode && (
           <UnifiedCardSection>
             <Stack gap="md">
@@ -331,6 +403,41 @@ export function KnowledgeReviewCard({
             </Stack>
           </UnifiedCardSection>
         )}
+
+        {detailMode && flashcard.corrections.length > 0 ? (
+          <UnifiedCardSection>
+            <Stack gap="xs">
+              <MetaText>Recent Corrections</MetaText>
+              {flashcard.corrections.map((correction) => (
+                <Box key={correction.id}>
+                  <Group gap="xs">
+                    <Badge variant="light" color="gray" size="xs">
+                      {correction.correctionType.replace(/_/g, " ")}
+                    </Badge>
+                    <MetaText>{new Date(correction.createdAt).toLocaleString()}</MetaText>
+                  </Group>
+                  {correction.sourceName ? (
+                    <BodyText c="var(--text-secondary)">{correction.sourceName}</BodyText>
+                  ) : null}
+                  {correction.note ? (
+                    <BodyText c="var(--text-secondary)">{correction.note}</BodyText>
+                  ) : null}
+                </Box>
+              ))}
+            </Stack>
+          </UnifiedCardSection>
+        ) : null}
+
+        {detailMode && (flashcard.versionFamilyId || flashcard.duplicateClusterId || flashcard.refinedFromId) ? (
+          <UnifiedCardSection>
+            <Stack gap="xs">
+              <MetaText>Lineage</MetaText>
+              {flashcard.versionFamilyId ? <BodyText c="var(--text-secondary)">Version Family: {flashcard.versionFamilyId}</BodyText> : null}
+              {flashcard.duplicateClusterId ? <BodyText c="var(--text-secondary)">Duplicate Cluster: {flashcard.duplicateClusterId}</BodyText> : null}
+              {flashcard.refinedFromId ? <BodyText c="var(--text-secondary)">Refined From: {flashcard.refinedFromId}</BodyText> : null}
+            </Stack>
+          </UnifiedCardSection>
+        ) : null}
       </UnifiedCardBody>
 
       {flashcard.refreshedAt && (

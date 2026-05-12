@@ -249,12 +249,18 @@ Knowmore flashcards support:
 - `ACCEPT`
 - `DECLINE`
 - `MODIFY_ACCEPT`
+- `PIN`
+- `HIDE`
+- `MARK_WRONG`
+- `REQUEST_REFRESH`
+- `SUPPRESS_SOURCE`
 
 These actions update:
 - review status
 - confidence delta
 - weight delta
 - optional manual title/body overrides
+- durable correction events and bounded repair signals for the local worker
 
 Declined flashcards are hidden from the Knowmore webapp feed.
 
@@ -264,12 +270,14 @@ checklist tasks support:
 - `ACCEPT`
 - `DECLINE`
 - `MODIFY_ACCEPT`
+- `DELIVER`
 
 These actions update:
 - task status
 - optional task title/description edits
 - user annotation
 - ICE score recalculation
+- canonical worker feedback state, including stronger delivery reward propagation
 
 ### Durable Subject-Matter Memory
 
@@ -314,6 +322,7 @@ The worker implements a time-based decay system to ensure intelligence remains f
 - Transitions and decay counts are reported in the `cleanup` lane metrics.
 
 Task feedback is also applied back onto the linked source flashcards.
+Task feedback now enters the canonical `Feedback` stream directly from the webapp task surface, so DELIVER reward propagation and lifecycle updates are processed by the worker rather than only by ad hoc UI patches.
 
 ## Continuous improvement loop
 
@@ -366,6 +375,8 @@ Important:
 - score clustering is observable through the dashboard score-health panel and `npm run audit:score-health`
 - bounded historical rescoring uses `scripts/repair-ice-scores.js` so flashcards and taskcards can be safely resynchronized onto the live scoring contract
 - the scoring-accuracy overhaul is considered complete architecture work; remaining warnings are maintenance inputs for observability and repair
+- flashcards now also persist lineage-family and duplicate-cluster context so repair, suppression, and future traceability work are not task-only capabilities
+- the Refiner now supports split-aware task refinement in addition to merge, suppress, enrich, and standard rewrite paths
 
 ## Budget governor
 

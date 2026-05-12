@@ -104,6 +104,28 @@ function chooseRefinementOperation(neighborhood) {
   return "SUPPRESS_WEAK"; // Default: keep champion, suppress others
 }
 
+function buildDuplicateClusterId(neighborhood) {
+  if (!Array.isArray(neighborhood) || neighborhood.length < 2) return null;
+  return hashValue(
+    neighborhood
+      .map((candidate) => `${candidate.id}:${candidate.title}`)
+      .sort()
+      .join("|"),
+  ).slice(0, 24);
+}
+
+function mapSuppressedSiblings(neighborhood, champion, duplicateClusterId) {
+  return neighborhood
+    .filter((candidate) => candidate.id !== champion.id)
+    .map((candidate) => ({
+      ...candidate,
+      duplicateClusterId,
+      ...toSuppressed(`SUPPRESS_WEAK: dominated by ${champion.id}`),
+      processingStatus: "DECLINED",
+      activityState: "ARCHIVED",
+    }));
+}
+
 /**
  * Selects the best candidate from a neighborhood (cluster champion).
  * Priority: highest iceScore, then highest confidence, then oldest.
@@ -181,9 +203,10 @@ async function normalizeRefinedTaskScores(prisma, raw = {}, fallback = {}) {
  * MERGE: Combine overlapping candidates into one stronger candidate.
  * Preserves lineage from all merged siblings.
  */
-async function mergeNeighborhood(neighborhood, context, memoryPrompt) {
+async function mergeNeighborhood(prisma, neighborhood, context, memoryPrompt) {
   const champion = selectChampion(neighborhood);
   if (neighborhood.length === 1) return { refined: champion, suppressed: [] };
+  const duplicateClusterId = buildDuplicateClusterId(neighborhood);
 
   const combinedContext = neighborhood.map((c, i) =>
     `[Candidate ${i + 1}]: ${c.title}\n${c.description || c.body || ""}`
@@ -231,6 +254,7 @@ async function mergeNeighborhood(neighborhood, context, memoryPrompt) {
     generatedFromIds: mergedGeneratedFromIds,
     refinedFromId: champion.id,
     versionFamilyId: champion.versionFamilyId,
+    duplicateClusterId,
     // Refiner state
     ...toRefined({ evaluationReason: `MERGE: combined ${neighborhood.length} overlapping candidates` }),
     processingStatus: "CHECKED",
@@ -248,23 +272,25 @@ async function mergeNeighborhood(neighborhood, context, memoryPrompt) {
  */
 async function suppressWeak(neighborhood, context, memoryPrompt) {
   const champion = selectChampion(neighborhood);
+  const duplicateClusterId = buildDuplicateClusterId(neighborhood);
   const refined = {
     ...champion,
     ...toRefined({ evaluationReason: `SUPPRESS_WEAK: champion of ${neighborhood.length}-member cluster` }),
     refinedFromId: champion.id,
+    duplicateClusterId,
     processingStatus: "CHECKED",
     activityState: "ACTIVE",
   };
   return {
     refined,
-    suppressed: neighborhood.filter(c => c.id !== champion.id),
+    suppressed: mapSuppressedSiblings(neighborhood, champion, duplicateClusterId),
   };
 }
 
 /**
  * ENRICH: Strengthen an underspecified but promising candidate.
  */
-async function enrichCandidate(candidate, context, memoryPrompt) {
+async function enrichCandidate(prisma, candidate, context, memoryPrompt, duplicateClusterId = null) {
   const systemPrompt = [
     "You are the Trinity Refiner performing an ENRICH operation.",
     "The candidate below is promising but underspecified. Add specific context, grounding, and actionability.",
@@ -294,6 +320,7 @@ async function enrichCandidate(candidate, context, memoryPrompt) {
     scoreProfile: enrichedScores.scoreProfile,
     ...toRefined({ evaluationReason: "ENRICH: underspecified candidate strengthened" }),
     refinedFromId: candidate.id,
+    duplicateClusterId,
     processingStatus: "CHECKED",
     activityState: "ACTIVE",
   };
@@ -302,7 +329,7 @@ async function enrichCandidate(candidate, context, memoryPrompt) {
 /**
  * REFINE_AS_IS: Standard single-candidate rewrite (existing Writer behavior).
  */
-async function refineAsIs(candidate, context, memoryPrompt) {
+async function refineAsIs(prisma, candidate, context, memoryPrompt, duplicateClusterId = null) {
   const systemPrompt = [
     "You are the Trinity Refiner. Refine this candidate for clarity, precision, and impact.",
     "Improve the language and make claims more specific and business-relevant.",
@@ -333,8 +360,88 @@ async function refineAsIs(candidate, context, memoryPrompt) {
     hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : (candidate.hashtags || []),
     ...toRefined({ evaluationReason: "REFINE_AS_IS: standard refinement" }),
     refinedFromId: candidate.id,
+    duplicateClusterId,
     processingStatus: "CHECKED",
     activityState: "ACTIVE",
+  };
+}
+
+async function splitTaskCandidate(prisma, candidate, context, memoryPrompt) {
+  const duplicateClusterId = hashValue(`split:${candidate.companyId}:${candidate.id}`).slice(0, 24);
+  const systemPrompt = [
+    "You are the Trinity Refiner performing a SPLIT operation.",
+    "The candidate below is overloaded and bundles multiple decisions or workstreams.",
+    "Split it into 2 or 3 smaller, independently evaluable task candidates.",
+    "Each output must be actionable on its own and must not duplicate the others.",
+    context || "",
+    "Return a JSON array of objects: { title, description, impact, confidence, ease, hashtags }",
+    "AXIOM: Decimal scores 1.0-10.0 for impact, confidence, ease with up to one decimal place. NO zeros.",
+    memoryPrompt || "",
+  ].join("\n");
+
+  const userPrompt = `Candidate to split:\nTitle: ${candidate.title}\nDescription: ${candidate.description || candidate.body || ""}`;
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const raw = unifyArray(res);
+  if (!Array.isArray(raw) || raw.length < 2) {
+    return {
+      refined: await refineAsIs(prisma, candidate, context, memoryPrompt),
+      spawned: [],
+      suppressed: [],
+    };
+  }
+
+  const versionFamilyId = candidate.versionFamilyId || candidate.id;
+  const splitCandidates = [];
+
+  for (const [index, item] of raw.slice(0, 3).entries()) {
+    if (!item?.title || !item?.description) continue;
+    const normalizedScores = await normalizeRefinedTaskScores(prisma, item, candidate);
+    const nextPublicId = index === 0 ? candidate.publicId : await nextPublicId(prisma, "NBAItem");
+    splitCandidates.push({
+      ...(index === 0 ? candidate : {}),
+      id: index === 0 ? candidate.id : hashValue(`split:${candidate.id}:${item.title}:${index}`).slice(0, 24),
+      publicId: nextPublicId,
+      companyId: candidate.companyId,
+      title: truncate(item.title, 160),
+      description: truncate(item.description || candidate.description || "", 1200),
+      body: truncate(item.description || candidate.body || "", 1200),
+      kind: String(item.kind || candidate.kind || "TASK").toUpperCase(),
+      impact: normalizedScores.impact,
+      confidence: normalizedScores.confidence,
+      confidenceScore: normalizedScores.confidenceScore,
+      ease: normalizedScores.ease,
+      iceScore: normalizedScores.iceScore,
+      scoreProfile: normalizedScores.scoreProfile,
+      hashtags: Array.isArray(item.hashtags) ? item.hashtags.slice(0, 5) : (candidate.hashtags || []),
+      fingerprint: hashValue(`REFINER_SPLIT:${candidate.companyId}:${candidate.id}:${item.title}`),
+      sourceFlashcardIds: candidate.sourceFlashcardIds || [],
+      generatedFromIds: candidate.generatedFromIds || candidate.sourceFlashcardIds || [],
+      versionFamilyId,
+      duplicateClusterId,
+      refinedFromId: candidate.id,
+      ...toRefined({ evaluationReason: `SPLIT: derived from overloaded candidate ${candidate.id}` }),
+      processingStatus: "CHECKED",
+      activityState: "ACTIVE",
+      status: candidate.status || "PENDING",
+      feedbackScore: candidate.feedbackScore ?? 0,
+      qualityScore: candidate.qualityScore ?? null,
+      urgencyScore: candidate.urgencyScore ?? null,
+      freshnessScore: candidate.freshnessScore ?? null,
+    });
+  }
+
+  if (splitCandidates.length === 0) {
+    return {
+      refined: await refineAsIs(prisma, candidate, context, memoryPrompt),
+      spawned: [],
+      suppressed: [],
+    };
+  }
+
+  return {
+    refined: splitCandidates[0],
+    spawned: splitCandidates.slice(1),
+    suppressed: [],
   };
 }
 
@@ -362,28 +469,33 @@ async function refineNBAItemBatch(prisma, company, candidates, memoryPrompt) {
 
   const refined = [];
   const suppressed = [];
+  const spawned = [];
 
   for (const neighborhood of neighborhoods) {
     const operation = chooseRefinementOperation(neighborhood);
+    const duplicateClusterId = buildDuplicateClusterId(neighborhood);
     let result;
 
     if (operation === "MERGE") {
-      result = await mergeNeighborhood(neighborhood, strategicContext, memoryPrompt);
+      result = await mergeNeighborhood(prisma, neighborhood, strategicContext, memoryPrompt);
+    } else if (operation === "SPLIT") {
+      result = await splitTaskCandidate(prisma, neighborhood[0], strategicContext, memoryPrompt);
     } else if (operation === "SUPPRESS_WEAK") {
       result = await suppressWeak(neighborhood, strategicContext, memoryPrompt);
     } else if (operation === "ENRICH") {
-      const enriched = await enrichCandidate(neighborhood[0], strategicContext, memoryPrompt);
-      result = { refined: enriched, suppressed: neighborhood.slice(1) };
+      const enriched = await enrichCandidate(prisma, neighborhood[0], strategicContext, memoryPrompt, duplicateClusterId);
+      result = { refined: enriched, suppressed: mapSuppressedSiblings(neighborhood, neighborhood[0], duplicateClusterId) };
     } else {
-      const refineResult = await refineAsIs(neighborhood[0], strategicContext, memoryPrompt);
-      result = { refined: refineResult, suppressed: neighborhood.slice(1) };
+      const refineResult = await refineAsIs(prisma, neighborhood[0], strategicContext, memoryPrompt, duplicateClusterId);
+      result = { refined: refineResult, suppressed: mapSuppressedSiblings(neighborhood, neighborhood[0], duplicateClusterId) };
     }
 
     refined.push(result.refined);
+    spawned.push(...(result.spawned || []));
     suppressed.push(...(result.suppressed || []));
   }
 
-  return { refined, suppressed };
+  return { refined, suppressed, spawned };
 }
 
 /**
@@ -398,18 +510,19 @@ async function refineFlashcardBatch(prisma, company, candidates, memoryPrompt) {
 
   for (const neighborhood of neighborhoods) {
     const operation = chooseRefinementOperation(neighborhood);
+    const duplicateClusterId = buildDuplicateClusterId(neighborhood);
     let result;
 
     if (operation === "MERGE") {
-      result = await mergeNeighborhood(neighborhood, strategicContext, memoryPrompt);
+      result = await mergeNeighborhood(prisma, neighborhood, strategicContext, memoryPrompt);
     } else if (operation === "SUPPRESS_WEAK") {
       result = await suppressWeak(neighborhood, strategicContext, memoryPrompt);
     } else if (operation === "ENRICH") {
-      const enriched = await enrichCandidate(neighborhood[0], strategicContext, memoryPrompt);
-      result = { refined: enriched, suppressed: neighborhood.slice(1) };
+      const enriched = await enrichCandidate(prisma, neighborhood[0], strategicContext, memoryPrompt, duplicateClusterId);
+      result = { refined: enriched, suppressed: mapSuppressedSiblings(neighborhood, neighborhood[0], duplicateClusterId) };
     } else {
-      const refineResult = await refineAsIs(neighborhood[0], strategicContext, memoryPrompt);
-      result = { refined: refineResult, suppressed: neighborhood.slice(1) };
+      const refineResult = await refineAsIs(prisma, neighborhood[0], strategicContext, memoryPrompt, duplicateClusterId);
+      result = { refined: refineResult, suppressed: mapSuppressedSiblings(neighborhood, neighborhood[0], duplicateClusterId) };
     }
 
     refined.push(result.refined);
@@ -463,6 +576,7 @@ module.exports = {
   suppressWeak,
   enrichCandidate,
   refineAsIs,
+  splitTaskCandidate,
   // Backward-compatible wrappers
   refineDraftFlashCard,
   refineDraftTaskCard,

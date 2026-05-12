@@ -45,6 +45,7 @@ import {
   shouldEnrichProduct,
 } from "@/lib/url-enrichment";
 import { calculateKnowledgeIceScore, clampMetric, groundKnowledgeScores } from "@/lib/scoring-contract";
+import { escalateCompanyPipelineJob } from "@/lib/pipeline-queue";
 import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
 
 // --- TYPES ---
@@ -2147,6 +2148,21 @@ export async function recordFlashcardCorrection(input: FlashcardCorrectionInput)
             },
           });
         }
+
+        if (input.correctionType === FlashcardCorrectionType.REQUEST_REFRESH) {
+          await tx.flashcard.update({
+            where: { id: flashcard.id },
+            data: {
+              processingStatus: FlashcardProcessingStatus.REVIEW,
+              reviewStatus: FlashcardReviewStatus.PENDING,
+              status: FlashcardStatus.ACTIVE,
+              activityState: FlashcardActivityState.ACTIVE,
+              userAnnotation: note ?? flashcard.userAnnotation,
+              lastActionAt: new Date(),
+              lastAuditedAt: null,
+            },
+          });
+        }
       }
 
       if (input.correctionType === FlashcardCorrectionType.SUPPRESS_SOURCE && input.sourceType && input.sourceId) {
@@ -2181,5 +2197,16 @@ export async function recordFlashcardCorrection(input: FlashcardCorrectionInput)
     }, {
       ...TRANSACTION_SETTINGS,
     }),
-  );
+  ).then(async (result) => {
+    if (
+      input.correctionType === FlashcardCorrectionType.REQUEST_REFRESH ||
+      input.correctionType === FlashcardCorrectionType.SUPPRESS_SOURCE
+    ) {
+      await escalateCompanyPipelineJob(prisma as any, result.companyId, "COMPANY_SYNTHESIS");
+      await escalateCompanyPipelineJob(prisma as any, result.companyId, "FEEDBACK_RECONCILIATION");
+      await escalateCompanyPipelineJob(prisma as any, result.companyId, "CARD_RESCORING");
+    }
+
+    return result;
+  });
 }

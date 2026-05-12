@@ -590,7 +590,7 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
       }));
 
       // Step 2: REFINE (M2.2 Refiner)
-      const { refined, suppressed } = await refineNBAItemBatch(prisma, company, dbCandidates, memoryPrompt);
+      const { refined, suppressed, spawned = [] } = await refineNBAItemBatch(prisma, company, dbCandidates, memoryPrompt);
 
       for (const r of refined) {
         await prisma.nBAItem.update({ where: { id: r.id }, data: r });
@@ -598,13 +598,18 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
       for (const s of suppressed) {
         await prisma.nBAItem.update({ where: { id: s.id }, data: s });
       }
-
-      // Step 3: EVALUATE (M2.3 Evaluator)
-      if (refined.length > 0) {
-        await evaluateNBAItemBatch(prisma, company, refined, memoryPrompt);
+      const createdSpawned = [];
+      for (const item of spawned) {
+        const created = await prisma.nBAItem.create({ data: item });
+        createdSpawned.push(created);
       }
 
-      ops += dbCandidates.length;
+      // Step 3: EVALUATE (M2.3 Evaluator)
+      if (refined.length > 0 || createdSpawned.length > 0) {
+        await evaluateNBAItemBatch(prisma, company, [...refined, ...createdSpawned], memoryPrompt);
+      }
+
+      ops += dbCandidates.length + createdSpawned.length;
 
       // Touch the flashcard so we don't infinitely spawn from it
       await prisma.flashcard.update({
@@ -664,13 +669,18 @@ async function processCandidateBacklog(prisma, company, memoryPrompt) {
 
   if (generated.length > 0) {
     console.log(`[BACKLOG] ${company.name}: Found ${generated.length} GENERATED items needing REFINEMENT.`);
-    const { refined: newRefined, suppressed } = await refineNBAItemBatch(prisma, company, generated, memoryPrompt);
+    const { refined: newRefined, suppressed, spawned = [] } = await refineNBAItemBatch(prisma, company, generated, memoryPrompt);
     
     for (const r of newRefined) await prisma.nBAItem.update({ where: { id: r.id }, data: r });
     for (const s of suppressed) await prisma.nBAItem.update({ where: { id: s.id }, data: s });
+    const createdSpawned = [];
+    for (const item of spawned) {
+      const created = await prisma.nBAItem.create({ data: item });
+      createdSpawned.push(created);
+    }
     
-    if (newRefined.length > 0) {
-      await evaluateNBAItemBatch(prisma, company, newRefined, memoryPrompt);
+    if (newRefined.length > 0 || createdSpawned.length > 0) {
+      await evaluateNBAItemBatch(prisma, company, [...newRefined, ...createdSpawned], memoryPrompt);
     }
   }
 }

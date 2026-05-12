@@ -48,21 +48,32 @@ export async function POST(request: NextRequest) {
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
     
-    // Save to the isolated StrategicFeedback table
-    // This is the "Journal" that the Local AI Server will pull and reconcile
-    const feedback = await prisma.strategicFeedback.create({
-      data: {
-        companyId,
-        entityId,
-        entityType,
-        action,
-        annotation: sanitizedAnnotation,
-        modifiedTitle,
-        modifiedDescription,
-        declineClass,
-        processedByAI: false
-      },
-    });
+    const feedback = entityType === "TASK"
+      ? await prisma.feedback.create({
+          data: {
+            nbaItemId: entityId,
+            action,
+            annotation: sanitizedAnnotation,
+            modifiedTitle,
+            modifiedDescription,
+            declineClass,
+            deliveryComment: action === "DELIVER" ? sanitizedAnnotation ?? undefined : undefined,
+            actorId: auth.session.email ?? undefined,
+          },
+        })
+      : await prisma.strategicFeedback.create({
+          data: {
+            companyId,
+            entityId,
+            entityType,
+            action,
+            annotation: sanitizedAnnotation,
+            modifiedTitle,
+            modifiedDescription,
+            declineClass,
+            processedByAI: false,
+          },
+        });
 
     await recordInteractionEventFromRequest(request, {
       companyId,

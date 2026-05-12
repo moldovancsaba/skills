@@ -43,7 +43,15 @@ export async function GET(request: NextRequest) {
         .map((source) => source.id)
     );
 
-    const serialized = flashcards.map((flashcard) => ({
+    const serialized = flashcards.map((flashcard) => {
+      const lineage = flashcard as typeof flashcard & {
+        generatedFromIds?: string[];
+        versionFamilyId?: string | null;
+        duplicateClusterId?: string | null;
+        refinedFromId?: string | null;
+      };
+
+      return ({
       id: flashcard.id,
       publicId: flashcard.publicId ?? null,
       kind: flashcard.kind,
@@ -64,8 +72,39 @@ export async function GET(request: NextRequest) {
       iceScore: flashcard.iceScore,
       conflictDetected: flashcard.conflictDetected,
       conflictSummary: flashcard.conflictSummary,
+      generatedFromIds: lineage.generatedFromIds ?? [],
+      versionFamilyId: lineage.versionFamilyId ?? null,
+      duplicateClusterId: lineage.duplicateClusterId ?? null,
+      refinedFromId: lineage.refinedFromId ?? null,
+      sources: flashcard.sources.map((source) => ({
+        id: source.id,
+        sourceType: source.sourceType,
+        sourceId: source.sourceId,
+        sourcePublicId: source.sourcePublicId ?? null,
+        sourceName: source.sourceName,
+        relationRole: source.relationRole,
+      })),
+      actions: flashcard.actions.map((action) => ({
+        id: action.id,
+        action: action.action,
+        annotation: action.annotation ?? null,
+        modifiedTitle: action.modifiedTitle ?? null,
+        modifiedBody: action.modifiedBody ?? null,
+        createdAt: action.createdAt,
+      })),
+      corrections: flashcard.corrections.map((correction) => ({
+        id: correction.id,
+        correctionType: correction.correctionType,
+        note: correction.note ?? null,
+        sourceType: correction.sourceType ?? null,
+        sourceId: correction.sourceId ?? null,
+        sourcePublicId: correction.sourcePublicId ?? null,
+        sourceName: correction.sourceName ?? null,
+        createdAt: correction.createdAt,
+      })),
       ischecklistResearch: flashcard.sources.some((source) => source.sourceType === "SOURCE" && researchHarvestIds.has(source.sourceId)),
-    }));
+    });
+    });
 
     const limit = limitParam ? Number(limitParam) : null;
     const offset = offsetParam ? Number(offsetParam) : 0;

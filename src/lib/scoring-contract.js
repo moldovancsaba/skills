@@ -385,7 +385,6 @@ function computePriorityCohortProfiles(inputs = [], options = {}) {
   const total = sorted.length;
   const maxBucketCount = Math.max(...bucketCounts.values());
   const adjustedByIndex = new Array(total);
-
   for (const [rankIndex, entry] of sorted.entries()) {
     const baseScore = entry.profile?.score ?? 0;
     const bucket = Math.round(baseScore / bucketSize);
@@ -394,6 +393,8 @@ function computePriorityCohortProfiles(inputs = [], options = {}) {
     const crowdRatio = maxBucketCount > 1 ? (bucketCount - 1) / (maxBucketCount - 1) : 0;
     const spreadBoost = Number(((percentile - 0.5) * 190).toFixed(2));
     const densityPenalty = Number((crowdRatio * 70).toFixed(2));
+    const rankTarget = 420 + percentile * 420;
+    const rankBlend = Number((((rankTarget - baseScore) * (0.22 + crowdRatio * 0.16))).toFixed(2));
     const anchorBoost = entry.profile?.manualAnchor ? 28 : 0;
     const humanBoost = Number((((entry.profile?.components?.human ?? 0) - 0.5) * 36).toFixed(2));
     const riskBoost = Number((((entry.profile?.components?.risk ?? 0) - 0.35) * 24).toFixed(2));
@@ -402,7 +403,7 @@ function computePriorityCohortProfiles(inputs = [], options = {}) {
         0,
         Math.min(
           PRIORITY_SCORE_MAX,
-          baseScore + spreadBoost + anchorBoost + humanBoost + riskBoost - densityPenalty,
+          baseScore + spreadBoost + rankBlend + anchorBoost + humanBoost + riskBoost - densityPenalty,
         ),
       ).toFixed(2),
     );
@@ -418,6 +419,7 @@ function computePriorityCohortProfiles(inputs = [], options = {}) {
         bucket,
         bucketCount,
         spreadBoost,
+        rankBlend,
         densityPenalty,
       },
       reasons: [

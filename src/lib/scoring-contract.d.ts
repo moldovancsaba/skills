@@ -157,6 +157,7 @@ export function computeBlendedPriorityProfile(input?: CanonicalTripletInput): {
     bucket: number;
     bucketCount: number;
     spreadBoost: number;
+    rankBlend: number;
     densityPenalty: number;
   };
 };

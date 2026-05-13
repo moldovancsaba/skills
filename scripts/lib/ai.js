@@ -2,7 +2,7 @@
  * checklist AI INTERFACE
  * v0.11.4-STABLE
  * 
- * Core communication layer for Ollama and the trinity pipeline.
+ * Core communication layer for Ollama and the local AI pipeline.
  * Handles JSON repair, model failover, and serial inference locking.
  */
 const http = require("http");
@@ -11,9 +11,9 @@ const {
   OLLAMA_MODEL,
   GLOBAL_OLLAMA_TIMEOUT_MS, 
   STAGE_MODELS, 
-  trinity_DRAFT_TIMEOUT_MS, 
-  trinity_WRITE_TIMEOUT_MS, 
-  trinity_JUDGE_TIMEOUT_MS,
+  DRAFT_STAGE_TIMEOUT_MS,
+  WRITE_STAGE_TIMEOUT_MS,
+  JUDGE_STAGE_TIMEOUT_MS,
   queueAiInference 
 } = require("./core");
 
@@ -216,14 +216,14 @@ async function callOllamaWithFailover(systemPrompt, userPrompt, modelList, optio
 }
 
 /**
- * Orchestrates a full 3-pass trinity cycle for a company.
+ * Orchestrates a full 3-pass local AI cycle for a company.
  * 
  * @param {object} company - Company database record
  * @param {object} inputContext - Contextual data for synthesis
  * @param {object} stages - Configuration for DRAFT, WRITE, and AUDIT stages
  * @returns {Promise<object>} Full synthesis result object
  */
-async function runtrinityPass(company, inputContext, stages = {}) {
+async function runLocalAiPass(company, inputContext, stages = {}) {
   const result = { draft: null, synthesis: null, audit: null };
 
   if (stages.draft) {
@@ -231,7 +231,7 @@ async function runtrinityPass(company, inputContext, stages = {}) {
       stages.draft.systemPrompt,
       JSON.stringify(inputContext),
       STAGE_MODELS.DRAFT,
-      { timeoutMs: trinity_DRAFT_TIMEOUT_MS }
+      { timeoutMs: DRAFT_STAGE_TIMEOUT_MS }
     );
   }
 
@@ -240,7 +240,7 @@ async function runtrinityPass(company, inputContext, stages = {}) {
       stages.write.systemPrompt,
       JSON.stringify({ draft: result.draft, originalContext: inputContext }),
       STAGE_MODELS.WRITE,
-      { timeoutMs: trinity_WRITE_TIMEOUT_MS }
+      { timeoutMs: WRITE_STAGE_TIMEOUT_MS }
     );
   }
 
@@ -249,7 +249,7 @@ async function runtrinityPass(company, inputContext, stages = {}) {
       stages.audit.systemPrompt,
       JSON.stringify({ synthesis: result.synthesis, draft: result.draft }),
       STAGE_MODELS.JUDGE,
-      { timeoutMs: trinity_JUDGE_TIMEOUT_MS }
+      { timeoutMs: JUDGE_STAGE_TIMEOUT_MS }
     );
   }
 
@@ -260,7 +260,7 @@ module.exports = {
   callOllama,
   callOllamaJson,
   callOllamaWithFailover,
-  runtrinityPass,
+  runLocalAiPass,
   normalizeText,
   tokenizeText,
   normalizeHashtags,

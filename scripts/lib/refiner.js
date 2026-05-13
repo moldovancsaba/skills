@@ -1,9 +1,9 @@
 /**
- * TRINITY REFINER
+ * checklist REFINER
  * M2.2 — Full Entropy Reduction
  * v1.0.0
  *
- * Implements the Refiner stage from the Trinity formal production definition §9.
+ * Implements the Refiner stage from the local AI production definition §9.
  *
  * The Refiner is the entropy-reducing stage. It receives generated candidate sets
  * and emits a smaller, cleaner, more evaluable set.
@@ -18,7 +18,7 @@
  * Mandatory rule (§11.1): the Refiner MUST NOT leave obvious duplicates unresolved.
  */
 const { callOllamaWithFailover } = require("./ai");
-const { STAGE_MODELS, trinity_WRITE_TIMEOUT_MS } = require("./core");
+const { STAGE_MODELS, WRITE_STAGE_TIMEOUT_MS } = require("./core");
 const { truncate, hashValue, getWorkerConfig, getStageModels, similarity, parseBoundedScore, nextPublicId } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject, unifyArray } = require("./synthesis-utils");
@@ -176,7 +176,7 @@ async function normalizeRefinedTaskScores(prisma, raw = {}, fallback = {}) {
       sourceConfidence: fallback.confidence ?? fallback.confidenceScore,
       sourceWeight: fallback.ease,
       sourceIceScore: fallback.iceScore,
-      refinerStage: "trinity-refiner",
+      refinerStage: "local-ai-refiner",
       historyImpact: historySignals.historyImpact,
       historyConfidence: historySignals.historyConfidence,
       historySupport: historySignals.historySupport,
@@ -214,7 +214,7 @@ async function mergeNeighborhood(prisma, neighborhood, context, memoryPrompt) {
   ).join("\n\n---\n\n");
 
   const systemPrompt = [
-    "You are the Trinity Refiner performing a MERGE operation.",
+    "You are the checklist Refiner performing a MERGE operation.",
     "You have received multiple candidates that represent overlapping operational ideas.",
     "Merge them into ONE stronger, more precise candidate that captures the combined insight.",
     "Preserve the most specific claims from all candidates. Do not lose supporting evidence.",
@@ -227,7 +227,7 @@ async function mergeNeighborhood(prisma, neighborhood, context, memoryPrompt) {
   const userPrompt = `Candidates to merge:\n${combinedContext}`;
 
   const modelList = await getStageModels(prisma, "WRITE", company);
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: WRITE_STAGE_TIMEOUT_MS });
   const raw = unifyObject(res);
 
   if (!raw || !raw.title) return { refined: champion, suppressed: neighborhood.filter(c => c.id !== champion.id) };
@@ -294,7 +294,7 @@ async function suppressWeak(neighborhood, context, memoryPrompt) {
  */
 async function enrichCandidate(prisma, candidate, context, memoryPrompt, duplicateClusterId = null) {
   const systemPrompt = [
-    "You are the Trinity Refiner performing an ENRICH operation.",
+    "You are the checklist Refiner performing an ENRICH operation.",
     "The candidate below is promising but underspecified. Add specific context, grounding, and actionability.",
     "Do not change the core insight — make it more concrete and business-specific.",
     context || "",
@@ -305,7 +305,7 @@ async function enrichCandidate(prisma, candidate, context, memoryPrompt, duplica
 
   const userPrompt = `Candidate to enrich:\nTitle: ${candidate.title}\nDescription: ${candidate.description || candidate.body || "(empty)"}`;
 
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: WRITE_STAGE_TIMEOUT_MS });
   const raw = unifyObject(res);
   if (!raw || !raw.title) return candidate;
 
@@ -334,7 +334,7 @@ async function enrichCandidate(prisma, candidate, context, memoryPrompt, duplica
  */
 async function refineAsIs(prisma, candidate, context, memoryPrompt, duplicateClusterId = null) {
   const systemPrompt = [
-    "You are the Trinity Refiner. Refine this candidate for clarity, precision, and impact.",
+    "You are the checklist Refiner. Refine this candidate for clarity, precision, and impact.",
     "Improve the language and make claims more specific and business-relevant.",
     context || "",
     "Return a single JSON object: { title, description, impact, confidence, ease, hashtags }",
@@ -345,7 +345,7 @@ async function refineAsIs(prisma, candidate, context, memoryPrompt, duplicateClu
 
   const userPrompt = `Title: ${candidate.title}\nDescription: ${candidate.description || candidate.body || ""}`;
 
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: WRITE_STAGE_TIMEOUT_MS });
   const raw = unifyObject(res);
   if (!raw || !raw.title) return candidate;
 
@@ -373,7 +373,7 @@ async function refineAsIs(prisma, candidate, context, memoryPrompt, duplicateClu
 async function splitTaskCandidate(prisma, candidate, context, memoryPrompt) {
   const duplicateClusterId = hashValue(`split:${candidate.companyId}:${candidate.id}`).slice(0, 24);
   const systemPrompt = [
-    "You are the Trinity Refiner performing a SPLIT operation.",
+    "You are the checklist Refiner performing a SPLIT operation.",
     "The candidate below is overloaded and bundles multiple decisions or workstreams.",
     "Split it into 2 or 3 smaller, independently evaluable task candidates.",
     "Each output must be actionable on its own and must not duplicate the others.",
@@ -385,7 +385,7 @@ async function splitTaskCandidate(prisma, candidate, context, memoryPrompt) {
   ].join("\n");
 
   const userPrompt = `Candidate to split:\nTitle: ${candidate.title}\nDescription: ${candidate.description || candidate.body || ""}`;
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: WRITE_STAGE_TIMEOUT_MS });
   const raw = unifyArray(res);
   if (!Array.isArray(raw) || raw.length < 2) {
     return {

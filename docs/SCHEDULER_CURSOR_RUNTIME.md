@@ -6,16 +6,28 @@ Issue:
 Status:
 - `Delivered`
 
+Current runtime note:
+- superseded by the queue-owned scheduler model
+
 Date:
 - `2026-04-12`
 
 ## What shipped
 
-checklistSync now persists company-cycle scheduler state in:
+This document describes the older company-cursor runtime that previously shipped.
 
-- `scripts/knowledge/scheduler-state.json`
+It is no longer the active scheduler contract.
 
-The worker no longer relies on an in-memory cursor for company-cycle ordering.
+Anything below that references `/checklistsync/health`, cursor fields, or
+`scheduler-selection` metrics is historical implementation detail, not the
+current runtime surface.
+
+The active scheduler contract is:
+
+- queue-owned job selection
+- one state-mutating worker process
+- no direct watchdog-side business mutation loops
+- bounded per-job execution instead of a monolithic company-cycle cursor
 
 ## Runtime behavior
 
@@ -48,7 +60,9 @@ If no company is due:
 
 ## Health visibility
 
-`/checklistsync/health` now exposes:
+Historical endpoint note:
+
+`/checklistsync/health` previously exposed:
 
 - `scheduler.nextCompanyId`
 - `scheduler.lastSelectedCompanyId`
@@ -65,7 +79,7 @@ If no company is due:
 
 ## Runtime metrics
 
-The worker now writes scheduler events to runtime metrics:
+The worker previously wrote scheduler events to runtime metrics:
 
 - `scheduler-selection`
 - `scheduler-cycle-complete`
@@ -75,7 +89,7 @@ These events make restart behavior and company-order rotation auditable.
 
 ## Operational check
 
-To verify the runtime contract:
+To verify the historical runtime contract:
 
 1. read `GET /checklistsync/health`
 2. confirm `scheduler.nextCompanyId` is populated

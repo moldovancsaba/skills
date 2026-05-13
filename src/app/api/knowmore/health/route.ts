@@ -18,7 +18,7 @@ function isCorrectionUnresolved(correction: {
   createdAt: Date;
   flashcard: {
     updatedAt: Date;
-    lastAuditedAt: Date | null;
+    lastCorrectionReconciledAt: Date | null;
     processingStatus: string;
     activityState: string;
   } | null;
@@ -29,8 +29,8 @@ function isCorrectionUnresolved(correction: {
   if (correction.correctionType === "REQUEST_REFRESH" || correction.correctionType === "MARK_WRONG") {
     return (
       flashcard.processingStatus === "REVIEW" ||
-      !flashcard.lastAuditedAt ||
-      flashcard.lastAuditedAt <= correction.createdAt
+      !flashcard.lastCorrectionReconciledAt ||
+      flashcard.lastCorrectionReconciledAt <= correction.createdAt
     );
   }
 
@@ -51,6 +51,48 @@ function resolveHealthState(input: {
   if (input.reviewCount > 0 || input.staleCount > 0 || input.scoreBand === "CRITICAL" || input.scoreBand === "SUSPICIOUS") return "DELAYED";
   if (input.scoreBand === "WARNING") return "STALE";
   return "HEALTHY";
+}
+
+function describeHealthState(input: {
+  healthState: "HEALTHY" | "STALE" | "DELAYED" | "FAILED";
+  reviewCount: number;
+  staleCount: number;
+  correctionBacklog: number;
+  failedJobs: number;
+  scoreBand: string;
+}) {
+  if (input.healthState === "FAILED") {
+    return {
+      tone: "destructive" as const,
+      title: "Knowmore Health: Worker Failure",
+      summary: `The queue has ${input.failedJobs} failed knowledge job(s). Recovery is needed before normal knowledge maintenance can continue.`,
+    };
+  }
+
+  if (input.healthState === "DELAYED") {
+    return {
+      tone: "warning" as const,
+      title: "Knowmore Health: Needs Attention",
+      summary:
+        input.reviewCount > 0 || input.staleCount > 0
+          ? `Review ${input.reviewCount} card(s), stale ${input.staleCount}, correction backlog ${input.correctionBacklog}. The worker is running, but some knowledge needs another pass.`
+          : `The worker is running and there are no failed jobs, but the knowledge set looks clustered or low-diversity (${input.scoreBand}).`,
+    };
+  }
+
+  if (input.healthState === "STALE") {
+    return {
+      tone: "warning" as const,
+      title: "Knowmore Health: Monitoring",
+      summary: `No worker failure is active, but the current knowledge quality signals are worth watching (${input.scoreBand}).`,
+    };
+  }
+
+  return {
+    tone: "default" as const,
+    title: "Knowmore Health: Healthy",
+    summary: `Review ${input.reviewCount} card(s), stale ${input.staleCount}, correction backlog ${input.correctionBacklog}, failed jobs ${input.failedJobs}.`,
+  };
 }
 
 async function getKnowmoreHealthSnapshot(companyId: string) {
@@ -77,7 +119,7 @@ async function getKnowmoreHealthSnapshot(companyId: string) {
         flashcard: {
           select: {
             updatedAt: true,
-            lastAuditedAt: true,
+            lastCorrectionReconciledAt: true,
             processingStatus: true,
             activityState: true,
           },
@@ -119,9 +161,20 @@ async function getKnowmoreHealthSnapshot(companyId: string) {
     staleCount,
     scoreBand: effectiveScoreBand,
   });
+  const presentation = describeHealthState({
+    healthState,
+    reviewCount,
+    staleCount,
+    correctionBacklog,
+    failedJobs,
+    scoreBand: effectiveScoreBand,
+  });
 
   return {
     healthState,
+    healthTone: presentation.tone,
+    healthTitle: presentation.title,
+    healthSummary: presentation.summary,
     reviewCount,
     staleCount,
     correctionBacklog,

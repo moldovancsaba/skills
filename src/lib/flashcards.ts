@@ -2160,7 +2160,8 @@ export async function recordFlashcardCorrection(input: FlashcardCorrectionInput)
               activityState: FlashcardActivityState.ACTIVE,
               userAnnotation: note ?? flashcard.userAnnotation,
               lastActionAt: new Date(),
-              lastAuditedAt: null,
+              lastCorrectionReconciledAt: null,
+              lastRescoredAt: null,
             },
           });
         }

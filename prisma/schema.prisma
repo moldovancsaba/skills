@@ -180,7 +180,10 @@ model Flashcard {
   createdByRunId          String?
   cycleRunId              String?
   intelligenceType        IntelligenceType      @default(INTERNAL)
-  lastAuditedAt           DateTime?
+  lastAuditedAt           DateTime? // Legacy shared audit timestamp. Deprecated in favor of purpose-specific fields.
+  lastRescoredAt          DateTime?
+  lastTaxonomyAuditedAt   DateTime?
+  lastCorrectionReconciledAt DateTime?
   iceScore                Float                 @default(0)
   scoreProfile            Json?                 @default("{}")
   versionFamilyId         String?
@@ -308,7 +311,9 @@ model Goalcard {
   brainVersion            String?               @default("local-brain@0.14.0")
   generatedAt             DateTime?
   intelligenceType        IntelligenceType      @default(INTERNAL)
-  lastAuditedAt           DateTime?
+  lastAuditedAt           DateTime? // Legacy shared audit timestamp. Deprecated in favor of purpose-specific fields.
+  lastRescoredAt          DateTime?
+  lastTaxonomyAuditedAt   DateTime?
   iceScore                Float                 @default(0)
   scoreProfile            Json?                 @default("{}")
   company                 Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -398,7 +403,9 @@ model NBAItem {
   brainVersion       String?    @default("local-brain@0.8.0")
   generatedAt        DateTime?
   hashtags           String[]   @default([])
-  lastAuditedAt      DateTime?
+  lastAuditedAt      DateTime? // Legacy shared audit timestamp. Deprecated in favor of purpose-specific fields.
+  lastRescoredAt     DateTime?
+  lastTaxonomyAuditedAt DateTime?
   hashtagMaintainedAt DateTime?
   hashtagEvaluationPending Boolean @default(true)
   lastHashtagError   String?

@@ -1,10 +1,10 @@
 /**
- * TRINITY EVALUATOR
+ * checklist EVALUATOR
  * M2.3 — Tournament Consensus Judging & Strategic Steering
  * v1.2.0-PRODUCTION
  */
 const { callOllamaWithFailover } = require("./ai");
-const { STAGE_MODELS, trinity_JUDGE_TIMEOUT_MS, queueAiInference } = require("./core");
+const { STAGE_MODELS, JUDGE_STAGE_TIMEOUT_MS, queueAiInference } = require("./core");
 const { getCompanyStrategicContext } = require("./context");
 const { truncate, hashValue, getWorkerConfig, parseBoundedInt, getStageModels } = require("./shared");
 const { unifyObject, unifyArray } = require("./synthesis-utils");
@@ -132,7 +132,7 @@ async function evaluateCandidate(prisma, company, candidate, comparisonPool, cur
   const fallbackEligible = isStarving && qualityScore >= FALLBACK_QUALITY_THRESHOLD;
 
   const systemPrompt = [
-    "You are the Trinity Evaluator. Assess this candidate's fitness for the active checklist.",
+    "You are the checklist Evaluator. Assess this candidate's fitness for the active checklist.",
     "### [STRATEGIC ALIGNMENT]",
     "Review the 'USER-DEFINED PRIORITIES' in the context below. These are the user's manual tactical goals.",
     "If this candidate matches a high-priority user theme or tag, you MUST favor an ELIGIBLE disposition and increase the qualityScore.",
@@ -161,7 +161,7 @@ async function evaluateCandidate(prisma, company, candidate, comparisonPool, cur
   const modelLimit = Math.min(judgeModels.length, 2);
   
   for (let i = 0; i < modelLimit; i++) {
-    const res = await callOllamaWithFailover(systemPrompt, userPrompt, [judgeModels[i]], { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
+    const res = await callOllamaWithFailover(systemPrompt, userPrompt, [judgeModels[i]], { timeoutMs: JUDGE_STAGE_TIMEOUT_MS });
     const parsed = unifyObject(res);
     if (parsed && parsed.disposition) votes.push(parsed);
   }
@@ -229,7 +229,7 @@ async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
   ).join("\n\n---\n\n");
 
   const systemPrompt = [
-    "You are the Trinity Evaluator performing a TOURNAMENT BATCH EVALUATION.",
+    "You are the checklist Evaluator performing a TOURNAMENT BATCH EVALUATION.",
     "Assess the following candidates relative to each other and the company strategy.",
     "### [TACTICAL ALIGNMENT]",
     "Review the 'USER-DEFINED PRIORITIES' in the context. These reflect the user's manual planning intent.",
@@ -249,7 +249,7 @@ async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
   const tournamentJudge = await getWorkerConfig(prisma, company, "tournament_judge_model", null);
   const judgeModels = tournamentJudge ? [tournamentJudge, ...STAGE_MODELS.JUDGE] : await getStageModels(prisma, "JUDGE", company);
 
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, judgeModels, { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, judgeModels, { timeoutMs: JUDGE_STAGE_TIMEOUT_MS });
   const rawArray = unifyArray(res);
 
   const results = { eligible: [], rework: [], suppressed: [], archived: [] };
@@ -319,7 +319,7 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = nu
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
 
   const systemPrompt = [
-    "You are the Trinity Evaluator (FlashCard audit mode). Audit the following KnowledgeItem for production quality.",
+    "You are the checklist Evaluator (FlashCard audit mode). Audit the following KnowledgeItem for production quality.",
     "### [GROUNDING RULES]",
     "Every factual claim MUST have at least one verifiable citation.",
     "If any claim is unsupported, decision = REJECTED.",
@@ -331,7 +331,7 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = nu
   ].join("\n");
 
   const userPrompt = `Title: ${flashCard.title}\nBody: ${flashCard.body}`;
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.JUDGE, { timeoutMs: trinity_JUDGE_TIMEOUT_MS });
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.JUDGE, { timeoutMs: JUDGE_STAGE_TIMEOUT_MS });
   const raw = unifyObject(res);
 
   if (!raw || !raw.decision) {

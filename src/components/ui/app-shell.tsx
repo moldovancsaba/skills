@@ -257,6 +257,7 @@ type LinkCardProps = {
   metric?: string | number;
   variant?: SemanticColor;
   chartData?: any[];
+  density?: "default" | "compact";
 };
 
 export function LinkCard({
@@ -267,11 +268,13 @@ export function LinkCard({
   metric,
   variant = "ingress",
   chartData,
+  density = "default",
 }: LinkCardProps) {
   const tone = resolveModuleTone(variant);
   const mantineColor = resolveMantineColor(variant);
   const baseStyle = getSemanticSurfaceStyle(tone, { interactive: true });
   const hoverStyle = getSemanticHoverStyle(tone);
+  const isCompact = density === "compact";
 
   return (
     <UnstyledButton 
@@ -280,10 +283,12 @@ export function LinkCard({
       style={{ display: "block", height: "100%", textDecoration: 'none' }}
     >
       <Card
+        p={isCompact ? "md" : "lg"}
         style={{
           ...baseStyle,
           ...getModuleCssVars(tone),
           overflow: "hidden",
+          minHeight: rem(isCompact ? 248 : 300),
         }}
         onMouseEnter={(event) => {
           applySurfaceInteractionHandlers(event, hoverStyle);
@@ -297,33 +302,35 @@ export function LinkCard({
         }}
       >
 
-        <Stack gap="xl" h="100%" style={{ position: 'relative', zIndex: 1 }}>
+        <Stack gap={isCompact ? "md" : "xl"} h="100%" style={{ position: 'relative', zIndex: 1 }}>
           <Group justify="space-between" align="center">
-            <ThemeIcon color={mantineColor}>
-              <Icon size={20} />
+            <ThemeIcon color={mantineColor} size={isCompact ? "lg" : "xl"}>
+              <Icon size={isCompact ? 18 : 20} />
             </ThemeIcon>
             {metric !== undefined && (
               <LabelText c={`var(--mantine-color-${mantineColor}-4)`}>{metric}</LabelText>
             )}
           </Group>
 
-          <Stack gap={6}>
+          <Stack gap={isCompact ? 4 : 6}>
             <CardTitle>{title}</CardTitle>
             {description ? <BodyText lineClamp={2}>{description}</BodyText> : null}
           </Stack>
 
           {chartData && chartData.length > 0 && (
-            <Box mt="auto" pt="lg">
+            <Box mt="auto" pt={isCompact ? "xs" : "lg"}>
               <DashboardChart 
                 data={chartData} 
                 color={`var(--mantine-color-${mantineColor}-6)`} 
+                height={isCompact ? 52 : 64}
               />
             </Box>
           )}
 
-          <Group justify="flex-end" mt="auto" pt="md">
-            <MetaText c={`var(--mantine-color-${mantineColor}-4)`}>Access Layer →</MetaText>
-          </Group>
+          <Stack gap={0} mt="auto" pt={isCompact ? "xs" : "md"} align="flex-start">
+            <MetaText c={`var(--mantine-color-${mantineColor}-4)`}>Access Layer</MetaText>
+            <MetaText c={`var(--mantine-color-${mantineColor}-4)`}>→</MetaText>
+          </Stack>
         </Stack>
       </Card>
     </UnstyledButton>

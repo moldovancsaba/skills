@@ -1,7 +1,5 @@
 const { PrismaClient } = require("@prisma/client");
 const http = require("http");
-const { getHumanMemoryPrompt } = require("./lib/memory");
-const { getWorkerConfig } = require("./lib/shared");
 const { OLLAMA_MODEL, envFlag } = require("./lib/core");
 const { runPipelineQueueBatch } = require("./lib/pipeline-jobs");
 const packageJson = require("../package.json");
@@ -10,19 +8,18 @@ const APP_VERSION = packageJson.version;
 const prisma = new PrismaClient();
 const PORT = 10005;
 
-const DEFAULT_LOOP_INTERVAL = 600000;      // 10 minutes default
-const DEFAULT_IDLE_INTERVAL = 300000;      // 5 minutes default
-
 /**
  * Main entry point for the recurring local AI worker loop.
  *
- * Runs queue-aware background processing and the synthesis cycle for the
- * company intelligence pipeline.
+ * Runs the queue-owned local AI worker loop for the company intelligence
+ * pipeline.
  */
-const { runSynthesisCycle, getSynthesisProgress, collectGlobalWorkerSettings, updateProgress, synthesisState } = require("./lib/synthesis");
+const { getSynthesisProgress, collectGlobalWorkerSettings, updateProgress, synthesisState } = require("./lib/synthesis");
 const { scrubDatabaseElemental } = require("./lib/maintenance");
 
 // --- CONTINUOUS HEARTBEAT ---
+// Persist progress even while the worker is between queue batches so the
+// watchdog and dashboard can detect a live-but-idle worker accurately.
 setInterval(async () => {
   if (synthesisState) {
     await updateProgress(prisma);
@@ -30,32 +27,49 @@ setInterval(async () => {
 }, 60000);
 
 let lastCycleStartTime = 0;
-const FAILSAFE_INTERVAL = 3600000;
 const IDLE_INTERVAL = 300000;
+const ACTIVE_INTERVAL = 30000;
 const POLLING_INTERVAL = 30000;
+const STARTUP_SCRUB_INTERVAL = 6 * 60 * 60 * 1000;
 
 let isRunning = false;
+let wakeRequested = false;
+let lastStartupScrubAt = 0;
+
+async function runStartupIntegrityPass() {
+  const now = Date.now();
+  if (now - lastStartupScrubAt < STARTUP_SCRUB_INTERVAL) return;
+
+  lastStartupScrubAt = now;
+  await updateProgress(prisma, { state: "running", stage: "STARTUP_MAINTENANCE" });
+  await scrubDatabaseElemental(prisma);
+}
 
 async function runWorkerLoop() {
   if (isRunning) return;
   isRunning = true;
   
   try {
-    console.log(`[SYNTHESIS] Initiating v2.0.0 Cycle...`);
+    console.log(`[SCHEDULER] Initiating queue-owned worker cycle...`);
     lastCycleStartTime = Date.now();
-    
-    await updateProgress(prisma, { stage: "MAINTENANCE" });
-    await scrubDatabaseElemental(prisma);
-    await updateProgress(prisma, { stage: "PIPELINE_QUEUE" });
-    const queueOps = await runPipelineQueueBatch(prisma, 4);
-    
-    const result = await runSynthesisCycle(prisma);
-    await updateProgress(prisma); 
-    
-    console.log(`[SYNTHESIS] Cycle Complete (${queueOps + result.operations} ops total; ${queueOps} pipeline-queue ops). Resting...`);
+    wakeRequested = false;
 
-    const targetWakeTime = Date.now() + IDLE_INTERVAL;
+    await runStartupIntegrityPass();
+    await updateProgress(prisma, { state: "running", stage: "PIPELINE_QUEUE" });
+    // Queue execution is the only mutation lane. Any revisit, synthesis,
+    // repair, or maintenance work must arrive through claimable jobs.
+    const queueOps = await runPipelineQueueBatch(prisma, 4);
+
+    await updateProgress(prisma, { state: "idle", stage: "IDLE" });
+
+    const restInterval = queueOps > 0 ? ACTIVE_INTERVAL : IDLE_INTERVAL;
+    console.log(
+      `[SCHEDULER] Cycle complete (${queueOps} queue job(s) executed). Resting for ${Math.round(restInterval / 1000)}s...`,
+    );
+
+    const targetWakeTime = Date.now() + restInterval;
     while (Date.now() < targetWakeTime) {
+      if (wakeRequested) break;
       await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
     }
 
@@ -64,13 +78,24 @@ async function runWorkerLoop() {
   } catch (err) {
     console.error(`[CRITICAL] Worker Loop Failure:`, err);
     isRunning = false;
+    await updateProgress(prisma, {
+      state: "idle",
+      stage: "ERROR",
+      errorStats: {
+        ...synthesisState.errorStats,
+        attempts: (synthesisState.errorStats?.attempts || 0) + 1,
+        failures: (synthesisState.errorStats?.failures || 0) + 1,
+        criticalFailureStreak: (synthesisState.errorStats?.criticalFailureStreak || 0) + 1,
+      },
+    });
     setTimeout(runWorkerLoop, 60000); // Retry in 1 min on crash
   }
 }
 
 const server = http.createServer(async (req, res) => {
   if (req.url === "/health" && req.method === "GET") {
-    // Contract v1 Health Response for mvp-factory-control
+    // Health reflects the queue-owned worker only. The direct synthesis loop
+    // is retired and should not be inferred from this payload.
     const progress = getSynthesisProgress();
     const settings = await collectGlobalWorkerSettings(prisma);
 
@@ -98,9 +123,12 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify(health));
   } else if (req.url === "/force" && req.method === "POST") {
     console.log("[BRIDGE] Force Trigger Received.");
-    runSynthesisCycle(prisma); // Run out of band
+    wakeRequested = true;
+    if (!isRunning) {
+      void runWorkerLoop();
+    }
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ACCEPTED" }));
+    res.end(JSON.stringify({ status: "ACCEPTED", schedulingMode: "queue-only", wakeRequested: true }));
   } else {
     res.writeHead(404);
     res.end();
@@ -108,6 +136,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, async () => {
-  console.log(`trinity Worker v${APP_VERSION} Active on Port ${PORT}`);
+  console.log(`checklist local AI worker v${APP_VERSION} active on port ${PORT}`);
   runWorkerLoop();
 });

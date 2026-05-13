@@ -3,7 +3,7 @@
  * v1.0.0
  * 
  * Diagnostic utility to verify Ollama connectivity, JSON extraction,
- * and trinity pipeline readiness.
+ * and local AI pipeline readiness.
  */
 const { PrismaClient } = require("@prisma/client");
 const { callOllamaJson, extractJsonCandidate } = require("./lib/ai");
@@ -53,7 +53,7 @@ async function runHealthCheck() {
     }
 
     // 4. Stage Readiness
-    console.log("\n[4/4] trinity Stage Readiness...");
+    console.log("\n[4/4] Local AI Stage Readiness...");
     const { STAGE_MODELS } = require("./lib/core");
     console.log(`>> DRAFT Models: ${STAGE_MODELS.DRAFT.join(", ")}`);
     console.log(`>> WRITE Models: ${STAGE_MODELS.WRITE.join(", ")}`);

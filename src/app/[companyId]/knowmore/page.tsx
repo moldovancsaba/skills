@@ -114,6 +114,9 @@ type Flashcard = {
 
 type KnowmoreHealth = {
   healthState: "HEALTHY" | "STALE" | "DELAYED" | "FAILED";
+  healthTone?: "default" | "warning" | "destructive";
+  healthTitle?: string;
+  healthSummary?: string;
   reviewCount: number;
   staleCount: number;
   correctionBacklog: number;
@@ -521,11 +524,11 @@ export default function CompanyKnowMorePage() {
         {errorMessage && <Notice variant="destructive">{errorMessage}</Notice>}
         {health ? (
           <Notice
-            title={`Knowmore Health: ${health.healthState}`}
+            title={health.healthTitle ?? `Knowmore Health: ${health.healthState}`}
             icon={health.healthState === "FAILED" ? AlertTriangle : Stethoscope}
-            variant={health.healthState === "HEALTHY" ? "default" : "destructive"}
+            variant={health.healthTone === "destructive" ? "destructive" : "default"}
           >
-            {health.alerts[0]?.message ??
+            {health.alerts[0]?.message ?? health.healthSummary ??
               `Review ${health.reviewCount} card(s), stale ${health.staleCount}, correction backlog ${health.correctionBacklog}, failed jobs ${health.failedJobs}.`}
           </Notice>
         ) : null}

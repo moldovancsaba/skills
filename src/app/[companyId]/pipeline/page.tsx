@@ -263,8 +263,8 @@ export default function PipelineQueuePage() {
   return (
     <PageShell width="full">
       <PageHeader
-        title="Worker Queue"
-        description="Planning-style human steering for repetitive local AI jobs. Human moves win until you reset the queue back to AI-only."
+        title="AI Queue"
+        description="Shared local AI queue for repetitive jobs. Human moves win until you reset the queue back to AI-only scheduling."
         actions={
           <Group gap="sm">
             <Badge color={humanGuidedCount > 0 ? "review" : "knowmore"} variant="light" size="lg">
@@ -284,7 +284,7 @@ export default function PipelineQueuePage() {
       />
 
       <Notice title="Queue Contract" icon={Bolt}>
-        The worker now consumes this persisted queue directly. Manual drag-and-drop moves switch jobs into human-guided mode. Reset removes those overrides and returns scheduling to autonomous AI control.
+        The local worker consumes this persisted queue directly. Manual drag-and-drop moves switch jobs into human-guided mode. Reset removes those overrides and returns scheduling to autonomous AI control.
       </Notice>
 
       {failedCount > 0 ? (

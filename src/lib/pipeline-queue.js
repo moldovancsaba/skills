@@ -224,8 +224,8 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
         processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
         OR: [
-          { lastAuditedAt: null },
-          { lastAuditedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+          { lastRescoredAt: null },
+          { lastRescoredAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
         ],
       },
     }),
@@ -235,8 +235,8 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
         processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
         OR: [
-          { lastAuditedAt: null },
-          { lastAuditedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+          { lastRescoredAt: null },
+          { lastRescoredAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
         ],
       },
     }),
@@ -246,8 +246,8 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
         processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
         OR: [
-          { lastAuditedAt: null },
-          { lastAuditedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+          { lastRescoredAt: null },
+          { lastRescoredAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
         ],
       },
     }),

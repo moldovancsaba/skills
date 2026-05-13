@@ -341,6 +341,7 @@ export default function Home() {
                     metric={c.metrics?.knowmore ?? 0}
                     title="Knowmore"
                     chartData={chartSeries(c.analytics, "flashcards", "knowmore")}
+                    density="compact"
                   />
                   <LinkCard
                     href={`/${c.id}/tactical`}
@@ -349,6 +350,7 @@ export default function Home() {
                     metric={c.metrics?.tactical ?? 0}
                     title="Planning"
                     chartData={chartSeries(c.analytics, "tacticalBoard", "nbaItems", "nba")}
+                    density="compact"
                   />
                   <LinkCard
                     href={`/${c.id}/nba`}
@@ -357,6 +359,7 @@ export default function Home() {
                     metric={c.metrics?.checklist ?? 0}
                     title="Checklist"
                     chartData={chartSeries(c.analytics, "checklist", "nba")}
+                    density="compact"
                   />
                 </RouteCardGrid>
               </Box>

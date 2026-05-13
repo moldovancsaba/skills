@@ -101,10 +101,10 @@ If step 2 through 4 do not happen, the system design work is incomplete.
 The repetitive-job system now has a first-class queue model:
 
 - `PipelineJob` persistence stores recurring/local-AI work as durable queue items
-- the worker claims repetitive work from that queue before the broader company synthesis cycle
+- the worker executes repetitive work only through that queue; there is no parallel direct company synthesis loop anymore
 - `AI_ONLY` mode means scheduling is computed by the shared queue logic
 - `HUMAN_GUIDED` mode means the persisted queue column and manual order take precedence
-- the webapp `Worker Queue` board is the primary human steering surface
+- the webapp `AI Queue` board is the primary human steering surface
 - score-health alerts can reprioritize queue work through the same shared contract
 - the shipped UI controls are drag/drop between queue columns, manual drag/drop ordering, and `Reset to AI Only`
 - there is no separate compact tweak menu in the current release; the board is the tweak surface

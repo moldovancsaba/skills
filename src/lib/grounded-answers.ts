@@ -42,7 +42,7 @@ function entityLabel(entityType: SearchResultRecord["entityType"]) {
     case "TASK":
       return "Task";
     case "PIPELINE_JOB":
-      return "Worker Queue";
+      return "AI Queue";
     case "WORKFLOW_BLUEPRINT":
       return "Workflow";
   }

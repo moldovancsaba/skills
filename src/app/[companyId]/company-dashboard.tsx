@@ -327,6 +327,7 @@ export default function CompanyDashboard() {
           metric={counts.flashcards}
           title="Knowmore"
           chartData={chartSeries("flashcards", "knowmore")}
+          density="compact"
         />
         <LinkCard
           href={`/${companyId}/tactical`}
@@ -335,6 +336,7 @@ export default function CompanyDashboard() {
           metric={counts.nbaItems}
           title="Planning"
           chartData={chartSeries("tacticalBoard", "nbaItems", "nba")}
+          density="compact"
         />
         <LinkCard
           href={`/${companyId}/nba`}
@@ -343,13 +345,14 @@ export default function CompanyDashboard() {
           metric={counts.checklistCount}
           title="Checklist"
           chartData={chartSeries("checklist", "nba")}
+          density="compact"
         />
         <LinkCard
           href={`/${companyId}/pipeline`}
           icon={HardHat}
           variant="gray"
           metric={counts.pipelineJobs}
-          title="Worker Queue"
+          title="AI Queue"
           chartData={chartSeries("pipelineJobs", "reviewGateway")}
         />
       </RouteCardGrid>

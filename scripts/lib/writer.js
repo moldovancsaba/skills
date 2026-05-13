@@ -2,11 +2,11 @@
  * checklist WRITER
  * v0.11.4-STABLE
  * 
- * The refinement stage of the trinity pipeline.
+ * The refinement stage of the local AI pipeline.
  * Upgrades DRAFT cards to CHECKED by improving tone, clarity, and enforcing deduplication.
  */
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
-const { STAGE_MODELS, trinity_WRITE_TIMEOUT_MS } = require("./core");
+const { STAGE_MODELS, WRITE_STAGE_TIMEOUT_MS } = require("./core");
 const { truncate, hashValue, getWorkerConfig, parseBoundedScore, getStageModels, similarity, nextPublicId } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject } = require("./synthesis-utils");
@@ -85,7 +85,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
   const userPrompt = `DRAFT Title: ${flashCard.title}\nDRAFT Body: ${flashCard.body}`;
 
   const modelList = await getStageModels(prisma, "WRITE", company);
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: WRITE_STAGE_TIMEOUT_MS });
   const raw = unifyObject(res);
   if (!raw || !raw.title || !raw.body) return null;
 
@@ -159,7 +159,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
 
   const userPrompt = `DRAFT Title: ${taskCard.title}\nDRAFT Description: ${taskCard.description}`;
 
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, STAGE_MODELS.WRITE, { timeoutMs: WRITE_STAGE_TIMEOUT_MS });
   const raw = unifyObject(res);
   if (!raw || !raw.title || !raw.description) return null;
 

@@ -1,9 +1,9 @@
 /**
- * TRINITY GENERATOR (Drafter)
+ * checklist GENERATOR (Drafter)
  * M2.1 — Multi-Cardinality Synthesis & Recurrent Depth Transformer (RDT)
  * v1.2.0-PRODUCTION
  *
- * Implements the Generator stage from the Trinity formal production definition §8.
+ * Implements the Generator stage from the local AI production definition §8.
  * Refactored into a Multi-Phase Recurrent Agent loop inspired by the OpenMythos RDT philosophy.
  *
  * Key changes since v1.0.0:
@@ -15,7 +15,7 @@
  */
 const crypto = require("crypto");
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
-const { STAGE_MODELS, trinity_DRAFT_TIMEOUT_MS } = require("./core");
+const { STAGE_MODELS, DRAFT_STAGE_TIMEOUT_MS, WRITE_STAGE_TIMEOUT_MS } = require("./core");
 const { truncate, hashValue, nextPublicId, getWorkerConfig, parseBoundedScore, getStageModels } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyArray } = require("./synthesis-utils");
@@ -174,7 +174,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       loopUserPrompt += `\n\n[CURRENT STATE: PREVIOUS DRAFT]\n${JSON.stringify(currentDraftsRaw, null, 2)}\n\n[TASK] Improve and refine the previous draft based on the Phase Guidance above. Return the FULL updated JSON array.`;
     }
 
-    const raw = await callOllamaWithFailover(loopSystemPrompt, loopUserPrompt, modelList, { timeoutMs: trinity_DRAFT_TIMEOUT_MS });
+    const raw = await callOllamaWithFailover(loopSystemPrompt, loopUserPrompt, modelList, { timeoutMs: DRAFT_STAGE_TIMEOUT_MS });
     const loopArray = unifyArray(raw);
 
     if (Array.isArray(loopArray) && loopArray.length > 0) {
@@ -388,7 +388,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
   const userPrompt = `Company: ${company.name}\nKnowledgeItem Title: ${flashCard.title}\nKnowledgeItem Body: ${truncate(flashCard.body || flashCard.generatedBody || "", 1000)}`;
 
   const modelList = await getStageModels(prisma, "WRITE", company);
-  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: trinity_WRITE_TIMEOUT_MS });
+  const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: WRITE_STAGE_TIMEOUT_MS });
   const rawArray = unifyArray(res);
   if (!Array.isArray(rawArray)) return [];
 

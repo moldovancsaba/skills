@@ -22,7 +22,7 @@ const {
 } = require("../../src/lib/scoring-contract");
 
 /**
- * trinity ENGINE
+ * checklist LOCAL AI ENGINE
  * v2.0.0 — Ground Truth
  */
 
@@ -100,7 +100,7 @@ async function acquireLock(prisma, companyId, attempt = 1) {
   const { isUniqueConstraintError, getServerTime } = require("./shared");
   const key = `lock:company:${companyId}`;
   const now = await getServerTime(prisma);
-  const ownerId = `trinity-worker:${process.pid}`;
+  const ownerId = `local-ai-worker:${process.pid}`;
   
   // v2.0.0: Safe Cleanup of Expired Locks
   const existing = await prisma.globalSetting.findUnique({ where: { key } });
@@ -188,7 +188,7 @@ async function runSynthesisCycle(prisma) {
     await prisma.company.update({ where: { id: company.id }, data: { lastAIVisited: new Date() } });
     await recordDecisionEvent(prisma, {
       companyId: company.id,
-      decisionMaker: `trinity-worker:${process.pid}`,
+      decisionMaker: `local-ai-worker:${process.pid}`,
       decisionType: "COMPANY_SELECTED_FOR_CYCLE",
       entityType: "COMPANY",
       entityId: company.id,
@@ -196,7 +196,7 @@ async function runSynthesisCycle(prisma) {
         stageOrder: ["SCRUBBING", "WRITING", "JUDGING", "ACTION"],
         schedulingMode: "company-serial-cycle",
       },
-      rationale: "Company selected by Trinity scheduler for current synthesis batch",
+      rationale: "Company selected by the legacy company-cycle scheduler for current synthesis batch",
       teachingWeight: 30,
       cycleRunId: lockCtx.cycleRunId,
     });
@@ -216,7 +216,7 @@ async function runSynthesisCycle(prisma) {
     for (const ctx of batchContext) {
       await recordDecisionEvent(prisma, {
         companyId: ctx.company.id,
-        decisionMaker: `trinity-worker:${process.pid}`,
+        decisionMaker: `local-ai-worker:${process.pid}`,
         decisionType: "WORKER_STAGE_ENTER",
         entityType: "COMPANY",
         entityId: ctx.company.id,
@@ -233,7 +233,7 @@ async function runSynthesisCycle(prisma) {
       
       const ops = await stage.handler(prisma, ctx.company, stagePrompt, null, { 
         cycleRunId: ctx.lockId, 
-        workerId: `trinity-worker:${process.pid}` 
+        workerId: `local-ai-worker:${process.pid}` 
       });
       ctx.ops += ops;
       totalOperations += ops;
@@ -517,9 +517,15 @@ async function performCompanyJudging(prisma, company, memoryPrompt, topic, worke
       const audit = await auditCheckedFlashCard(prisma, fc, memoryPrompt, topic, null, workerContext);
       if (audit) {
         await prisma.$transaction(async (tx) => {
+          const reconciledAt = await getServerTime(prisma);
           await tx.flashcard.update({ 
             where: { id: fc.id, processingStatus: "CHECKED" }, 
-            data: { ...audit, cycleRunId: workerContext.cycleRunId, updatedAt: await getServerTime(prisma) } 
+            data: {
+              ...audit,
+              cycleRunId: workerContext.cycleRunId,
+              updatedAt: reconciledAt,
+              lastCorrectionReconciledAt: reconciledAt,
+            } 
           });
           await tx.flashcardAction.create({
             data: { flashcardId: fc.id, action: "ANNOTATE", annotation: audit.userAnnotation, actedBy: workerContext.workerId }

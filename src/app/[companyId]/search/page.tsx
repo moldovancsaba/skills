@@ -23,7 +23,7 @@ function toneLabel(entityType: SearchResultRecord["entityType"]) {
     case "TASK":
       return "Task";
     case "PIPELINE_JOB":
-      return "Worker Queue";
+      return "AI Queue";
     case "WORKFLOW_BLUEPRINT":
       return "Workflow";
   }
@@ -264,7 +264,7 @@ export default function SearchPage() {
 
       {results.length === 0 && !loading ? (
         <Notice title="No results yet">
-          Search across Data, Topics, Knowmore, Goals, Tasks, Worker Queue jobs, and Workflow blueprints from one surface.
+          Search across Data, Topics, Knowmore, Goals, Tasks, AI Queue jobs, and Workflow blueprints from one surface.
         </Notice>
       ) : null}
 

@@ -300,7 +300,7 @@ The local AI pipeline queue is now a first-class system contract.
 Rules:
 
 - repetitive local-AI work must be representable as persisted `PipelineJob` records
-- the webapp `Worker Queue` is the primary human steering surface for repetitive jobs
+- the webapp `AI Queue` is the primary human steering surface for repetitive jobs
 - worker execution must consume the persisted queue contract, not hidden module-local ordering alone
 - `AI_ONLY` and `HUMAN_GUIDED` are explicit scheduling modes
 - `Reset to AI only` must fully clear manual queue influence for the selected scope

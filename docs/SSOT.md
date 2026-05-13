@@ -36,7 +36,7 @@ Primary user-facing layers:
 - Checklist
 - Tactical
 - Review
-- Worker Queue
+- AI Queue
 - Search & Answers
 - Observability
 - Workflows
@@ -99,7 +99,7 @@ The repetitive-job contract now also includes:
 
 - persisted `PipelineJob` queue records
 - explicit `AI_ONLY` vs `HUMAN_GUIDED` scheduling modes
-- a webapp `Worker Queue` board as the primary HiTL steering surface for repetitive jobs
+- a webapp `AI Queue` board as the primary HiTL steering surface for repetitive jobs
 - one-step reset back to AI-only scheduling
 - drag/drop queue column changes and drag/drop manual ordering as the shipped human-tweak controls
 - no separate compact tweak menu today; the board itself is the canonical tweak surface

@@ -6,23 +6,36 @@ Issue:
 Status:
 - `Accepted`
 
+Current runtime note:
+- this record is historically useful, but the shipped runtime now uses a queue-owned scheduler rather than a persistent per-company rotating cursor
+
 Date:
 - `2026-04-12`
 
 ## Why this exists
 
-checklistSync is a multi-company local AI worker. A worker can look healthy while still under-delivering if:
+The local AI runtime is multi-company. A worker can look healthy while still under-delivering if:
 
 - startup always begins from the same company
 - restarts reset progress to the same company
 - heavy companies consume most of the cycle budget
 - fairness is not measured directly
 
-This document turns that risk into a concrete scheduler contract that later implementation issues can deliver.
+This document turned that risk into a concrete scheduler contract for the
+earlier cursor-based runtime.
 
 ## Decision summary
 
-checklist should use a `persistent rotating company cursor` with `per-company serial work`, `bounded slice sizes`, and `starvation telemetry`.
+The original proposal was a `persistent rotating company cursor` with `per-company serial work`, `bounded slice sizes`, and `starvation telemetry`.
+
+That is no longer the active runtime design.
+
+The active runtime design is:
+
+- one queue-owned scheduler
+- one state-mutating worker
+- bounded queue jobs per company
+- oldest-first fairness inside individual maintenance batches rather than a monolithic per-company serial cycle
 
 That means:
 
@@ -112,7 +125,7 @@ checklist fit:
 
 checklist should implement `persistent rotating round-robin first`, then layer `small fairness boosts` only after metrics prove the base contract is stable.
 
-The chosen policy is:
+The historical chosen policy was:
 
 1. `Persistent rotating cursor`
    - store the next company pointer in durable scheduler state
@@ -136,7 +149,7 @@ The chosen policy is:
 
 ### Startup
 
-On worker boot:
+On worker boot, the historical design expected:
 
 1. load the active company list
 2. load persisted scheduler cursor and last-completed company metadata
@@ -145,7 +158,7 @@ On worker boot:
 
 ### Restart
 
-On crash or watchdog restart:
+On crash or watchdog restart, the historical design expected:
 
 1. do not reset the cursor to the first company
 2. resume from the next due company

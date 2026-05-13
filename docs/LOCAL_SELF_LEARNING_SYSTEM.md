@@ -21,6 +21,25 @@ checklist should improve day by day by learning from:
 
 The self-learning loop must stay local-first, reviewable, and gated.
 
+## Runtime execution contract
+
+The current local AI runtime is queue-owned.
+
+That means:
+
+- `guardian` is a watchdog and control-plane process only
+- `sync` is the only state-mutating worker
+- scheduler decisions are executed through claimable pipeline jobs
+- sidecar watchdog loops must not directly mutate cards, scores, or tactical placement
+
+Purpose-specific card clocks are also split:
+
+- `lastRescoredAt` for rescore cadence
+- `lastTaxonomyAuditedAt` for taxonomy audit cadence
+- `lastCorrectionReconciledAt` for flashcard correction resolution
+
+`lastAuditedAt` remains legacy-only and should not be reused for new worker semantics.
+
 ## Approved Active Delivery Stack
 
 Primary active path:

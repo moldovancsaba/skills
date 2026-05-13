@@ -44,7 +44,7 @@ The `kind` field is an **Evolutionary Meta-Tag**.
 Every human interaction—**Accept**, **Decline**, or **Annotate**—is a high-integrity teaching signal.
 
 *   **Persistence**: Feedback is stored in `FlashcardAction` and `Feedback` history logs.
-*   **Harvesting**: The Memory Engine scavenges these history logs during every trinity pass.
+*   **Harvesting**: The Memory Engine scavenges these history logs during every local AI maintenance pass.
 
 ## 5. Zero Hardcoding (Worker Config)
 

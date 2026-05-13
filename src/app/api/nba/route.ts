@@ -205,7 +205,7 @@ export async function PATCH(request: NextRequest) {
                 itemId === existing.id && hitlAdjustment.triggered
                   ? hitlAdjustment.iceScore
                   : undefined,
-              lastAuditedAt:
+              lastRescoredAt:
                 itemId === existing.id && hitlAdjustment.triggered
                   ? null
                   : undefined,
@@ -411,7 +411,7 @@ export async function PATCH(request: NextRequest) {
         freshnessScore: data.freshnessScore !== undefined ? data.freshnessScore : existing.freshnessScore,
         evaluationReason: data.evaluationReason ?? existing.evaluationReason,
         scheduledDate: nextScheduledDate,
-        lastAuditedAt: planningHitlAdjustment?.triggered ? null : existing.lastAuditedAt,
+        lastRescoredAt: planningHitlAdjustment?.triggered ? null : existing.lastRescoredAt,
         updatedAt: new Date(),
       },
     });

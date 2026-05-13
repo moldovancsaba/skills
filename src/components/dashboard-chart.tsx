@@ -13,16 +13,17 @@ type ChartData = {
 type DashboardChartProps = {
   data: ChartData[];
   color?: string;
+  height?: number;
 };
 
-export function DashboardChart({ data, color }: DashboardChartProps) {
+export function DashboardChart({ data, color, height = 64 }: DashboardChartProps) {
   const theme = useMantineTheme();
   const strokeColor = color || theme.colors.ingress[6];
 
   if (!data || data.length === 0) return null;
 
   return (
-    <Box h={64} w="100%" style={{ opacity: 0.6 }}>
+    <Box h={height} w="100%" style={{ opacity: 0.6 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
           <Line

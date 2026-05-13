@@ -33,13 +33,6 @@ const RESTART_BASE_MS         = 5000;
 const RESTART_MAX_MS          = 60000;
 const HEALTH_INTERVAL         = 30000;          // 30s check
 const STATUS_HEALTH_INTERVAL  = 15000;          // 15s check
-const SCI_AUDIT_INTERVAL      = 20 * 60 * 1000; // 20 min audit cycle
-
-/**
- * SCI (Self-Correcting Intelligence) State
- * Tracks the autonomous audit heartbeat.
- */
-let lastAuditAt = 0;
 
 const OLLAMA_URL       = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
 const FALLBACK_MODEL   = "granite4:350m";
@@ -87,6 +80,7 @@ let heartbeatTimer     = null;
 let useSafeMode        = false; // If true, tells worker to use fallback model
 let resourceStats      = { freeMem: 0, totalMem: 0, loadAvg: [] };
 let commandTimer       = null;
+let isShuttingDown     = false;
 
 // --- Command bridge supervision ---
 
@@ -258,7 +252,7 @@ function restartOllama() {
 }
 
 /**
- * Performs a health scan of the trinity Worker.
+ * Performs a health scan of the local AI worker.
  * Triggers a process kill if the worker is found to be stuck or unresponsive.
  */
 function pollHealth() {
@@ -347,7 +341,7 @@ function checkStatusServerHealth() {
 // --- PROCESS MANAGEMENT ---
 
 /**
- * Forcefully terminates the active trinity Worker.
+ * Forcefully terminates the active local AI worker.
  * Attempts SIGTERM first, followed by SIGKILL if necessary.
  * 
  * @param {string} reason - Human-readable reason for termination
@@ -362,13 +356,13 @@ function killWorker(reason) {
 }
 
 /**
- * Spawns a new trinity Worker child process.
+ * Spawns a new local AI worker child process.
  * Configures pipes for standard out/err and initializes exit handlers.
  */
 function startWorker() {
   if (workerProcess) return;
 
-  log(`Starting trinity Worker (attempt #${restartCount + 1}) | back-off=${restartMs}ms`);
+  log(`Starting local AI worker (attempt #${restartCount + 1}) | back-off=${restartMs}ms`);
   startedAt = Date.now();
   lastProgressAt = null;
   workerAlive = false;
@@ -401,6 +395,10 @@ function startWorker() {
     workerAlive   = false;
     warn(`Worker exited | code=${code} signal=${signal} restarts=${restartCount}`);
     writeHeartbeat({ exitCode: code, exitSignal: signal });
+    if (isShuttingDown) {
+      log("Guardian shutdown in progress. Worker restart suppressed.");
+      return;
+    }
     scheduleRestart();
   });
 
@@ -408,6 +406,10 @@ function startWorker() {
     err(`Worker spawn error: ${e.message}`);
     workerProcess = null;
     workerAlive   = false;
+    if (isShuttingDown) {
+      log("Guardian shutdown in progress. Spawn recovery suppressed.");
+      return;
+    }
     scheduleRestart();
   });
 
@@ -420,6 +422,10 @@ function startWorker() {
  * Schedules a worker restart with exponential back-off logic.
  */
 function scheduleRestart() {
+  if (isShuttingDown) {
+    log("Guardian shutdown in progress. Scheduled restart skipped.");
+    return;
+  }
   const delay = restartMs;
   restartMs = Math.min(restartMs * 2, RESTART_MAX_MS);
   warn(`Scheduling restart in ${Math.round(delay / 1000)}s...`);
@@ -470,7 +476,7 @@ setInterval(checkStatusServerHealth, STATUS_HEALTH_INTERVAL);
 function checkRestartSignal() {
   const signalPath = path.join(__dirname, "..", "logs", "restart.signal");
   if (fs.existsSync(signalPath)) {
-    warn("RESTART SIGNAL DETECTED. Re-igniting trinity engine...");
+    warn("RESTART SIGNAL DETECTED. Restarting the local AI worker...");
     try { fs.unlinkSync(signalPath); } catch (_) {}
     killWorker("Manual restart requested via dashboard");
   }
@@ -479,42 +485,7 @@ function checkRestartSignal() {
 // Watch for restart signals every 5s
 setInterval(checkRestartSignal, 5000);
 
-/**
- * SCI (Self-Correcting Intelligence) Loop
- * Periodically audits the entire intelligence inventory for architectural purity.
- */
-async function runSCIAudit() {
-  log("─────────────────────────────────────────────────────────────────────────");
-  log("  SCI HEARTBEAT: Starting Intelligence Taxonomy Audit...");
-  log("─────────────────────────────────────────────────────────────────────────");
-  
-  const { exec } = require("child_process");
-  const node = process.execPath;
-  const auditScript = path.join(__dirname, "sci-audit.js");
-
-  if (!fs.existsSync(auditScript)) {
-    warn(`[SCI] Audit script missing at ${auditScript}. Skipping this cycle.`);
-    return;
-  }
-  
-  exec(`${node} ${auditScript}`, (error, stdout, stderr) => {
-    if (error) {
-      err(`[SCI] Audit failed: ${error.message}`);
-      return;
-    }
-    if (stderr) warn(`[SCI] Audit warnings: ${stderr}`);
-    if (stdout) {
-      const lines = stdout.split("\n").filter(Boolean);
-      lines.forEach(l => log(`[SCI] ${l}`));
-    }
-    log(`[SCI] Audit cycle completed at ${new Date().toISOString()}`);
-  });
-}
-
-// Trigger SCI Audit every 20 minutes
-setInterval(runSCIAudit, SCI_AUDIT_INTERVAL);
-// Also trigger one 30 seconds after boot to ensure early health
-setTimeout(runSCIAudit, 30000);
+log("[GUARDIAN] SCI sidecar audits disabled in watchdog mode; queue worker is the only mutation authority.");
 
 // Periodic heartbeat even when idle
 heartbeatTimer = setInterval(() => writeHeartbeat(), 15_000);
@@ -522,93 +493,18 @@ heartbeatTimer = setInterval(() => writeHeartbeat(), 15_000);
 // Periodic command bridge check
 commandTimer = setInterval(pollCommands, 20_000); 
 
-// Periodic Kanban Orchestration
-const KANBAN_RECOMPUTE_INTERVAL = 10 * 60 * 1000; // 10 minutes
-
-// Periodic Intelligence Audit (SCI Layer §M4.1)
-// Runs every 20 minutes. Audits a batch of cards for taxonomy purity.
-const AUDIT_INTERVAL = 20 * 60 * 1000; 
-
-async function auditIntelligenceJob() {
-  try {
-    const { auditCardTaxonomy } = require("./lib/auditor");
-    const { reorganizeCard } = require("./lib/reorganizer");
-    const companies = await prisma.company.findMany({ select: { id: true, name: true } });
-
-    log(`[AUDITOR] Starting Tri-Layer taxonomy audit for ${companies.length} company/companies...`);
-
-    for (const company of companies) {
-      // Audit a batch of 5 cards per type per run to avoid OOM or timeout
-      const flashcards = await prisma.flashcard.findMany({
-        where: { companyId: company.id, activityState: "ACTIVE", lastAuditedAt: null },
-        take: 5
-      });
-      const goalcards = await prisma.goalcard.findMany({
-        where: { companyId: company.id, activityState: "ACTIVE", lastAuditedAt: null },
-        take: 5
-      });
-      const taskcards = await prisma.nBAItem.findMany({
-        where: { companyId: company.id, status: "PENDING", lastAuditedAt: null },
-        take: 5
-      });
-
-      const allCards = [
-        ...flashcards.map(c => ({ ...c, layer: "KNOWLEDGE" })),
-        ...goalcards.map(c => ({ ...c, layer: "GOAL" })),
-        ...taskcards.map(c => ({ ...c, layer: "TASK" }))
-      ];
-
-      for (const card of allCards) {
-        log(`[AUDITOR] Auditing ${card.layer} card: ${card.title.slice(0, 40)}...`);
-        const result = await auditCardTaxonomy(prisma, company, card, card.layer);
-        
-        if (result && result.isMismatch && result.confidence >= 7) {
-          warn(`[AUDITOR] 🚩 MISMATCH FOUND: Card ${card.id} should be ${result.suggestedLayer} (Reason: ${result.reasoning})`);
-          await reorganizeCard(prisma, card, card.layer, result.suggestedLayer);
-        }
-
-        // Update lastAuditedAt to prevent re-auditing same items in next run
-        const now = new Date();
-        if (card.layer === "KNOWLEDGE") await prisma.flashcard.update({ where: { id: card.id }, data: { lastAuditedAt: now } });
-        if (card.layer === "GOAL") await prisma.goalcard.update({ where: { id: card.id }, data: { lastAuditedAt: now } });
-        if (card.layer === "TASK") await prisma.nBAItem.update({ where: { id: card.id }, data: { lastAuditedAt: now } });
-      }
-    }
-    log(`[AUDITOR] Taxonomy audit job complete.`);
-  } catch (e) {
-    err(`[AUDITOR] Audit job failed: ${e.message}`);
-  }
-}
-
-async function recomputeAllKanbanBoards() {
-  try {
-    const { recomputeFrontier } = require("./lib/frontier");
-    const companies = await prisma.company.findMany({ select: { id: true, name: true } });
-    log(`[KANBAN] Recomputing tactical boards for ${companies.length} company/companies...`);
-    for (const company of companies) {
-      await recomputeFrontier(prisma, company);
-    }
-    log(`[KANBAN] Tactical board recompute complete.`);
-  } catch (e) {
-    err(`[KANBAN] Recompute failed: ${e.message}`);
-  }
-}
-
-setInterval(recomputeAllKanbanBoards, KANBAN_RECOMPUTE_INTERVAL);
-setInterval(auditIntelligenceJob, AUDIT_INTERVAL);
-
-// Also run once at startup after a short grace period
-setTimeout(recomputeAllKanbanBoards, 30_000);
-setTimeout(auditIntelligenceJob, 60_000);
+log("[GUARDIAN] Scheduler unification active: taxonomy audits and kanban recomputes are queue-owned, not watchdog-owned.");
 
 // Graceful self-shutdown
 process.on("SIGTERM", () => {
+  isShuttingDown = true;
   log("Guardian received SIGTERM. Shutting down worker.");
   killWorker("guardian-shutdown");
   setTimeout(() => process.exit(0), 6000);
 });
 
 process.on("SIGINT", () => {
+  isShuttingDown = true;
   log("Guardian received SIGINT. Shutting down worker.");
   killWorker("guardian-shutdown");
   setTimeout(() => process.exit(0), 6000);

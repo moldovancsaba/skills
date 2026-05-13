@@ -88,7 +88,7 @@ const pipelineItems = [
   {
     key: "pipeline",
     href: (companyId: string) => `/${companyId}/pipeline`,
-    label: "Worker Queue",
+    label: "AI Queue",
     icon: HardHat,
     color: "review",
     tone: "review",

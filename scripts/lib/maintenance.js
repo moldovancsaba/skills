@@ -25,6 +25,23 @@ const { detectEvidenceConflict, ensureCitationSnapshotsForEvidenceBatch } = requ
  */
 // --- DATA INTEGRITY ---
 
+function isRetryableWriteConflict(error) {
+  return Boolean(error && typeof error === "object" && error.code === "P2034");
+}
+
+async function withMaintenanceRetry(operation, attempt = 0) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isRetryableWriteConflict(error) || attempt >= 3) {
+      throw error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
+    return withMaintenanceRetry(operation, attempt + 1);
+  }
+}
+
 /**
  * Performs a global audit of all cards to ensure status and kind alignment.
  * Fixes legacy status strings and enforces the checklist Kind Registry.
@@ -54,10 +71,12 @@ async function scrubDatabaseElemental(prisma) {
 
     if (fcToFix.length > 0) {
       console.log(`[MAINTENANCE] Repairing ${fcToFix.length} Flashcard records...`);
-      await prisma.flashcard.updateMany({
-        where: { id: { in: fcToFix.map(c => c.id) } },
-        data: { processingStatus: "CHECKED", status: "ACTIVE", activityState: "ACTIVE", kind: "SUMMARY" }
-      });
+      await withMaintenanceRetry(() =>
+        prisma.flashcard.updateMany({
+          where: { id: { in: fcToFix.map(c => c.id) } },
+          data: { processingStatus: "CHECKED", status: "ACTIVE", activityState: "ACTIVE", kind: "SUMMARY" }
+        })
+      );
     }
   } catch (e) {
     console.warn(`[MAINTENANCE] Flashcard scrub partially failed: ${e.message}`);
@@ -81,10 +100,12 @@ async function scrubDatabaseElemental(prisma) {
 
     if (tcToFix.length > 0) {
       console.log(`[MAINTENANCE] Repairing ${tcToFix.length} NBAItem records with invalid legacy status...`);
-      await prisma.nBAItem.updateMany({
-        where: { id: { in: tcToFix.map(c => c.id) } },
-        data: { status: "PENDING", activityState: "ACTIVE", kind: "TASK" }
-      });
+      await withMaintenanceRetry(() =>
+        prisma.nBAItem.updateMany({
+          where: { id: { in: tcToFix.map(c => c.id) } },
+          data: { status: "PENDING", activityState: "ACTIVE", kind: "TASK" }
+        })
+      );
     }
   } catch (e) {
     console.warn(`[MAINTENANCE] Taskcard scrub partially failed: ${e.message}`);
@@ -148,12 +169,12 @@ async function processUserFeedback(prisma, company) {
     });
 
     // c. Update NBA Item Intelligence
-    await prisma.nBAItem.update({
+      await prisma.nBAItem.update({
       where: { id: item.id },
       data: {
         ...normalizedTaskScores,
         updatedAt: new Date(),
-        lastAuditedAt: null,
+        lastRescoredAt: null,
       }
     });
 
@@ -184,7 +205,8 @@ async function processUserFeedback(prisma, company) {
               weight: Math.max(1, Math.min(10, currentWeight + delta.weight)),
             }),
             updatedAt: new Date(),
-            lastAuditedAt: null,
+            lastCorrectionReconciledAt: null,
+            lastRescoredAt: null,
           }
         });
       }
@@ -214,7 +236,7 @@ async function loadOldestAuditBatch(model, where, take) {
   const neverAudited = await model.findMany({
     where: {
       ...where,
-      lastAuditedAt: null,
+      lastRescoredAt: null,
     },
     orderBy: { updatedAt: "asc" },
     take,
@@ -227,10 +249,10 @@ async function loadOldestAuditBatch(model, where, take) {
   const audited = await model.findMany({
     where: {
       ...where,
-      lastAuditedAt: { not: null },
+      lastRescoredAt: { not: null },
     },
     orderBy: [
-      { lastAuditedAt: "asc" },
+      { lastRescoredAt: "asc" },
       { updatedAt: "asc" },
     ],
     take: take - neverAudited.length,
@@ -267,7 +289,7 @@ async function rescorePeriodicCards(prisma, company) {
           impact: flashcard.impact,
           weight: flashcard.weight,
         }),
-        lastAuditedAt: auditTimestamp,
+        lastRescoredAt: auditTimestamp,
       },
     });
   }
@@ -281,7 +303,7 @@ async function rescorePeriodicCards(prisma, company) {
           impact: goalcard.impact,
           weight: goalcard.weight,
         }),
-        lastAuditedAt: auditTimestamp,
+        lastRescoredAt: auditTimestamp,
       },
     });
   }
@@ -295,7 +317,7 @@ async function rescorePeriodicCards(prisma, company) {
           impact: taskcard.impact,
           ease: taskcard.ease,
         }),
-        lastAuditedAt: auditTimestamp,
+        lastRescoredAt: auditTimestamp,
       },
     });
   }
@@ -516,7 +538,8 @@ async function revisitOldestModifiedCandidates(prisma, company) {
           "MAINTENANCE: oldest modified candidate with unresolved human correction",
         ),
         processingStatus: "DRAFT",
-        lastAuditedAt: null,
+        lastCorrectionReconciledAt: null,
+        lastRescoredAt: null,
       },
     });
     queued += 1;
@@ -587,7 +610,8 @@ async function revisitDeclinedHighPotentialCandidates(prisma, company) {
         ),
         processingStatus: "DRAFT",
         activityState: "ACTIVE",
-        lastAuditedAt: null,
+        lastCorrectionReconciledAt: null,
+        lastRescoredAt: null,
       },
     });
     queued += 1;
@@ -1168,12 +1192,27 @@ async function garbageCollectOrphanedSources(prisma, company) {
       companyId: cid,
       createdAt: { lt: thirtyDaysAgo },
     },
-    include: {
-      flashcards: {
-        include: { flashcard: true }
-      }
-    }
   });
+
+  const sourceIds = oldSources.map((source) => source.id);
+  const flashcardLinks = sourceIds.length > 0
+    ? await prisma.flashcardSource.findMany({
+        where: {
+          sourceType: "SOURCE",
+          sourceId: { in: sourceIds },
+        },
+        include: {
+          flashcard: true,
+        },
+      })
+    : [];
+
+  const flashcardLinksBySourceId = new Map();
+  for (const link of flashcardLinks) {
+    const existing = flashcardLinksBySourceId.get(link.sourceId) || [];
+    existing.push(link);
+    flashcardLinksBySourceId.set(link.sourceId, existing);
+  }
 
   let deleted = 0;
   for (const source of oldSources) {
@@ -1184,7 +1223,8 @@ async function garbageCollectOrphanedSources(prisma, company) {
     if (new Date() < expiryDate) continue;
 
     // Check if any linked flashcards are still active
-    const hasActiveCards = source.flashcards.some(fs => 
+    const sourceLinks = flashcardLinksBySourceId.get(source.id) || [];
+    const hasActiveCards = sourceLinks.some(fs => 
       fs.flashcard && ["ACTIVE", "STALE"].includes(fs.flashcard.activityState)
     );
 

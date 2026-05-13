@@ -14,16 +14,22 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [enrichment, setEnrichment] = useState<{ definitions: any[]; items: any[] }>({ definitions: [], items: [] });
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const [workflowResponse, enrichmentResponse] = await Promise.all([
         fetch(`/api/workflows?companyId=${companyId}`),
         fetch(`/api/enrichment-policies?companyId=${companyId}`),
       ]);
+      if (!workflowResponse.ok) throw new Error("Failed to load workflows");
+      if (!enrichmentResponse.ok) throw new Error("Failed to load enrichment policies");
       setWorkflows(await workflowResponse.json());
       setEnrichment(await enrichmentResponse.json());
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to load workflow settings");
     } finally {
       setLoading(false);
     }
@@ -31,7 +37,8 @@ export default function WorkflowsPage() {
 
   const updateWorkflow = useCallback(
     async (workflow: any, patch: Record<string, unknown>) => {
-      await fetch("/api/workflows", {
+      setErrorMessage(null);
+      const response = await fetch("/api/workflows", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -42,9 +49,22 @@ export default function WorkflowsPage() {
           status: patch.status ?? workflow.status,
         }),
       });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "Failed to update workflow");
+      }
       await loadAll();
     },
     [companyId, loadAll],
+  );
+
+  const runWorkflowUpdate = useCallback(
+    (workflow: any, patch: Record<string, unknown>) => {
+      void updateWorkflow(workflow, patch).catch((error) => {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to update workflow");
+      });
+    },
+    [updateWorkflow],
   );
 
   useEffect(() => {
@@ -68,12 +88,14 @@ export default function WorkflowsPage() {
     <PageShell width="full">
       <PageHeader
         title="Workflows & Enrichment"
-        description="Bounded workflow blueprints and configurable enrichment waterfall policy for operator-guided automation."
+        description="Bounded workflow blueprints and enrichment rules that feed the shared local AI queue."
       />
 
       <Notice title="First delivery slice">
-        This is the initial bounded builder layer: reusable workflow blueprints plus enrichment-waterfall policy management through shared persisted contracts. Active blueprints materialize into the worker queue as first-class jobs.
+        Active workflow blueprints materialize into the same persisted AI queue that the local worker executes. Human-guided mode keeps your placement decisions sticky until you hand control back to AI-only scheduling.
       </Notice>
+
+      {errorMessage ? <Notice variant="destructive">{errorMessage}</Notice> : null}
 
       <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
         <UnifiedCard tone="review">
@@ -97,8 +119,8 @@ export default function WorkflowsPage() {
                       { value: "ACTIVE", label: "Active" },
                       { value: "PAUSED", label: "Paused" },
                     ]}
-                    onChange={async (value) => {
-                      await updateWorkflow(workflow, { status: value });
+                    onChange={(value) => {
+                      runWorkflowUpdate(workflow, { status: value });
                     }}
                   />
                   <SegmentedControl
@@ -109,8 +131,8 @@ export default function WorkflowsPage() {
                       { value: "LATER", label: "Later" },
                       { value: "PARKED", label: "Parked" },
                     ]}
-                    onChange={async (value) => {
-                      await updateWorkflow(workflow, { queueColumn: value });
+                    onChange={(value) => {
+                      runWorkflowUpdate(workflow, { queueColumn: value });
                     }}
                   />
                   <SegmentedControl
@@ -119,8 +141,8 @@ export default function WorkflowsPage() {
                       { value: "AI_ONLY", label: "AI only" },
                       { value: "HUMAN_GUIDED", label: "Human guided" },
                     ]}
-                    onChange={async (value) => {
-                      await updateWorkflow(workflow, { controlMode: value });
+                    onChange={(value) => {
+                      runWorkflowUpdate(workflow, { controlMode: value });
                     }}
                   />
                 </Stack>

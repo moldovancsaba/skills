@@ -21,12 +21,30 @@ checklist has two cooperating parts:
    - captures raw data, topics, hashtags, and feedback
 
 2. `local AI layer`
+   - runs continuously on the local machine
+   - supervises a queue-owned worker loop
    - fetches / enriches source evidence
    - researches around active topics
-   - generates flashcards
-   - supports checklist generation
+   - generates and revisits flashcards, goalcards, and taskcards
+   - maintains scoring, freshness, and tactical placement
 
 The database is the shared persistence layer between them.
+
+## Runtime processes
+
+The local runtime has 3 always-on processes:
+
+1. `guardian`
+   - watchdog only
+   - owns restart logic, health polling, heartbeat writing, and command bridge polling
+
+2. `sync`
+   - the only state-mutating worker
+   - claims queue jobs and executes them
+
+3. `status-server`
+   - observability and control surface
+   - does not own business-state mutation
 
 ## Canonical flow
 
@@ -57,22 +75,62 @@ The local layer can enrich a source using:
 - topic priority context
 - hashtag context and feedback
 
-The worker currently schedules work as a serial per-company cycle:
+The shipped scheduler is now queue-only.
 
-1. poll the company
-2. process user feedback and update durable memory (Fast-Path)
-3. run `researchHarvest` (Topic-driven)
-4. revisit one oldest task
-5. revisit one oldest flashcard
-6. replay one feedback slice
-7. retry one fail-safe queue slice through the secondary local model
-8. maintain one hashtag slice
-9. run one cleanup slice
-10. backfill one oldest citation / conflict slice
-11. revisit one oldest unresolved modified candidate
-12. revisit one oldest declined high-potential candidate
+That means:
 
-After a company completes that cycle, it waits for the configured company-cycle cooldown before becoming due again.
+1. `guardian` no longer runs taxonomy audits, kanban recomputes, or sidecar intelligence mutations
+2. `sync` no longer runs a direct per-company synthesis loop beside the queue
+3. all local-AI mutations are executed only through claimable pipeline jobs
+
+Current worker loop:
+
+1. startup integrity scrub
+2. sync queue state
+3. claim the next bounded pipeline batch
+4. execute only those jobs
+5. rest briefly
+6. repeat
+
+The worker rests for a short active interval after productive queue work and a longer idle interval when no queue work is available.
+
+## Queue-owned scheduler contract
+
+The queue is the single execution authority for local-AI work.
+
+Current managed job families:
+
+- `FEEDBACK_RECONCILIATION`
+- `CARD_RESCORING`
+- `FRONTIER_RECOMPUTE`
+- `FULL_MAINTENANCE`
+- `SCORE_ALERT_REPAIR`
+- `COMPANY_SYNTHESIS`
+- `WORKFLOW_BLUEPRINT`
+
+This replaces the older “serial per-company cycle” model as the authoritative runtime contract.
+
+## Purpose-specific audit clocks
+
+The worker now treats audit timing as multiple independent concerns rather than one overloaded field.
+
+Purpose-specific clocks:
+
+- `lastRescoredAt`
+  - used for periodic rescoring cadence and stale-audit queue signals
+
+- `lastTaxonomyAuditedAt`
+  - reserved for taxonomy/layer audit work
+  - must not be reused for rescoring or correction resolution
+
+- `lastCorrectionReconciledAt`
+  - used for flashcard correction reconciliation and Knowmore correction backlog health
+
+Legacy field:
+
+- `lastAuditedAt`
+  - deprecated
+  - retained only for backward compatibility during migration
 
 Two runtime rules now matter for delivery:
 
@@ -152,11 +210,11 @@ The local control plane reads that file and exposes an hourly dashboard with:
 
 ### 3b. Research harvest
 
-The worker can now create new raw `Source` rows from topic-aligned public research.
+The worker can create new raw `Source` rows from topic-aligned public research.
 
 This lane:
 
-- starts from active flashcards plus active Topics
+- starts from queue-owned synthesis and maintenance context
 - runs bounded, diversified public search (parallelized for throughput)
 - uses high-intent query patterns (reviews, comparisons, analysis) to improve yield
 - requires externally evidenced findings before it persists anything
@@ -167,7 +225,7 @@ This keeps internet-discovered knowledge inside the same unified raw-source pipe
 
 ### Shipped HiTL queue controls
 
-The current human steering surface for repetitive local-AI work is the webapp `Worker Queue` board at `/:companyId/pipeline`.
+The current human steering surface for repetitive local-AI work is the webapp `AI Queue` board at `/:companyId/pipeline`.
 
 Current shipped controls:
 
@@ -183,11 +241,10 @@ Behavior contract:
 
 Current selection contract:
 
-- **Topic-first Planning**: the lane now iterates through active `Topic` rows as the primary unit of work.
-- For each topic, it identifies the most relevant and stale `Flashcard` candidates to use as research seeds.
-- This ensures balanced coverage across all prioritized focus areas, rather than just researching the oldest overall flashcards.
-- If no direct topic matches exist for a chosen flashcard, the highest-priority active Topics are used as research context.
-- this follows the `done is better than perfect` rule for research candidate selection: weak relevance is allowed, but persistence still requires real external evidence.
+- queue priority is authoritative
+- topic context is still used inside research and synthesis selection
+- oldest-first fairness still appears inside bounded maintenance batches such as rescoring and revisit work
+- weak relevance is allowed for candidate selection, but persistence still requires real external evidence
 
 Current persistence contract:
 

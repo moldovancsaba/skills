@@ -39,11 +39,12 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardFreshnessBadge, UnifiedCardSection } from "@/components/ui/unified-card";
+import { CardShareAction } from "@/components/ui/card-share-action";
 import { MetaText } from "@/components/ui/typography";
 import { getTaskCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";
-import { getModuleTheme, getSemanticAccentBandStyle, getSemanticDropzoneStyle } from "@/lib/semantic-theme";
+import { getModuleTheme, getSemanticDropzoneStyle } from "@/lib/semantic-theme";
 
 type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
@@ -426,6 +427,7 @@ function CardDetailModal({
             Archive Unit
           </Button>
           <Group gap="sm">
+            <CardShareAction cardId={item.id} color="gray" size="md" />
             <Button variant="light" color="dark" onClick={onClose} size="sm">
               Cancel
             </Button>
@@ -636,23 +638,21 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                 .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
               return (
-                <Stack 
-                  key={col.key} 
-                  gap="md" 
-                  w={320} 
+                <Stack
+                  key={col.key}
+                  gap="md"
+                  w={320}
+                  miw={320}
                   h="100%"
-                  style={{ flexShrink: 0 }}
                 >
                   {/* Column Header */}
                   <UnifiedCard
                     tone={col.tone}
-                    layoutStyle={{
-                      ...getSemanticAccentBandStyle(col.tone),
-                      flexShrink: 0,
-                    }}
+                    accentBandTone={col.tone}
+                    flexShrink={0}
                   >
                     <Group justify="space-between" wrap="nowrap">
-                      <Stack gap={2} style={{ overflow: 'hidden' }}>
+                      <Stack gap={2} style={{ overflow: "hidden" }}>
                         <Text size="sm" c={col.tone === "neutral" ? "dimmed" : col.tone} fw={650} truncate>
                           {col.label}
                         </Text>
@@ -675,16 +675,17 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                         component="div"
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        style={{
-                          flex: 1,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          minHeight: 0,
-                          ...getSemanticDropzoneStyle(col.tone, snapshot.isDraggingOver),
-                        }}
+                        style={getSemanticDropzoneStyle(col.tone, snapshot.isDraggingOver)}
+                        display="flex"
+                        flex={1}
+                        mih={0}
                       >
-                        <ScrollArea offsetScrollbars style={{ flex: 1 }} viewportProps={{ style: { display: 'flex', flexDirection: 'column' } }}>
-                          <Stack gap="sm" p={4} style={{ flex: 1 }}>
+                        <ScrollArea
+                          offsetScrollbars
+                          flex={1}
+                          viewportProps={{ style: { display: "flex", flexDirection: "column" } }}
+                        >
+                          <Stack gap="sm" p={4} flex={1}>
                             {colItems.map((item, index) => (
                               <Draggable key={item.id} draggableId={item.id} index={index}>
                                 {(provided, snapshot) => {
@@ -715,11 +716,9 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                           event.preventDefault();
                                           handleOpenCard(item);
                                         }}
-                                        layoutStyle={{
-                                          cursor: isActivelyDragging ? "grabbing" : "pointer",
-                                          userSelect: "none",
-                                          ...(isActivelyDragging ? { borderColor: getModuleTheme(col.tone).color } : {}),
-                                        }}
+                                        cursor={isActivelyDragging ? "grabbing" : "pointer"}
+                                        userSelect="none"
+                                        borderColor={isActivelyDragging ? getModuleTheme(col.tone).color : undefined}
                                       >
                                         <UnifiedCardBody>
                                         <Stack gap="xs">

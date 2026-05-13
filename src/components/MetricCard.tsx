@@ -19,7 +19,7 @@ const MetricCard = ({ label, value, change, changeType = "neutral", icon: Icon }
   };
 
   return (
-    <UnifiedCard tone="neutral" layoutStyle={{ height: "100%" }}>
+    <UnifiedCard tone="neutral" fullHeight>
       <UnifiedCardBody>
         <Stack gap="xs">
           <Group justify="space-between" wrap="nowrap">

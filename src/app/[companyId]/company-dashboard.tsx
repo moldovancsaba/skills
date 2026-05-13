@@ -251,7 +251,7 @@ export default function CompanyDashboard() {
   if (loading) {
     return (
       <PageShell width="full">
-        <Center style={{ minHeight: "60vh" }}>
+        <Center mih="60vh">
           <Stack align="center" gap="xl">
             <Loader color="ingress" />
             <Text c="dimmed">
@@ -287,7 +287,7 @@ export default function CompanyDashboard() {
 
   return (
     <PageShell width="full">
-      <RouteCardGrid cols={{ base: 1, sm: 2, lg: 5 }} mb="xl">
+      <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }} mb="xl">
         <LinkCard
           href={`/${companyId}/data`}
           icon={Database}
@@ -295,6 +295,7 @@ export default function CompanyDashboard() {
           metric={counts.sources}
           title="Data"
           chartData={chartSeries("sources", "dataIngress")}
+          density="compact"
         />
         <LinkCard
           href={`/${companyId}/topics`}
@@ -303,6 +304,7 @@ export default function CompanyDashboard() {
           metric={counts.topics}
           title="Topics"
           chartData={chartSeries("topics", "topicSynthesis")}
+          density="compact"
         />
         <LinkCard
           href={`/${companyId}/goals`}
@@ -311,6 +313,7 @@ export default function CompanyDashboard() {
           metric={counts.goals}
           title="Goals"
           chartData={chartSeries("goals", "strategicGoals", "nba")}
+          density="compact"
         />
         <LinkCard
           href={`/${companyId}/review`}
@@ -319,6 +322,7 @@ export default function CompanyDashboard() {
           metric={counts.reviewCount}
           title="Review"
           chartData={chartSeries("reviewGateway", "nba")}
+          density="compact"
         />
         <LinkCard
           href={`/${companyId}/knowmore`}
@@ -350,10 +354,11 @@ export default function CompanyDashboard() {
         <LinkCard
           href={`/${companyId}/pipeline`}
           icon={HardHat}
-          variant="gray"
+          variant="neutral"
           metric={counts.pipelineJobs}
           title="AI Queue"
           chartData={chartSeries("pipelineJobs", "reviewGateway")}
+          density="compact"
         />
       </RouteCardGrid>
 

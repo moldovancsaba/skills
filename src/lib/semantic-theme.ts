@@ -215,9 +215,25 @@ export function getSemanticOverlayShadowStyle(tone: ModuleTone = "neutral"): CSS
   };
 }
 
+export function getSemanticPillStyle(
+  tone: ModuleTone = "neutral",
+  { radius = "var(--mantine-radius-sm)" }: { radius?: string } = {},
+): CSSProperties {
+  return {
+    ...getSemanticInsetStyle(tone),
+    borderRadius: radius,
+  };
+}
+
 export function getSemanticAccentBandStyle(tone: ModuleTone = "neutral"): CSSProperties {
   return {
     borderTop: `4px solid ${getModuleTheme(tone).color}`,
+  };
+}
+
+export function getSemanticMutedStyle(opacity = 0.6): CSSProperties {
+  return {
+    opacity,
   };
 }
 
@@ -240,5 +256,30 @@ export function getSidebarShellStyle(): CSSProperties {
   return {
     borderRight: "1px solid var(--border-primary)",
     backgroundColor: "var(--sidebar-bg)",
+  };
+}
+
+export function getSidebarButtonStyle(): CSSProperties {
+  return {
+    borderRadius: "var(--mantine-radius-md)",
+  };
+}
+
+export function getSemanticFooterStyle(tone: ModuleTone = "neutral"): CSSProperties {
+  return {
+    ...getSemanticInsetStyle(tone),
+    borderTop: "1px solid var(--surface-section-border)",
+    borderRight: "none",
+    borderBottom: "none",
+    borderLeft: "none",
+  };
+}
+
+export function getSemanticHaloStyle(
+  tone: ModuleTone = "neutral",
+  width = 4,
+): CSSProperties {
+  return {
+    boxShadow: `0 0 0 ${width}px ${getModuleTheme(tone).surface}`,
   };
 }

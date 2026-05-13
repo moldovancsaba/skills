@@ -121,8 +121,9 @@ The repetitive-job system now has a first-class queue model:
 - `internal-search.ts` is the shared retrieval boundary for internal cards, queue jobs, and workflow blueprints
 - `internal-search.ts` also owns result counts, entity-layer filtering, and ranking boosts from ICE and freshness
 - `grounded-answers.ts` builds bounded evidence-backed answers on top of the internal search layer, including explicit intent/confidence/evidence-group fields
-- `observability.ts` aggregates heartbeat, queue, score-health, worker reports, and recent outcomes for mission-control surfaces, and drives bounded repair recommendations
-- `app/api/knowmore/health/route.ts` exposes knowledge-layer health states and bounded repair actions directly on the Knowmore surface while still using the shared queue contract underneath
+- observability data shown in the webapp must be precomputed by the local AI system and persisted into MongoDB Atlas or local runtime artifacts first; the online app only reads those persisted results and writes operator interaction records
+- `observability.ts` is a webapp read-model adapter for mission-control surfaces, not an authoritative computation owner; repair recommendations, score-health evaluation, and worker-state interpretation belong to the local AI system
+- `app/api/knowmore/health/route.ts` must expose persisted knowledge-layer health state and write bounded repair intents or feedback signals only; it must not become a parallel health-calculation engine
 - `evaluation-bench.ts` is an internal admin-only replay and promotion-gate module used for AI quality governance, not a normal end-user checklist page
 - `budget-governor.ts` owns workload usage attribution, virtual/default budget policies, budget-pressure summaries, recommended budget events, and explicit control application for queue, workflow, search/answer, and observability work
 - `workflow-blueprints.ts` owns the persisted bounded workflow-builder contract and default blueprint registry; active blueprints are synchronized into `PipelineJob` records and executed by the shared queue worker
@@ -139,7 +140,7 @@ The repetitive-job system now has a first-class queue model:
 - frontier recomputation uses blended priority plus relative peer ranking for tactical column assignment while preserving raw ICE as the visible card score
 - tactical API responses include `priorityProfile` so the board can explain why an item is ranked where it is
 - manual planning anchors from drag/drop remain first-class human signal and are preserved ahead of AI-only priority ordering
-- `score-health.js` plus `scripts/repair-ice-scores.js` form the maintenance side of the scoring architecture: one measures clustering and one resynchronizes historical cards onto the live shared contract
+- score-health measurement and repair are local-AI responsibilities; the worker computes and persists score-health outputs, and bounded repair tooling resynchronizes historical cards onto the live shared contract
 - `feedback/route.ts` writes task feedback into the canonical `Feedback` stream so worker-side `DELIVER` propagation and lifecycle handling are not bypassed by the webapp
 - flashcards and tasks both persist lineage-family and duplicate-cluster context so refinement, suppression, and downstream reward remain traceable across layers
 - `refiner.js` now owns duplicate-cluster tagging and split-aware task refinement in addition to merge/suppress/enrich paths

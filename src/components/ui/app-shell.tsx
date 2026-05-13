@@ -47,7 +47,7 @@ export function PageShell({
     <Container 
       size={width === "full" ? "100%" : width} 
       py="xl"
-      style={{ position: "relative" }}
+      pos="relative"
     >
       <Stack gap="xl">
         {children}
@@ -80,7 +80,7 @@ export function PageHeader({
               component={Link} 
               href={backHref}
               c="dimmed"
-              style={{ display: "flex", alignItems: "center", gap: 4 }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
             >
               <ArrowLeft size={12} />
               {backLabel}
@@ -155,7 +155,7 @@ export interface RouteCardGridProps extends SimpleGridProps {
 
 export function RouteCardGrid({
   children,
-  cols = { base: 1, sm: 2, lg: 7 },
+  cols = { base: 1, sm: 2, xl: 4 },
   ...props
 }: RouteCardGridProps) {
   return (
@@ -225,9 +225,7 @@ export function EmptyState({
   return (
     <UnifiedCard
       tone={resolvedTone}
-      layoutStyle={{
-        borderStyle: "dashed",
-      }}
+      dashed
     >
       <UnifiedCardBody>
       <Stack align="center" gap="md">
@@ -277,20 +275,19 @@ export function LinkCard({
     <UnstyledButton 
       component={Link} 
       href={href} 
-      style={{ display: "block", height: "100%", textDecoration: 'none' }}
+      display="block"
+      h="100%"
+      td="none"
     >
       <UnifiedCard
         tone={tone}
         interactive
-        layoutStyle={{
-          ...getModuleCssVars(tone),
-          overflow: "hidden",
-          minHeight: rem(isCompact ? 248 : 300),
-          padding: isCompact ? "var(--mantine-spacing-md)" : "var(--mantine-spacing-lg)",
-        }}
+        overflow="hidden"
+        minHeight={rem(isCompact ? 248 : 300)}
+        padding={isCompact ? "var(--mantine-spacing-md)" : "var(--mantine-spacing-lg)"}
       >
         <UnifiedCardBody>
-        <Stack gap={isCompact ? "md" : "xl"} h="100%" style={{ position: 'relative', zIndex: 1 }}>
+        <Stack gap={isCompact ? "md" : "xl"} h="100%" pos="relative" style={{ zIndex: 1 }}>
           <Group justify="space-between" align="center">
             <ThemeIcon color={mantineColor} size={isCompact ? "lg" : "xl"}>
               <Icon size={isCompact ? 18 : 20} />

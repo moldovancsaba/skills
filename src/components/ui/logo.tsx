@@ -1,6 +1,6 @@
 "use client";
 
-import { Group, Text, ThemeIcon, rem } from "@mantine/core";
+import { Group, Text, ThemeIcon, Anchor } from "@mantine/core";
 import { IconCheckbox as LogoIcon } from "@tabler/icons-react";
 import Link from "next/link";
 
@@ -9,7 +9,7 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const fontSize = size === "sm" ? "md" : size === "md" ? "xl" : "2xl";
 
   return (
-    <Link href="/" style={{ textDecoration: "none" }}>
+    <Anchor component={Link} href="/" underline="never" c="inherit">
       <Group gap="xs">
         <ThemeIcon 
           size={iconSize + 8} 
@@ -20,13 +20,11 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
         <Text 
           size={fontSize} 
           c="var(--text-primary)"
-          style={{ 
-            fontFamily: "var(--font-display)"
-          }}
+          ff="var(--font-display)"
         >
           checklist
         </Text>
       </Group>
-    </Link>
+    </Anchor>
   );
 }

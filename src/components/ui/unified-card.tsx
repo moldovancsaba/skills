@@ -3,7 +3,7 @@
 import type { ReactNode, CSSProperties, KeyboardEvent, MouseEvent } from "react";
 import { Card, Stack, Group, Box, Badge, rem } from "@mantine/core";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
-import { getSemanticHoverStyle, getSemanticInsetStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
+import { getSemanticAccentBandStyle, getSemanticHoverStyle, getSemanticInsetStyle, getSemanticMutedStyle, getSemanticPillStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
 import type { CardFreshnessState } from "@/lib/card-freshness";
 import { applySurfaceInteractionHandlers } from "@/lib/ui-interactions";
 import { BodyText, CardTitle } from "@/components/ui/typography";
@@ -11,10 +11,22 @@ import { MarkdownText } from "@/components/ui/markdown-text";
 
 type UnifiedCardProps = {
   children: ReactNode;
-  layoutStyle?: CSSProperties;
   mt?: string | number;
   tone?: ModuleTone;
   interactive?: boolean;
+  dashed?: boolean;
+  fullHeight?: boolean;
+  fullWidth?: boolean;
+  relative?: boolean;
+  muted?: boolean;
+  accentBandTone?: ModuleTone;
+  padding?: string | number;
+  minHeight?: string | number;
+  overflow?: CSSProperties["overflow"];
+  flexShrink?: CSSProperties["flexShrink"];
+  cursor?: CSSProperties["cursor"];
+  userSelect?: CSSProperties["userSelect"];
+  borderColor?: CSSProperties["borderColor"];
   onClick?: (event: MouseEvent<HTMLDivElement>) => void;
 };
 
@@ -54,14 +66,41 @@ function getPreviewText(value: string, previewLength: number) {
 
 export function UnifiedCard({
   children,
-  layoutStyle,
   mt,
   tone = "neutral",
   interactive = false,
+  dashed = false,
+  fullHeight = false,
+  fullWidth = false,
+  relative = false,
+  muted = false,
+  accentBandTone,
+  padding,
+  minHeight,
+  overflow,
+  flexShrink,
+  cursor,
+  userSelect,
+  borderColor,
   onClick,
 }: UnifiedCardProps) {
   const isInteractive = interactive || Boolean(onClick);
-  const baseStyle = getSemanticSurfaceStyle(tone, { interactive: isInteractive, elevated: true });
+  const baseStyle = {
+    ...getSemanticSurfaceStyle(tone, { interactive: isInteractive, elevated: true }),
+    ...(dashed ? { borderStyle: "dashed" as const } : {}),
+    ...(fullHeight ? { height: "100%" } : {}),
+    ...(fullWidth ? { width: "100%" } : {}),
+    ...(relative ? { position: "relative" as const } : {}),
+    ...(muted ? getSemanticMutedStyle() : {}),
+    ...(accentBandTone ? getSemanticAccentBandStyle(accentBandTone) : {}),
+    ...(padding ? { padding } : {}),
+    ...(minHeight ? { minHeight } : {}),
+    ...(overflow ? { overflow } : {}),
+    ...(flexShrink !== undefined ? { flexShrink } : {}),
+    ...(cursor ? { cursor } : {}),
+    ...(userSelect ? { userSelect } : {}),
+    ...(borderColor ? { borderColor } : {}),
+  };
   const hoverStyle = isInteractive ? getSemanticHoverStyle(tone) : null;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -74,7 +113,7 @@ export function UnifiedCard({
   return (
     <Card
       mt={mt}
-      style={layoutStyle ? { ...baseStyle, ...layoutStyle } : baseStyle}
+      style={baseStyle}
       onMouseEnter={
         isInteractive
           ? (event) => {
@@ -86,9 +125,6 @@ export function UnifiedCard({
         isInteractive
           ? (event) => {
               applySurfaceInteractionHandlers(event, baseStyle);
-              if (layoutStyle) {
-                applySurfaceInteractionHandlers(event, layoutStyle);
-              }
             }
           : undefined
       }
@@ -196,10 +232,7 @@ export function UnifiedCardSection({ children, mt, tone = "neutral" }: UnifiedCa
   return (
     <Box
       p="md"
-      style={{
-        borderRadius: rem(12),
-        ...getSemanticInsetStyle(tone),
-      }}
+      style={getSemanticPillStyle(tone, { radius: rem(12) })}
       mt={mt}
     >
       {children}

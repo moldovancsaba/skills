@@ -18,7 +18,7 @@ type ExpertTipCardProps = {
 
 export function ExpertTipCard({ tip }: ExpertTipCardProps) {
   return (
-    <UnifiedCard tone="synthesis" layoutStyle={{ height: "100%" }}>
+    <UnifiedCard tone="synthesis" fullHeight>
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">

@@ -12,6 +12,7 @@ import {
   ActionIcon, 
   ScrollArea, 
   UnstyledButton,
+  InputBase,
   rem,
   ThemeIcon
 } from "@mantine/core";
@@ -122,7 +123,7 @@ export function HashtagMultiSelect({
                 <ActionIcon 
                   size="xs" 
                   color="ingress" 
-                  variant="transparent"
+                  variant="subtle"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleRemoveTag(tag);
@@ -136,18 +137,18 @@ export function HashtagMultiSelect({
             </Badge>
           ))}
 
-          <input
+          <InputBase
+            component="input"
+            variant="unstyled"
             ref={inputRef}
             type="text"
-            style={{
-              flex: 1,
-              minWidth: rem(120),
-              backgroundColor: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: 'var(--text-primary)',
-              font: 'inherit',
-              padding: '4px 0'
+            flex={1}
+            miw={rem(120)}
+            styles={{
+              input: {
+                color: 'var(--text-primary)',
+                padding: '4px 0',
+              },
             }}
             placeholder={selected.length === 0 ? placeholder : ""}
             value={inputValue}
@@ -194,12 +195,12 @@ export function HashtagMultiSelect({
                     >
                       <Group justify="space-between">
                         <Group gap="xs">
-                          <ThemeIcon variant="transparent" color="ingress" size="xs">
+                          <ThemeIcon variant="subtle" color="ingress" size="xs">
                             <Hash size={14} />
                           </ThemeIcon>
                           <Text>{suggestion}</Text>
                         </Group>
-                        <Check size={14} color="var(--module-ingress-color)" style={{ opacity: 0.6 }} />
+                        <Check size={14} color="var(--module-ingress-color)" opacity={0.6} />
                       </Group>
                     </UnstyledButton>
                   ))}

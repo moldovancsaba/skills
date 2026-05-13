@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
 import { Badge, Button, Checkbox, Group, Loader, SimpleGrid, Stack, TextInput } from "@mantine/core";
@@ -223,13 +224,13 @@ export default function SearchPage() {
                   <UnifiedCardSection key={`${item.entityType}:${item.id}`} tone="knowmore">
                     <Stack gap="xs">
                       <Group justify="space-between" align="flex-start">
-                        <Stack gap={4} style={{ flex: 1 }}>
+                        <Stack gap={4} flex={1}>
                           <Badge variant="outline" color="gray" w="fit-content">
                             {toneLabel(item.entityType)}
                           </Badge>
                           <BodyText>{item.title}</BodyText>
                         </Stack>
-                        <Button component="a" href={item.href} variant="subtle" rightSection={<Sparkles size={14} />}>
+                        <Button component={Link} href={item.href} variant="subtle" rightSection={<Sparkles size={14} />}>
                           Open
                         </Button>
                       </Group>
@@ -285,7 +286,7 @@ export default function SearchPage() {
               <BodyText>{item.snippet}</BodyText>
               <Group justify="space-between">
                 <MetaText>{new Date(item.updatedAt).toLocaleString()}</MetaText>
-                <Button component="a" href={item.href} variant="subtle" rightSection={<Sparkles size={14} />}>
+                <Button component={Link} href={item.href} variant="subtle" rightSection={<Sparkles size={14} />}>
                   Open
                 </Button>
               </Group>

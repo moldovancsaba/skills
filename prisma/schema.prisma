@@ -77,6 +77,9 @@ model IntelligenceSnapshot {
   activeTask          String?
   stage               String?
   analyticsHistory    Json?     @default("[]")
+  scoreHealth         Json?     @default("{}")
+  knowmoreHealth      Json?     @default("{}")
+  observabilitySummary Json?    @default("{}")
   
   updatedAt           DateTime  @default(now()) @updatedAt
   company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)

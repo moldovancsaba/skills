@@ -22,6 +22,13 @@ All client communication must be:
 - **Traceable** — Every communication is logged in the customer record
 - **Timely** — Sent when promised or earlier, never late without notice
 - **Professional** — Consistent tone, correct formatting, error-free
+- **Truthful** — Uncertainty, risk, delay, or non-compliance must be stated directly
+
+Client communication must not:
+
+- soften bad news
+- hide uncertainty behind polished wording
+- present assumptions as verified facts
 
 ## Communication Cadence
 

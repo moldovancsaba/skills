@@ -23,7 +23,7 @@ export function DashboardChart({ data, color, height = 64 }: DashboardChartProps
   if (!data || data.length === 0) return null;
 
   return (
-    <Box h={height} w="100%" style={{ opacity: 0.6 }}>
+    <Box h={height} w="100%" opacity={0.6}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
           <Line

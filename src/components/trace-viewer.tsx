@@ -16,6 +16,7 @@ import {
 } from "@mantine/core";
 import { BodyText, MetaText, SectionTitle } from "@/components/ui/typography";
 import {
+  getSemanticHaloStyle,
   getSemanticDividerStyle,
   getSemanticInsetStyle,
   getSemanticOverlayShadowStyle,
@@ -113,7 +114,7 @@ export function TraceViewer({
                     variant="filled" 
                     color={node.type === 'SOURCE' ? 'gray' : node.type === 'FLASHCARD' ? 'knowmore' : 'checklist'} 
                     size={36}
-                    style={{ boxShadow: '0 0 0 4px var(--surface-base)' }}
+                    style={getSemanticHaloStyle("neutral")}
                   >
                     {node.type === 'SOURCE' && <FileText size={18} />}
                     {node.type === 'FLASHCARD' && <Lightbulb size={18} />}
@@ -137,7 +138,7 @@ export function TraceViewer({
             ...getSemanticInsetStyle("neutral"),
           }}
         >
-          <Text size="xs" c="dimmed"  style={{ lineHeight: 1.6, fontStyle: 'italic' }}>
+          <Text size="xs" c="dimmed" lh={1.6} fs="italic">
             This trace visualizes the autonomous transformation from raw market evidence into strategic action cards.
           </Text>
         </Box>

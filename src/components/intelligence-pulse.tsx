@@ -114,7 +114,7 @@ export function IntelligencePulse() {
         <Stack gap="md">
           <Group justify="space-between">
           <Group gap="xs">
-            <ThemeIcon variant="transparent" color="review" size="sm">
+            <ThemeIcon variant="subtle" color="review" size="sm">
               <Zap size={14} />
             </ThemeIcon>
             <MetaText>Engine Pulse</MetaText>
@@ -165,7 +165,7 @@ export function IntelligencePulse() {
         <UnifiedCardBody>
         <Stack gap="md">
           <Group gap="xs">
-            <ThemeIcon variant="transparent" color="ingress" size="sm">
+            <ThemeIcon variant="subtle" color="ingress" size="sm">
               <Gauge size={14} />
             </ThemeIcon>
             <MetaText>Throughput Yield</MetaText>
@@ -205,7 +205,7 @@ export function IntelligencePulse() {
         <UnifiedCardBody>
         <Stack gap="md" h="100%">
           <Group gap="xs">
-            <ThemeIcon variant="transparent" color="strategy" size="sm">
+            <ThemeIcon variant="subtle" color="strategy" size="sm">
               <Timeline size={14} />
             </ThemeIcon>
             <MetaText>Performance History</MetaText>

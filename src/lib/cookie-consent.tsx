@@ -47,7 +47,7 @@ export function useCookieConsent() {
   return { showBanner, settings, acceptAll, acceptSelected, close };
 }
 
-import { Card, Text, Group, Button, Checkbox, Stack, Box, rem } from "@mantine/core";
+import { Affix, Card, Text, Group, Button, Checkbox, Stack, Box, rem, Container } from "@mantine/core";
 import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 export function CookieBanner() {
@@ -58,24 +58,9 @@ export function CookieBanner() {
   if (!showBanner) return null;
 
   return (
-    <Box 
-      style={{ 
-        position: 'fixed', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        zIndex: 1000,
-        pointerEvents: 'none'
-      }}
-    >
-      <Box 
-        style={{ 
-          paddingLeft: 'var(--app-shell-navbar-offset, 280px)',
-          width: '100%',
-          pointerEvents: 'none'
-        }}
-      >
-        <Box p="md" style={{ pointerEvents: 'auto' }}>
+    <Affix position={{ bottom: 0, left: 0, right: 0 }} zIndex={1000}>
+      <Container fluid px="md" style={{ paddingLeft: 'var(--app-shell-navbar-offset, 280px)' }}>
+        <Box py="md">
           <Card 
             radius="lg" 
             p="xl" 
@@ -89,7 +74,7 @@ export function CookieBanner() {
           >
             <Stack gap="md">
               <Group justify="space-between" align="flex-start" wrap="nowrap">
-                <Stack gap={4} style={{ flex: 1 }}>
+                <Stack gap={4} flex={1}>
                   <Text size="sm" fw={700}>Cookie Preferences</Text>
                   <Text size="xs" c="dimmed">
                     We use cookies to improve your experience. Essential cookies are required for the system to operate.
@@ -134,8 +119,8 @@ export function CookieBanner() {
             </Stack>
           </Card>
         </Box>
-      </Box>
-    </Box>
+      </Container>
+    </Affix>
   );
 }
 

@@ -93,7 +93,7 @@ export function ManualPageContent() {
 
         <Stack gap="xl">
           {manualSections.map((section) => (
-            <UnifiedCard key={section.id} tone="neutral" layoutStyle={{ position: "relative" }}>
+            <UnifiedCard key={section.id} tone="neutral" relative>
               <Badge 
                 color="ingress" 
                 size="xs" 
@@ -115,7 +115,7 @@ export function ManualPageContent() {
           ))}
         </Stack>
 
-        <UnifiedCard tone="neutral" layoutStyle={{ borderStyle: "dashed" }}>
+        <UnifiedCard tone="neutral" dashed>
           <UnifiedCardBody>
             <Stack align="center" gap="md">
               <CardTitle>Need rapid operational support?</CardTitle>

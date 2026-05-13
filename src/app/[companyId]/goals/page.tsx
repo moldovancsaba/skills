@@ -270,7 +270,8 @@ export default function GoalsPage() {
             leftSection={<Search size={16} />}
             value={searchQuery} 
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ flex: 1, maxWidth: 400 }}
+            flex={1}
+            maw={400}
           />
           <Button 
             variant="light" 

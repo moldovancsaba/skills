@@ -16,14 +16,15 @@ import {
 import { 
   UnifiedCard, 
   UnifiedCardHeader, 
-  UnifiedCardBody 
+  UnifiedCardBody,
+  UnifiedCardSection,
 } from "@/components/ui/unified-card";
 import { BodyText, LabelText, MetaText } from "@/components/ui/typography";
 import { FormInput } from "@/components/ui/form-fields";
 import { Button } from "@mantine/core";
 import { IconUsers as Users, IconUserPlus as UserPlus, IconTrash as Trash2, IconShield as Shield, IconUser as UserIcon, IconMail as Mail } from "@tabler/icons-react";
 import { useState, useEffect, useCallback } from "react";
-import { getSemanticSurfaceStyle, resolveMantineColor } from "@/lib/semantic-theme";
+import { resolveMantineColor } from "@/lib/semantic-theme";
 
 export function MemberList({ companyId, isOwner }: { companyId: string; isOwner: boolean }) {
   const [members, setMembers] = useState<any[]>([]);
@@ -98,7 +99,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
 
   if (loading) {
     return (
-      <UnifiedCard tone="ingress" layoutStyle={{ height: "100%" }}>
+      <UnifiedCard tone="ingress" fullHeight>
         <Stack align="center" justify="center" h={200}>
           <Loader color="ingress" />
           <MetaText>Syncing Permissions...</MetaText>
@@ -108,7 +109,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
   }
 
   return (
-    <UnifiedCard tone="ingress" layoutStyle={{ height: "100%" }}>
+    <UnifiedCard tone="ingress" fullHeight>
       <UnifiedCardHeader
         supporting={
           <Group gap="xs">
@@ -156,13 +157,9 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
 
           <Stack gap="sm">
             {members.map((member) => (
-              <Box 
+              <UnifiedCardSection
                 key={member.id}
-                p="sm" 
-                style={{ 
-                  borderRadius: "var(--mantine-radius-md)",
-                  ...getSemanticSurfaceStyle(member.role === "OWNER" ? "strategy" : "neutral", { elevated: false })
-                }}
+                tone={member.role === "OWNER" ? "strategy" : "neutral"}
               >
                 <Group justify="space-between" wrap="nowrap">
                   <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
@@ -196,7 +193,7 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
                     </Tooltip>
                   )}
                 </Group>
-              </Box>
+              </UnifiedCardSection>
             ))}
           </Stack>
         </Stack>

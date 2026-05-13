@@ -20,6 +20,21 @@ The repository must be interpreted in this order:
 
 No lower document is allowed to redefine a higher-level rule.
 
+## 1.1 Professional Truthfulness Rule
+
+This repository is maintained under professional product-development standards.
+
+Non-negotiable behavior:
+
+- no hallucinated facts
+- no softening of explicit rules
+- no vague or inflated wording used to cover uncertainty
+- no ambiguous restatement of an explicit repository rule
+- no claiming compliance when the code is only partially compliant
+
+When the written rule is explicit, it must be stated exactly.
+When the system is non-compliant, that must be stated directly.
+
 ## 2. What We Use
 
 Approved application stack:
@@ -66,6 +81,24 @@ Forbidden for product UI:
 Allowed exception:
 
 - low-level Mantine primitives inside design-system components themselves
+
+## 3.1 Communication Standard For Engineers And Agents
+
+All engineering and agent communication in this repository must be:
+
+- direct
+- precise
+- verifiable
+- unambiguous
+- professionally plainspoken
+
+Forbidden communication behavior:
+
+- hedging away a hard rule
+- “close enough” summaries that change rule meaning
+- pseudo-professional filler wording
+- vague claims of readiness, compliance, or completion
+- inventing rationale that is not present in the code or governing docs
 
 ## 4. Frontend SSOT Files
 

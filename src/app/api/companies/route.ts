@@ -23,105 +23,26 @@ export async function GET(request: NextRequest) {
         }
       },
       include: {
-        _count: {
-          select: {
-            sources: true,
-            uploadedSourceFiles: true,
-            topics: true,
-            flashcards: true,
-            goalcards: true,
-            nbaItems: true,
-          }
-        },
-        // We still need labels/tags for the header
-        sources: {
-          take: 0 // We only want the total count via _count
-        },
-        nbaItems: {
-          where: { processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] } },
-          orderBy: { iceScore: "desc" },
-          take: 0, // We handle the count in _count, but filtering logic for 'pending' is complex in count
-        },
+        intelligenceSnapshot: true,
       },
     });
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
-
-    const enrichedCompanies = await Promise.all(companies.map(async (c) => {
-      const [sources, files, topics, flashcards, goals, nbaItems] = await Promise.all([
-        prisma.source.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-        prisma.uploadedSourceFile.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-        prisma.topic.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-        prisma.flashcard.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-        prisma.goalcard.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-        prisma.nBAItem.findMany({ where: { companyId: c.id, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-      ]);
-
-      const [bSources, bFiles, bTopics, bFlashcards, bGoals, bNBA] = await Promise.all([
-        prisma.source.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
-        prisma.uploadedSourceFile.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
-        prisma.topic.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
-        prisma.flashcard.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
-        prisma.goalcard.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
-        prisma.nBAItem.count({ where: { companyId: c.id, createdAt: { lt: thirtyDaysAgo } } }),
-      ]);
-
-      const history = [];
-      let curS = bSources + bFiles;
-      let curT = bTopics;
-      let curK = bFlashcards;
-      let curG = bGoals;
-      let curN = bNBA;
-
-      for (let i = 0; i <= 30; i++) {
-        const d = new Date(thirtyDaysAgo);
-        d.setDate(d.getDate() + i);
-        const dayStr = d.toISOString().split('T')[0];
-
-        curS += sources.filter(s => s.createdAt.toISOString().split('T')[0] === dayStr).length;
-        curS += files.filter(f => f.createdAt.toISOString().split('T')[0] === dayStr).length;
-        curT += topics.filter(t => t.createdAt.toISOString().split('T')[0] === dayStr).length;
-        curK += flashcards.filter(f => f.createdAt.toISOString().split('T')[0] === dayStr).length;
-        curG += goals.filter(g => g.createdAt.toISOString().split('T')[0] === dayStr).length;
-        curN += nbaItems.filter(n => n.createdAt.toISOString().split('T')[0] === dayStr).length;
-
-        history.push({ date: dayStr, sources: curS, topics: curT, flashcards: curK, goals: curG, nba: curN });
-      }
-
-      const pendingNbaCount = await prisma.nBAItem.count({
-        where: {
-          companyId: c.id,
-          processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
-          activityState: { in: ["ACTIVE", "STALE"] },
-          kanbanColumn: "CHECKLIST",
-          scheduledDate: { lte: new Date() }
-        }
-      });
-
-      const reviewCount = await prisma.nBAItem.count({
-        where: {
-          companyId: c.id,
-          processingStatus: "REVIEW",
-          activityState: { in: ["ACTIVE", "STALE"] },
-        },
-      });
-
+    const enrichedCompanies = companies.map((company) => {
+      const snapshot = company.intelligenceSnapshot;
       return {
-        ...c,
+        ...company,
         metrics: {
-          data: (c._count.sources || 0) + (c._count.uploadedSourceFiles || 0),
-          topics: c._count.topics || 0,
-          knowmore: c._count.flashcards || 0,
-          goals: c._count.goalcards || 0,
-          review: reviewCount,
-          checklist: pendingNbaCount,
-          tactical: c._count.nbaItems || 0
+          data: snapshot?.dataIngressCount ?? 0,
+          topics: snapshot?.topicSynthesisCount ?? 0,
+          knowmore: snapshot?.knowmoreCount ?? 0,
+          goals: snapshot?.strategicGoalsCount ?? 0,
+          review: snapshot?.reviewGatewayCount ?? 0,
+          checklist: snapshot?.checklistCount ?? 0,
+          tactical: snapshot?.tacticalBoardCount ?? 0,
         },
-        analytics: history
+        analytics: Array.isArray(snapshot?.analyticsHistory) ? snapshot.analyticsHistory : [],
       };
-    }));
+    });
 
     return NextResponse.json(enrichedCompanies);
   } catch (error) {

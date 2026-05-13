@@ -14,6 +14,9 @@ Before editing any agent prompt, role, workflow, or operating instruction, read:
 - agents must not invent stack rules that contradict the rulebook
 - agents must treat the handover and rulebook as AI brain memory
 - if agent-facing operating behavior changes, update the AI brain docs in the same work
+- agents must not hallucinate facts, status, architecture, or standards
+- agents must not soften explicit rules into advisory wording
+- agents must use direct professional language and say when the implementation is not yet compliant
 
 ## Current Expectations
 

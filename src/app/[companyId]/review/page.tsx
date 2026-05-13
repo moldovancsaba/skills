@@ -22,10 +22,9 @@ import {
   rem
 } from "@mantine/core";
 import { EmptyState, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
-import { UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardActions } from "@/components/ui/unified-card";
+import { UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardActions, UnifiedCardSection } from "@/components/ui/unified-card";
 import { calculateKnowledgeIceScore, calculateTaskIceScore } from "@/lib/scoring-contract";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
-import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 
 export default function ReviewDashboard() {
   const params = useParams();
@@ -190,11 +189,11 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
         />
         <UnifiedCardBody>
           <Stack gap="lg">
-            <Box p="md" style={{ ...getSemanticSurfaceStyle("review", { elevated: false }) }}>
+            <UnifiedCardSection tone="review">
               <Text c="dimmed" lineClamp={4}>
                 {stripTechnicalMetadata(item.body || item.description)}
               </Text>
-            </Box>
+            </UnifiedCardSection>
 
             <SimpleGrid cols={3} spacing="xs">
               <NumberInput label="Impact" min={1} max={10} value={i} onChange={setI} />

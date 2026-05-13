@@ -63,6 +63,17 @@ Application stack:
 
 ## 4. Coding Standards
 
+### 4.0 Professional truthfulness standard
+
+Engineering communication and repository maintenance must be professionally exact.
+
+Required behavior:
+
+- do not hallucinate facts, compliance, status, or rules
+- do not soften explicit standards into weaker wording
+- do not use vague filler language to conceal uncertainty
+- do not describe partial compliance as completed compliance
+
 ### 4.1 Documentation synchronization
 
 If a system contract changes, documentation must change in the same work.

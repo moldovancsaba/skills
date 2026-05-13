@@ -19,6 +19,9 @@ checklist has two cooperating parts:
    - user-facing
    - runs on Vercel
    - captures raw data, topics, hashtags, and feedback
+   - reads persisted results from MongoDB Atlas
+   - writes user interaction records back to MongoDB Atlas
+   - must not become an authoritative calculation layer for score health, observability interpretation, analytics history, or queue recommendations
 
 2. `local AI layer`
    - runs continuously on the local machine
@@ -27,8 +30,17 @@ checklist has two cooperating parts:
    - researches around active topics
    - generates and revisits flashcards, goalcards, and taskcards
    - maintains scoring, freshness, and tactical placement
+   - calculates operational health, score health, analytics snapshots, and repair recommendations
+   - pushes those results back into MongoDB Atlas or runtime artifacts consumed by the app
 
 The database is the shared persistence layer between them.
+
+Authoritative boundary:
+
+- everything that materially calculates intelligence state belongs to the local AI layer
+- the online app shows persisted results from the database
+- the online app records user interactions to the database
+- the local AI layer pulls those records, calculates, and pushes updated state back
 
 ## Runtime processes
 

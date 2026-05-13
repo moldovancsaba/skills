@@ -175,12 +175,12 @@ export function TaskReviewCard({
     <UnifiedCard
       tone="checklist"
       onClick={onOpenDetail ? () => onOpenDetail(item) : undefined}
-      layoutStyle={{ opacity: item.processingStatus === "DECLINED" ? 0.6 : 1 }}
+      muted={item.processingStatus === "DECLINED"}
     >
       <UnifiedCardHeader
         clampTitle={!detailMode}
         supporting={
-          <Group justify="space-between" wrap="nowrap" style={{ width: '100%' }}>
+          <Group justify="space-between" wrap="nowrap" w="100%">
             <Group gap={7}>
               <Badge color="dark">{item.processingStatus}</Badge>
               <Badge color="checklist">TASK</Badge>

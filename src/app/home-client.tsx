@@ -263,7 +263,7 @@ export default function Home() {
           <Stack gap={48}>
             {Array.isArray(companies) && companies.map((c: any) => (
               <Box key={c.id}>
-                <Group justify="space-between" mb="md" align="flex-end" style={{ borderBottom: '1px solid var(--surface-section-border)' }}>
+                <Group justify="space-between" align="flex-end" mb="md">
                   <Stack gap={4}>
                     <Group gap="sm">
                       <Title 
@@ -300,8 +300,9 @@ export default function Home() {
                     </Group>
                   )}
                 </Group>
+                <Divider mb="md" />
 
-                <RouteCardGrid>
+                <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }}>
                   <LinkCard
                     href={`/${c.id}/data`}
                     icon={Database}
@@ -309,6 +310,7 @@ export default function Home() {
                     metric={c.metrics?.data ?? 0}
                     title="Data"
                     chartData={chartSeries(c.analytics, "sources", "dataIngress")}
+                    density="compact"
                   />
                   <LinkCard
                     href={`/${c.id}/topics`}
@@ -317,6 +319,7 @@ export default function Home() {
                     metric={c.metrics?.topics ?? 0}
                     title="Topics"
                     chartData={chartSeries(c.analytics, "topics", "topicSynthesis")}
+                    density="compact"
                   />
                   <LinkCard
                     href={`/${c.id}/goals`}
@@ -325,6 +328,7 @@ export default function Home() {
                     metric={c.metrics?.goals ?? 0}
                     title="Goals"
                     chartData={chartSeries(c.analytics, "goals", "strategicGoals", "nba")}
+                    density="compact"
                   />
                   <LinkCard
                     href={`/${c.id}/review`}
@@ -333,6 +337,7 @@ export default function Home() {
                     metric={c.metrics?.review ?? 0}
                     title="Review"
                     chartData={chartSeries(c.analytics, "reviewGateway", "nba")}
+                    density="compact"
                   />
                   <LinkCard
                     href={`/${c.id}/knowmore`}

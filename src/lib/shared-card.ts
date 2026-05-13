@@ -32,6 +32,70 @@ function fileSizeLabel(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function stripUtf8Bom(value: string) {
+  return value.replace(/^\uFEFF/, "");
+}
+
+function looksBinary(bytes: Uint8Array) {
+  const sample = bytes.subarray(0, Math.min(bytes.length, 512));
+  for (const byte of sample) {
+    if (byte === 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isMarkdownLikeFile(name: string, mimeType: string) {
+  const normalizedName = String(name || "").toLowerCase();
+  const normalizedMime = String(mimeType || "").toLowerCase();
+  return (
+    normalizedMime === "text/markdown" ||
+    normalizedMime === "text/x-markdown" ||
+    normalizedName.endsWith(".md") ||
+    normalizedName.endsWith(".markdown")
+  );
+}
+
+function isPlainTextLikeFile(name: string, mimeType: string) {
+  const normalizedName = String(name || "").toLowerCase();
+  const normalizedMime = String(mimeType || "").toLowerCase();
+  return (
+    normalizedMime.startsWith("text/") ||
+    normalizedName.endsWith(".txt") ||
+    normalizedName.endsWith(".log") ||
+    normalizedName.endsWith(".csv") ||
+    normalizedName.endsWith(".tsv") ||
+    normalizedName.endsWith(".json") ||
+    normalizedName.endsWith(".yaml") ||
+    normalizedName.endsWith(".yml") ||
+    normalizedName.endsWith(".xml")
+  );
+}
+
+function decodeUploadedFileBody(card: {
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  content: Uint8Array | Buffer | null;
+}) {
+  if (!card.content || card.content.length === 0) {
+    return `${card.mimeType || "file"} • ${fileSizeLabel(card.sizeBytes)}`;
+  }
+
+  if (!isMarkdownLikeFile(card.name, card.mimeType) && !isPlainTextLikeFile(card.name, card.mimeType)) {
+    return `${card.mimeType || "file"} • ${fileSizeLabel(card.sizeBytes)}`;
+  }
+
+  const bytes = card.content instanceof Uint8Array ? card.content : new Uint8Array(card.content);
+  if (looksBinary(bytes)) {
+    return `${card.mimeType || "file"} • ${fileSizeLabel(card.sizeBytes)}`;
+  }
+
+  const decoded = stripUtf8Bom(Buffer.from(bytes).toString("utf8")).trim();
+  return decoded || `${card.mimeType || "file"} • ${fileSizeLabel(card.sizeBytes)}`;
+}
+
 function normalizeSourcePayload(card: {
   id: string;
   companyId: string;
@@ -70,6 +134,7 @@ function normalizeFilePayload(card: {
   name: string;
   mimeType: string;
   sizeBytes: number;
+  content: Uint8Array | Buffer | null;
   iceScore?: number;
   hashtags: string[];
   createdAt: Date;
@@ -80,7 +145,7 @@ function normalizeFilePayload(card: {
     companyId: card.companyId,
     entityType: "DATA",
     title: card.name || "Uploaded file",
-    body: `${card.mimeType || "file"} • ${fileSizeLabel(card.sizeBytes)}`,
+    body: decodeUploadedFileBody(card),
     statusLabel: "DATACARD",
     subtypeLabel: "FILE",
     tone: "ingress",
@@ -277,6 +342,7 @@ export async function resolveSharedCardById(cardId: string): Promise<SharedCardP
         name: true,
         mimeType: true,
         sizeBytes: true,
+        content: true,
         hashtags: true,
         createdAt: true,
         updatedAt: true,

@@ -172,7 +172,7 @@ export default function ObservabilityPage() {
               <Stack gap="xs">
                 {(budget.recommendations || []).slice(0, 4).map((event: any, index: number) => (
                   <Group key={`${event.eventType}-${index}`} justify="space-between" align="flex-start">
-                    <Stack gap={2} style={{ flex: 1 }}>
+                    <Stack gap={2} flex={1}>
                       <Group gap="xs">
                         <Badge variant="light" color={event.severity === "CRITICAL" ? "review" : "tactical"}>{event.severity}</Badge>
                         <Badge variant="outline" color="gray">{event.feature}</Badge>

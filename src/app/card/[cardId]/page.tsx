@@ -6,6 +6,7 @@ import { Badge, Box, Center, Group, Loader, Stack, Text, ThemeIcon } from "@mant
 import { IconDatabase as Database, IconLayersIntersect as Layers, IconSparkles as Sparkles, IconTarget as Target, IconListCheck as ListCheck } from "@tabler/icons-react";
 import { PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
+import { MarkdownText } from "@/components/ui/markdown-text";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { SharedCardEntityType, SharedCardTone } from "@/lib/shared-card";
@@ -90,7 +91,7 @@ export default function SharedCardPage() {
 
   return (
     <PageShell width="md">
-      <Center style={{ minHeight: "100vh" }}>
+      <Center mih="100vh">
         <Stack gap="xl" maw={760} w="100%">
           <Group justify="center">
             <ThemeIcon color={card.tone} size="xl" radius="xl">
@@ -98,11 +99,11 @@ export default function SharedCardPage() {
             </ThemeIcon>
           </Group>
 
-          <UnifiedCard tone={card.tone} layoutStyle={{ width: "100%" }}>
+          <UnifiedCard tone={card.tone} fullWidth>
             <UnifiedCardHeader
               clampTitle={false}
               supporting={
-                <Group justify="space-between" wrap="nowrap" style={{ width: "100%" }}>
+                <Group justify="space-between" wrap="nowrap" w="100%">
                   {card.iceScore > 0 ? (
                     <Badge color={card.tone}>ICE {Math.round(card.iceScore)}</Badge>
                   ) : (
@@ -116,7 +117,7 @@ export default function SharedCardPage() {
               title={stripTechnicalMetadata(card.title)}
             />
             <UnifiedCardBody>
-              <BodyText c="var(--text-primary)">{stripTechnicalMetadata(card.body)}</BodyText>
+              <MarkdownText markdown={stripTechnicalMetadata(card.body)} />
 
               {card.hashtags.length > 0 && (
                 <UnifiedCardSection tone={card.tone}>

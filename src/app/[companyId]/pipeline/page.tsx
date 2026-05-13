@@ -250,7 +250,7 @@ export default function PipelineQueuePage() {
   if (loading) {
     return (
       <PageShell width="full">
-        <Center style={{ minHeight: "60vh" }}>
+        <Center mih="60vh">
           <Stack align="center" gap="xl">
             <Loader color="review" />
             <Text c="dimmed">Synchronizing pipeline queue…</Text>

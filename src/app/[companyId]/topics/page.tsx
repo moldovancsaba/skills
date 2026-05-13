@@ -332,7 +332,7 @@ export default function CompanyTopicsPage() {
 
                           <Group gap="sm">
                             <CardShareAction cardId={topic.id} color="synthesis" size="lg" />
-                            <ThemeIcon variant="transparent" color="synthesis" opacity={0.35}>
+                            <ThemeIcon variant="subtle" color="synthesis" opacity={0.35}>
                               <GripVertical size={16} />
                             </ThemeIcon>
                             <Tooltip label="Archive Focus">

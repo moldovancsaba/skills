@@ -27,6 +27,10 @@ export async function POST(request: NextRequest) {
 
     if (!companyId) return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
 
+    const scoreHealth = data.scoreHealth || {};
+    const knowmoreHealth = data.knowmoreHealth || {};
+    const observabilitySummary = data.observabilitySummary || {};
+
     const snapshot = await prisma.intelligenceSnapshot.upsert({
       where: { companyId },
       update: {
@@ -46,6 +50,9 @@ export async function POST(request: NextRequest) {
         activeTask: state.activeTask,
         stage: state.stage,
         analyticsHistory: data.analytics || [],
+        scoreHealth,
+        knowmoreHealth,
+        observabilitySummary,
       },
       create: {
         companyId,
@@ -65,6 +72,9 @@ export async function POST(request: NextRequest) {
         activeTask: state.activeTask,
         stage: state.stage,
         analyticsHistory: data.analytics || [],
+        scoreHealth,
+        knowmoreHealth,
+        observabilitySummary,
       }
     });
 

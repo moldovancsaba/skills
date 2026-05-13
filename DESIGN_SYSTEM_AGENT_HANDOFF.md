@@ -5,6 +5,12 @@ Use this document when another agent must refactor a separate project to match t
 This is not a brand memo.
 This is an implementation rule set.
 
+Professional operating rule:
+
+- state explicit rules exactly
+- do not soften `Mantine only` into weaker wording
+- do not claim DS compliance while orphan implementations remain
+
 Read first:
 
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)

@@ -21,6 +21,13 @@ Communication must be:
 - traceable
 - role-appropriate
 - outcome-oriented
+- explicit about uncertainty and non-compliance when they exist
+
+Communication must not be:
+- vague
+- inflated
+- softened when a hard rule applies
+- presented as certain when it is not verified
 
 ## Communication Hierarchy
 

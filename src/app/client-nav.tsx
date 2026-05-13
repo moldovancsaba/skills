@@ -17,6 +17,7 @@ import {
   Badge,
   Divider,
   Button,
+  Anchor,
 } from "@mantine/core";
 import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
@@ -26,7 +27,7 @@ import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
 import { APP_VERSION } from "@/lib/release";
 import { logClientInteraction } from "@/lib/client-events";
-import { getSidebarActiveStyle, getSidebarHoverStyle, getSidebarShellStyle, type ModuleTone } from "@/lib/semantic-theme";
+import { getSidebarActiveStyle, getSidebarButtonStyle, getSidebarHoverStyle, getSidebarShellStyle, type ModuleTone } from "@/lib/semantic-theme";
 
 const pipelineItems = [
   {
@@ -90,8 +91,8 @@ const pipelineItems = [
     href: (companyId: string) => `/${companyId}/pipeline`,
     label: "AI Queue",
     icon: HardHat,
-    color: "review",
-    tone: "review",
+    color: "gray",
+    tone: "neutral",
   },
 ];
 
@@ -323,9 +324,7 @@ export function ClientNav() {
               toggle();
             }}
             p="xs"
-            style={{
-              borderRadius: 'var(--mantine-radius-md)',
-            }}
+            style={getSidebarButtonStyle()}
             className="theme-toggle-button"
           >
             <Group justify="space-between">
@@ -343,9 +342,7 @@ export function ClientNav() {
               <Menu.Target>
                 <UnstyledButton
                   p="xs"
-                  style={{
-                    borderRadius: 'var(--mantine-radius-md)',
-                  }}
+                  style={getSidebarButtonStyle()}
                   className="user-profile-button"
                 >
                   <Group justify="space-between">
@@ -353,7 +350,7 @@ export function ClientNav() {
                       <Avatar src={session.picture} size="sm" color="ingress">
                         {session.name?.[0]}
                       </Avatar>
-                      <Box style={{ flex: 1, overflow: 'hidden' }}>
+                      <Box flex={1} style={{ overflow: 'hidden' }}>
                         <Text size="xs" truncate>{session.name}</Text>
                       </Box>
                     </Group>
@@ -399,24 +396,12 @@ export function ClientNav() {
         <Divider my="md" variant="dotted" />
 
         <Group gap="md" px="xs" justify="center">
-          <Text
-            component="a"
-            href="/privacy"
-            size="xs"
-            c="dimmed"
-            style={{ textDecoration: 'none', cursor: 'pointer' }}
-          >
+          <Anchor href="/privacy" size="xs" c="dimmed" underline="never">
             PRIVACY
-          </Text>
-          <Text
-            component="a"
-            href="/terms"
-            size="xs"
-            c="dimmed"
-            style={{ textDecoration: 'none', cursor: 'pointer' }}
-          >
+          </Anchor>
+          <Anchor href="/terms" size="xs" c="dimmed" underline="never">
             TERMS
-          </Text>
+          </Anchor>
           <Text size="xs" c="dimmed">
             v{APP_VERSION}
           </Text>

@@ -4,6 +4,13 @@ This handover is for future engineers and agents.
 It is operational memory, not marketing.
 It is part of the repository AI brain.
 
+Professional operating rule:
+
+- do not hallucinate
+- do not soften explicit rules
+- do not mask uncertainty with polished but vague language
+- do not claim compliance when the implementation is only partial
+
 Read first:
 
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)

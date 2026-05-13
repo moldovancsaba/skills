@@ -28,7 +28,7 @@ import { EmptyState, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } 
 import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
-import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowRight as ArrowRight, IconListCheck as ListCheck } from "@tabler/icons-react";
+import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowLeft as ArrowLeft, IconListCheck as ListCheck } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 
 /**
@@ -366,10 +366,12 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         <Box>
           <Group justify="space-between" align="center">
             <Stack gap={0}>
-              <Text size="xs" c="checklist" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {archived ? <Archive size={12} /> : <Sparkles size={12} />}
-                {archived ? "Archive" : "Active Intelligence"}
-              </Text>
+              <Group gap={8}>
+                {archived ? <Archive size={12} color="var(--module-checklist-color)" /> : <Sparkles size={12} color="var(--module-checklist-color)" />}
+                <Text size="xs" c="checklist">
+                  {archived ? "Archive" : "Active Intelligence"}
+                </Text>
+              </Group>
             </Stack>
 
             <Group gap="sm">
@@ -378,7 +380,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                   variant="light" 
                   color="gray" 
                   onClick={() => router.push(`/${companyId}/nba`)}
-                  leftSection={<ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />}
+                  leftSection={<ArrowLeft size={14} />}
                 >
                   Open Active Checklist
                 </Button>

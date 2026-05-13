@@ -553,7 +553,7 @@ export default function CompanyDataPage() {
           </Group>
 
           {filteredItems.length === 0 ? (
-            <UnifiedCard tone="neutral" layoutStyle={{ borderStyle: "dashed" }}>
+            <UnifiedCard tone="neutral" dashed>
               <UnifiedCardBody>
                 <Text size="sm" c="dimmed">No intelligence units match the current filters.</Text>
               </UnifiedCardBody>

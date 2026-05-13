@@ -1,9 +1,9 @@
 'use client';
 
-import { Box, Container, Group, Anchor, Text, rem } from "@mantine/core";
+import { Box, Container, Group, Anchor, rem } from "@mantine/core";
 import { APP_VERSION } from "@/lib/release";
 import Link from "next/link";
-import { getSemanticInsetStyle } from "@/lib/semantic-theme";
+import { getSemanticFooterStyle, getSemanticPillStyle } from "@/lib/semantic-theme";
 import { MetaText } from "@/components/ui/typography";
 
 export function Footer() {
@@ -12,35 +12,26 @@ export function Footer() {
       component="footer" 
       mt="auto" 
       py="md" 
-      style={{ 
-        ...getSemanticInsetStyle("neutral"),
-        borderTop: '1px solid var(--surface-section-border)',
-        borderRight: 'none',
-        borderBottom: 'none',
-        borderLeft: 'none',
-      }}
+      style={getSemanticFooterStyle("neutral")}
     >
       <Container size="7xl">
         <Group justify="space-between">
           <Group gap="xl">
-            <Link href="/privacy" style={{ textDecoration: 'none' }}>
-              <Text size="xs" c="dimmed">Privacy Policy</Text>
-            </Link>
-            <Link href="/terms" style={{ textDecoration: 'none' }}>
-              <Text size="xs" c="dimmed">Terms of Service</Text>
-            </Link>
+            <Anchor component={Link} href="/privacy" size="xs" c="dimmed">
+              Privacy Policy
+            </Anchor>
+            <Anchor component={Link} href="/terms" size="xs" c="dimmed">
+              Terms of Service
+            </Anchor>
           </Group>
           <Group gap="xs">
-            <Text size="xs" c="dimmed">
+            <MetaText c="dimmed">
               Release
-            </Text>
+            </MetaText>
             <Box 
               px="xs" 
               py={2} 
-              style={{ 
-                ...getSemanticInsetStyle("neutral"),
-                borderRadius: rem(6),
-              }}
+              style={getSemanticPillStyle("neutral", { radius: rem(6) })}
             >
               <MetaText c="var(--text-primary)">v{APP_VERSION}</MetaText>
             </Box>

@@ -36,6 +36,12 @@ This repository has one non-negotiable rule:
 
 - if the system contract changes, the documentation contract must change in the same work
 
+Professional operating rule:
+
+- do not hallucinate repository facts or rules
+- do not soften explicit standards
+- do not use vague filler wording in place of precise status
+
 ## Documentation Hierarchy
 
 Read these in order. Lower documents must not contradict higher ones.

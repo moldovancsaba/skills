@@ -8,7 +8,6 @@ import {
   Group, 
   Stack, 
   SimpleGrid, 
-  Card, 
   Badge, 
   UnstyledButton, 
   ActionIcon,
@@ -23,10 +22,10 @@ import {
 
 import { DashboardChart } from "@/components/dashboard-chart";
 import { BodyText, CardTitle, LabelText, MetaText, PageTitle, SectionTitle } from "@/components/ui/typography";
+import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 import {
+  getSemanticIndicatorStyle,
   getModuleCssVars,
-  getSemanticHoverStyle,
-  getSemanticSurfaceStyle,
   resolveMantineColor,
   resolveModuleTone,
   type ModuleTone,
@@ -34,7 +33,6 @@ import {
   toneToMantineColor,
 } from "@/lib/semantic-theme";
 import { resolveStateTone } from "@/lib/ui-state";
-import { applySurfaceInteractionHandlers } from "@/lib/ui-interactions";
 
 type PageShellProps = {
   children: ReactNode;
@@ -185,8 +183,8 @@ export function MetricCard({
   const tone = resolveModuleTone(color);
   const mantineColor = resolveMantineColor(color);
   return (
-    <Card style={getSemanticSurfaceStyle(tone)}>
-      
+    <UnifiedCard tone={tone}>
+      <UnifiedCardBody>
       <Stack gap="xl">
         <Group justify="space-between" align="flex-start">
           <ThemeIcon color={mantineColor}>
@@ -201,7 +199,8 @@ export function MetricCard({
           {detail ? <BodyText c={`var(--mantine-color-${mantineColor}-4)`}>{detail}</BodyText> : null}
         </Stack>
       </Stack>
-    </Card>
+      </UnifiedCardBody>
+    </UnifiedCard>
   );
 }
 
@@ -224,14 +223,13 @@ export function EmptyState({
 }: EmptyStateProps) {
   const resolvedTone = resolveModuleTone(tone);
   return (
-    <Card
-      style={{
-        ...getSemanticSurfaceStyle(resolvedTone, { elevated: false }),
+    <UnifiedCard
+      tone={resolvedTone}
+      layoutStyle={{
         borderStyle: "dashed",
-        backgroundColor: "transparent",
       }}
-      ta="center"
     >
+      <UnifiedCardBody>
       <Stack align="center" gap="md">
         <ThemeIcon color={resolveMantineColor(tone)} size={64}>
           <Icon size={32} />
@@ -245,7 +243,8 @@ export function EmptyState({
           {secondaryAction}
         </Group>
       </Stack>
-    </Card>
+      </UnifiedCardBody>
+    </UnifiedCard>
   );
 }
 
@@ -272,8 +271,6 @@ export function LinkCard({
 }: LinkCardProps) {
   const tone = resolveModuleTone(variant);
   const mantineColor = resolveMantineColor(variant);
-  const baseStyle = getSemanticSurfaceStyle(tone, { interactive: true });
-  const hoverStyle = getSemanticHoverStyle(tone);
   const isCompact = density === "compact";
 
   return (
@@ -282,26 +279,17 @@ export function LinkCard({
       href={href} 
       style={{ display: "block", height: "100%", textDecoration: 'none' }}
     >
-      <Card
-        p={isCompact ? "md" : "lg"}
-        style={{
-          ...baseStyle,
+      <UnifiedCard
+        tone={tone}
+        interactive
+        layoutStyle={{
           ...getModuleCssVars(tone),
           overflow: "hidden",
           minHeight: rem(isCompact ? 248 : 300),
-        }}
-        onMouseEnter={(event) => {
-          applySurfaceInteractionHandlers(event, hoverStyle);
-        }}
-        onMouseLeave={(event) => {
-          applySurfaceInteractionHandlers(event, {
-            ...baseStyle,
-            ...getModuleCssVars(tone),
-            overflow: "hidden",
-          });
+          padding: isCompact ? "var(--mantine-spacing-md)" : "var(--mantine-spacing-lg)",
         }}
       >
-
+        <UnifiedCardBody>
         <Stack gap={isCompact ? "md" : "xl"} h="100%" style={{ position: 'relative', zIndex: 1 }}>
           <Group justify="space-between" align="center">
             <ThemeIcon color={mantineColor} size={isCompact ? "lg" : "xl"}>
@@ -332,7 +320,8 @@ export function LinkCard({
             <MetaText c={`var(--mantine-color-${mantineColor}-4)`}>→</MetaText>
           </Stack>
         </Stack>
-      </Card>
+        </UnifiedCardBody>
+      </UnifiedCard>
     </UnstyledButton>
   );
 }
@@ -365,10 +354,9 @@ export function PipelineAccentHeader({
           <Box 
             key={segment.key}
             h={6} 
-            style={{ 
-              borderRadius: 3,
-              backgroundColor: segment.key === activeKey ? `var(--mantine-color-${toneToMantineColor(segment.tone as ModuleTone)}-filled)` : 'var(--mantine-color-gray-2)',
-            }}
+            style={getSemanticIndicatorStyle(segment.tone as ModuleTone, {
+              active: segment.key === activeKey,
+            })}
           />
         ))}
       </SimpleGrid>

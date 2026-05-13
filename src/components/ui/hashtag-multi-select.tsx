@@ -52,6 +52,17 @@ export function HashtagMultiSelect({
     !suggestions.some(s => s.toLowerCase() === normalizeHashtag(inputValue)) && 
     !selected.includes(normalizeHashtag(inputValue) || "");
 
+  const suggestionItemBaseStyle = {
+    borderRadius: 'var(--mantine-radius-md)',
+  };
+
+  const createSuggestionBaseStyle = {
+    ...suggestionItemBaseStyle,
+    borderTop: '1px solid var(--surface-section-border)',
+    marginTop: rem(2),
+    paddingTop: rem(8),
+  };
+
   const handleAddTag = (tag: string) => {
     const normalized = normalizeHashtag(tag);
     if (normalized && !selected.includes(normalized)) {
@@ -173,14 +184,12 @@ export function HashtagMultiSelect({
                         handleAddTag(suggestion);
                       }}
                       p="xs"
-                      style={{
-                        borderRadius: 'var(--mantine-radius-md)',
-                      }}
+                      style={suggestionItemBaseStyle}
                       onMouseEnter={(event) => {
                         Object.assign(event.currentTarget.style, getSemanticHoverStyle("ingress"));
                       }}
                       onMouseLeave={(event) => {
-                        Object.assign(event.currentTarget.style, { background: "transparent", boxShadow: "none" });
+                        Object.assign(event.currentTarget.style, suggestionItemBaseStyle);
                       }}
                     >
                       <Group justify="space-between">
@@ -202,21 +211,12 @@ export function HashtagMultiSelect({
                         handleAddTag(inputValue);
                       }}
                       p="xs"
-                      style={{
-                        borderRadius: 'var(--mantine-radius-md)',
-                        borderTop: '1px solid var(--surface-section-border)',
-                        marginTop: rem(2),
-                        paddingTop: rem(8),
-                      }}
+                      style={createSuggestionBaseStyle}
                       onMouseEnter={(event) => {
                         Object.assign(event.currentTarget.style, getSemanticHoverStyle("ingress"));
                       }}
                       onMouseLeave={(event) => {
-                        Object.assign(event.currentTarget.style, {
-                          background: "transparent",
-                          boxShadow: "none",
-                          borderTop: '1px solid var(--surface-section-border)',
-                        });
+                        Object.assign(event.currentTarget.style, createSuggestionBaseStyle);
                       }}
                     >
                       <Group gap="xs">

@@ -19,7 +19,7 @@ import { Notice, PageShell } from "@/components/ui/app-shell";
 import { BodyText, CardTitle, MetaText, PageTitle } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardSection } from "@/components/ui/unified-card";
 import Link from "next/link";
-import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
+import { getSemanticBulletStyle } from "@/lib/semantic-theme";
 
 export function ManualPageContent() {
   return (
@@ -58,7 +58,7 @@ export function ManualPageContent() {
                   ].map((item, i) => (
                     <Group key={i} gap="sm" wrap="nowrap">
                       <ThemeIcon size="xs" variant="subtle" color="ingress" >
-                        <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
+                        <Box style={getSemanticBulletStyle("ingress")} />
                       </ThemeIcon>
                       <BodyText c="var(--text-primary)">{item}</BodyText>
                     </Group>
@@ -80,7 +80,7 @@ export function ManualPageContent() {
                   ].map((item, i) => (
                     <Group key={i} gap="sm" wrap="nowrap">
                       <ThemeIcon size="xs" variant="subtle" color="review" >
-                        <Box style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: 'currentColor' }} />
+                        <Box style={getSemanticBulletStyle("review")} />
                       </ThemeIcon>
                       <BodyText c="var(--text-primary)">{item}</BodyText>
                     </Group>

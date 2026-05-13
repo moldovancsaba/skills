@@ -18,7 +18,7 @@ import {
   Title
 } from "@mantine/core";
 import { formatDistanceToNow } from 'date-fns';
-import { getModuleTheme } from "@/lib/semantic-theme";
+import { getSemanticIndicatorStyle } from "@/lib/semantic-theme";
 import { resolveStateTone } from "@/lib/ui-state";
 import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 import { BodyText, MetaText } from "@/components/ui/typography";
@@ -106,10 +106,6 @@ export function IntelligencePulse() {
   const isHealthy = failRate < 10;
   const isWarning = failRate >= 10 && failRate < 20;
   const statusColor = isHealthy ? "knowmore" : isWarning ? "review" : "review";
-  const reviewTheme = getModuleTheme("review");
-  const neutralTheme = getModuleTheme("neutral");
-  const knowmoreTheme = getModuleTheme("knowmore");
-
   return (
     <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
       {/* Real-time Status */}
@@ -131,7 +127,7 @@ export function IntelligencePulse() {
               <Group justify="space-between" mb={2}>
                 <MetaText>Active Context</MetaText>
                 <MetaText truncate maw={120}>
-                  {data.activeModel || data.settings?.failsafeModel?.split('|')[0]?.split(':')[1]?.trim() || "TRINITY-V1"}
+                  {data.activeModel || data.settings?.failsafeModel?.split('|')[0]?.split(':')[1]?.trim() || "LOCAL-AI"}
                 </MetaText>
               </Group>
               <BodyText c="var(--text-primary)" truncate>{data.currentCompany || "Idle Rotation"}</BodyText>
@@ -147,16 +143,16 @@ export function IntelligencePulse() {
                 {['RESEARCH', 'SCRUB', 'WRITE', 'JUDGE'].map((s) => {
                   const isActive = data.stage?.includes(s) || (s === 'SCRUB' && data.stage === 'SCRUBBING');
                   return (
-                    <Box 
-                      key={s} 
-                      h={rem(4)} 
-                      style={{ 
-                        borderRadius: rem(2),
-                        backgroundColor: isActive ? reviewTheme.color : neutralTheme.border,
-                      }} 
-                    />
-                  );
-                })}
+                  <Box
+                    key={s}
+                    h={rem(4)}
+                    style={getSemanticIndicatorStyle(isActive ? "review" : "neutral", {
+                      active: true,
+                      shape: "line",
+                    })}
+                  />
+                );
+              })}
               </Group>
             </Box>
           </Stack>
@@ -220,7 +216,7 @@ export function IntelligencePulse() {
               {data.metrics.cycleHistory.slice(-10).map((cycle, i) => {
                 const height = Math.max(10, Math.min(100, (cycle.ops / 10) * 100));
                 const fail = parseFloat(cycle.failRate);
-                const barColor = fail < 10 ? knowmoreTheme.color : reviewTheme.color;
+                const tone = fail < 10 ? "knowmore" : "review";
                 return (
                   <Tooltip 
                     key={i} 
@@ -228,14 +224,16 @@ export function IntelligencePulse() {
                     position="top"
                     withArrow
                   >
-                    <Box 
-                      style={{ 
-                        flex: 1, 
+                    <Box
+                      style={{
+                        flex: 1,
                         height: `${height}%`,
-                        backgroundColor: barColor,
-                        opacity: 0.4,
-                        borderRadius: '2px 2px 0 0',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        ...getSemanticIndicatorStyle(tone, {
+                          active: true,
+                          shape: "bar",
+                          opacity: 0.4,
+                        }),
                       }}
                     />
                   </Tooltip>
@@ -251,7 +249,14 @@ export function IntelligencePulse() {
           <Group justify="space-between" mt="auto">
             <MetaText>Last 10 Cycles</MetaText>
             <Group gap={6}>
-              <Box h={6} w={6} style={{ borderRadius: '50%', backgroundColor: knowmoreTheme.color }} />
+              <Box
+                h={6}
+                w={6}
+                style={getSemanticIndicatorStyle("knowmore", {
+                  active: true,
+                  shape: "dot",
+                })}
+              />
               <MetaText>Success</MetaText>
             </Group>
           </Group>

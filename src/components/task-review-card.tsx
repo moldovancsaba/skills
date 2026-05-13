@@ -19,7 +19,8 @@ import {
   Select, 
   Divider, 
   Box,
-  Loader
+  Loader,
+  ThemeIcon
 } from "@mantine/core";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { TraceViewer } from "@/components/trace-viewer";
@@ -27,7 +28,6 @@ import { CardShareAction } from "@/components/ui/card-share-action";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { getGoalCardFreshness, getTaskCardFreshness } from "@/lib/card-freshness";
 import { getIceBadgeColor } from "@/lib/ice-colors";
-import { getSemanticCalloutStyle } from "@/lib/semantic-theme";
 import { getDisplayableHumanComment, stripTechnicalMetadata } from "@/lib/ui-utils";
 import { logClientInteraction } from "@/lib/client-events";
 import { 
@@ -205,18 +205,14 @@ export function TaskReviewCard({
         />
 
         {detailMode && displayableComment && (
-          <Box
-            p="sm"
-            style={{
-              borderRadius: rem(8),
-              ...getSemanticCalloutStyle("checklist"),
-            }}
-          >
+          <UnifiedCardSection tone="checklist">
             <Group gap="xs" wrap="nowrap" align="flex-start">
-              <MessageSquare size={14} style={{ marginTop: rem(2), opacity: 0.7 }} />
+              <ThemeIcon variant="light" color="checklist" size="sm">
+                <MessageSquare size={14} />
+              </ThemeIcon>
               <MetaText>{displayableComment}</MetaText>
             </Group>
-          </Box>
+          </UnifiedCardSection>
         )}
 
         <UnifiedCardActions>

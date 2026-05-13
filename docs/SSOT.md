@@ -83,6 +83,11 @@ This contract is implemented in:
 - `src/components/ui/unified-card-modal.tsx`
 - `src/components/ui/app-shell.tsx`
 
+Shared shell rule:
+
+- app-shell route cards, metric cards, and empty states are product card surfaces and must render through `UnifiedCard`, not a parallel raw-card branch
+- shared visual chrome such as sidebar shells, accent rails, dropzones, modal shells, dividers, and bullets must come from `src/lib/semantic-theme.ts`, not feature-local inline recipes
+
 ## 5. Processing Model
 
 The autonomous cycle remains:

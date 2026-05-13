@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/app-shell";
 import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
+import { getSemanticClusterStyle } from "@/lib/semantic-theme";
 import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
@@ -583,10 +584,7 @@ export default function CompanyKnowMorePage() {
               style={{ flex: 1, maxWidth: 400 }}
             />
             <Group gap="xs">
-              <Group gap={4} p={4} style={{
-                borderRadius: "var(--mantine-radius-md)",
-                ...getSemanticSurfaceStyle("neutral", { elevated: false }),
-              }}>
+              <Group gap={4} p={4} style={getSemanticClusterStyle("neutral")}>
                 {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
                   <Button
                     key={type}
@@ -601,10 +599,7 @@ export default function CompanyKnowMorePage() {
                   </Button>
                 ))}
               </Group>
-              <Group gap={4} p={4} style={{
-                borderRadius: "var(--mantine-radius-md)",
-                ...getSemanticSurfaceStyle("neutral", { elevated: false }),
-              }}>
+              <Group gap={4} p={4} style={getSemanticClusterStyle("neutral")}>
                 {(["ALL", "SUMMARY", "RECOMMENDATION", "EVALUATION", "RESEARCH"] as const).map((kind) => (
                   <Button
                     key={kind}

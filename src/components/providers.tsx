@@ -113,7 +113,7 @@ export const theme = createTheme({
             return {};
           })(),
           color: "var(--text-primary)",
-          boxShadow: "0 8px 18px rgba(0, 0, 0, 0.22)",
+          boxShadow: "var(--surface-shadow-elevated)",
         },
       }),
     },
@@ -128,7 +128,7 @@ export const theme = createTheme({
         root: {
           letterSpacing: "-0.01em",
           borderWidth: rem(1),
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+          boxShadow: "var(--surface-icon-shadow)",
         },
       },
     },
@@ -209,7 +209,7 @@ export const theme = createTheme({
         content: {
           backgroundColor: "var(--surface-elevated)",
           border: "1px solid var(--border-primary)",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.42)",
+          boxShadow: "var(--surface-shadow-elevated)",
         },
         header: {
           backgroundColor: "var(--surface-elevated)",

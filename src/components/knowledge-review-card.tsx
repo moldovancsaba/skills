@@ -1,8 +1,7 @@
 import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconSparkles as Sparkles, IconArchive as Archive, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconEyeOff as EyeOff, IconAlertTriangle as AlertTriangle, IconBan as Ban } from "@tabler/icons-react";
-import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader } from "@mantine/core";
+import { Badge, Button, Group, Stack, Text, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader, ThemeIcon } from "@mantine/core";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getKnowledgeCardFreshness } from "@/lib/card-freshness";
-import { getSemanticCalloutStyle } from "@/lib/semantic-theme";
 import { getDisplayableHumanComment, stripTechnicalMetadata } from "@/lib/ui-utils";
 import { CardShareAction } from "@/components/ui/card-share-action";
 import { BodyText, MetaText } from "@/components/ui/typography";
@@ -247,33 +246,25 @@ export function KnowledgeReviewCard({
         </Group>
 
         {detailMode && displayableComment && (
-          <Box
-            p="md"
-            style={{
-              borderRadius: "var(--mantine-radius-md)",
-              ...getSemanticCalloutStyle(getCardTone()),
-            }}
-          >
+          <UnifiedCardSection tone={getCardTone()}>
             <Group gap="xs" align="flex-start" wrap="nowrap">
-              <MessageSquare size={16} style={{ marginTop: 4, opacity: 0.6 }} />
+              <ThemeIcon variant="light" color={getCardColor()} size="sm">
+                <MessageSquare size={14} />
+              </ThemeIcon>
               <BodyText c="var(--text-primary)">{displayableComment}</BodyText>
             </Group>
-          </Box>
+          </UnifiedCardSection>
         )}
 
         {detailMode && flashcard.conflictDetected && flashcard.conflictSummary && (
-          <Box
-            p="md"
-            style={{
-              borderRadius: "var(--mantine-radius-md)",
-              ...getSemanticCalloutStyle("review"),
-            }}
-          >
+          <UnifiedCardSection tone="review">
             <Group gap="xs" align="flex-start" wrap="nowrap">
-              <MessageSquare size={16} style={{ marginTop: 4, opacity: 0.6 }} />
+              <ThemeIcon variant="light" color="review" size="sm">
+                <MessageSquare size={14} />
+              </ThemeIcon>
               <BodyText c="var(--text-primary)">{flashcard.conflictSummary}</BodyText>
             </Group>
-          </Box>
+          </UnifiedCardSection>
         )}
 
         <UnifiedCardActions>

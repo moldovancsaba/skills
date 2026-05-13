@@ -132,6 +132,95 @@ export function getSemanticCalloutStyle(tone: ModuleTone = "neutral"): CSSProper
   };
 }
 
+export function getSemanticClusterStyle(tone: ModuleTone = "neutral"): CSSProperties {
+  return {
+    borderRadius: "var(--mantine-radius-md)",
+    ...getSemanticInsetStyle(tone),
+  };
+}
+
+export function getSemanticDropzoneStyle(
+  tone: ModuleTone = "neutral",
+  active = false,
+): CSSProperties {
+  const toneTheme = getModuleTheme(tone);
+  return {
+    border: active ? `2px dashed rgba(${toneTheme.rgb},0.45)` : "2px dashed transparent",
+    background: active ? `rgba(${toneTheme.rgb},0.08)` : "transparent",
+  };
+}
+
+export function getSemanticIndicatorStyle(
+  tone: ModuleTone = "neutral",
+  {
+    active = true,
+    shape = "line",
+    opacity = 1,
+  }: {
+    active?: boolean;
+    shape?: "line" | "dot" | "bar";
+    opacity?: number;
+  } = {},
+): CSSProperties {
+  const toneTheme = getModuleTheme(tone);
+  const neutralTheme = getModuleTheme("neutral");
+  const background = active ? toneTheme.color : neutralTheme.border;
+
+  if (shape === "dot") {
+    return {
+      borderRadius: "50%",
+      backgroundColor: background,
+      opacity,
+    };
+  }
+
+  if (shape === "bar") {
+    return {
+      backgroundColor: background,
+      opacity,
+      borderRadius: "2px 2px 0 0",
+    };
+  }
+
+  return {
+    borderRadius: "var(--mantine-radius-xs)",
+    backgroundColor: background,
+    opacity,
+  };
+}
+
+export function getSemanticBulletStyle(tone: ModuleTone = "neutral"): CSSProperties {
+  return {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: getModuleTheme(tone).color,
+  };
+}
+
+export function getSemanticDividerStyle(
+  tone: ModuleTone = "neutral",
+  { width = 1, opacity = 1 }: { width?: number; opacity?: number } = {},
+): CSSProperties {
+  return {
+    backgroundColor: getModuleTheme(tone).border,
+    opacity,
+    width,
+  };
+}
+
+export function getSemanticOverlayShadowStyle(tone: ModuleTone = "neutral"): CSSProperties {
+  return {
+    boxShadow: `var(--surface-shadow-elevated), 0 0 0 1px ${getModuleTheme(tone).border}`,
+  };
+}
+
+export function getSemanticAccentBandStyle(tone: ModuleTone = "neutral"): CSSProperties {
+  return {
+    borderTop: `4px solid ${getModuleTheme(tone).color}`,
+  };
+}
+
 export function getSidebarActiveStyle(tone: ModuleTone = "neutral"): CSSProperties {
   const toneTheme = getModuleTheme(tone);
   return {
@@ -144,5 +233,12 @@ export function getSidebarHoverStyle(tone: ModuleTone = "neutral"): CSSPropertie
   const toneTheme = getModuleTheme(tone);
   return {
     background: `linear-gradient(90deg, rgba(${toneTheme.rgb},0.12), rgba(${toneTheme.rgb},0.03))`,
+  };
+}
+
+export function getSidebarShellStyle(): CSSProperties {
+  return {
+    borderRight: "1px solid var(--border-primary)",
+    backgroundColor: "var(--sidebar-bg)",
   };
 }

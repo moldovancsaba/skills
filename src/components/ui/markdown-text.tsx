@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { Fragment } from "react";
 import { Box, List, Text } from "@mantine/core";
+import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 
 type MarkdownTextProps = {
   markdown: string;
@@ -135,7 +136,10 @@ function renderInline(text: string): ReactNode[] {
           ff="monospace"
           px={4}
           py={1}
-          style={{ background: "rgba(255,255,255,0.06)", borderRadius: 4 }}
+          style={{
+            ...getSemanticInsetStyle("neutral"),
+            borderRadius: 4,
+          }}
         >
           {part.slice(1, -1)}
         </Text>

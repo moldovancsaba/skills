@@ -32,6 +32,23 @@ Product surfaces must be built through:
 - `UnifiedCardSection`
 - shared semantic helpers in `src/lib/semantic-theme.ts`
 
+Shared semantic helpers own visual recipes for:
+
+- surface shells
+- inset sections
+- hover states
+- sidebar shells and active states
+- accent rails and status indicators
+- modal overlay shadows
+- drag and drop zones
+- compact bullets and dividers
+
+That includes shared shell surfaces such as:
+
+- route cards
+- metric cards
+- empty states
+
 ## Forbidden Patterns
 
 - `color="brand"`
@@ -46,6 +63,7 @@ Product surfaces must be built through:
 - raw feature-level `Card` product surfaces
 - local color literals replacing semantic helpers
 - local `light-dark(...)`
+- hard-coded translucent inline code chips or markdown panels
 
 ## High-Risk Files
 

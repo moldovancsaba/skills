@@ -101,8 +101,10 @@ Rules:
 
 - feature code must use `UnifiedCard`, not raw `Card` or `Paper`, for product card surfaces
 - `UnifiedCard` must remain a strict wrapper over Mantine `Card`
+- shared app-shell product surfaces such as route cards, metric cards, and empty states must also resolve through `UnifiedCard`
 - `UnifiedCardModal` must use the same visual language as `UnifiedCard`
 - card sections must use shared helpers, not one-off borders, shadows, or background recipes
+- feature-level accent rails, dropzones, side panels, bullets, and overlay shadows must resolve through shared semantic helpers rather than local inline recipes
 - feature code must not pass arbitrary visual overrides into the `UnifiedCard` family
 
 ## 6. Typography Rules

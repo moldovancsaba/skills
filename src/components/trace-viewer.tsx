@@ -15,6 +15,12 @@ import {
   ScrollArea
 } from "@mantine/core";
 import { BodyText, MetaText, SectionTitle } from "@/components/ui/typography";
+import {
+  getSemanticDividerStyle,
+  getSemanticInsetStyle,
+  getSemanticOverlayShadowStyle,
+  getSemanticSurfaceStyle,
+} from "@/lib/semantic-theme";
 
 interface TraceNode {
   id: string;
@@ -61,9 +67,9 @@ export function TraceViewer({
         bottom: 0,
         right: 0,
         width: rem(400),
-        backgroundColor: 'var(--mantine-color-body)',
-        borderLeft: '1px solid var(--mantine-color-default-border)',
-        boxShadow: 'var(--mantine-shadow-xl)',
+        ...getSemanticSurfaceStyle("neutral", { elevated: true }),
+        ...getSemanticOverlayShadowStyle("neutral"),
+        borderLeft: '1px solid var(--border-primary)',
         zIndex: 1000,
         display: 'flex',
         flexDirection: 'column',
@@ -91,9 +97,7 @@ export function TraceViewer({
               left: 17, 
               top: 20, 
               bottom: 20, 
-              width: 2, 
-              backgroundColor: 'var(--mantine-color-default-border)',
-              opacity: 0.5
+              ...getSemanticDividerStyle("neutral", { width: 2, opacity: 0.5 }),
             }} 
           />
 
@@ -108,11 +112,8 @@ export function TraceViewer({
                   <ThemeIcon 
                     variant="filled" 
                     color={node.type === 'SOURCE' ? 'gray' : node.type === 'FLASHCARD' ? 'knowmore' : 'checklist'} 
-                     
                     size={36}
-                    style={{ 
-                      boxShadow: '0 0 0 4px var(--mantine-color-body)'
-                    }}
+                    style={{ boxShadow: '0 0 0 4px var(--surface-base)' }}
                   >
                     {node.type === 'SOURCE' && <FileText size={18} />}
                     {node.type === 'FLASHCARD' && <Lightbulb size={18} />}
@@ -133,8 +134,7 @@ export function TraceViewer({
           p="md" 
           style={{ 
             borderRadius: 'var(--mantine-radius-md)',
-            backgroundColor: 'var(--mantine-color-default-hover)',
-            border: '1px solid var(--mantine-color-default-border)'
+            ...getSemanticInsetStyle("neutral"),
           }}
         >
           <Text size="xs" c="dimmed"  style={{ lineHeight: 1.6, fontStyle: 'italic' }}>

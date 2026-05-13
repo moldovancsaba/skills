@@ -26,7 +26,7 @@ import { useStore } from "@/lib/store";
 import { useTheme } from "@/lib/theme-provider";
 import { APP_VERSION } from "@/lib/release";
 import { logClientInteraction } from "@/lib/client-events";
-import { getSidebarActiveStyle, getSidebarHoverStyle, type ModuleTone } from "@/lib/semantic-theme";
+import { getSidebarActiveStyle, getSidebarHoverStyle, getSidebarShellStyle, type ModuleTone } from "@/lib/semantic-theme";
 
 const pipelineItems = [
   {
@@ -197,7 +197,7 @@ export function ClientNav() {
   }
 
   return (
-    <AppShellNavbar p="md" style={{ borderRight: '1px solid var(--border-primary)', backgroundColor: 'var(--sidebar-bg)' }}>
+    <AppShellNavbar p="md" style={getSidebarShellStyle()}>
       <AppShellSection mb="xl">
         <Box px="xs" py="md">
           <Logo />
@@ -277,7 +277,6 @@ export function ClientNav() {
                     color={item.color}
                     styles={{
                       root: {
-                        backgroundColor: "transparent",
                         borderLeft: "2px solid transparent",
                         ...(isActive ? getSidebarActiveStyle(item.tone as ModuleTone) : {}),
                         ...(!isActive

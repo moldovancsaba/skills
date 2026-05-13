@@ -33,7 +33,7 @@ import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
 import React from "react";
-import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
+import { getSemanticClusterStyle, getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 import {
   matchesAllHashtags,
   normalizeSourceHashtags,
@@ -519,10 +519,7 @@ export default function CompanyDataPage() {
             </Group>
 
             <Group gap="sm">
-              <Group gap={4} p={4} style={{
-                borderRadius: 8,
-                ...getSemanticSurfaceStyle("neutral", { elevated: false }),
-              }}>
+              <Group gap={4} p={4} style={getSemanticClusterStyle("neutral")}>
                 {(["ALL", "INTERNAL", "COMPETITOR"] as const).map((type) => (
                   <Button
                     key={type}
@@ -539,10 +536,7 @@ export default function CompanyDataPage() {
                 ))}
               </Group>
 
-              <Group gap={4} p={4} style={{
-                borderRadius: 8,
-                ...getSemanticSurfaceStyle("neutral", { elevated: false }),
-              }}>
+              <Group gap={4} p={4} style={getSemanticClusterStyle("neutral")}>
                 {([ "CREATED", "UPDATED", ...(hasSortableIce ? (["ICE"] as const) : []) ] as const).map((sort) => (
                   <Button
                     key={sort}

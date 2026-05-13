@@ -43,7 +43,7 @@ import { MetaText } from "@/components/ui/typography";
 import { getTaskCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";
-import { getModuleTheme, getSemanticCalloutStyle } from "@/lib/semantic-theme";
+import { getModuleTheme, getSemanticAccentBandStyle, getSemanticDropzoneStyle } from "@/lib/semantic-theme";
 
 type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
@@ -238,7 +238,7 @@ function CardDetailModal({
       
       overlayProps={{ 
         backgroundOpacity: 0.55, 
-        color: 'rgba(15, 20, 27, 0.92)'
+        color: "var(--overlay-color)",
       }}
     >
       {!item ? (
@@ -347,11 +347,11 @@ function CardDetailModal({
         {item.evaluationReason && (
           <Box>
             <Text size="xs" c="dimmed" mb="md">AI Judge Reasoning</Text>
-            <Box p="md" style={getSemanticCalloutStyle("review")}>
+            <UnifiedCardSection tone="review">
               <Text size="sm">
                 &quot;{stripTechnicalMetadata(item.evaluationReason)}&quot;
               </Text>
-            </Box>
+            </UnifiedCardSection>
           </Box>
         )}
 
@@ -575,7 +575,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }
 
   return (
-    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden", backgroundColor: "var(--app-bg)" }}>
+    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
       <CardDetailModal
         item={detailId ? items.find(i => i.id === detailId) || null : null}
@@ -647,13 +647,13 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                   <UnifiedCard
                     tone={col.tone}
                     layoutStyle={{
-                      borderTop: `4px solid ${col.accent}`,
+                      ...getSemanticAccentBandStyle(col.tone),
                       flexShrink: 0,
                     }}
                   >
                     <Group justify="space-between" wrap="nowrap">
                       <Stack gap={2} style={{ overflow: 'hidden' }}>
-                        <Text size="sm" style={{ color: col.accent, fontWeight: 650 }} truncate>
+                        <Text size="sm" c={col.tone === "neutral" ? "dimmed" : col.tone} fw={650} truncate>
                           {col.label}
                         </Text>
                         <Text size="xs" c="dimmed" truncate>{col.description}</Text>
@@ -677,13 +677,10 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                         {...provided.droppableProps}
                         style={{
                           flex: 1,
-                          border: snapshot.isDraggingOver
-                            ? `2px dashed ${col.accent}`
-                            : "2px dashed transparent",
-                          backgroundColor: snapshot.isDraggingOver ? `${col.accent}10` : "transparent",
                           display: 'flex',
                           flexDirection: 'column',
-                          minHeight: 0
+                          minHeight: 0,
+                          ...getSemanticDropzoneStyle(col.tone, snapshot.isDraggingOver),
                         }}
                       >
                         <ScrollArea offsetScrollbars style={{ flex: 1 }} viewportProps={{ style: { display: 'flex', flexDirection: 'column' } }}>
@@ -720,10 +717,8 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                         }}
                                         layoutStyle={{
                                           cursor: isActivelyDragging ? "grabbing" : "pointer",
-                                          borderColor: isActivelyDragging
-                                            ? col.accent
-                                            : "transparent",
                                           userSelect: "none",
+                                          ...(isActivelyDragging ? { borderColor: getModuleTheme(col.tone).color } : {}),
                                         }}
                                       >
                                         <UnifiedCardBody>
@@ -749,7 +744,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                                             </Badge>
                                             <Group gap={4}>
                                               <MetaText>{item.priorityProfile ? "PRIORITY" : "ICE"}</MetaText>
-                                              <Text size="xs" style={{ color: col.accent, fontVariantNumeric: "tabular-nums" }}>
+                                              <Text size="xs" c={col.tone === "neutral" ? "dimmed" : col.tone} style={{ fontVariantNumeric: "tabular-nums" }}>
                                                 {Math.round(item.priorityProfile?.score ?? item.iceScore)}
                                               </Text>
                                             </Group>

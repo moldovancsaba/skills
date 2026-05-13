@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Modal, Group, Badge, Stack } from "@mantine/core";
 import {
   getModuleTheme,
+  getSemanticOverlayShadowStyle,
   getSemanticSurfaceStyle,
   type ModuleTone,
 } from "@/lib/semantic-theme";
@@ -50,9 +51,9 @@ export function UnifiedCardModal({
       styles={{
         content: {
           ...surfaceStyle,
+          ...getSemanticOverlayShadowStyle(tone),
           background: `linear-gradient(180deg, var(--surface-hover-top), var(--surface-hover-bottom)), ${theme.surface}`,
           border: `1px solid ${theme.border}`,
-          boxShadow: `0 24px 72px rgba(0, 0, 0, 0.42), 0 0 0 1px ${theme.border}`,
         },
         header: {
           background: "transparent",

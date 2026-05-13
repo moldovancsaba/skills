@@ -2,6 +2,15 @@
 
 This document describes the current shipped behavior of the checklist online/local AI pipeline.
 
+The active self-learning rollout for this pipeline is Apple-Silicon-native:
+
+- export learning datasets from persisted checklist feedback and corrections
+- fine-tune candidate local models through MLX / MLX-LM
+- evaluate candidates locally
+- deploy approved candidates back into Ollama
+
+Parked research tools such as Unsloth, LLaMA-Factory, and Axolotl are not part of the active delivery path today.
+
 ## System split
 
 checklist has two cooperating parts:

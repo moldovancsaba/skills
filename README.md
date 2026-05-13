@@ -88,6 +88,8 @@ Frontend system:
 - Knowmore now exposes a dedicated health and repair surface for bounded sync, repair, and failed-job recovery actions
 - task feedback now feeds the canonical Trinity feedback stream directly, including `DELIVER` as a stronger executed-in-reality signal
 - task and knowledge cards now persist lineage fields for version family, duplicate cluster, generated origins, and refined origins
+- the active self-learning path is Apple-Silicon-first: checklist exports local training datasets, fine-tunes through MLX / MLX-LM, and deploys candidate models back through Ollama after evaluation gates
+- Unsloth, LLaMA-Factory, and Axolotl are parked research only and are not part of the active delivery plan
 
 Worker queue controls:
 
@@ -199,3 +201,22 @@ That workflow enforces:
 - `npm run audit:semantic`
 - `npm run lint`
 - `npx tsc --noEmit`
+
+## Local Self-Learning
+
+The active local self-learning contract is documented in:
+
+- [docs/LOCAL_SELF_LEARNING_SYSTEM.md](/Users/Shared/Projects/checklist/docs/LOCAL_SELF_LEARNING_SYSTEM.md)
+
+Current delivery path:
+
+1. export operator-teaching datasets from the live database
+2. fine-tune locally on Apple Silicon with MLX / MLX-LM
+3. evaluate the candidate against checklist regression cases
+4. canary and promote through Ollama only after the candidate clears the gate
+
+The internal admin-only `/:companyId/evaluations` surface now shows both:
+
+- the seeded synthetic evaluation bench
+- local MLX candidate run manifests and gate outcomes from `training/runs/`
+- and a `Publish Gate` action that writes completed local run outcomes into the normal observability/history ledger

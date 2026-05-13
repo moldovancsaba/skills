@@ -10,3 +10,5 @@ build
 *.pem
 scripts/knowledge/
 logs/guardian-heartbeat.json
+training/exports/
+training/runs/

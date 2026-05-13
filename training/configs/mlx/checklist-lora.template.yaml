@@ -1,0 +1,12 @@
+model: /path/to/base-model-or-mlx-converted-model
+train: true
+data: /path/to/exported-datasets
+adapter-path: /path/to/output/adapters
+fine-tune-type: lora
+batch-size: 1
+iters: 600
+learning-rate: 1e-5
+steps-per-report: 10
+steps-per-eval: 50
+save-every: 100
+mask-prompt: true

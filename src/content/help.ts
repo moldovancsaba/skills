@@ -148,6 +148,12 @@ export const faqItems: FaqItem[] = [
       "The system learns from better evidence, flashcard review, task review, and delivered work. Accepted, declined, modified, and delivered outcomes all feed the scoring contract, so precise feedback improves future impact, confidence, ease, and ordering.",
   },
   {
+    id: "how-local-learning-works",
+    question: "How will the local model learn from our feedback over time?",
+    answer:
+      "The active plan is to export training datasets from checklist feedback and corrections, fine-tune candidate models locally on Apple Silicon through MLX / MLX-LM, and promote them back into Ollama only after evaluation gates. Parked research tools are not part of the live rollout unless the architecture changes.",
+  },
+  {
     id: "how-to-repair-knowmore",
     question: "What should I do if Knowmore looks stale or wrong?",
     answer:

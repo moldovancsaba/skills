@@ -6,10 +6,12 @@ import { Badge, Button, Group, Loader, Progress, SimpleGrid, Stack, Table } from
 import {
   IconAlertTriangle as AlertTriangle,
   IconArrowUpRight as ArrowUpRight,
+  IconBrain as Brain,
   IconChecks as Checks,
   IconFlask as Flask,
   IconRefresh as Refresh,
   IconShieldCheck as ShieldCheck,
+  IconUpload as Upload,
 } from "@tabler/icons-react";
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
@@ -26,6 +28,13 @@ function gateColor(status?: string) {
   return "red";
 }
 
+function dateLabel(value?: string) {
+  if (!value) return "Unknown";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString();
+}
+
 export default function EvaluationsPage() {
   const params = useParams();
   const router = useRouter();
@@ -34,6 +43,7 @@ export default function EvaluationsPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [publishingRunId, setPublishingRunId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -87,6 +97,30 @@ export default function EvaluationsPage() {
     }
   }, [companyId]);
 
+  const publishLearningRun = useCallback(async (runId: string) => {
+    setPublishingRunId(runId);
+    try {
+      const response = await fetch("/api/evaluations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId,
+          action: "PUBLISH_LOCAL_LEARNING_RUN",
+          runId,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setErrorMessage(payload.error || "Failed to publish local learning run");
+        return;
+      }
+      setErrorMessage(null);
+      await loadData();
+    } finally {
+      setPublishingRunId(null);
+    }
+  }, [companyId, loadData]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadData();
@@ -108,6 +142,7 @@ export default function EvaluationsPage() {
   const candidate = comparison?.candidate;
   const baseline = comparison?.baseline;
   const failedCases = candidate?.failedCases || [];
+  const learningRuns = data?.learningRuns || [];
 
   return (
     <PageShell width="full">
@@ -261,6 +296,89 @@ export default function EvaluationsPage() {
               </Stack>
             ))}
           </SimpleGrid>
+        </UnifiedCardBody>
+      </UnifiedCard>
+
+      <UnifiedCard tone="strategy">
+        <UnifiedCardHeader
+          title="Local MLX Candidate Runs"
+          supporting={<Badge variant="light" color="strategy">{learningRuns.length} runs</Badge>}
+        />
+        <UnifiedCardBody>
+          {learningRuns.length === 0 ? (
+            <Notice title="No local candidate runs found" icon={Brain}>
+              Prepare a local Apple Silicon training run with `npm run training:prepare-mlx` and this internal evaluation surface will surface its manifest and gate state automatically.
+            </Notice>
+          ) : (
+            <Table highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Candidate</Table.Th>
+                  <Table.Th>Gate</Table.Th>
+                  <Table.Th>Scores</Table.Th>
+                  <Table.Th>Dataset</Table.Th>
+                  <Table.Th>Generated</Table.Th>
+                  <Table.Th>Action</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {learningRuns.map((run: any) => (
+                  <Table.Tr key={run.runId}>
+                    <Table.Td>
+                      <Stack gap={4}>
+                        <BodyText>{run.candidateName}</BodyText>
+                        <MetaText>{run.companyName}</MetaText>
+                        <MetaText>{run.baseModel}</MetaText>
+                      </Stack>
+                    </Table.Td>
+                    <Table.Td>
+                      <Stack gap={4}>
+                        <Badge variant="light" color={gateColor(run.gateStatus)}>
+                          {run.gateStatus}
+                        </Badge>
+                        <MetaText>{run.gateReason}</MetaText>
+                      </Stack>
+                    </Table.Td>
+                    <Table.Td>
+                      {run.report ? (
+                        <Stack gap={4}>
+                          <MetaText>Baseline {scorePercent(run.report.baselineScore)}%</MetaText>
+                          <MetaText>Candidate {scorePercent(run.report.candidateScore)}%</MetaText>
+                          <MetaText>{run.report.delta >= 0 ? `+${run.report.delta}` : run.report.delta} delta</MetaText>
+                        </Stack>
+                      ) : (
+                        <MetaText>Evaluation pending</MetaText>
+                      )}
+                    </Table.Td>
+                    <Table.Td>
+                      <Stack gap={4}>
+                        <MetaText>{run.exportLabel}</MetaText>
+                        <MetaText>{run.counts.sftTasks} task SFT</MetaText>
+                        <MetaText>{run.counts.sftFlashcards} flashcard SFT</MetaText>
+                        <MetaText>{run.counts.evalCases} eval cases</MetaText>
+                      </Stack>
+                    </Table.Td>
+                    <Table.Td>
+                      <MetaText>{dateLabel(run.generatedAt)}</MetaText>
+                    </Table.Td>
+                    <Table.Td>
+                      <Button
+                        size="xs"
+                        variant="light"
+                        color="strategy"
+                        leftSection={<Upload size={14} />}
+                        disabled={!run.report}
+                        loading={publishingRunId === run.runId}
+                        onClick={() => void publishLearningRun(run.runId)}
+                      >
+                        Publish Gate
+                      </Button>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          )}
         </UnifiedCardBody>
       </UnifiedCard>
         </>

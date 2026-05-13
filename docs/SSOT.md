@@ -130,6 +130,7 @@ The current intelligence-operations contract also includes:
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active
 - persisted enrichment waterfall policies for provider ordering and fallback governance, applied at runtime during URL intelligence enrichment
 - one AI workload budget-governor layer that persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records for company/feature attribution, estimated cost, workload units, retry pressure, reviewable budget events, and explicit operator-applied controls
+- one Apple-Silicon-native self-learning path that exports supervised, preference, and evaluation datasets from feedback and correction history, trains candidates through MLX / MLX-LM, and promotes them back into Ollama only after evaluation gates
 
 Tactical placement contract:
 
@@ -144,6 +145,7 @@ Tactical placement contract:
 - the scoring-accuracy track is closed as architecture work: residual warnings now flow through score-health monitoring and repair, not through local alternative scoring implementations
 - task `DELIVER` is a separate executed-in-reality signal, not a synonym for `ACCEPT`
 - flashcards and tasks both carry lineage fields (`versionFamilyId`, `duplicateClusterId`, `generatedFromIds`, `refinedFromId`) so refinement, suppression, and downstream reward can remain explainable
+- parked research tools such as Unsloth, LLaMA-Factory, and Axolotl are not active rollout dependencies in the current product contract
 
 ## 6. AI Brain Rule
 

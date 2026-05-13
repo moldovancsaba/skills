@@ -40,6 +40,7 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
   const runningJobs = activeJobs.filter((job) => job.status === "RUNNING").length;
   const criticalAlert = scoreHealth?.alerts?.find((alert: any) => alert.severity === "CRITICAL") ?? null;
   const evaluationFailures = recentEvents.filter((event) => event.outcomeType === "EVAL_GATE_FAILED");
+  const localLearningEvents = recentEvents.filter((event) => event.outcomeType.startsWith("LOCAL_LEARNING_"));
 
   return {
     guardianHeartbeat,
@@ -60,6 +61,10 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
     evaluation: {
       recentFailures: evaluationFailures,
       failedGateCount: evaluationFailures.length,
+    },
+    localLearning: {
+      recentEvents: localLearningEvents,
+      publishedRunCount: localLearningEvents.length,
     },
     budget,
     workerReports,

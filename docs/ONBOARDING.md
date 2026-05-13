@@ -32,6 +32,7 @@ CHECKLIST is a multi-tenant autonomous intelligence system with:
 - local type scales are not allowed
 - changing the system without updating the AI brain docs is not allowed
 - the old “synthetic ICE overhaul” is not an open project anymore; the live scoring contract is already factorized, history-aware, delivery-difficulty-aware, and precision-preserving
+- the active self-learning training path is Apple-Silicon-native through MLX / MLX-LM and Ollama; do not assume GPU-first frameworks like Unsloth are part of the active rollout
 
 ## Required First Commands
 
@@ -79,3 +80,10 @@ Then you must update the governing docs in the same work.
 - `scoreProfile` is part of the live data contract and must preserve agent proposal, calibrated factors, and final blended score
 - historical rescoring must run through `scripts/repair-ice-scores.js`, not one-off local scripts
 - score-health warnings are maintenance inputs; do not “fix” them by adding local ranking shortcuts in feature code
+
+## Self-Learning Onboarding
+
+- `scripts/export-learning-datasets.mjs` is the canonical dataset-export entrypoint
+- `training/` is the local workspace for active self-learning rollout files
+- MLX / MLX-LM is the active training path because checklist runs on Apple Silicon only
+- Unsloth, LLaMA-Factory, and Axolotl are parked research only and should not be treated as current delivery dependencies

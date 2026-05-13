@@ -1,0 +1,20 @@
+{
+  "checklist_sft_tasks": {
+    "file_name": "sft_tasks.alpaca.jsonl",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "checklist_sft_flashcards": {
+    "file_name": "sft_flashcards.alpaca.jsonl",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  }
+}

@@ -14,6 +14,7 @@ Primary layers:
 - web application
 - database and persistence
 - autonomous AI loop
+- local self-learning export and Apple-Silicon training workspace
 - shared product UI system
 - persisted pipeline queue and scheduler contract
 
@@ -152,3 +153,19 @@ The repetitive-job system now has a first-class queue model:
 - queue worker completion/failure, workflow execution, search/answer operations, and observability actions all record workload usage in the first slice
 - Observability renders budget pressure, workload attribution, recommended budget events, and bounded controls for throttling queue work and cache/reuse policy
 - budget controls must not silently erase human-guided queue ordering or suppress critical evidence/safety work
+
+## 11. Local Self-Learning Architecture
+
+- `scripts/export-learning-datasets.mjs` is the canonical dataset-export entrypoint for self-learning
+- `scripts/prepare-mlx-learning-run.mjs` is the canonical Apple-Silicon run-bundle generator for MLX / MLX-LM training
+- `scripts/evaluate-learning-candidate.mjs` is the first local baseline-vs-candidate gate over exported evaluation cases
+- `src/lib/local-learning.ts` is the server-side reader for local `training/runs/` manifests and candidate evaluation reports
+- `app/api/evaluations/route.ts` also publishes completed local-learning run outcomes into the normal `OutcomeEvent` and workload ledgers
+- exported dataset families are supervised fine-tuning, preference pairs, and evaluation cases
+- the active training path is Apple-Silicon-native:
+  - dataset export from checklist persistence
+  - MLX / MLX-LM fine-tuning
+  - local evaluation
+  - Ollama canary and promotion
+- `training/` is the repository workspace for self-learning configuration and rollout scaffolding
+- parked research trainers such as Unsloth, LLaMA-Factory, and Axolotl may remain documented as future options, but they are not active delivery dependencies in the current architecture

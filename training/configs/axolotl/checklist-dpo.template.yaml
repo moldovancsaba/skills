@@ -1,0 +1,33 @@
+base_model: /path/to/base-model
+model_type: AutoModelForCausalLM
+tokenizer_type: AutoTokenizer
+is_llama_derived_model: true
+
+load_in_4bit: true
+adapter: qlora
+sequence_len: 4096
+sample_packing: false
+pad_to_sequence_len: true
+
+chat_template: chatml
+
+datasets:
+  - path: /path/to/exported-datasets/prefs_tasks.pairs.jsonl
+    ds_type: json
+    type: chat_template.default
+  - path: /path/to/exported-datasets/prefs_flashcards.pairs.jsonl
+    ds_type: json
+    type: chat_template.default
+
+rl: dpo
+output_dir: /path/to/output/checklist-dpo
+
+micro_batch_size: 1
+gradient_accumulation_steps: 8
+num_epochs: 1
+learning_rate: 5e-5
+
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_linear: true

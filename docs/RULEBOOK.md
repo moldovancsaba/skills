@@ -46,6 +46,8 @@ Approved product UI system:
 - tactical placement must use the shared blended priority contract, which keeps ICE visible but ranks work through explainable ICE, quality, urgency, freshness, human-signal, risk, lifecycle-state, and memory inputs
 - tactical placement must use relative ranking within the active peer pool; fixed scalar thresholds are not sufficient on their own
 - source-backed knowledge must persist durable citation snapshots and explicit conflict state; URL-only provenance is not accepted
+- the active self-learning path must stay Apple-Silicon-native: dataset export plus MLX / MLX-LM training plus Ollama deployment
+- Unsloth, LLaMA-Factory, and Axolotl are not part of the active delivery plan today and must not be represented as current rollout dependencies
 
 ## 3. What We Do Not Use
 

@@ -52,6 +52,10 @@ Read first:
 - AI workload governance now persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records so queue, workflow, search/answer, and observability work can be attributed by company and feature
 - task feedback now writes directly into the canonical worker feedback stream, so `DELIVER` reward propagation and lifecycle handling are not bypassed by the webapp task surface
 - flashcards now persist lineage family/cluster/origin fields alongside task lineage so duplicate suppression and future traceability are not task-only capabilities
+- the active self-learning rollout is Apple-Silicon-native: `scripts/export-learning-datasets.mjs` exports the canonical training datasets, `training/` holds the rollout scaffolding, MLX / MLX-LM is the active fine-tuning path, and Ollama remains the runtime target after evaluation
+- Unsloth, LLaMA-Factory, and Axolotl are parked research only right now; do not reopen them as active dependencies without an explicit architecture decision
+- the internal admin-only `Evaluations` surface now also reads local `training/runs/*/run-manifest.json` plus optional `evaluation-report.json` files so MLX candidate runs are visible in-product, not only from the shell
+- completed local learning runs can now be published from the Evaluations surface into the normal `OutcomeEvent` / observability ledger, so candidate progression is no longer filesystem-only
 - checklist-core is a general company decision-maker, task manager, and AI support system; vertical athlete, campaign-studio, or GTM-execution products do not belong in the core product contract
 - the one allowed internal exception is `Evaluation Bench`, which may exist as an admin-only AI quality and regression surface under the observability/governance umbrella
 - budget controls are operator-applied and reviewable: queue throttling, evaluation batching, and cache/reuse policy changes do not silently suppress critical evidence work
@@ -76,8 +80,10 @@ System:
 
 - [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 - [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
+- [docs/LOCAL_SELF_LEARNING_SYSTEM.md](/Users/Shared/Projects/checklist/docs/LOCAL_SELF_LEARNING_SYSTEM.md)
 - [src/lib/pipeline-queue.js](/Users/Shared/Projects/checklist/src/lib/pipeline-queue.js)
 - [scripts/lib/pipeline-jobs.js](/Users/Shared/Projects/checklist/scripts/lib/pipeline-jobs.js)
+- [scripts/export-learning-datasets.mjs](/Users/Shared/Projects/checklist/scripts/export-learning-datasets.mjs)
 
 ## Do Not Reintroduce
 

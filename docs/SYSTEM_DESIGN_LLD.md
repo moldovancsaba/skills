@@ -105,9 +105,11 @@ The repetitive-job system now has a first-class queue model:
 - `AI_ONLY` mode means scheduling is computed by the shared queue logic
 - `HUMAN_GUIDED` mode means the persisted queue column and manual order take precedence
 - the webapp `AI Queue` board is the primary human steering surface
-- score-health alerts can reprioritize queue work through the same shared contract
+- score-health alerts can cause the local AI system to reprioritize queue work through the same shared contract after it reads persisted alert state or operator intents
 - the shipped UI controls are drag/drop between queue columns, manual drag/drop ordering, and `Reset to AI Only`
 - there is no separate compact tweak menu in the current release; the board is the tweak surface
+- queue board reads must return persisted `PipelineJob` state only; webapp reads must not trigger queue synchronization
+- workflow edits and operator repair actions are bridged into persisted `SystemCommand` records for the local AI worker to consume
 
 ## 7. Evidence Durability And Conflict Handling
 
@@ -118,16 +120,17 @@ The repetitive-job system now has a first-class queue model:
 
 ## 8. Search, Answers, And Workflow Foundations
 
-- `internal-search.ts` is the shared retrieval boundary for internal cards, queue jobs, and workflow blueprints
-- `internal-search.ts` also owns result counts, entity-layer filtering, and ranking boosts from ICE and freshness
-- `grounded-answers.ts` builds bounded evidence-backed answers on top of the internal search layer, including explicit intent/confidence/evidence-group fields
+- internal retrieval, result counts, entity-layer filtering, ranking boosts from ICE and freshness, and grounded-answer synthesis belong to the local AI system, not the webapp runtime
+- any webapp search surface must read persisted retrieval/answer results and write query/filter interaction records only
 - observability data shown in the webapp must be precomputed by the local AI system and persisted into MongoDB Atlas or local runtime artifacts first; the online app only reads those persisted results and writes operator interaction records
 - `observability.ts` is a webapp read-model adapter for mission-control surfaces, not an authoritative computation owner; repair recommendations, score-health evaluation, and worker-state interpretation belong to the local AI system
 - `app/api/knowmore/health/route.ts` must expose persisted knowledge-layer health state and write bounded repair intents or feedback signals only; it must not become a parallel health-calculation engine
 - `evaluation-bench.ts` is an internal admin-only replay and promotion-gate module used for AI quality governance, not a normal end-user checklist page
 - `budget-governor.ts` owns workload usage attribution, virtual/default budget policies, budget-pressure summaries, recommended budget events, and explicit control application for queue, workflow, search/answer, and observability work
-- `workflow-blueprints.ts` owns the persisted bounded workflow-builder contract and default blueprint registry; active blueprints are synchronized into `PipelineJob` records and executed by the shared queue worker
+- `workflow-blueprints.ts` owns the persisted bounded workflow-builder contract and default blueprint registry; active blueprints are synchronized into `PipelineJob` records by the local AI system and executed by the shared queue worker
 - `enrichment-waterfall.ts` owns the persisted provider-ordering and fallback policy contract for enrichment governance, and `url-enrichment.ts` consumes that policy at runtime for product/competitor research
+- ingress routes for topics, sources, files, and bridge data write raw rows only; webapp request handlers must not derive authoritative scores during ingress
+- feedback analytics and hashtag recommendations are persisted into `IntelligenceSnapshot` by the local AI system and read from there by the webapp
 
 ## 9. Blended Priority Architecture
 

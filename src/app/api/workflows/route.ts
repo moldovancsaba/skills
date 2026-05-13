@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { listCompanyWorkflowBlueprints } from "@/lib/workflow-blueprints";
-import { syncCompanyPipelineJobs } from "@/lib/pipeline-queue";
+import { issueSystemCommand } from "@/lib/system-commands";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest) {
         status: status as "ACTIVE" | "PAUSED",
       },
     });
-    await syncCompanyPipelineJobs(prisma, companyId);
+    await issueSystemCommand("SYNC_PIPELINE_JOBS", { companyId });
 
     return NextResponse.json(await listCompanyWorkflowBlueprints(companyId));
   } catch (error) {

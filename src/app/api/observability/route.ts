@@ -4,11 +4,7 @@ import { verifyMembership } from "@/lib/permissions";
 import { applyBudgetControl, recordAiWorkloadUsage } from "@/lib/budget-governor";
 import { getCompanyObservabilitySnapshot } from "@/lib/observability";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
-import {
-  escalateCompanyPipelineJob,
-  recoverFailedCompanyPipelineJobs,
-  syncCompanyPipelineJobs,
-} from "@/lib/pipeline-queue";
+import { issueSystemCommand } from "@/lib/system-commands";
 
 export const dynamic = "force-dynamic";
 
@@ -43,11 +39,14 @@ export async function PATCH(request: NextRequest) {
     if (auth.error) return auth.error;
 
     if (action === "SYNC_QUEUE") {
-      await syncCompanyPipelineJobs(prisma as any, companyId);
+      await issueSystemCommand("SYNC_PIPELINE_JOBS", { companyId });
+      await issueSystemCommand("REFRESH_INTELLIGENCE_SNAPSHOTS", { companyId });
     } else if (action === "ESCALATE_SCORE_REPAIR") {
-      await escalateCompanyPipelineJob(prisma as any, companyId, "SCORE_ALERT_REPAIR");
+      await issueSystemCommand("ESCALATE_PIPELINE_JOB", { companyId, jobType: "SCORE_ALERT_REPAIR" });
+      await issueSystemCommand("REFRESH_INTELLIGENCE_SNAPSHOTS", { companyId });
     } else if (action === "RECOVER_FAILED_JOBS") {
-      await recoverFailedCompanyPipelineJobs(prisma as any, companyId);
+      await issueSystemCommand("RECOVER_FAILED_PIPELINE_JOBS", { companyId });
+      await issueSystemCommand("REFRESH_INTELLIGENCE_SNAPSHOTS", { companyId });
     } else if (action === "BUDGET_THROTTLE_QUEUE") {
       await applyBudgetControl({
         companyId,

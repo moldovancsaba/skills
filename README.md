@@ -91,7 +91,7 @@ Frontend system:
 - residual score-health warnings are now treated as monitored maintenance signals, not as an open architecture program
 - source-backed Knowmore cards must persist durable citation snapshots and explicit conflict state instead of relying on raw URLs alone
 - Knowmore now supports direct operator correction controls for pinning, hiding, marking wrong, requesting refresh, and suppressing bad source influence
-- Knowmore now exposes a dedicated health and repair surface for bounded sync, repair, and failed-job recovery actions
+- Knowmore now exposes a dedicated health and repair surface for persisted health visibility plus repair-intent capture; the local AI system executes the actual sync, repair, and failed-job recovery work
 - task feedback now feeds the canonical Trinity feedback stream directly, including `DELIVER` as a stronger executed-in-reality signal
 - task and knowledge cards now persist lineage fields for version family, duplicate cluster, generated origins, and refined origins
 - the active self-learning path is Apple-Silicon-first: checklist exports local training datasets, fine-tunes through MLX / MLX-LM, and deploys candidate models back through Ollama after evaluation gates
@@ -125,8 +125,9 @@ New operator surfaces:
 - Search & Answers no longer silently widens to all layers when the operator deselects every layer; it now requires at least one explicit search layer before running
 - Search & Answers now clears stale ranked results and grounded answers immediately when the operator changes the selected layers, so visible output always matches the active scope
 - `/:companyId/observability` provides mission-control visibility into worker health, queue pressure, score health, AI workload budget pressure, and recent outcomes
-- Observability now exposes bounded repair and budget actions for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls
-- Knowmore now also exposes bounded health/repair actions directly on the knowledge surface instead of forcing operators through generic observability only
+- Observability now captures bounded repair intents and budget-control records for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls; the local AI system pulls those records from MongoDB Atlas and executes them
+- Knowmore now also exposes bounded health/repair intent capture directly on the knowledge surface instead of forcing operators through generic observability only
+- queue reads, feedback analytics, and hashtag recommendations are now persisted-state or snapshot-backed reads; loading a page must not trigger worker synchronization or app-layer recomputation
 - `/:companyId/workflows` provides bounded workflow blueprints and enrichment-waterfall policy management
 - active workflow blueprints are not passive records: they materialize into claimable `WORKFLOW_BLUEPRINT` queue jobs and execute through the shared worker queue
 - enrichment-waterfall policies now affect runtime provider selection for URL intelligence instead of living as config-only records

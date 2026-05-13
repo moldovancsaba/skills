@@ -85,8 +85,6 @@ export const theme = createTheme({
       defaultProps: {
         radius: "md",
         fw: 700,
-        tt: "uppercase",
-        lts: rem(0.6),
       },
       styles: (_theme: MantineTheme, props: Record<string, any>) => ({
         root: {
@@ -122,7 +120,6 @@ export const theme = createTheme({
         radius: "sm",
         variant: "light",
         fw: 600,
-        tt: "uppercase",
       },
       styles: {
         root: {

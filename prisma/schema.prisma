@@ -80,6 +80,8 @@ model IntelligenceSnapshot {
   scoreHealth         Json?     @default("{}")
   knowmoreHealth      Json?     @default("{}")
   observabilitySummary Json?    @default("{}")
+  feedbackAnalytics   Json?     @default("{}")
+  hashtagAnalytics    Json?     @default("{}")
   
   updatedAt           DateTime  @default(now()) @updatedAt
   company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)

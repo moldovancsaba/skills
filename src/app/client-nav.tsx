@@ -28,6 +28,7 @@ import { useTheme } from "@/lib/theme-provider";
 import { APP_VERSION } from "@/lib/release";
 import { logClientInteraction } from "@/lib/client-events";
 import { getSidebarActiveStyle, getSidebarButtonStyle, getSidebarHoverStyle, getSidebarShellStyle, type ModuleTone } from "@/lib/semantic-theme";
+import { LabelText, MetaText } from "@/components/ui/typography";
 
 const pipelineItems = [
   {
@@ -257,7 +258,6 @@ export function ClientNav() {
                             {counts[item.key]}
                           </Badge>
                         )}
-                        <ChevronRight size={14} strokeOpacity={0.5} />
                       </Group>
                     }
                     onClick={() => {
@@ -297,9 +297,9 @@ export function ClientNav() {
             </Stack>
           ) : (
             <Box px="md" py="xl">
-              <Text size="xs" c="dimmed" ta="center" fs="italic">
+              <MetaText ta="center">
                 Select a portfolio unit to begin operations.
-              </Text>
+              </MetaText>
             </Box>
           )}
         </Stack>
@@ -332,7 +332,7 @@ export function ClientNav() {
                 <ThemeIcon color={isDark ? "review" : "synthesis"} size="sm">
                   {isDark ? <Sun size={14} /> : <Moon size={14} />}
                 </ThemeIcon>
-                <Text size="xs" c="var(--text-secondary)">{isDark ? "Light" : "Dark"} Mode</Text>
+                <MetaText c="var(--text-secondary)">{isDark ? "Light" : "Dark"} mode</MetaText>
               </Group>
             </Group>
           </UnstyledButton>
@@ -345,16 +345,16 @@ export function ClientNav() {
                   style={getSidebarButtonStyle()}
                   className="user-profile-button"
                 >
-                  <Group justify="space-between">
-                    <Group gap="sm">
-                      <Avatar src={session.picture} size="sm" color="ingress">
-                        {session.name?.[0]}
-                      </Avatar>
-                      <Box flex={1} style={{ overflow: 'hidden' }}>
-                        <Text size="xs" truncate>{session.name}</Text>
-                      </Box>
-                    </Group>
-                    <ChevronDown size={14} />
+                    <Group justify="space-between">
+                      <Group gap="sm">
+                        <Avatar src={session.picture} size="sm" color="ingress">
+                          {session.name?.[0]}
+                        </Avatar>
+                        <Box flex={1} style={{ overflow: 'hidden' }}>
+                          <LabelText truncate>{session.name}</LabelText>
+                        </Box>
+                      </Group>
+                      <ChevronDown size={14} />
                   </Group>
                 </UnstyledButton>
               </Menu.Target>
@@ -397,14 +397,14 @@ export function ClientNav() {
 
         <Group gap="md" px="xs" justify="center">
           <Anchor href="/privacy" size="xs" c="dimmed" underline="never">
-            PRIVACY
+            Privacy
           </Anchor>
           <Anchor href="/terms" size="xs" c="dimmed" underline="never">
-            TERMS
+            Terms
           </Anchor>
-          <Text size="xs" c="dimmed">
+          <MetaText>
             v{APP_VERSION}
-          </Text>
+          </MetaText>
         </Group>
       </AppShellSection>
     </AppShellNavbar>

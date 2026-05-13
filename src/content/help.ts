@@ -36,11 +36,13 @@ export const manualSections: HelpSection[] = [
   {
     id: "system-model",
     title: "Understand the three system layers",
-    summary: "checklist works best when you treat data, Knowmore, and tasks as separate jobs.",
+    summary: "checklist works best when you treat data, Knowmore, and tasks as separate jobs, and keep the webapp and local AI roles separate.",
     bullets: [
       "Data is raw source input: notes, URLs, research snippets, and uploaded files.",
       "Knowmore is the knowledge layer: flashcards generated from evidence and enrichment.",
       "checklist is the action layer: next-best tasks generated from company context and flashcards.",
+      "The webapp reads persisted results from MongoDB Atlas and writes user interactions or repair intents back.",
+      "The local AI system pulls those records, calculates authoritative state, and pushes the updated results back into MongoDB Atlas.",
       "If the source data is weak, the flashcards and tasks will drift.",
     ],
   },
@@ -52,6 +54,7 @@ export const manualSections: HelpSection[] = [
       "Add offer pages, pricing pages, onboarding pages, FAQs, sales decks, and audience notes before broad descriptive copy.",
       "Add alternative market positioning, competitor evidence, and proof pages instead of just a homepage snapshot.",
       "Upload files when they contain detail that the public web does not show, such as call notes, sales docs, and internal briefs.",
+      "Markdown and plain-text files are valid evidence inputs. Their text should remain readable in Data cards and shared card views after upload.",
       "Use clear raw source text and useful hashtags so the system can cluster the source correctly.",
     ],
   },
@@ -100,6 +103,28 @@ export const manualSections: HelpSection[] = [
       "If tasks are good but mistimed, say what prerequisite is missing so the AI team can learn to postpone rather than discard.",
       "If the rank order feels surprising, check whether urgency, readiness, delivery difficulty, or older human feedback is separating cards with similar visible ICE.",
       "If a company has very little data, start on the Data page before judging the rest of the system.",
+    ],
+  },
+  {
+    id: "repair-actions",
+    title: "Understand repair actions correctly",
+    summary: "Repair buttons do not make the webapp do AI work directly.",
+    bullets: [
+      "Knowmore health and Observability actions write repair intents or worker commands into MongoDB Atlas.",
+      "The local AI worker picks those commands up on its loop and performs queue sync, repair, recovery, or snapshot refresh work.",
+      "If a repair button was pressed but nothing changes, check the local worker health and the shared database connection before blaming the webapp.",
+      "Queue pages should show persisted queue state; simply opening a page should not recalculate or repair anything.",
+    ],
+  },
+  {
+    id: "language-policy",
+    title: "Use language policy intentionally",
+    summary: "Permitted languages constrain what the local AI system is allowed to write.",
+    bullets: [
+      "The allowed-language setting is a hard policy for synthesis and refinement, not a soft preference.",
+      "If Hungarian is the only permitted language, new and refreshed cards should stay Hungarian.",
+      "If wording is wrong but the language is right, use review and correction controls so the local AI system revisits the card.",
+      "If a card violates the selected language policy, treat that as a quality error and repair it rather than accepting it as normal variation.",
     ],
   },
 ];
@@ -157,7 +182,25 @@ export const faqItems: FaqItem[] = [
     id: "how-to-repair-knowmore",
     question: "What should I do if Knowmore looks stale or wrong?",
     answer:
-      "Use the Knowmore health actions first: sync, request repair, or recover failed jobs. On individual cards, use direct correction controls like pin, hide, mark wrong, request refresh, or suppress a bad source so the worker has a precise corrective signal to consume.",
+      "Use the Knowmore health actions first: sync, request repair, or recover failed jobs. Those actions write persisted repair intents or worker commands; the local AI worker executes the actual repair work. On individual cards, use direct correction controls like pin, hide, mark wrong, request refresh, or suppress a bad source so the worker has a precise corrective signal to consume.",
+  },
+  {
+    id: "why-webapp-does-not-calculate",
+    question: "Why does the webapp not calculate the AI state directly?",
+    answer:
+      "Because the architecture contract is strict: the webapp shows persisted results from MongoDB Atlas and writes interaction or repair-intent records back. The local AI system is the only authority that calculates queue state, score health, observability summaries, and other intelligence outputs.",
+  },
+  {
+    id: "markdown-files-in-data",
+    question: "How should uploaded Markdown files appear in Data?",
+    answer:
+      "Uploaded `.md` and other plain-text files should keep their extracted text visible in Data cards, Data modals, and shared single-card pages. If you only see a filename or an empty body, that is a rendering or resolver bug, not expected behavior.",
+  },
+  {
+    id: "language-policy-behavior",
+    question: "How should the language policy behave?",
+    answer:
+      "The language setting is a hard synthesis rule for the local AI system. The app should store the policy, the worker should obey it, and refreshed cards should continue to respect it. Wrong-language output is a system error, not acceptable drift.",
   },
   {
     id: "why-weak-suggestions",
@@ -234,6 +277,17 @@ const expertTips = {
     ctaLabel: "Open FAQ",
     ctaHref: "/faq",
   }),
+  architecture: (companyId: string): ExpertTip => ({
+    id: "architecture",
+    category: "Operator model",
+    title: "Use the app as control and evidence capture, not as the AI engine",
+    body:
+      "The webapp records your inputs, feedback, and repair intents. The local AI worker is responsible for recalculating knowledge, queue state, and downstream outputs.",
+    whyItMatters:
+      "When a page looks wrong, the next place to inspect is usually the persisted evidence or the local worker health, not a hidden browser calculation.",
+    ctaLabel: "Open Observability",
+    ctaHref: `/${companyId}/observability`,
+  }),
 };
 
 export function getDashboardExpertTip(context: DashboardTipContext): ExpertTip {
@@ -245,6 +299,10 @@ export function getDashboardExpertTip(context: DashboardTipContext): ExpertTip {
 
   if (totalSources < 3) {
     return expertTips.foundation(context.companyId);
+  }
+
+  if (context.flashcardCount === 0 && totalSources > 0) {
+    return expertTips.architecture(context.companyId);
   }
 
   if (context.fileCount === 0) {

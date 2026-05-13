@@ -13,6 +13,7 @@ The CHECKLIST UI is:
 - centralized around one card API
 - centrally typed for typography
 - centrally controlled for interactions
+- centrally controlled for layout grammar
 
 ## Canonical Product UI Stack
 
@@ -103,6 +104,25 @@ Rules:
 - no feature-level `letterSpacing`
 - no ad hoc title hierarchy
 - if a new text role is needed, add a DS primitive first
+- decorative filler labels are forbidden
+- sidebar labels, route-card labels, counts, and legal/meta text must collapse into the approved primitives instead of local `Text size=...` recipes
+
+## Layout Grammar
+
+Shared layout grammar lives in `src/components/ui/app-shell.tsx` and the shared shell/navigation primitives.
+
+Rules:
+
+- sidebar navigation and dashboard route cards must read as one hierarchy system
+- first-level route cards must use one shared structure:
+  - icon
+  - count or metric
+  - title
+  - optional short description or optional chart
+- decorative footer filler such as repeated “Access Layer” copy is forbidden
+- route-card density and height must come from the shared card API, not page-local improvisation
+- balanced route-card grids are required; accidental uneven wraps are design defects, not acceptable variance
+- buttons and badges must not rely on ornamental all-caps styling to create hierarchy
 
 ## Interaction Architecture
 

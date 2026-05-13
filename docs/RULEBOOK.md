@@ -162,6 +162,42 @@ If a new text role is needed:
 2. update docs
 3. use that primitive everywhere needed
 
+Allowed product typography roles are intentionally limited:
+
+- `PageTitle`
+- `SectionTitle`
+- `CardTitle`
+- `BodyText`
+- `MetaText`
+- `LabelText`
+- `ActionLabel`
+
+Rules:
+
+- feature surfaces must collapse visible copy into these roles instead of inventing local title ladders
+- decorative filler labels are forbidden
+- repeated orientation copy such as “Access Layer” is forbidden when the route title, icon, and click behavior already express the same meaning
+- sidebar labels, card counts, footer/legal text, and route-card descriptions must reuse the approved roles instead of local `Text size=...` patterns
+
+## 6.1 Layout Grammar Rules
+
+Layout grammar is part of the design system, not a page-level preference.
+
+Primary dashboard and navigation rules:
+
+- the sidebar, route-card grid, and section headers must read as one hierarchy system
+- first-level route cards must share one structural grammar:
+  - icon
+  - metric or count
+  - title
+  - optional short description or optional chart
+- route cards must not add decorative footer copy to simulate hierarchy
+- first-level route cards must use one shared density model and one shared height model per breakpoint
+- route-card grids must use deliberate balanced column rules; accidental `5 + 3` or similar wraps are not acceptable
+- one semantic item must map to one semantic tone only
+- buttons, badges, and legal/footer chrome must not introduce ornamental all-caps or decorative emphasis as a substitute for structure
+- page sections must create hierarchy through spacing, grouping, and the approved type roles, not through extra labels or extra decoration
+
 ## 7. Semantic Tone Rules
 
 Allowed tones:

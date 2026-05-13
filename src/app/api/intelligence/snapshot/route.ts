@@ -30,6 +30,8 @@ export async function POST(request: NextRequest) {
     const scoreHealth = data.scoreHealth || {};
     const knowmoreHealth = data.knowmoreHealth || {};
     const observabilitySummary = data.observabilitySummary || {};
+    const feedbackAnalytics = data.feedbackAnalytics || {};
+    const hashtagAnalytics = data.hashtagAnalytics || {};
 
     const snapshot = await prisma.intelligenceSnapshot.upsert({
       where: { companyId },
@@ -53,6 +55,8 @@ export async function POST(request: NextRequest) {
         scoreHealth,
         knowmoreHealth,
         observabilitySummary,
+        feedbackAnalytics,
+        hashtagAnalytics,
       },
       create: {
         companyId,
@@ -75,6 +79,8 @@ export async function POST(request: NextRequest) {
         scoreHealth,
         knowmoreHealth,
         observabilitySummary,
+        feedbackAnalytics,
+        hashtagAnalytics,
       }
     });
 

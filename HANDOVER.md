@@ -25,6 +25,7 @@ Read first:
 - `UnifiedCardModal` is the only approved modal content shell for card content
 - first-class entity cards must expose canonical ICE visibly through the shared card header contract
 - typography is centrally defined in the theme and DS typography primitives only
+- layout grammar is centrally defined in the shared shell/navigation primitives only
 - interactions are centralized in the shared UI layer
 - semantic tones are the only approved product color vocabulary
 - ICE management is centralized through shared scoring contracts plus oldest-first maintenance and queue flows across upstream cards, knowledge, goals, and tasks
@@ -45,6 +46,10 @@ Read first:
 - source-backed Knowmore cards now carry durable citation snapshots plus explicit conflict flags and summaries
 - maintenance now includes oldest-first revisit jobs for unresolved modified candidates and declined high-potential candidates
 - the webapp now exposes `Search & Answers`, `Observability`, and `Workflows` as first implementation slices for the next ideabank wave
+- route-card grammar is now stricter: icon, metric, title, and optional short chart or short description only
+- decorative route-card footer copy such as repeated “Access Layer” labels is not part of the live design system
+- sidebar labels, route-card labels, and footer/legal meta must collapse into the approved typography roles instead of local size recipes
+- ornamental all-caps button and badge defaults are not part of the live design system
 - `Search & Answers` now supports entity filters, result counts, and grounded-answer confidence/evidence grouping
 - first-class entity search results now open the canonical shared `/card/[uuid]` detail route rather than only module landing pages
 - grounded answers now respect the active search entity-filter scope and expose that applied scope back to the operator
@@ -142,7 +147,9 @@ The work is not done until:
 - The worker now consumes persisted queue jobs before the broader synthesis cycle.
 - Human drag-and-drop on the `Worker Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
-- Score-health alert repair is now able to escalate queue work through the shared queue contract.
+- Score-health alert repair is now expressed through persisted queue/repair intents; the local AI worker is the only authority that escalates queue work through the shared queue contract.
+- Workflow edits, Knowmore repair actions, and Observability repair actions now enqueue persisted worker commands instead of executing queue authority in app routes.
+- Topic/source/file ingress routes no longer derive authoritative scores in the webapp layer; they persist raw rows and let the local AI system score them later.
 - Frontier recompute assigns tactical columns by relative blended-priority rank, not raw ICE alone, while preserving manual human drag/drop anchors.
 - Historical flashcard and task rescoring must continue through the bounded `scripts/repair-ice-scores.js` path; do not replace it with one-off bulk rewrites.
 - The Refiner now owns duplicate-cluster tagging and split-aware task refinement in addition to merge/suppress/enrich behavior. Do not collapse it back into text-only rewriting.

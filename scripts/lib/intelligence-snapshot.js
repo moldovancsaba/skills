@@ -30,6 +30,231 @@ function normalizeAlerts(alerts = []) {
   }));
 }
 
+function normalizeTagSelectionKey(tags = []) {
+  return [...new Set((Array.isArray(tags) ? tags : []).map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean))]
+    .sort()
+    .join("|");
+}
+
+function combinations(items, maxSize = 3) {
+  const values = [...new Set(items)].sort();
+  const results = [[]];
+
+  function walk(start, current) {
+    if (current.length > 0) {
+      results.push([...current]);
+    }
+    if (current.length >= maxSize) return;
+    for (let index = start; index < values.length; index += 1) {
+      current.push(values[index]);
+      walk(index + 1, current);
+      current.pop();
+    }
+  }
+
+  walk(0, []);
+  return results;
+}
+
+async function buildFeedbackAnalytics(prisma, companyId) {
+  const nbaItems = await prisma.nBAItem.findMany({
+    where: { companyId },
+    include: { feedback: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const totalItems = nbaItems.length;
+  const itemsWithFeedback = nbaItems.filter((item) => item.feedback.length > 0);
+  const acceptedItems = nbaItems.filter((item) => item.status === "ACCEPTED");
+  const declinedItems = nbaItems.filter((item) => item.status === "DECLINED");
+  const pendingItems = nbaItems.filter((item) => item.status === "PENDING");
+  const overallAcceptanceRate = totalItems > 0
+    ? (acceptedItems.length / Math.max(1, acceptedItems.length + declinedItems.length)) * 100
+    : 0;
+
+  const typeStats = {};
+  for (const item of nbaItems) {
+    const key = String(item.title || "").trim() || "Untitled";
+    if (!typeStats[key]) typeStats[key] = { accepted: 0, declined: 0, total: 0 };
+    typeStats[key].total += 1;
+    if (item.status === "ACCEPTED") typeStats[key].accepted += 1;
+    if (item.status === "DECLINED") typeStats[key].declined += 1;
+  }
+
+  const recommendationTypeStats = Object.entries(typeStats)
+    .map(([type, stats]) => ({
+      type,
+      ...stats,
+      acceptanceRate: stats.total > 0 ? (stats.accepted / Math.max(1, stats.accepted + stats.declined)) * 100 : 0,
+    }))
+    .sort((left, right) => right.acceptanceRate - left.acceptanceRate);
+
+  const declineAnnotations = nbaItems
+    .filter((item) => item.status === "DECLINED" && item.userAnnotation)
+    .map((item) => ({ title: item.title, annotation: item.userAnnotation }));
+
+  const declinePatterns = [];
+  const patternKeywords = [
+    { keyword: "already", pattern: "Already implemented" },
+    { keyword: "not relevant", pattern: "Not relevant to business" },
+    { keyword: "no budget", pattern: "Budget constraints" },
+    { keyword: "too complex", pattern: "Too complex" },
+    { keyword: "timing", pattern: "Wrong timing" },
+    { keyword: "priority", pattern: "Not a priority" },
+    { keyword: "resource", pattern: "Resource constraints" },
+    { keyword: "team", pattern: "Team capacity" },
+  ];
+
+  for (const { keyword, pattern } of patternKeywords) {
+    const matches = declineAnnotations.filter((item) => String(item.annotation || "").toLowerCase().includes(keyword));
+    if (matches.length > 0) {
+      declinePatterns.push({
+        pattern,
+        count: matches.length,
+        examples: matches.slice(0, 3).map((item) => item.annotation),
+      });
+    }
+  }
+
+  const unmatchedAnnotations = declineAnnotations.filter((item) =>
+    !patternKeywords.some((entry) => String(item.annotation || "").toLowerCase().includes(entry.keyword)),
+  );
+  if (unmatchedAnnotations.length > 0) {
+    declinePatterns.push({
+      pattern: "Other reasons",
+      count: unmatchedAnnotations.length,
+      examples: unmatchedAnnotations.slice(0, 3).map((item) => item.annotation),
+    });
+  }
+
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * DAY_MS);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY_MS);
+  const recentItems = nbaItems.filter((item) => item.createdAt >= sevenDaysAgo);
+  const monthItems = nbaItems.filter((item) => item.createdAt >= thirtyDaysAgo);
+
+  const recentAcceptanceRate = recentItems.length > 0
+    ? (recentItems.filter((item) => item.status === "ACCEPTED").length /
+      Math.max(1, recentItems.filter((item) => item.status === "ACCEPTED" || item.status === "DECLINED").length)) * 100
+    : 0;
+  const monthAcceptanceRate = monthItems.length > 0
+    ? (monthItems.filter((item) => item.status === "ACCEPTED").length /
+      Math.max(1, monthItems.filter((item) => item.status === "ACCEPTED" || item.status === "DECLINED").length)) * 100
+    : 0;
+
+  const insights = [];
+  const highAcceptanceTypes = recommendationTypeStats.filter((item) => item.acceptanceRate >= 75 && item.total >= 2);
+  if (highAcceptanceTypes.length > 0) {
+    insights.push({
+      type: "recommendation",
+      title: "High-performing recommendation types",
+      description: `These recommendation types have ${highAcceptanceTypes[0].acceptanceRate.toFixed(0)}%+ acceptance: ${highAcceptanceTypes.map((item) => item.type).join(", ")}.`,
+      confidence: 85,
+    });
+  }
+  const lowAcceptanceTypes = recommendationTypeStats.filter((item) => item.acceptanceRate < 30 && item.total >= 2);
+  if (lowAcceptanceTypes.length > 0) {
+    insights.push({
+      type: "warning",
+      title: "Low-performing recommendation types",
+      description: `These types are frequently declined: ${lowAcceptanceTypes.map((item) => item.type).join(", ")}.`,
+      confidence: 80,
+    });
+  }
+  if (declinePatterns.length > 0) {
+    insights.push({
+      type: "pattern",
+      title: `Top decline reason: ${declinePatterns[0].pattern}`,
+      description: `${declinePatterns[0].count} items declined for this reason.`,
+      confidence: 70,
+    });
+  }
+  if (monthItems.length >= 5) {
+    const trend = recentAcceptanceRate > monthAcceptanceRate ? "improving" : "declining";
+    insights.push({
+      type: "pattern",
+      title: `Acceptance rate is ${trend}`,
+      description: `7-day rate: ${recentAcceptanceRate.toFixed(1)}%, 30-day rate: ${monthAcceptanceRate.toFixed(1)}%.`,
+      confidence: 65,
+    });
+  }
+
+  const avgAcceptedIceScore = acceptedItems.length > 0
+    ? acceptedItems.reduce((sum, item) => sum + Number(item.iceScore || 0), 0) / acceptedItems.length
+    : 0;
+  const avgDeclinedIceScore = declinedItems.length > 0
+    ? declinedItems.reduce((sum, item) => sum + Number(item.iceScore || 0), 0) / declinedItems.length
+    : 0;
+
+  return {
+    overview: {
+      totalItems,
+      itemsWithFeedback: itemsWithFeedback.length,
+      accepted: acceptedItems.length,
+      declined: declinedItems.length,
+      pending: pendingItems.length,
+      overallAcceptanceRate: overallAcceptanceRate.toFixed(1),
+    },
+    recommendationTypeStats,
+    declinePatterns,
+    trends: {
+      sevenDayAcceptanceRate: recentAcceptanceRate.toFixed(1),
+      thirtyDayAcceptanceRate: monthAcceptanceRate.toFixed(1),
+      avgAcceptedIceScore: avgAcceptedIceScore.toFixed(1),
+      avgDeclinedIceScore: avgDeclinedIceScore.toFixed(1),
+    },
+    insights,
+  };
+}
+
+async function buildHashtagAnalytics(prisma, companyId) {
+  const [sources, files, flashcards, checklist] = await Promise.all([
+    prisma.source.findMany({ where: { companyId }, select: { hashtags: true } }),
+    prisma.uploadedSourceFile.findMany({ where: { companyId }, select: { hashtags: true } }),
+    prisma.flashcard.findMany({ where: { companyId }, select: { hashtags: true } }),
+    prisma.nBAItem.findMany({ where: { companyId }, select: { hashtags: true } }),
+  ]);
+
+  const records = [...sources, ...files, ...flashcards, ...checklist].map((record) =>
+    [...new Set((Array.isArray(record.hashtags) ? record.hashtags : []).map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean))].sort(),
+  );
+
+  const globalCounts = new Map();
+  const countsBySelection = new Map();
+
+  for (const tags of records) {
+    for (const tag of tags) {
+      globalCounts.set(tag, (globalCounts.get(tag) ?? 0) + 1);
+    }
+
+    for (const selection of combinations(tags, 3)) {
+      const key = normalizeTagSelectionKey(selection);
+      const bucket = countsBySelection.get(key) ?? new Map();
+      for (const tag of tags) {
+        if (selection.includes(tag)) continue;
+        bucket.set(tag, (bucket.get(tag) ?? 0) + 1);
+      }
+      countsBySelection.set(key, bucket);
+    }
+  }
+
+  const rank = (entries) =>
+    [...entries.entries()]
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+      .map(([tag]) => tag);
+
+  const popular = rank(globalCounts).slice(0, 12);
+  const recommendationsBySelection = {};
+  for (const [key, counts] of countsBySelection.entries()) {
+    recommendationsBySelection[key] = rank(counts).slice(0, 12);
+  }
+
+  return {
+    popular,
+    recommendationsBySelection,
+  };
+}
+
 function virtualPolicies(policies) {
   const defaults = [
     { feature: "pipeline-queue", dailyEstimatedCostMicros: 250000, dailyWorkloadUnitsLimit: 120, retryLimit: 6, externalRequestLimit: 20, status: "VIRTUAL_DEFAULT", controlMode: "MONITOR" },
@@ -467,7 +692,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
     ? progressSetting.value
     : {};
 
-  const [dataSources, uploadedFiles, topics, flashcards, goals, nbaItems, checklistCount, reviewCount, scoreHealth, analyticsHistory] = await Promise.all([
+  const [dataSources, uploadedFiles, topics, flashcards, goals, nbaItems, checklistCount, reviewCount, scoreHealth, analyticsHistory, feedbackAnalytics, hashtagAnalytics] = await Promise.all([
     prisma.source.count({ where: { companyId } }),
     prisma.uploadedSourceFile.count({ where: { companyId } }),
     prisma.topic.count({ where: { companyId } }),
@@ -492,6 +717,8 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
     }),
     computeCompanyScoreHealth(companyId, prisma),
     buildAnalyticsHistory(prisma, companyId),
+    buildFeedbackAnalytics(prisma, companyId),
+    buildHashtagAnalytics(prisma, companyId),
   ]);
 
   const normalizedScoreHealth = scoreHealth
@@ -534,6 +761,8 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       scoreHealth: normalizedScoreHealth || {},
       knowmoreHealth,
       observabilitySummary,
+      feedbackAnalytics,
+      hashtagAnalytics,
     },
     create: {
       companyId,
@@ -556,6 +785,8 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       scoreHealth: normalizedScoreHealth || {},
       knowmoreHealth,
       observabilitySummary,
+      feedbackAnalytics,
+      hashtagAnalytics,
     },
   });
 }

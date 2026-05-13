@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
 import { verifyMembership } from "@/lib/permissions";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
-import { enrichUploadedFile } from "@/lib/file-enrichment";
-import { deriveDataCardScoreProfile } from "@/lib/upstream-card-scoring";
 import {
   ensureSourcePublicIds,
   nextSourcePublicId,
@@ -15,6 +12,75 @@ import {
 } from "@/lib/source-public-ids";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
+function stripUtf8Bom(value: string) {
+  return value.replace(/^\uFEFF/, "");
+}
+
+function looksBinary(bytes: Uint8Array) {
+  const sample = bytes.subarray(0, Math.min(bytes.length, 512));
+  for (const byte of sample) {
+    if (byte === 0) return true;
+  }
+  return false;
+}
+
+function isMarkdownLikeFile(name: string, mimeType: string) {
+  const normalizedName = String(name || "").toLowerCase();
+  const normalizedMime = String(mimeType || "").toLowerCase();
+  return (
+    normalizedMime === "text/markdown" ||
+    normalizedMime === "text/x-markdown" ||
+    normalizedName.endsWith(".md") ||
+    normalizedName.endsWith(".markdown")
+  );
+}
+
+function isPlainTextLikeFile(name: string, mimeType: string) {
+  const normalizedName = String(name || "").toLowerCase();
+  const normalizedMime = String(mimeType || "").toLowerCase();
+  return (
+    normalizedMime.startsWith("text/") ||
+    normalizedName.endsWith(".txt") ||
+    normalizedName.endsWith(".log") ||
+    normalizedName.endsWith(".csv") ||
+    normalizedName.endsWith(".tsv") ||
+    normalizedName.endsWith(".json") ||
+    normalizedName.endsWith(".yaml") ||
+    normalizedName.endsWith(".yml") ||
+    normalizedName.endsWith(".xml")
+  );
+}
+
+function fileSizeLabel(sizeBytes: number) {
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return "Unknown size";
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function decodeUploadedFileBody(file: {
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  content: Uint8Array | Buffer | null;
+}) {
+  if (!file.content || file.content.length === 0) {
+    return `${file.mimeType || "file"} • ${fileSizeLabel(file.sizeBytes)}`;
+  }
+
+  if (!isMarkdownLikeFile(file.name, file.mimeType) && !isPlainTextLikeFile(file.name, file.mimeType)) {
+    return `${file.mimeType || "file"} • ${fileSizeLabel(file.sizeBytes)}`;
+  }
+
+  const bytes = file.content instanceof Uint8Array ? file.content : new Uint8Array(file.content);
+  if (looksBinary(bytes)) {
+    return `${file.mimeType || "file"} • ${fileSizeLabel(file.sizeBytes)}`;
+  }
+
+  const decoded = stripUtf8Bom(Buffer.from(bytes).toString("utf8")).trim();
+  return decoded || `${file.mimeType || "file"} • ${fileSizeLabel(file.sizeBytes)}`;
+}
 
 function parseHashtags(value: FormDataEntryValue | null) {
   if (typeof value !== "string") {
@@ -56,12 +122,17 @@ export async function GET(request: NextRequest) {
         entityTag: true,
         mimeType: true,
         sizeBytes: true,
+        content: true,
         createdAt: true,
         updatedAt: true,
       },
     });
-
-    return NextResponse.json(files);
+    return NextResponse.json(
+      files.map((file) => ({
+        ...file,
+        body: decodeUploadedFileBody(file),
+      })),
+    );
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -99,33 +170,12 @@ export async function POST(request: NextRequest) {
 
         const publicId = await nextSourcePublicId(tx);
         const arrayBuffer = await file.arrayBuffer();
-        const enriched = await enrichUploadedFile({
-          name: file.name,
-          mimeType: file.type || "application/octet-stream",
-          sizeBytes: file.size,
-          hashtags,
-          content: Buffer.from(arrayBuffer),
-        });
-        const scoreProfile = deriveDataCardScoreProfile({
-          name: file.name,
-          content: enriched.extractedText || file.name,
-          hashtags,
-          entityTag,
-          metadata: enriched.watchedContent ?? null,
-          sourceName: file.name,
-        });
 
         const saved = await tx.uploadedSourceFile.create({
           data: {
             publicId,
             companyId,
             name: file.name,
-            confidence: scoreProfile.confidence,
-            confidenceScore: scoreProfile.confidence,
-            impact: scoreProfile.impact,
-            weight: scoreProfile.weight,
-            iceScore: scoreProfile.iceScore,
-            scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
             hashtags,
             entityTag,
             mimeType: file.type || "application/octet-stream",
@@ -146,12 +196,16 @@ export async function POST(request: NextRequest) {
             entityTag: true,
             mimeType: true,
             sizeBytes: true,
+            content: true,
             createdAt: true,
             updatedAt: true,
           },
         });
 
-        results.push(saved);
+        results.push({
+          ...saved,
+          body: decodeUploadedFileBody(saved),
+        });
       }
 
       return results;
@@ -193,37 +247,16 @@ export async function PATCH(request: NextRequest) {
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
 
-    const enriched = await enrichUploadedFile({
-      name: data.name ?? existing.name,
-      mimeType: existing.mimeType,
-      sizeBytes: existing.sizeBytes,
-      hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags),
-      content: Buffer.from(existing.content),
-    });
     const nextData = {
       name: data.name ?? existing.name,
       hashtags: normalizeSourceHashtags(data.hashtags ?? existing.hashtags),
       entityTag: data.entityTag !== undefined ? data.entityTag : existing.entityTag,
     };
-    const scoreProfile = deriveDataCardScoreProfile({
-      name: nextData.name,
-      content: enriched.extractedText || nextData.name,
-      hashtags: nextData.hashtags,
-      entityTag: nextData.entityTag,
-      metadata: enriched.watchedContent ?? null,
-      sourceName: nextData.name,
-    });
 
     const file = await prisma.uploadedSourceFile.update({
       where: { id },
       data: {
         ...nextData,
-        confidence: scoreProfile.confidence,
-        confidenceScore: scoreProfile.confidence,
-        impact: scoreProfile.impact,
-        weight: scoreProfile.weight,
-        iceScore: scoreProfile.iceScore,
-        scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
         updatedAt: new Date(),
       },
       select: {
@@ -237,7 +270,10 @@ export async function PATCH(request: NextRequest) {
         iceScore: true,
         hashtags: true,
         entityTag: true,
+        mimeType: true,
+        sizeBytes: true,
         updatedAt: true,
+        content: true,
       },
     });
 
@@ -256,7 +292,10 @@ export async function PATCH(request: NextRequest) {
       teachingWeight: 40,
     });
 
-    return NextResponse.json(file);
+    return NextResponse.json({
+      ...file,
+      body: decodeUploadedFileBody(file),
+    });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

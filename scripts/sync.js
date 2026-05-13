@@ -17,6 +17,7 @@ const PORT = 10005;
 const { getSynthesisProgress, collectGlobalWorkerSettings, updateProgress, synthesisState } = require("./lib/synthesis");
 const { scrubDatabaseElemental } = require("./lib/maintenance");
 const { refreshAllIntelligenceSnapshots } = require("./lib/intelligence-snapshot");
+const { processPendingWorkerCommands } = require("./lib/system-commands");
 
 // --- CONTINUOUS HEARTBEAT ---
 // Persist progress even while the worker is between queue batches so the
@@ -56,6 +57,8 @@ async function runWorkerLoop() {
     wakeRequested = false;
 
     await runStartupIntegrityPass();
+    await updateProgress(prisma, { state: "running", stage: "SYSTEM_COMMANDS" });
+    await processPendingWorkerCommands(prisma, refreshAllIntelligenceSnapshots);
     await updateProgress(prisma, { state: "running", stage: "PIPELINE_QUEUE" });
     // Queue execution is the only mutation lane. Any revisit, synthesis,
     // repair, or maintenance work must arrive through claimable jobs.

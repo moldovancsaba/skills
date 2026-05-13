@@ -48,6 +48,7 @@ export function gatherCompanyPipelineSignals(prisma: unknown, companyId: string)
 export function syncCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
 export function syncAllCompanyPipelineJobs(prisma: unknown): Promise<void>;
 export function listCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
+export function listPersistedCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
 export function resetCompanyPipelineJobsToAiOnly(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
 export function applyManualPipelineQueueMove(
   prisma: unknown,

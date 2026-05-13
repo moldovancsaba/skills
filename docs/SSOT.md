@@ -70,6 +70,7 @@ The product UI contract is:
 - `UnifiedCardModal` as modal content shell
 - centralized typography
 - centralized interactions
+- centralized layout grammar
 
 This contract is implemented in:
 
@@ -87,6 +88,9 @@ Shared shell rule:
 
 - app-shell route cards, metric cards, and empty states are product card surfaces and must render through `UnifiedCard`, not a parallel raw-card branch
 - shared visual chrome such as sidebar shells, accent rails, dropzones, modal shells, dividers, and bullets must come from `src/lib/semantic-theme.ts`, not feature-local inline recipes
+- shared navigation and dashboard route surfaces must use one approved route-card grammar and one approved sidebar grammar
+- decorative route-card footer labels are not part of the live product grammar
+- route-card height, density, and hierarchy must come from shared shell primitives rather than page-local composition
 
 ## 5. Processing Model
 
@@ -130,7 +134,7 @@ The current intelligence-operations contract also includes:
 - Search & Answers must require at least one explicit allowed layer and must not silently widen back to all layers when the operator scope selection is empty
 - Search & Answers must clear stale result and answer state when the allowed layer selection changes so the visible output always reflects the current scope
 - one observability surface for worker health, queue pressure, score-health, AI workload budget pressure, and recent outcomes
-- observability also owns bounded repair and budget actions for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls
+- observability captures bounded repair intents and budget-control records for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls; the local AI system executes those actions after pulling them from MongoDB Atlas
 - Knowmore owns its own operator-visible health and bounded repair surface on top of the shared queue and score-health model
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active
 - persisted enrichment waterfall policies for provider ordering and fallback governance, applied at runtime during URL intelligence enrichment

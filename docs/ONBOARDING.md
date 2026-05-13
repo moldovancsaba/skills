@@ -15,6 +15,18 @@ CHECKLIST is a multi-tenant autonomous intelligence system with:
 - a recurrent AI processing loop
 - a card-based product model
 - a rigid Mantine-only frontend
+- a strict local-AI authority boundary
+
+## Authority Boundary
+
+This rule is not optional:
+
+- the online webapp reads persisted results from MongoDB Atlas
+- the online webapp writes user interactions, repair intents, and operator commands back to MongoDB Atlas
+- the online webapp must not calculate authoritative queue state, score health, observability health, ranking, or repair outcomes
+- the local AI system pulls those persisted records, performs the calculations, and pushes the updated results back into MongoDB Atlas
+
+If you see authoritative calculation logic in the webapp layer, treat it as architecture debt and remove it.
 
 ## What The Frontend Uses
 
@@ -31,6 +43,8 @@ CHECKLIST is a multi-tenant autonomous intelligence system with:
 - raw `Paper` surfaces are not allowed for product cards
 - local type scales are not allowed
 - changing the system without updating the AI brain docs is not allowed
+- the webapp is not allowed to “help out” by recomputing AI state
+- there is no permission to soften written rules in code, docs, or communication
 - the old “synthetic ICE overhaul” is not an open project anymore; the live scoring contract is already factorized, history-aware, delivery-difficulty-aware, and precision-preserving
 - the active self-learning training path is Apple-Silicon-native through MLX / MLX-LM and Ollama; do not assume GPU-first frameworks like Unsloth are part of the active rollout
 
@@ -58,7 +72,19 @@ npx tsc --noEmit
 - `/[companyId]/goals`
 - `/[companyId]/review`
 - `/[companyId]/tactical`
+- `/[companyId]/pipeline`
 - `/[companyId]/settings`
+- `/manual`
+- `/faq`
+
+## Operator Support Surface
+
+New contributors must know where support content actually lives:
+
+- `/manual` is the operator manual and onboarding surface
+- `/faq` is the troubleshooting and support-answer surface
+- both must stay accurate about the webapp/local-AI boundary, language policy, markdown-file behavior, and repair workflow
+- if product behavior changes, update these support surfaces in the same work
 
 ## AI Brain Update Rule
 

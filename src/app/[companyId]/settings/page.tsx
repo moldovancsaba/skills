@@ -196,7 +196,7 @@ export default function SettingsPage() {
                   </ThemeIcon>
                   <SectionTitle>Language Management</SectionTitle>
                 </Group>
-                <BodyText>Define which languages the AI is allowed to use for intelligence synthesis.</BodyText>
+                <BodyText>Define which languages the local AI system is allowed to use for synthesis, refinement, and repair.</BodyText>
               </Stack>
               <Badge color="synthesis" size="sm">
                 {companySettings?.allowedLanguages.length || 0} Enabled
@@ -227,8 +227,8 @@ export default function SettingsPage() {
             <UnifiedCardSection tone="synthesis">
               <MetaText mb="xs">Policy Enforcement</MetaText>
               <MetaText>
-                AI agents will strictly use only these permitted languages for flashcards and taskcards. 
-                checklist Purity Check: Any content detected in a disallowed language or containing mixed-language structures will be deleted immediately during synthesis.
+                The local AI system must use only these permitted languages for flashcards and taskcards.
+                Content detected in a disallowed language or in mixed-language form is treated as a quality error and should be rewritten or removed during synthesis and revisit passes.
               </MetaText>
             </UnifiedCardSection>
           </Stack>

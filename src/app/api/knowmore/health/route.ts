@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
-import {
-  escalateCompanyPipelineJob,
-  recoverFailedCompanyPipelineJobs,
-  syncCompanyPipelineJobs,
-} from "@/lib/pipeline-queue";
+import { issueSystemCommand } from "@/lib/system-commands";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -77,13 +73,16 @@ export async function PATCH(request: NextRequest) {
     if (auth.error) return auth.error;
 
     if (action === "SYNC_KNOWMORE") {
-      await syncCompanyPipelineJobs(prisma as any, companyId);
+      await issueSystemCommand("SYNC_PIPELINE_JOBS", { companyId });
+      await issueSystemCommand("REFRESH_INTELLIGENCE_SNAPSHOTS", { companyId });
     } else if (action === "REQUEST_KNOWMORE_REPAIR") {
-      await escalateCompanyPipelineJob(prisma as any, companyId, "COMPANY_SYNTHESIS");
-      await escalateCompanyPipelineJob(prisma as any, companyId, "FEEDBACK_RECONCILIATION");
-      await escalateCompanyPipelineJob(prisma as any, companyId, "CARD_RESCORING");
+      await issueSystemCommand("ESCALATE_PIPELINE_JOB", { companyId, jobType: "COMPANY_SYNTHESIS" });
+      await issueSystemCommand("ESCALATE_PIPELINE_JOB", { companyId, jobType: "FEEDBACK_RECONCILIATION" });
+      await issueSystemCommand("ESCALATE_PIPELINE_JOB", { companyId, jobType: "CARD_RESCORING" });
+      await issueSystemCommand("REFRESH_INTELLIGENCE_SNAPSHOTS", { companyId });
     } else if (action === "RECOVER_KNOWMORE_JOBS") {
-      await recoverFailedCompanyPipelineJobs(prisma as any, companyId);
+      await issueSystemCommand("RECOVER_FAILED_PIPELINE_JOBS", { companyId });
+      await issueSystemCommand("REFRESH_INTELLIGENCE_SNAPSHOTS", { companyId });
     } else {
       return NextResponse.json({ error: "Unsupported knowmore action" }, { status: 400 });
     }

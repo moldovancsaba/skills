@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { normalizeSourceHashtags } from "@/lib/hashtags";
 import { verifyMembership } from "@/lib/permissions";
-import { calculateICEScore, normalizeNBAMetrics } from "@/lib/nba-scoring";
-import { computePriorityCohortProfiles } from "@/lib/scoring-contract";
-import { applyPlanningHitlScoreAdjustment, type NBAKanbanColumn } from "@/lib/planning-hitl";
+import type { NBAKanbanColumn } from "@/lib/planning-hitl";
 import { ensurechecklistPublicIds, nextchecklistPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { APP_VERSION, BRAIN_VERSION, NBA_PROMPT_VERSION } from "@/lib/release";
 import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
@@ -62,31 +60,7 @@ export async function GET(request: NextRequest) {
             { publicId: "asc" as const },
           ],
     });
-    const priorityProfiles = computePriorityCohortProfiles(items);
-    const enriched = items.map((item, index) => ({
-      ...item,
-      priorityProfile: priorityProfiles[index],
-    }));
-
-    enriched.sort((left, right) => {
-      const leftManual = (left.sortOrder ?? 0) !== 0;
-      const rightManual = (right.sortOrder ?? 0) !== 0;
-      if ((showAll || Boolean(kanbanColumn)) && leftManual !== rightManual) {
-        return leftManual ? -1 : 1;
-      }
-      if ((showAll || Boolean(kanbanColumn)) && leftManual && rightManual && left.sortOrder !== right.sortOrder) {
-        return left.sortOrder - right.sortOrder;
-      }
-      const leftPriority = left.priorityProfile?.score ?? 0;
-      const rightPriority = right.priorityProfile?.score ?? 0;
-      if (leftPriority !== rightPriority) return rightPriority - leftPriority;
-      if ((right.confidenceScore ?? 0) !== (left.confidenceScore ?? 0)) {
-        return (right.confidenceScore ?? 0) - (left.confidenceScore ?? 0);
-      }
-      return (left.publicId ?? Number.MAX_SAFE_INTEGER) - (right.publicId ?? Number.MAX_SAFE_INTEGER);
-    });
-
-    return NextResponse.json(enriched);
+    return NextResponse.json(items);
   } catch (error) {
     console.error("[API:NBA] Get failure:", error);
     // Iron-Clad: Never return a non-array crash object to the dashboard
@@ -165,15 +139,6 @@ export async function PATCH(request: NextRequest) {
       const sourceColumnOrderIds = Array.isArray(data.sourceColumnOrderIds)
         ? data.sourceColumnOrderIds.filter((value: unknown): value is string => typeof value === "string")
         : [];
-      const hitlAdjustment = applyPlanningHitlScoreAdjustment(
-        {
-          impact: existing.impact,
-          confidence: existing.confidenceScore ?? existing.confidence,
-          ease: existing.ease,
-        },
-        sourceColumn,
-        destinationColumn,
-      );
 
       const touchedIds = [...new Set([...destinationColumnOrderIds, ...sourceColumnOrderIds])];
       const manualSortForIndex = (index: number, total: number) => index - total;
@@ -185,30 +150,6 @@ export async function PATCH(request: NextRequest) {
             data: {
               kanbanColumn: destinationColumn,
               sortOrder: manualSortForIndex(index, destinationColumnOrderIds.length),
-              impact:
-                itemId === existing.id && hitlAdjustment.triggered
-                  ? hitlAdjustment.impact
-                  : undefined,
-              confidence:
-                itemId === existing.id && hitlAdjustment.triggered
-                  ? hitlAdjustment.confidence
-                  : undefined,
-              confidenceScore:
-                itemId === existing.id && hitlAdjustment.triggered
-                  ? hitlAdjustment.confidence
-                  : undefined,
-              ease:
-                itemId === existing.id && hitlAdjustment.triggered
-                  ? hitlAdjustment.ease
-                  : undefined,
-              iceScore:
-                itemId === existing.id && hitlAdjustment.triggered
-                  ? hitlAdjustment.iceScore
-                  : undefined,
-              lastRescoredAt:
-                itemId === existing.id && hitlAdjustment.triggered
-                  ? null
-                  : undefined,
               updatedAt: new Date(),
             },
           });
@@ -248,18 +189,6 @@ export async function PATCH(request: NextRequest) {
           destinationColumnOrderIds,
           sourceColumnOrderIds,
           touchedIds,
-          planningHitlAdjustment: hitlAdjustment.triggered
-            ? {
-                distance: hitlAdjustment.distance,
-                direction: hitlAdjustment.direction,
-                confidenceDelta: hitlAdjustment.confidenceDelta,
-                impactDelta: hitlAdjustment.impactDelta,
-                nextImpact: hitlAdjustment.impact,
-                nextConfidence: hitlAdjustment.confidence,
-                nextEase: hitlAdjustment.ease,
-                nextIceScore: hitlAdjustment.iceScore,
-              }
-            : null,
         },
         teachingWeight: 95,
       });
@@ -282,88 +211,23 @@ export async function PATCH(request: NextRequest) {
         payload: {
           destinationColumnOrderIds,
           sourceColumnOrderIds,
-          planningHitlAdjustment: hitlAdjustment.triggered
-            ? {
-                distance: hitlAdjustment.distance,
-                direction: hitlAdjustment.direction,
-                confidenceDelta: hitlAdjustment.confidenceDelta,
-                impactDelta: hitlAdjustment.impactDelta,
-                nextImpact: hitlAdjustment.impact,
-                nextConfidence: hitlAdjustment.confidence,
-                nextEase: hitlAdjustment.ease,
-                nextIceScore: hitlAdjustment.iceScore,
-              }
-            : null,
         },
         teachingWeight: 95,
       });
-
-      if (hitlAdjustment.triggered && updated) {
-        await recordDecisionEvent({
-          companyId: existing.companyId,
-          decisionMaker: "human-planning-hitl",
-          decisionType: "TASK_EVALUATION_OVERRIDE",
-          entityType: "TASK",
-          entityId: existing.id,
-          beforeState: {
-            kanbanColumn: existing.kanbanColumn,
-            impact: existing.impact,
-            confidenceScore: existing.confidenceScore,
-            ease: existing.ease,
-            iceScore: existing.iceScore,
-          },
-          afterState: {
-            kanbanColumn: updated.kanbanColumn,
-            impact: updated.impact,
-            confidenceScore: updated.confidenceScore,
-            ease: updated.ease,
-            iceScore: updated.iceScore,
-          },
-          payload: {
-            sourceColumn,
-            destinationColumn,
-            distance: hitlAdjustment.distance,
-            direction: hitlAdjustment.direction,
-            confidenceDelta: hitlAdjustment.confidenceDelta,
-            impactDelta: hitlAdjustment.impactDelta,
-          },
-          rationale: "Human planning move across at least two tactical horizons taught task scoring.",
-          teachingWeight: 100,
-        });
-      }
 
       return NextResponse.json(updated);
     }
 
     const hasMetricOverride =
       data.impact !== undefined || data.confidence !== undefined || data.confidenceScore !== undefined || data.ease !== undefined;
-    const metricInput = normalizeNBAMetrics({
-      impact: data.impact ?? existing.impact,
-      confidence: data.confidenceScore ?? data.confidence ?? existing.confidenceScore ?? existing.confidence,
-      ease: data.ease ?? existing.ease,
-    });
     const nextIceScore =
       data.iceScore !== undefined
         ? Number(data.iceScore)
-        : hasMetricOverride
-          ? calculateICEScore(metricInput)
-          : existing.iceScore;
+        : existing.iceScore;
 
     const nextProcessingStatus = data.processingStatus ?? existing.processingStatus;
     const nextActivityState = data.activityState ?? existing.activityState;
     const nextKanbanColumn = data.kanbanColumn ?? existing.kanbanColumn;
-    const planningHitlAdjustment =
-      nextKanbanColumn !== existing.kanbanColumn
-        ? applyPlanningHitlScoreAdjustment(
-            {
-              impact: existing.impact,
-              confidence: existing.confidenceScore ?? existing.confidence,
-              ease: existing.ease,
-            },
-            existing.kanbanColumn as NBAKanbanColumn,
-            nextKanbanColumn as NBAKanbanColumn,
-          )
-        : null;
     const nextCandidateState = data.candidateState ?? existing.candidateState;
     const nextStatus = data.status ?? existing.status;
     const nextScheduledDate =
@@ -376,30 +240,18 @@ export async function PATCH(request: NextRequest) {
         title: data.title ?? existing.title,
         description: data.description ?? existing.description,
         impact: hasMetricOverride
-          ? metricInput.impact
-          : planningHitlAdjustment?.triggered
-            ? planningHitlAdjustment.impact
-            : existing.impact,
+          ? Number(data.impact ?? existing.impact)
+          : existing.impact,
         confidence: hasMetricOverride
-          ? Math.round(metricInput.confidence)
-          : planningHitlAdjustment?.triggered
-            ? planningHitlAdjustment.confidence
-            : existing.confidence,
+          ? Math.round(Number(data.confidenceScore ?? data.confidence ?? existing.confidence))
+          : existing.confidence,
         confidenceScore: hasMetricOverride
-          ? metricInput.confidence
-          : planningHitlAdjustment?.triggered
-            ? planningHitlAdjustment.confidence
-            : existing.confidenceScore,
+          ? Number(data.confidenceScore ?? data.confidence ?? existing.confidenceScore ?? existing.confidence)
+          : existing.confidenceScore,
         ease: hasMetricOverride
-          ? metricInput.ease
-          : planningHitlAdjustment?.triggered
-            ? planningHitlAdjustment.ease
-            : existing.ease,
-        iceScore: hasMetricOverride
-          ? nextIceScore
-          : planningHitlAdjustment?.triggered
-            ? planningHitlAdjustment.iceScore
-            : nextIceScore,
+          ? Number(data.ease ?? existing.ease)
+          : existing.ease,
+        iceScore: nextIceScore,
         processingStatus: nextProcessingStatus,
         activityState: nextActivityState,
         status: nextStatus,
@@ -411,7 +263,7 @@ export async function PATCH(request: NextRequest) {
         freshnessScore: data.freshnessScore !== undefined ? data.freshnessScore : existing.freshnessScore,
         evaluationReason: data.evaluationReason ?? existing.evaluationReason,
         scheduledDate: nextScheduledDate,
-        lastRescoredAt: planningHitlAdjustment?.triggered ? null : existing.lastRescoredAt,
+        lastRescoredAt: existing.lastRescoredAt,
         updatedAt: new Date(),
       },
     });
@@ -458,18 +310,6 @@ export async function PATCH(request: NextRequest) {
       },
       payload: {
         ...data,
-        planningHitlAdjustment: planningHitlAdjustment?.triggered
-          ? {
-              distance: planningHitlAdjustment.distance,
-              direction: planningHitlAdjustment.direction,
-              confidenceDelta: planningHitlAdjustment.confidenceDelta,
-              impactDelta: planningHitlAdjustment.impactDelta,
-              nextImpact: planningHitlAdjustment.impact,
-              nextConfidence: planningHitlAdjustment.confidence,
-              nextEase: planningHitlAdjustment.ease,
-              nextIceScore: planningHitlAdjustment.iceScore,
-            }
-          : null,
       },
       teachingWeight:
         patchType === "TASK_ACCEPTED_NOT_DELIVERED"
@@ -510,49 +350,10 @@ export async function PATCH(request: NextRequest) {
         },
         payload: {
           explicitIceScore: data.iceScore,
-          metricInput,
           evaluationReason: updated.evaluationReason,
-          planningHitlAdjustment: planningHitlAdjustment?.triggered
-            ? {
-                distance: planningHitlAdjustment.distance,
-                direction: planningHitlAdjustment.direction,
-                confidenceDelta: planningHitlAdjustment.confidenceDelta,
-                impactDelta: planningHitlAdjustment.impactDelta,
-              }
-            : null,
         },
         rationale: data.evaluationReason ?? "Manual override applied through task API",
         teachingWeight: 90,
-      });
-    } else if (planningHitlAdjustment?.triggered) {
-      await recordDecisionEvent({
-        companyId: existing.companyId,
-        decisionMaker: "human-planning-hitl",
-        decisionType: "TASK_EVALUATION_OVERRIDE",
-        entityType: "TASK",
-        entityId: existing.id,
-        beforeState: {
-          kanbanColumn: existing.kanbanColumn,
-          impact: existing.impact,
-          confidenceScore: existing.confidenceScore,
-          ease: existing.ease,
-          iceScore: existing.iceScore,
-        },
-        afterState: {
-          kanbanColumn: updated.kanbanColumn,
-          impact: updated.impact,
-          confidenceScore: updated.confidenceScore,
-          ease: updated.ease,
-          iceScore: updated.iceScore,
-        },
-        payload: {
-          distance: planningHitlAdjustment.distance,
-          direction: planningHitlAdjustment.direction,
-          confidenceDelta: planningHitlAdjustment.confidenceDelta,
-          impactDelta: planningHitlAdjustment.impactDelta,
-        },
-        rationale: "Human planning move across at least two tactical horizons taught task scoring.",
-        teachingWeight: 100,
       });
     }
 

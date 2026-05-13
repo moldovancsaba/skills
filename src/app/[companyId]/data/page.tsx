@@ -47,6 +47,7 @@ interface DataItem {
   id: string;
   publicId: number | null;
   name: string;
+  body?: string;
   type: DataType;
   hashtags: string[];
   aiClusters?: string[];
@@ -126,7 +127,7 @@ export default function CompanyDataPage() {
     
     const all = [
       ...sourceItems.map((x: any) => ({ ...x, name: x.content, type: "source" as DataType })),
-      ...f.map((x: any) => ({ ...x, type: "file" as DataType })),
+      ...f.map((x: any) => ({ ...x, body: x.body, type: "file" as DataType })),
     ];
     setItems(all);
     setLoading(false);
@@ -566,6 +567,7 @@ export default function CompanyDataPage() {
                     id={item.id}
                     publicId={item.publicId}
                     name={item.name}
+                    body={item.body}
                     type={item.type}
                     onOpenDetail={() => setSelectedDataId(item.id)}
                     intelligenceType={item.intelligenceType}
@@ -624,6 +626,7 @@ export default function CompanyDataPage() {
             id={selectedDataItem.id}
             publicId={selectedDataItem.publicId}
             name={selectedDataItem.name}
+            body={selectedDataItem.body}
             type={selectedDataItem.type}
             detailMode
             intelligenceType={selectedDataItem.intelligenceType}

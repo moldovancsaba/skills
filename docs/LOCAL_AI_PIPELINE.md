@@ -196,7 +196,8 @@ UI/runtime contract:
 - shared card pages are standalone, non-interactive views intended for focused review rather than workflow operations
 - active workflow blueprints are synchronized into claimable `WORKFLOW_BLUEPRINT` pipeline jobs, so workflow configuration can directly steer local-AI execution
 - enrichment waterfall policies now influence runtime product/competitor URL research provider selection instead of remaining passive config
-- observability is no longer read-only; operators can trigger bounded queue sync, score-repair escalation, and failed-job recovery through the shared webapp control surface
+- observability is no longer read-only; operators can write bounded queue/repair intents through the shared webapp surface, and the local AI system pulls and executes queue sync, score-repair escalation, and failed-job recovery from MongoDB Atlas
+- workflow edits and repair actions are bridged through persisted worker commands; the webapp does not execute queue authority directly
 
 Some flashcards are sourced from AI-harvested public research rather than direct user-entered rows. Those are still normal flashcards in storage, but their source lineage points at `Source` rows tagged with:
 
@@ -250,6 +251,7 @@ Behavior contract:
 - manual drag/drop moves switch the affected jobs into `HUMAN_GUIDED`
 - `Reset to AI Only` clears those manual overrides and returns scheduling to shared AI logic
 - there is no separate compact tweak menu in the current shipped UI; the board itself is the tweak surface
+- queue reads must return persisted `PipelineJob` rows only; loading the board must not trigger queue synchronization in the webapp layer
 
 Current selection contract:
 

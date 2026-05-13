@@ -469,6 +469,10 @@ function sortPipelineJobs(jobs) {
 
 async function listCompanyPipelineJobs(prisma, companyId) {
   await syncCompanyPipelineJobs(prisma, companyId);
+  return listPersistedCompanyPipelineJobs(prisma, companyId);
+}
+
+async function listPersistedCompanyPipelineJobs(prisma, companyId) {
   const jobs = await prisma.pipelineJob.findMany({
     where: { companyId },
     orderBy: [{ updatedAt: "asc" }],
@@ -487,7 +491,7 @@ async function resetCompanyPipelineJobsToAiOnly(prisma, companyId) {
       updatedAt: new Date(),
     },
   });
-  return listCompanyPipelineJobs(prisma, companyId);
+  return listPersistedCompanyPipelineJobs(prisma, companyId);
 }
 
 async function applyManualPipelineQueueMove(prisma, companyId, movedJobId, sourceColumn, destinationColumn, destinationColumnOrderIds, sourceColumnOrderIds = []) {
@@ -525,7 +529,7 @@ async function applyManualPipelineQueueMove(prisma, companyId, movedJobId, sourc
   const moved = await prisma.pipelineJob.findUnique({ where: { id: movedJobId } });
   return {
     moved,
-    jobs: await listCompanyPipelineJobs(prisma, companyId),
+    jobs: await listPersistedCompanyPipelineJobs(prisma, companyId),
   };
 }
 
@@ -643,6 +647,7 @@ module.exports = {
   syncCompanyPipelineJobs,
   syncAllCompanyPipelineJobs,
   listCompanyPipelineJobs,
+  listPersistedCompanyPipelineJobs,
   resetCompanyPipelineJobsToAiOnly,
   applyManualPipelineQueueMove,
   claimNextPipelineJobs,

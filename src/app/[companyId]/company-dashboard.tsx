@@ -8,8 +8,6 @@ import {
   SimpleGrid, 
   Stack, 
   Group, 
-  Title, 
-  Text, 
   Loader, 
   Box,
   Center,
@@ -28,6 +26,7 @@ import { ExpertTipCard } from "@/components/expert-tip-card";
 import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCirclesRelation as CirclesRelation, IconHelmet as HardHat, IconSearch as Search, IconGitBranch as GitBranch, IconRadar2 as Radar } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { CompanyScoreHealth } from "@/lib/score-health";
+import { BodyText, SectionTitle } from "@/components/ui/typography";
 
 type NBAItem = {
   id: string;
@@ -254,9 +253,7 @@ export default function CompanyDashboard() {
         <Center mih="60vh">
           <Stack align="center" gap="xl">
             <Loader color="ingress" />
-            <Text c="dimmed">
-              Synchronizing Intelligence Stream...
-            </Text>
+            <BodyText>Synchronizing intelligence stream...</BodyText>
           </Stack>
         </Center>
       </PageShell>
@@ -369,6 +366,7 @@ export default function CompanyDashboard() {
           variant="knowmore"
           title="Search & Answers"
           description="Unified retrieval across cards, queue work, and grounded answers over company context."
+          density="compact"
         />
         <LinkCard
           href={`/${companyId}/workflows`}
@@ -376,6 +374,7 @@ export default function CompanyDashboard() {
           variant="review"
           title="Workflows"
           description="Bounded workflow blueprints and enrichment waterfall controls for operator-guided automation."
+          density="compact"
         />
         <LinkCard
           href={`/${companyId}/observability`}
@@ -383,6 +382,7 @@ export default function CompanyDashboard() {
           variant="strategy"
           title="Observability"
           description="Mission control for worker health, queue pressure, score health, and recent system outcomes."
+          density="compact"
         />
       </RouteCardGrid>
 
@@ -390,8 +390,8 @@ export default function CompanyDashboard() {
         <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
             <Box>
-              <Title order={2}>Score Health</Title>
-              <Text c="dimmed">Live observability for score clustering, tuple repetition, and tactical score diversity.</Text>
+              <SectionTitle>Score Health</SectionTitle>
+              <BodyText>Live observability for score clustering, tuple repetition, and tactical score diversity.</BodyText>
             </Box>
             {scoreHealth && (
               <Badge color={scoreHealthColor} size="lg" variant="light">
@@ -453,8 +453,8 @@ export default function CompanyDashboard() {
         <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
             <Box>
-              <Title order={2}>Synthesized Intelligence</Title>
-              <Text c="dimmed">Top-priority strategic goals derived by the autonomous Trinity engine.</Text>
+              <SectionTitle>Synthesized Intelligence</SectionTitle>
+              <BodyText>Top-priority strategic goals derived by the local AI system.</BodyText>
             </Box>
             <Button 
               component={Link}

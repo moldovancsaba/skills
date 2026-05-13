@@ -41,7 +41,7 @@ Location:
 Purpose:
 
 - operator-grade product guidance
-- explain data quality, Knowmore review, task review, timing language, and troubleshooting
+- explain data quality, Knowmore review, task review, timing language, troubleshooting, and the webapp/local-AI boundary
 
 Implementation notes:
 
@@ -57,7 +57,7 @@ Location:
 Purpose:
 
 - answer the repeated workflow questions quickly
-- reduce confusion about source quality, flashcards, and not-now vs never feedback
+- reduce confusion about source quality, flashcards, local repair behavior, uploaded markdown files, language policy, and not-now vs never feedback
 
 Implementation notes:
 
@@ -76,6 +76,7 @@ Purpose:
 
 - teach the user what kind of feedback improves the next generation cycle
 - prevent vague comments from becoming the dominant pattern
+- keep onboarding support visible inside the product instead of requiring external architecture knowledge
 
 ## Content Architecture
 
@@ -98,4 +99,5 @@ This file defines:
 - add new help content to `src/content/help.ts`
 - keep inline coaching short and action-specific
 - keep the manual practical and operational, not promotional
+- keep help copy honest about system boundaries: the webapp captures state and intents, while the local AI system calculates authoritative outputs
 - update this document when new help surfaces or content rules are added

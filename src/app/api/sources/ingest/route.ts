@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { verifyIngestSecret } from "@/lib/ingest-auth";
 import { normalizeHashtagList } from "@/lib/hashtags";
 import { nextSourcePublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
-import { deriveDataCardScoreProfile } from "@/lib/upstream-card-scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -41,22 +39,11 @@ export async function POST(request: NextRequest) {
       const created = await prisma.$transaction(async (tx) => {
         const publicId = await nextSourcePublicId(tx);
         const normalizedHashtags = normalizeHashtagList(hashtags || []);
-        const scoreProfile = deriveDataCardScoreProfile({
-          content,
-          hashtags: normalizedHashtags,
-          metadata: metadata || null,
-        });
         return tx.source.create({
           data: {
             companyId,
             publicId,
             content,
-            confidence: scoreProfile.confidence,
-            confidenceScore: scoreProfile.confidence,
-            impact: scoreProfile.impact,
-            weight: scoreProfile.weight,
-            iceScore: scoreProfile.iceScore,
-            scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
             hashtags: normalizedHashtags,
             sourceType: "BRIDGE",
             provenance: provenance || "api-ingress",

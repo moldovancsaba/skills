@@ -90,7 +90,10 @@ let isShuttingDown     = false;
 async function pollCommands() {
   try {
     const commands = await prisma.systemCommand.findMany({
-      where: { status: "PENDING" },
+      where: {
+        status: "PENDING",
+        command: { in: ["RESTART", "PURGE_CACHE"] },
+      },
       orderBy: { issuedAt: "asc" }
     });
 

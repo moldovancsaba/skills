@@ -24,7 +24,7 @@ export function LanguageSelector({ selectedIds, onChange, disabled }: LanguageSe
   return (
     <MultiSelect
       label="Permitted Languages"
-      placeholder="Select languages for AI synthesis..."
+      placeholder="Select permitted languages for local AI synthesis..."
       data={LANGUAGES}
       value={selectedIds}
       onChange={onChange}

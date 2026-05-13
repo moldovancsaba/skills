@@ -21,6 +21,7 @@ type SourceDataCardProps = {
   id: string;
   publicId: number | null;
   name: string;
+  body?: string;
   type: DataType;
   onOpenDetail?: () => void;
   detailMode?: boolean;
@@ -45,6 +46,7 @@ export function SourceDataCard({
   id,
   publicId,
   name,
+  body,
   type,
   onOpenDetail,
   detailMode = false,
@@ -67,8 +69,8 @@ export function SourceDataCard({
   };
 
   const lines = name.split("\n");
-  const firstLine = stripTechnicalMetadata(lines[0]);
-  const bodyText = stripTechnicalMetadata(lines.slice(1).join("\n"));
+  const firstLine = type === "file" ? stripTechnicalMetadata(name) : stripTechnicalMetadata(lines[0]);
+  const bodyText = stripTechnicalMetadata(type === "file" ? body || "" : lines.slice(1).join("\n"));
   const freshness = getDataCardFreshness({ createdAt, updatedAt });
 
   return (
@@ -106,7 +108,7 @@ export function SourceDataCard({
       
       <UnifiedCardBody>
         {bodyText && (
-          <UnifiedCardText disablePreview={detailMode}>
+          <UnifiedCardText disablePreview={detailMode} markdown>
             {bodyText}
           </UnifiedCardText>
         )}

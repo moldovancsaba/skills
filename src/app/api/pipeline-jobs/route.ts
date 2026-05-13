@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import {
   applyManualPipelineQueueMove,
-  listCompanyPipelineJobs,
+  listPersistedCompanyPipelineJobs,
   resetCompanyPipelineJobsToAiOnly,
 } from "@/lib/pipeline-queue";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   if (auth.error) return auth.error;
 
   try {
-    const jobs = await listCompanyPipelineJobs(prisma, companyId);
+    const jobs = await listPersistedCompanyPipelineJobs(prisma, companyId);
     return NextResponse.json(jobs);
   } catch (error) {
     console.error("[API:PipelineJobs] GET failure:", error);

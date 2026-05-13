@@ -22,11 +22,11 @@ export function PageTitle({ children }: { children: ReactNode }) {
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
-  return <Title order={2}>{children}</Title>;
+  return <Title order={2} size="h3">{children}</Title>;
 }
 
 export function CardTitle({ children, lineClamp }: { children: ReactNode; lineClamp?: number }) {
-  return <Text size="lg" fw={700} lineClamp={lineClamp}>{children}</Text>;
+  return <Text size="xl" fw={700} lh={1.25} lineClamp={lineClamp}>{children}</Text>;
 }
 
 export function BodyText({
@@ -96,7 +96,7 @@ export function LabelText({
   lineClamp,
 }: Pick<TextCommonProps, "children" | "c" | "truncate" | "lineClamp">) {
   return (
-    <Text size="sm" fw={600} c={c} truncate={truncate} lineClamp={lineClamp}>
+    <Text size="sm" fw={600} lh={1.35} c={c} truncate={truncate} lineClamp={lineClamp}>
       {children}
     </Text>
   );

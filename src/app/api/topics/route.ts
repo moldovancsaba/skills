@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
 import { verifyMembership } from "@/lib/permissions";
-import { deriveTopicCardScoreProfile } from "@/lib/upstream-card-scoring";
 
 function normalizeTopicLabel(value: unknown) {
   return String(value || "").trim();
@@ -50,26 +48,14 @@ export async function POST(request: NextRequest) {
     });
 
     const created = await prisma.topic.create({
-      data: (() => {
-        const topicData = {
-          companyId,
-          label,
-          active: data.active !== false,
-          sortOrder: (maxTopic?.sortOrder ?? -1) + 1,
-          notes: typeof data.notes === "string" ? data.notes.trim() || null : null,
-          hashtags: Array.isArray(data.hashtags) ? data.hashtags.filter((item: unknown): item is string => typeof item === "string") : [],
-        };
-        const scoreProfile = deriveTopicCardScoreProfile(topicData);
-        return {
-          ...topicData,
-          confidence: scoreProfile.confidence,
-          confidenceScore: scoreProfile.confidence,
-          impact: scoreProfile.impact,
-          weight: scoreProfile.weight,
-          iceScore: scoreProfile.iceScore,
-          scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
-        };
-      })(),
+      data: {
+        companyId,
+        label,
+        active: data.active !== false,
+        sortOrder: (maxTopic?.sortOrder ?? -1) + 1,
+        notes: typeof data.notes === "string" ? data.notes.trim() || null : null,
+        hashtags: Array.isArray(data.hashtags) ? data.hashtags.filter((item: unknown): item is string => typeof item === "string") : [],
+      },
     });
 
     await recordInteractionEventFromRequest(request, {
@@ -117,18 +103,10 @@ export async function PATCH(request: NextRequest) {
         ? data.hashtags.filter((item: unknown): item is string => typeof item === "string")
         : existing.hashtags,
     };
-    const scoreProfile = deriveTopicCardScoreProfile(nextData);
-
     const updated = await prisma.topic.update({
       where: { id },
       data: {
         ...nextData,
-        confidence: scoreProfile.confidence,
-        confidenceScore: scoreProfile.confidence,
-        impact: scoreProfile.impact,
-        weight: scoreProfile.weight,
-        iceScore: scoreProfile.iceScore,
-        scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
       },
     });
 

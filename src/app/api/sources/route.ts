@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
@@ -12,7 +11,6 @@ import {
   TRANSACTION_SETTINGS,
 } from "@/lib/source-public-ids";
 import { ensureUnifiedSources } from "@/lib/sources";
-import { deriveDataCardScoreProfile } from "@/lib/upstream-card-scoring";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -81,14 +79,6 @@ export async function POST(request: NextRequest) {
 
     const created = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
-      const scoreProfile = deriveDataCardScoreProfile({
-        content,
-        hashtags: normalizeHashtagList(data.hashtags),
-        entityTag: typeof data.entityTag === "string" && data.entityTag.trim() ? data.entityTag.trim() : null,
-        aiClusters: normalizeHashtagList(data.aiClusters),
-        metadata: data.metadata ?? null,
-        intelligenceType: data.intelligenceType === "COMPETITOR" ? "COMPETITOR" : "INTERNAL",
-      });
       return tx.source.create({
         data: {
           companyId,
@@ -99,12 +89,6 @@ export async function POST(request: NextRequest) {
           aiClusters: normalizeHashtagList(data.aiClusters),
           metadata: data.metadata ?? null,
           intelligenceType: data.intelligenceType === "COMPETITOR" ? "COMPETITOR" : "INTERNAL",
-          confidence: scoreProfile.confidence,
-          confidenceScore: scoreProfile.confidence,
-          impact: scoreProfile.impact,
-          weight: scoreProfile.weight,
-          iceScore: scoreProfile.iceScore,
-          scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
         },
       });
     }, TRANSACTION_SETTINGS);
@@ -153,18 +137,10 @@ export async function PATCH(request: NextRequest) {
       metadata: data.metadata !== undefined ? data.metadata : existing.metadata,
       intelligenceType: data.intelligenceType === "COMPETITOR" || data.intelligenceType === "INTERNAL" ? data.intelligenceType : existing.intelligenceType,
     };
-    const scoreProfile = deriveDataCardScoreProfile(nextData);
-
     const updated = await prisma.source.update({
       where: { id },
       data: {
         ...nextData,
-        confidence: scoreProfile.confidence,
-        confidenceScore: scoreProfile.confidence,
-        impact: scoreProfile.impact,
-        weight: scoreProfile.weight,
-        iceScore: scoreProfile.iceScore,
-        scoreProfile: (scoreProfile.scoreProfile ?? null) as Prisma.InputJsonValue | null,
       },
     });
 

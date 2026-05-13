@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { IconArrowLeft as ArrowLeft } from "@tabler/icons-react";
+import { IconArrowLeft as ArrowLeft, IconArrowRight as ArrowRight } from "@tabler/icons-react";
 import { 
   Container, 
   Group, 
@@ -270,6 +270,7 @@ export function LinkCard({
   const tone = resolveModuleTone(variant);
   const mantineColor = resolveMantineColor(variant);
   const isCompact = density === "compact";
+  const hasChart = Boolean(chartData && chartData.length > 0);
 
   return (
     <UnstyledButton 
@@ -283,11 +284,11 @@ export function LinkCard({
         tone={tone}
         interactive
         overflow="hidden"
-        minHeight={rem(isCompact ? 248 : 300)}
+        minHeight={rem(isCompact ? 232 : 248)}
         padding={isCompact ? "var(--mantine-spacing-md)" : "var(--mantine-spacing-lg)"}
       >
         <UnifiedCardBody>
-        <Stack gap={isCompact ? "md" : "xl"} h="100%" pos="relative" style={{ zIndex: 1 }}>
+        <Stack gap={isCompact ? "md" : "lg"} h="100%" pos="relative" style={{ zIndex: 1 }}>
           <Group justify="space-between" align="center">
             <ThemeIcon color={mantineColor} size={isCompact ? "lg" : "xl"}>
               <Icon size={isCompact ? 18 : 20} />
@@ -297,25 +298,27 @@ export function LinkCard({
             )}
           </Group>
 
-          <Stack gap={isCompact ? 4 : 6}>
-            <CardTitle>{title}</CardTitle>
-            {description ? <BodyText lineClamp={2}>{description}</BodyText> : null}
+          <Stack gap={isCompact ? 6 : 8} flex={1}>
+            <CardTitle lineClamp={2}>{title}</CardTitle>
+            {description ? <BodyText lineClamp={3}>{description}</BodyText> : null}
           </Stack>
 
-          {chartData && chartData.length > 0 && (
-            <Box mt="auto" pt={isCompact ? "xs" : "lg"}>
+          {hasChart && (
+            <Box mt="auto" pt={isCompact ? "xs" : "md"}>
               <DashboardChart 
-                data={chartData} 
+                data={chartData ?? []} 
                 color={`var(--mantine-color-${mantineColor}-6)`} 
-                height={isCompact ? 52 : 64}
+                height={isCompact ? 48 : 56}
               />
             </Box>
           )}
 
-          <Stack gap={0} mt="auto" pt={isCompact ? "xs" : "md"} align="flex-start">
-            <MetaText c={`var(--mantine-color-${mantineColor}-4)`}>Access Layer</MetaText>
-            <MetaText c={`var(--mantine-color-${mantineColor}-4)`}>→</MetaText>
-          </Stack>
+          {!hasChart && (
+            <Group gap={4} mt="auto" align="center">
+              <MetaText c={`var(--mantine-color-${mantineColor}-4)`}>Open</MetaText>
+              <ArrowRight size={12} color={`var(--mantine-color-${mantineColor}-4)`} />
+            </Group>
+          )}
         </Stack>
         </UnifiedCardBody>
       </UnifiedCard>

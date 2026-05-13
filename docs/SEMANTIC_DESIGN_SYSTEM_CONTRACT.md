@@ -48,6 +48,14 @@ That includes shared shell surfaces such as:
 - route cards
 - metric cards
 - empty states
+- sidebar navigation shells
+
+Route-card and sidebar grammar rules:
+
+- one item maps to one tone only
+- route cards must not carry decorative duplicate footer copy
+- sidebar and route-card surfaces must use the same hierarchy logic for icon, label, count, and active state
+- count badges and button chrome must not introduce ornamental all-caps styling as a substitute for layout discipline
 
 ## Forbidden Patterns
 

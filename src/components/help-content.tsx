@@ -33,15 +33,15 @@ export function ManualPageContent() {
               </ThemeIcon>
               <PageTitle>Operations Manual</PageTitle>
             </Group>
-            <MetaText ml={rem(44)}>System Guidance & Best Practices</MetaText>
+            <MetaText ml={rem(44)}>Operator Manual, Onboarding Support, And Workflow Guidance</MetaText>
           </Stack>
           <Button component={Link} href="/faq" variant="subtle" color="gray" leftSection={<CircleHelp size={16} />}>
             Open FAQ
           </Button>
         </Group>
 
-        <Notice icon={Lightbulb} title="Strategic Yield Optimization">
-          Better source quality and sharper feedback improve the system faster than simply refreshing the same weak inputs. Focus on high-integrity data ingress.
+        <Notice icon={Lightbulb} title="Onboarding Guidance">
+          Start by understanding the boundary: the webapp captures evidence, feedback, and repair intents, while the local AI system calculates and refreshes the intelligence state.
         </Notice>
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
@@ -148,15 +148,15 @@ export function FaqPageContent() {
               </ThemeIcon>
               <PageTitle>Intelligence FAQ</PageTitle>
             </Group>
-            <MetaText ml={rem(44)}>Core Protocol Inquiries</MetaText>
+            <MetaText ml={rem(44)}>FAQ, Troubleshooting, And Support Guidance</MetaText>
           </Stack>
           <Anchor component={Link} href="/" size="xs" c="dimmed">
             Return to Dashboard →
           </Anchor>
         </Group>
 
-        <Notice icon={BookOpen} title="Operational Context">
-          If the intelligence output feels weak, check source quality and calibration history first. System performance is a direct reflection of evidence fidelity.
+        <Notice icon={BookOpen} title="Support Context">
+          If the output looks wrong, first decide whether the problem is weak evidence, weak feedback, or a local-worker execution issue. The webapp itself should not be inventing the intelligence state.
         </Notice>
 
         <UnifiedCard tone="neutral">

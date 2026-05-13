@@ -21,9 +21,9 @@ const USE_SAFE_MODE = /^(1|true|yes|on)$/i.test(process.env.USE_SAFE_MODE || "")
 const FALLBACK_MODEL = process.env.FALLBACK_MODEL || "granite4:350m";
 
 const STAGE_MODELS = {
-  DRAFT: ["gemma3:1b", "granite4:350m"],
-  WRITE: ["qwen2.5:7b", "gemma3:1b"],
-  JUDGE: ["qwen2.5:7b", "gemma3:1b"],
+  DRAFT: ["qwen2.5:7b", "mistral:latest", "gemma2:2b", "gemma3:1b"],
+  WRITE: ["qwen2.5:7b", "mistral:latest", "gemma2:2b", "gemma3:1b"],
+  JUDGE: ["qwen2.5:7b", "mistral:latest", "gemma2:2b", "gemma3:1b"],
 };
 
 /**

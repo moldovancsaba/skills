@@ -2,7 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const http = require("http");
 const { getHumanMemoryPrompt } = require("./lib/memory");
 const { getWorkerConfig } = require("./lib/shared");
-const { OLLAMA_MODEL } = require("./lib/core");
+const { OLLAMA_MODEL, envFlag } = require("./lib/core");
 const { runPipelineQueueBatch } = require("./lib/pipeline-jobs");
 const packageJson = require("../package.json");
 const APP_VERSION = packageJson.version;
@@ -75,7 +75,10 @@ const server = http.createServer(async (req, res) => {
     const settings = await collectGlobalWorkerSettings(prisma);
 
     const health = {
-      researchEnabled: process.env.checklist_RESEARCH_ENABLED === "true",
+      researchEnabled: envFlag(
+        process.env.CHECKLIST_RESEARCH_ENABLED ?? process.env.checklist_RESEARCH_ENABLED,
+        false,
+      ),
       progress: {
         state: progress.state,
         stage: progress.stage,

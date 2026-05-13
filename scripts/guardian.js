@@ -491,6 +491,11 @@ async function runSCIAudit() {
   const { exec } = require("child_process");
   const node = process.execPath;
   const auditScript = path.join(__dirname, "sci-audit.js");
+
+  if (!fs.existsSync(auditScript)) {
+    warn(`[SCI] Audit script missing at ${auditScript}. Skipping this cycle.`);
+    return;
+  }
   
   exec(`${node} ${auditScript}`, (error, stdout, stderr) => {
     if (error) {

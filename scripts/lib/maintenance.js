@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getWorkerConfig, similarity, hashValue } = require("./shared");
-const { enforceLanguagePolicy } = require("./language-validator");
+const { enforceLanguagePolicy, canonicalizeAllowedLanguages } = require("./language-validator");
 const { fetchUrlContent } = require("./fetcher");
 const { CandidateState, ReworkRoute, toArchived, toGenerated, toRework } = require("./lifecycle");
 const { recomputeFrontier, refillChecklistFromBacklog: frontierRefill } = require("./frontier");
@@ -631,6 +631,15 @@ async function scrubCompanyRejections(prisma, cid) {
 async function runMaintenance(prisma, company) {
   const cid = company.id;
   const now = new Date();
+  const normalizedAllowedLanguages = canonicalizeAllowedLanguages(company.allowedLanguages || []);
+
+  if (JSON.stringify(normalizedAllowedLanguages) !== JSON.stringify(company.allowedLanguages || [])) {
+    await prisma.company.update({
+      where: { id: cid },
+      data: { allowedLanguages: normalizedAllowedLanguages },
+    });
+    company.allowedLanguages = normalizedAllowedLanguages;
+  }
 
   // Load Thresholds
   const expiryHours = await getWorkerConfig(prisma, company, "card_expiry_hours", 168);
@@ -693,8 +702,8 @@ async function runMaintenance(prisma, company) {
   
   // 3. Language cleanup
   const allCards = await Promise.all([
-    prisma.flashcard.findMany({ where: { companyId: cid }, take: 10 }),
-    prisma.nBAItem.findMany({ where: { companyId: cid }, take: 10 })
+    prisma.flashcard.findMany({ where: { companyId: cid, activityState: { not: "ARCHIVED" } } }),
+    prisma.nBAItem.findMany({ where: { companyId: cid, activityState: { not: "ARCHIVED" } } })
   ]);
   
   for (const fc of allCards[0]) await enforceLanguagePolicy(prisma, fc, "FLASHCARD", company);

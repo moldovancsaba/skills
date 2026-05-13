@@ -7,6 +7,7 @@ import { getSemanticHoverStyle, getSemanticInsetStyle, getSemanticSurfaceStyle, 
 import type { CardFreshnessState } from "@/lib/card-freshness";
 import { applySurfaceInteractionHandlers } from "@/lib/ui-interactions";
 import { BodyText, CardTitle } from "@/components/ui/typography";
+import { MarkdownText } from "@/components/ui/markdown-text";
 
 type UnifiedCardProps = {
   children: ReactNode;
@@ -29,6 +30,7 @@ type UnifiedCardSectionProps = UnifiedCardContentProps & {
 type UnifiedCardTextProps = UnifiedCardProps & {
   previewLength?: number;
   disablePreview?: boolean;
+  markdown?: boolean;
 };
 
 const singleLineClampStyle: CSSProperties = {
@@ -102,7 +104,7 @@ export function UnifiedCard({
 
 type UnifiedCardHeaderProps = {
   supporting?: ReactNode;
-  title: ReactNode;
+  title?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
   clampTitle?: boolean;
@@ -120,14 +122,18 @@ export function UnifiedCardHeader({
       <Group justify="space-between" align="flex-start" wrap="nowrap">
         <Stack gap="sm" style={{ flex: 1 }}>
           {supporting && <Group gap="xs" wrap="wrap">{supporting}</Group>}
-          <Stack gap={4}>
-            {typeof title === "string" ? (
-              <CardTitle lineClamp={clampTitle ? 1 : undefined}>{stripTechnicalMetadata(title)}</CardTitle>
-            ) : (
-              <Box style={clampTitle ? singleLineClampStyle : undefined}>{title}</Box>
-            )}
-            {description && <BodyText>{description}</BodyText>}
-          </Stack>
+          {(title || description) && (
+            <Stack gap={4}>
+              {title ? (
+                typeof title === "string" ? (
+                  <CardTitle lineClamp={clampTitle ? 1 : undefined}>{stripTechnicalMetadata(title)}</CardTitle>
+                ) : (
+                  <Box style={clampTitle ? singleLineClampStyle : undefined}>{title}</Box>
+                )
+              ) : null}
+              {description && <BodyText>{description}</BodyText>}
+            </Stack>
+          )}
         </Stack>
         {actions && <Box>{actions}</Box>}
       </Group>
@@ -162,7 +168,20 @@ export function UnifiedCardText({
   mt,
   previewLength = 100,
   disablePreview = false,
+  markdown = false,
 }: UnifiedCardTextProps) {
+  if (typeof children === "string" && markdown) {
+    return (
+      <Box mt={mt}>
+        <MarkdownText
+          markdown={stripTechnicalMetadata(children)}
+          previewLength={previewLength}
+          previewOnly={!disablePreview}
+        />
+      </Box>
+    );
+  }
+
   const content =
     typeof children === "string" && !disablePreview
       ? getPreviewText(children, previewLength)

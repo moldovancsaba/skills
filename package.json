@@ -21,6 +21,7 @@
     "research:probe": "node scripts/research-probe.mjs",
     "task:probe": "node scripts/task-probe.mjs",
     "training:export": "node scripts/export-learning-datasets.mjs",
+    "training:prepare-mlx-dataset": "node scripts/prepare-mlx-sft-dataset.mjs",
     "training:prepare-mlx": "node scripts/prepare-mlx-learning-run.mjs",
     "training:eval": "node scripts/evaluate-learning-candidate.mjs",
     "sync": "node scripts/sync.js",

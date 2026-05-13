@@ -56,6 +56,23 @@ function getSynthesisProgress() {
   return synthesisState;
 }
 
+function isRetryableWriteConflict(error) {
+  return Boolean(error && typeof error === "object" && error.code === "P2034");
+}
+
+async function withProgressRetry(operation, attempt = 0) {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isRetryableWriteConflict(error) || attempt >= 3) {
+      throw error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
+    return withProgressRetry(operation, attempt + 1);
+  }
+}
+
 async function collectGlobalWorkerSettings(prisma) {
   return {
     supervisorContractVersion: 2,
@@ -67,11 +84,13 @@ async function updateProgress(prisma, updates = {}) {
   Object.assign(synthesisState, updates, { lastProgressAt: new Date().toISOString() });
   try {
     const settings = await collectGlobalWorkerSettings(prisma);
-    await prisma.globalSetting.upsert({
-      where: { key: "core_synthesis_progress" },
-      create: { key: "core_synthesis_progress", value: { ...synthesisState, settings } },
-      update: { value: { ...synthesisState, settings }, updatedAt: new Date() }
-    });
+    await withProgressRetry(() =>
+      prisma.globalSetting.upsert({
+        where: { key: "core_synthesis_progress" },
+        create: { key: "core_synthesis_progress", value: { ...synthesisState, settings } },
+        update: { value: { ...synthesisState, settings }, updatedAt: new Date() }
+      })
+    );
   } catch (e) {
     console.error("[PROGRESS] Sync failed:", e.message);
   }
@@ -290,15 +309,26 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
             const normalizedScores = normalizeKnowledgeScores(cleanDraft);
             createdItem = await prisma.goalcard.create({
               data: {
-                ...cleanDraft,
+                id: cleanDraft.id,
+                publicId: cleanDraft.publicId,
                 companyId: cid,
+                title: cleanDraft.title,
+                body: cleanDraft.body,
                 confidence: normalizedScores.confidence,
                 confidenceScore: normalizedScores.confidenceScore,
                 impact: normalizedScores.impact,
                 weight: normalizedScores.weight,
                 iceScore: normalizedScores.iceScore,
+                scoreProfile: cleanDraft.scoreProfile ?? undefined,
                 processingStatus: "DRAFT",
-                cycleRunId: workerContext.cycleRunId,
+                activityState: cleanDraft.activityState ?? "ACTIVE",
+                createdBy: cleanDraft.createdBy ?? "generator-agent",
+                refreshedAt: cleanDraft.refreshedAt ?? await getServerTime(prisma),
+                hashtags: cleanDraft.hashtags ?? [],
+                evidence: cleanDraft.evidence ?? undefined,
+                fingerprint: cleanDraft.fingerprint ?? undefined,
+                kind: cleanDraft.kind ?? "GOAL",
+                intelligenceType: cleanDraft.intelligenceType ?? "INTERNAL",
                 createdAt: await getServerTime(prisma)
               }
             });
@@ -383,15 +413,33 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
             const normalizedScores = normalizeKnowledgeScores(cleanDraft);
             createdItem = await prisma.flashcard.create({
               data: {
-                ...cleanDraft,
+                id: cleanDraft.id,
+                publicId: cleanDraft.publicId,
                 companyId: cid,
+                title: cleanDraft.title,
+                body: cleanDraft.body,
                 confidence: normalizedScores.confidence,
                 confidenceScore: normalizedScores.confidenceScore,
                 impact: normalizedScores.impact,
                 weight: normalizedScores.weight,
                 iceScore: normalizedScores.iceScore,
+                scoreProfile: cleanDraft.scoreProfile ?? undefined,
                 processingStatus: "DRAFT",
-                candidateState: CandidateState.GENERATED,
+                activityState: cleanDraft.activityState ?? "ACTIVE",
+                status: cleanDraft.status ?? "ACTIVE",
+                reviewStatus: cleanDraft.reviewStatus ?? "PENDING",
+                createdBy: cleanDraft.createdBy ?? "generator-agent",
+                refreshedAt: cleanDraft.refreshedAt ?? await getServerTime(prisma),
+                hashtags: cleanDraft.hashtags ?? [],
+                evidence: cleanDraft.evidence ?? undefined,
+                citationSnapshotIds: cleanDraft.citationSnapshotIds ?? [],
+                conflictDetected: cleanDraft.conflictDetected ?? false,
+                conflictSummary: cleanDraft.conflictSummary ?? undefined,
+                fingerprint: cleanDraft.fingerprint ?? undefined,
+                kind: cleanDraft.kind ?? "SUMMARY",
+                intelligenceType: cleanDraft.intelligenceType ?? "INTERNAL",
+                generatedFromIds: cleanDraft.generatedFromIds ?? [],
+                versionFamilyId: cleanDraft.versionFamilyId ?? undefined,
                 cycleRunId: workerContext.cycleRunId,
                 createdByRunId: workerContext.cycleRunId,
                 createdAt: await getServerTime(prisma)

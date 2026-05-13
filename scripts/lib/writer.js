@@ -10,6 +10,7 @@ const { STAGE_MODELS, trinity_WRITE_TIMEOUT_MS } = require("./core");
 const { truncate, hashValue, getWorkerConfig, parseBoundedScore, getStageModels, similarity, nextPublicId } = require("./shared");
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject } = require("./synthesis-utils");
+const { normalizeMarkdownBody, MARKDOWN_CARD_BODY_INSTRUCTION } = require("./markdown");
 const {
   buildScoreProfile,
   groundTaskScores,
@@ -76,6 +77,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
     "Return a SINGLE JSON object with: title, body, kind, hashtags, confidenceScore.",
     "checklist AXIOM: You MUST generate a decimal confidenceScore on a 1.0 to 10.0 scale with up to one decimal place. NO zeros. NO percentages.",
     "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
+    MARKDOWN_CARD_BODY_INSTRUCTION,
     "STRATEGIC FOCUS: If refining a [SubjectCard], ensure the language reflects the strategy defined in the policy.",
     memoryPrompt
   ].join("\n");
@@ -99,7 +101,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
 
   return {
     title: truncate(raw.title, 160),
-    body: truncate(joinBody(raw.body), bodyLimit),
+    body: truncate(normalizeMarkdownBody(joinBody(raw.body)), bodyLimit),
     kind: String(raw.kind || flashCard.kind).toUpperCase(), 
     hashtags: Array.isArray(raw.hashtags) ? raw.hashtags.slice(0, 5) : flashCard.hashtags,
     confidenceScore: confidence,
@@ -151,6 +153,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
     "checklist AXIOM: You MUST generate decimal scores for confidenceScore, impact, and ease on a 1.0 to 10.0 scale with up to one decimal place. NO zeros. NO percentages.",
     "SCORING DISCIPLINE: Score impact, confidence, and ease independently from the actual task. Do not repeat stock score triplets unless the task substance truly matches.",
     "APERTUS Purity Principle: A single card MUST be 100% monolingual. Do not mix languages within a single card. The chosen language must be exactly ONE of the languages listed in the [Allowed Languages Policy]. Any mixed languages (e.g., English title with Hungarian body, or English words inside a Hungarian sentence) are strictly forbidden. If the source is in a disallowed language, translate it fully.",
+    MARKDOWN_CARD_BODY_INSTRUCTION,
     memoryPrompt
   ].join("\n");
 
@@ -236,7 +239,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
   return {
     publicId,
     title: truncate(raw.title, 160),
-    description: truncate(joinBody(raw.description), descLimit),
+    description: truncate(normalizeMarkdownBody(joinBody(raw.description)), descLimit),
     kind: String(raw.kind || taskCard.kind).toUpperCase(),
     impact,
     confidenceScore: confidence,

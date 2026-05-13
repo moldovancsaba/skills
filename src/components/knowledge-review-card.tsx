@@ -114,6 +114,7 @@ type Props = {
   }) => void;
   cardType?: IntelligenceType;
   onConvert?: (type: IntelligenceType) => void;
+  hideTitle?: boolean;
 };
 
 export function KnowledgeReviewCard({
@@ -142,6 +143,7 @@ export function KnowledgeReviewCard({
   onCorrection,
   cardType = "KNOWLEDGE",
   onConvert,
+  hideTitle = false,
 }: Props) {
   const stopCardClick = (event: { stopPropagation: () => void }, callback?: () => void) => {
     event.stopPropagation();
@@ -222,11 +224,11 @@ export function KnowledgeReviewCard({
             </Group>
           </Group>
         }
-        title={stripTechnicalMetadata(flashcard.title)}
+        title={hideTitle ? undefined : stripTechnicalMetadata(flashcard.title)}
       />
 
       <UnifiedCardBody>
-        <UnifiedCardText disablePreview={detailMode}>
+        <UnifiedCardText disablePreview={detailMode} markdown>
           {stripTechnicalMetadata(flashcard.body)}
         </UnifiedCardText>
 

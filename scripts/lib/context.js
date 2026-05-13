@@ -1,4 +1,5 @@
 const { truncate } = require("./shared");
+const { humanReadableAllowedLanguages, getLanguagePolicyPrompt } = require("./language-validator");
 
 /**
  * checklist STRATEGIC CONTEXT
@@ -23,6 +24,7 @@ async function getCompanyStrategicContext(prisma, companyId) {
     select: { allowedLanguages: true }
   });
   const allowedLangs = company?.allowedLanguages || ["English"];
+  const readableAllowedLangs = humanReadableAllowedLanguages(allowedLangs);
 
   // 1. Load TopicCards (The Strategy)
   const topics = await prisma.topic.findMany({
@@ -60,7 +62,8 @@ async function getCompanyStrategicContext(prisma, companyId) {
 
   // 4. Format the Context Prompt
   let prompt = "--- RELATED STRATEGIC CONTEXT ---\n";
-  prompt += `[Allowed Languages Policy]: AI MUST ONLY generate output in: ${allowedLangs.join(", ")}\n`;
+  prompt += `[Allowed Languages Policy]: AI MUST ONLY generate output in: ${readableAllowedLangs.join(", ")}\n`;
+  prompt += `[Output Language Mandate]: ${getLanguagePolicyPrompt(allowedLangs)}\n`;
   
   if (topics.length > 0) {
     prompt += "\n[TopicCards / Strategic Focus]:\n";

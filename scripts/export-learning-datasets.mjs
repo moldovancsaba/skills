@@ -33,6 +33,10 @@ function compactText(value, max = 900) {
   return String(value).replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+function hasSubstantiveText(value, min = 24) {
+  return compactText(value).length >= min;
+}
+
 function jsonLine(value) {
   return `${JSON.stringify(value)}\n`;
 }
@@ -97,6 +101,25 @@ function buildTaskInput(company, task, feedback, flashcards) {
     .join("\n");
 }
 
+function buildTaskHardInput(company, task, feedback, flashcards) {
+  const evidence = flashcards
+    .slice(0, 5)
+    .map((flashcard) => `- ${compactText(flashcard.title, 120)}: ${compactText(flashcard.body, 220)}`)
+    .join("\n");
+
+  return [
+    `Company: ${company.name}`,
+    `Industry: ${compactText(company.industry || company.targetMarket || "Unknown", 140)}`,
+    company.description ? `Description: ${compactText(company.description, 260)}` : null,
+    "Write the strongest next checklist task as JSON using company context, operator feedback, and supporting knowledge.",
+    feedback?.annotation ? `Operator signal: ${compactText(feedback.annotation, 700)}` : null,
+    feedback?.deliveryComment ? `Delivery note: ${compactText(feedback.deliveryComment, 700)}` : null,
+    evidence ? `Supporting knowledge:\n${evidence}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function buildFlashcardInput(company, card) {
   const sourceSummary = (card.sources || [])
     .slice(0, 3)
@@ -115,6 +138,27 @@ function buildFlashcardInput(company, card) {
     .join("\n");
 }
 
+function buildFlashcardHardInput(company, card, action, correction) {
+  const sourceSummary = (card.sources || [])
+    .slice(0, 5)
+    .map((source) => `- ${source.sourceType}: ${compactText(source.sourceName || source.sourceId, 160)}`)
+    .join("\n");
+
+  return [
+    `Company: ${company.name}`,
+    `Industry: ${compactText(company.industry || company.targetMarket || "Unknown", 140)}`,
+    company.description ? `Description: ${compactText(company.description, 260)}` : null,
+    `Knowledge kind: ${card.kind}`,
+    "Write the strongest knowledge flashcard as JSON using source evidence and operator guidance.",
+    action?.annotation ? `Operator action note: ${compactText(action.annotation, 500)}` : null,
+    correction?.note ? `Correction note: ${compactText(correction.note, 500)}` : null,
+    correction?.correctionType ? `Correction type: ${correction.correctionType}` : null,
+    sourceSummary ? `Source summary:\n${sourceSummary}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function pairPrompt(company, kind) {
   return [
     `Company: ${company.name}`,
@@ -124,6 +168,35 @@ function pairPrompt(company, kind) {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function taskIsHighSignal(feedback, supportingFlashcards) {
+  if (!feedback?.action || !POSITIVE_TASK_ACTIONS.has(feedback.action)) return false;
+  if (STRONG_TASK_ACTIONS.has(feedback.action)) return true;
+  return (
+    hasSubstantiveText(feedback.annotation) ||
+    hasSubstantiveText(feedback.deliveryComment) ||
+    hasSubstantiveText(feedback.modifiedDescription) ||
+    supportingFlashcards.length > 1
+  );
+}
+
+function taskIsStrongNegative(feedback) {
+  return feedback?.action === "DECLINE" && hasSubstantiveText(feedback.annotation, 18);
+}
+
+function flashcardIsHighSignal(action, correction) {
+  if (!action?.action || !POSITIVE_FLASHCARD_ACTIONS.has(action.action)) return false;
+  if (action.action === "MODIFY_ACCEPT") return true;
+  if (correction && ["PIN", "REQUEST_REFRESH"].includes(correction.correctionType)) return true;
+  return hasSubstantiveText(action.annotation) || hasSubstantiveText(correction?.note);
+}
+
+function flashcardIsStrongNegative(action, correction) {
+  if (action?.action && NEGATIVE_FLASHCARD_ACTIONS.has(action.action) && hasSubstantiveText(action.annotation, 18)) {
+    return true;
+  }
+  return Boolean(correction && ["MARK_WRONG", "SUPPRESS_SOURCE", "HIDE"].includes(correction.correctionType));
 }
 
 async function exportCompany(company, outputDir) {
@@ -165,11 +238,11 @@ async function exportCompany(company, outputDir) {
 
   for (const task of tasks) {
     const latestFeedback = task.feedback[0] ?? null;
-    if (latestFeedback?.action && POSITIVE_TASK_ACTIONS.has(latestFeedback.action)) {
-      const supportingFlashcards = (task.sourceFlashcardIds || [])
-        .map((id) => flashcardById.get(id))
-        .filter(Boolean);
+    const supportingFlashcards = (task.sourceFlashcardIds || [])
+      .map((id) => flashcardById.get(id))
+      .filter(Boolean);
 
+    if (taskIsHighSignal(latestFeedback, supportingFlashcards)) {
       sftTaskRows.push({
         instruction: "Given company context, operator history, and supporting knowledge, write the best next checklist task as JSON.",
         input: buildTaskInput(company, task, latestFeedback, supportingFlashcards),
@@ -182,6 +255,7 @@ async function exportCompany(company, outputDir) {
           publicId: task.publicId ?? null,
           action: latestFeedback.action,
           candidateState: task.candidateState,
+          signalTier: STRONG_TASK_ACTIONS.has(latestFeedback.action) ? "strong" : "assisted",
         },
       });
 
@@ -196,9 +270,32 @@ async function exportCompany(company, outputDir) {
         metadata: {
           action: latestFeedback.action,
           sourceFlashcardIds: task.sourceFlashcardIds,
+          difficulty: "standard",
+          signalTier: STRONG_TASK_ACTIONS.has(latestFeedback.action) ? "strong" : "assisted",
         },
       });
-    } else if (latestFeedback?.action === "DECLINE") {
+
+      if (
+        STRONG_TASK_ACTIONS.has(latestFeedback.action) ||
+        hasSubstantiveText(latestFeedback.annotation) ||
+        hasSubstantiveText(latestFeedback.deliveryComment)
+      ) {
+        evalRows.push({
+          kind: "TASK",
+          companyId: company.id,
+          companyName: company.name,
+          entityId: `${task.id}:hard`,
+          prompt: buildTaskHardInput(company, task, latestFeedback, supportingFlashcards),
+          expected: JSON.parse(taskOutput(task, latestFeedback)),
+          metadata: {
+            action: latestFeedback.action,
+            sourceFlashcardIds: task.sourceFlashcardIds,
+            difficulty: "hard",
+            signalTier: "operator-guided",
+          },
+        });
+      }
+    } else if (taskIsStrongNegative(latestFeedback)) {
       negativeTasks.push({ task, feedback: latestFeedback });
     }
   }
@@ -228,7 +325,7 @@ async function exportCompany(company, outputDir) {
     const latestAction = card.actions[0] ?? null;
     const latestCorrection = card.corrections[0] ?? null;
 
-    if (latestAction?.action && POSITIVE_FLASHCARD_ACTIONS.has(latestAction.action)) {
+    if (flashcardIsHighSignal(latestAction, latestCorrection)) {
       sftFlashcardRows.push({
         instruction: "Given company context and supporting evidence, write the best knowledge flashcard as JSON.",
         input: buildFlashcardInput(company, card),
@@ -241,6 +338,7 @@ async function exportCompany(company, outputDir) {
           publicId: card.publicId ?? null,
           action: latestAction.action,
           kind: card.kind,
+          signalTier: latestAction.action === "MODIFY_ACCEPT" ? "strong" : latestCorrection ? "corrected" : "annotated",
         },
       });
 
@@ -255,11 +353,26 @@ async function exportCompany(company, outputDir) {
         metadata: {
           action: latestAction.action,
           correctionType: latestCorrection?.correctionType ?? null,
+          difficulty: "standard",
         },
       });
-    } else if (
-      latestAction?.action && NEGATIVE_FLASHCARD_ACTIONS.has(latestAction.action)
-    ) {
+
+      if (latestCorrection || latestAction.action === "MODIFY_ACCEPT" || hasSubstantiveText(latestAction.annotation)) {
+        evalRows.push({
+          kind: "FLASHCARD",
+          companyId: company.id,
+          companyName: company.name,
+          entityId: `${card.id}:hard`,
+          prompt: buildFlashcardHardInput(company, card, latestAction, latestCorrection),
+          expected: JSON.parse(flashcardOutput(card, latestAction)),
+          metadata: {
+            action: latestAction.action,
+            correctionType: latestCorrection?.correctionType ?? null,
+            difficulty: "hard",
+          },
+        });
+      }
+    } else if (flashcardIsStrongNegative(latestAction, latestCorrection)) {
       negativeCards.push({ card, action: latestAction });
     }
   }
@@ -278,6 +391,67 @@ async function exportCompany(company, outputDir) {
         rejectedFlashcardId: rejected.card.id,
         chosenAction: chosen.action.action,
         rejectedAction: rejected.action.action,
+      },
+    });
+  }
+
+  for (const { task, feedback } of positiveTasks) {
+    if (feedback.action !== "MODIFY_ACCEPT" && feedback.action !== "DELIVER") continue;
+    const original = JSON.stringify(
+      {
+        title: task.title,
+        description: compactText(task.description || "", 1200),
+        impact: task.impact,
+        confidence: task.confidence,
+        ease: task.ease,
+        rationale: compactText(task.userAnnotation || "Pre-feedback draft.", 800),
+      },
+      null,
+      0,
+    );
+    const chosen = taskOutput(task, feedback);
+    if (chosen === original) continue;
+    prefTaskRows.push({
+      prompt: pairPrompt(company, "task refinement"),
+      chosen,
+      rejected: original,
+      metadata: {
+        companyId: company.id,
+        chosenTaskId: task.id,
+        rejectedTaskId: task.id,
+        chosenAction: feedback.action,
+        rejectedAction: "ORIGINAL_DRAFT",
+      },
+    });
+  }
+
+  for (const { card, action } of positiveCards) {
+    if (action.action !== "MODIFY_ACCEPT") continue;
+    const original = JSON.stringify(
+      {
+        title: card.title,
+        body: compactText(card.body || "", 1400),
+        kind: card.kind,
+        impact: card.impact,
+        confidence: card.confidence,
+        weight: card.weight,
+        rationale: compactText(card.userAnnotation || "Pre-feedback flashcard draft.", 700),
+      },
+      null,
+      0,
+    );
+    const chosen = flashcardOutput(card, action);
+    if (chosen === original) continue;
+    prefFlashcardRows.push({
+      prompt: pairPrompt(company, "knowledge flashcard refinement"),
+      chosen,
+      rejected: original,
+      metadata: {
+        companyId: company.id,
+        chosenFlashcardId: card.id,
+        rejectedFlashcardId: card.id,
+        chosenAction: action.action,
+        rejectedAction: "ORIGINAL_DRAFT",
       },
     });
   }

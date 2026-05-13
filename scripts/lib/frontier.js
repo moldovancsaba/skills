@@ -13,6 +13,12 @@ const { computeBlendedPriorityProfile, computePriorityCohortProfiles } = require
 // ---------------------------------------------------------------------------
 
 const FRONTIER_MAX_SIZE = 3;
+const PRIORITY_THRESHOLD = Object.freeze({
+  CHECKLIST: 700,
+  TODO: 500,
+  BACKLOG: 250,
+  ROADMAP: 100,
+});
 
 // State weights per spec §15.3
 const STATE_WEIGHTS = {

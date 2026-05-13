@@ -161,6 +161,12 @@ Canonical sources:
 - modified-and-accepted flashcards
 - corrected flashcards after refresh
 
+Export rule:
+
+- default exports must prefer high-signal rows, not every accepted row
+- task SFT rows should prioritize `DELIVER`, `MODIFY_ACCEPT`, and operator-annotated `ACCEPT`
+- flashcard SFT rows should prioritize `MODIFY_ACCEPT`, annotated `ACCEPT`, and correction-backed accepted cards
+
 Recommended exported files:
 
 - `sft_tasks.alpaca.jsonl`
@@ -182,6 +188,8 @@ Canonical sources:
 - accepted vs declined flashcards
 - corrected vs suppressed knowledge variants
 
+Preference pairs should also include rewrite pairs where the chosen example is the operator-approved edited version and the rejected example is the original draft.
+
 Recommended exported files:
 
 - `prefs_tasks.pairs.jsonl`
@@ -202,6 +210,12 @@ Canonical sources:
 - accepted flashcards with clear source grounding
 - known prior failure cases that must not regress
 
+Evaluation rule:
+
+- `eval_cases.jsonl` must contain both `standard` and `hard` variants
+- hard variants should remove direct title/body hints and rely more heavily on operator signal, evidence, and company context
+- eval prompts must not leak the expected answer into the model prompt
+
 Recommended exported files:
 
 - `eval_cases.jsonl`
@@ -216,7 +230,7 @@ The first production self-learning loop should be:
 4. train a candidate adapter with MLX-LM on Apple Silicon
 5. export the candidate for local runtime use
 6. evaluate it against frozen checklist eval cases
-7. canary it in Ollama
+7. if the candidate clears the local MLX gate, optionally convert or import it for Ollama canary
 8. promote only if it clears the gate
 
 ## Minimum Gating Rules
@@ -253,6 +267,12 @@ The canonical Apple Silicon run-preparation command is:
 
 ```bash
 npm run training:prepare-mlx -- --export <training-export-dir> --model <base-model>
+```
+
+The canonical MLX dataset-conversion command is:
+
+```bash
+npm run training:prepare-mlx-dataset -- --export <training-export-dir>
 ```
 
 The canonical local candidate-gate command is:

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
+import { canonicalizeAllowedLanguagesForStorage } from "@/lib/language-catalog";
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,10 @@ export async function GET(
       return NextResponse.json({ error: "Company not found" }, { status: 404 });
     }
 
-    return NextResponse.json(company);
+    return NextResponse.json({
+      ...company,
+      allowedLanguages: canonicalizeAllowedLanguagesForStorage(company.allowedLanguages ?? []),
+    });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -58,10 +62,14 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid allowedLanguages format" }, { status: 400 });
     }
 
+    const normalizedAllowedLanguages = data.allowedLanguages
+      ? canonicalizeAllowedLanguagesForStorage(data.allowedLanguages)
+      : undefined;
+
     const updated = await prisma.company.update({
       where: { id: companyId },
       data: {
-        allowedLanguages: data.allowedLanguages,
+        allowedLanguages: normalizedAllowedLanguages,
       },
     });
 

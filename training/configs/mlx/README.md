@@ -11,10 +11,12 @@ MLX / MLX-LM is the active training path for checklist because the system runs o
 ## Recommended first use in checklist
 
 1. export datasets with `npm run training:export`
-2. run LoRA or QLoRA-style fine-tuning with `mlx_lm.lora`
-3. evaluate the candidate locally
-4. fuse the candidate with `mlx_lm.fuse`
-5. canary through Ollama before promotion
+2. convert those exports into MLX-native `train/valid/test` files
+3. run LoRA or QLoRA-style fine-tuning with `mlx_lm.lora`
+4. fuse the candidate with `mlx_lm.fuse` and export GGUF
+5. create a local Ollama candidate
+6. evaluate the candidate locally
+7. canary through Ollama before promotion
 
 The repo can now prepare a runnable bundle automatically:
 
@@ -25,6 +27,7 @@ npm run training:prepare-mlx -- --export <training-export-dir> --model <base-mod
 That produces:
 
 - an MLX config file
+- an MLX-native dataset directory
 - an Ollama `Modelfile`
 - a run manifest
 - a shell command sequence for train, fuse, evaluate, and canary steps

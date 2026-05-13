@@ -95,6 +95,7 @@ type TaskReviewCardProps = {
     declineClass?: string,
   ) => void;
   onPostpone?: (itemId: string, column: string) => void;
+  hideTitle?: boolean;
 };
 
 export function TaskReviewCard({
@@ -120,6 +121,7 @@ export function TaskReviewCard({
   onRemoveHashtag,
   onSubmit,
   onPostpone,
+  hideTitle = false,
 }: TaskReviewCardProps) {
   const [traceOpen, setTraceOpen] = useState(false);
   const stopCardClick = (event: { stopPropagation: () => void }, callback?: () => void) => {
@@ -187,11 +189,11 @@ export function TaskReviewCard({
             <Badge color={iceColor}>ICE {Math.round(item.iceScore)}</Badge>
           </Group>
         }
-        title={stripTechnicalMetadata(item.title)}
+        title={hideTitle ? undefined : stripTechnicalMetadata(item.title)}
       />
 
       <UnifiedCardBody>
-        <UnifiedCardText disablePreview={detailMode}>
+        <UnifiedCardText disablePreview={detailMode} markdown>
           {stripTechnicalMetadata(item.description)}
         </UnifiedCardText>
         

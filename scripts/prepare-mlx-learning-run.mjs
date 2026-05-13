@@ -8,6 +8,7 @@ function parseArgs(argv) {
     company: null,
     output: null,
     candidateName: null,
+    baselineModel: process.env.OLLAMA_MODEL || "llama3.2:3b",
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -26,6 +27,9 @@ function parseArgs(argv) {
       index += 1;
     } else if (token === "--candidate-name") {
       args.candidateName = argv[index + 1] ?? null;
+      index += 1;
+    } else if (token === "--baseline-model") {
+      args.baselineModel = argv[index + 1] ?? null;
       index += 1;
     }
   }
@@ -80,10 +84,11 @@ async function main() {
 
   const config = template
     .replace("/path/to/base-model-or-mlx-converted-model", args.model)
-    .replace("/path/to/exported-datasets", exportDir)
+    .replace("/path/to/exported-datasets", join(runDir, "mlx-dataset"))
     .replace("/path/to/output/adapters", adapterPath);
+  const ggufPath = join(runDir, "candidate.gguf");
 
-  const ollamaTemplate = `FROM ${fusedPath}
+  const ollamaTemplate = `FROM ${ggufPath}
 
 PARAMETER temperature 0.2
 PARAMETER num_ctx 8192
@@ -94,17 +99,20 @@ SYSTEM You are the checklist local AI candidate model. You must stay evidence-gr
   const commands = `#!/usr/bin/env bash
 set -euo pipefail
 
+# 0. Convert checklist exports into MLX-native train/valid/test files
+npm run training:prepare-mlx-dataset -- --export ${shellQuote(exportDir)} --out ${shellQuote(join(runDir, "mlx-dataset"))}
+
 # 1. Fine-tune on Apple Silicon with MLX / MLX-LM
 mlx_lm.lora --config ${shellQuote(join(runDir, "mlx-lora.yaml"))}
 
-# 2. Fuse the adapters into a candidate model artifact
+# 2. Fuse the adapters into a local MLX candidate model
 mlx_lm.fuse --model ${shellQuote(args.model)} --adapter-path ${shellQuote(adapterPath)} --save-path ${shellQuote(fusedPath)}
 
-# 3. Evaluate candidate against exported checklist cases
-npm run training:eval -- --eval ${shellQuote(join(exportDir, "eval_cases.jsonl"))} --baseline-model ${shellQuote(process.env.OLLAMA_MODEL || "granite-3.1-8b")} --candidate-model ${shellQuote(candidateName)} --report ${shellQuote(reportPath)}
+# 3. Evaluate the fused candidate locally against checklist cases
+npm run training:eval -- --eval ${shellQuote(join(exportDir, "eval_cases.jsonl"))} --baseline-model ${shellQuote(args.baselineModel)} --candidate-path ${shellQuote(fusedPath)} --report ${shellQuote(reportPath)}
 
-# 4. If the report passes, create the Ollama candidate
-ollama create ${shellQuote(candidateName)} -f ${shellQuote(join(runDir, "Modelfile"))}
+# 4. Optional: if the model family can be converted/imported cleanly, promote it into Ollama later
+# ollama create ${shellQuote(candidateName)} -f ${shellQuote(join(runDir, "Modelfile"))}
 `;
 
   const runManifest = {
@@ -120,14 +128,17 @@ ollama create ${shellQuote(candidateName)} -f ${shellQuote(join(runDir, "Modelfi
       mlxConfig: join(runDir, "mlx-lora.yaml"),
       commands: join(runDir, "commands.sh"),
       ollamaModelfile: join(runDir, "Modelfile"),
+      ggufPath,
+      mlxDataset: join(runDir, "mlx-dataset"),
       evaluationReport: reportPath,
       adapterPath,
       fusedPath,
     },
     gate: {
       status: "PENDING",
-      baselineModel: process.env.OLLAMA_MODEL || "granite-3.1-8b",
+      baselineModel: args.baselineModel,
       candidateModel: candidateName,
+      candidatePath: fusedPath,
     },
   };
 

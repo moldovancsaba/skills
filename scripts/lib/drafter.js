@@ -21,6 +21,7 @@ const { getCompanyStrategicContext } = require("./context");
 const { unifyArray } = require("./synthesis-utils");
 const { CandidateState, toGenerated } = require("./lifecycle");
 const { computeInitialFreshnessScore } = require("./evidence");
+const { normalizeMarkdownBody, MARKDOWN_CARD_BODY_INSTRUCTION } = require("./markdown");
 const {
   buildScoreProfile,
   groundKnowledgeScores,
@@ -142,6 +143,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
     "Required field [intelligenceType]: Categorize as 'INTERNAL' if the insight is about the company's own operations/performance, or 'COMPETITOR' if it is about market competitors or industry benchmarks.",
     "Format: Return a JSON array of objects.",
     "APERTUS Purity: Each card must be 100% monolingual in an allowed language.",
+    MARKDOWN_CARD_BODY_INSTRUCTION,
     memoryPrompt
   ].join("\n");
 
@@ -223,7 +225,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
 
     const knowledgeHistorySignals = await computeHistoryAwareKnowledgeSignals(prisma, company.id, {
       title: item.title,
-      body: joinBody(item.body),
+      body: normalizeMarkdownBody(joinBody(item.body)),
       hashtags: Array.isArray(item.semanticTags) ? item.semanticTags.slice(0, 5) :
         Array.isArray(item.hashtags) ? item.hashtags.slice(0, 5) : [],
     });
@@ -234,7 +236,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       weight,
       kind: item.kind,
       title: item.title,
-      body: joinBody(item.body),
+      body: normalizeMarkdownBody(joinBody(item.body)),
       hashtags: Array.isArray(item.semanticTags) ? item.semanticTags.slice(0, 5) :
                 Array.isArray(item.hashtags) ? item.hashtags.slice(0, 5) : [],
       sourceImpact: averageSupport("sourceImpact"),
@@ -303,7 +305,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       publicId,
       companyId: company.id,
       title: truncate(item.title, 160),
-      body: truncate(joinBody(item.body), bodyLimit),
+      body: truncate(normalizeMarkdownBody(joinBody(item.body)), bodyLimit),
       confidenceScore: normalizedScores.confidenceScore,
       confidence: normalizedScores.confidence,
       impact: normalizedScores.impact,
@@ -379,6 +381,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     "You may propose MULTIPLE TaskCards if one KnowledgeItem implies multiple distinct actions.",
     "Format: Return a JSON array of objects.",
     "APERTUS Purity: Each card must be 100% monolingual. Translate if needed.",
+    MARKDOWN_CARD_BODY_INSTRUCTION,
     memoryPrompt
   ].join("\n");
 
@@ -413,7 +416,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
 
     const taskHistorySignals = await computeHistoryAwareTaskSignals(prisma, company.id, {
       title: item.title,
-      description: item.description,
+      description: normalizeMarkdownBody(item.description),
       hashtags: Array.isArray(item.semanticTags) ? item.semanticTags.slice(0, 5) : [],
     });
     const groundedScores = groundTaskScores({
@@ -426,7 +429,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       sourceIceScore: flashCard.iceScore,
       kind: item.kind,
       title: item.title,
-      description: item.description,
+      description: normalizeMarkdownBody(item.description),
       historyImpact: taskHistorySignals.historyImpact,
       historyConfidence: taskHistorySignals.historyConfidence,
       historySupport: taskHistorySignals.historySupport,
@@ -467,7 +470,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
       publicId,
       companyId: company.id,
       title: truncate(item.title, 160),
-      description: truncate(joinBody(item.description), descLimit),
+      description: truncate(normalizeMarkdownBody(joinBody(item.description)), descLimit),
       kind: String(item.kind || "TASK").toUpperCase(),
       impact: normalizedTaskScores.impact,
       confidenceScore: normalizedTaskScores.confidenceScore,

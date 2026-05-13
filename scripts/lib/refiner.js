@@ -23,6 +23,7 @@ const { truncate, hashValue, getWorkerConfig, getStageModels, similarity, parseB
 const { getCompanyStrategicContext } = require("./context");
 const { unifyObject, unifyArray } = require("./synthesis-utils");
 const { CandidateState, toRefined, toSuppressed } = require("./lifecycle");
+const { normalizeMarkdownBody, MARKDOWN_CARD_BODY_INSTRUCTION } = require("./markdown");
 const {
   buildScoreProfile,
   groundTaskScores,
@@ -141,7 +142,7 @@ function selectChampion(neighborhood) {
 async function normalizeRefinedTaskScores(prisma, raw = {}, fallback = {}) {
   const historySignals = await computeHistoryAwareTaskSignals(prisma, fallback.companyId, {
     title: raw.title ?? fallback.title,
-    description: raw.description ?? raw.body ?? fallback.description ?? fallback.body,
+    description: normalizeMarkdownBody(raw.description ?? raw.body ?? fallback.description ?? fallback.body),
     hashtags: Array.isArray(raw.semanticTags) ? raw.semanticTags.slice(0, 5) : fallback.hashtags,
   });
   const grounded = groundTaskScores({
@@ -149,7 +150,7 @@ async function normalizeRefinedTaskScores(prisma, raw = {}, fallback = {}) {
     confidence: raw.confidence ?? raw.confidenceScore ?? fallback.confidence ?? fallback.confidenceScore,
     effort: raw.ease ?? fallback.ease,
     title: raw.title ?? fallback.title,
-    description: raw.description ?? raw.body ?? fallback.description ?? fallback.body,
+    description: normalizeMarkdownBody(raw.description ?? raw.body ?? fallback.description ?? fallback.body),
     kind: raw.kind ?? fallback.kind,
     sourceImpact: fallback.impact,
     sourceConfidence: fallback.confidence ?? fallback.confidenceScore,
@@ -219,6 +220,7 @@ async function mergeNeighborhood(prisma, neighborhood, context, memoryPrompt) {
     "Preserve the most specific claims from all candidates. Do not lose supporting evidence.",
     context || "",
     "Return a single JSON object: { title, description, impact, confidence, ease, semanticTags[] }",
+    MARKDOWN_CARD_BODY_INSTRUCTION,
     memoryPrompt || ""
   ].join("\n");
 
@@ -241,8 +243,8 @@ async function mergeNeighborhood(prisma, neighborhood, context, memoryPrompt) {
   const merged = {
     ...champion,
     title: truncate(raw.title, 160),
-    description: truncate(raw.description || champion.description || "", 1200),
-    body: truncate(raw.description || champion.body || "", 1200),
+    description: truncate(normalizeMarkdownBody(raw.description || champion.description || ""), 1200),
+    body: truncate(normalizeMarkdownBody(raw.description || champion.body || ""), 1200),
     impact: mergedScores.impact,
     confidence: mergedScores.confidence,
     confidenceScore: mergedScores.confidenceScore,
@@ -297,6 +299,7 @@ async function enrichCandidate(prisma, candidate, context, memoryPrompt, duplica
     "Do not change the core insight — make it more concrete and business-specific.",
     context || "",
     "Return a single JSON object: { title, description, impact, confidence, ease }",
+    MARKDOWN_CARD_BODY_INSTRUCTION,
     memoryPrompt || ""
   ].join("\n");
 
@@ -310,8 +313,8 @@ async function enrichCandidate(prisma, candidate, context, memoryPrompt, duplica
   return {
     ...candidate,
     title: truncate(raw.title, 160),
-    description: truncate(raw.description || candidate.description || "", 1200),
-    body: truncate(raw.description || candidate.body || "", 1200),
+    description: truncate(normalizeMarkdownBody(raw.description || candidate.description || ""), 1200),
+    body: truncate(normalizeMarkdownBody(raw.description || candidate.body || ""), 1200),
     impact: enrichedScores.impact,
     confidence: enrichedScores.confidence,
     confidenceScore: enrichedScores.confidenceScore,
@@ -336,6 +339,7 @@ async function refineAsIs(prisma, candidate, context, memoryPrompt, duplicateClu
     context || "",
     "Return a single JSON object: { title, description, impact, confidence, ease, hashtags }",
     "AXIOM: Decimal scores 1.0-10.0 for impact, confidence, ease with up to one decimal place. NO zeros.",
+    MARKDOWN_CARD_BODY_INSTRUCTION,
     memoryPrompt || ""
   ].join("\n");
 
@@ -349,8 +353,8 @@ async function refineAsIs(prisma, candidate, context, memoryPrompt, duplicateClu
   return {
     ...candidate,
     title: truncate(raw.title, 160),
-    description: truncate(raw.description || candidate.description || "", 1200),
-    body: truncate(raw.description || candidate.body || "", 1200),
+    description: truncate(normalizeMarkdownBody(raw.description || candidate.description || ""), 1200),
+    body: truncate(normalizeMarkdownBody(raw.description || candidate.body || ""), 1200),
     impact: refinedScores.impact,
     confidence: refinedScores.confidence,
     confidenceScore: refinedScores.confidenceScore,
@@ -376,6 +380,7 @@ async function splitTaskCandidate(prisma, candidate, context, memoryPrompt) {
     context || "",
     "Return a JSON array of objects: { title, description, impact, confidence, ease, hashtags }",
     "AXIOM: Decimal scores 1.0-10.0 for impact, confidence, ease with up to one decimal place. NO zeros.",
+    MARKDOWN_CARD_BODY_INSTRUCTION,
     memoryPrompt || "",
   ].join("\n");
 
@@ -403,8 +408,8 @@ async function splitTaskCandidate(prisma, candidate, context, memoryPrompt) {
       publicId: nextPublicId,
       companyId: candidate.companyId,
       title: truncate(item.title, 160),
-      description: truncate(item.description || candidate.description || "", 1200),
-      body: truncate(item.description || candidate.body || "", 1200),
+      description: truncate(normalizeMarkdownBody(item.description || candidate.description || ""), 1200),
+      body: truncate(normalizeMarkdownBody(item.description || candidate.body || ""), 1200),
       kind: String(item.kind || candidate.kind || "TASK").toUpperCase(),
       impact: normalizedScores.impact,
       confidence: normalizedScores.confidence,

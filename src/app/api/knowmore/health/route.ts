@@ -9,20 +9,52 @@ import {
   syncCompanyPipelineJobs,
 } from "@/lib/pipeline-queue";
 
+const MIN_KNOWLEDGE_SAMPLE_FOR_SCORE_HEALTH = 8;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function isCorrectionUnresolved(correction: {
+  correctionType: string;
+  createdAt: Date;
+  flashcard: {
+    updatedAt: Date;
+    lastAuditedAt: Date | null;
+    processingStatus: string;
+    activityState: string;
+  } | null;
+}) {
+  const flashcard = correction.flashcard;
+  if (!flashcard) return false;
+
+  if (correction.correctionType === "REQUEST_REFRESH" || correction.correctionType === "MARK_WRONG") {
+    return (
+      flashcard.processingStatus === "REVIEW" ||
+      !flashcard.lastAuditedAt ||
+      flashcard.lastAuditedAt <= correction.createdAt
+    );
+  }
+
+  if (correction.correctionType === "SUPPRESS_SOURCE" || correction.correctionType === "HIDE") {
+    return flashcard.activityState !== "ARCHIVED" && flashcard.updatedAt <= correction.createdAt;
+  }
+
+  return false;
+}
+
 function resolveHealthState(input: {
   failedJobs: number;
   reviewCount: number;
   staleCount: number;
   scoreBand: string;
 }) {
-  if (input.failedJobs > 0 || input.scoreBand === "CRITICAL") return "FAILED";
-  if (input.reviewCount > 0 || input.staleCount > 0 || input.scoreBand === "SUSPICIOUS") return "DELAYED";
+  if (input.failedJobs > 0) return "FAILED";
+  if (input.reviewCount > 0 || input.staleCount > 0 || input.scoreBand === "CRITICAL" || input.scoreBand === "SUSPICIOUS") return "DELAYED";
   if (input.scoreBand === "WARNING") return "STALE";
   return "HEALTHY";
 }
 
 async function getKnowmoreHealthSnapshot(companyId: string) {
-  const [reviewCount, staleCount, correctionBacklog, scoreHealth, failedJobs, jobs] = await Promise.all([
+  const [reviewCount, staleCount, corrections, scoreHealth, failedJobs, jobs, knowledgeCount] = await Promise.all([
     prisma.flashcard.count({
       where: {
         companyId,
@@ -36,10 +68,20 @@ async function getKnowmoreHealthSnapshot(companyId: string) {
         activityState: { in: ["STALE", "EXPIRED"] },
       },
     }),
-    prisma.flashcardCorrection.count({
+    prisma.flashcardCorrection.findMany({
       where: {
         companyId,
         correctionType: { in: ["REQUEST_REFRESH", "SUPPRESS_SOURCE", "MARK_WRONG", "HIDE"] },
+      },
+      include: {
+        flashcard: {
+          select: {
+            updatedAt: true,
+            lastAuditedAt: true,
+            processingStatus: true,
+            activityState: true,
+          },
+        },
       },
     }),
     computeCompanyScoreHealth(companyId, prisma),
@@ -58,13 +100,24 @@ async function getKnowmoreHealthSnapshot(companyId: string) {
       orderBy: [{ updatedAt: "desc" }],
       take: 6,
     }),
+    prisma.flashcard.count({
+      where: {
+        companyId,
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+      },
+    }),
   ]);
+
+  const correctionBacklog = corrections.filter(isCorrectionUnresolved).length;
+  const scoreHealthEnabled = knowledgeCount >= MIN_KNOWLEDGE_SAMPLE_FOR_SCORE_HEALTH;
+  const effectiveScoreBand = scoreHealthEnabled ? (scoreHealth?.knowledge?.overallSeverity ?? "UNKNOWN") : "HEALTHY";
+  const effectiveAlerts = scoreHealthEnabled ? (scoreHealth?.knowledge?.alerts?.slice(0, 3) ?? []) : [];
 
   const healthState = resolveHealthState({
     failedJobs,
     reviewCount,
     staleCount,
-    scoreBand: scoreHealth?.overallBand ?? "UNKNOWN",
+    scoreBand: effectiveScoreBand,
   });
 
   return {
@@ -73,8 +126,8 @@ async function getKnowmoreHealthSnapshot(companyId: string) {
     staleCount,
     correctionBacklog,
     failedJobs,
-    scoreBand: scoreHealth?.overallBand ?? "UNKNOWN",
-    alerts: scoreHealth?.alerts?.slice(0, 3) ?? [],
+    scoreBand: effectiveScoreBand,
+    alerts: effectiveAlerts,
     jobs,
     recommendedActions: {
       sync: true,
@@ -94,7 +147,13 @@ export async function GET(request: NextRequest) {
   if (auth.error) return auth.error;
 
   try {
-    return NextResponse.json(await getKnowmoreHealthSnapshot(companyId));
+    return NextResponse.json(await getKnowmoreHealthSnapshot(companyId), {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    });
   } catch (error) {
     console.error("[API:KNOWMORE:HEALTH] GET failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -146,7 +205,13 @@ export async function PATCH(request: NextRequest) {
       teachingWeight: 75,
     });
 
-    return NextResponse.json(await getKnowmoreHealthSnapshot(companyId));
+    return NextResponse.json(await getKnowmoreHealthSnapshot(companyId), {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    });
   } catch (error) {
     console.error("[API:KNOWMORE:HEALTH] PATCH failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });

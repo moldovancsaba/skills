@@ -194,7 +194,10 @@ export default function CompanyKnowMorePage() {
   }, []);
 
   const loadHealth = useCallback(async (cid: string) => {
-    const response = await fetchJson<KnowmoreHealth>(`/api/knowmore/health?companyId=${encodeURIComponent(cid)}`);
+    const response = await fetchJson<KnowmoreHealth>(
+      `/api/knowmore/health?companyId=${encodeURIComponent(cid)}&t=${Date.now()}`,
+      { cache: "no-store" },
+    );
     setHealth(response);
   }, []);
 
@@ -252,6 +255,24 @@ export default function CompanyKnowMorePage() {
       await loadPage(companyId);
     })();
   }, [companyId, loadPage]);
+
+  useEffect(() => {
+    if (!company?.id) return;
+
+    const refreshHealth = () => {
+      void loadHealth(company.id);
+    };
+
+    const intervalId = window.setInterval(refreshHealth, 30000);
+    window.addEventListener("focus", refreshHealth);
+    document.addEventListener("visibilitychange", refreshHealth);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshHealth);
+      document.removeEventListener("visibilitychange", refreshHealth);
+    };
+  }, [company?.id, loadHealth]);
 
   useEffect(() => {
     const syncFromLocation = () => {
@@ -676,6 +697,7 @@ export default function CompanyKnowMorePage() {
           <KnowledgeReviewCard
             flashcard={selectedFlashcard}
             detailMode
+            hideTitle
             isActionOpen={activeFlashcardId === selectedFlashcard.id && actionMode !== null}
             actionMode={actionMode}
             isBusy={actingId === selectedFlashcard.id}

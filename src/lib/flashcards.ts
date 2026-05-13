@@ -19,6 +19,7 @@ import {
 } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { normalizeMarkdownBody } from "@/lib/markdown-format";
 import { ensureUnifiedSources } from "@/lib/sources";
 import {
   ensureSourcePublicIds,
@@ -791,7 +792,7 @@ function makeDraft(source: SourceRecord, kind: FlashcardKind, title: string, bod
     kind,
     fingerprint: buildFingerprint(source, kind, seed),
     title,
-    body: sentenceize(body),
+    body: normalizeMarkdownBody(sentenceize(body)),
     confidence: grounded.confidence,
     impact: grounded.impact,
     weight: grounded.effort,
@@ -1278,15 +1279,15 @@ function buildFlashcardDrafts(source: UnifiedSource, context: SourceRecord[], to
 
 function resolveDisplayContent(existing: { manualTitle: string | null; manualBody: string | null }, draft: FlashcardDraft) {
   const manualTitle = normalizeText(existing.manualTitle);
-  const manualBody = normalizeText(existing.manualBody);
+  const manualBody = existing.manualBody ? normalizeMarkdownBody(existing.manualBody) : null;
 
   return {
     generatedTitle: draft.title,
-    generatedBody: draft.body,
+    generatedBody: normalizeMarkdownBody(draft.body),
     manualTitle,
     manualBody,
     title: manualTitle ?? draft.title,
-    body: manualBody ?? draft.body,
+    body: manualBody ?? normalizeMarkdownBody(draft.body),
   };
 }
 
@@ -1879,7 +1880,7 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
 
       if (input.action === FlashcardActionType.MODIFY_ACCEPT) {
         modifiedTitle = normalizeText(input.modifiedTitle);
-        modifiedBody = normalizeText(input.modifiedBody);
+        modifiedBody = input.modifiedBody ? normalizeMarkdownBody(input.modifiedBody) : null;
 
         if (!modifiedTitle || !modifiedBody) {
           throw new Error("Modify and accept requires both title and body");

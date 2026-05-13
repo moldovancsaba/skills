@@ -473,6 +473,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           <TaskReviewCard
             item={selectedItem}
             detailMode
+            hideTitle
             isActionOpen={actionItemId === selectedItem.id && actionMode !== null}
             actionMode={actionMode}
             isBusy={actingId === selectedItem.id}

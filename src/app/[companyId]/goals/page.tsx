@@ -335,6 +335,7 @@ export default function GoalsPage() {
             item={selectedGoal as any}
             twoPhaseWorkflow={false}
             detailMode
+            hideTitle
             isActionOpen={actionItemId === selectedGoal.id && actionMode !== null}
             actionMode={actionMode}
             isBusy={loading}

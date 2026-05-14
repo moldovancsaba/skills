@@ -5,6 +5,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { nextSourcePublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
+import { buildSourceLifecycleData } from "@/lib/source-contract";
+import type { SourceProcessingStatus } from "@prisma/client";
 import crypto from "crypto";
 
 export const dynamic = 'force-dynamic';
@@ -91,11 +93,23 @@ export async function POST(request: NextRequest) {
     const created = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
       const persistedContent = `[Bridge Inbound from ${sender}]: ${content}`;
+      const lifecycleData = buildSourceLifecycleData({
+        content: persistedContent,
+        sourceType: "BRIDGE",
+        metadata: {
+          bridgeChannel: settings.channel,
+          senderVerified: settings.handle === sender,
+          v: "2.0.0"
+        },
+      });
       return tx.source.create({
         data: {
           companyId,
           publicId,
           content: persistedContent,
+          canonicalContent: lifecycleData.canonicalContent,
+          canonicalContentHash: lifecycleData.canonicalContentHash,
+          processingStatus: lifecycleData.processingStatus as SourceProcessingStatus,
           entityTag: sender,
           hashtags: ["#bridge", "#inbound"],
           metadata: {

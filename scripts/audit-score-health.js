@@ -35,7 +35,7 @@ async function main() {
   for (const company of companies) {
     const report = await computeCompanyScoreHealth(company.id);
     const [topTask, topKnowledge] = await Promise.all([
-      prisma.nBAItem.findFirst({
+      prisma.checklistTask.findFirst({
         where: {
           companyId: company.id,
           activityState: { in: ["ACTIVE", "STALE"] },

@@ -18,13 +18,21 @@ interface LanguageSelectorProps {
   selectedIds: string[];
   onChange: (newIds: string[]) => void;
   disabled?: boolean;
+  label?: string;
+  placeholder?: string;
 }
 
-export function LanguageSelector({ selectedIds, onChange, disabled }: LanguageSelectorProps) {
+export function LanguageSelector({
+  selectedIds,
+  onChange,
+  disabled,
+  label = "Permitted Languages",
+  placeholder = "Select permitted languages for local AI synthesis...",
+}: LanguageSelectorProps) {
   return (
     <MultiSelect
-      label="Permitted Languages"
-      placeholder="Select permitted languages for local AI synthesis..."
+      label={label}
+      placeholder={placeholder}
       data={LANGUAGES}
       value={selectedIds}
       onChange={onChange}

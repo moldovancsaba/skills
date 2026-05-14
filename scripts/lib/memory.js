@@ -61,6 +61,17 @@ async function savePersistedMemory(prisma, companyId, guidelines) {
   }
 }
 
+function buildLegacyMemoryPrompt(guidelines) {
+  if (!Array.isArray(guidelines) || guidelines.length === 0) {
+    return "";
+  }
+
+  return [
+    "### MEMORY GUIDELINES",
+    ...guidelines.slice(0, MAX_PERSISTED_GUIDELINES).map((guideline) => `- ${guideline}`),
+  ].join("\n");
+}
+
 // ---------------------------------------------------------------------------
 // 2. Lesson Distillation — converts feedback events into MemoryEntry records
 // ---------------------------------------------------------------------------
@@ -138,10 +149,10 @@ async function processMemoryUpdates(prisma, company) {
   // Load feedback events not yet turned into memory entries
   const feedbackEvents = await prisma.feedback.findMany({
     where: {
-      nbaItem: { companyId: cid },
+      checklistTask: { companyId: cid },
       processedByWorkerAt: { not: null }, // Only process already-handled events
     },
-    include: { nbaItem: true },
+    include: { checklistTask: true },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -157,7 +168,7 @@ async function processMemoryUpdates(prisma, company) {
   for (const f of feedbackEvents) {
     if (alreadyProcessed.has(f.id)) continue;
 
-    const item = f.nbaItem;
+    const item = f.checklistTask;
     const declineClass = f.declineClass || null;
     const lessonType = classifyLesson(f.action, declineClass);
     if (!lessonType) continue;
@@ -302,8 +313,8 @@ async function getStagedMemoryPrompt(prisma, company, stage, context = {}) {
   });
 
   if (entries.length === 0) {
-    // Fall back to legacy prompt
-    return getHumanMemoryPrompt(prisma, company);
+    const guidelines = await loadPersistedMemory(prisma, cid);
+    return buildLegacyMemoryPrompt(guidelines);
   }
 
   const hardConstraints = entries.filter(e => e.lessonType === "HARD_CONSTRAINT");

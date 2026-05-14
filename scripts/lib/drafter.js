@@ -62,7 +62,7 @@ function joinBody(body) {
 // prolific — but not careless (§8.6).
 // ---------------------------------------------------------------------------
 async function buildActiveInventoryFingerprints(prisma, companyId) {
-  const active = await prisma.nBAItem.findMany({
+  const active = await prisma.checklistTask.findMany({
     where: {
       companyId,
       activityState: { in: ["ACTIVE", "STALE"] },
@@ -401,7 +401,7 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     const titleKey = String(item.title).toLowerCase().slice(0, 80);
     if (activeFingerprints.has(titleKey)) continue;
 
-    const publicId = await nextPublicId(prisma, "NBAItem");
+    const publicId = await nextPublicId(prisma, "checklist");
     let confidence, impact, ease;
     let procStatus = "DRAFT";
 

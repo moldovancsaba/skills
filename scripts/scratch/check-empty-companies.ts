@@ -10,14 +10,14 @@ async function main() {
   console.log(`Checking ${companies.length} companies...`);
 
   for (const company of companies) {
-    const total = await prisma.nBAItem.count({ where: { companyId: company.id } });
-    const evaluated = await prisma.nBAItem.count({ 
+    const total = await prisma.checklistTask.count({ where: { companyId: company.id } });
+    const evaluated = await prisma.checklistTask.count({ 
       where: { 
         companyId: company.id, 
         candidateState: "EVALUATED" 
       } 
     });
-    const visible = await prisma.nBAItem.count({
+    const visible = await prisma.checklistTask.count({
       where: {
         companyId: company.id,
         candidateState: "EVALUATED",

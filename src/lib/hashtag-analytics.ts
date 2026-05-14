@@ -11,7 +11,7 @@ async function listCompanyHashtagRecords(companyId: string): Promise<HashtagReco
     prisma.source.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
     prisma.uploadedSourceFile.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
     prisma.flashcard.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
-    prisma.nBAItem.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
+    prisma.checklistTask.findMany({ where: { companyId }, select: { id: true, hashtags: true } }),
   ]);
 
   return [...sources, ...files, ...flashcards, ...checklist].map((record) => ({

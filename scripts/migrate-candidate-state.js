@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log("Migrating NBAItems to CandidateState...");
-  const items = await prisma.nBAItem.findMany();
+  const items = await prisma.checklistTask.findMany();
   let updated = 0;
   
   for (const item of items) {
@@ -13,7 +13,7 @@ async function main() {
     // So if it returns GENERATED, we should still do an update to force it to write to the DB!
     const state = inferLegacyState(item);
     
-    await prisma.nBAItem.update({
+    await prisma.checklistTask.update({
       where: { id: item.id },
       data: { candidateState: state }
     });

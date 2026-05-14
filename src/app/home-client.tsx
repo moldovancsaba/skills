@@ -25,11 +25,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useState, useEffect, useCallback } from "react";
 import { getSemanticInsetStyle } from "@/lib/semantic-theme";
+import { useI18n } from "@/lib/ui-i18n";
 
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setCompany, setSources } = useStore();
+  const { t } = useI18n();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +67,7 @@ export default function Home() {
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.error || "Failed to fetch companies");
+          throw new Error(data.error || t("home.failedCompanies"));
         }
         return data;
       })
@@ -102,7 +104,7 @@ export default function Home() {
       .then(res => res.ok ? res.json() : null)
       .then(data => setSession(data))
       .catch(console.error);
-  }, [companyParam, selectCompany]);
+  }, [companyParam, selectCompany, t]);
 
   const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,7 +124,7 @@ export default function Home() {
       selectCompany(newCompany);
     } else {
       const data = await res.json();
-      setError(data.error || "Failed to create company");
+      setError(data.error || t("home.failedCreate"));
     }
   };
 
@@ -145,12 +147,12 @@ export default function Home() {
       setShowForm(false);
     } else {
       const data = await res.json();
-      setError(data.error || "Failed to update company");
+      setError(data.error || t("home.failedUpdate"));
     }
   };
 
   const handleDeleteCompany = async (id: string) => {
-    if (!confirm("Delete this company?")) return;
+    if (!confirm(t("home.deleteConfirm"))) return;
     
     setError(null);
     const res = await fetch(`/api/companies?id=${id}`, {
@@ -161,7 +163,7 @@ export default function Home() {
       setCompanies(prev => prev.filter(c => c.id !== id));
     } else {
       const data = await res.json();
-      setError(data.error || "Failed to delete company");
+      setError(data.error || t("home.failedDelete"));
     }
   };
 
@@ -180,7 +182,7 @@ export default function Home() {
       <Center h="100vh">
         <Stack align="center" gap="md" w="100%">
           <Loader color="ingress" />
-          <Text c="dimmed">Hardening OS Infrastructure...</Text>
+          <Text c="dimmed">{t("home.loading")}</Text>
         </Stack>
       </Center>
     );
@@ -191,7 +193,7 @@ export default function Home() {
       <Stack gap="xl">
 
         {error && (
-          <Notice icon={AlertCircle} title="Synchronization Failure" variant="destructive">
+          <Notice icon={AlertCircle} title={t("home.syncFailure")} variant="destructive">
             {error}
           </Notice>
         )}
@@ -204,7 +206,7 @@ export default function Home() {
             leftSection={<HelpCircle size={14} />}
             onClick={() => router.push("/faq")}
           >
-            Intelligence FAQ
+            {t("home.faq")}
           </Button>
           {!session && (
             <Button 
@@ -214,7 +216,7 @@ export default function Home() {
               leftSection={<LogIn size={14} />}
               onClick={() => router.push("/auth")}
             >
-              Sign in with SSO
+              {t("home.sso")}
             </Button>
           )}
         </Group>
@@ -223,20 +225,20 @@ export default function Home() {
           <UnifiedCard tone="ingress">
             <UnifiedCardBody>
             <Stack gap="lg">
-              <Title order={3}>{editingId ? "Modify Intelligence Unit" : "Initialize New Unit"}</Title>
+              <Title order={3}>{editingId ? t("home.editTitle") : t("home.createTitle")}</Title>
               <form onSubmit={editingId ? handleUpdateCompany : handleCreateCompany}>
                 <Stack gap="md">
                   <FormInput
                     name="name"
-                    label="Company Name"
+                    label={t("home.companyName")}
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
-                    placeholder="Enter company name"
+                    placeholder={t("home.companyNamePlaceholder")}
                     required
                   />
                   <HashtagMultiSelect
-                    label="Strategic Industries"
-                    placeholder="Search or add industry tags (e.g. #saas, #ai)"
+                    label={t("home.industriesLabel")}
+                    placeholder={t("home.industriesPlaceholder")}
                     selected={formData.industries}
                     onChange={industries => setFormData({...formData, industries})}
                     suggestions={suggestedIndustries}
@@ -244,14 +246,14 @@ export default function Home() {
                   />
                   <Group gap="sm" mt="lg">
                     <Button type="submit" color="ingress" leftSection={<Plus size={16} />}>
-                      {editingId ? "Synchronize" : "Initialize"} Unit
+                      {editingId ? t("home.synchronizeUnit") : t("home.initializeUnit")}
                     </Button>
                     <Button
                       variant="subtle"
                       color="gray"
                       onClick={() => { setEditingId(null); setFormData({ name: "", industry: "", industries: [] }); setShowForm(false); }}
                     >
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                   </Group>
                 </Stack>
@@ -281,18 +283,18 @@ export default function Home() {
                       </Group>
                     </Group>
                     <Text size="xs" c="dimmed">
-                      UNIT ID: {c.id.slice(0, 8)}
+                      {t("home.unitId", { id: c.id.slice(0, 8) })}
                     </Text>
                   </Stack>
                   
                   {canManageCompanies && (
                     <Group gap="xs">
-                      <Tooltip label="Edit Unit">
+                      <Tooltip label={t("home.editUnit")}>
                         <ActionIcon onClick={() => startEdit(c)} variant="light" color="gray" size="lg">
                           <Edit size={18} />
                         </ActionIcon>
                       </Tooltip>
-                      <Tooltip label="Purge Unit">
+                      <Tooltip label={t("home.purgeUnit")}>
                         <ActionIcon onClick={() => handleDeleteCompany(c.id)} variant="light" color="review" size="lg">
                           <Trash2 size={18} />
                         </ActionIcon>
@@ -308,7 +310,7 @@ export default function Home() {
                     icon={Database}
                     variant="ingress"
                     metric={c.metrics?.data ?? 0}
-                    title="Data"
+                    title={t("nav.data")}
                     chartData={chartSeries(c.analytics, "sources", "dataIngress")}
                     density="compact"
                   />
@@ -317,7 +319,7 @@ export default function Home() {
                     icon={Layers}
                     variant="synthesis"
                     metric={c.metrics?.topics ?? 0}
-                    title="Topics"
+                    title={t("nav.topics")}
                     chartData={chartSeries(c.analytics, "topics", "topicSynthesis")}
                     density="compact"
                   />
@@ -326,8 +328,8 @@ export default function Home() {
                     icon={Target}
                     variant="strategy"
                     metric={c.metrics?.goals ?? 0}
-                    title="Goals"
-                    chartData={chartSeries(c.analytics, "goals", "strategicGoals", "nba")}
+                    title={t("nav.goals")}
+                    chartData={chartSeries(c.analytics, "goals", "strategicGoals", "checklist", "nba")}
                     density="compact"
                   />
                   <LinkCard
@@ -335,8 +337,8 @@ export default function Home() {
                     icon={History}
                     variant="review"
                     metric={c.metrics?.review ?? 0}
-                    title="Review"
-                    chartData={chartSeries(c.analytics, "reviewGateway", "nba")}
+                    title={t("nav.review")}
+                    chartData={chartSeries(c.analytics, "reviewGateway", "checklist", "nba")}
                     density="compact"
                   />
                   <LinkCard
@@ -344,7 +346,7 @@ export default function Home() {
                     icon={Sparkles}
                     variant="knowmore"
                     metric={c.metrics?.knowmore ?? 0}
-                    title="Knowmore"
+                    title={t("nav.knowmore")}
                     chartData={chartSeries(c.analytics, "flashcards", "knowmore")}
                     density="compact"
                   />
@@ -353,16 +355,16 @@ export default function Home() {
                     icon={LayoutDashboard}
                     variant="tactical"
                     metric={c.metrics?.tactical ?? 0}
-                    title="Planning"
-                    chartData={chartSeries(c.analytics, "tacticalBoard", "nbaItems", "nba")}
+                    title={t("nav.tactical")}
+                    chartData={chartSeries(c.analytics, "tacticalBoard", "tacticalCount", "checklistTasks", "nba")}
                     density="compact"
                   />
                   <LinkCard
-                    href={`/${c.id}/nba`}
+                    href={`/${c.id}/checklist`}
                     icon={ListCheck}
                     variant="checklist"
                     metric={c.metrics?.checklist ?? 0}
-                    title="Checklist"
+                    title={t("nav.checklist")}
                     chartData={chartSeries(c.analytics, "checklist", "nba")}
                     density="compact"
                   />
@@ -374,8 +376,8 @@ export default function Home() {
               <EmptyState
                 icon={Database}
                 tone="ingress"
-                title="No intelligence units are currently provisioned"
-                description="This account does not yet have an active operating unit."
+                title={t("home.noUnitsTitle")}
+                description={t("home.noUnitsDescription")}
               />
             )}
           </Stack>
@@ -389,7 +391,7 @@ export default function Home() {
               color="ingress"
               leftSection={<Plus size={16} />}
             >
-              Provision New Intelligence Unit
+              {t("home.provisionUnit")}
             </Button>
           </Box>
         )}

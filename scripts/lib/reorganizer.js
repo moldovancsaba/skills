@@ -91,7 +91,7 @@ async function reorganizeCard(prisma, card, sourceLayer, targetLayer) {
       const generatedFromIds = card.sources ? card.sources.map(s => s.sourceId) : 
                                card.generatedFromIds ? card.generatedFromIds : [];
       const normalizedScores = normalizeTaskScores(baseData);
-      createdItem = await prisma.nBAItem.create({
+      createdItem = await prisma.checklistTask.create({
         data: {
           companyId: baseData.companyId,
           title: baseData.title,
@@ -141,7 +141,7 @@ async function reorganizeCard(prisma, card, sourceLayer, targetLayer) {
     } else if (sType === "GOALCARD") {
       await prisma.goalcard.update({ where: { id: card.id }, data: { activityState: "ARCHIVED" } });
     } else if (sType === "TASKCARD") {
-      await prisma.nBAItem.update({ 
+      await prisma.checklistTask.update({ 
         where: { id: card.id }, 
         data: { 
           activityState: "ARCHIVED",

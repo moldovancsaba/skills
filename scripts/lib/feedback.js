@@ -55,7 +55,7 @@ const DECLINE_ROUTING = {
  *
  * @param {PrismaClient} prisma
  * @param {object} feedbackRecord - Feedback record from DB
- * @param {object} item - NBAItem record
+ * @param {object} item - ChecklistTask record
  */
 async function handleDecline(prisma, feedbackRecord, item) {
   const declineClass = feedbackRecord.declineClass || "WRONG";
@@ -64,7 +64,7 @@ async function handleDecline(prisma, feedbackRecord, item) {
   // Persist immutable DeclineEvent
   await prisma.declineEvent.create({
     data: {
-      nbaItemId: item.id,
+      checklistTaskId: item.id,
       companyId: item.companyId,
       declineClass,
       comment: feedbackRecord.annotation || null,
@@ -117,7 +117,7 @@ async function handleDecline(prisma, feedbackRecord, item) {
     console.log(`[FEEDBACK] ${item.companyId} tc:${item.id} ARCHIVED(${declineClass})`);
   }
 
-  await prisma.nBAItem.update({
+  await prisma.checklistTask.update({
     where: { id: item.id },
     data: stateUpdate,
   });
@@ -138,7 +138,7 @@ async function handleDecline(prisma, feedbackRecord, item) {
  */
 async function handleDeliver(prisma, feedbackRecord, item) {
   // Transition item to DELIVERED state
-  await prisma.nBAItem.update({
+  await prisma.checklistTask.update({
     where: { id: item.id },
     data: {
       ...toDelivered(),
@@ -195,7 +195,7 @@ async function handleDeliver(prisma, feedbackRecord, item) {
 
 async function handleAccept(prisma, feedbackRecord, item) {
   const newFeedbackScore = (item.feedbackScore || 0) + 1;
-  await prisma.nBAItem.update({
+  await prisma.checklistTask.update({
     where: { id: item.id },
     data: {
       feedbackScore: newFeedbackScore,
@@ -220,10 +220,10 @@ async function handleAccept(prisma, feedbackRecord, item) {
 async function processFeedbackEvents(prisma, company) {
   const pending = await prisma.feedback.findMany({
     where: {
-      nbaItem: { companyId: company.id },
+      checklistTask: { companyId: company.id },
       processedByWorkerAt: null,
     },
-    include: { nbaItem: true },
+    include: { checklistTask: true },
     orderBy: { createdAt: "asc" },
   });
 
@@ -232,7 +232,7 @@ async function processFeedbackEvents(prisma, company) {
   console.log(`[FEEDBACK] ${company.name}: Processing ${pending.length} feedback events...`);
 
   for (const f of pending) {
-    const item = f.nbaItem;
+    const item = f.checklistTask;
     try {
       if (f.action === "DECLINE") {
         await handleDecline(prisma, f, item);
@@ -242,7 +242,7 @@ async function processFeedbackEvents(prisma, company) {
         await handleAccept(prisma, f, item);
         // MODIFY_ACCEPT: also apply user edits
         if (f.action === "MODIFY_ACCEPT" && (f.modifiedTitle || f.modifiedDescription)) {
-          await prisma.nBAItem.update({
+          await prisma.checklistTask.update({
             where: { id: item.id },
             data: {
               title: f.modifiedTitle || item.title,

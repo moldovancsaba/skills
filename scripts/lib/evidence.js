@@ -19,6 +19,7 @@
 const crypto = require("crypto");
 const CANONICALIZER_VERSION = "v2.0.0";
 const { deriveDataCardScoreProfile } = require("../../src/lib/upstream-card-scoring");
+const { buildSourceLifecycleData } = require("../../src/lib/source-contract");
 const { ensureCitationSnapshotForSource } = require("./citations");
 
 // ---------------------------------------------------------------------------
@@ -91,8 +92,16 @@ async function ingestEvidenceUnit(prisma, opts) {
   if (!companyId) throw new Error("[EVIDENCE] companyId is required — evidence must be tenant-bound");
   if (!content || content.trim().length === 0) throw new Error("[EVIDENCE] content is required");
 
-  const contentCanonical = canonicalizeContent(content);
-  const canonicalContentHash = computeContentHash(contentCanonical);
+  const lifecycleData = buildSourceLifecycleData({
+    content,
+    confidenceScore: scoreProfile.confidence,
+    confidence: scoreProfile.confidence,
+    provenance,
+    sourceType,
+    metadata,
+  });
+  const contentCanonical = lifecycleData.canonicalContent;
+  const canonicalContentHash = lifecycleData.canonicalContentHash;
   const scoreProfile = deriveDataCardScoreProfile({
     content,
     entityTag,
@@ -124,6 +133,7 @@ async function ingestEvidenceUnit(prisma, opts) {
       scoreProfile: scoreProfile.scoreProfile ?? null,
       canonicalContent: contentCanonical,
       canonicalContentHash,
+      processingStatus: lifecycleData.processingStatus,
       canonicalizerVersion: CANONICALIZER_VERSION,
       provenance,
       sourceType,

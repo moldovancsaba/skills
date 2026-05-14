@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     const feedback = entityType === "TASK"
       ? await prisma.feedback.create({
           data: {
-            nbaItemId: entityId,
+            checklistTaskId: entityId,
             action,
             annotation: sanitizedAnnotation,
             modifiedTitle,

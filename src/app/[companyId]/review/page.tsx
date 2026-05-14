@@ -39,7 +39,7 @@ export default function ReviewDashboard() {
     try {
       const [fcRes, nbaRes] = await Promise.all([
         fetch(`/api/flashcards?companyId=${companyId}`),
-        fetch(`/api/nba?companyId=${companyId}&review=true`)
+        fetch(`/api/checklist?companyId=${companyId}&review=true`)
       ]);
       
       const [fcData, nbaData] = await Promise.all([
@@ -75,7 +75,7 @@ export default function ReviewDashboard() {
           impact: newI,
           ease: newE_W,
         });
-        await fetch(`/api/nba?id=${id}`, {
+        await fetch(`/api/checklist?id=${id}`, {
           method: "PATCH",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({

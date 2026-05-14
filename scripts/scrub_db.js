@@ -27,9 +27,9 @@ async function main() {
   }
   console.log(`Updated ${fcUpdated} Flashcards.`);
 
-  // 2. Scrub Tasks (NBAItem)
+  // 2. Scrub Tasks (ChecklistTask)
   console.log("Scrubbing Tasks...");
-  const tasks = await prisma.nBAItem.findMany();
+  const tasks = await prisma.checklistTask.findMany();
   let tcUpdated = 0;
   for (const tc of tasks) {
     const update = {};
@@ -42,7 +42,7 @@ async function main() {
 
     if (Object.keys(update).length > 0) {
       console.log(`Updating Task ${tc.id}...`);
-      await prisma.nBAItem.update({ where: { id: tc.id }, data: update });
+      await prisma.checklistTask.update({ where: { id: tc.id }, data: update });
       tcUpdated++;
     }
   }

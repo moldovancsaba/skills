@@ -49,11 +49,12 @@ Read these in order. Lower documents must not contradict higher ones.
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
 2. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 3. [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
-4. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
-5. [docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md](/Users/Shared/Projects/checklist/docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md)
-6. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
-7. [DESIGN_SYSTEM_AGENT_HANDOFF.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM_AGENT_HANDOFF.md)
-8. [documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md](/Users/Shared/Projects/checklist/documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md)
+4. [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
+5. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
+6. [docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md](/Users/Shared/Projects/checklist/docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md)
+7. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
+8. [DESIGN_SYSTEM_AGENT_HANDOFF.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM_AGENT_HANDOFF.md)
+9. [documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md](/Users/Shared/Projects/checklist/documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md)
 
 If two docs disagree:
 
@@ -76,6 +77,8 @@ Application stack:
 Frontend system:
 
 - Mantine is the only approved UI framework
+- the app shell now includes a real persisted UI language selector for `English`, `Hungarian`, `Spanish`, `Arabic`, and `Hebrew`
+- UI language is a browser-local interface preference and is distinct from the company `allowedLanguages` policy used for local AI output governance
 - Mantine `Card` is the only approved base for product card surfaces
 - `UnifiedCard` is the only approved product card API for feature code
 - `UnifiedCardModal` is the only approved modal content shell for product cards
@@ -99,7 +102,9 @@ Frontend system:
 
 Worker queue controls:
 
-- the webapp implementation is a `Worker Queue` board at `/:companyId/pipeline`
+- the webapp implementation is an `AI Queue` board at `/:companyId/pipeline`
+- queue claiming must not starve untouched jobs behind repeatedly retried jobs from the same company
+- companies with knowledge cards but zero task inventory are a bootstrap condition; `COMPANY_SYNTHESIS` must escalate to immediate queue priority until tactical/checklist inventory exists
 - the shipped human controls are:
   - drag and drop jobs between `Now`, `Soon`, `Later`, and `Parked`
   - drag and drop reordering inside a column

@@ -153,8 +153,8 @@ export async function DELETE(request: NextRequest) {
     if (auth.error) return auth.error;
 
     // Delete related data first
-    await prisma.feedback.deleteMany({ where: { nbaItem: { companyId: id } } });
-    await prisma.nBAItem.deleteMany({ where: { companyId: id } });
+    await prisma.feedback.deleteMany({ where: { checklistTask: { companyId: id } } });
+    await prisma.checklistTask.deleteMany({ where: { companyId: id } });
     await prisma.flashcard.deleteMany({ where: { companyId: id } });
     await prisma.user.deleteMany({ where: { companyId: id } });
     await prisma.company.delete({ where: { id } });

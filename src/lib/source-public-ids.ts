@@ -9,7 +9,7 @@ import { prisma } from "@/lib/db";
 
 const SOURCE_PUBLIC_ID_SCOPE = "source";
 const FLASHCARD_PUBLIC_ID_SCOPE = "flashcard";
-const checklist_PUBLIC_ID_SCOPE = "checklist";
+const CHECKLIST_PUBLIC_ID_SCOPE = "checklist";
 const MAX_RETRIES = 3;
 const TRANSACTION_MAX_WAIT_MS = 10_000;
 const TRANSACTION_TIMEOUT_MS = 120_000;
@@ -17,7 +17,7 @@ const TRANSACTION_TIMEOUT_MS = 120_000;
 export const PUBLIC_ID_SCOPES = {
   source: SOURCE_PUBLIC_ID_SCOPE,
   flashcard: FLASHCARD_PUBLIC_ID_SCOPE,
-  checklist: checklist_PUBLIC_ID_SCOPE,
+  checklist: CHECKLIST_PUBLIC_ID_SCOPE,
 } as const;
 
 type SourceKind = "source" | "file";
@@ -28,7 +28,7 @@ type MissingSource = {
   kind: SourceKind;
 };
 
-type MissingchecklistItem = {
+type MissingChecklistTask = {
   id: string;
   createdAt: Date;
 };
@@ -227,13 +227,13 @@ export async function nextSourcePublicId(tx: TransactionClient) {
   return publicId;
 }
 
-async function readMissingchecklistItems(
+async function readMissingChecklistTasks(
   tx: TransactionClient,
   companyId?: string,
-): Promise<MissingchecklistItem[]> {
+): Promise<MissingChecklistTask[]> {
   const where = companyId ? { companyId, publicId: null } : { publicId: null };
 
-  return tx.nBAItem.findMany({
+  return tx.checklistTask.findMany({
     where,
     select: { id: true, createdAt: true },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -246,25 +246,25 @@ async function readMissingchecklistItems(
  * @param {string} [companyId] - Optional company filter
  * @returns {Promise<number>} Count of assigned IDs
  */
-export async function ensurechecklistPublicIds(companyId?: string) {
+export async function ensureChecklistPublicIds(companyId?: string) {
   return withSerializableRetry(() =>
     prisma.$transaction(
       async (tx) => {
-        const missingItems = await readMissingchecklistItems(tx, companyId);
+        const missingItems = await readMissingChecklistTasks(tx, companyId);
         if (missingItems.length === 0) {
           return 0;
         }
 
         const reservedPublicIds = await reservePublicIds(
           tx,
-          checklist_PUBLIC_ID_SCOPE,
+          CHECKLIST_PUBLIC_ID_SCOPE,
           missingItems.length,
         );
 
         let assignedCount = 0;
 
         for (const [index, item] of missingItems.entries()) {
-          const result = await tx.nBAItem.updateMany({
+          const result = await tx.checklistTask.updateMany({
             where: {
               id: item.id,
               publicId: null,
@@ -284,8 +284,8 @@ export async function ensurechecklistPublicIds(companyId?: string) {
   );
 }
 
-export async function nextchecklistPublicId(tx: TransactionClient) {
-  const [publicId] = await reservePublicIds(tx, checklist_PUBLIC_ID_SCOPE, 1);
+export async function nextChecklistPublicId(tx: TransactionClient) {
+  const [publicId] = await reservePublicIds(tx, CHECKLIST_PUBLIC_ID_SCOPE, 1);
   return publicId;
 }
 

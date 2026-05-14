@@ -14,7 +14,7 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:3b";
 const GLOBAL_OLLAMA_TIMEOUT_MS = 180_000;
 const FAILSAFE_TIMEOUT_MS = 300_000;
 const DRAFT_STAGE_TIMEOUT_MS = 120_000;
-const WRITE_STAGE_TIMEOUT_MS = 150_000;
+const WRITE_STAGE_TIMEOUT_MS = 120_000;
 const JUDGE_STAGE_TIMEOUT_MS = 120_000;
 
 const USE_SAFE_MODE = /^(1|true|yes|on)$/i.test(process.env.USE_SAFE_MODE || "");

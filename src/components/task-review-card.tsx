@@ -30,6 +30,7 @@ import { getGoalCardFreshness, getTaskCardFreshness } from "@/lib/card-freshness
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getDisplayableHumanComment, stripTechnicalMetadata } from "@/lib/ui-utils";
 import { logClientInteraction } from "@/lib/client-events";
+import { useI18n } from "@/lib/ui-i18n";
 import { 
   UnifiedCard, 
   UnifiedCardFreshnessBadge,
@@ -43,7 +44,7 @@ import {
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
 
-type NBAItem = {
+type ChecklistTask = {
   id: string;
   publicId: number | null;
   title: string;
@@ -66,8 +67,8 @@ type NBAItem = {
 };
 
 type TaskReviewCardProps = {
-  item: NBAItem;
-  onOpenDetail?: (item: NBAItem) => void;
+  item: ChecklistTask;
+  onOpenDetail?: (item: ChecklistTask) => void;
   detailMode?: boolean;
   twoPhaseWorkflow?: boolean;
   isActionOpen: boolean;
@@ -76,7 +77,7 @@ type TaskReviewCardProps = {
   annotation: string;
   draftTitle: string;
   draftDescription: string;
-  onOpenAction: (item: NBAItem, mode: ActionMode) => void;
+  onOpenAction: (item: ChecklistTask, mode: ActionMode) => void;
   onCloseAction: () => void;
   onAnnotationChange: (value: string) => void;
   onDraftTitleChange: (value: string) => void;
@@ -123,6 +124,7 @@ export function TaskReviewCard({
   onPostpone,
   hideTitle = false,
 }: TaskReviewCardProps) {
+  const { t } = useI18n();
   const [traceOpen, setTraceOpen] = useState(false);
   const stopCardClick = (event: { stopPropagation: () => void }, callback?: () => void) => {
     event.stopPropagation();
@@ -142,16 +144,16 @@ export function TaskReviewCard({
   };
   
   const DECLINE_OPTIONS = [
-    { value: "DUPLICATE", label: "Already exists (Duplicate)" },
-    { value: "ALREADY_DONE", label: "Already completed" },
-    { value: "IRRELEVANT", label: "Irrelevant to our strategy" },
-    { value: "LOW_PRIORITY", label: "Valid, but low priority right now" },
-    { value: "BAD_TIMING", label: "Good idea, but wrong timing" },
-    { value: "TOO_VAGUE", label: "Too vague (needs more detail)" },
-    { value: "MISSING_CONTEXT", label: "Missing context" },
-    { value: "NOT_ACTIONABLE", label: "Not actionable by the team" },
-    { value: "WRONG", label: "Factually incorrect" },
-    { value: "IGNORANT_OUTPUT", label: "AI Hallucination" },
+    { value: "DUPLICATE", label: t("taskCard.declineReasons.DUPLICATE") },
+    { value: "ALREADY_DONE", label: t("taskCard.declineReasons.ALREADY_DONE") },
+    { value: "IRRELEVANT", label: t("taskCard.declineReasons.IRRELEVANT") },
+    { value: "LOW_PRIORITY", label: t("taskCard.declineReasons.LOW_PRIORITY") },
+    { value: "BAD_TIMING", label: t("taskCard.declineReasons.BAD_TIMING") },
+    { value: "TOO_VAGUE", label: t("taskCard.declineReasons.TOO_VAGUE") },
+    { value: "MISSING_CONTEXT", label: t("taskCard.declineReasons.MISSING_CONTEXT") },
+    { value: "NOT_ACTIONABLE", label: t("taskCard.declineReasons.NOT_ACTIONABLE") },
+    { value: "WRONG", label: t("taskCard.declineReasons.WRONG") },
+    { value: "IGNORANT_OUTPUT", label: t("taskCard.declineReasons.IGNORANT_OUTPUT") },
   ];
 
   const iceColor = getIceBadgeColor(item.iceScore);
@@ -183,7 +185,7 @@ export function TaskReviewCard({
           <Group justify="space-between" wrap="nowrap" w="100%">
             <Group gap={7}>
               <Badge color="dark">{item.processingStatus}</Badge>
-              <Badge color="checklist">TASK</Badge>
+              <Badge color="checklist">{t("taskCard.task")}</Badge>
               <UnifiedCardFreshnessBadge freshness={freshness} />
             </Group>
             <Badge color={iceColor}>ICE {Math.round(item.iceScore)}</Badge>
@@ -226,7 +228,7 @@ export function TaskReviewCard({
                 onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DELIVER"))}
                 disabled={isBusy}
               >
-                Deliver
+                {t("taskCard.deliver")}
               </Button>
               <Button
                 size="xs"
@@ -236,7 +238,7 @@ export function TaskReviewCard({
                 onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DELETE"))}
                 disabled={isBusy}
               >
-                Delete
+                {t("taskCard.delete")}
               </Button>
             </>
           ) : (
@@ -249,7 +251,7 @@ export function TaskReviewCard({
                 onClick={(event) => stopCardClick(event, () => onOpenAction(item, "ACCEPT"))}
                 disabled={isBusy}
               >
-                Accept
+                {t("taskCard.accept")}
               </Button>
               <Button 
                 size="xs" 
@@ -259,7 +261,7 @@ export function TaskReviewCard({
                 onClick={(event) => stopCardClick(event, () => onOpenAction(item, "DECLINE"))}
                 disabled={isBusy}
               >
-                Decline
+                {t("taskCard.decline")}
               </Button>
             </>
           )}
@@ -274,27 +276,27 @@ export function TaskReviewCard({
             <Stack gap="sm">
               <MetaText>
                 {actionMode === "DECLINE"
-                  ? "Decline Task"
+                  ? t("taskCard.declineTask")
                   : actionMode === "MODIFY_ACCEPT"
-                    ? "Modify & Accept"
+                    ? t("taskCard.modifyAccept")
                     : actionMode === "DELIVER"
-                      ? "Mark Delivered"
+                      ? t("taskCard.markDelivered")
                       : actionMode === "DELETE"
-                        ? "Delete Accepted Task"
-                        : "Accept Task"}
+                        ? t("taskCard.deleteAccepted")
+                        : t("taskCard.acceptTask")}
               </MetaText>
 
               {actionMode === "MODIFY_ACCEPT" && (
                 <Stack gap="sm">
-                  <TextInput label="Title" value={draftTitle} onChange={(e) => onDraftTitleChange(e.target.value)} size="xs" />
-                  <Textarea label="Description" value={draftDescription} onChange={(e) => onDraftDescriptionChange(e.target.value)} autosize minRows={2} size="xs" />
+                  <TextInput label={t("taskCard.title")} value={draftTitle} onChange={(e) => onDraftTitleChange(e.target.value)} size="xs" />
+                  <Textarea label={t("taskCard.description")} value={draftDescription} onChange={(e) => onDraftDescriptionChange(e.target.value)} autosize minRows={2} size="xs" />
                 </Stack>
               )}
 
               {actionMode === "DECLINE" && onDeclineClassChange && (
                 <Select
-                  label="Decline Reason"
-                  placeholder="Select a reason"
+                  label={t("taskCard.declineReason")}
+                  placeholder={t("taskCard.declinePlaceholder")}
                   data={DECLINE_OPTIONS}
                   value={declineClass}
                   onChange={(val) => onDeclineClassChange(val || "WRONG")}
@@ -305,10 +307,10 @@ export function TaskReviewCard({
               )}
 
               <Textarea
-                label="Strategic Feedback"
+                label={t("taskCard.strategicFeedback")}
                 value={annotation}
                 onChange={(e) => onAnnotationChange(e.target.value)}
-                placeholder="Provide context for system calibration..."
+                placeholder={t("taskCard.feedbackPlaceholder")}
                 size="xs"
                 autosize
                 minRows={2}
@@ -322,9 +324,9 @@ export function TaskReviewCard({
                   disabled={isBusy || (actionMode === "MODIFY_ACCEPT" && (!draftTitle.trim() || !draftDescription.trim()))}
                   loading={isBusy}
                 >
-                  Confirm
+                  {t("common.confirm")}
                 </Button>
-                <Button size="xs" variant="subtle" color="gray" onClick={(event) => stopCardClick(event, onCloseAction)} disabled={isBusy}>Cancel</Button>
+                <Button size="xs" variant="subtle" color="gray" onClick={(event) => stopCardClick(event, onCloseAction)} disabled={isBusy}>{t("common.cancel")}</Button>
               </Group>
             </Stack>
           </UnifiedCardSection>
@@ -333,9 +335,9 @@ export function TaskReviewCard({
 
       <UnifiedCardFooter>
         <Stack gap="xs">
-          <MetaText>Intelligence controls</MetaText>
+          <MetaText>{t("taskCard.intelligenceControls")}</MetaText>
           <Group gap={6}>
-            <Tooltip label="Pin relevant evidence">
+            <Tooltip label={t("taskCard.pinEvidence")}>
               <Button
                 size="compact-xs"
                 variant="subtle"
@@ -343,10 +345,10 @@ export function TaskReviewCard({
                 leftSection={<Pin size={12} />}
                 onClick={(event) => stopCardClick(event, () => logTaskInteraction("TASK_PIN_REQUEST", 30))}
               >
-                Pin
+                {t("taskCard.pin")}
               </Button>
             </Tooltip>
-            <Tooltip label="Request re-evaluation">
+            <Tooltip label={t("taskCard.requestReevaluation")}>
               <Button
                 size="compact-xs"
                 variant="subtle"
@@ -354,10 +356,10 @@ export function TaskReviewCard({
                 leftSection={<RefreshCw size={12} />}
                 onClick={(event) => stopCardClick(event, () => logTaskInteraction("TASK_REFRESH_REQUEST", 30))}
               >
-                Refresh
+                {t("taskCard.refresh")}
               </Button>
             </Tooltip>
-            <Tooltip label="View synthesis trace">
+            <Tooltip label={t("taskCard.viewTrace")}>
               <Button
                 size="compact-xs"
                 variant="subtle"
@@ -370,21 +372,21 @@ export function TaskReviewCard({
                   setTraceOpen(true);
                 })}
               >
-                Trace
+                {t("taskCard.trace")}
               </Button>
             </Tooltip>
             
             {onPostpone && (
               <Select
-                placeholder="POSTPONE..."
+                placeholder={t("taskCard.postpone")}
                 size="compact-xs"
                 variant="subtle"
                 color="review"
                 data={[
-                  { value: "IDEABANK", label: "Idea Bank" },
-                  { value: "ROADMAP", label: "Roadmap" },
-                  { value: "BACKLOG", label: "Backlog" },
-                  { value: "TODO", label: "Next" },
+                  { value: "IDEABANK", label: t("taskCard.postponeOptions.IDEABANK") },
+                  { value: "ROADMAP", label: t("taskCard.postponeOptions.ROADMAP") },
+                  { value: "BACKLOG", label: t("taskCard.postponeOptions.BACKLOG") },
+                  { value: "TODO", label: t("taskCard.postponeOptions.TODO") },
                 ]}
                 onClick={(event) => event.stopPropagation()}
                 onChange={(val) => {
@@ -406,7 +408,7 @@ export function TaskReviewCard({
               ml="auto"
               onClick={(event) => stopCardClick(event, () => logTaskInteraction("TASK_ARCHIVE_REQUEST", 35))}
             >
-              Archive
+              {t("taskCard.archive")}
             </Button>
           </Group>
         </Stack>

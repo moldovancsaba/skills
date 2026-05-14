@@ -26,6 +26,8 @@ import { UnifiedCard, UnifiedCardBody, UnifiedCardSection } from "@/components/u
 import { BodyText, MetaText, SectionTitle } from "@/components/ui/typography";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { notifications } from "@mantine/notifications";
+import { UiLanguageSelect } from "@/components/ui-language-select";
+import { useI18n } from "@/lib/ui-i18n";
 
 type CommunicationSettings = {
   isEnabled: boolean;
@@ -47,6 +49,7 @@ export default function SettingsPage() {
   const params = useParams();
   const router = useRouter();
   const companyId = params.companyId as string;
+  const { t } = useI18n();
 
   const [settings, setSettings] = useState<CommunicationSettings | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
@@ -93,10 +96,10 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setSettings(await res.json());
-        notifications.show({ title: "Settings saved", message: "Communication preferences updated successfully." });
+        notifications.show({ title: t("settings.saved"), message: t("settings.communicationUpdated") });
       }
     } catch (error) {
-      notifications.show({ title: "Error", message: "Failed to save settings.", color: "review" });
+      notifications.show({ title: t("common.error"), message: t("settings.saveFailed"), color: "review" });
     } finally {
       setSaving(false);
     }
@@ -113,17 +116,17 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setCompanySettings(await res.json());
-        notifications.show({ title: "Organization saved", message: "Language and organization settings updated." });
+        notifications.show({ title: t("settings.organizationSaved"), message: t("settings.organizationUpdated") });
       }
     } catch (error) {
-      notifications.show({ title: "Error", message: "Failed to save organization settings.", color: "review" });
+      notifications.show({ title: t("common.error"), message: t("settings.organizationSaveFailed"), color: "review" });
     } finally {
       setSaving(false);
     }
   };
 
   const regenerateSecret = async () => {
-    if (!confirm("Regenerating the secret will break existing bridge integrations. Continue?")) return;
+    if (!confirm(t("settings.regenerateConfirm"))) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/communication/settings?companyId=${companyId}&action=regenerate-secret`, {
@@ -131,10 +134,10 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setSettings(await res.json());
-        notifications.show({ title: "Secret regenerated", message: "A new Bridge API Key has been issued." });
+        notifications.show({ title: t("settings.secretRegenerated"), message: t("settings.secretIssued") });
       }
     } catch (error) {
-      notifications.show({ title: "Error", message: "Failed to regenerate secret.", color: "review" });
+      notifications.show({ title: t("common.error"), message: t("settings.regenerateFailed"), color: "review" });
     } finally {
       setSaving(false);
     }
@@ -143,11 +146,11 @@ export default function SettingsPage() {
   const copyToClipboard = (text: string) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
-    notifications.show({ title: "Copied", message: "Copied to clipboard." });
+    notifications.show({ title: t("common.copied"), message: t("settings.copied") });
   };
 
-  if (loading) return <Box p="xl" ta="center"><Text>Loading OS configuration...</Text></Box>;
-  if (!settings) return <Box p="xl" ta="center"><Text c="review">Error: Settings context not found.</Text></Box>;
+  if (loading) return <Box p="xl" ta="center"><Text>{t("settings.loading")}</Text></Box>;
+  if (!settings) return <Box p="xl" ta="center"><Text c="review">{t("settings.missing")}</Text></Box>;
 
   const bridgeSecretDisplay = settings.bridgeSecret
     ? showSecret
@@ -161,6 +164,21 @@ export default function SettingsPage() {
     <PageShell width="lg">
 
       <Stack gap="xl">
+        <UnifiedCard tone="ingress">
+          <UnifiedCardBody>
+            <Stack gap="md">
+              <Group gap="sm">
+                <ThemeIcon color="ingress">
+                  <Globe size={18} />
+                </ThemeIcon>
+                <SectionTitle>{t("settings.uiLanguageTitle")}</SectionTitle>
+              </Group>
+              <BodyText>{t("settings.uiLanguageDescription")}</BodyText>
+              <UiLanguageSelect />
+            </Stack>
+          </UnifiedCardBody>
+        </UnifiedCard>
+
         {/* Global Alerting Control */}
         <UnifiedCard tone="review">
           <UnifiedCardBody>
@@ -170,9 +188,9 @@ export default function SettingsPage() {
                   <ThemeIcon color="review">
                     <Bell size={18} />
                   </ThemeIcon>
-                <SectionTitle>Alerting Layer</SectionTitle>
+                <SectionTitle>{t("settings.alertingLayer")}</SectionTitle>
               </Group>
-              <BodyText>Enable or disable automated AI discoveries and task alerts.</BodyText>
+              <BodyText>{t("settings.alertingDescription")}</BodyText>
             </Stack>
             <Switch 
               size="lg"
@@ -194,17 +212,24 @@ export default function SettingsPage() {
                   <ThemeIcon color="synthesis">
                     <Languages size={18} />
                   </ThemeIcon>
-                  <SectionTitle>Language Management</SectionTitle>
+                  <SectionTitle>{t("settings.languageManagement")}</SectionTitle>
                 </Group>
-                <BodyText>Define which languages the local AI system is allowed to use for synthesis, refinement, and repair.</BodyText>
+                <BodyText>{t("settings.languageDescription")}</BodyText>
               </Stack>
               <Badge color="synthesis" size="sm">
-                {companySettings?.allowedLanguages.length || 0} Enabled
+                {t("settings.enabledCount", { count: companySettings?.allowedLanguages.length || 0 })}
               </Badge>
             </Group>
 
+            <UnifiedCardSection tone="synthesis">
+              <MetaText mb="xs">{t("settings.languagePolicyOnly")}</MetaText>
+              <MetaText>{t("settings.languagePolicyHelper")}</MetaText>
+            </UnifiedCardSection>
+
             <LanguageSelector 
               selectedIds={companySettings?.allowedLanguages || []}
+              label={t("settings.permittedLanguages")}
+              placeholder={t("settings.permittedLanguagesPlaceholder")}
               onChange={(ids) => {
                 if (companySettings) {
                   setCompanySettings({ ...companySettings, allowedLanguages: ids });
@@ -220,15 +245,14 @@ export default function SettingsPage() {
                 disabled={saving || !companySettings}
                 loading={saving}
               >
-                Apply Language Policy
+                {t("settings.applyLanguagePolicy")}
               </Button>
             </Group>
 
             <UnifiedCardSection tone="synthesis">
-              <MetaText mb="xs">Policy Enforcement</MetaText>
+              <MetaText mb="xs">{t("settings.policyEnforcement")}</MetaText>
               <MetaText>
-                The local AI system must use only these permitted languages for flashcards and taskcards.
-                Content detected in a disallowed language or in mixed-language form is treated as a quality error and should be rewritten or removed during synthesis and revisit passes.
+                {t("settings.policyDetails")}
               </MetaText>
             </UnifiedCardSection>
           </Stack>
@@ -244,10 +268,10 @@ export default function SettingsPage() {
                 <ThemeIcon color="ingress">
                   <Smartphone size={18} />
                 </ThemeIcon>
-                <SectionTitle>Notification Channel</SectionTitle>
+                <SectionTitle>{t("settings.notificationChannel")}</SectionTitle>
               </Group>
               <Select 
-                label="Channel"
+                label={t("settings.channel")}
                 value={settings.channel} 
                 onChange={(val) => saveSettings({ channel: val || "EMAIL" })}
                 disabled={saving}
@@ -259,12 +283,12 @@ export default function SettingsPage() {
                 ]}
               />
               <TextInput 
-                label="Contact Handle / URL"
+                label={t("settings.contactHandle")}
                 value={settings.handle || ""} 
                 onChange={(e) => setSettings({ ...settings, handle: e.currentTarget.value })}
                 placeholder={settings.channel === 'EMAIL' ? 'email@example.com' : '+123456789'}
                 rightSection={
-                  <Button variant="subtle" size="xs" onClick={() => saveSettings({ handle: settings.handle })}>Save</Button>
+                  <Button variant="subtle" size="xs" onClick={() => saveSettings({ handle: settings.handle })}>{t("common.save")}</Button>
                 }
                 rightSectionWidth={60}
               />
@@ -280,11 +304,11 @@ export default function SettingsPage() {
                 <ThemeIcon color="review">
                   <ShieldCheck size={18} />
                 </ThemeIcon>
-                <SectionTitle>Sensitivity & Priority</SectionTitle>
+                <SectionTitle>{t("settings.sensitivityPriority")}</SectionTitle>
               </Group>
               <Stack gap="xs">
                 <Group justify="space-between">
-                  <Text>Minimum ICE Score</Text>
+                  <Text>{t("settings.minimumIceScore")}</Text>
                   <Text c="review">{settings.minIceScore}</Text>
                 </Group>
                 <Slider 
@@ -297,7 +321,7 @@ export default function SettingsPage() {
                   disabled={saving}
                   color="review"
                 />
-                <MetaText>Higher score = Fewer, higher-quality notifications.</MetaText>
+                <MetaText>{t("settings.higherScore")}</MetaText>
               </Stack>
             </Stack>
             </UnifiedCardBody>
@@ -312,9 +336,9 @@ export default function SettingsPage() {
               <ThemeIcon color="tactical">
                 <Key size={18} />
               </ThemeIcon>
-              <SectionTitle>Communication Bridge API</SectionTitle>
+              <SectionTitle>{t("settings.bridgeApi")}</SectionTitle>
             </Group>
-            <BodyText>Use this key to send data into checklist memory from external scripts.</BodyText>
+            <BodyText>{t("settings.bridgeDescription")}</BodyText>
             
             <UnifiedCardSection tone="tactical">
               <Group justify="space-between">

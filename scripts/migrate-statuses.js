@@ -56,10 +56,10 @@ async function migrate() {
   }
 
   // 2. NBAItems migration
-  const nbaItems = await prisma.nBAItem.findMany();
-  console.log(`Processing ${nbaItems.length} NBAItems...`);
+  const checklistTasks = await prisma.checklistTask.findMany();
+  console.log(`Processing  checklist tasks...`);
 
-  for (const tc of nbaItems) {
+  for (const tc of checklistTasks) {
     let processingStatus = "DRAFT";
     let activityState = "ACTIVE";
     let confidenceScore = tc.confidence || 50;
@@ -97,7 +97,7 @@ async function migrate() {
         break;
     }
 
-    await prisma.nBAItem.update({
+    await prisma.checklistTask.update({
       where: { id: tc.id },
       data: {
         processingStatus,

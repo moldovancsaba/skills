@@ -27,8 +27,9 @@ import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Spark
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { CompanyScoreHealth } from "@/lib/score-health";
 import { BodyText, SectionTitle } from "@/components/ui/typography";
+import { useI18n } from "@/lib/ui-i18n";
 
-type NBAItem = {
+type ChecklistTask = {
   id: string;
   publicId: number | null;
   title: string;
@@ -55,17 +56,18 @@ export default function CompanyDashboard() {
   const params = useParams();
   const companyId = params.companyId as string;
 
-  const { company, setCompany, sources, setSources, setNbaItems } = useStore();
+  const { company, setCompany, sources, setSources } = useStore();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
-  const [topTasks, setTopTasks] = useState<NBAItem[]>([]);
+  const [topTasks, setTopTasks] = useState<ChecklistTask[]>([]);
   const [counts, setCounts] = useState({
     sources: 0,
     topics: 0,
     flashcards: 0,
     goals: 0,
     checklistCount: 0,
-    nbaItems: 0,
+    tacticalCount: 0,
     reviewCount: 0,
     pipelineJobs: 0,
   });
@@ -151,7 +153,7 @@ export default function CompanyDashboard() {
     setDeclineClass("WRONG");
   }, []);
 
-  const openActionForm = useCallback((item: NBAItem, mode: ActionMode) => {
+  const openActionForm = useCallback((item: ChecklistTask, mode: ActionMode) => {
     setActionMode(mode);
     setActionItemId(item.id);
     setAnnotation(stripTechnicalMetadata(item.userAnnotation));
@@ -172,7 +174,7 @@ export default function CompanyDashboard() {
 
     setLoading(true);
     if (action === "DELETE") {
-      await fetch(`/api/nba?id=${itemId}`, {
+      await fetch(`/api/checklist?id=${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -203,7 +205,7 @@ export default function CompanyDashboard() {
       });
 
       if (action === "ACCEPT") {
-        await fetch(`/api/nba?id=${itemId}`, {
+        await fetch(`/api/checklist?id=${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -213,7 +215,7 @@ export default function CompanyDashboard() {
           }),
         });
       } else if (action === "DELIVER") {
-        await fetch(`/api/nba?id=${itemId}`, {
+        await fetch(`/api/checklist?id=${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -236,7 +238,7 @@ export default function CompanyDashboard() {
     if (!column || !company) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/nba?id=${itemId}`, {
+      const res = await fetch(`/api/checklist?id=${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kanbanColumn: column }),
@@ -253,7 +255,7 @@ export default function CompanyDashboard() {
         <Center mih="60vh">
           <Stack align="center" gap="xl">
             <Loader color="ingress" />
-            <BodyText>Synchronizing intelligence stream...</BodyText>
+            <BodyText>{t("dashboard.loading")}</BodyText>
           </Stack>
         </Center>
       </PageShell>
@@ -279,7 +281,7 @@ export default function CompanyDashboard() {
   const taskTupleShare = scoreHealth?.taskcards.dominantTuple?.share ?? 0;
   const taskDiversity = scoreHealth?.taskcards.diversityRatio ?? 0;
   const priorityBandShare = scoreHealth?.taskcards.priorityHealth?.dominantPriorityBand?.share ?? 0;
-  const dominantTupleLabel = scoreHealth?.taskcards.dominantTuple?.label ?? "—";
+  const dominantTupleLabel = scoreHealth?.taskcards.dominantTuple?.label ?? "-";
   const topScoreAlert = scoreHealth?.alerts[0] ?? null;
 
   return (
@@ -290,7 +292,7 @@ export default function CompanyDashboard() {
           icon={Database}
           variant="ingress"
           metric={counts.sources}
-          title="Data"
+          title={t("dashboard.data")}
           chartData={chartSeries("sources", "dataIngress")}
           density="compact"
         />
@@ -299,7 +301,7 @@ export default function CompanyDashboard() {
           icon={Layers}
           variant="synthesis"
           metric={counts.topics}
-          title="Topics"
+          title={t("dashboard.topics")}
           chartData={chartSeries("topics", "topicSynthesis")}
           density="compact"
         />
@@ -308,8 +310,8 @@ export default function CompanyDashboard() {
           icon={Target}
           variant="strategy"
           metric={counts.goals}
-          title="Goals"
-          chartData={chartSeries("goals", "strategicGoals", "nba")}
+          title={t("dashboard.goals")}
+          chartData={chartSeries("goals", "strategicGoals", "checklist", "nba")}
           density="compact"
         />
         <LinkCard
@@ -317,8 +319,8 @@ export default function CompanyDashboard() {
           icon={History}
           variant="review"
           metric={counts.reviewCount}
-          title="Review"
-          chartData={chartSeries("reviewGateway", "nba")}
+          title={t("dashboard.review")}
+          chartData={chartSeries("reviewGateway", "checklist", "nba")}
           density="compact"
         />
         <LinkCard
@@ -326,7 +328,7 @@ export default function CompanyDashboard() {
           icon={Sparkles}
           variant="knowmore"
           metric={counts.flashcards}
-          title="Knowmore"
+          title={t("dashboard.knowmore")}
           chartData={chartSeries("flashcards", "knowmore")}
           density="compact"
         />
@@ -334,17 +336,17 @@ export default function CompanyDashboard() {
           href={`/${companyId}/tactical`}
           icon={LayoutDashboard}
           variant="tactical"
-          metric={counts.nbaItems}
-          title="Planning"
-          chartData={chartSeries("tacticalBoard", "nbaItems", "nba")}
+          metric={counts.tacticalCount}
+          title={t("dashboard.tactical")}
+          chartData={chartSeries("tacticalBoard", "tacticalCount", "checklistTasks", "nba")}
           density="compact"
         />
         <LinkCard
-          href={`/${companyId}/nba`}
+          href={`/${companyId}/checklist`}
           icon={ListCheck}
           variant="checklist"
           metric={counts.checklistCount}
-          title="Checklist"
+          title={t("dashboard.checklist")}
           chartData={chartSeries("checklist", "nba")}
           density="compact"
         />
@@ -353,7 +355,7 @@ export default function CompanyDashboard() {
           icon={HardHat}
           variant="neutral"
           metric={counts.pipelineJobs}
-          title="AI Queue"
+          title={t("dashboard.aiQueue")}
           chartData={chartSeries("pipelineJobs", "reviewGateway")}
           density="compact"
         />
@@ -364,24 +366,24 @@ export default function CompanyDashboard() {
           href={`/${companyId}/search`}
           icon={Search}
           variant="knowmore"
-          title="Search & Answers"
-          description="Unified retrieval across cards, queue work, and grounded answers over company context."
+          title={t("dashboard.searchAnswers")}
+          description={t("dashboard.searchDescription")}
           density="compact"
         />
         <LinkCard
           href={`/${companyId}/workflows`}
           icon={GitBranch}
           variant="review"
-          title="Workflows"
-          description="Bounded workflow blueprints and enrichment waterfall controls for operator-guided automation."
+          title={t("dashboard.workflows")}
+          description={t("dashboard.workflowsDescription")}
           density="compact"
         />
         <LinkCard
           href={`/${companyId}/observability`}
           icon={Radar}
           variant="strategy"
-          title="Observability"
-          description="Mission control for worker health, queue pressure, score health, and recent system outcomes."
+          title={t("dashboard.observability")}
+          description={t("dashboard.observabilityDescription")}
           density="compact"
         />
       </RouteCardGrid>
@@ -390,8 +392,8 @@ export default function CompanyDashboard() {
         <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
             <Box>
-              <SectionTitle>Score Health</SectionTitle>
-              <BodyText>Live observability for score clustering, tuple repetition, and tactical score diversity.</BodyText>
+              <SectionTitle>{t("dashboard.scoreHealth")}</SectionTitle>
+              <BodyText>{t("dashboard.scoreHealthDescription")}</BodyText>
             </Box>
             {scoreHealth && (
               <Badge color={scoreHealthColor} size="lg" variant="light">
@@ -404,47 +406,47 @@ export default function CompanyDashboard() {
             <MetricCard
               icon={Activity}
               color={scoreHealthColor}
-              label="Task Tuple Repeat"
+              label={t("dashboard.taskTupleRepeat")}
               value={scoreHealth ? `${Math.round(taskTupleShare * 100)}%` : "—"}
               detail={
                 scoreHealth
                   ? `${scoreHealth.taskcards.dominantTupleSeverity} · dominant tuple ${dominantTupleLabel}`
-                  : "Awaiting score health sample"
+                  : t("dashboard.awaitingScoreSample")
               }
             />
             <MetricCard
               icon={CirclesRelation}
               color={scoreHealthColor}
-              label="Task Priority Crowd"
+              label={t("dashboard.taskPriorityCrowd")}
               value={scoreHealth ? `${Math.round(priorityBandShare * 100)}%` : "—"}
               detail={
                 scoreHealth
                   ? `${scoreHealth.taskcards.priorityHealth?.dominantPrioritySeverity ?? "HEALTHY"} · dominant band ${scoreHealth.taskcards.priorityHealth?.dominantPriorityBand?.label ?? "—"}`
-                  : "Awaiting score health sample"
+                  : t("dashboard.awaitingScoreSample")
               }
             />
             <MetricCard
               icon={AlertTriangle}
               color={scoreHealth?.dominantSurface === "TASK" ? "review" : scoreHealth?.dominantSurface === "KNOWLEDGE" ? "knowmore" : scoreHealthColor}
-              label="Score Alert"
+              label={t("dashboard.scoreAlert")}
               value={topScoreAlert?.severity ?? scoreHealth?.dominantSurface ?? "—"}
               detail={
                 topScoreAlert
                   ? topScoreAlert.detail
                   : scoreHealth
                     ? `Knowledge repeat ${Math.round((scoreHealth.knowledge.dominantTuple?.share ?? 0) * 100)}%`
-                    : "Awaiting score health sample"
+                    : t("dashboard.awaitingScoreSample")
               }
             />
             <MetricCard
               icon={CirclesRelation}
               color={scoreHealthColor}
-              label="Task ICE Diversity"
+              label={t("dashboard.taskIceDiversity")}
               value={scoreHealth ? `${scoreHealth.taskcards.uniqueIceScores}/${scoreHealth.taskcards.count}` : "—"}
               detail={
                 scoreHealth
                   ? `${scoreHealth.taskcards.diversitySeverity} · ${Math.round(taskDiversity * 100)}% unique tuples across active tasks`
-                  : "Awaiting score health sample"
+                  : t("dashboard.awaitingScoreSample")
               }
             />
           </MetricGrid>
@@ -453,17 +455,17 @@ export default function CompanyDashboard() {
         <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
             <Box>
-              <SectionTitle>Synthesized Intelligence</SectionTitle>
-              <BodyText>Top-priority strategic goals derived by the local AI system.</BodyText>
+              <SectionTitle>{t("dashboard.synthesizedIntelligence")}</SectionTitle>
+              <BodyText>{t("dashboard.synthesizedDescription")}</BodyText>
             </Box>
             <Button 
               component={Link}
-              href={`/${companyId}/nba`}
+              href={`/${companyId}/checklist`}
               variant="light" 
               color="gray" 
               rightSection={<ArrowRight size={16} />}
             >
-              Open Global Protocol
+              {t("dashboard.openGlobalProtocol")}
             </Button>
           </Group>
 
@@ -507,7 +509,7 @@ export default function CompanyDashboard() {
           color="ingress"
           leftSection={<Plus size={22} />}
         >
-          Add Intelligence
+          {t("dashboard.addIntelligence")}
         </Button>
       </Box>
     </PageShell>

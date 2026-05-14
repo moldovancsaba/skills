@@ -8,9 +8,9 @@ function hashValue(val) {
 }
 
 async function main() {
-  console.log("--- TaskCard (NBAItem) Scrub & Deduplication ---");
+  console.log("--- TaskCard (ChecklistTask) Scrub & Deduplication ---");
 
-  const tasks = await prisma.nBAItem.findMany();
+  const tasks = await prisma.checklistTask.findMany();
   console.log(`Total Tasks found: ${tasks.length}`);
 
   let updated = 0;
@@ -25,7 +25,7 @@ async function main() {
 
     if (seen.has(uniqueKey)) {
       console.log(`Duplicate found: ${task.title} (Company: ${task.companyId}). Deleting.`);
-      await prisma.nBAItem.delete({ where: { id: task.id } });
+      await prisma.checklistTask.delete({ where: { id: task.id } });
       deleted++;
       continue;
     }
@@ -40,7 +40,7 @@ async function main() {
       updatedAt: new Date()
     };
 
-    await prisma.nBAItem.update({
+    await prisma.checklistTask.update({
       where: { id: task.id },
       data: update
     });

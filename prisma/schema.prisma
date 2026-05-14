@@ -21,7 +21,7 @@ model Company {
   flashcardCorrections FlashcardCorrection[]
   hashtagFeedback     HashtagFeedback[]
   hashtagMaintenanceEvents HashtagMaintenanceEvent[]
-  nbaItems            NBAItem[]
+  checklistTasks      ChecklistTask[]
   sources             Source[]
   goalcards           Goalcard[]
   goalcardCorrections GoalcardCorrection[]
@@ -115,7 +115,7 @@ model StrategicFeedback {
 
 model Feedback {
   id                  String      @id @default(uuid()) @map("_id")
-  nbaItemId           String
+  checklistTaskId     String      @map("nbaItemId")
   action              ActionType
   annotation          String?
   iceImpact           Float?
@@ -129,7 +129,7 @@ model Feedback {
   // M3.3: DELIVER metadata
   deliveryComment     String?     // High-value memory input on DELIVER
   actorId             String?     // User who performed the action
-  nbaItem             NBAItem     @relation(fields: [nbaItemId], references: [id])
+  checklistTask       ChecklistTask @relation(fields: [checklistTaskId], references: [id])
 }
 
 enum IntelligenceType {
@@ -384,7 +384,7 @@ model GoalcardSource {
 }
 
 
-model NBAItem {
+model ChecklistTask {
   id                 String     @id @default(uuid()) @map("_id")
   companyId          String
   title              String
@@ -393,10 +393,10 @@ model NBAItem {
   confidence         Int        @default(50)
   ease               Int        @default(5)
   iceScore           Float      @default(0)
-  processingStatus   NBAProcessingStatus @default(DRAFT)
-  activityState      NBAActivityState    @default(ACTIVE)
+  processingStatus   ChecklistProcessingStatus @default(DRAFT)
+  activityState      ChecklistActivityState    @default(ACTIVE)
   confidenceScore    Float      @default(50)
-  status             NBAStatus  @default(PENDING) // Legacy
+  status             ChecklistStatus  @default(PENDING) // Legacy
   userAnnotation     String?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @default(now()) @updatedAt
@@ -414,9 +414,9 @@ model NBAItem {
   hashtagMaintainedAt DateTime?
   hashtagEvaluationPending Boolean @default(true)
   lastHashtagError   String?
-  promptVersion      String?    @default("nba-policy@1.4.0")
+  promptVersion      String?    @default("checklist-policy@1.4.0")
   promptHash         String?
-  promptName         String?    @default("nba-generation")
+  promptName         String?    @default("checklist-generation")
   modelName          String?    @default("granite-3.1-8b")
   modelVersion       String?
   temperature        Float?     @default(0.7)
@@ -442,8 +442,12 @@ model NBAItem {
   duplicateClusterId String?    // links semantic duplicate siblings
   generatedFromIds   String[]   @default([]) // source evidence IDs
   refinedFromId      String?    // the generated candidate this was refined from
-  kanbanColumn       NBAKanbanColumn @default(IDEABANK)
+  kanbanColumn       ChecklistKanbanColumn @default(IDEABANK)
   sortOrder          Float      @default(0)
+  manualLaneOverrideAt DateTime?
+  manualLaneCooldownUntil DateTime?
+  manualLaneFloorColumn ChecklistKanbanColumn?
+  manualLaneOverrideBy String?
 
   @@unique([companyId, fingerprint])
   @@index([companyId, processingStatus, cycleRunId])
@@ -451,9 +455,11 @@ model NBAItem {
   @@index([companyId, duplicateClusterId])
   @@index([companyId, versionFamilyId])
   @@index([companyId, kanbanColumn, sortOrder])
+  @@index([companyId, manualLaneCooldownUntil])
+  @@map("ChecklistTask")
 }
 
-enum NBAKanbanColumn {
+enum ChecklistKanbanColumn {
   IDEABANK
   ROADMAP
   BACKLOG
@@ -516,6 +522,7 @@ model Source {
   aiClusters      String[] @default([])
   metadata        Json?
   legacyOriginKey String?
+  processingStatus SourceProcessingStatus @default(DRAFT)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @default(now()) @updatedAt
   // Trinity Evidence Model fields (M1.1)
@@ -529,6 +536,13 @@ model Source {
   @@index([companyId, publicId, createdAt])
   @@index([companyId, legacyOriginKey])
   @@index([companyId, canonicalContentHash])
+  @@index([companyId, processingStatus, updatedAt])
+}
+
+enum SourceProcessingStatus {
+  DRAFT
+  CHECKED
+  VERIFIED
 }
 
 model Topic {
@@ -1040,7 +1054,7 @@ enum WorkflowBlueprintStatus {
   ARCHIVED
 }
 
-enum NBAStatus {
+enum ChecklistStatus {
   DRAFT
   CHECKED
   VERIFIED
@@ -1068,7 +1082,7 @@ enum FlashcardActivityState {
   ARCHIVED
 }
 
-enum NBAProcessingStatus {
+enum ChecklistProcessingStatus {
   DRAFT
   CHECKED
   VERIFIED
@@ -1077,7 +1091,7 @@ enum NBAProcessingStatus {
   REVIEW
 }
 
-enum NBAActivityState {
+enum ChecklistActivityState {
   ACTIVE
   STALE
   EXPIRED
@@ -1166,7 +1180,7 @@ enum DeclineClass {
 // M3.2: Immutable decline event audit log
 model DeclineEvent {
   id           String       @id @default(uuid()) @map("_id")
-  nbaItemId    String
+  checklistTaskId String    @map("nbaItemId")
   companyId    String
   declineClass DeclineClass
   comment      String?
@@ -1174,7 +1188,7 @@ model DeclineEvent {
   reworkRoute  String?      // ReworkRoute value if applicable
   createdAt    DateTime     @default(now())
 
-  @@index([companyId, nbaItemId])
+  @@index([companyId, checklistTaskId])
   @@index([companyId, declineClass, createdAt])
 }
 

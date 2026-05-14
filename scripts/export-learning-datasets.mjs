@@ -201,7 +201,7 @@ function flashcardIsStrongNegative(action, correction) {
 
 async function exportCompany(company, outputDir) {
   const [tasks, flashcards] = await Promise.all([
-    prisma.nBAItem.findMany({
+    prisma.checklistTask.findMany({
       where: { companyId: company.id },
       include: {
         feedback: {

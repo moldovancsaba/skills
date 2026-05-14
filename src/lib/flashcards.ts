@@ -1319,7 +1319,7 @@ async function reconcilePendingTasksForFlashcards(tx: Prisma.TransactionClient, 
     return;
   }
 
-  const affected = await tx.nBAItem.findMany({
+  const affected = await tx.checklistTask.findMany({
     where: {
       status: "PENDING",
       sourceFlashcardIds: { hasSome: flashcardIds },
@@ -1355,7 +1355,7 @@ async function reconcilePendingTasksForFlashcards(tx: Prisma.TransactionClient, 
     });
 
     if (eligibleSources.length === 0) {
-      await tx.nBAItem.update({
+      await tx.checklistTask.update({
         where: { id: item.id },
         data: {
           status: "DECLINED",
@@ -1366,7 +1366,7 @@ async function reconcilePendingTasksForFlashcards(tx: Prisma.TransactionClient, 
     }
 
     if (eligibleSources.length !== item.sourceFlashcardIds.length) {
-      await tx.nBAItem.update({
+      await tx.checklistTask.update({
         where: { id: item.id },
         data: { sourceFlashcardIds: eligibleSources },
       });
@@ -1979,11 +1979,11 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
   );
 }
 
-export async function applyTaskFeedbackToFlashcards(nbaItemId: string, action: "ACCEPT" | "DECLINE", annotation?: string | null) {
+export async function applyTaskFeedbackToFlashcards(checklistTaskId: string, action: "ACCEPT" | "DECLINE", annotation?: string | null) {
   return withSerializableRetry(() =>
     prisma.$transaction(async (tx) => {
-      const item = await tx.nBAItem.findUnique({
-        where: { id: nbaItemId },
+      const item = await tx.checklistTask.findUnique({
+        where: { id: checklistTaskId },
         select: { sourceFlashcardIds: true },
       });
 

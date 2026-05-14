@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 async function main() {
   const cid = "0f769be4-59b4-4027-b0b8-8159eb734563"; // Fortitude AI
   
-  const nbaCount = await prisma.nBAItem.count({ where: { companyId: cid } });
+  const nbaCount = await prisma.checklistTask.count({ where: { companyId: cid } });
   const fcCount = await prisma.flashcard.count({ where: { companyId: cid } });
   const sCount = await prisma.source.count({ where: { companyId: cid } });
   
@@ -13,7 +13,7 @@ async function main() {
   console.log(`Flashcards: ${fcCount}`);
   console.log(`Sources: ${sCount}`);
   
-  const activeNba = await prisma.nBAItem.count({ 
+  const activeNba = await prisma.checklistTask.count({ 
     where: { 
       companyId: cid,
       processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] },
@@ -22,7 +22,7 @@ async function main() {
   });
   console.log(`Active NBA (API logic): ${activeNba}`);
   
-  const pendingNba = await prisma.nBAItem.count({
+  const pendingNba = await prisma.checklistTask.count({
     where: {
       companyId: cid,
       processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] }

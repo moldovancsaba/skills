@@ -33,6 +33,7 @@ import {
   toneToMantineColor,
 } from "@/lib/semantic-theme";
 import { resolveStateTone } from "@/lib/ui-state";
+import { useI18n } from "@/lib/ui-i18n";
 
 type PageShellProps = {
   children: ReactNode;
@@ -68,9 +69,11 @@ export function PageHeader({
   title,
   description,
   backHref,
-  backLabel = "Back",
+  backLabel,
   actions,
 }: PageHeaderProps) {
+  const { t } = useI18n();
+
   return (
     <Stack gap="md" mb="xl">
       <Group justify="space-between" align="flex-end">
@@ -83,7 +86,7 @@ export function PageHeader({
               style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
             >
               <ArrowLeft size={12} />
-              {backLabel}
+              {backLabel ?? t("common.back")}
             </Anchor>
           )}
           <PageTitle>{title}</PageTitle>
@@ -340,7 +343,7 @@ export function PipelineAccentHeader({
     { key: "topics", tone: "synthesis" },
     { key: "knowmore", tone: "knowmore" },
     { key: "goals", tone: "strategy" },
-    { key: "nba", tone: "checklist" },
+    { key: "checklist", tone: "checklist" },
     { key: "tactical", tone: "tactical" },
     { key: "review", tone: "review" },
   ];

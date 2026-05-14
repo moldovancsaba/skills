@@ -1,8 +1,8 @@
-import { calculateICEScore, clampMetric } from "@/lib/nba-scoring";
+import { calculateChecklistIceScore, clampMetric } from "@/lib/checklist-scoring";
 
-export type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
+export type ChecklistKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
-const COLUMN_INDEX: Record<NBAKanbanColumn, number> = {
+const COLUMN_INDEX: Record<ChecklistKanbanColumn, number> = {
   IDEABANK: 0,
   ROADMAP: 1,
   BACKLOG: 2,
@@ -10,15 +10,15 @@ const COLUMN_INDEX: Record<NBAKanbanColumn, number> = {
   CHECKLIST: 4,
 };
 
-export function getPlanningColumnDistance(from: NBAKanbanColumn, to: NBAKanbanColumn) {
+export function getPlanningColumnDistance(from: ChecklistKanbanColumn, to: ChecklistKanbanColumn) {
   return Math.abs(COLUMN_INDEX[to] - COLUMN_INDEX[from]);
 }
 
-export function getPlanningColumnDirection(from: NBAKanbanColumn, to: NBAKanbanColumn) {
+export function getPlanningColumnDirection(from: ChecklistKanbanColumn, to: ChecklistKanbanColumn) {
   return Math.sign(COLUMN_INDEX[to] - COLUMN_INDEX[from]);
 }
 
-export function derivePlanningHitlScoreAdjustment(from: NBAKanbanColumn, to: NBAKanbanColumn) {
+export function derivePlanningHitlScoreAdjustment(from: ChecklistKanbanColumn, to: ChecklistKanbanColumn) {
   const distance = getPlanningColumnDistance(from, to);
   const direction = getPlanningColumnDirection(from, to);
 
@@ -47,8 +47,8 @@ export function applyPlanningHitlScoreAdjustment(
     confidence?: number | null;
     ease?: number | null;
   },
-  from: NBAKanbanColumn,
-  to: NBAKanbanColumn,
+  from: ChecklistKanbanColumn,
+  to: ChecklistKanbanColumn,
 ) {
   const adjustment = derivePlanningHitlScoreAdjustment(from, to);
   const impact = clampMetric((scores.impact ?? 1) + adjustment.impactDelta);
@@ -60,6 +60,6 @@ export function applyPlanningHitlScoreAdjustment(
     impact,
     confidence,
     ease,
-    iceScore: calculateICEScore({ impact, confidence, ease }),
+    iceScore: calculateChecklistIceScore({ impact, confidence, ease }),
   };
 }

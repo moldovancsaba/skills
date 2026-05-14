@@ -191,7 +191,7 @@ async function loadCompanyHistory(prisma, companyId) {
     }),
     prisma.feedback.findMany({
       where: {
-        nbaItem: { companyId },
+        checklistTask: { companyId },
         action: { in: ["ACCEPT", "MODIFY_ACCEPT", "DECLINE", "DELIVER"] },
       },
       orderBy: { createdAt: "desc" },
@@ -200,7 +200,7 @@ async function loadCompanyHistory(prisma, companyId) {
         action: true,
         modifiedTitle: true,
         modifiedDescription: true,
-        nbaItem: {
+        checklistTask: {
           select: {
             title: true,
             description: true,
@@ -224,12 +224,12 @@ async function loadCompanyHistory(prisma, companyId) {
       outcomeSignal: FLASHCARD_REVIEW_SIGNAL[card.reviewStatus] ?? 0,
     })),
     tasks: feedback.map((entry) => ({
-      title: entry.modifiedTitle || entry.nbaItem?.title,
-      description: entry.modifiedDescription || entry.nbaItem?.description,
-      hashtags: entry.nbaItem?.hashtags || [],
-      impact: entry.nbaItem?.impact,
-      confidence: entry.nbaItem?.confidenceScore,
-      ease: entry.nbaItem?.ease,
+      title: entry.modifiedTitle || entry.checklistTask?.title,
+      description: entry.modifiedDescription || entry.checklistTask?.description,
+      hashtags: entry.checklistTask?.hashtags || [],
+      impact: entry.checklistTask?.impact,
+      confidence: entry.checklistTask?.confidenceScore,
+      ease: entry.checklistTask?.ease,
       action: entry.action,
       outcomeSignal: TASK_ACTION_SIGNAL[entry.action] ?? 0,
     })),

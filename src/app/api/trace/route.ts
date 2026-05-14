@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
   try {
     // 1. Fetch tasks in this version family
-    const tasks = await prisma.nBAItem.findMany({
+    const tasks = await prisma.checklistTask.findMany({
       where: { versionFamilyId: familyId },
       select: { id: true, title: true, createdAt: true, sourceFlashcardIds: true, generatedFromIds: true, companyId: true }
     });

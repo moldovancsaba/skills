@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       entityType === HashtagEntityType.FLASHCARD
         ? await prisma.flashcard.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
         : entityType === HashtagEntityType.CHECKLIST
-          ? await prisma.nBAItem.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
+          ? await prisma.checklistTask.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
           : entityType === HashtagEntityType.TOPIC
             ? await prisma.topic.findUnique({ where: { id: entityId }, select: { id: true, companyId: true, hashtags: true } })
             : entityType === HashtagEntityType.FILE
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
       });
     } else if (entityType === HashtagEntityType.CHECKLIST) {
-      await prisma.nBAItem.update({
+      await prisma.checklistTask.update({
         where: { id: entityId },
         data: { hashtags: nextHashtags, updatedAt: new Date(), hashtagEvaluationPending: true },
       });

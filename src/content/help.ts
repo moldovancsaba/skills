@@ -259,7 +259,7 @@ const expertTips = {
     whyItMatters:
       "Specific readiness signals help the AI team postpone ideas instead of treating them as permanently bad.",
     ctaLabel: "Open checklist",
-    ctaHref: `/${companyId}/nba`,
+    ctaHref: `/${companyId}/checklist`,
     samplePhrases: [
       "We will be ready for this task after the summer.",
       "Revisit this after the September intake.",

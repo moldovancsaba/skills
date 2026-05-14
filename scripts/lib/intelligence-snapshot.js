@@ -57,23 +57,23 @@ function combinations(items, maxSize = 3) {
 }
 
 async function buildFeedbackAnalytics(prisma, companyId) {
-  const nbaItems = await prisma.nBAItem.findMany({
+  const checklistTasks = await prisma.checklistTask.findMany({
     where: { companyId },
     include: { feedback: true },
     orderBy: { createdAt: "desc" },
   });
 
-  const totalItems = nbaItems.length;
-  const itemsWithFeedback = nbaItems.filter((item) => item.feedback.length > 0);
-  const acceptedItems = nbaItems.filter((item) => item.status === "ACCEPTED");
-  const declinedItems = nbaItems.filter((item) => item.status === "DECLINED");
-  const pendingItems = nbaItems.filter((item) => item.status === "PENDING");
+  const totalItems = checklistTasks.length;
+  const itemsWithFeedback = checklistTasks.filter((item) => item.feedback.length > 0);
+  const acceptedItems = checklistTasks.filter((item) => item.status === "ACCEPTED");
+  const declinedItems = checklistTasks.filter((item) => item.status === "DECLINED");
+  const pendingItems = checklistTasks.filter((item) => item.status === "PENDING");
   const overallAcceptanceRate = totalItems > 0
     ? (acceptedItems.length / Math.max(1, acceptedItems.length + declinedItems.length)) * 100
     : 0;
 
   const typeStats = {};
-  for (const item of nbaItems) {
+  for (const item of checklistTasks) {
     const key = String(item.title || "").trim() || "Untitled";
     if (!typeStats[key]) typeStats[key] = { accepted: 0, declined: 0, total: 0 };
     typeStats[key].total += 1;
@@ -89,7 +89,7 @@ async function buildFeedbackAnalytics(prisma, companyId) {
     }))
     .sort((left, right) => right.acceptanceRate - left.acceptanceRate);
 
-  const declineAnnotations = nbaItems
+  const declineAnnotations = checklistTasks
     .filter((item) => item.status === "DECLINED" && item.userAnnotation)
     .map((item) => ({ title: item.title, annotation: item.userAnnotation }));
 
@@ -130,8 +130,8 @@ async function buildFeedbackAnalytics(prisma, companyId) {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * DAY_MS);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY_MS);
-  const recentItems = nbaItems.filter((item) => item.createdAt >= sevenDaysAgo);
-  const monthItems = nbaItems.filter((item) => item.createdAt >= thirtyDaysAgo);
+  const recentItems = checklistTasks.filter((item) => item.createdAt >= sevenDaysAgo);
+  const monthItems = checklistTasks.filter((item) => item.createdAt >= thirtyDaysAgo);
 
   const recentAcceptanceRate = recentItems.length > 0
     ? (recentItems.filter((item) => item.status === "ACCEPTED").length /
@@ -212,7 +212,7 @@ async function buildHashtagAnalytics(prisma, companyId) {
     prisma.source.findMany({ where: { companyId }, select: { hashtags: true } }),
     prisma.uploadedSourceFile.findMany({ where: { companyId }, select: { hashtags: true } }),
     prisma.flashcard.findMany({ where: { companyId }, select: { hashtags: true } }),
-    prisma.nBAItem.findMany({ where: { companyId }, select: { hashtags: true } }),
+    prisma.checklistTask.findMany({ where: { companyId }, select: { hashtags: true } }),
   ]);
 
   const records = [...sources, ...files, ...flashcards, ...checklist].map((record) =>
@@ -369,7 +369,7 @@ async function buildAnalyticsHistory(prisma, companyId) {
     prisma.topic.count({ where: { companyId, createdAt: { lt: thirtyDaysAgo } } }),
     prisma.flashcard.count({ where: { companyId, createdAt: { lt: thirtyDaysAgo } } }),
     prisma.goalcard.count({ where: { companyId, createdAt: { lt: thirtyDaysAgo } } }),
-    prisma.nBAItem.count({ where: { companyId, createdAt: { lt: thirtyDaysAgo } } }),
+    prisma.checklistTask.count({ where: { companyId, createdAt: { lt: thirtyDaysAgo } } }),
   ]);
 
   const [sources, files, topics, flashcards, goals, nba] = await Promise.all([
@@ -378,7 +378,7 @@ async function buildAnalyticsHistory(prisma, companyId) {
     prisma.topic.findMany({ where: { companyId, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
     prisma.flashcard.findMany({ where: { companyId, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
     prisma.goalcard.findMany({ where: { companyId, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
-    prisma.nBAItem.findMany({ where: { companyId, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
+    prisma.checklistTask.findMany({ where: { companyId, createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
   ]);
 
   const history = [];
@@ -692,14 +692,14 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
     ? progressSetting.value
     : {};
 
-  const [dataSources, uploadedFiles, topics, flashcards, goals, nbaItems, checklistCount, reviewCount, scoreHealth, analyticsHistory, feedbackAnalytics, hashtagAnalytics] = await Promise.all([
+  const [dataSources, uploadedFiles, topics, flashcards, goals, checklistTasks, checklistCount, reviewCount, scoreHealth, analyticsHistory, feedbackAnalytics, hashtagAnalytics] = await Promise.all([
     prisma.source.count({ where: { companyId } }),
     prisma.uploadedSourceFile.count({ where: { companyId } }),
     prisma.topic.count({ where: { companyId } }),
     prisma.flashcard.count({ where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } } }),
     prisma.goalcard.count({ where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } } }),
-    prisma.nBAItem.count({ where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } } }),
-    prisma.nBAItem.count({
+    prisma.checklistTask.count({ where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } } }),
+    prisma.checklistTask.count({
       where: {
         companyId,
         kanbanColumn: "CHECKLIST",
@@ -708,7 +708,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
         OR: [{ scheduledDate: null }, { scheduledDate: { lte: new Date() } }],
       },
     }),
-    prisma.nBAItem.count({
+    prisma.checklistTask.count({
       where: {
         companyId,
         processingStatus: "REVIEW",
@@ -747,7 +747,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       knowmoreCount: flashcards,
       strategicGoalsCount: goals,
       checklistCount,
-      tacticalBoardCount: nbaItems,
+      tacticalBoardCount: checklistTasks,
       reviewGatewayCount: reviewCount,
       synthesisYield: metrics.synthesisYield,
       confidenceAvg: metrics.confidenceAvg,
@@ -771,7 +771,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       knowmoreCount: flashcards,
       strategicGoalsCount: goals,
       checklistCount,
-      tacticalBoardCount: nbaItems,
+      tacticalBoardCount: checklistTasks,
       reviewGatewayCount: reviewCount,
       synthesisYield: metrics.synthesisYield,
       confidenceAvg: metrics.confidenceAvg,

@@ -17,7 +17,7 @@ const { getStageModels } = require("./core");
  * 
  * @param {PrismaClient} prisma
  * @param {object} company
- * @param {object} card - Flashcard, Goalcard, or NBAItem
+ * @param {object} card - Flashcard, Goalcard, or ChecklistTask
  * @param {string} currentLayer - "KNOWLEDGE" | "GOAL" | "TASK"
  * @returns {object|null} Audit result { suggestedLayer, confidence, reasoning, refinementPlan }
  */

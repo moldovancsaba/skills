@@ -34,7 +34,7 @@ import { stripTechnicalMetadata } from "@/lib/ui-utils";
 /**
  * Representational interface for a tactical intelligence unit (Task).
  */
-interface NBAItem {
+interface ChecklistItem {
   id: string;
   publicId: number | null;
   title: string;
@@ -64,7 +64,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const router = useRouter();
   const pathname = usePathname();
   const { company, setCompany } = useStore();
-  const [items, setItems] = useState<NBAItem[]>([]);
+  const [items, setItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionMode, setActionMode] = useState<ActionMode | null>(null);
   const [actionItemId, setActionItemId] = useState<string | null>(null);
@@ -76,9 +76,9 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
   const [actingId, setActingId] = useState<string | null>(null);
 
-  const loadchecklist = useCallback(async (cid: string) => {
+  const loadChecklist = useCallback(async (cid: string) => {
     setLoading(true);
-    const res = await fetch(`/api/nba?companyId=${cid}${archived ? "&archived=true" : ""}`);
+    const res = await fetch(`/api/checklist?companyId=${cid}${archived ? "&archived=true" : ""}`);
     const data = await res.json();
     
     // The API owns the canonical archived vs active filtering contract.
@@ -89,8 +89,8 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const handleRefresh = useCallback(async () => {
     if (!company || archived) return;
     setLoading(true);
-    await loadchecklist(company.id);
-  }, [archived, company, loadchecklist]);
+    await loadChecklist(company.id);
+  }, [archived, company, loadChecklist]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -109,14 +109,14 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         }
 
         setCompany(found);
-        await loadchecklist(found.id);
+        await loadChecklist(found.id);
       } catch (error) {
         console.error(error);
       }
     };
 
     void fetchCompany(companyId);
-  }, [companyId, loadchecklist, router, setCompany]);
+  }, [companyId, loadChecklist, router, setCompany]);
 
   useEffect(() => {
     const syncFromLocation = () => {
@@ -131,10 +131,10 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     if (archived) return;
 
     const interval = setInterval(() => {
-      if (company) void loadchecklist(company.id);
+      if (company) void loadChecklist(company.id);
     }, 600000);
     return () => clearInterval(interval);
-  }, [archived, company, loadchecklist]);
+  }, [archived, company, loadChecklist]);
 
   const resetActionForm = useCallback(() => {
     setActionMode(null);
@@ -145,7 +145,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     setDeclineClass("WRONG");
   }, []);
 
-  const openActionForm = useCallback((item: NBAItem, mode: ActionMode) => {
+  const openActionForm = useCallback((item: ChecklistItem, mode: ActionMode) => {
     setSelectedItemId(item.id);
     setActionMode(mode);
     setActionItemId(item.id);
@@ -172,7 +172,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     setActingId(itemId);
     try {
       if (action === "DELETE") {
-        const res = await fetch(`/api/nba?id=${itemId}`, {
+        const res = await fetch(`/api/checklist?id=${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -218,7 +218,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
       }
 
       if (action === "ACCEPT") {
-        const patchRes = await fetch(`/api/nba?id=${itemId}`, {
+        const patchRes = await fetch(`/api/checklist?id=${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -238,7 +238,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
           );
         }
       } else if (action === "DELIVER") {
-        const patchRes = await fetch(`/api/nba?id=${itemId}`, {
+        const patchRes = await fetch(`/api/checklist?id=${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -266,7 +266,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const handlePostpone = useCallback(async (itemId: string, column: string) => {
     setActingId(itemId);
     try {
-      const res = await fetch(`/api/nba?id=${itemId}`, {
+      const res = await fetch(`/api/checklist?id=${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kanbanColumn: column }),
@@ -359,7 +359,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
     <PageShell width="full">
       <Stack gap="xl">
         <PipelineAccentHeader 
-          activeKey="nba" 
+          activeKey="checklist" 
           title="Checklist" 
           icon={ListCheck} 
         />
@@ -379,7 +379,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                 <Button 
                   variant="light" 
                   color="gray" 
-                  onClick={() => router.push(`/${companyId}/nba`)}
+                  onClick={() => router.push(`/${companyId}/checklist`)}
                   leftSection={<ArrowLeft size={14} />}
                 >
                   Open Active Checklist
@@ -398,7 +398,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                   <Button 
                     variant="light" 
                     color="gray" 
-                    onClick={() => router.push(`/${companyId}/nba_archived`)}
+                    onClick={() => router.push(`/${companyId}/checklist_archived`)}
                     leftSection={<Archive size={14} />}
                   >
                     Show Archived

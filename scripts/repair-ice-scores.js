@@ -223,7 +223,7 @@ async function repairTasks(batchSize) {
   let lastRecord = null;
 
   while (true) {
-    const tasks = await prisma.nBAItem.findMany({
+    const tasks = await prisma.checklistTask.findMany({
       where: buildAfterWhere({}, lastRecord),
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: batchSize,
@@ -304,7 +304,7 @@ async function repairTasks(batchSize) {
       };
 
       if (compareTaskRepair(normalized, task)) {
-        await prisma.nBAItem.update({
+        await prisma.checklistTask.update({
           where: { id: task.id },
           data: normalized,
         });

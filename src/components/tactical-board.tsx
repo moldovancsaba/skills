@@ -46,9 +46,9 @@ import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";
 import { getModuleTheme, getSemanticDropzoneStyle } from "@/lib/semantic-theme";
 
-type NBAKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
+type ChecklistKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
-type NBAItem = {
+type ChecklistTask = {
   id: string;
   publicId?: number | null;
   title: string;
@@ -57,7 +57,7 @@ type NBAItem = {
   confidence: number;
   ease: number;
   iceScore: number;
-  kanbanColumn: NBAKanbanColumn;
+  kanbanColumn: ChecklistKanbanColumn;
   sortOrder: number;
   candidateState: string;
   hashtags: string[];
@@ -94,7 +94,7 @@ type NBAItem = {
 };
 
 const COLUMNS: {
-  key: NBAKanbanColumn;
+  key: ChecklistKanbanColumn;
   label: string;
   description: string;
   accent: string;
@@ -116,13 +116,13 @@ const COLUMN_OPTIONS = [
 ];
 
 function reorderColumnItems(
-  items: NBAItem[],
+  items: ChecklistTask[],
   draggableId: string,
   source: { droppableId: string; index: number },
   destination: { droppableId: string; index: number },
 ) {
-  const sourceColumn = source.droppableId as NBAKanbanColumn;
-  const destinationColumn = destination.droppableId as NBAKanbanColumn;
+  const sourceColumn = source.droppableId as ChecklistKanbanColumn;
+  const destinationColumn = destination.droppableId as ChecklistKanbanColumn;
   const sourceItems = items
     .filter((item) => item.kanbanColumn === sourceColumn)
     .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0));
@@ -156,7 +156,7 @@ function reorderColumnItems(
     return item;
   });
 
-  const manualizeColumn = (columnItems: NBAItem[]) =>
+  const manualizeColumn = (columnItems: ChecklistTask[]) =>
     columnItems.map((item, index) => ({
       ...item,
       sortOrder: index - columnItems.length,
@@ -164,7 +164,7 @@ function reorderColumnItems(
 
   const sourceManualized = sourceColumn === destinationColumn ? [] : manualizeColumn(nextSourceItems);
   const destinationManualized = manualizeColumn(nextDestinationItems);
-  const patchedById = new Map<string, NBAItem>();
+  const patchedById = new Map<string, ChecklistTask>();
 
   for (const item of sourceManualized) patchedById.set(item.id, item);
   for (const item of destinationManualized) patchedById.set(item.id, item);
@@ -189,7 +189,7 @@ function CardDetailModal({
   onDelete,
   onConvert,
 }: {
-  item: NBAItem | null;
+  item: ChecklistTask | null;
   opened: boolean;
   onClose: () => void;
   onMove: (itemId: string, column: string) => void;
@@ -452,7 +452,7 @@ function CardDetailModal({
 // Main Board
 // ---------------------------------------------------------------------------
 export function TacticalBoard({ companyId }: { companyId: string }) {
-  const [items, setItems] = useState<NBAItem[]>([]);
+  const [items, setItems] = useState<ChecklistTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
@@ -461,7 +461,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/nba?companyId=${companyId}&all=true`);
+      const res = await fetch(`/api/checklist?companyId=${companyId}&all=true`);
       if (res.ok) {
         const data = await res.json();
         setItems(Array.isArray(data) ? data : []);
@@ -486,7 +486,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to archive this task?")) return;
-    await fetch(`/api/nba?id=${id}`, { method: "DELETE" });
+    await fetch(`/api/checklist?id=${id}`, { method: "DELETE" });
     setItems(prev => prev.filter(i => i.id !== id));
     setDetailId(null);
   };
@@ -512,20 +512,20 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
     }
   };
 
-  const handleOpenCard = (item: NBAItem) => {
+  const handleOpenCard = (item: ChecklistTask) => {
     setDetailId(item.id);
     openModal();
   };
 
   const persistBoardReorder = useCallback(async (
     itemId: string,
-    sourceColumn: NBAKanbanColumn,
-    destinationColumn: NBAKanbanColumn,
+    sourceColumn: ChecklistKanbanColumn,
+    destinationColumn: ChecklistKanbanColumn,
     destinationColumnOrderIds: string[],
     sourceColumnOrderIds?: string[],
   ) => {
     try {
-      await fetch(`/api/nba?id=${itemId}`, {
+      await fetch(`/api/checklist?id=${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

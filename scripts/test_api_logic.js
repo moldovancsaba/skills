@@ -14,7 +14,7 @@ async function testApiLogic(companyId, isArchived) {
     where.activityState = { in: ["ACTIVE", "STALE"] };
   }
 
-  const items = await prisma.nBAItem.findMany({
+  const items = await prisma.checklistTask.findMany({
     where,
     orderBy: [{ iceScore: "desc" }, { confidenceScore: "desc" }, { publicId: "asc" }],
   });

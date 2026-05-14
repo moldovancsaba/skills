@@ -29,12 +29,14 @@ import { APP_VERSION } from "@/lib/release";
 import { logClientInteraction } from "@/lib/client-events";
 import { getSidebarActiveStyle, getSidebarButtonStyle, getSidebarHoverStyle, getSidebarShellStyle, type ModuleTone } from "@/lib/semantic-theme";
 import { LabelText, MetaText } from "@/components/ui/typography";
+import { UiLanguageSelect } from "@/components/ui-language-select";
+import { useI18n } from "@/lib/ui-i18n";
 
 const pipelineItems = [
   {
     key: "data",
     href: (companyId: string) => `/${companyId}/data`,
-    label: "Data",
+    labelKey: "nav.data",
     icon: Database,
     color: "ingress",
     tone: "ingress",
@@ -42,7 +44,7 @@ const pipelineItems = [
   {
     key: "topics",
     href: (companyId: string) => `/${companyId}/topics`,
-    label: "Topics",
+    labelKey: "nav.topics",
     icon: Layers,
     color: "synthesis",
     tone: "synthesis",
@@ -50,7 +52,7 @@ const pipelineItems = [
   {
     key: "goals",
     href: (companyId: string) => `/${companyId}/goals`,
-    label: "Goals",
+    labelKey: "nav.goals",
     icon: Target,
     color: "strategy",
     tone: "strategy",
@@ -58,7 +60,7 @@ const pipelineItems = [
   {
     key: "review",
     href: (companyId: string) => `/${companyId}/review`,
-    label: "Review",
+    labelKey: "nav.review",
     icon: History,
     color: "review",
     tone: "review",
@@ -66,7 +68,7 @@ const pipelineItems = [
   {
     key: "knowmore",
     href: (companyId: string) => `/${companyId}/knowmore`,
-    label: "Knowmore",
+    labelKey: "nav.knowmore",
     icon: Sparkles,
     color: "knowmore",
     tone: "knowmore",
@@ -74,15 +76,15 @@ const pipelineItems = [
   {
     key: "tactical",
     href: (companyId: string) => `/${companyId}/tactical`,
-    label: "Planning",
+    labelKey: "nav.tactical",
     icon: LayoutDashboard,
     color: "tactical",
     tone: "tactical",
   },
   {
-    key: "nba",
-    href: (companyId: string) => `/${companyId}/nba`,
-    label: "Checklist",
+    key: "checklist",
+    href: (companyId: string) => `/${companyId}/checklist`,
+    labelKey: "nav.checklist",
     icon: ListCheck,
     color: "checklist",
     tone: "checklist",
@@ -90,7 +92,7 @@ const pipelineItems = [
   {
     key: "pipeline",
     href: (companyId: string) => `/${companyId}/pipeline`,
-    label: "AI Queue",
+    labelKey: "nav.aiQueue",
     icon: HardHat,
     color: "gray",
     tone: "neutral",
@@ -103,6 +105,7 @@ export function ClientNav() {
   const params = useParams();
   const { company, setCompany } = useStore();
   const { isDark, toggle } = useTheme();
+  const { t } = useI18n();
   const [session, setSession] = useState<any>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
 
@@ -152,8 +155,8 @@ export function ClientNav() {
             topics: data.counts?.topics || 0,
             knowmore: data.counts?.flashcards || 0,
             goals: data.counts?.goals || 0,
-            nba: data.counts?.checklistCount || 0,
-            tactical: data.counts?.nbaItems || 0,
+            checklist: data.counts?.checklistCount || 0,
+            tactical: data.counts?.tacticalCount || 0,
             review: data.counts?.reviewCount || 0,
             pipeline: data.counts?.pipelineJobs || 0,
           });
@@ -213,8 +216,8 @@ export function ClientNav() {
           {((company || companyIdFromUrl) && pathname !== '/' && !pathname.startsWith('/faq') && !pathname.startsWith('/manual')) ? (
             <Stack gap={4}>
               <NavLink
-                label={company?.name || "Intelligence Unit"}
-                description={company?.id ? "Operating Unit" : "Synchronizing..."}
+                label={company?.name || t("nav.company")}
+                description={company?.id ? t("nav.companyDescription") : t("nav.companySyncing")}
                 variant="light"
                 active={pathname === `/${company?.id || companyIdFromUrl}`}
                 onClick={() => company?.id && router.push(`/${company.id}`)}
@@ -231,11 +234,12 @@ export function ClientNav() {
                 const companyId = company?.id || companyIdFromUrl;
                 const itemHref = companyId ? item.href(companyId) : "";
                 const isActive = Boolean(pathname && itemHref && (pathname === itemHref || pathname.startsWith(`${itemHref}/`)));
+                const itemLabel = t(item.labelKey);
 
                 return (
                   <NavLink
                     key={item.key}
-                    label={item.label}
+                    label={itemLabel}
                     leftSection={
                       <ThemeIcon color={item.color}>
                         <item.icon size={14} />
@@ -268,7 +272,7 @@ export function ClientNav() {
                         interactionType: "PIPELINE_ROUTE_SELECT",
                         entityType: "ROUTE",
                         entityId: item.key,
-                        payload: { href: itemHref, label: item.label },
+                        payload: { href: itemHref, label: itemLabel },
                         teachingWeight: 30,
                       });
                       router.push(itemHref);
@@ -298,7 +302,7 @@ export function ClientNav() {
           ) : (
             <Box px="md" py="xl">
               <MetaText ta="center">
-                Select a portfolio unit to begin operations.
+                {t("nav.selectPortfolio")}
               </MetaText>
             </Box>
           )}
@@ -308,6 +312,8 @@ export function ClientNav() {
       <AppShellSection pt="md">
         <Divider mb="md" />
         <Stack gap="xs">
+          <UiLanguageSelect withDescription={false} size="xs" />
+
           <UnstyledButton
             onClick={() => {
               if (activeCompanyId) {
@@ -327,12 +333,12 @@ export function ClientNav() {
             style={getSidebarButtonStyle()}
             className="theme-toggle-button"
           >
-            <Group justify="space-between">
-              <Group gap="sm">
-                <ThemeIcon color={isDark ? "review" : "synthesis"} size="sm">
-                  {isDark ? <Sun size={14} /> : <Moon size={14} />}
-                </ThemeIcon>
-                <MetaText c="var(--text-secondary)">{isDark ? "Light" : "Dark"} mode</MetaText>
+              <Group justify="space-between">
+                <Group gap="sm">
+                  <ThemeIcon color={isDark ? "review" : "synthesis"} size="sm">
+                    {isDark ? <Sun size={14} /> : <Moon size={14} />}
+                  </ThemeIcon>
+                <MetaText c="var(--text-secondary)">{isDark ? t("nav.themeLight") : t("nav.themeDark")}</MetaText>
               </Group>
             </Group>
           </UnstyledButton>
@@ -360,13 +366,13 @@ export function ClientNav() {
               </Menu.Target>
 
               <Menu.Dropdown>
-                <Menu.Label>Identity</Menu.Label>
+                <Menu.Label>{t("nav.identity")}</Menu.Label>
                 {company && (
                   <Menu.Item
                     leftSection={<SettingsIcon size={14} />}
                     onClick={() => router.push(`/${company.id}/settings`)}
                   >
-                    Organization Settings
+                    {t("nav.organizationSettings")}
                   </Menu.Item>
                 )}
                 <Menu.Divider />
@@ -375,7 +381,7 @@ export function ClientNav() {
                   leftSection={<LogOut size={14} />}
                   onClick={handleLogout}
                 >
-                  Terminate Session
+                  {t("nav.terminateSession")}
                 </Menu.Item>
               </Menu.Dropdown>
             </Menu>
@@ -388,7 +394,7 @@ export function ClientNav() {
               onClick={() => router.push("/auth")}
               leftSection={<UserIcon size={14} />}
             >
-              System Access
+              {t("nav.systemAccess")}
             </Button>
           )}
         </Stack>
@@ -397,10 +403,10 @@ export function ClientNav() {
 
         <Group gap="md" px="xs" justify="center">
           <Anchor href="/privacy" size="xs" c="dimmed" underline="never">
-            Privacy
+            {t("common.privacy")}
           </Anchor>
           <Anchor href="/terms" size="xs" c="dimmed" underline="never">
-            Terms
+            {t("common.terms")}
           </Anchor>
           <MetaText>
             v{APP_VERSION}

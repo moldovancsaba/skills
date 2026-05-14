@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Force-evaluating all active REFINED/GENERATED items...");
   
-  const items = await prisma.nBAItem.findMany({
+  const items = await prisma.checklistTask.findMany({
     where: {
       candidateState: { in: ["GENERATED", "REFINED"] as any },
       activityState: "ACTIVE"
@@ -15,7 +15,7 @@ async function main() {
   console.log(`Found ${items.length} items to evaluate.`);
 
   for (const item of items) {
-    await prisma.nBAItem.update({
+    await prisma.checklistTask.update({
       where: { id: item.id },
       data: {
         candidateState: "EVALUATED" as any,

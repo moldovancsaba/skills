@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
+import type { SourceProcessingStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
@@ -10,6 +11,7 @@ import {
   nextSourcePublicId,
   TRANSACTION_SETTINGS,
 } from "@/lib/source-public-ids";
+import { buildSourceLifecycleData } from "@/lib/source-contract";
 import { ensureUnifiedSources } from "@/lib/sources";
 
 export async function GET(request: NextRequest) {
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
         entityTag: true,
         createdAt: true,
         updatedAt: true,
+        processingStatus: true,
         intelligenceType: true,
       },
       ...(safeLimit ? { skip: safeOffset, take: safeLimit } : {}),
@@ -79,15 +82,26 @@ export async function POST(request: NextRequest) {
 
     const created = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
+      const lifecycleData = buildSourceLifecycleData({
+        content,
+        provenance: typeof data.provenance === "string" ? data.provenance : null,
+        sourceType: typeof data.sourceType === "string" ? data.sourceType : "MANUAL",
+        metadata: data.metadata ?? null,
+      });
       return tx.source.create({
         data: {
           companyId,
           publicId,
           content,
+          canonicalContent: lifecycleData.canonicalContent,
+          canonicalContentHash: lifecycleData.canonicalContentHash,
+          processingStatus: lifecycleData.processingStatus as SourceProcessingStatus,
           hashtags: normalizeHashtagList(data.hashtags),
           entityTag: typeof data.entityTag === "string" && data.entityTag.trim() ? data.entityTag.trim() : null,
           aiClusters: normalizeHashtagList(data.aiClusters),
           metadata: data.metadata ?? null,
+          provenance: typeof data.provenance === "string" ? data.provenance : null,
+          sourceType: typeof data.sourceType === "string" ? data.sourceType : "MANUAL",
           intelligenceType: data.intelligenceType === "COMPETITOR" ? "COMPETITOR" : "INTERNAL",
         },
       });
@@ -135,12 +149,21 @@ export async function PATCH(request: NextRequest) {
           : existing.entityTag,
       aiClusters: data.aiClusters !== undefined ? normalizeHashtagList(data.aiClusters) : existing.aiClusters,
       metadata: data.metadata !== undefined ? data.metadata : existing.metadata,
+      provenance: data.provenance !== undefined ? data.provenance : existing.provenance,
+      sourceType: data.sourceType !== undefined ? data.sourceType : existing.sourceType,
       intelligenceType: data.intelligenceType === "COMPETITOR" || data.intelligenceType === "INTERNAL" ? data.intelligenceType : existing.intelligenceType,
     };
+    const lifecycleData = buildSourceLifecycleData({
+      ...existing,
+      ...nextData,
+    });
     const updated = await prisma.source.update({
       where: { id },
       data: {
         ...nextData,
+        canonicalContent: lifecycleData.canonicalContent,
+        canonicalContentHash: lifecycleData.canonicalContentHash,
+        processingStatus: lifecycleData.processingStatus as SourceProcessingStatus,
       },
     });
 

@@ -1,29 +1,5 @@
-import { clampMetric, calculateTaskIceScore, normalizeTaskScores } from "@/lib/scoring-contract";
-
-export { clampMetric };
-
-export function normalizeNBAMetrics(input: {
-  impact?: number | null;
-  confidence?: number | null;
-  ease?: number | null;
-}) {
-  const normalized = normalizeTaskScores({
-    impact: input.impact,
-    confidence: input.confidence,
-    ease: input.ease,
-  });
-
-  return {
-    impact: normalized.impact,
-    confidence: normalized.confidence,
-    ease: normalized.ease,
-  };
-}
-
-export function calculateICEScore(input: {
-  impact?: number | null;
-  confidence?: number | null;
-  ease?: number | null;
-}) {
-  return calculateTaskIceScore(input);
-}
+export {
+  clampMetric,
+  normalizeChecklistMetrics as normalizeNBAMetrics,
+  calculateChecklistIceScore as calculateICEScore,
+} from "@/lib/checklist-scoring";

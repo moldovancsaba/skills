@@ -355,7 +355,7 @@ function resolveScoreHealthBand(taskcards, knowledge) {
 
 async function computeCompanyScoreHealth(companyId, prismaClient = defaultPrisma) {
   const [taskcards, flashcards] = await Promise.all([
-    prismaClient.nBAItem.findMany({
+    prismaClient.checklistTask.findMany({
       where: {
         companyId,
         activityState: { in: ["ACTIVE", "STALE"] },

@@ -16,7 +16,7 @@ checklist exposes HTTP endpoints for:
 
 - reading company and source context
 - reading Knowmore flashcards
-- reading and creating NBA items
+- reading and creating checklist tasks
 - submitting review feedback
 
 The database connection string is an internal deployment concern and should not be the default integration path for external tools.
@@ -53,10 +53,10 @@ GET /api/data-files?companyId=<company-id>
 GET /api/knowmore?companyId=<company-id>
 ```
 
-### Existing NBA items
+### Existing checklist tasks
 
 ```http
-GET /api/nba?companyId=<company-id>
+GET /api/checklist?companyId=<company-id>
 ```
 
 ## Scoring Contract
@@ -80,10 +80,10 @@ Example:
 
 ## Write Outputs
 
-### Create NBA recommendation
+### Create checklist recommendation
 
 ```http
-POST /api/nba
+POST /api/checklist
 Content-Type: application/json
 ```
 
@@ -111,7 +111,7 @@ Accept:
 
 ```json
 {
-  "nbaItemId": "nba-001",
+  "checklistTaskId": "task-001",
   "action": "ACCEPT"
 }
 ```
@@ -120,7 +120,7 @@ Decline:
 
 ```json
 {
-  "nbaItemId": "nba-001",
+  "checklistTaskId": "task-001",
   "action": "DECLINE",
   "annotation": "Already have email marketing in place"
 }
@@ -130,7 +130,7 @@ Modify and accept:
 
 ```json
 {
-  "nbaItemId": "nba-001",
+  "checklistTaskId": "task-001",
   "action": "MODIFY_ACCEPT",
   "modifiedTitle": "Launch segmented summer camp promotion",
   "modifiedDescription": "Focus on high-intent parent segments first",
@@ -158,7 +158,7 @@ POST /api/knowmore/sync
 Content-Type: application/json
 ```
 
-### Trigger local NBA generation
+### Trigger local checklist generation
 
 ```http
 POST /api/agent/local

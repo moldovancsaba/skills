@@ -33,7 +33,7 @@ export async function POST(req: Request) {
         include: { sources: true, actions: true }
       });
     } else if (sourceType === "TASKCARD") {
-      sourceData = await prisma.nBAItem.findUnique({
+      sourceData = await prisma.checklistTask.findUnique({
         where: { id: sourceId },
         include: { feedback: true }
       });
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
       const generatedFromIds = sourceData.sources ? sourceData.sources.map((s: any) => s.sourceId) : 
                                sourceData.generatedFromIds ? sourceData.generatedFromIds : [];
       const normalizedScores = normalizeTaskScores(baseData);
-      createdItem = await prisma.nBAItem.create({
+      createdItem = await prisma.checklistTask.create({
         data: {
           companyId: baseData.companyId,
           title: baseData.title,
@@ -176,7 +176,7 @@ export async function POST(req: Request) {
         data: { activityState: "ARCHIVED" }
       });
     } else if (sourceType === "TASKCARD") {
-      await prisma.nBAItem.update({
+      await prisma.checklistTask.update({
         where: { id: sourceId },
         data: { 
           activityState: "ARCHIVED",

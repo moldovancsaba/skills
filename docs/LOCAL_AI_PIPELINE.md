@@ -106,6 +106,25 @@ Current worker loop:
 
 The worker rests for a short active interval after productive queue work and a longer idle interval when no queue work is available.
 
+## Deterministic planner rollout
+
+The current shipped runtime still contains the broader queue-owned synthesis path.
+
+The target replacement design for bootstrap and maintenance behavior is governed by:
+
+- [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
+
+That planner design introduces:
+
+- explicit company operating modes: `INACTIVE`, `BOOTSTRAP`, `MAINTENANCE`
+- deterministic lane minimums for `CHECKLIST`, `TODO`, `BACKLOG`, `ROADMAP`, and `IDEABANK`
+- weakest-upstream status ceilings for flashcards and taskcards
+- explicit bootstrap fallback from task generation to flashcard generation to datacard research backfill
+- oldest-first maintenance cadence by card layer
+- timeout-based kill and recovery for stalled generation work
+
+Until implementation is complete, treat `docs/LOCAL_AI_PIPELINE.md` as the current shipped runtime contract and `docs/LOCAL_AI_PLANNER_LLD.md` as the target rollout contract.
+
 ## Queue-owned scheduler contract
 
 The queue is the single execution authority for local-AI work.
@@ -292,7 +311,7 @@ The NBA generator reads:
 - flashcard feedback
 - task feedback
 
-It creates `NBAItem` rows and stores `sourceFlashcardIds` so tasks can be traced back to the flashcards that supported them.
+It creates `ChecklistTask` rows and stores `sourceFlashcardIds` so tasks can be traced back to the flashcards that supported them.
 
 Current task-generation contract:
 

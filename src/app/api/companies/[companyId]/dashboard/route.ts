@@ -31,7 +31,7 @@ export async function GET(
       prisma.intelligenceSnapshot.findUnique({ where: { companyId: cid } }),
     ]);
 
-    const topTasks = await prisma.nBAItem.findMany({
+    const topTasks = await prisma.checklistTask.findMany({
       where: {
         companyId: cid,
         kanbanColumn: "CHECKLIST",
@@ -61,7 +61,7 @@ export async function GET(
       topics: snapshot?.topicSynthesisCount ?? 0,
       flashcards: snapshot?.knowmoreCount ?? 0,
       goals: snapshot?.strategicGoalsCount ?? 0,
-      nbaItems: snapshot?.tacticalBoardCount ?? 0,
+      tacticalCount: snapshot?.tacticalBoardCount ?? 0,
       checklistCount: Math.max(snapshot?.checklistCount ?? 0, topTasks.length),
       reviewCount: snapshot?.reviewGatewayCount ?? 0,
       pipelineJobs: Number(queue.totalActiveJobs ?? 0),

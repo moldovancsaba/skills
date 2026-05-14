@@ -401,7 +401,7 @@ async function splitTaskCandidate(prisma, candidate, context, memoryPrompt) {
   for (const [index, item] of raw.slice(0, 3).entries()) {
     if (!item?.title || !item?.description) continue;
     const normalizedScores = await normalizeRefinedTaskScores(prisma, item, candidate);
-    const nextPublicId = index === 0 ? candidate.publicId : await nextPublicId(prisma, "NBAItem");
+    const nextPublicId = index === 0 ? candidate.publicId : await nextPublicId(prisma, "checklist");
     splitCandidates.push({
       ...(index === 0 ? candidate : {}),
       id: index === 0 ? candidate.id : hashValue(`split:${candidate.id}:${item.title}:${index}`).slice(0, 24),
@@ -464,7 +464,7 @@ function parseSafe(val, fallback) {
  *
  * @param {PrismaClient} prisma
  * @param {object} company
- * @param {object[]} candidates - Generated NBAItem records
+ * @param {object[]} candidates - Generated ChecklistTask records
  * @param {string} memoryPrompt
  * @returns {{ refined: object[], suppressed: object[] }}
  */

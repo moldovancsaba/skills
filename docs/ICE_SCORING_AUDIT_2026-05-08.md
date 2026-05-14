@@ -20,7 +20,7 @@ What is still true:
 
 The current ICE system is not healthy.
 
-The most serious issue is on `NBAItem` taskcards:
+The most serious issue is on `ChecklistTask` taskcards:
 
 - `487` taskcards inspected
 - only `12` unique `iceScore` values

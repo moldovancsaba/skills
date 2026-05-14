@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyIngestSecret } from "@/lib/ingest-auth";
 import { normalizeHashtagList } from "@/lib/hashtags";
+import { buildSourceLifecycleData } from "@/lib/source-contract";
 import { nextSourcePublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
+import type { SourceProcessingStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -45,11 +47,24 @@ export async function POST(request: NextRequest) {
 
       const created = await prisma.$transaction(async (tx) => {
         const publicId = await nextSourcePublicId(tx);
+        const lifecycleData = buildSourceLifecycleData({
+          content,
+          provenance: "crm-bridge",
+          sourceType: "BRIDGE",
+          metadata: {
+            customerName,
+            opportunityValue,
+            isContextSignal: true
+          },
+        });
         return tx.source.create({
           data: {
             companyId,
             publicId,
             content,
+            canonicalContent: lifecycleData.canonicalContent,
+            canonicalContentHash: lifecycleData.canonicalContentHash,
+            processingStatus: lifecycleData.processingStatus as SourceProcessingStatus,
             hashtags,
             sourceType: "BRIDGE",
             provenance: "crm-bridge",

@@ -1,5 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const { deriveDataCardScoreProfile, deriveTopicCardScoreProfile } = require("../src/lib/upstream-card-scoring");
+const { deriveSourceProcessingStatus } = require("../src/lib/source-contract");
 
 const prisma = new PrismaClient();
 
@@ -33,6 +34,11 @@ async function repairSources() {
           weight: profile.weight,
           iceScore: profile.iceScore,
           scoreProfile: profile.scoreProfile ?? null,
+          processingStatus: deriveSourceProcessingStatus({
+            ...source,
+            confidence: profile.confidence,
+            confidenceScore: profile.confidence,
+          }),
         },
       });
       updated += 1;

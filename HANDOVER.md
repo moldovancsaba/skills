@@ -20,6 +20,8 @@ Read first:
 ## Current Contract
 
 - Mantine is the only approved product UI framework
+- the shared app shell owns persisted UI language selection for `English`, `Hungarian`, `Spanish`, `Arabic`, and `Hebrew`
+- visible UI language and company AI `allowedLanguages` policy are separate contracts and must not be conflated
 - Mantine `Card` is the base card primitive
 - `UnifiedCard` is the only approved feature-level product card API
 - `UnifiedCardModal` is the only approved modal content shell for card content
@@ -39,9 +41,12 @@ Read first:
 - Knowmore corrections are now first-class operator controls in the product surface: `PIN`, `HIDE`, `MARK_WRONG`, `REQUEST_REFRESH`, and `SUPPRESS_SOURCE`
 - Knowmore health is now an explicit surface contract with `HEALTHY`, `STALE`, `DELAYED`, and `FAILED` states plus bounded repair actions
 - repetitive local-AI work is represented as persisted `PipelineJob` queue records
-- the webapp `Worker Queue` is the primary HiTL steering surface for repetitive jobs
+- the webapp `AI Queue` is the primary HiTL steering surface for repetitive jobs
 - worker scheduling supports explicit `AI_ONLY` and `HUMAN_GUIDED` modes
-- the shipped webapp tweak surface is the `Worker Queue` board, not a separate compact menu
+- the shipped webapp tweak surface is the `AI Queue` board, not a separate compact menu
+- queue claiming now gives untouched jobs fairness priority and spreads initial claims across companies so repeated work from one company cannot starve another company's first synthesis pass indefinitely
+- a company with knowledge cards but zero task inventory is a bootstrap condition; `COMPANY_SYNTHESIS` must be escalated ahead of normal background synthesis until tactical/checklist inventory exists
+- the target deterministic replacement for broad synthesis is documented in [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md); planner rollout work must converge runtime behavior toward that design instead of widening generic synthesis logic further
 - current human controls are drag/drop between queue columns, drag/drop reordering, and `Reset to AI Only`
 - source-backed Knowmore cards now carry durable citation snapshots plus explicit conflict flags and summaries
 - maintenance now includes oldest-first revisit jobs for unresolved modified candidates and declined high-potential candidates
@@ -92,6 +97,7 @@ System:
 
 - [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 - [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
+- [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
 - [docs/LOCAL_SELF_LEARNING_SYSTEM.md](/Users/Shared/Projects/checklist/docs/LOCAL_SELF_LEARNING_SYSTEM.md)
 - [src/lib/pipeline-queue.js](/Users/Shared/Projects/checklist/src/lib/pipeline-queue.js)
 - [scripts/lib/pipeline-jobs.js](/Users/Shared/Projects/checklist/scripts/lib/pipeline-jobs.js)
@@ -145,7 +151,7 @@ The work is not done until:
 ## Pipeline Queue Notes
 
 - The worker now consumes persisted queue jobs before the broader synthesis cycle.
-- Human drag-and-drop on the `Worker Queue` board switches jobs into `HUMAN_GUIDED` mode.
+- Human drag-and-drop on the `AI Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now expressed through persisted queue/repair intents; the local AI worker is the only authority that escalates queue work through the shared queue contract.
 - Workflow edits, Knowmore repair actions, and Observability repair actions now enqueue persisted worker commands instead of executing queue authority in app routes.

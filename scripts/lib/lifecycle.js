@@ -191,7 +191,7 @@ function isTerminal(item) {
  * Infers a CandidateState from legacy processingStatus + activityState fields.
  * This is the LAST time we ever parse annotation strings for state.
  *
- * @param {object} item - NBAItem with legacy fields
+ * @param {object} item - ChecklistTask with legacy fields
  * @returns {CandidateState}
  */
 function inferLegacyState(item) {

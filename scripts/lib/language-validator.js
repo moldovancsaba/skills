@@ -314,7 +314,7 @@ function isLanguageAccepted(text, allowedLanguages) {
  * Enforces the language policy by deleting the record if it fails validation.
  * 
  * @param {object} prisma - Prisma client
- * @param {object} record - The Flashcard or NBAItem record
+ * @param {object} record - The Flashcard or ChecklistTask record
  * @param {string} type - "FLASHCARD" or "TASK"
  * @param {object} company - The Company record
  */
@@ -330,7 +330,7 @@ async function enforceLanguagePolicy(prisma, record, type, company) {
     if (type === "FLASHCARD") {
       await prisma.flashcard.delete({ where: { id: record.id } });
     } else {
-      await prisma.nBAItem.delete({ where: { id: record.id } });
+      await prisma.checklistTask.delete({ where: { id: record.id } });
     }
     return true; // Deleted
   }

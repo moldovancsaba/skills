@@ -40,7 +40,7 @@ async function getCompanyStrategicContext(prisma, companyId) {
   });
 
   // 3. Load Active Tasks & Manual Priorities (§24 - Strategic Learning)
-  const prioritizedTasks = await prisma.nBAItem.findMany({
+  const prioritizedTasks = await prisma.checklistTask.findMany({
     where: { 
       companyId, 
       sortOrder: { lt: 0 },
@@ -50,7 +50,7 @@ async function getCompanyStrategicContext(prisma, companyId) {
     orderBy: { sortOrder: "asc" } // highest priority (most negative) first
   });
 
-  const activeTasks = await prisma.nBAItem.findMany({
+  const activeTasks = await prisma.checklistTask.findMany({
     where: { 
       companyId, 
       kanbanColumn: { in: ["CHECKLIST", "TODO"] },

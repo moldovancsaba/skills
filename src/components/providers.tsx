@@ -2,6 +2,7 @@
 
 import { MantineProvider, createTheme, localStorageColorSchemeManager, rem, MantineTheme } from "@mantine/core";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { UiLanguageProvider } from "@/lib/ui-i18n";
 import React from "react";
 import { getModuleTheme, resolveModuleTone } from "@/lib/semantic-theme";
 
@@ -235,16 +236,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
       defaultColorScheme="auto"
     >
       <ThemeProvider>
-        {children}
-        <style jsx global>{`
-          *,
-          *::before,
-          *::after {
-            animation: none !important;
-            transition: none !important;
-            scroll-behavior: auto !important;
-          }
-        `}</style>
+        <UiLanguageProvider>
+          {children}
+          <style jsx global>{`
+            *,
+            *::before,
+            *::after {
+              animation: none !important;
+              transition: none !important;
+              scroll-behavior: auto !important;
+            }
+          `}</style>
+        </UiLanguageProvider>
       </ThemeProvider>
     </MantineProvider>
   );

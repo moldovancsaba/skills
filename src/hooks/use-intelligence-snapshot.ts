@@ -31,7 +31,8 @@ export type IntelligenceSnapshot = {
     sources: number;
     topics: number;
     flashcards: number;
-    nba: number;
+    checklist?: number;
+    nba?: number;
   }>;
 };
 
@@ -56,7 +57,7 @@ export function useIntelligenceSnapshot(companyId: string | undefined) {
         knowmoreCount: data.counts.flashcards,
         strategicGoalsCount: data.counts.goals,
         checklistCount: data.counts.checklistCount,
-        tacticalBoardCount: data.counts.nbaItems,
+        tacticalBoardCount: data.counts.tacticalCount,
         reviewGatewayCount: data.counts.reviewCount,
         synthesisYield: data.metrics?.synthesisYield || 0,
         confidenceAvg: data.metrics?.confidenceAvg || 0,

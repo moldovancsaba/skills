@@ -5,17 +5,17 @@ const { enforceLanguagePolicy, canonicalizeAllowedLanguages } = require("./langu
 const { fetchUrlContent } = require("./fetcher");
 const { CandidateState, ReworkRoute, toArchived, toGenerated, toRework } = require("./lifecycle");
 const { recomputeFrontier, refillChecklistFromBacklog: frontierRefill } = require("./frontier");
+const { buildSourceLifecycleData, deriveSourceProcessingStatus } = require("../../src/lib/source-contract");
 const {
   calculateKnowledgeIceScore,
-  normalizeGoalScores,
-  normalizeKnowledgeScores,
   normalizeTaskScores,
 } = require("../../src/lib/scoring-contract");
-const {
-  deriveDataCardScoreProfile,
-  deriveTopicCardScoreProfile,
-} = require("../../src/lib/upstream-card-scoring");
+const { deriveTopicCardScoreProfile } = require("../../src/lib/upstream-card-scoring");
 const { detectEvidenceConflict, ensureCitationSnapshotsForEvidenceBatch } = require("./citations");
+const {
+  refreshOldestDatacards,
+  runPlannerMaintenanceCycle,
+} = require("./planner/maintenance-cycle");
 
 /**
  * Shared maintenance and repair engine for scoring, lifecycle, and integrity work.
@@ -86,7 +86,7 @@ async function scrubDatabaseElemental(prisma) {
   // NOTE: State transitions are now handled by the CandidateState lifecycle machine.
   //       Annotation-string inference has been removed. Never infer state from userAnnotation.
   try {
-    const tcToFix = await prisma.nBAItem.findMany({
+    const tcToFix = await prisma.checklistTask.findMany({
       where: {
         OR: [
           { processingStatus: { notIn: validProc } },
@@ -99,9 +99,9 @@ async function scrubDatabaseElemental(prisma) {
     });
 
     if (tcToFix.length > 0) {
-      console.log(`[MAINTENANCE] Repairing ${tcToFix.length} NBAItem records with invalid legacy status...`);
+      console.log(`[MAINTENANCE] Repairing ${tcToFix.length} ChecklistTask records with invalid legacy status...`);
       await withMaintenanceRetry(() =>
-        prisma.nBAItem.updateMany({
+        prisma.checklistTask.updateMany({
           where: { id: { in: tcToFix.map(c => c.id) } },
           data: { status: "PENDING", activityState: "ACTIVE", kind: "TASK" }
         })
@@ -126,10 +126,10 @@ async function processUserFeedback(prisma, company) {
   // 1. Find Unprocessed Feedback for this company
   const pendingFeedback = await prisma.feedback.findMany({
     where: { 
-      nbaItem: { companyId: cid },
+      checklistTask: { companyId: cid },
       processedByWorkerAt: null 
     },
-    include: { nbaItem: true },
+    include: { checklistTask: true },
     orderBy: { createdAt: "asc" }
   });
 
@@ -138,7 +138,7 @@ async function processUserFeedback(prisma, company) {
   console.log(`[BRAIN] ${company.name}: Processing ${pendingFeedback.length} user feedback signals...`);
 
   for (const f of pendingFeedback) {
-    const item = f.nbaItem;
+    const item = f.checklistTask;
     const action = f.action; // ACCEPT, DECLINE, MODIFY_ACCEPT, DELIVER
     
     // Human outcomes adjust the task triplet before canonical rescoring.
@@ -169,7 +169,7 @@ async function processUserFeedback(prisma, company) {
     });
 
     // c. Update NBA Item Intelligence
-      await prisma.nBAItem.update({
+      await prisma.checklistTask.update({
       where: { id: item.id },
       data: {
         ...normalizedTaskScores,
@@ -232,201 +232,13 @@ async function processUserFeedback(prisma, company) {
   return pendingFeedback.length;
 }
 
-async function loadOldestAuditBatch(model, where, take) {
-  const neverAudited = await model.findMany({
-    where: {
-      ...where,
-      lastRescoredAt: null,
-    },
-    orderBy: { updatedAt: "asc" },
-    take,
-  });
-
-  if (neverAudited.length >= take) {
-    return neverAudited;
-  }
-
-  const audited = await model.findMany({
-    where: {
-      ...where,
-      lastRescoredAt: { not: null },
-    },
-    orderBy: [
-      { lastRescoredAt: "asc" },
-      { updatedAt: "asc" },
-    ],
-    take: take - neverAudited.length,
-  });
-
-  return [...neverAudited, ...audited];
-}
-
 async function rescorePeriodicCards(prisma, company) {
-  const cid = company.id;
-  const batchSize = await getWorkerConfig(prisma, company, "rescore_batch_size", 3);
-  const activeWhere = {
-    companyId: cid,
-    activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
-    processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "REVIEW"] },
-  };
-  const auditTimestamp = new Date();
-
-  const [flashcards, goalcards, taskcards] = await Promise.all([
-    loadOldestAuditBatch(prisma.flashcard, activeWhere, batchSize),
-    loadOldestAuditBatch(prisma.goalcard, activeWhere, batchSize),
-    loadOldestAuditBatch(prisma.nBAItem, {
-      ...activeWhere,
-      candidateState: { in: [CandidateState.GENERATED, CandidateState.REFINED, CandidateState.EVALUATED] },
-    }, batchSize),
-  ]);
-
-  for (const flashcard of flashcards) {
-    await prisma.flashcard.update({
-      where: { id: flashcard.id },
-      data: {
-        ...normalizeKnowledgeScores({
-          confidence: flashcard.confidenceScore ?? flashcard.confidence,
-          impact: flashcard.impact,
-          weight: flashcard.weight,
-        }),
-        lastRescoredAt: auditTimestamp,
-      },
-    });
-  }
-
-  for (const goalcard of goalcards) {
-    await prisma.goalcard.update({
-      where: { id: goalcard.id },
-      data: {
-        ...normalizeGoalScores({
-          confidence: goalcard.confidenceScore ?? goalcard.confidence,
-          impact: goalcard.impact,
-          weight: goalcard.weight,
-        }),
-        lastRescoredAt: auditTimestamp,
-      },
-    });
-  }
-
-  for (const taskcard of taskcards) {
-    await prisma.nBAItem.update({
-      where: { id: taskcard.id },
-      data: {
-        ...normalizeTaskScores({
-          confidence: taskcard.confidenceScore ?? taskcard.confidence,
-          impact: taskcard.impact,
-          ease: taskcard.ease,
-        }),
-        lastRescoredAt: auditTimestamp,
-      },
-    });
-  }
-
-  const totalAudited = flashcards.length + goalcards.length + taskcards.length;
-  if (totalAudited > 0) {
-    console.log(`[RESCORE] ${company.name}: Audited ${flashcards.length} flashcards, ${goalcards.length} goalcards, ${taskcards.length} taskcards with oldest-first queueing.`);
-  }
-
-  return totalAudited;
+  const summary = await runPlannerMaintenanceCycle(prisma, company);
+  return summary.totalRefreshed - summary.datacards;
 }
 
 async function rescorePeriodicUpstreamCards(prisma, company) {
-  const cid = company.id;
-  const batchSize = await getWorkerConfig(prisma, company, "rescore_batch_size", 3);
-
-  const [sources, topics, files] = await Promise.all([
-    prisma.source.findMany({
-      where: { companyId: cid },
-      orderBy: [{ updatedAt: "asc" }],
-      take: batchSize,
-    }),
-    prisma.topic.findMany({
-      where: { companyId: cid },
-      orderBy: [{ updatedAt: "asc" }],
-      take: batchSize,
-    }),
-    prisma.uploadedSourceFile.findMany({
-      where: { companyId: cid },
-      orderBy: [{ updatedAt: "asc" }],
-      take: batchSize,
-    }),
-  ]);
-
-  for (const source of sources) {
-    const profile = deriveDataCardScoreProfile({
-      content: source.content,
-      hashtags: source.hashtags,
-      entityTag: source.entityTag,
-      aiClusters: source.aiClusters,
-      metadata: source.metadata,
-      intelligenceType: source.intelligenceType,
-      sourceName: source.entityTag,
-    });
-
-    await prisma.source.update({
-      where: { id: source.id },
-      data: {
-        confidence: profile.confidence,
-        confidenceScore: profile.confidence,
-        impact: profile.impact,
-        weight: profile.weight,
-        iceScore: profile.iceScore,
-        scoreProfile: profile.scoreProfile ?? null,
-      },
-    });
-  }
-
-  for (const topic of topics) {
-    const profile = deriveTopicCardScoreProfile({
-      label: topic.label,
-      notes: topic.notes,
-      active: topic.active,
-      sortOrder: topic.sortOrder,
-      hashtags: topic.hashtags,
-    });
-
-    await prisma.topic.update({
-      where: { id: topic.id },
-      data: {
-        confidence: profile.confidence,
-        confidenceScore: profile.confidence,
-        impact: profile.impact,
-        weight: profile.weight,
-        iceScore: profile.iceScore,
-        scoreProfile: profile.scoreProfile ?? null,
-      },
-    });
-  }
-
-  for (const file of files) {
-    const profile = deriveDataCardScoreProfile({
-      name: file.name,
-      content: file.name,
-      hashtags: file.hashtags,
-      entityTag: file.entityTag,
-      metadata: { mimeType: file.mimeType, sizeBytes: file.sizeBytes },
-      sourceName: file.name,
-    });
-
-    await prisma.uploadedSourceFile.update({
-      where: { id: file.id },
-      data: {
-        confidence: profile.confidence,
-        confidenceScore: profile.confidence,
-        impact: profile.impact,
-        weight: profile.weight,
-        iceScore: profile.iceScore,
-        scoreProfile: profile.scoreProfile ?? null,
-      },
-    });
-  }
-
-  const totalAudited = sources.length + topics.length + files.length;
-  if (totalAudited > 0) {
-    console.log(`[RESCORE] ${company.name}: Audited ${sources.length} sources, ${topics.length} topics, ${files.length} uploaded files through the upstream scoring contract.`);
-  }
-
-  return totalAudited;
+  return refreshOldestDatacards(prisma, company);
 }
 
 async function backfillFlashcardCitationSnapshots(prisma, company) {
@@ -486,7 +298,7 @@ async function revisitOldestModifiedCandidates(prisma, company) {
   const cid = company.id;
   const batchSize = await getWorkerConfig(prisma, company, "maintenance_revisit_batch_size", 3);
 
-  const candidates = await prisma.nBAItem.findMany({
+  const candidates = await prisma.checklistTask.findMany({
     where: {
       companyId: cid,
       activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
@@ -530,7 +342,7 @@ async function revisitOldestModifiedCandidates(prisma, company) {
 
     if (!unresolved) continue;
 
-    await prisma.nBAItem.update({
+    await prisma.checklistTask.update({
       where: { id: candidate.id },
       data: {
         ...toRework(
@@ -555,7 +367,7 @@ async function revisitDeclinedHighPotentialCandidates(prisma, company) {
   const hopelessThreshold = await getWorkerConfig(prisma, company, "maintenance_decline_hopeless_threshold", 3);
   const highPotentialIce = await getWorkerConfig(prisma, company, "maintenance_decline_high_potential_ice", 250);
 
-  const candidates = await prisma.nBAItem.findMany({
+  const candidates = await prisma.checklistTask.findMany({
     where: {
       companyId: cid,
       activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
@@ -573,7 +385,7 @@ async function revisitDeclinedHighPotentialCandidates(prisma, company) {
     if (queued >= batchSize) break;
 
     const declineEvents = await prisma.declineEvent.findMany({
-      where: { companyId: cid, nbaItemId: candidate.id },
+      where: { companyId: cid, checklistTaskId: candidate.id },
       orderBy: { createdAt: "desc" },
       take: hopelessThreshold + 1,
     });
@@ -601,7 +413,7 @@ async function revisitDeclinedHighPotentialCandidates(prisma, company) {
       continue;
     }
 
-    await prisma.nBAItem.update({
+    await prisma.checklistTask.update({
       where: { id: candidate.id },
       data: {
         ...toRework(
@@ -631,14 +443,14 @@ async function revisitDeclinedHighPotentialCandidates(prisma, company) {
  */
 async function scrubCompanyRejections(prisma, cid) {
   // Stringification Cleanup (Fix [object Object]) — cosmetic only
-  const objectObjectItems = await prisma.nBAItem.findMany({
+  const objectObjectItems = await prisma.checklistTask.findMany({
     where: { companyId: cid, userAnnotation: { contains: "[object Object]" } },
     select: { id: true, userAnnotation: true }
   });
 
   for (const item of objectObjectItems) {
     const cleaned = item.userAnnotation.replace(/\[object Object\]/g, "(Structured reason data)");
-    await prisma.nBAItem.update({
+    await prisma.checklistTask.update({
       where: { id: item.id },
       data: { userAnnotation: cleaned }
     });
@@ -680,8 +492,7 @@ async function runMaintenance(prisma, company) {
   await processUserFeedback(prisma, company);
 
   // 0.25 Periodic rescoring across all active card layers with oldest-first queueing.
-  await rescorePeriodicCards(prisma, company);
-  await rescorePeriodicUpstreamCards(prisma, company);
+  await runPlannerMaintenanceCycle(prisma, company);
   await backfillFlashcardCitationSnapshots(prisma, company);
 
   // 0.5 Global inconsistency scrub
@@ -709,17 +520,17 @@ async function runMaintenance(prisma, company) {
   });
 
   // 2. NBAItems Ageing
-  await prisma.nBAItem.updateMany({
+  await prisma.checklistTask.updateMany({
     where: { companyId: cid, activityState: "ACTIVE", updatedAt: { lt: expiryThreshold } },
     data: { activityState: "EXPIRED" }
   });
 
-  await prisma.nBAItem.updateMany({
+  await prisma.checklistTask.updateMany({
     where: { companyId: cid, activityState: { in: ["ACTIVE", "EXPIRED"] }, updatedAt: { lt: staleThreshold } },
     data: { activityState: "STALE" }
   });
 
-  await prisma.nBAItem.updateMany({
+  await prisma.checklistTask.updateMany({
     where: { companyId: cid, activityState: { not: "ARCHIVED" }, updatedAt: { lt: archiveThreshold } },
     data: { activityState: "ARCHIVED" }
   });
@@ -727,7 +538,7 @@ async function runMaintenance(prisma, company) {
   // 3. Language cleanup
   const allCards = await Promise.all([
     prisma.flashcard.findMany({ where: { companyId: cid, activityState: { not: "ARCHIVED" } } }),
-    prisma.nBAItem.findMany({ where: { companyId: cid, activityState: { not: "ARCHIVED" } } })
+    prisma.checklistTask.findMany({ where: { companyId: cid, activityState: { not: "ARCHIVED" } } })
   ]);
   
   for (const fc of allCards[0]) await enforceLanguagePolicy(prisma, fc, "FLASHCARD", company);
@@ -815,8 +626,8 @@ async function mergeDuplicates(prisma, cid) {
     }
   }
 
-  // NBAItem Merging
-  const taskcards = await prisma.nBAItem.findMany({
+  // ChecklistTask Merging
+  const taskcards = await prisma.checklistTask.findMany({
     where: { companyId: cid, activityState: "ACTIVE" },
     orderBy: { updatedAt: "desc" }
   });
@@ -832,7 +643,7 @@ async function mergeDuplicates(prisma, cid) {
 
         console.log(`[MAINTENANCE] Semantic match: "${newest.title}" and "${oldest.title}". Keeping oldest ${oldest.id} with newest content, deleting ${newest.id}`);
         
-        await prisma.nBAItem.update({
+        await prisma.checklistTask.update({
           where: { id: oldest.id },
           data: {
             title: newest.title,
@@ -846,7 +657,7 @@ async function mergeDuplicates(prisma, cid) {
           }
         });
 
-        await prisma.nBAItem.delete({ where: { id: newest.id } });
+        await prisma.checklistTask.delete({ where: { id: newest.id } });
         
         const newestIndex = oldest === t1 ? j : i;
         taskcards.splice(newestIndex, 1);
@@ -868,7 +679,7 @@ async function enrichOldestCards(prisma, company) {
     prisma.source.count({ where: { companyId: cid } }),
     prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
     prisma.flashcard.count({ where: { companyId: cid } }),
-    prisma.nBAItem.count({
+    prisma.checklistTask.count({
       where: {
         companyId: cid,
         processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] },
@@ -896,7 +707,7 @@ async function enrichOldestCards(prisma, company) {
 
   // Enrich Tasks if count hit
   if (activeTasksCount >= 50) {
-     const toEnrich = await prisma.nBAItem.findMany({
+     const toEnrich = await prisma.checklistTask.findMany({
       where: { companyId: cid, processingStatus: "VERIFIED", activityState: "ACTIVE" },
       orderBy: [ { iceScore: "asc" }, { updatedAt: "asc" } ],
       take: 2
@@ -904,7 +715,7 @@ async function enrichOldestCards(prisma, company) {
     
     for (const tc of toEnrich) {
       console.log(`[ENRICH] Recycling taskcard ${tc.id} for refinement...`);
-      await reactivateCard(prisma, "NBAItem", tc.id);
+      await reactivateCard(prisma, "ChecklistTask", tc.id);
     }
   }
 }
@@ -913,11 +724,11 @@ async function enrichOldestCards(prisma, company) {
  * Forces a card back into the ACTIVE + DRAFT state for re-processing.
  * 
  * @param {PrismaClient} prisma - Database client
- * @param {string} cardType - "Flashcard" or "NBAItem"
+ * @param {string} cardType - "Flashcard" or "ChecklistTask"
  * @param {string} cardId - Unique card identifier
  */
 async function reactivateCard(prisma, cardType, cardId) {
-  const model = cardType === "Flashcard" ? prisma.flashcard : prisma.nBAItem;
+  const model = cardType === "Flashcard" ? prisma.flashcard : prisma.checklistTask;
   return await model.update({
     where: { id: cardId },
     data: {
@@ -954,7 +765,7 @@ async function applyFreshnessDecay(prisma, company) {
   });
 
   // NBAItems
-  const tcDecayed = await prisma.nBAItem.updateMany({
+  const tcDecayed = await prisma.checklistTask.updateMany({
     where: { 
       companyId: cid, 
       processingStatus: { in: ["VERIFIED", "ACCEPTED"] },
@@ -1014,6 +825,11 @@ async function revalidateSources(prisma, company) {
           where: { id: s.id },
           data: { 
             content: `${url}\n\n${content}`,
+            ...buildSourceLifecycleData({
+              ...s,
+              content: `${url}\n\n${content}`,
+              metadata: { ...(s.metadata || {}), contentHash: newHash, lastCheckedAt: new Date().toISOString() },
+            }),
             updatedAt: new Date(),
             metadata: { ...(s.metadata || {}), contentHash: newHash, lastCheckedAt: new Date().toISOString() }
           }
@@ -1032,7 +848,11 @@ async function revalidateSources(prisma, company) {
         // Just touch the source to reset revalidation timer
         await prisma.source.update({
           where: { id: s.id },
-          data: { updatedAt: new Date(), metadata: { ...(s.metadata || {}), lastCheckedAt: new Date().toISOString() } }
+          data: {
+            updatedAt: new Date(),
+            metadata: { ...(s.metadata || {}), lastCheckedAt: new Date().toISOString() },
+            processingStatus: deriveSourceProcessingStatus(s),
+          }
         });
       }
     } catch (err) {
@@ -1070,7 +890,7 @@ async function detectStrategyDrift(prisma, company) {
   }
 
   // 2. Taskcards
-  const activeTc = await prisma.nBAItem.findMany({
+  const activeTc = await prisma.checklistTask.findMany({
     where: { companyId: cid, processingStatus: "VERIFIED", activityState: "ACTIVE" },
     select: { id: true, userAnnotation: true, updatedAt: true }
   });
@@ -1083,8 +903,8 @@ async function detectStrategyDrift(prisma, company) {
     const topic = await prisma.topic.findUnique({ where: { id: topicId } });
     if (topic && topic.updatedAt > tc.updatedAt) {
       console.log(`[STRATEGY DRIFT] tc:${tc.id}: Topic [${topic.label}] was updated. Recycling card for re-alignment.`);
-      await reactivateCard(prisma, "NBAItem", tc.id);
-      await prisma.nBAItem.update({
+      await reactivateCard(prisma, "ChecklistTask", tc.id);
+      await prisma.checklistTask.update({
         where: { id: tc.id },
         data: { userAnnotation: `${tc.userAnnotation} [MAINTENANCE]: Recycled due to strategy drift (Topic update).`.trim() }
       });

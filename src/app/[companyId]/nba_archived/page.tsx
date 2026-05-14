@@ -1,12 +1,10 @@
-'use client';
+import { redirect } from "next/navigation";
 
-import { useParams } from "next/navigation";
-
-import { ChecklistPage } from "@/components/checklist-page";
-
-export default function CompanyArchivedNBAPage() {
-  const params = useParams();
-  const companyId = params.companyId as string;
-
-  return <ChecklistPage companyId={companyId} archived />;
+export default async function LegacyArchivedChecklistRouteRedirect({
+  params,
+}: {
+  params: Promise<{ companyId: string }>;
+}) {
+  const { companyId } = await params;
+  redirect(`/${companyId}/checklist_archived`);
 }

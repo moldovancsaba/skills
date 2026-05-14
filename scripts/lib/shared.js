@@ -3,6 +3,7 @@
  * v2.0.0 — Ground Truth Edition
  */
 const crypto = require("crypto");
+const { getStageModels } = require("./core");
 
 /**
  * v2.0.0: Canonical Text Normalization
@@ -151,6 +152,7 @@ module.exports = {
   unique,
   parseBoundedInt,
   parseBoundedScore,
+  getStageModels,
   stripTechnicalMetadata,
   sanitizeUserFacingText,
   nextPublicId

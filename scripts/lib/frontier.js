@@ -7,18 +7,22 @@
 const { CandidateState } = require("./lifecycle");
 const { recordDecisionEvent, recordOutcomeEvent } = require("./audit-ledger");
 const { computeBlendedPriorityProfile, computePriorityCohortProfiles } = require("../../src/lib/scoring-contract");
+const {
+  PLANNER_LANE_ORDER,
+  PLANNER_LANE_TARGETS,
+  comparePlannerPromotionPriority,
+  getPromotionSourceLanes,
+  normalizeLane,
+  canMoveTaskToLane,
+  getManualLaneFloorColumn,
+  getLaneRank,
+} = require("../../src/lib/planner-contract");
 
 // ---------------------------------------------------------------------------
 // 1. Configuration
 // ---------------------------------------------------------------------------
 
 const FRONTIER_MAX_SIZE = 3;
-const PRIORITY_THRESHOLD = Object.freeze({
-  CHECKLIST: 700,
-  TODO: 500,
-  BACKLOG: 250,
-  ROADMAP: 100,
-});
 
 // State weights per spec §15.3
 const STATE_WEIGHTS = {
@@ -37,7 +41,7 @@ const ROT_DAYS = 14;
 /**
  * Computes the multi-factor frontier score for a single candidate.
  *
- * @param {object} candidate - NBAItem record
+ * @param {object} candidate - ChecklistTask record
  * @returns {number} frontier score (higher = more surfaceable)
  */
 function computeFrontierScore(candidate) {
@@ -144,7 +148,7 @@ function collapseDuplicateClusters(candidates) {
 async function loadEligibleCandidates(prisma, companyId) {
   const statePriority = [CandidateState.EVALUATED, CandidateState.REFINED, CandidateState.GENERATED];
 
-  const candidates = await prisma.nBAItem.findMany({
+  const candidates = await prisma.checklistTask.findMany({
     where: {
       companyId,
       candidateState: { in: statePriority },
@@ -235,71 +239,94 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
     return new Date(left.updatedAt || left.createdAt || 0) - new Date(right.updatedAt || right.createdAt || 0);
   });
 
-  // ---------------------------------------------------------------------------
-  // 6. Blended-Priority Column Distribution (§24)
-  // ---------------------------------------------------------------------------
-  // Cards earn their AI-selected column by blended priority, not raw ICE alone.
-  // ICE remains the visible card score; frontier placement blends ICE, quality,
-  // urgency, freshness, human signal, risk, lifecycle state, and memory signal.
-  // Thresholds are intentional gates — a card must improve to advance.
-  //
-  //   CHECKLIST  : priority >= 700 (hard-capped at FRONTIER_MAX_SIZE = 3)
-  //   TODO       : priority >= 500
-  //   BACKLOG    : priority >= 250
-  //   ROADMAP    : priority >= 100
-  //   IDEABANK   : priority <  100  (default holding pen for all new cards)
+  const now = new Date();
+  const promotionComparator = (left, right) => {
+    const plannerCompare = comparePlannerPromotionPriority(left, right);
+    if (plannerCompare !== 0) return plannerCompare;
 
-  const columnMap = [
-    { items: [], column: "CHECKLIST" },
-    { items: [], column: "TODO" },
-    { items: [], column: "BACKLOG" },
-    { items: [], column: "ROADMAP" },
-    { items: [], column: "IDEABANK" },
-  ];
-
-  const rankCount = deduplicated.length;
-  const relativeBandForIndex = (index) => {
-    const percentile = rankCount <= 1 ? 1 : 1 - index / (rankCount - 1);
-    if (index < FRONTIER_MAX_SIZE) return "CHECKLIST";
-    if (percentile >= 0.82) return "TODO";
-    if (percentile >= 0.52) return "BACKLOG";
-    if (percentile >= 0.24) return "ROADMAP";
-    return "IDEABANK";
+    const leftProfile = left._priorityProfile || { components: {} };
+    const rightProfile = right._priorityProfile || { components: {} };
+    if ((right._frontierScore || 0) !== (left._frontierScore || 0)) {
+      return (right._frontierScore || 0) - (left._frontierScore || 0);
+    }
+    if ((rightProfile.components?.human || 0) !== (leftProfile.components?.human || 0)) {
+      return (rightProfile.components?.human || 0) - (leftProfile.components?.human || 0);
+    }
+    return new Date(left.updatedAt || left.createdAt || 0) - new Date(right.updatedAt || right.createdAt || 0);
   };
 
-  for (const [index, item] of deduplicated.entries()) {
-    const targetByRank = relativeBandForIndex(index);
+  deduplicated.sort(promotionComparator);
 
-    // Respect user-set hard priority (sortOrder < 0) — Anchor in their current column
-    if (item.sortOrder < 0 && item.kanbanColumn) {
-      const targetCol = columnMap.find(c => c.column === item.kanbanColumn) || columnMap[4];
-      
-      // Special case: CHECKLIST (Now) has a hard cap of 3
-      if (item.kanbanColumn === "CHECKLIST" && columnMap[0].items.length >= FRONTIER_MAX_SIZE) {
-        columnMap[1].items.push(item); // Overflow to TODO (Next)
-      } else {
-        targetCol.items.push(item);
-      }
-    } else if (targetByRank === "CHECKLIST" && columnMap[0].items.length < FRONTIER_MAX_SIZE) {
-      columnMap[0].items.push(item);
-    } else if (targetByRank === "TODO") {
-      columnMap[1].items.push(item);
-    } else if (targetByRank === "BACKLOG") {
-      columnMap[2].items.push(item);
-    } else if (targetByRank === "ROADMAP") {
-      columnMap[3].items.push(item);
-    } else {
-      columnMap[4].items.push(item);
+  const assignments = new Map();
+  const laneBuckets = new Map(PLANNER_LANE_ORDER.map((column) => [column, []]));
+
+  for (const item of deduplicated) {
+    const currentColumn = normalizeLane(item.kanbanColumn || "IDEABANK");
+    const floorColumn = getManualLaneFloorColumn(item, now);
+    const initialColumn =
+      floorColumn && getLaneRank(currentColumn) > getLaneRank(floorColumn)
+        ? floorColumn
+        : currentColumn;
+    assignments.set(item.id, initialColumn);
+    laneBuckets.get(initialColumn).push(item);
+  }
+
+  const countAssignments = (column) => laneBuckets.get(column)?.length || 0;
+
+  const moveItemToColumn = (item, targetColumn) => {
+    const previousColumn = assignments.get(item.id) || normalizeLane(item.kanbanColumn || "IDEABANK");
+    if (previousColumn === targetColumn) return false;
+
+    const previousBucket = laneBuckets.get(previousColumn);
+    if (previousBucket) {
+      const previousIndex = previousBucket.findIndex((candidate) => candidate.id === item.id);
+      if (previousIndex >= 0) previousBucket.splice(previousIndex, 1);
+    }
+
+    assignments.set(item.id, targetColumn);
+    laneBuckets.get(targetColumn).push(item);
+    return true;
+  };
+
+  for (const targetColumn of PLANNER_LANE_ORDER) {
+    const targetMinimum = PLANNER_LANE_TARGETS[targetColumn] || 0;
+    if (targetMinimum <= 0) continue;
+
+    while (countAssignments(targetColumn) < targetMinimum) {
+      const sourceColumns = getPromotionSourceLanes(targetColumn);
+      const bestCandidate = deduplicated.find((candidate) => {
+        const currentColumn = assignments.get(candidate.id) || normalizeLane(candidate.kanbanColumn || "IDEABANK");
+        if (!sourceColumns.includes(currentColumn)) return false;
+        return canMoveTaskToLane(candidate, targetColumn, now);
+      });
+
+      if (!bestCandidate) break;
+      moveItemToColumn(bestCandidate, targetColumn);
     }
   }
 
-  console.log(`[KANBAN] ${company.name}: Orchestrating ${deduplicated.length} items across 5 columns.`);
+  const columnMap = PLANNER_LANE_ORDER.map((column) => ({
+    column,
+    items: (laneBuckets.get(column) || []).slice().sort((left, right) => {
+      const leftManual = Number(left.sortOrder || 0) < 0;
+      const rightManual = Number(right.sortOrder || 0) < 0;
+      if (leftManual && rightManual && Number(left.sortOrder || 0) !== Number(right.sortOrder || 0)) {
+        return Number(left.sortOrder || 0) - Number(right.sortOrder || 0);
+      }
+      if (leftManual !== rightManual) return leftManual ? -1 : 1;
+      return promotionComparator(left, right);
+    }),
+  }));
+
+  console.log(`[KANBAN] ${company.name}: Refilled tactical lanes across ${deduplicated.length} eligible items.`);
 
   for (const [rank, item] of deduplicated.entries()) {
-    const targetColumn = columnMap.find((group) => group.items.some((candidate) => candidate.id === item.id))?.column || item.kanbanColumn || "IDEABANK";
+    const targetColumn = assignments.get(item.id) || normalizeLane(item.kanbanColumn || "IDEABANK");
+    const floorColumn = getManualLaneFloorColumn(item, now);
+    const wasPromoted = getLaneRank(targetColumn) < getLaneRank(normalizeLane(item.kanbanColumn || "IDEABANK"));
     await recordDecisionEvent(prisma, {
       companyId,
-      decisionMaker: "frontier-orchestrator",
+      decisionMaker: "planner-frontier-orchestrator",
       decisionType: "KANBAN_COLUMN_ASSIGNMENT",
       entityType: "TASK",
       entityId: item.id,
@@ -316,16 +343,18 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
       payload: {
         blendedPriorityScore: item._frontierScore,
         priorityProfile: item._priorityProfile,
-        checklistThreshold: PRIORITY_THRESHOLD.CHECKLIST,
-        todoThreshold: PRIORITY_THRESHOLD.TODO,
-        backlogThreshold: PRIORITY_THRESHOLD.BACKLOG,
-        roadmapThreshold: PRIORITY_THRESHOLD.ROADMAP,
+        plannerLaneTargets: PLANNER_LANE_TARGETS,
+        plannerLaneRank: rank + 1,
         manualPriority: item.sortOrder < 0,
         memoryMultiplier: item._memoryMultiplier ?? 1,
+        manualLaneFloorColumn: floorColumn,
+        wasPromoted,
       },
-      rationale: item.sortOrder < 0
-        ? "User-prioritized hard anchor respected during blended-priority frontier recompute"
-        : `Column assigned by blended priority: ${item._priorityProfile?.reasons?.join(", ") ?? "no reasons"}`,
+      rationale: floorColumn && targetColumn === floorColumn
+        ? `Manual lane floor preserved during cooldown window at ${floorColumn}`
+        : wasPromoted
+          ? `Lane refilled by deterministic planner promotion using ICE/ease/confidence/title ordering into ${targetColumn}`
+          : `Lane retained by deterministic planner without refill pressure; score context: ${item._priorityProfile?.reasons?.join(", ") ?? "no reasons"}`,
       teachingWeight: targetColumn === "CHECKLIST" ? 80 : 60,
       cycleRunId,
     });
@@ -334,35 +363,38 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
   // 7. Persist Column State
   for (const group of columnMap) {
     if (group.items.length === 0) continue;
-    
-    const ids = group.items.map(i => i.id);
-    
-    // Update column and clearing scheduledDate if not in CHECKLIST
-    await prisma.nBAItem.updateMany({
-      where: { id: { in: ids } },
-      data: { 
-        kanbanColumn: group.column,
-        scheduledDate: group.column === "CHECKLIST" ? new Date() : null,
-        cycleRunId: cycleRunId || undefined
-      }
-    });
 
-    for (const item of group.items) {
-      if (item.kanbanColumn !== group.column) {
+    for (const [index, item] of group.items.entries()) {
+      const nextSortOrder = Number(item.sortOrder || 0) < 0 ? item.sortOrder : index + 1;
+      const nextScheduledDate = group.column === "CHECKLIST" ? new Date() : null;
+
+      await prisma.checklistTask.update({
+        where: { id: item.id },
+        data: {
+          kanbanColumn: group.column,
+          sortOrder: nextSortOrder,
+          scheduledDate: nextScheduledDate,
+          cycleRunId: cycleRunId || undefined,
+        },
+      });
+
+      if (item.kanbanColumn !== group.column || Number(item.sortOrder || 0) !== Number(nextSortOrder || 0)) {
         await recordOutcomeEvent(prisma, {
           companyId,
           actorType: "AI",
-          actorId: "frontier-orchestrator",
+          actorId: "planner-frontier-orchestrator",
           entityType: "TASK",
           entityId: item.id,
           outcomeType: "KANBAN_REASSIGNMENT",
           outcomeValue: group.column,
           beforeState: {
             kanbanColumn: item.kanbanColumn,
+            sortOrder: item.sortOrder,
           },
           afterState: {
             kanbanColumn: group.column,
-            scheduledDate: group.column === "CHECKLIST" ? new Date() : null,
+            sortOrder: nextSortOrder,
+            scheduledDate: nextScheduledDate,
           },
           payload: {
             blendedPriorityScore: item._frontierScore,
@@ -373,9 +405,6 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
         });
       }
     }
-
-    // Handle sortOrder for manual overrides - only reset if it was 0
-    // We don't want to wipe the user's "hard feedback"
   }
 
   // Final cleanup for items no longer eligible (e.g. archived)

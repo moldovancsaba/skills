@@ -274,7 +274,7 @@ function normalizeKnowledgePayload(card: {
 
 export async function resolveSharedCardById(cardId: string): Promise<SharedCardPayload | null> {
   const [task, goal, knowledge, source, file, topic] = await Promise.all([
-    prisma.nBAItem.findUnique({
+    prisma.checklistTask.findUnique({
       where: { id: cardId },
       select: {
         id: true,

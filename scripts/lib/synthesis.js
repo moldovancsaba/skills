@@ -20,6 +20,18 @@ const {
   normalizeKnowledgeScores,
   normalizeTaskScores,
 } = require("../../src/lib/scoring-contract");
+const {
+  PLANNER_LANE_ORDER,
+  PLANNER_LANE_TARGETS,
+  PLANNER_MIN_FLASHCARDS,
+  PLANNER_MIN_DATACARDS_FOR_ACTIVE,
+  GENERATION_TIMEOUT_MS,
+  getCompanyOperatingMode,
+} = require("../../src/lib/planner-contract");
+const {
+  getWeakestProcessingStatus,
+  deriveSourceProcessingStatus,
+} = require("../../src/lib/source-contract");
 
 /**
  * checklist LOCAL AI ENGINE
@@ -54,6 +66,301 @@ var synthesisState = {
 
 function getSynthesisProgress() {
   return synthesisState;
+}
+
+async function withPlannerStageTimeout(label, operation, timeoutMs = GENERATION_TIMEOUT_MS) {
+  let timeoutHandle = null;
+  try {
+    return await Promise.race([
+      operation(),
+      new Promise((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error(`[PLANNER_TIMEOUT] ${label} exceeded ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
+}
+
+const PROCESSING_STATUS_ORDER = Object.freeze({
+  DRAFT: 0,
+  CHECKED: 1,
+  VERIFIED: 2,
+  ACCEPTED: 2,
+});
+
+function findPlannerLaneDeficits(laneCounts) {
+  return PLANNER_LANE_ORDER.filter((lane) => Number(laneCounts?.[lane] || 0) < Number(PLANNER_LANE_TARGETS[lane] || 0));
+}
+
+function getStatusCeilingFromValues(statuses = []) {
+  return getWeakestProcessingStatus(statuses);
+}
+
+function buildTaskLifecycleCeiling(ceilingStatus) {
+  if (ceilingStatus === "VERIFIED") {
+    return {
+      processingStatus: "VERIFIED",
+      candidateState: CandidateState.EVALUATED,
+      activityState: "ACTIVE",
+    };
+  }
+  if (ceilingStatus === "CHECKED") {
+    return {
+      processingStatus: "CHECKED",
+      candidateState: CandidateState.REFINED,
+      activityState: "ACTIVE",
+    };
+  }
+  return {
+    processingStatus: "DRAFT",
+    candidateState: CandidateState.GENERATED,
+    activityState: "ACTIVE",
+  };
+}
+
+async function computeTaskProcessingCeiling(prisma, taskOrFlashcardIds) {
+  const sourceFlashcardIds = Array.isArray(taskOrFlashcardIds?.sourceFlashcardIds)
+    ? taskOrFlashcardIds.sourceFlashcardIds
+    : Array.isArray(taskOrFlashcardIds)
+      ? taskOrFlashcardIds
+      : [];
+  if (sourceFlashcardIds.length === 0) return null;
+
+  const flashcards = await prisma.flashcard.findMany({
+    where: { id: { in: sourceFlashcardIds } },
+    select: { id: true, processingStatus: true },
+  });
+  if (flashcards.length === 0) return null;
+  return getStatusCeilingFromValues(flashcards.map((flashcard) => flashcard.processingStatus));
+}
+
+async function enforceTaskProcessingCeiling(prisma, taskId) {
+  const task = await prisma.checklistTask.findUnique({
+    where: { id: taskId },
+    select: {
+      id: true,
+      processingStatus: true,
+      candidateState: true,
+      activityState: true,
+      sourceFlashcardIds: true,
+    },
+  });
+  if (!task) return false;
+
+  const ceilingStatus = await computeTaskProcessingCeiling(prisma, task);
+  if (!ceilingStatus) return false;
+
+  const currentRank = PROCESSING_STATUS_ORDER[String(task.processingStatus || "DRAFT").toUpperCase()] ?? 0;
+  const ceilingRank = PROCESSING_STATUS_ORDER[ceilingStatus] ?? 0;
+  if (currentRank <= ceilingRank) return false;
+
+  const lifecycleCeiling = buildTaskLifecycleCeiling(ceilingStatus);
+  await prisma.checklistTask.update({
+    where: { id: task.id },
+    data: lifecycleCeiling,
+  });
+  return true;
+}
+
+async function computeFlashcardProcessingCeiling(prisma, flashcardId) {
+  const sourceLinks = await prisma.flashcardSource.findMany({
+    where: {
+      flashcardId,
+      sourceType: "SOURCE",
+    },
+    select: { sourceId: true },
+  });
+  if (sourceLinks.length === 0) return null;
+
+  const sources = await prisma.source.findMany({
+    where: { id: { in: sourceLinks.map((link) => link.sourceId) } },
+    select: {
+      id: true,
+      processingStatus: true,
+      content: true,
+      canonicalContent: true,
+      canonicalContentHash: true,
+      confidence: true,
+      confidenceScore: true,
+      provenance: true,
+      sourceType: true,
+      metadata: true,
+    },
+  });
+  if (sources.length === 0) return null;
+
+  return getWeakestProcessingStatus(sources.map((source) => deriveSourceProcessingStatus(source)));
+}
+
+async function enforceFlashcardProcessingCeiling(prisma, flashcardId) {
+  const flashcard = await prisma.flashcard.findUnique({
+    where: { id: flashcardId },
+    select: { id: true, processingStatus: true },
+  });
+  if (!flashcard) return false;
+
+  const ceilingStatus = await computeFlashcardProcessingCeiling(prisma, flashcardId);
+  if (!ceilingStatus) return false;
+
+  const currentRank = PROCESSING_STATUS_ORDER[String(flashcard.processingStatus || "DRAFT").toUpperCase()] ?? 0;
+  const ceilingRank = PROCESSING_STATUS_ORDER[ceilingStatus] ?? 0;
+  if (currentRank <= ceilingRank) return false;
+
+  await prisma.flashcard.update({
+    where: { id: flashcardId },
+    data: {
+      processingStatus: ceilingStatus,
+    },
+  });
+  return true;
+}
+
+async function loadCompanyPlannerInventory(prisma, companyId) {
+  const [datacardCount, flashcardCount, taskLaneCounts] = await Promise.all([
+    prisma.source.count({ where: { companyId } }),
+    prisma.flashcard.count({
+      where: {
+        companyId,
+        activityState: { in: ["ACTIVE", "STALE"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+      },
+    }),
+    prisma.checklistTask.groupBy({
+      by: ["kanbanColumn"],
+      where: {
+        companyId,
+        activityState: { in: ["ACTIVE", "STALE"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+        status: { notIn: ["ARCHIVED", "COMPLETED"] },
+      },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const laneCounts = Object.fromEntries(
+    PLANNER_LANE_ORDER.map((lane) => [lane, 0]),
+  );
+  for (const row of taskLaneCounts) {
+    laneCounts[row.kanbanColumn] = row._count._all;
+  }
+
+  return {
+    datacardCount,
+    flashcardCount,
+    laneCounts,
+    deficits: findPlannerLaneDeficits(laneCounts),
+    mode: getCompanyOperatingMode({
+      datacardCount,
+      flashcardCount,
+      laneCounts,
+    }),
+  };
+}
+
+async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, workerContext) {
+  let ops = 0;
+  let inventory = await loadCompanyPlannerInventory(prisma, company.id);
+
+  if (inventory.datacardCount < PLANNER_MIN_DATACARDS_FOR_ACTIVE) {
+    console.log(`[PLANNER] ${company.name}: inactive (no datacards).`);
+    return 0;
+  }
+
+  console.log(
+    `[PLANNER] ${company.name}: mode=${inventory.mode} datacards=${inventory.datacardCount} flashcards=${inventory.flashcardCount} deficits=${inventory.deficits.join(",") || "none"}`,
+  );
+
+  if (inventory.flashcardCount < PLANNER_MIN_FLASHCARDS) {
+    ops += await withPlannerStageTimeout(
+      `${company.name}:bootstrap_flashcard_generation`,
+      () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext),
+    ).catch((error) => {
+      console.warn(error.message);
+      return 0;
+    });
+    ops += await withPlannerStageTimeout(
+      `${company.name}:bootstrap_flashcard_judging`,
+      () => performCompanyJudging(prisma, company, memoryPrompt, topic, workerContext),
+    ).catch((error) => {
+      console.warn(error.message);
+      return 0;
+    });
+    inventory = await loadCompanyPlannerInventory(prisma, company.id);
+  }
+
+  if (inventory.flashcardCount < PLANNER_MIN_FLASHCARDS && inventory.datacardCount <= 3) {
+    const researchOps = await performCompanyScrubbing(prisma, company, memoryPrompt, topic, workerContext);
+    ops += researchOps;
+    if (researchOps > 0) {
+      ops += await withPlannerStageTimeout(
+        `${company.name}:research_backfill_flashcard_generation`,
+        () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext),
+      ).catch((error) => {
+        console.warn(error.message);
+        return 0;
+      });
+      ops += await withPlannerStageTimeout(
+        `${company.name}:research_backfill_flashcard_judging`,
+        () => performCompanyJudging(prisma, company, memoryPrompt, topic, workerContext),
+      ).catch((error) => {
+        console.warn(error.message);
+        return 0;
+      });
+      inventory = await loadCompanyPlannerInventory(prisma, company.id);
+    }
+  }
+
+  if (inventory.deficits.length > 0) {
+    ops += await withPlannerStageTimeout(
+      `${company.name}:lane_deficit_task_generation`,
+      () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext),
+    ).catch((error) => {
+      console.warn(error.message);
+      return 0;
+    });
+    inventory = await loadCompanyPlannerInventory(prisma, company.id);
+  }
+
+  if (inventory.deficits.length > 0 && inventory.flashcardCount < PLANNER_MIN_FLASHCARDS) {
+    ops += await withPlannerStageTimeout(
+      `${company.name}:lane_deficit_flashcard_generation`,
+      () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext),
+    ).catch((error) => {
+      console.warn(error.message);
+      return 0;
+    });
+    ops += await withPlannerStageTimeout(
+      `${company.name}:lane_deficit_flashcard_judging`,
+      () => performCompanyJudging(prisma, company, memoryPrompt, topic, workerContext),
+    ).catch((error) => {
+      console.warn(error.message);
+      return 0;
+    });
+    ops += await withPlannerStageTimeout(
+      `${company.name}:lane_deficit_retry_task_generation`,
+      () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext),
+    ).catch((error) => {
+      console.warn(error.message);
+      return 0;
+    });
+    inventory = await loadCompanyPlannerInventory(prisma, company.id);
+  }
+
+  if (inventory.mode === "MAINTENANCE" && ops === 0) {
+    ops += await withPlannerStageTimeout(
+      `${company.name}:maintenance_task_generation`,
+      () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext),
+    ).catch((error) => {
+      console.warn(error.message);
+      return 0;
+    });
+  }
+
+  await recomputeFrontier(prisma, company, workerContext?.cycleRunId);
+  return ops;
 }
 
 function isRetryableWriteConflict(error) {
@@ -369,7 +676,7 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
               confidence: cleanDraft.confidenceScore ?? cleanDraft.confidence,
               ease: cleanDraft.weight ?? cleanDraft.ease,
             });
-            createdItem = await prisma.nBAItem.create({
+            createdItem = await prisma.checklistTask.create({
               data: {
                 companyId: cid,
                 title: cleanDraft.title,
@@ -477,6 +784,7 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
                 }
               }).catch(() => {});
             }
+            await enforceFlashcardProcessingCeiling(prisma, createdItem.id);
             dbFlashcards.push(createdItem);
           }
         }
@@ -491,6 +799,7 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
     const { refined, suppressed } = await refineFlashcardBatch(prisma, company, dbFlashcards, memoryPrompt);
     for (const r of refined) {
       await prisma.flashcard.update({ where: { id: r.id }, data: r });
+      await enforceFlashcardProcessingCeiling(prisma, r.id);
     }
     for (const s of suppressed) {
       await prisma.flashcard.update({ where: { id: s.id }, data: s });
@@ -551,6 +860,7 @@ async function performCompanyJudging(prisma, company, memoryPrompt, topic, worke
           teachingWeight: 40,
           cycleRunId: workerContext.cycleRunId,
         });
+        await enforceFlashcardProcessingCeiling(prisma, fc.id);
         ops++;
       }
     } catch (err) {
@@ -558,6 +868,40 @@ async function performCompanyJudging(prisma, company, memoryPrompt, topic, worke
     }
   }
   return ops;
+}
+
+function buildTaskUpdatePayload(candidate) {
+  const description = candidate?.description ?? candidate?.body ?? null;
+  return {
+    title: candidate?.title,
+    description,
+    kind: candidate?.kind,
+    impact: candidate?.impact,
+    confidence: candidate?.confidence,
+    confidenceScore: candidate?.confidenceScore,
+    ease: candidate?.ease,
+    iceScore: candidate?.iceScore,
+    scoreProfile: candidate?.scoreProfile ?? undefined,
+    hashtags: Array.isArray(candidate?.hashtags) ? candidate.hashtags : undefined,
+    processingStatus: candidate?.processingStatus,
+    activityState: candidate?.activityState,
+    status: candidate?.status,
+    candidateState: candidate?.candidateState,
+    reworkRoute: candidate?.reworkRoute ?? null,
+    qualityScore: candidate?.qualityScore ?? null,
+    urgencyScore: candidate?.urgencyScore ?? null,
+    freshnessScore: candidate?.freshnessScore ?? null,
+    feedbackScore: candidate?.feedbackScore ?? 0,
+    evaluationReason: candidate?.evaluationReason ?? null,
+    fingerprint: candidate?.fingerprint,
+    sourceFlashcardIds: Array.isArray(candidate?.sourceFlashcardIds) ? candidate.sourceFlashcardIds : undefined,
+    generatedFromIds: Array.isArray(candidate?.generatedFromIds) ? candidate.generatedFromIds : undefined,
+    versionFamilyId: candidate?.versionFamilyId ?? null,
+    duplicateClusterId: candidate?.duplicateClusterId ?? null,
+    refinedFromId: candidate?.refinedFromId ?? null,
+    kanbanColumn: candidate?.kanbanColumn,
+    sortOrder: candidate?.sortOrder,
+  };
 }
 
 /**
@@ -573,23 +917,26 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
   const cid = company.id;
   const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
 
-  // 1. Find VERIFIED Flashcards that haven't spawned actions recently
+  // 1. Find active Flashcards that haven't spawned actions recently.
+  // Bootstrap mode may need to generate from CHECKED/DRAFT inventory as well.
   const knowledgeBase = await prisma.flashcard.findMany({
     where: { 
       companyId: cid, 
-      processingStatus: "VERIFIED",
-      activityState: "ACTIVE",
-      intelligenceType: "INTERNAL"
+      processingStatus: { in: ["VERIFIED", "CHECKED", "DRAFT", "ACCEPTED"] },
+      activityState: { in: ["ACTIVE", "STALE"] },
     },
-    orderBy: { updatedAt: "desc" },
-    take: orbitLimit
+    orderBy: [
+      { lastActionAt: "asc" },
+      { updatedAt: "asc" },
+    ],
+    take: orbitLimit * 2,
   });
 
   if (knowledgeBase.length === 0) return 0;
 
   // M3.1: Bottleneck Guard (§14.2)
   // Ensure we don't overwhelm the user or VRAM by generating beyond the 100-card active limit.
-  const activeCount = await prisma.nBAItem.count({
+  const activeCount = await prisma.checklistTask.count({
     where: { 
       companyId: cid, 
       activityState: { in: ["ACTIVE", "STALE"] },
@@ -602,19 +949,35 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
     return 0;
   }
 
-  console.log(`[ACTION] ${company.name}: Found ${knowledgeBase.length} VERIFIED Flashcards to mine for actions`);
+  const rankedKnowledgeBase = knowledgeBase.slice().sort((left, right) => {
+    const statusDelta =
+      (PROCESSING_STATUS_ORDER[String(right.processingStatus || "DRAFT").toUpperCase()] ?? 0) -
+      (PROCESSING_STATUS_ORDER[String(left.processingStatus || "DRAFT").toUpperCase()] ?? 0);
+    if (statusDelta !== 0) return statusDelta;
+    return new Date(left.lastActionAt || left.updatedAt || left.createdAt || 0) - new Date(right.lastActionAt || right.updatedAt || right.createdAt || 0);
+  });
 
-  for (const fc of knowledgeBase) {
+  console.log(`[ACTION] ${company.name}: Found ${rankedKnowledgeBase.length} active Flashcards to mine for actions`);
+
+  for (const fc of rankedKnowledgeBase.slice(0, orbitLimit)) {
     try {
+      const taskStatusCeiling = getStatusCeilingFromValues([fc.processingStatus]);
       // Step 1: GENERATE (M2.1 Drafter)
-      const generatedCandidates = await draftTaskcardFromFlashCard(prisma, company, fc, memoryPrompt, topic);
+      const generatedCandidates = await withPlannerStageTimeout(
+        `${company.name}:task_generation_from_flashcard:${fc.id}`,
+        () => draftTaskcardFromFlashCard(prisma, company, fc, memoryPrompt, topic),
+      );
       if (!generatedCandidates || generatedCandidates.length === 0) continue;
 
       // Ensure fingerprint and other default fields for generated candidates
       const dbCandidates = await Promise.all(generatedCandidates.map(async draft => {
-        const created = await prisma.nBAItem.create({
+        const lifecycleCeiling = buildTaskLifecycleCeiling(taskStatusCeiling);
+        const created = await prisma.checklistTask.create({
           data: {
             ...draft,
+            processingStatus: lifecycleCeiling.processingStatus,
+            candidateState: lifecycleCeiling.candidateState,
+            activityState: lifecycleCeiling.activityState,
             cycleRunId: workerContext.cycleRunId,
             createdAt: await getServerTime(prisma)
           }
@@ -647,20 +1010,25 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
       const { refined, suppressed, spawned = [] } = await refineNBAItemBatch(prisma, company, dbCandidates, memoryPrompt);
 
       for (const r of refined) {
-        await prisma.nBAItem.update({ where: { id: r.id }, data: r });
+        await prisma.checklistTask.update({ where: { id: r.id }, data: buildTaskUpdatePayload(r) });
+        await enforceTaskProcessingCeiling(prisma, r.id);
       }
       for (const s of suppressed) {
-        await prisma.nBAItem.update({ where: { id: s.id }, data: s });
+        await prisma.checklistTask.update({ where: { id: s.id }, data: buildTaskUpdatePayload(s) });
       }
       const createdSpawned = [];
       for (const item of spawned) {
-        const created = await prisma.nBAItem.create({ data: item });
+        const created = await prisma.checklistTask.create({ data: item });
+        await enforceTaskProcessingCeiling(prisma, created.id);
         createdSpawned.push(created);
       }
 
       // Step 3: EVALUATE (M2.3 Evaluator)
       if (refined.length > 0 || createdSpawned.length > 0) {
         await evaluateNBAItemBatch(prisma, company, [...refined, ...createdSpawned], memoryPrompt);
+        for (const candidate of [...refined, ...createdSpawned]) {
+          await enforceTaskProcessingCeiling(prisma, candidate.id);
+        }
       }
 
       ops += dbCandidates.length + createdSpawned.length;
@@ -668,7 +1036,7 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
       // Touch the flashcard so we don't infinitely spawn from it
       await prisma.flashcard.update({
         where: { id: fc.id },
-        data: { updatedAt: new Date() }
+        data: { updatedAt: new Date(), lastActionAt: new Date() }
       });
 
     } catch (err) {
@@ -695,7 +1063,7 @@ async function processCandidateBacklog(prisma, company, memoryPrompt) {
   const cid = company.id;
 
   // 1. Process REFINED candidates that need EVALUATION
-  const refined = await prisma.nBAItem.findMany({
+  const refined = await prisma.checklistTask.findMany({
     where: { 
       companyId: cid, 
       candidateState: CandidateState.REFINED,
@@ -711,7 +1079,7 @@ async function processCandidateBacklog(prisma, company, memoryPrompt) {
   }
 
   // 2. Process GENERATED candidates that need REFINEMENT
-  const generated = await prisma.nBAItem.findMany({
+  const generated = await prisma.checklistTask.findMany({
     where: { 
       companyId: cid, 
       candidateState: CandidateState.GENERATED,
@@ -725,11 +1093,11 @@ async function processCandidateBacklog(prisma, company, memoryPrompt) {
     console.log(`[BACKLOG] ${company.name}: Found ${generated.length} GENERATED items needing REFINEMENT.`);
     const { refined: newRefined, suppressed, spawned = [] } = await refineNBAItemBatch(prisma, company, generated, memoryPrompt);
     
-    for (const r of newRefined) await prisma.nBAItem.update({ where: { id: r.id }, data: r });
-    for (const s of suppressed) await prisma.nBAItem.update({ where: { id: s.id }, data: s });
+    for (const r of newRefined) await prisma.checklistTask.update({ where: { id: r.id }, data: buildTaskUpdatePayload(r) });
+    for (const s of suppressed) await prisma.checklistTask.update({ where: { id: s.id }, data: buildTaskUpdatePayload(s) });
     const createdSpawned = [];
     for (const item of spawned) {
-      const created = await prisma.nBAItem.create({ data: item });
+      const created = await prisma.checklistTask.create({ data: item });
       createdSpawned.push(created);
     }
     
@@ -741,6 +1109,8 @@ async function processCandidateBacklog(prisma, company, memoryPrompt) {
 
 module.exports = {
   runSynthesisCycle,
+  runCompanyPlannerCycle,
+  loadCompanyPlannerInventory,
   performCompanyWriting,
   performCompanyScrubbing,
   performCompanyJudging,

@@ -11,7 +11,7 @@ To ensure **Safety First** and database stability, we maintain stable model name
 | **TopicCard** | `Topic` | Defines strategic focus (PESTEL, ICP). |
 | **DataCard** | `Source` | Raw ingested information or AI web logs. |
 | **FlashCard** | `Flashcard` | Synthesized intelligence (KnowMore). |
-| **TaskCard** | `NBAItem` | Actionable checklist items (checklist). |
+| **TaskCard** | `ChecklistTask` | Actionable checklist items (checklist). |
 
 ## 2. The trinity Quality Gate
 

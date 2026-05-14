@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 async function main() {
   const cid = "0f769be4-59b4-4027-b0b8-8159eb734563"; // Fortitude AI
   
-  const apiCount = await prisma.nBAItem.count({
+  const apiCount = await prisma.checklistTask.count({
     where: {
       companyId: cid,
       processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED"] as any },
@@ -14,8 +14,8 @@ async function main() {
     }
   });
 
-  const totalCount = await prisma.nBAItem.count({ where: { companyId: cid } });
-  const pendingCount = await prisma.nBAItem.count({
+  const totalCount = await prisma.checklistTask.count({ where: { companyId: cid } });
+  const pendingCount = await prisma.checklistTask.count({
     where: {
       companyId: cid,
       activityState: { in: ["ACTIVE", "STALE"] as any }

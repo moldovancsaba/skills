@@ -121,7 +121,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
   const company = taskCard.company || null;
 
   // De-duplication — require BOTH title AND body to match
-  const existing = await prisma.nBAItem.findMany({
+  const existing = await prisma.checklistTask.findMany({
     where: { 
       companyId: taskCard.companyId,
       id: { not: taskCard.id },

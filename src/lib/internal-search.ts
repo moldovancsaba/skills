@@ -166,7 +166,7 @@ export async function searchCompanyContext(
       orderBy: [{ updatedAt: "desc" }],
       take: 40,
     }),
-    prisma.nBAItem.findMany({
+    prisma.checklistTask.findMany({
       where: {
         companyId,
         activityState: { in: ["ACTIVE", "STALE"] },

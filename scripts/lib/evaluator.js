@@ -6,7 +6,7 @@
 const { callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, JUDGE_STAGE_TIMEOUT_MS, queueAiInference } = require("./core");
 const { getCompanyStrategicContext } = require("./context");
-const { truncate, hashValue, getWorkerConfig, parseBoundedInt, getStageModels } = require("./shared");
+const { truncate, hashValue, getWorkerConfig, parseBoundedInt, getStageModels, canonicalSourceText } = require("./shared");
 const { unifyObject, unifyArray } = require("./synthesis-utils");
 const { CandidateState, ReworkRoute, toEvaluated, toRework, toSuppressed, toArchived } = require("./lifecycle");
 
@@ -201,7 +201,7 @@ async function evaluateCandidate(prisma, company, candidate, comparisonPool, cur
  *
  * @param {PrismaClient} prisma
  * @param {object} company
- * @param {object[]} candidates - NBAItem records with candidateState = REFINED
+ * @param {object[]} candidates - ChecklistTask records with candidateState = REFINED
  * @param {string} memoryPrompt
  * @returns {{ eligible: string[], rework: string[], suppressed: string[], archived: string[] }}
  */
@@ -214,7 +214,7 @@ async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
   if (candidates.length === 0) return { eligible: [], rework: [], suppressed: [], archived: [] };
   
   const context = await getCompanyStrategicContext(prisma, company.id);
-  const currentEligibleCount = await prisma.nBAItem.count({
+  const currentEligibleCount = await prisma.checklistTask.count({
     where: {
       companyId: company.id,
       candidateState: CandidateState.EVALUATED,
@@ -291,7 +291,7 @@ async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
       results.archived.push(candidate.id);
     }
 
-    await prisma.nBAItem.update({
+    await prisma.checklistTask.update({
       where: { id: candidate.id },
       data: {
         ...stateUpdate,
@@ -337,7 +337,7 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = nu
   if (!raw || !raw.decision) {
     return {
       processingStatus: "CHECKED",
-      candidateState: CandidateState.REFINED,
+      reviewStatus: "PENDING",
     };
   }
 
@@ -350,9 +350,8 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = nu
         if (actual !== cit.quote) {
           return {
             processingStatus: "DRAFT",
-            candidateState: CandidateState.REWORK,
-            reworkRoute: ReworkRoute.REVISE,
-            evaluationReason: `Hallucination in claim: "${claim.claim}"`,
+            reviewStatus: "PENDING",
+            userAnnotation: `Hallucination in claim: "${claim.claim}"`,
           };
         }
       }
@@ -362,16 +361,15 @@ async function auditCheckedFlashCard(prisma, flashCard, memoryPrompt, topic = nu
   const isVerified = raw.decision === "VERIFIED";
   return {
     processingStatus: isVerified ? "VERIFIED" : "DRAFT",
-    candidateState: isVerified ? CandidateState.EVALUATED : CandidateState.REWORK,
-    reworkRoute: isVerified ? null : ReworkRoute.REVISE,
+    reviewStatus: "PENDING",
     confidenceScore: parseBoundedInt(raw.confidenceScore, 1, 10),
-    qualityScore: isVerified ? 0.7 : 0.2,
     evidence: { claims: raw.claims },
-    evaluationReason: raw.reason || "Processed.",
+    userAnnotation: raw.reason || "Processed.",
     promptName: "evaluator-audit",
     promptVersion: "1.0.0",
     modelName: STAGE_MODELS.JUDGE[0],
     temperature: 0.1,
+    lastAuditedAt: new Date(),
   };
 }
 

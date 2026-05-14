@@ -20,7 +20,7 @@ interface Source {
   updatedAt: string;
 }
 
-interface NBAItem {
+interface ChecklistItem {
   id: string;
   publicId?: number | null;
   title: string;
@@ -33,24 +33,23 @@ interface NBAItem {
 interface AppState {
   company: Company | null;
   sources: Source[];
-  nbaItems: NBAItem[];
+  checklistItems: ChecklistItem[];
   isLoading: boolean;
 
   setCompany: (company: Company | null) => void;
   setSources: (sources: Source[]) => void;
-  setNbaItems: (items: NBAItem[]) => void;
+  setChecklistItems: (items: ChecklistItem[]) => void;
   setLoading: (loading: boolean) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
   company: null,
   sources: [],
-  nbaItems: [],
+  checklistItems: [],
   isLoading: false,
 
   setCompany: (company) => set({ company }),
   setSources: (sources) => set({ sources: Array.isArray(sources) ? sources : [] }),
-  setNbaItems: (nbaItems) => set({ nbaItems: Array.isArray(nbaItems) ? nbaItems : [] }),
+  setChecklistItems: (checklistItems) => set({ checklistItems: Array.isArray(checklistItems) ? checklistItems : [] }),
   setLoading: (isLoading) => set({ isLoading }),
 }));
-

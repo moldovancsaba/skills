@@ -77,6 +77,7 @@ function buildAutoJobProfile(jobType, signals) {
   const totalPendingFeedback = pendingFeedbackCount + pendingStrategicFeedbackCount;
   const bootstrapEvidenceCount = sourceCount + fileCount;
   const needsKnowledgeBootstrap = activeKnowledgeCount === 0 && (bootstrapEvidenceCount > 0 || activeTopicCount > 0);
+  const needsTaskBootstrap = activeKnowledgeCount > 0 && activeTaskCount === 0;
 
   switch (jobType) {
     case "FEEDBACK_RECONCILIATION":
@@ -156,6 +157,14 @@ function buildAutoJobProfile(jobType, signals) {
           sourceSignal: "cold-start-bootstrap",
         };
       }
+      if (needsTaskBootstrap) {
+        return {
+          queueColumn: "NOW",
+          priorityScore: roundPriority(160 + Math.min(activeKnowledgeCount, 40)),
+          reason: "Company has knowledge cards but still no task inventory. Promote synthesis immediately to unblock tactical and checklist surfaces.",
+          sourceSignal: "task-bootstrap",
+        };
+      }
       return {
         queueColumn: sourceCount > 0 || activeKnowledgeCount > 0 ? "SOON" : "LATER",
         priorityScore: roundPriority(68 + Math.min(sourceCount, 30) + Math.min(activeKnowledgeCount, 20)),
@@ -191,7 +200,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
   ] = await Promise.all([
     prisma.feedback.count({
       where: {
-        nbaItem: { companyId },
+        checklistTask: { companyId },
         processedByWorkerAt: null,
       },
     }),
@@ -201,7 +210,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         processedByAI: false,
       },
     }),
-    prisma.nBAItem.count({
+    prisma.checklistTask.count({
       where: {
         companyId,
         activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
@@ -240,7 +249,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         ],
       },
     }),
-    prisma.nBAItem.count({
+    prisma.checklistTask.count({
       where: {
         companyId,
         activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
@@ -546,8 +555,52 @@ async function claimNextPipelineJobs(prisma, limit = 3) {
     },
   });
 
+  const baseOrder = sortPipelineJobs(candidates);
+  const baseRankById = new Map(baseOrder.map((job, index) => [job.id, index]));
+  const oldestTime = 0;
+  const fairOrder = [...baseOrder].sort((left, right) => {
+    const leftNeverTried = !left.lastTriedAt || (left.attemptCount ?? 0) === 0;
+    const rightNeverTried = !right.lastTriedAt || (right.attemptCount ?? 0) === 0;
+    if (leftNeverTried !== rightNeverTried) {
+      return leftNeverTried ? -1 : 1;
+    }
+
+    const leftTriedAt = left.lastTriedAt ? new Date(left.lastTriedAt).getTime() : oldestTime;
+    const rightTriedAt = right.lastTriedAt ? new Date(right.lastTriedAt).getTime() : oldestTime;
+    if (leftTriedAt !== rightTriedAt) {
+      return leftTriedAt - rightTriedAt;
+    }
+
+    if ((left.attemptCount ?? 0) !== (right.attemptCount ?? 0)) {
+      return (left.attemptCount ?? 0) - (right.attemptCount ?? 0);
+    }
+
+    return (baseRankById.get(left.id) ?? 0) - (baseRankById.get(right.id) ?? 0);
+  });
+
   const claimed = [];
-  for (const job of sortPipelineJobs(candidates).slice(0, limit)) {
+  const selectedJobIds = new Set();
+  const selectedCompanyIds = new Set();
+  const queue = [];
+
+  for (const job of fairOrder) {
+    if (selectedCompanyIds.has(job.companyId)) continue;
+    queue.push(job);
+    selectedJobIds.add(job.id);
+    selectedCompanyIds.add(job.companyId);
+    if (queue.length >= limit) break;
+  }
+
+  if (queue.length < limit) {
+    for (const job of fairOrder) {
+      if (selectedJobIds.has(job.id)) continue;
+      queue.push(job);
+      selectedJobIds.add(job.id);
+      if (queue.length >= limit) break;
+    }
+  }
+
+  for (const job of queue) {
     const updated = await prisma.pipelineJob.update({
       where: { id: job.id },
       data: {

@@ -36,7 +36,7 @@ async function getGlobalInventory() {
     prisma.source.count(),
     prisma.uploadedSourceFile.count(),
     prisma.flashcard.count(),
-    prisma.nBAItem.count(),
+    prisma.checklistTask.count(),
   ]);
   return { sources: s, files: f, flashcards: fc, taskcards: tc };
 }

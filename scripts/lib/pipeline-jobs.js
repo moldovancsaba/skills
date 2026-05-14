@@ -13,6 +13,7 @@ const {
   performCompanyWriting,
   performCompanyJudging,
   performCompanyActionGeneration,
+  runCompanyPlannerCycle,
 } = require("./synthesis");
 const { getHumanMemoryPrompt, processMemoryUpdates } = require("./memory");
 
@@ -45,12 +46,7 @@ async function executePipelineJob(prisma, job) {
       };
       await processMemoryUpdates(prisma, company);
       const memoryPrompt = await getHumanMemoryPrompt(prisma, company);
-      let ops = 0;
-      ops += await performCompanyScrubbing(prisma, company, memoryPrompt, null, workerContext);
-      ops += await performCompanyWriting(prisma, company, memoryPrompt, null, workerContext);
-      ops += await performCompanyJudging(prisma, company, memoryPrompt, null, workerContext);
-      ops += await performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext);
-      return ops;
+      return runCompanyPlannerCycle(prisma, company, memoryPrompt, null, workerContext);
     }
     case "WORKFLOW_BLUEPRINT": {
       const blueprint = job.entityId

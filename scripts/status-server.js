@@ -293,10 +293,10 @@ async function handleApi(req, res) {
     inventory,
     inventoryHistory,
     queue,
-    activeTask: worker.activeTask || queue.currentJob?.jobType || null,
-    activeEntityType: queue.currentJob?.entityType || null,
-    activeEntityLabel: queue.currentJob?.entityLabel || null,
-    activeCompany: worker.currentCompany || queue.currentJob?.companyName || null,
+    activeTask: worker.activeTask || (!worker.online ? queue.currentJob?.jobType : null) || null,
+    activeEntityType: worker.currentCompany ? queue.currentJob?.entityType || null : null,
+    activeEntityLabel: worker.currentCompany ? queue.currentJob?.entityLabel || null : null,
+    activeCompany: worker.currentCompany || (!worker.online ? queue.currentJob?.companyName || null : null),
     activeModel: worker.activeModel,
     lastLatency: worker.metrics?.lastLatency
   };

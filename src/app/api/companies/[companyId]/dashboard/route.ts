@@ -25,10 +25,62 @@ export async function GET(
     const cid = companyId;
     const now = new Date();
 
-    const [company, members, snapshot] = await Promise.all([
+    const [
+      company,
+      members,
+      snapshot,
+      liveSourceCount,
+      liveFileCount,
+      liveTopicCount,
+      liveFlashcardCount,
+      liveGoalCount,
+      liveTacticalCount,
+      liveChecklistCount,
+      liveReviewCount,
+    ] = await Promise.all([
       prisma.company.findUnique({ where: { id: cid } }),
       prisma.user.findMany({ where: { companyId: cid } }),
       prisma.intelligenceSnapshot.findUnique({ where: { companyId: cid } }),
+      prisma.source.count({ where: { companyId: cid } }),
+      prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
+      prisma.topic.count({ where: { companyId: cid } }),
+      prisma.flashcard.count({
+        where: {
+          companyId: cid,
+          activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        },
+      }),
+      prisma.goalcard.count({
+        where: {
+          companyId: cid,
+          activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        },
+      }),
+      prisma.checklistTask.count({
+        where: {
+          companyId: cid,
+          activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        },
+      }),
+      prisma.checklistTask.count({
+        where: {
+          companyId: cid,
+          kanbanColumn: "CHECKLIST",
+          activityState: { in: ["ACTIVE", "STALE"] },
+          processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+          OR: [
+            { scheduledDate: null },
+            { scheduledDate: { lte: now } },
+          ],
+        },
+      }),
+      prisma.checklistTask.count({
+        where: {
+          companyId: cid,
+          processingStatus: "REVIEW",
+          activityState: { in: ["ACTIVE", "STALE"] },
+        },
+      }),
     ]);
 
     const topTasks = await prisma.checklistTask.findMany({
@@ -56,14 +108,14 @@ export async function GET(
       : {};
 
     const counts = {
-      sources: snapshot?.dataIngressCount ?? 0,
-      files: 0,
-      topics: snapshot?.topicSynthesisCount ?? 0,
-      flashcards: snapshot?.knowmoreCount ?? 0,
-      goals: snapshot?.strategicGoalsCount ?? 0,
-      tacticalCount: snapshot?.tacticalBoardCount ?? 0,
-      checklistCount: Math.max(snapshot?.checklistCount ?? 0, topTasks.length),
-      reviewCount: snapshot?.reviewGatewayCount ?? 0,
+      sources: liveSourceCount + liveFileCount,
+      files: liveFileCount,
+      topics: liveTopicCount,
+      flashcards: liveFlashcardCount,
+      goals: liveGoalCount,
+      tacticalCount: liveTacticalCount,
+      checklistCount: Math.max(liveChecklistCount, topTasks.length),
+      reviewCount: liveReviewCount,
       pipelineJobs: Number(queue.totalActiveJobs ?? 0),
     };
 

@@ -27,22 +27,74 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const enrichedCompanies = companies.map((company) => {
+    const enrichedCompanies = await Promise.all(companies.map(async (company) => {
       const snapshot = company.intelligenceSnapshot;
+      const now = new Date();
+      const [
+        liveSourceCount,
+        liveFileCount,
+        liveTopicCount,
+        liveFlashcardCount,
+        liveGoalCount,
+        liveChecklistCount,
+        liveTacticalCount,
+        liveReviewCount,
+      ] = await Promise.all([
+        prisma.source.count({ where: { companyId: company.id } }),
+        prisma.uploadedSourceFile.count({ where: { companyId: company.id } }),
+        prisma.topic.count({ where: { companyId: company.id } }),
+        prisma.flashcard.count({
+          where: {
+            companyId: company.id,
+            activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+          },
+        }),
+        prisma.goalcard.count({
+          where: {
+            companyId: company.id,
+            activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+          },
+        }),
+        prisma.checklistTask.count({
+          where: {
+            companyId: company.id,
+            kanbanColumn: "CHECKLIST",
+            activityState: { in: ["ACTIVE", "STALE"] },
+            processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+            OR: [
+              { scheduledDate: null },
+              { scheduledDate: { lte: now } },
+            ],
+          },
+        }),
+        prisma.checklistTask.count({
+          where: {
+            companyId: company.id,
+            activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+          },
+        }),
+        prisma.checklistTask.count({
+          where: {
+            companyId: company.id,
+            processingStatus: "REVIEW",
+            activityState: { in: ["ACTIVE", "STALE"] },
+          },
+        }),
+      ]);
       return {
         ...company,
         metrics: {
-          data: snapshot?.dataIngressCount ?? 0,
-          topics: snapshot?.topicSynthesisCount ?? 0,
-          knowmore: snapshot?.knowmoreCount ?? 0,
-          goals: snapshot?.strategicGoalsCount ?? 0,
-          review: snapshot?.reviewGatewayCount ?? 0,
-          checklist: snapshot?.checklistCount ?? 0,
-          tactical: snapshot?.tacticalBoardCount ?? 0,
+          data: liveSourceCount + liveFileCount,
+          topics: liveTopicCount,
+          knowmore: liveFlashcardCount,
+          goals: liveGoalCount,
+          review: liveReviewCount,
+          checklist: liveChecklistCount,
+          tactical: liveTacticalCount,
         },
         analytics: Array.isArray(snapshot?.analyticsHistory) ? snapshot.analyticsHistory : [],
       };
-    });
+    }));
 
     return NextResponse.json(enrichedCompanies);
   } catch (error) {

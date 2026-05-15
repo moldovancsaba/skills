@@ -1319,14 +1319,9 @@ async function performCompanyJudging(prisma, company, memoryPrompt, topic, worke
       if (audit) {
         await prisma.$transaction(async (tx) => {
           const reconciledAt = await getServerTime(prisma);
-          await tx.flashcard.update({ 
-            where: { id: fc.id, processingStatus: "CHECKED" }, 
-            data: {
-              ...audit,
-              cycleRunId: workerContext.cycleRunId,
-              updatedAt: reconciledAt,
-              lastCorrectionReconciledAt: reconciledAt,
-            } 
+          await tx.flashcard.update({
+            where: { id: fc.id, processingStatus: "CHECKED" },
+            data: buildFlashcardJudgeUpdatePayload(audit, reconciledAt),
           });
           await tx.flashcardAction.create({
             data: { flashcardId: fc.id, action: "ANNOTATE", annotation: audit.userAnnotation, actedBy: workerContext.workerId }
@@ -1393,6 +1388,63 @@ function buildTaskUpdatePayload(candidate) {
     refinedFromId: candidate?.refinedFromId ?? null,
     kanbanColumn: candidate?.kanbanColumn,
     sortOrder: candidate?.sortOrder,
+  };
+}
+
+function buildFlashcardJudgeUpdatePayload(audit, reconciledAt) {
+  return {
+    processingStatus: audit?.processingStatus,
+    reviewStatus: audit?.reviewStatus,
+    confidenceScore: audit?.confidenceScore,
+    evidence: audit?.evidence ?? undefined,
+    userAnnotation: audit?.userAnnotation ?? null,
+    promptName: audit?.promptName ?? undefined,
+    promptVersion: audit?.promptVersion ?? undefined,
+    modelName: audit?.modelName ?? undefined,
+    temperature: audit?.temperature ?? undefined,
+    lastAuditedAt: audit?.lastAuditedAt ?? reconciledAt,
+    updatedAt: reconciledAt,
+    lastCorrectionReconciledAt: reconciledAt,
+  };
+}
+
+async function buildTaskCreatePayload(prisma, candidate, overrides = {}) {
+  const serverTime = overrides.createdAt ?? await getServerTime(prisma);
+  return {
+    companyId: candidate?.companyId,
+    publicId: candidate?.publicId ?? undefined,
+    title: candidate?.title,
+    description: candidate?.description ?? candidate?.body ?? null,
+    kind: candidate?.kind,
+    impact: candidate?.impact,
+    confidence: candidate?.confidence,
+    confidenceScore: candidate?.confidenceScore,
+    ease: candidate?.ease,
+    iceScore: candidate?.iceScore,
+    processingStatus: candidate?.processingStatus,
+    activityState: candidate?.activityState,
+    status: candidate?.status,
+    candidateState: candidate?.candidateState,
+    reworkRoute: candidate?.reworkRoute ?? null,
+    qualityScore: candidate?.qualityScore ?? null,
+    urgencyScore: candidate?.urgencyScore ?? null,
+    freshnessScore: candidate?.freshnessScore ?? null,
+    feedbackScore: candidate?.feedbackScore ?? 0,
+    evaluationReason: candidate?.evaluationReason ?? null,
+    scoreProfile: candidate?.scoreProfile ?? undefined,
+    hashtags: Array.isArray(candidate?.hashtags) ? candidate.hashtags : [],
+    fingerprint: candidate?.fingerprint ?? undefined,
+    sourceFlashcardIds: Array.isArray(candidate?.sourceFlashcardIds) ? candidate.sourceFlashcardIds : [],
+    generatedFromIds: Array.isArray(candidate?.generatedFromIds) ? candidate.generatedFromIds : [],
+    versionFamilyId: candidate?.versionFamilyId ?? null,
+    duplicateClusterId: candidate?.duplicateClusterId ?? null,
+    refinedFromId: candidate?.refinedFromId ?? null,
+    kanbanColumn: candidate?.kanbanColumn,
+    sortOrder: candidate?.sortOrder,
+    createdBy: candidate?.createdBy ?? "generator-agent",
+    createdByRunId: overrides.createdByRunId ?? candidate?.createdByRunId ?? undefined,
+    cycleRunId: overrides.cycleRunId ?? candidate?.cycleRunId ?? undefined,
+    createdAt: serverTime,
   };
 }
 
@@ -1581,15 +1633,16 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
       // Ensure fingerprint and other default fields for generated candidates
       const dbCandidates = await Promise.all(publishableCandidates.map(async draft => {
         const lifecycleCeiling = buildTaskLifecycleCeiling(taskStatusCeiling);
+        const createData = await buildTaskCreatePayload(prisma, {
+          ...draft,
+          processingStatus: lifecycleCeiling.processingStatus,
+          candidateState: lifecycleCeiling.candidateState,
+          activityState: lifecycleCeiling.activityState,
+        }, {
+          cycleRunId: workerContext.cycleRunId,
+        });
         const created = await prisma.checklistTask.create({
-          data: {
-            ...draft,
-            processingStatus: lifecycleCeiling.processingStatus,
-            candidateState: lifecycleCeiling.candidateState,
-            activityState: lifecycleCeiling.activityState,
-            cycleRunId: workerContext.cycleRunId,
-            createdAt: await getServerTime(prisma)
-          }
+          data: createData,
         });
         await recordGenerationEvent(prisma, {
           companyId: cid,
@@ -1634,7 +1687,9 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
       }
       const createdSpawned = [];
       for (const item of spawned) {
-        const created = await prisma.checklistTask.create({ data: item });
+        const created = await prisma.checklistTask.create({
+          data: await buildTaskCreatePayload(prisma, item),
+        });
         await enforceTaskProcessingCeiling(prisma, created.id);
         createdSpawned.push(created);
       }
@@ -1713,7 +1768,9 @@ async function processCandidateBacklog(prisma, company, memoryPrompt) {
     for (const s of suppressed) await prisma.checklistTask.update({ where: { id: s.id }, data: buildTaskUpdatePayload(s) });
     const createdSpawned = [];
     for (const item of spawned) {
-      const created = await prisma.checklistTask.create({ data: item });
+      const created = await prisma.checklistTask.create({
+        data: await buildTaskCreatePayload(prisma, item),
+      });
       createdSpawned.push(created);
     }
     

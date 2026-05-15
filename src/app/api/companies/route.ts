@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
           },
         }),
       ]);
+      const planningCount = Math.max(liveTacticalCount, liveChecklistCount);
       return {
         ...company,
         metrics: {
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
           goals: liveGoalCount,
           review: liveReviewCount,
           checklist: liveChecklistCount,
-          tactical: liveTacticalCount,
+          tactical: planningCount,
         },
         analytics: Array.isArray(snapshot?.analyticsHistory) ? snapshot.analyticsHistory : [],
       };

@@ -107,14 +107,17 @@ export async function GET(
       ? observabilitySummary.queue as Record<string, unknown>
       : {};
 
+    const checklistCount = Math.max(liveChecklistCount, topTasks.length);
+    const planningCount = Math.max(liveTacticalCount, checklistCount);
+
     const counts = {
       sources: liveSourceCount + liveFileCount,
       files: liveFileCount,
       topics: liveTopicCount,
       flashcards: liveFlashcardCount,
       goals: liveGoalCount,
-      tacticalCount: liveTacticalCount,
-      checklistCount: Math.max(liveChecklistCount, topTasks.length),
+      tacticalCount: planningCount,
+      checklistCount,
       reviewCount: liveReviewCount,
       pipelineJobs: Number(queue.totalActiveJobs ?? 0),
     };

@@ -61,6 +61,8 @@ export default function ObservabilityPage() {
   const queue = data?.queue || { jobs: [] };
   const scoreHealth = data?.scoreHealth || null;
   const budget = data?.budget || { pressure: "UNKNOWN", usageByFeature: [], openEvents: [], recommendations: [] };
+  const planner = data?.planner || { unmetLaneTargets: [], recentEvents: [] };
+  const workerBuild = data?.workerBuild || {};
 
   return (
     <PageShell width="full">
@@ -86,6 +88,10 @@ export default function ObservabilityPage() {
         <MetricCard icon={ListCheck} color="strategy" label="Active Queue Jobs" value={queue.totalActiveJobs ?? 0} detail={`${queue.runningJobs ?? 0} running`} />
         <MetricCard icon={AlertTriangle} color="knowmore" label="Score Health" value={scoreHealth?.overallBand || "UNKNOWN"} detail={`${scoreHealth?.alerts?.length ?? 0} active alerts`} />
         <MetricCard icon={Coins} color="tactical" label="Budget Pressure" value={budget.pressure || "UNKNOWN"} detail={`$${budget.totalEstimatedCost ?? 0} est · ${budget.totalWorkloadUnits ?? 0} units`} />
+        <MetricCard icon={Gauge} color="strategy" label="Planner Mode" value={String(planner.operatingMode || "UNKNOWN")} detail={`${planner.unmetLaneTargets?.length ?? 0} unmet lanes`} />
+        <MetricCard icon={AlertTriangle} color="review" label="Planner Timeouts" value={planner.timeoutCount ?? 0} detail={`${planner.qualityCeilingCount ?? 0} quality caps`} />
+        <MetricCard icon={Activity} color="checklist" label="Manual Cooldowns" value={planner.activeManualCooldownCount ?? 0} detail={`${planner.manualCooldownBlockCount ?? 0} active blocks`} />
+        <MetricCard icon={Heartbeat} color="review" label="Worker Build" value={String(workerBuild.appVersion || "unknown")} detail={String(workerBuild.gitSha || "—").slice(0, 12)} />
       </SimpleGrid>
 
       {scoreHealth?.alerts?.length ? (
@@ -191,6 +197,62 @@ export default function ObservabilityPage() {
       </UnifiedCard>
 
       <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
+        <UnifiedCard tone="strategy">
+          <UnifiedCardHeader title="Planner State" />
+          <UnifiedCardBody>
+            <Stack gap="sm">
+              <Group justify="space-between">
+                <BodyText>Datacards</BodyText>
+                <MetaText>{planner.datacardCount ?? 0}</MetaText>
+              </Group>
+              <Group justify="space-between">
+                <BodyText>Flashcards</BodyText>
+                <MetaText>{planner.flashcardCount ?? 0}</MetaText>
+              </Group>
+              <Group justify="space-between">
+                <BodyText>Flashcard gap</BodyText>
+                <MetaText>{planner.unmetFlashcardTarget ?? 0}</MetaText>
+              </Group>
+              {(planner.unmetLaneTargets || []).length ? (
+                <Stack gap="xs">
+                  {(planner.unmetLaneTargets || []).map((lane: any) => (
+                    <Group key={lane.lane} justify="space-between">
+                      <BodyText>{lane.lane}</BodyText>
+                      <MetaText>{lane.current}/{lane.target}</MetaText>
+                    </Group>
+                  ))}
+                </Stack>
+              ) : (
+                <Notice title="Lane targets met">All planner lane minimums are currently satisfied.</Notice>
+              )}
+            </Stack>
+          </UnifiedCardBody>
+        </UnifiedCard>
+
+        <UnifiedCard tone="review">
+          <UnifiedCardHeader title="Planner Events" />
+          <UnifiedCardBody>
+            <Table highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Event</Table.Th>
+                  <Table.Th>Entity</Table.Th>
+                  <Table.Th>Reason</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {(planner.recentEvents || []).slice(0, 8).map((event: any) => (
+                  <Table.Tr key={event.id}>
+                    <Table.Td>{event.eventType}</Table.Td>
+                    <Table.Td>{event.entityType || "—"}</Table.Td>
+                    <Table.Td>{event.reason || "—"}</Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </UnifiedCardBody>
+        </UnifiedCard>
+
         <UnifiedCard tone="review">
           <UnifiedCardHeader title="Active Queue Work" />
           <UnifiedCardBody>

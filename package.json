@@ -14,6 +14,7 @@
     "audit:docs": "node scripts/audit-docs.mjs",
     "audit:semantic": "node scripts/semantic-audit.mjs",
     "audit:score-health": "node scripts/audit-score-health.js",
+    "test:planner": "node scripts/test-planner-contract.js",
     "smoke:routes": "node scripts/smoke-routes.mjs",
     "repair:raw-sources": "node scripts/repair-raw-sources.mjs",
     "repair:ice-scores": "node scripts/repair-ice-scores.js",

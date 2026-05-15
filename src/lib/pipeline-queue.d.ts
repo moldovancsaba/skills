@@ -2,6 +2,17 @@ export type PipelineJobType =
   | "FEEDBACK_RECONCILIATION"
   | "CARD_RESCORING"
   | "FRONTIER_RECOMPUTE"
+  | "ENSURE_FLASHCARD_MINIMUM"
+  | "RESEARCH_BACKFILL"
+  | "ENSURE_IDEABANK_MINIMUM"
+  | "ENSURE_ROADMAP_MINIMUM"
+  | "ENSURE_BACKLOG_MINIMUM"
+  | "ENSURE_TODO_MINIMUM"
+  | "ENSURE_CHECKLIST_MINIMUM"
+  | "REFRESH_FLASHCARDS"
+  | "REFRESH_TASKS"
+  | "REFRESH_DATACARDS"
+  | "REFRESH_GOALS"
   | "FULL_MAINTENANCE"
   | "SCORE_ALERT_REPAIR"
   | "COMPANY_SYNTHESIS"
@@ -38,6 +49,10 @@ export type PipelineJobRecord = {
 };
 
 export const PIPELINE_JOB_TYPES: readonly PipelineJobType[];
+export const CORE_PIPELINE_JOB_TYPES: readonly PipelineJobType[];
+export const PLANNER_BOOTSTRAP_JOB_TYPES: readonly PipelineJobType[];
+export const PLANNER_MAINTENANCE_JOB_TYPES: readonly PipelineJobType[];
+export const LEGACY_COMPAT_PIPELINE_JOB_TYPES: readonly PipelineJobType[];
 export const PIPELINE_QUEUE_COLUMNS: readonly PipelineQueueColumn[];
 export const PIPELINE_CONTROL_MODES: readonly PipelineControlMode[];
 export const PIPELINE_JOB_STATUSES: readonly PipelineJobStatus[];

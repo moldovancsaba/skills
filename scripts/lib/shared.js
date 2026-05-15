@@ -123,6 +123,10 @@ function sanitizeUserFacingText(text) {
   return stripTechnicalMetadata(text).replace(/\s+/g, " ").trim();
 }
 
+function normalizeText(text) {
+  return sanitizeUserFacingText(text);
+}
+
 async function nextPublicId(prisma, modelName) {
   const counterKey = `counter:${modelName.toLowerCase()}`;
   try {
@@ -155,5 +159,6 @@ module.exports = {
   getStageModels,
   stripTechnicalMetadata,
   sanitizeUserFacingText,
+  normalizeText,
   nextPublicId
 };

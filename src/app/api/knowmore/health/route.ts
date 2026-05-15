@@ -76,7 +76,8 @@ export async function PATCH(request: NextRequest) {
       await issueSystemCommand("SYNC_PIPELINE_JOBS", { companyId });
       await issueSystemCommand("REFRESH_INTELLIGENCE_SNAPSHOTS", { companyId });
     } else if (action === "REQUEST_KNOWMORE_REPAIR") {
-      await issueSystemCommand("ESCALATE_PIPELINE_JOB", { companyId, jobType: "COMPANY_SYNTHESIS" });
+      await issueSystemCommand("ESCALATE_PIPELINE_JOB", { companyId, jobType: "ENSURE_FLASHCARD_MINIMUM" });
+      await issueSystemCommand("ESCALATE_PIPELINE_JOB", { companyId, jobType: "RESEARCH_BACKFILL" });
       await issueSystemCommand("ESCALATE_PIPELINE_JOB", { companyId, jobType: "FEEDBACK_RECONCILIATION" });
       await issueSystemCommand("ESCALATE_PIPELINE_JOB", { companyId, jobType: "CARD_RESCORING" });
       await issueSystemCommand("REFRESH_INTELLIGENCE_SNAPSHOTS", { companyId });

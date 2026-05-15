@@ -1,10 +1,26 @@
 const fs = require("fs");
 const path = require("path");
 const { computeCompanyScoreHealth } = require("../../src/lib/score-health");
+const { gatherCompanyPipelineSignals } = require("../../src/lib/pipeline-queue");
+const {
+  getWorkerBuildIdentity,
+  listPlannerTelemetry,
+  buildPlannerStateSnapshot,
+  buildPlannerEventSummary,
+} = require("./planner/telemetry");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_KNOWLEDGE_SAMPLE_FOR_SCORE_HEALTH = 8;
 const HEARTBEAT_FILE = path.join(__dirname, "..", "..", "logs", "guardian-heartbeat.json");
+const KNOWMORE_PIPELINE_JOB_TYPES = Object.freeze([
+  "ENSURE_FLASHCARD_MINIMUM",
+  "RESEARCH_BACKFILL",
+  "REFRESH_FLASHCARDS",
+  "REFRESH_DATACARDS",
+  "FEEDBACK_RECONCILIATION",
+  "CARD_RESCORING",
+  "COMPANY_SYNTHESIS",
+]);
 
 function readGuardianHeartbeat() {
   try {
@@ -509,13 +525,13 @@ async function buildKnowmoreHealth(prisma, companyId, scoreHealth) {
       where: {
         companyId,
         status: "FAILED",
-        jobType: { in: ["COMPANY_SYNTHESIS", "FEEDBACK_RECONCILIATION", "CARD_RESCORING"] },
+        jobType: { in: KNOWMORE_PIPELINE_JOB_TYPES },
       },
     }),
     prisma.pipelineJob.findMany({
       where: {
         companyId,
-        jobType: { in: ["COMPANY_SYNTHESIS", "FEEDBACK_RECONCILIATION", "CARD_RESCORING"] },
+        jobType: { in: KNOWMORE_PIPELINE_JOB_TYPES },
       },
       orderBy: [{ updatedAt: "desc" }],
       take: 6,
@@ -623,7 +639,7 @@ async function buildBudgetSummary(prisma, companyId) {
 }
 
 async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
-  const [activeJobs, workerReports, recentEvents, budget] = await Promise.all([
+  const [activeJobs, workerReports, recentEvents, budget, plannerSignals, plannerEvents] = await Promise.all([
     prisma.pipelineJob.findMany({
       where: { companyId, status: { in: ["ACTIVE", "RUNNING", "FAILED"] } },
       orderBy: [{ updatedAt: "desc" }],
@@ -639,6 +655,8 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
       take: 10,
     }),
     buildBudgetSummary(prisma, companyId),
+    gatherCompanyPipelineSignals(prisma, companyId),
+    listPlannerTelemetry(prisma, { companyId, limit: 20 }),
   ]);
 
   const guardianHeartbeat = readGuardianHeartbeat();
@@ -655,15 +673,23 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
   const criticalAlert = normalizedScoreHealth?.alerts?.find((alert) => alert.severity === "CRITICAL") ?? null;
   const evaluationFailures = recentEvents.filter((event) => event.outcomeType === "EVAL_GATE_FAILED");
   const localLearningEvents = recentEvents.filter((event) => String(event.outcomeType || "").startsWith("LOCAL_LEARNING_"));
+  const plannerState = buildPlannerStateSnapshot(plannerSignals);
+  const plannerEventSummary = buildPlannerEventSummary(plannerEvents);
 
   return {
     guardianHeartbeat,
+    workerBuild: getWorkerBuildIdentity(),
     scoreHealth: normalizedScoreHealth,
     queue: {
       totalActiveJobs: activeJobs.length,
       runningJobs,
       failedJobs,
       jobs: activeJobs,
+    },
+    planner: {
+      ...plannerState,
+      ...plannerEventSummary,
+      recentEvents: plannerEvents,
     },
     recommendedActions: {
       escalateScoreRepair: Boolean(criticalAlert || normalizedScoreHealth?.overallBand === "SUSPICIOUS"),

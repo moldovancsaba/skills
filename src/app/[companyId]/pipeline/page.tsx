@@ -59,6 +59,20 @@ function getJobIcon(jobType: PipelineJobRecord["jobType"]) {
       return RefreshIcon;
     case "FRONTIER_RECOMPUTE":
       return ListCheck;
+    case "ENSURE_FLASHCARD_MINIMUM":
+    case "RESEARCH_BACKFILL":
+      return Brain;
+    case "ENSURE_IDEABANK_MINIMUM":
+    case "ENSURE_ROADMAP_MINIMUM":
+    case "ENSURE_BACKLOG_MINIMUM":
+    case "ENSURE_TODO_MINIMUM":
+    case "ENSURE_CHECKLIST_MINIMUM":
+      return ListCheck;
+    case "REFRESH_FLASHCARDS":
+    case "REFRESH_TASKS":
+    case "REFRESH_DATACARDS":
+    case "REFRESH_GOALS":
+      return HardHat;
     case "FULL_MAINTENANCE":
       return HardHat;
     case "SCORE_ALERT_REPAIR":
@@ -85,6 +99,28 @@ function getJobLabel(job: PipelineJobRecord) {
       return "Card Rescoring";
     case "FRONTIER_RECOMPUTE":
       return "Frontier Recompute";
+    case "ENSURE_FLASHCARD_MINIMUM":
+      return "Ensure Flashcard Minimum";
+    case "RESEARCH_BACKFILL":
+      return "Research Backfill";
+    case "ENSURE_IDEABANK_MINIMUM":
+      return "Ensure Ideabank Minimum";
+    case "ENSURE_ROADMAP_MINIMUM":
+      return "Ensure Roadmap Minimum";
+    case "ENSURE_BACKLOG_MINIMUM":
+      return "Ensure Backlog Minimum";
+    case "ENSURE_TODO_MINIMUM":
+      return "Ensure Next Minimum";
+    case "ENSURE_CHECKLIST_MINIMUM":
+      return "Ensure Checklist Minimum";
+    case "REFRESH_FLASHCARDS":
+      return "Refresh Flashcards";
+    case "REFRESH_TASKS":
+      return "Refresh Tasks";
+    case "REFRESH_DATACARDS":
+      return "Refresh Datacards";
+    case "REFRESH_GOALS":
+      return "Refresh Goals";
     case "FULL_MAINTENANCE":
       return "Full Maintenance";
     case "SCORE_ALERT_REPAIR":

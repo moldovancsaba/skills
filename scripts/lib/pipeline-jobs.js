@@ -3,11 +3,19 @@ const {
   claimNextPipelineJobs,
   completePipelineJob,
   failPipelineJob,
+  PLANNER_BOOTSTRAP_JOB_TYPES,
+  PLANNER_MAINTENANCE_JOB_TYPES,
   syncAllCompanyPipelineJobs,
 } = require("../../src/lib/pipeline-queue");
 const { processFeedbackEvents } = require("./feedback");
 const { runMaintenance, rescorePeriodicCards } = require("./maintenance");
 const { recomputeFrontier } = require("./frontier");
+const {
+  refreshOldestFlashcards,
+  refreshOldestTasks,
+  refreshOldestDatacards,
+  refreshOldestGoals,
+} = require("./planner/maintenance-cycle");
 const {
   performCompanyScrubbing,
   performCompanyWriting,
@@ -17,10 +25,54 @@ const {
 } = require("./synthesis");
 const { getHumanMemoryPrompt, processMemoryUpdates } = require("./memory");
 
+function isPlannerBootstrapJob(jobType) {
+  return PLANNER_BOOTSTRAP_JOB_TYPES.includes(jobType);
+}
+
+function isPlannerMaintenanceJob(jobType) {
+  return PLANNER_MAINTENANCE_JOB_TYPES.includes(jobType);
+}
+
+async function runPlannerBootstrapJob(prisma, company) {
+  const cycleRunId = crypto.randomUUID();
+  const workerContext = {
+    cycleRunId,
+    workerId: `pipeline-queue:${process.pid}`,
+  };
+  await processMemoryUpdates(prisma, company);
+  const memoryPrompt = await getHumanMemoryPrompt(prisma, company);
+  return runCompanyPlannerCycle(prisma, company, memoryPrompt, null, workerContext);
+}
+
+async function runPlannerMaintenanceJob(prisma, company, jobType) {
+  switch (jobType) {
+    case "REFRESH_FLASHCARDS":
+      return (await refreshOldestFlashcards(prisma, company)).length;
+    case "REFRESH_TASKS": {
+      const refreshed = await refreshOldestTasks(prisma, company);
+      await recomputeFrontier(prisma, company);
+      return refreshed.length + 1;
+    }
+    case "REFRESH_DATACARDS":
+      return (await refreshOldestDatacards(prisma, company)).length;
+    case "REFRESH_GOALS":
+      return (await refreshOldestGoals(prisma, company)).length;
+    default:
+      return 0;
+  }
+}
+
 async function executePipelineJob(prisma, job) {
   const company = job.company ?? await prisma.company.findUnique({ where: { id: job.companyId } });
   if (!company) {
     throw new Error(`Pipeline job ${job.id} has no company`);
+  }
+
+  if (isPlannerBootstrapJob(job.jobType)) {
+    return runPlannerBootstrapJob(prisma, company);
+  }
+  if (isPlannerMaintenanceJob(job.jobType)) {
+    return runPlannerMaintenanceJob(prisma, company, job.jobType);
   }
 
   switch (job.jobType) {
@@ -39,14 +91,7 @@ async function executePipelineJob(prisma, job) {
       await recomputeFrontier(prisma, company);
       return 1;
     case "COMPANY_SYNTHESIS": {
-      const cycleRunId = crypto.randomUUID();
-      const workerContext = {
-        cycleRunId,
-        workerId: `pipeline-queue:${process.pid}`,
-      };
-      await processMemoryUpdates(prisma, company);
-      const memoryPrompt = await getHumanMemoryPrompt(prisma, company);
-      return runCompanyPlannerCycle(prisma, company, memoryPrompt, null, workerContext);
+      return runPlannerBootstrapJob(prisma, company);
     }
     case "WORKFLOW_BLUEPRINT": {
       const blueprint = job.entityId

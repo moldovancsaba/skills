@@ -157,8 +157,8 @@ export default function SettingsPage() {
       ? settings.bridgeSecret
       : "•".repeat(Math.max(settings.bridgeSecret.length, 24))
     : settings.bridgeSecretConfigured
-      ? "Stored securely. Regenerate to reveal a new Bridge API key."
-      : "No Bridge API key generated yet.";
+      ? t("settings.bridgeSecretStored")
+      : t("settings.bridgeSecretMissing");
 
   return (
     <PageShell width="lg">
@@ -359,12 +359,12 @@ export default function SettingsPage() {
               </Group>
             </UnifiedCardSection>
             <MetaText>
-              Newly generated keys are shown once, then stored hashed at rest. Use the `x-company-id`, `x-bridge-secret`, and `x-bridge-timestamp` headers when posting into the bridge.
+              {t("settings.bridgeSecretDetails")}
             </MetaText>
 
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               <Stack gap={4}>
-                <MetaText>Endpoint</MetaText>
+                <MetaText>{t("settings.bridgeEndpoint")}</MetaText>
                 <UnifiedCardSection tone="tactical">
                   <MetaText c="var(--text-primary)">
                     {typeof window !== 'undefined' ? window.location.origin : ''}/api/bridge/ingress
@@ -372,7 +372,7 @@ export default function SettingsPage() {
                 </UnifiedCardSection>
               </Stack>
               <Stack gap={4}>
-                <MetaText>Example Request</MetaText>
+                <MetaText>{t("settings.bridgeExampleRequest")}</MetaText>
                 <UnifiedCardSection tone="tactical">
                   <MetaText c="var(--text-primary)">
                     {`POST /api/bridge/ingress + headers: x-company-id, x-bridge-secret, x-bridge-timestamp`}

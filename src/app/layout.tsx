@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import Script from "next/script";
 import "@mantine/core/styles.css";
 import "./globals.css";
 import { ColorSchemeScript } from "@mantine/core";
@@ -7,6 +8,22 @@ import { Providers } from "@/components/providers";
 import { RootShell } from "@/components/root-shell";
 
 const colorSchemeStorageKey = "checklist-color-scheme";
+const uiLanguageStorageKey = "checklist-ui-language";
+const uiLanguageBootstrapScript = `
+(() => {
+  try {
+    const stored = window.localStorage.getItem(${JSON.stringify(uiLanguageStorageKey)});
+    const valid = new Set(["en", "hu", "es", "ar", "he"]);
+    const language = valid.has(stored) ? stored : "en";
+    const dir = language === "ar" || language === "he" ? "rtl" : "ltr";
+    document.documentElement.lang = language;
+    document.documentElement.dir = dir;
+  } catch (_error) {
+    document.documentElement.lang = "en";
+    document.documentElement.dir = "ltr";
+  }
+})();
+`;
 
 export const metadata: Metadata = {
   title: "checklist",
@@ -40,6 +57,9 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        <Script id="ui-language-bootstrap" strategy="beforeInteractive">
+          {uiLanguageBootstrapScript}
+        </Script>
         <ColorSchemeScript defaultColorScheme="auto" localStorageKey={colorSchemeStorageKey} />
       </head>
       <body className={`${fontBody.variable} ${fontDisplay.variable} font-body`}>

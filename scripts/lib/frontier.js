@@ -6,6 +6,7 @@
  */
 const { CandidateState } = require("./lifecycle");
 const { recordDecisionEvent, recordOutcomeEvent } = require("./audit-ledger");
+const { recordPlannerTelemetry } = require("./planner/telemetry");
 const { computeBlendedPriorityProfile, computePriorityCohortProfiles } = require("../../src/lib/scoring-contract");
 const {
   PLANNER_LANE_ORDER,
@@ -267,6 +268,20 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
       floorColumn && getLaneRank(currentColumn) > getLaneRank(floorColumn)
         ? floorColumn
         : currentColumn;
+    if (floorColumn && getLaneRank(currentColumn) > getLaneRank(floorColumn)) {
+      await recordPlannerTelemetry(prisma, {
+        companyId,
+        entityType: "TASK",
+        entityId: item.id,
+        eventType: "MANUAL_COOLDOWN_BLOCK",
+        reason: `Manual lane cooldown preserved ${floorColumn} as the anti-demotion floor.`,
+        details: {
+          fromColumn: currentColumn,
+          preservedFloorColumn: floorColumn,
+          cooldownUntil: item.manualLaneCooldownUntil,
+        },
+      });
+    }
     assignments.set(item.id, initialColumn);
     laneBuckets.get(initialColumn).push(item);
   }

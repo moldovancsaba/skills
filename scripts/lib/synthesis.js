@@ -25,13 +25,14 @@ const {
   PLANNER_LANE_TARGETS,
   PLANNER_MIN_FLASHCARDS,
   PLANNER_MIN_DATACARDS_FOR_ACTIVE,
-  GENERATION_TIMEOUT_MS,
   getCompanyOperatingMode,
 } = require("../../src/lib/planner-contract");
 const {
   getWeakestProcessingStatus,
   deriveSourceProcessingStatus,
 } = require("../../src/lib/source-contract");
+const { withPlannerTimeout } = require("./planner/timeout");
+const { getWorkerBuildIdentity, recordPlannerTelemetry } = require("./planner/telemetry");
 
 /**
  * checklist LOCAL AI ENGINE
@@ -68,20 +69,12 @@ function getSynthesisProgress() {
   return synthesisState;
 }
 
-async function withPlannerStageTimeout(label, operation, timeoutMs = GENERATION_TIMEOUT_MS) {
-  let timeoutHandle = null;
-  try {
-    return await Promise.race([
-      operation(),
-      new Promise((_, reject) => {
-        timeoutHandle = setTimeout(() => {
-          reject(new Error(`[PLANNER_TIMEOUT] ${label} exceeded ${timeoutMs}ms`));
-        }, timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutHandle) clearTimeout(timeoutHandle);
-  }
+async function withPlannerStageTimeout(prisma, company, label, operation, metadata = {}) {
+  return withPlannerTimeout(prisma, {
+    companyId: company?.id || null,
+    label,
+    metadata,
+  }, operation);
 }
 
 const PROCESSING_STATUS_ORDER = Object.freeze({
@@ -142,6 +135,7 @@ async function enforceTaskProcessingCeiling(prisma, taskId) {
     where: { id: taskId },
     select: {
       id: true,
+      companyId: true,
       processingStatus: true,
       candidateState: true,
       activityState: true,
@@ -161,6 +155,18 @@ async function enforceTaskProcessingCeiling(prisma, taskId) {
   await prisma.checklistTask.update({
     where: { id: task.id },
     data: lifecycleCeiling,
+  });
+  await recordPlannerTelemetry(prisma, {
+    companyId: task.companyId,
+    entityType: "TASK",
+    entityId: task.id,
+    eventType: "QUALITY_CEILING_APPLIED",
+    reason: `Task lifecycle was capped to ${ceilingStatus} by weakest upstream flashcard status.`,
+    details: {
+      fromStatus: task.processingStatus,
+      toStatus: lifecycleCeiling.processingStatus,
+      sourceFlashcardIds: task.sourceFlashcardIds,
+    },
   });
   return true;
 }
@@ -198,7 +204,7 @@ async function computeFlashcardProcessingCeiling(prisma, flashcardId) {
 async function enforceFlashcardProcessingCeiling(prisma, flashcardId) {
   const flashcard = await prisma.flashcard.findUnique({
     where: { id: flashcardId },
-    select: { id: true, processingStatus: true },
+    select: { id: true, companyId: true, processingStatus: true },
   });
   if (!flashcard) return false;
 
@@ -213,6 +219,17 @@ async function enforceFlashcardProcessingCeiling(prisma, flashcardId) {
     where: { id: flashcardId },
     data: {
       processingStatus: ceilingStatus,
+    },
+  });
+  await recordPlannerTelemetry(prisma, {
+    companyId: flashcard.companyId,
+    entityType: "FLASHCARD",
+    entityId: flashcardId,
+    eventType: "QUALITY_CEILING_APPLIED",
+    reason: `Flashcard lifecycle was capped to ${ceilingStatus} by weakest linked datacard status.`,
+    details: {
+      fromStatus: flashcard.processingStatus,
+      toStatus: ceilingStatus,
     },
   });
   return true;
@@ -275,15 +292,21 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
 
   if (inventory.flashcardCount < PLANNER_MIN_FLASHCARDS) {
     ops += await withPlannerStageTimeout(
+      prisma,
+      company,
       `${company.name}:bootstrap_flashcard_generation`,
       () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext),
+      { stage: "bootstrap_flashcard_generation", mode: inventory.mode },
     ).catch((error) => {
       console.warn(error.message);
       return 0;
     });
     ops += await withPlannerStageTimeout(
+      prisma,
+      company,
       `${company.name}:bootstrap_flashcard_judging`,
       () => performCompanyJudging(prisma, company, memoryPrompt, topic, workerContext),
+      { stage: "bootstrap_flashcard_judging", mode: inventory.mode },
     ).catch((error) => {
       console.warn(error.message);
       return 0;
@@ -296,15 +319,21 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
     ops += researchOps;
     if (researchOps > 0) {
       ops += await withPlannerStageTimeout(
+        prisma,
+        company,
         `${company.name}:research_backfill_flashcard_generation`,
         () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext),
+        { stage: "research_backfill_flashcard_generation", mode: inventory.mode },
       ).catch((error) => {
         console.warn(error.message);
         return 0;
       });
       ops += await withPlannerStageTimeout(
+        prisma,
+        company,
         `${company.name}:research_backfill_flashcard_judging`,
         () => performCompanyJudging(prisma, company, memoryPrompt, topic, workerContext),
+        { stage: "research_backfill_flashcard_judging", mode: inventory.mode },
       ).catch((error) => {
         console.warn(error.message);
         return 0;
@@ -315,8 +344,11 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
 
   if (inventory.deficits.length > 0) {
     ops += await withPlannerStageTimeout(
+      prisma,
+      company,
       `${company.name}:lane_deficit_task_generation`,
       () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext),
+      { stage: "lane_deficit_task_generation", deficits: inventory.deficits },
     ).catch((error) => {
       console.warn(error.message);
       return 0;
@@ -326,22 +358,31 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
 
   if (inventory.deficits.length > 0 && inventory.flashcardCount < PLANNER_MIN_FLASHCARDS) {
     ops += await withPlannerStageTimeout(
+      prisma,
+      company,
       `${company.name}:lane_deficit_flashcard_generation`,
       () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext),
+      { stage: "lane_deficit_flashcard_generation", deficits: inventory.deficits },
     ).catch((error) => {
       console.warn(error.message);
       return 0;
     });
     ops += await withPlannerStageTimeout(
+      prisma,
+      company,
       `${company.name}:lane_deficit_flashcard_judging`,
       () => performCompanyJudging(prisma, company, memoryPrompt, topic, workerContext),
+      { stage: "lane_deficit_flashcard_judging", deficits: inventory.deficits },
     ).catch((error) => {
       console.warn(error.message);
       return 0;
     });
     ops += await withPlannerStageTimeout(
+      prisma,
+      company,
       `${company.name}:lane_deficit_retry_task_generation`,
       () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext),
+      { stage: "lane_deficit_retry_task_generation", deficits: inventory.deficits },
     ).catch((error) => {
       console.warn(error.message);
       return 0;
@@ -351,8 +392,11 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
 
   if (inventory.mode === "MAINTENANCE" && ops === 0) {
     ops += await withPlannerStageTimeout(
+      prisma,
+      company,
       `${company.name}:maintenance_task_generation`,
       () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext),
+      { stage: "maintenance_task_generation", mode: inventory.mode },
     ).catch((error) => {
       console.warn(error.message);
       return 0;
@@ -383,7 +427,8 @@ async function withProgressRetry(operation, attempt = 0) {
 async function collectGlobalWorkerSettings(prisma) {
   return {
     supervisorContractVersion: 2,
-    schedulingMode: "pipeline-queue-aware"
+    schedulingMode: "pipeline-queue-aware",
+    buildIdentity: getWorkerBuildIdentity(),
   };
 }
 

@@ -1,15 +1,52 @@
 const { computeCompanyScoreHealth } = require("./score-health");
+const {
+  PLANNER_LANE_ORDER,
+  PLANNER_LANE_TARGETS,
+  PLANNER_MIN_FLASHCARDS,
+  PLANNER_MIN_DATACARDS_FOR_ACTIVE,
+  getCompanyOperatingMode,
+} = require("./planner-contract");
 
-const PIPELINE_JOB_TYPES = Object.freeze([
+const CORE_PIPELINE_JOB_TYPES = Object.freeze([
   "FEEDBACK_RECONCILIATION",
   "CARD_RESCORING",
   "FRONTIER_RECOMPUTE",
-  "FULL_MAINTENANCE",
   "SCORE_ALERT_REPAIR",
+]);
+
+const PLANNER_BOOTSTRAP_JOB_TYPES = Object.freeze([
+  "ENSURE_FLASHCARD_MINIMUM",
+  "RESEARCH_BACKFILL",
+  "ENSURE_IDEABANK_MINIMUM",
+  "ENSURE_ROADMAP_MINIMUM",
+  "ENSURE_BACKLOG_MINIMUM",
+  "ENSURE_TODO_MINIMUM",
+  "ENSURE_CHECKLIST_MINIMUM",
+]);
+
+const PLANNER_MAINTENANCE_JOB_TYPES = Object.freeze([
+  "REFRESH_FLASHCARDS",
+  "REFRESH_TASKS",
+  "REFRESH_DATACARDS",
+  "REFRESH_GOALS",
+]);
+
+const LEGACY_COMPAT_PIPELINE_JOB_TYPES = Object.freeze([
+  "FULL_MAINTENANCE",
   "COMPANY_SYNTHESIS",
 ]);
 
-const MANAGED_PIPELINE_JOB_TYPES = Object.freeze([...PIPELINE_JOB_TYPES, "WORKFLOW_BLUEPRINT"]);
+const PIPELINE_JOB_TYPES = Object.freeze([
+  ...CORE_PIPELINE_JOB_TYPES,
+  ...PLANNER_BOOTSTRAP_JOB_TYPES,
+  ...PLANNER_MAINTENANCE_JOB_TYPES,
+]);
+
+const MANAGED_PIPELINE_JOB_TYPES = Object.freeze([
+  ...PIPELINE_JOB_TYPES,
+  ...LEGACY_COMPAT_PIPELINE_JOB_TYPES,
+  "WORKFLOW_BLUEPRINT",
+]);
 
 const PIPELINE_QUEUE_COLUMNS = Object.freeze(["NOW", "SOON", "LATER", "PARKED"]);
 const PIPELINE_CONTROL_MODES = Object.freeze(["AI_ONLY", "HUMAN_GUIDED"]);
@@ -26,6 +63,17 @@ const JOB_LABELS = Object.freeze({
   FEEDBACK_RECONCILIATION: "Feedback Reconciliation",
   CARD_RESCORING: "Card Rescoring",
   FRONTIER_RECOMPUTE: "Frontier Recompute",
+  ENSURE_FLASHCARD_MINIMUM: "Ensure Flashcard Minimum",
+  RESEARCH_BACKFILL: "Research Backfill",
+  ENSURE_IDEABANK_MINIMUM: "Ensure Ideabank Minimum",
+  ENSURE_ROADMAP_MINIMUM: "Ensure Roadmap Minimum",
+  ENSURE_BACKLOG_MINIMUM: "Ensure Backlog Minimum",
+  ENSURE_TODO_MINIMUM: "Ensure Next Minimum",
+  ENSURE_CHECKLIST_MINIMUM: "Ensure Checklist Minimum",
+  REFRESH_FLASHCARDS: "Refresh Flashcards",
+  REFRESH_TASKS: "Refresh Tasks",
+  REFRESH_DATACARDS: "Refresh Datacards",
+  REFRESH_GOALS: "Refresh Goals",
   FULL_MAINTENANCE: "Full Maintenance",
   SCORE_ALERT_REPAIR: "Score Alert Repair",
   COMPANY_SYNTHESIS: "Company Synthesis",
@@ -61,23 +109,78 @@ function getQueueColumnRank(column) {
   return QUEUE_COLUMN_RANK[column] ?? QUEUE_COLUMN_RANK.LATER;
 }
 
+function lanePriorityBoost(lane) {
+  switch (lane) {
+    case "CHECKLIST":
+      return 64;
+    case "TODO":
+      return 52;
+    case "BACKLOG":
+      return 40;
+    case "ROADMAP":
+      return 28;
+    case "IDEABANK":
+      return 16;
+    default:
+      return 0;
+  }
+}
+
+function buildPlannerLaneProfile(lane, signals) {
+  const currentCount = Number(signals.laneCounts?.[lane] || 0);
+  const targetCount = Number(PLANNER_LANE_TARGETS[lane] || 0);
+  const deficit = Math.max(0, targetCount - currentCount);
+  if (signals.mode === "INACTIVE") {
+    return {
+      queueColumn: "PARKED",
+      priorityScore: 0,
+      reason: "Company is inactive because it has no datacards yet.",
+      sourceSignal: "inactive-no-datacards",
+    };
+  }
+  if (deficit > 0) {
+    return {
+      queueColumn: lane === "CHECKLIST" || lane === "TODO" ? "NOW" : "SOON",
+      priorityScore: roundPriority(120 + lanePriorityBoost(lane) + deficit * 8 + Math.min(signals.flashcardCount, 20)),
+      reason: `${lane} is below its planner minimum (${currentCount}/${targetCount}). Refill and promotion work is required.`,
+      sourceSignal: `lane-deficit-${lane.toLowerCase()}`,
+    };
+  }
+  return {
+    queueColumn: "PARKED",
+    priorityScore: 0,
+    reason: `${lane} already meets its planner minimum (${currentCount}/${targetCount}).`,
+    sourceSignal: `lane-healthy-${lane.toLowerCase()}`,
+  };
+}
+
 function buildAutoJobProfile(jobType, signals) {
   const {
     pendingFeedbackCount,
     pendingStrategicFeedbackCount,
     staleAuditCount,
+    staleFlashcardCount,
+    staleTaskCount,
+    staleDatacardCount,
+    staleGoalCount,
     scoreHealth,
     activeTaskCount,
     activeKnowledgeCount,
+    flashcardCount,
+    datacardCount,
     sourceCount,
     fileCount,
     activeTopicCount,
+    laneCounts,
+    deficits,
+    mode,
   } = signals;
   const overallBand = scoreHealth?.overallBand ?? "HEALTHY";
   const totalPendingFeedback = pendingFeedbackCount + pendingStrategicFeedbackCount;
   const bootstrapEvidenceCount = sourceCount + fileCount;
   const needsKnowledgeBootstrap = activeKnowledgeCount === 0 && (bootstrapEvidenceCount > 0 || activeTopicCount > 0);
   const needsTaskBootstrap = activeKnowledgeCount > 0 && activeTaskCount === 0;
+  const hasLaneDeficits = deficits.length > 0;
 
   switch (jobType) {
     case "FEEDBACK_RECONCILIATION":
@@ -118,13 +221,6 @@ function buildAutoJobProfile(jobType, signals) {
         reason: "Checklist and planning placement should stay synchronized with the latest scoring and feedback.",
         sourceSignal: totalPendingFeedback > 0 ? "feedback-driven-frontier" : "periodic-frontier",
       };
-    case "FULL_MAINTENANCE":
-      return {
-        queueColumn: "LATER",
-        priorityScore: 36,
-        reason: "Maintenance keeps drift, freshness, and integrity bounded across the company.",
-        sourceSignal: "maintenance-cycle",
-      };
     case "SCORE_ALERT_REPAIR":
       if (overallBand === "CRITICAL") {
         return {
@@ -148,28 +244,143 @@ function buildAutoJobProfile(jobType, signals) {
         reason: "No active score-health repair signal. Parked under AI control until alerts rise.",
         sourceSignal: "score-health-healthy",
       };
-    case "COMPANY_SYNTHESIS":
-      if (needsKnowledgeBootstrap) {
+    case "ENSURE_FLASHCARD_MINIMUM":
+      if (mode === "INACTIVE") {
         return {
-          queueColumn: "NOW",
-          priorityScore: roundPriority(140 + Math.min(bootstrapEvidenceCount, 40) + Math.min(activeTopicCount, 20)),
-          reason: "Company has evidence or strategic topics but still no flashcards. Bootstrap synthesis immediately.",
-          sourceSignal: "cold-start-bootstrap",
+          queueColumn: "PARKED",
+          priorityScore: 0,
+          reason: "Company is inactive because it has no datacards yet.",
+          sourceSignal: "inactive-no-datacards",
         };
       }
-      if (needsTaskBootstrap) {
+      if (flashcardCount < PLANNER_MIN_FLASHCARDS) {
         return {
           queueColumn: "NOW",
-          priorityScore: roundPriority(160 + Math.min(activeKnowledgeCount, 40)),
-          reason: "Company has knowledge cards but still no task inventory. Promote synthesis immediately to unblock tactical and checklist surfaces.",
-          sourceSignal: "task-bootstrap",
+          priorityScore: roundPriority(150 + (PLANNER_MIN_FLASHCARDS - flashcardCount) * 6 + Math.min(datacardCount, 20)),
+          reason: `Flashcard inventory is below planner minimum (${flashcardCount}/${PLANNER_MIN_FLASHCARDS}). Bootstrap knowledge generation now.`,
+          sourceSignal: "flashcard-deficit",
         };
       }
       return {
-        queueColumn: sourceCount > 0 || activeKnowledgeCount > 0 ? "SOON" : "LATER",
-        priorityScore: roundPriority(68 + Math.min(sourceCount, 30) + Math.min(activeKnowledgeCount, 20)),
-        reason: "Company synthesis keeps evidence flowing into knowledge, goals, and tasks.",
-        sourceSignal: "company-synthesis",
+        queueColumn: "PARKED",
+        priorityScore: 0,
+        reason: `Flashcard inventory already meets planner minimum (${flashcardCount}/${PLANNER_MIN_FLASHCARDS}).`,
+        sourceSignal: "flashcard-target-met",
+      };
+    case "RESEARCH_BACKFILL":
+      if (mode === "INACTIVE") {
+        return {
+          queueColumn: "PARKED",
+          priorityScore: 0,
+          reason: "Company is inactive because it has no datacards yet.",
+          sourceSignal: "inactive-no-datacards",
+        };
+      }
+      if (flashcardCount < PLANNER_MIN_FLASHCARDS && datacardCount > 0 && datacardCount <= 3) {
+        return {
+          queueColumn: "SOON",
+          priorityScore: roundPriority(138 + (PLANNER_MIN_FLASHCARDS - flashcardCount) * 4 + Math.max(0, 4 - datacardCount) * 10),
+          reason: `Datacard inventory is sparse (${datacardCount}) while flashcards remain below minimum (${flashcardCount}/${PLANNER_MIN_FLASHCARDS}). Research backfill is required.`,
+          sourceSignal: "research-backfill",
+        };
+      }
+      return {
+        queueColumn: "PARKED",
+        priorityScore: 0,
+        reason: "Research backfill is not currently required for this company.",
+        sourceSignal: "research-backfill-idle",
+      };
+    case "ENSURE_IDEABANK_MINIMUM":
+      return buildPlannerLaneProfile("IDEABANK", signals);
+    case "ENSURE_ROADMAP_MINIMUM":
+      return buildPlannerLaneProfile("ROADMAP", signals);
+    case "ENSURE_BACKLOG_MINIMUM":
+      return buildPlannerLaneProfile("BACKLOG", signals);
+    case "ENSURE_TODO_MINIMUM":
+      return buildPlannerLaneProfile("TODO", signals);
+    case "ENSURE_CHECKLIST_MINIMUM":
+      return buildPlannerLaneProfile("CHECKLIST", signals);
+    case "REFRESH_FLASHCARDS":
+      return staleFlashcardCount > 0
+        ? {
+            queueColumn: "SOON",
+            priorityScore: roundPriority(74 + staleFlashcardCount * 4 + (mode === "BOOTSTRAP" ? 12 : 0)),
+            reason: `${staleFlashcardCount} flashcard(s) are due for oldest-first maintenance refresh.`,
+            sourceSignal: "refresh-flashcards",
+          }
+        : {
+            queueColumn: "LATER",
+            priorityScore: 28,
+            reason: "Flashcard refresh remains available under oldest-first global maintenance.",
+            sourceSignal: "refresh-flashcards-idle",
+          };
+    case "REFRESH_TASKS":
+      return staleTaskCount > 0 || hasLaneDeficits
+        ? {
+            queueColumn: hasLaneDeficits ? "SOON" : "LATER",
+            priorityScore: roundPriority(70 + staleTaskCount * 4 + deficits.length * 6),
+            reason: hasLaneDeficits
+              ? "Task refresh stays warm because tactical lanes are still under target."
+              : `${staleTaskCount} taskcard(s) are due for oldest-first maintenance refresh.`,
+            sourceSignal: hasLaneDeficits ? "refresh-tasks-with-deficits" : "refresh-tasks",
+          }
+        : {
+            queueColumn: "LATER",
+            priorityScore: 26,
+            reason: "Task refresh remains available under oldest-first global maintenance.",
+            sourceSignal: "refresh-tasks-idle",
+          };
+    case "REFRESH_DATACARDS":
+      return staleDatacardCount > 0 || datacardCount < PLANNER_MIN_DATACARDS_FOR_ACTIVE
+        ? {
+            queueColumn: datacardCount < PLANNER_MIN_DATACARDS_FOR_ACTIVE ? "NOW" : "SOON",
+            priorityScore: roundPriority(82 + staleDatacardCount * 4 + Math.max(0, PLANNER_MIN_DATACARDS_FOR_ACTIVE - datacardCount) * 30),
+            reason: datacardCount < PLANNER_MIN_DATACARDS_FOR_ACTIVE
+              ? "Company needs datacard refresh or creation before it can stay active."
+              : `${staleDatacardCount} datacard(s) are due for oldest-first maintenance refresh.`,
+            sourceSignal: datacardCount < PLANNER_MIN_DATACARDS_FOR_ACTIVE ? "inactive-datacard-gap" : "refresh-datacards",
+          }
+        : {
+            queueColumn: "LATER",
+            priorityScore: 24,
+            reason: "Datacard refresh remains available under oldest-first global maintenance.",
+            sourceSignal: "refresh-datacards-idle",
+          };
+    case "REFRESH_GOALS":
+      return staleGoalCount > 0
+        ? {
+            queueColumn: "LATER",
+            priorityScore: roundPriority(60 + staleGoalCount * 3),
+            reason: `${staleGoalCount} goalcard(s) are due for oldest-first maintenance refresh.`,
+            sourceSignal: "refresh-goals",
+          }
+        : {
+            queueColumn: "LATER",
+            priorityScore: 18,
+            reason: "Goal refresh remains available under oldest-first global maintenance.",
+            sourceSignal: "refresh-goals-idle",
+          };
+    case "FULL_MAINTENANCE":
+      return {
+        queueColumn: "PARKED",
+        priorityScore: 0,
+        reason: "Legacy umbrella maintenance job is parked in favor of explicit refresh jobs.",
+        sourceSignal: "legacy-maintenance-parked",
+      };
+    case "COMPANY_SYNTHESIS":
+      if (needsKnowledgeBootstrap || needsTaskBootstrap || hasLaneDeficits) {
+        return {
+          queueColumn: "PARKED",
+          priorityScore: 0,
+          reason: "Legacy synthesis job is superseded by explicit planner bootstrap jobs.",
+          sourceSignal: "legacy-synthesis-superseded",
+        };
+      }
+      return {
+        queueColumn: "PARKED",
+        priorityScore: 0,
+        reason: "Legacy synthesis job remains parked for compatibility only.",
+        sourceSignal: "legacy-synthesis-parked",
       };
     default:
       return {
@@ -196,6 +407,8 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
     staleSources,
     staleTopics,
     staleFiles,
+    activeManualCooldownCount,
+    taskLaneCounts,
     scoreHealth,
   ] = await Promise.all([
     prisma.feedback.count({
@@ -278,17 +491,56 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         updatedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
     }),
+    prisma.checklistTask.count({
+      where: {
+        companyId,
+        manualLaneCooldownUntil: { gt: new Date() },
+      },
+    }),
+    prisma.checklistTask.groupBy({
+      by: ["kanbanColumn"],
+      where: {
+        companyId,
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+      },
+      _count: { _all: true },
+    }),
     computeCompanyScoreHealth(companyId, prisma),
   ]);
+
+  const laneCounts = Object.fromEntries(
+    PLANNER_LANE_ORDER.map((lane) => [lane, 0]),
+  );
+  for (const row of taskLaneCounts) {
+    laneCounts[row.kanbanColumn] = row._count._all;
+  }
+  const deficits = PLANNER_LANE_ORDER.filter((lane) => Number(laneCounts[lane] || 0) < Number(PLANNER_LANE_TARGETS[lane] || 0));
+  const datacardCount = sourceCount;
+  const flashcardCount = activeKnowledgeCount;
 
   return {
     pendingFeedbackCount,
     pendingStrategicFeedbackCount,
     activeTaskCount,
     activeKnowledgeCount,
+    flashcardCount,
+    datacardCount,
     sourceCount,
     fileCount,
     activeTopicCount,
+    staleFlashcardCount: staleFlashcards,
+    staleGoalCount: staleGoals,
+    staleTaskCount: staleTasks,
+    staleDatacardCount: staleSources,
+    activeManualCooldownCount,
+    laneCounts,
+    deficits,
+    mode: getCompanyOperatingMode({
+      datacardCount,
+      flashcardCount,
+      laneCounts,
+    }),
     staleAuditCount: staleFlashcards + staleGoals + staleTasks + staleSources + staleTopics + staleFiles,
     scoreHealth,
   };
@@ -346,6 +598,22 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
                 : "ACTIVE",
         },
       }));
+    }
+
+    const staleLegacyCompanyJobs = await prisma.pipelineJob.findMany({
+      where: {
+        companyId,
+        entityType: "COMPANY",
+        entityId: companyId,
+        jobType: { in: LEGACY_COMPAT_PIPELINE_JOB_TYPES },
+        status: { not: "RUNNING" },
+      },
+      select: { id: true },
+    });
+    if (staleLegacyCompanyJobs.length > 0) {
+      await prisma.pipelineJob.deleteMany({
+        where: { id: { in: staleLegacyCompanyJobs.map((job) => job.id) } },
+      });
     }
 
     const workflowBlueprints = await prisma.workflowBlueprint.findMany({
@@ -688,6 +956,10 @@ async function failPipelineJob(prisma, jobId, error) {
 }
 
 module.exports = {
+  CORE_PIPELINE_JOB_TYPES,
+  PLANNER_BOOTSTRAP_JOB_TYPES,
+  PLANNER_MAINTENANCE_JOB_TYPES,
+  LEGACY_COMPAT_PIPELINE_JOB_TYPES,
   PIPELINE_JOB_TYPES,
   MANAGED_PIPELINE_JOB_TYPES,
   PIPELINE_QUEUE_COLUMNS,

@@ -4,14 +4,31 @@ const {
   normalizeTaskScores,
 } = require("../../../src/lib/scoring-contract");
 const { deriveDataCardScoreProfile } = require("../../../src/lib/upstream-card-scoring");
-const { deriveSourceProcessingStatus } = require("../../../src/lib/source-contract");
+const {
+  buildSourceLifecycleData,
+  deriveSourceProcessingStatus,
+  getWeakestProcessingStatus,
+} = require("../../../src/lib/source-contract");
 const { CandidateState } = require("../lifecycle");
+const { processMemoryUpdates, getHumanMemoryPrompt } = require("../memory");
+const { fetchUrlContent } = require("../fetcher");
+const { refineDraftFlashCard, refineDraftTaskCard, refineGoalCard } = require("../writer");
+const { auditCheckedFlashCard, evaluateNBAItemBatch } = require("../evaluator");
+const { auditCardTaxonomy } = require("../auditor");
+const { truncate } = require("../shared");
+const { recordPlannerTelemetry } = require("./telemetry");
 
 const PLANNER_MAINTENANCE_COUNTS = Object.freeze({
   flashcards: 3,
   taskcards: 2,
   datacards: 1,
   goalcards: 1,
+});
+const PROCESSING_STATUS_ORDER = Object.freeze({
+  DRAFT: 0,
+  CHECKED: 1,
+  VERIFIED: 2,
+  ACCEPTED: 2,
 });
 
 function buildActiveMaintenanceWhere() {
@@ -36,7 +53,144 @@ async function loadOldestModifiedBatch(model, where, take) {
   });
 }
 
+function extractUrlsFromText(value) {
+  if (typeof value !== "string" || value.length === 0) return [];
+  return Array.from(new Set(value.match(/https?:\/\/[^\s)>"']+/g) || []));
+}
+
+async function getCompanyRefreshContext(prisma, companyId, cache) {
+  if (!cache.has(companyId)) {
+    cache.set(companyId, (async () => {
+      const company = await prisma.company.findUnique({ where: { id: companyId } });
+      if (!company) throw new Error(`[PLANNER_MAINTENANCE] company ${companyId} not found`);
+      await processMemoryUpdates(prisma, company);
+      const memoryPrompt = await getHumanMemoryPrompt(prisma, company);
+      return { company, memoryPrompt };
+    })());
+  }
+  return cache.get(companyId);
+}
+
+async function loadFlashcardLinkedSources(prisma, flashcardId) {
+  const links = await prisma.flashcardSource.findMany({
+    where: { flashcardId, sourceType: "SOURCE" },
+    select: { sourceId: true },
+  });
+  if (links.length === 0) return [];
+  return prisma.source.findMany({
+    where: { id: { in: links.map((link) => link.sourceId) } },
+  });
+}
+
+async function loadGoalcardLinkedSources(prisma, goalcardId) {
+  const links = await prisma.goalcardSource.findMany({
+    where: { goalcardId, sourceType: "SOURCE" },
+    select: { sourceId: true },
+  });
+  if (links.length === 0) return [];
+  return prisma.source.findMany({
+    where: { id: { in: links.map((link) => link.sourceId) } },
+  });
+}
+
+async function loadTaskLinkedSources(prisma, task) {
+  const flashcardIds = Array.isArray(task.sourceFlashcardIds) ? task.sourceFlashcardIds : [];
+  if (flashcardIds.length === 0) return [];
+  const links = await prisma.flashcardSource.findMany({
+    where: {
+      flashcardId: { in: flashcardIds },
+      sourceType: "SOURCE",
+    },
+    select: { sourceId: true },
+  });
+  if (links.length === 0) return [];
+  return prisma.source.findMany({
+    where: { id: { in: Array.from(new Set(links.map((link) => link.sourceId))) } },
+  });
+}
+
+async function buildResearchContextFromSources(sources) {
+  const urls = Array.from(new Set(
+    sources.flatMap((source) => [
+      ...extractUrlsFromText(source.provenance),
+      ...extractUrlsFromText(source.content),
+      ...extractUrlsFromText(source.metadata?.url),
+    ]),
+  )).slice(0, 1);
+
+  const snippets = [];
+  for (const url of urls) {
+    try {
+      const content = await fetchUrlContent(url);
+      if (content?.content) {
+        snippets.push(`URL: ${url}\n${truncate(content.content, 1200)}`);
+      }
+    } catch (_error) {
+      // Skip unreachable sources during maintenance refresh.
+    }
+  }
+
+  if (snippets.length === 0) {
+    const sourceSummaries = sources
+      .slice(0, 2)
+      .map((source) => truncate(source.canonicalContent || source.content || "", 800))
+      .filter(Boolean);
+    if (sourceSummaries.length === 0) return null;
+    return `Linked evidence snapshots:\n${sourceSummaries.join("\n\n---\n\n")}`;
+  }
+
+  return `Fresh external research context:\n${snippets.join("\n\n---\n\n")}`;
+}
+
+async function enforceSourceBoundStatus(model, id, currentStatus, sourceStatuses, telemetry = null) {
+  const ceilingStatus = getWeakestProcessingStatus(sourceStatuses);
+  if (!ceilingStatus) return;
+  const currentRank = PROCESSING_STATUS_ORDER[String(currentStatus || "DRAFT").toUpperCase()] ?? 0;
+  const ceilingRank = PROCESSING_STATUS_ORDER[ceilingStatus] ?? 0;
+  if (currentRank <= ceilingRank) return;
+  await model.update({
+    where: { id },
+    data: { processingStatus: ceilingStatus },
+  });
+  if (telemetry?.prisma && telemetry.companyId) {
+    await recordPlannerTelemetry(telemetry.prisma, {
+      companyId: telemetry.companyId,
+      entityType: telemetry.entityType || null,
+      entityId: id,
+      eventType: "QUALITY_CEILING_APPLIED",
+      reason: telemetry.reason || `Lifecycle was capped to ${ceilingStatus} by weaker upstream evidence.`,
+      details: {
+        fromStatus: currentStatus,
+        toStatus: ceilingStatus,
+        sourceStatuses,
+      },
+    });
+  }
+}
+
+async function enforceTaskBoundStatus(prisma, task) {
+  const flashcardIds = Array.isArray(task.sourceFlashcardIds) ? task.sourceFlashcardIds : [];
+  if (flashcardIds.length === 0) return;
+  const flashcards = await prisma.flashcard.findMany({
+    where: { id: { in: flashcardIds } },
+    select: { processingStatus: true },
+  });
+  await enforceSourceBoundStatus(
+    prisma.checklistTask,
+    task.id,
+    task.processingStatus,
+    flashcards.map((flashcard) => flashcard.processingStatus),
+    {
+      prisma,
+      companyId: task.companyId,
+      entityType: "TASK",
+      reason: "Task lifecycle was capped to the weakest upstream flashcard status during maintenance refresh.",
+    },
+  );
+}
+
 async function refreshOldestFlashcards(prisma, _company = null, refreshedAt = new Date()) {
+  const contextCache = new Map();
   const flashcards = await loadOldestModifiedBatch(
     prisma.flashcard,
     buildActiveMaintenanceWhere(),
@@ -44,25 +198,105 @@ async function refreshOldestFlashcards(prisma, _company = null, refreshedAt = ne
   );
 
   for (const flashcard of flashcards) {
+    const { company, memoryPrompt } = await getCompanyRefreshContext(prisma, flashcard.companyId, contextCache);
+    const linkedSources = await loadFlashcardLinkedSources(prisma, flashcard.id);
+    const refreshContext = await buildResearchContextFromSources(linkedSources);
+    const rewritten = await refineDraftFlashCard(
+      prisma,
+      { ...flashcard, company },
+      memoryPrompt,
+      null,
+      refreshContext,
+    );
+    const baseUpdate = {
+      ...(rewritten || {}),
+      lastRescoredAt: refreshedAt,
+      lastTaxonomyAuditedAt: refreshedAt,
+      hashtagEvaluationPending: true,
+      refreshedAt,
+    };
+
     await prisma.flashcard.update({
       where: { id: flashcard.id },
-      data: {
-        ...normalizeKnowledgeScores({
-          confidence: flashcard.confidenceScore ?? flashcard.confidence,
-          impact: flashcard.impact,
-          weight: flashcard.weight,
-        }),
-        lastRescoredAt: refreshedAt,
-        lastTaxonomyAuditedAt: refreshedAt,
-        hashtagEvaluationPending: true,
-      },
+      data: rewritten
+        ? {
+            ...baseUpdate,
+            ...normalizeKnowledgeScores({
+              confidence: baseUpdate.confidenceScore ?? baseUpdate.confidence,
+              impact: baseUpdate.impact,
+              weight: baseUpdate.weight,
+            }),
+          }
+        : {
+            ...normalizeKnowledgeScores({
+              confidence: flashcard.confidenceScore ?? flashcard.confidence,
+              impact: flashcard.impact,
+              weight: flashcard.weight,
+            }),
+            lastRescoredAt: refreshedAt,
+            lastTaxonomyAuditedAt: refreshedAt,
+            hashtagEvaluationPending: true,
+            refreshedAt,
+          },
     });
+
+    const refreshed = await prisma.flashcard.findUnique({ where: { id: flashcard.id } });
+    if (refreshed?.processingStatus === "CHECKED") {
+      const audit = await auditCheckedFlashCard(
+        prisma,
+        refreshed,
+        memoryPrompt,
+        null,
+        linkedSources.map((source) => source.canonicalContent || source.content).join("\n\n"),
+      );
+      if (audit) {
+        await prisma.flashcard.update({
+          where: { id: flashcard.id },
+          data: {
+            ...audit,
+            lastTaxonomyAuditedAt: refreshedAt,
+            hashtagEvaluationPending: true,
+            refreshedAt,
+          },
+        });
+      }
+    }
+    const sourceStatuses = linkedSources.map((source) => deriveSourceProcessingStatus(source));
+    const latestFlashcard = await prisma.flashcard.findUnique({ where: { id: flashcard.id } });
+    if (latestFlashcard) {
+      await enforceSourceBoundStatus(
+        prisma.flashcard,
+        flashcard.id,
+        latestFlashcard.processingStatus,
+        sourceStatuses,
+        {
+          prisma,
+          companyId: flashcard.companyId,
+          entityType: "FLASHCARD",
+          reason: "Flashcard lifecycle was capped to the weakest linked datacard status during maintenance refresh.",
+        },
+      );
+    }
+
+    const taxonomy = await auditCardTaxonomy(prisma, company, refreshed || flashcard, "KNOWLEDGE");
+    if (taxonomy) {
+      await prisma.flashcard.update({
+        where: { id: flashcard.id },
+        data: {
+          lastTaxonomyAuditedAt: refreshedAt,
+          userAnnotation: taxonomy.isMismatch
+            ? `[TAXONOMY_AUDIT]: Suggested layer ${taxonomy.suggestedLayer}. ${taxonomy.reasoning || ""}`.trim()
+            : (refreshed?.userAnnotation ?? flashcard.userAnnotation ?? null),
+        },
+      });
+    }
   }
 
   return flashcards;
 }
 
 async function refreshOldestGoals(prisma, _company = null, refreshedAt = new Date()) {
+  const contextCache = new Map();
   const goalcards = await loadOldestModifiedBatch(
     prisma.goalcard,
     buildActiveMaintenanceWhere(),
@@ -70,25 +304,68 @@ async function refreshOldestGoals(prisma, _company = null, refreshedAt = new Dat
   );
 
   for (const goalcard of goalcards) {
+    const { company, memoryPrompt } = await getCompanyRefreshContext(prisma, goalcard.companyId, contextCache);
+    const linkedSources = await loadGoalcardLinkedSources(prisma, goalcard.id);
+    const refreshContext = await buildResearchContextFromSources(linkedSources);
+    const rewritten = await refineGoalCard(
+      prisma,
+      { ...goalcard, company },
+      memoryPrompt,
+      null,
+      refreshContext,
+    );
+
     await prisma.goalcard.update({
       where: { id: goalcard.id },
       data: {
-        ...normalizeGoalScores({
+        ...(rewritten || normalizeGoalScores({
           confidence: goalcard.confidenceScore ?? goalcard.confidence,
           impact: goalcard.impact,
           weight: goalcard.weight,
-        }),
+        })),
         lastRescoredAt: refreshedAt,
         lastTaxonomyAuditedAt: refreshedAt,
         hashtagEvaluationPending: true,
+        refreshedAt,
       },
     });
+
+    const refreshed = await prisma.goalcard.findUnique({ where: { id: goalcard.id } });
+    const taxonomy = await auditCardTaxonomy(prisma, company, refreshed || goalcard, "GOAL");
+    const sourceStatuses = linkedSources.map((source) => deriveSourceProcessingStatus(source));
+    const latestGoal = await prisma.goalcard.findUnique({ where: { id: goalcard.id } });
+    if (latestGoal) {
+      await enforceSourceBoundStatus(
+        prisma.goalcard,
+        goalcard.id,
+        latestGoal.processingStatus,
+        sourceStatuses,
+        {
+          prisma,
+          companyId: goalcard.companyId,
+          entityType: "GOAL",
+          reason: "Goal lifecycle was capped to the weakest linked datacard status during maintenance refresh.",
+        },
+      );
+    }
+    if (taxonomy) {
+      await prisma.goalcard.update({
+        where: { id: goalcard.id },
+        data: {
+          lastTaxonomyAuditedAt: refreshedAt,
+          userAnnotation: taxonomy.isMismatch
+            ? `[TAXONOMY_AUDIT]: Suggested layer ${taxonomy.suggestedLayer}. ${taxonomy.reasoning || ""}`.trim()
+            : (refreshed?.userAnnotation ?? goalcard.userAnnotation ?? null),
+        },
+      });
+    }
   }
 
   return goalcards;
 }
 
 async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Date()) {
+  const contextCache = new Map();
   const taskcards = await loadOldestModifiedBatch(
     prisma.checklistTask,
     {
@@ -107,19 +384,52 @@ async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Dat
   );
 
   for (const taskcard of taskcards) {
+    const { company, memoryPrompt } = await getCompanyRefreshContext(prisma, taskcard.companyId, contextCache);
+    const linkedSources = await loadTaskLinkedSources(prisma, taskcard);
+    const refreshContext = await buildResearchContextFromSources(linkedSources);
+    const rewritten = await refineDraftTaskCard(
+      prisma,
+      { ...taskcard, company },
+      memoryPrompt,
+      null,
+      refreshContext,
+    );
+
     await prisma.checklistTask.update({
       where: { id: taskcard.id },
       data: {
-        ...normalizeTaskScores({
+        ...(rewritten || normalizeTaskScores({
           confidence: taskcard.confidenceScore ?? taskcard.confidence,
           impact: taskcard.impact,
           ease: taskcard.ease,
-        }),
+        })),
         lastRescoredAt: refreshedAt,
         lastTaxonomyAuditedAt: refreshedAt,
         hashtagEvaluationPending: true,
       },
     });
+
+    const refreshed = await prisma.checklistTask.findUnique({ where: { id: taskcard.id } });
+    if (refreshed?.processingStatus === "CHECKED") {
+      await evaluateNBAItemBatch(prisma, company, [refreshed], memoryPrompt);
+    }
+    const latestTask = await prisma.checklistTask.findUnique({ where: { id: taskcard.id } });
+    if (latestTask) {
+      await enforceTaskBoundStatus(prisma, latestTask);
+    }
+
+    const taxonomy = await auditCardTaxonomy(prisma, company, refreshed || taskcard, "TASK");
+    if (taxonomy) {
+      await prisma.checklistTask.update({
+        where: { id: taskcard.id },
+        data: {
+          lastTaxonomyAuditedAt: refreshedAt,
+          userAnnotation: taxonomy.isMismatch
+            ? `[TAXONOMY_AUDIT]: Suggested layer ${taxonomy.suggestedLayer}. ${taxonomy.reasoning || ""}`.trim()
+            : (refreshed?.userAnnotation ?? taskcard.userAnnotation ?? null),
+        },
+      });
+    }
   }
 
   return taskcards;
@@ -133,8 +443,26 @@ async function refreshOldestDatacards(prisma, _company = null, refreshedAt = new
   );
 
   for (const source of sources) {
+    let latestContent = source.content;
+    const refreshUrl = [
+      ...extractUrlsFromText(source.provenance),
+      ...extractUrlsFromText(source.content),
+      ...extractUrlsFromText(source.metadata?.url),
+    ][0];
+
+    if (refreshUrl) {
+      try {
+        const fetched = await fetchUrlContent(refreshUrl);
+        if (fetched?.content) {
+          latestContent = `${refreshUrl}\n\n${fetched.content}`;
+        }
+      } catch (_error) {
+        // Keep the existing datacard content when the live URL is unreachable.
+      }
+    }
+
     const profile = deriveDataCardScoreProfile({
-      content: source.content,
+      content: latestContent,
       hashtags: source.hashtags,
       entityTag: source.entityTag,
       aiClusters: source.aiClusters,
@@ -146,18 +474,26 @@ async function refreshOldestDatacards(prisma, _company = null, refreshedAt = new
     await prisma.source.update({
       where: { id: source.id },
       data: {
+        content: latestContent,
         confidence: profile.confidence,
         confidenceScore: profile.confidence,
         impact: profile.impact,
         weight: profile.weight,
         iceScore: profile.iceScore,
         scoreProfile: profile.scoreProfile ?? null,
-        processingStatus: deriveSourceProcessingStatus({
+        ...buildSourceLifecycleData({
           ...source,
+          content: latestContent,
           confidence: profile.confidence,
           confidenceScore: profile.confidence,
+          metadata: {
+            ...(source.metadata || {}),
+            lastCheckedAt: refreshedAt.toISOString(),
+            refreshedBy: "planner-maintenance",
+          },
         }),
         hashtagEvaluationPending: true,
+        updatedAt: refreshedAt,
       },
     });
   }

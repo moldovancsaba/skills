@@ -2204,7 +2204,8 @@ export async function recordFlashcardCorrection(input: FlashcardCorrectionInput)
       input.correctionType === FlashcardCorrectionType.REQUEST_REFRESH ||
       input.correctionType === FlashcardCorrectionType.SUPPRESS_SOURCE
     ) {
-      await escalateCompanyPipelineJob(prisma as any, result.companyId, "COMPANY_SYNTHESIS");
+      await escalateCompanyPipelineJob(prisma as any, result.companyId, "ENSURE_FLASHCARD_MINIMUM");
+      await escalateCompanyPipelineJob(prisma as any, result.companyId, "RESEARCH_BACKFILL");
       await escalateCompanyPipelineJob(prisma as any, result.companyId, "FEEDBACK_RECONCILIATION");
       await escalateCompanyPipelineJob(prisma as any, result.companyId, "CARD_RESCORING");
     }

@@ -77,7 +77,7 @@ async function runWorkerLoop() {
     });
     // Queue execution is the only mutation lane. Any revisit, synthesis,
     // repair, or maintenance work must arrive through claimable jobs.
-    const queueOps = await runPipelineQueueBatch(prisma, 4);
+    const queueOps = await runPipelineQueueBatch(prisma, 1);
     await updateProgress(prisma, {
       state: "running",
       stage: "SNAPSHOT_REFRESH",

@@ -279,7 +279,7 @@ async function recordPipelineJobUsage(prisma, job, input) {
   });
 }
 
-async function runPipelineQueueBatch(prisma, limit = 3) {
+async function runPipelineQueueBatch(prisma, limit = 1) {
   await syncAllCompanyPipelineJobs(prisma);
   const claimed = await claimNextPipelineJobs(prisma, limit);
   let executed = 0;

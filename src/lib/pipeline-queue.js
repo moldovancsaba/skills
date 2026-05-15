@@ -59,6 +59,7 @@ const MANAGED_PIPELINE_JOB_TYPES = Object.freeze([
 const PIPELINE_QUEUE_COLUMNS = Object.freeze(["NOW", "SOON", "LATER", "PARKED"]);
 const PIPELINE_CONTROL_MODES = Object.freeze(["AI_ONLY", "HUMAN_GUIDED"]);
 const PIPELINE_JOB_STATUSES = Object.freeze(["ACTIVE", "RUNNING", "PAUSED", "FAILED"]);
+const STALE_RUNNING_JOB_MS = 15 * 60 * 1000;
 
 const QUEUE_COLUMN_RANK = Object.freeze({
   NOW: 0,
@@ -789,6 +790,7 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
 }
 
 async function syncAllCompanyPipelineJobs(prisma) {
+  await recoverStaleRunningPipelineJobs(prisma);
   const companies = await prisma.company.findMany({
     select: { id: true },
     orderBy: { updatedAt: "asc" },
@@ -803,6 +805,21 @@ async function syncAllCompanyPipelineJobs(prisma) {
       );
     }
   }
+}
+
+async function recoverStaleRunningPipelineJobs(prisma) {
+  const cutoff = new Date(Date.now() - STALE_RUNNING_JOB_MS);
+  return prisma.pipelineJob.updateMany({
+    where: {
+      status: "RUNNING",
+      updatedAt: { lt: cutoff },
+    },
+    data: {
+      status: "ACTIVE",
+      updatedAt: new Date(),
+      lastError: "Recovered automatically after stale RUNNING timeout.",
+    },
+  });
 }
 
 function sortPipelineJobs(jobs) {
@@ -1055,6 +1072,7 @@ module.exports = {
   gatherCompanyPipelineSignals,
   syncCompanyPipelineJobs,
   syncAllCompanyPipelineJobs,
+  recoverStaleRunningPipelineJobs,
   listCompanyPipelineJobs,
   listPersistedCompanyPipelineJobs,
   resetCompanyPipelineJobsToAiOnly,

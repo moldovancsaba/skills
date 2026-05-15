@@ -125,6 +125,7 @@ async function main() {
   const buildIdentity = getWorkerBuildIdentity();
   assert.equal(typeof buildIdentity.appVersion, "string", "build identity must expose app version");
   assert.equal(Boolean(buildIdentity.checkoutPath), true, "build identity must expose checkout path");
+  assert.equal(typeof buildIdentity.gitDirty, "boolean", "build identity must expose dirty checkout state");
 
   console.log("Planner contract tests passed.");
 }

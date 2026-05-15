@@ -35,10 +35,16 @@ function readGitValue(command) {
 }
 
 function getWorkerBuildIdentity() {
+  const gitSha = readGitValue("git rev-parse HEAD");
+  const originMainSha = readGitValue("git rev-parse origin/main");
+  const gitDirty = Boolean(readGitValue("git status --porcelain"));
   return {
     appVersion: readPackageVersion(),
-    gitSha: readGitValue("git rev-parse HEAD"),
+    gitSha,
+    originMainSha,
     gitBranch: readGitValue("git rev-parse --abbrev-ref HEAD"),
+    gitDirty,
+    matchesOriginMain: Boolean(gitSha && originMainSha && gitSha === originMainSha && !gitDirty),
     checkoutPath: path.join(__dirname, "..", "..", ".."),
     generatedAt: new Date().toISOString(),
   };

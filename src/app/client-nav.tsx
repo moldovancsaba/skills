@@ -90,6 +90,7 @@ export function ClientNav() {
   const { t } = useI18n();
   const [session, setSession] = useState<any>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [resolvedCompany, setResolvedCompany] = useState<any>(null);
 
   // Pure URL-driven company ID
   const companyIdFromUrl = params?.companyId as string;
@@ -101,27 +102,11 @@ export function ClientNav() {
   }, []);
 
   useEffect(() => {
-    if (companyIdFromUrl && (!company || company.id !== companyIdFromUrl)) {
-      // Synchronize store from URL in background
-      fetch("/api/companies")
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            const found = data.find((c: any) => c.id === companyIdFromUrl);
-            if (found) {
-              setCompany(found);
-            }
-          }
-        })
-        .catch(err => console.error("Nav company sync failed:", err));
-    }
-  }, [company, companyIdFromUrl, setCompany]);
-
-  useEffect(() => {
     const activeId = company?.id || companyIdFromUrl;
     if (!activeId) {
       const timer = window.setTimeout(() => {
         setCounts({});
+        setResolvedCompany(null);
       }, 0);
 
       return () => window.clearTimeout(timer);
@@ -132,6 +117,12 @@ export function ClientNav() {
         const res = await fetch(`/api/companies/${activeId}/dashboard`);
         if (res.ok) {
           const data = await res.json();
+          if (data.company) {
+            setResolvedCompany(data.company);
+            if (!company || company.id !== data.company.id || company.name !== data.company.name) {
+              setCompany(data.company);
+            }
+          }
           setCounts({
             data: data.counts?.sources || 0,
             topics: data.counts?.topics || 0,
@@ -157,12 +148,15 @@ export function ClientNav() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [company?.id, companyIdFromUrl]);
+  }, [company, company?.id, company?.name, companyIdFromUrl, setCompany]);
 
   const handleLogout = () => {
     window.location.href = "/api/auth/logout?returnTo=/login";
   };
 
+  const navCompany = resolvedCompany?.id === companyIdFromUrl
+    ? resolvedCompany
+    : (company?.id === companyIdFromUrl ? company : resolvedCompany || company);
   const activeCompanyId = company?.id || companyIdFromUrl;
 
   useEffect(() => {
@@ -198,11 +192,16 @@ export function ClientNav() {
           {((company || companyIdFromUrl) && pathname !== '/' && !pathname.startsWith('/faq') && !pathname.startsWith('/manual')) ? (
             <Stack gap={4}>
               <NavLink
-                label={company?.name || t("nav.company")}
-                description={company?.id ? t("nav.companyDescription") : t("nav.companySyncing")}
+                label={navCompany?.name || t("nav.company")}
+                description={(navCompany?.id || companyIdFromUrl) ? t("nav.companyDescription") : undefined}
                 variant="light"
-                active={pathname === `/${company?.id || companyIdFromUrl}`}
-                onClick={() => company?.id && router.push(`/${company.id}`)}
+                active={pathname === `/${navCompany?.id || companyIdFromUrl}`}
+                onClick={() => {
+                  const targetCompanyId = navCompany?.id || companyIdFromUrl;
+                  if (targetCompanyId) {
+                    router.push(`/${targetCompanyId}`);
+                  }
+                }}
                 styles={{
                   root: {
                     ...getSidebarActiveStyle("review"),

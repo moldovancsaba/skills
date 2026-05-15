@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge, Box, Group, Loader, SimpleGrid, Stack, Table, Anchor } from "@mantine/core";
 import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconBrain as Brain, IconHeartbeat as Heartbeat, IconHierarchy as Hierarchy, IconListCheck as ListCheck, IconServer as Server } from "@tabler/icons-react";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
@@ -63,6 +63,12 @@ function chartTooltipFormatter(value: unknown) {
   if (typeof value === "number") return [Math.round(value * 10) / 10, "Value"];
   if (value == null) return ["—", "Value"];
   return [String(value), "Value"];
+}
+
+function deltaTooltipFormatter(value: unknown) {
+  if (typeof value !== "number") return ["—", "Hourly change"];
+  const sign = value > 0 ? "+" : "";
+  return [`${sign}${Math.round(value * 10) / 10}`, "Hourly change"];
 }
 
 function formatHistoryHourLabel(value: unknown) {
@@ -160,8 +166,32 @@ export default function LocalAiMissionControlPage() {
       totalCards: Number(point.totalCards ?? 0),
     }));
 
-  const earliestHistoryPoint = inventoryHistoryChartData[0] || null;
-  const latestHistoryPoint = inventoryHistoryChartData[inventoryHistoryChartData.length - 1] || null;
+  type InventoryHistoryPoint = (typeof inventoryHistoryChartData)[number];
+  const inventoryDeltaChartData = inventoryHistoryChartData
+    .map((point: InventoryHistoryPoint, index: number, series: InventoryHistoryPoint[]) => {
+      if (index === 0) return null;
+      const previous = series[index - 1];
+      return {
+        hour: point.hour,
+        bucketStart: point.bucketStart,
+        datacardsDelta: point.datacards - previous.datacards,
+        flashcardsDelta: point.flashcards - previous.flashcards,
+        goalcardsDelta: point.goalcards - previous.goalcards,
+        taskcardsDelta: point.taskcards - previous.taskcards,
+        totalCardsDelta: point.totalCards - previous.totalCards,
+      };
+    })
+    .filter(Boolean) as Array<{
+      hour: string;
+      bucketStart: string;
+      datacardsDelta: number;
+      flashcardsDelta: number;
+      goalcardsDelta: number;
+      taskcardsDelta: number;
+      totalCardsDelta: number;
+    }>;
+
+  const latestDeltaPoint = inventoryDeltaChartData[inventoryDeltaChartData.length - 1] || null;
 
   return (
     <PageShell width="full">
@@ -297,31 +327,20 @@ export default function LocalAiMissionControlPage() {
                 supporting={<Badge variant="light" color="strategy">hourly history</Badge>}
               />
               <UnifiedCardBody>
-                {inventoryHistoryChartData.length ? (
+                {inventoryDeltaChartData.length ? (
                   <Box h={320}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={inventoryHistoryChartData} margin={{ top: 8, right: 16, left: -20, bottom: 8 }}>
+                      <BarChart data={inventoryDeltaChartData} margin={{ top: 8, right: 16, left: -20, bottom: 8 }}>
                         <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
                         <XAxis dataKey="hour" tickLine={false} axisLine={false} minTickGap={24} />
                         <YAxis tickLine={false} axisLine={false} />
-                        <Tooltip formatter={(value) => chartTooltipFormatter(value)} labelFormatter={(value) => `Hour: ${value}`} />
-                        {CARD_TYPE_HISTORY.map((entry) => (
-                          <Line
-                            key={entry.key}
-                            type="monotone"
-                            dataKey={entry.key}
-                            stroke={entry.color}
-                            strokeWidth={2}
-                            dot={false}
-                            isAnimationActive={false}
-                            name={entry.label}
-                          />
-                        ))}
-                      </LineChart>
+                        <Tooltip formatter={(value) => deltaTooltipFormatter(value)} labelFormatter={(value) => `Hour: ${value}`} />
+                        <Bar dataKey="totalCardsDelta" fill="var(--mantine-color-orange-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} name="Total cards" />
+                      </BarChart>
                     </ResponsiveContainer>
                   </Box>
                 ) : (
-                  <Notice title="No hourly history yet">The status server has not captured enough hourly inventory history yet.</Notice>
+                  <Notice title="Not enough hourly history yet">The status server needs at least two hourly snapshots before it can calculate change.</Notice>
                 )}
               </UnifiedCardBody>
             </UnifiedCard>
@@ -352,41 +371,43 @@ export default function LocalAiMissionControlPage() {
             {CARD_TYPE_HISTORY.map((entry) => (
               <UnifiedCard key={entry.key} tone="strategy">
                 <UnifiedCardHeader
-                  title={`${entry.label} Hourly`}
+                  title={`${entry.label} Hourly Change`}
                   supporting={
                     <Badge variant="light" color="strategy">
-                      {latestHistoryPoint && earliestHistoryPoint
-                        ? `${formatDelta(
-                            Number(latestHistoryPoint[entry.key] ?? 0),
-                            Number(earliestHistoryPoint[entry.key] ?? 0),
-                          )} vs window`
+                      {latestDeltaPoint
+                        ? formatDelta(
+                            Number(
+                              latestDeltaPoint[
+                                `${entry.key}Delta` as "datacardsDelta" | "flashcardsDelta" | "goalcardsDelta" | "taskcardsDelta"
+                              ] ?? 0,
+                            ),
+                            0,
+                          )
                         : "no delta"}
                     </Badge>
                   }
                 />
                 <UnifiedCardBody>
-                  {inventoryHistoryChartData.length ? (
+                  {inventoryDeltaChartData.length ? (
                     <Box h={220}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={inventoryHistoryChartData} margin={{ top: 8, right: 8, left: -24, bottom: 8 }}>
+                        <BarChart data={inventoryDeltaChartData} margin={{ top: 8, right: 8, left: -24, bottom: 8 }}>
                           <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
                           <XAxis dataKey="hour" tickLine={false} axisLine={false} minTickGap={24} />
                           <YAxis tickLine={false} axisLine={false} />
-                          <Tooltip formatter={(value) => chartTooltipFormatter(value)} labelFormatter={(value) => `Hour: ${value}`} />
-                          <Line
-                            type="monotone"
-                            dataKey={entry.key}
-                            stroke={entry.color}
-                            strokeWidth={3}
-                            dot={false}
+                          <Tooltip formatter={(value) => deltaTooltipFormatter(value)} labelFormatter={(value) => `Hour: ${value}`} />
+                          <Bar
+                            dataKey={`${entry.key}Delta`}
+                            fill={entry.color}
+                            radius={[10, 10, 0, 0]}
                             isAnimationActive={false}
                             name={entry.label}
                           />
-                        </LineChart>
+                        </BarChart>
                       </ResponsiveContainer>
                     </Box>
                   ) : (
-                    <Notice title="No hourly history yet">No persisted hourly data for {entry.label.toLowerCase()} yet.</Notice>
+                    <Notice title="Not enough hourly history yet">No prior hour exists yet for {entry.label.toLowerCase()} change.</Notice>
                   )}
                 </UnifiedCardBody>
               </UnifiedCard>

@@ -14,7 +14,7 @@ export function proxy(req: NextRequest) {
   const isDocumentRequest = req.method === "GET" && accept.includes("text/html");
 
   // 1. Allow these specific public paths
-  const publicPaths = ["/login", "/auth", "/auth/callback", "/api/auth", "/api/bridge", "/api/test-public", "/card", "/api/cards"];
+  const publicPaths = ["/login", "/auth", "/auth/callback", "/api/auth", "/api/bridge", "/api/test-public", "/card", "/api/cards", "/local-ai"];
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 
   // 2. Allow static files regardless of auth

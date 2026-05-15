@@ -16,6 +16,155 @@ const prisma = new PrismaClient();
 const STATUS_PORT      = 10006;
 const LOG_FILE         = path.join(__dirname, "..", "logs", "guardian.log");
 const HEARTBEAT_FILE   = path.join(__dirname, "..", "logs", "guardian-heartbeat.json");
+const QUEUE_COLUMN_RANK = Object.freeze({ NOW: 0, SOON: 1, LATER: 2, PARKED: 3 });
+
+function sortQueueJobs(left, right) {
+  const leftRunning = left.status === "RUNNING" ? 1 : 0;
+  const rightRunning = right.status === "RUNNING" ? 1 : 0;
+  if (leftRunning !== rightRunning) return rightRunning - leftRunning;
+
+  const leftRank = QUEUE_COLUMN_RANK[left.queueColumn] ?? 99;
+  const rightRank = QUEUE_COLUMN_RANK[right.queueColumn] ?? 99;
+  if (leftRank !== rightRank) return leftRank - rightRank;
+
+  const leftPriority = Number(left.priorityScore || 0);
+  const rightPriority = Number(right.priorityScore || 0);
+  if (leftPriority !== rightPriority) return rightPriority - leftPriority;
+
+  return new Date(left.updatedAt || 0).getTime() - new Date(right.updatedAt || 0).getTime();
+}
+
+function buildSourceLabel(source) {
+  const provenance = typeof source?.provenance === "string" ? source.provenance.trim() : "";
+  if (provenance) return provenance;
+  const content = typeof source?.content === "string" ? source.content.replace(/\s+/g, " ").trim() : "";
+  if (!content) return source?.publicId ? `Source #${source.publicId}` : "Datacard";
+  return content.length > 96 ? `${content.slice(0, 96).trimEnd()}...` : content;
+}
+
+async function getGlobalQueueSnapshot() {
+  const jobs = await prisma.pipelineJob.findMany({
+    where: { status: { in: ["ACTIVE", "RUNNING", "FAILED"] } },
+    select: {
+      id: true,
+      companyId: true,
+      jobType: true,
+      entityType: true,
+      entityId: true,
+      status: true,
+      queueColumn: true,
+      priorityScore: true,
+      reason: true,
+      sourceSignal: true,
+      lastError: true,
+      attemptCount: true,
+      createdAt: true,
+      updatedAt: true,
+      lastTriedAt: true,
+      lastCompletedAt: true,
+    },
+    take: 200,
+  });
+
+  const activeJobs = jobs.filter((job) => job.status === "ACTIVE" || job.status === "RUNNING");
+  const failedJobs = jobs.filter((job) => job.status === "FAILED");
+  const companyIds = Array.from(new Set(jobs.map((job) => job.companyId).filter(Boolean)));
+  const companies = companyIds.length
+    ? await prisma.company.findMany({ where: { id: { in: companyIds } }, select: { id: true, name: true } })
+    : [];
+  const companyNames = new Map(companies.map((company) => [company.id, company.name]));
+
+  const entityIdsByKind = {
+    flashcard: new Set(),
+    task: new Set(),
+    goal: new Set(),
+    source: new Set(),
+    file: new Set(),
+  };
+
+  for (const job of jobs) {
+    const entityType = String(job.entityType || "").toUpperCase();
+    const entityId = job.entityId;
+    if (!entityId) continue;
+    if (entityType === "FLASHCARD") entityIdsByKind.flashcard.add(entityId);
+    else if (entityType === "CHECKLIST_TASK" || entityType === "TASK" || entityType === "CHECKLIST") entityIdsByKind.task.add(entityId);
+    else if (entityType === "GOALCARD" || entityType === "GOAL") entityIdsByKind.goal.add(entityId);
+    else if (entityType === "SOURCE" || entityType === "DATACARD") entityIdsByKind.source.add(entityId);
+    else if (entityType === "FILE" || entityType === "UPLOADED_SOURCE_FILE") entityIdsByKind.file.add(entityId);
+  }
+
+  const [flashcards, tasks, goals, sources, files] = await Promise.all([
+    entityIdsByKind.flashcard.size
+      ? prisma.flashcard.findMany({ where: { id: { in: Array.from(entityIdsByKind.flashcard) } }, select: { id: true, title: true, publicId: true } })
+      : [],
+    entityIdsByKind.task.size
+      ? prisma.checklistTask.findMany({ where: { id: { in: Array.from(entityIdsByKind.task) } }, select: { id: true, title: true, publicId: true, kanbanColumn: true } })
+      : [],
+    entityIdsByKind.goal.size
+      ? prisma.goalcard.findMany({ where: { id: { in: Array.from(entityIdsByKind.goal) } }, select: { id: true, title: true, publicId: true } })
+      : [],
+    entityIdsByKind.source.size
+      ? prisma.source.findMany({ where: { id: { in: Array.from(entityIdsByKind.source) } }, select: { id: true, publicId: true, provenance: true, content: true } })
+      : [],
+    entityIdsByKind.file.size
+      ? prisma.uploadedSourceFile.findMany({ where: { id: { in: Array.from(entityIdsByKind.file) } }, select: { id: true, publicId: true, name: true } })
+      : [],
+  ]);
+
+  const entityLabels = new Map();
+  for (const card of flashcards) entityLabels.set(card.id, card.title || (card.publicId ? `Flashcard #${card.publicId}` : "Flashcard"));
+  for (const task of tasks) entityLabels.set(task.id, task.title || (task.publicId ? `Task #${task.publicId}` : "Task"));
+  for (const goal of goals) entityLabels.set(goal.id, goal.title || (goal.publicId ? `Goal #${goal.publicId}` : "Goal"));
+  for (const source of sources) entityLabels.set(source.id, buildSourceLabel(source));
+  for (const file of files) entityLabels.set(file.id, file.name || (file.publicId ? `File #${file.publicId}` : "File"));
+
+  const normalizedActiveJobs = activeJobs
+    .map((job) => ({
+      ...job,
+      companyName: companyNames.get(job.companyId) || job.companyId,
+      entityLabel: job.entityId ? entityLabels.get(job.entityId) || job.entityId : null,
+    }))
+    .sort(sortQueueJobs);
+
+  const currentJob = normalizedActiveJobs[0] || null;
+  const nextJobs = currentJob
+    ? normalizedActiveJobs.filter((job) => job.id !== currentJob.id).slice(0, 20)
+    : normalizedActiveJobs.slice(0, 20);
+
+  const companyQueueDepth = Array.from(
+    normalizedActiveJobs.reduce((acc, job) => {
+      const key = `${job.companyId}::${job.companyName}`;
+      const existing = acc.get(key) || { companyId: job.companyId, companyName: job.companyName, activeJobs: 0, runningJobs: 0, topPriority: 0 };
+      existing.activeJobs += 1;
+      if (job.status === "RUNNING") existing.runningJobs += 1;
+      existing.topPriority = Math.max(existing.topPriority, Number(job.priorityScore || 0));
+      acc.set(key, existing);
+      return acc;
+    }, new Map()).values(),
+  ).sort((left, right) => {
+    if (left.runningJobs !== right.runningJobs) return right.runningJobs - left.runningJobs;
+    if (left.activeJobs !== right.activeJobs) return right.activeJobs - left.activeJobs;
+    return right.topPriority - left.topPriority;
+  });
+
+  return {
+    currentJob,
+    nextJobs,
+    activeJobs: normalizedActiveJobs.slice(0, 21),
+    totalActiveJobs: normalizedActiveJobs.length,
+    runningJobs: normalizedActiveJobs.filter((job) => job.status === "RUNNING").length,
+    failedJobs: failedJobs.length,
+    companyQueueDepth: companyQueueDepth.slice(0, 12),
+    recentFailedJobs: failedJobs
+      .sort((left, right) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime())
+      .slice(0, 8)
+      .map((job) => ({
+        ...job,
+        companyName: companyNames.get(job.companyId) || job.companyId,
+        entityLabel: job.entityId ? entityLabels.get(job.entityId) || job.entityId : null,
+      })),
+  };
+}
 
 // --- DATA FETCHERS ---
 
@@ -32,22 +181,24 @@ function readLogTail(n = 80) {
 }
 
 async function getGlobalInventory() {
-  const [s, f, fc, tc] = await Promise.all([
+  const [s, f, fc, gc, tc] = await Promise.all([
     prisma.source.count(),
     prisma.uploadedSourceFile.count(),
     prisma.flashcard.count(),
+    prisma.goalcard.count(),
     prisma.checklistTask.count(),
   ]);
-  return { sources: s, files: f, flashcards: fc, taskcards: tc };
+  return { sources: s, files: f, flashcards: fc, goalcards: gc, taskcards: tc, datacards: s + f, totalCards: fc + gc + tc };
 }
 
 // --- API ENDPOINTS ---
 
 async function handleApi(req, res) {
-  const [setting, heartbeat, inventory] = await Promise.all([
+  const [setting, heartbeat, inventory, queue] = await Promise.all([
     prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
     Promise.resolve(readHeartbeat()),
-    getGlobalInventory()
+    getGlobalInventory(),
+    getGlobalQueueSnapshot(),
   ]);
   
   const logTail = readLogTail(80);
@@ -64,7 +215,11 @@ async function handleApi(req, res) {
     guardian: heartbeat,
     logTail,
     inventory,
-    activeTask: worker.activeTask,
+    queue,
+    activeTask: queue.currentJob?.jobType || worker.activeTask,
+    activeEntityType: queue.currentJob?.entityType || null,
+    activeEntityLabel: queue.currentJob?.entityLabel || null,
+    activeCompany: queue.currentJob?.companyName || worker.currentCompany,
     activeModel: worker.activeModel,
     lastLatency: worker.metrics?.lastLatency
   };

@@ -1,11 +1,11 @@
-import { Text, Title } from "@/components/ui/typography";
+'use client';
 /**
  * Topics focus page.
  *
  * This route renders company topics through the shared page shell and
  * unified grid/card architecture.
  */
-'use client';
+import { Text, Title } from "@/components/ui/typography";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";

@@ -1,5 +1,5 @@
-import { Text } from "@/components/ui/typography";
 "use client";
+import { Text } from "@/components/ui/typography";
 
 import { Group, ThemeIcon, Anchor } from "@mantine/core";
 import { IconCheckbox as LogoIcon } from "@tabler/icons-react";

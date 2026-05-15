@@ -1,5 +1,5 @@
-import { Text } from "@/components/ui/typography";
 'use client';
+import { Text } from "@/components/ui/typography";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {

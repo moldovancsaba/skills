@@ -1,5 +1,5 @@
-import { Text } from "@/components/ui/typography";
 "use client";
+import { Text } from "@/components/ui/typography";
 
 import * as React from "react";
 import { useState, useRef } from "react";

@@ -1,11 +1,11 @@
-import { Text } from "@/components/ui/typography";
+'use client';
 /**
  * Tactical board route.
  *
  * The board is dynamically imported with `ssr: false` because the drag-and-drop
  * layer depends on browser-only APIs.
  */
-'use client';
+import { Text } from "@/components/ui/typography";
 
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";

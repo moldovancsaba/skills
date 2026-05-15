@@ -1,11 +1,11 @@
-import { Text } from "@/components/ui/typography";
+'use client';
 /**
  * Knowmore intelligence page.
  *
  * This route renders the company knowledge layer on top of the shared
  * page shell and unified card/grid primitives.
  */
-'use client';
+import { Text } from "@/components/ui/typography";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";

@@ -1,5 +1,5 @@
-import { Text, Title } from "@/components/ui/typography";
 'use client';
+import { Text, Title } from "@/components/ui/typography";
 
 import { Center, Box, Stack, Button, Container, rem, Anchor, Group, Loader } from "@mantine/core";
 import Link from "next/link";

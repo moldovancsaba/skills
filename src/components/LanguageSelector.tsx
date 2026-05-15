@@ -1,5 +1,5 @@
-import { Text } from "@/components/ui/typography";
 "use client";
+import { Text } from "@/components/ui/typography";
 
 import React from "react";
 import { MultiSelect, Group, Stack } from "@mantine/core";

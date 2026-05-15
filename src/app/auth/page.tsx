@@ -1,5 +1,5 @@
-import { Text, Title } from "@/components/ui/typography";
 'use client';
+import { Text, Title } from "@/components/ui/typography";
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";

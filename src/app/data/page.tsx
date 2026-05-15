@@ -1,5 +1,5 @@
-import { Title } from "@/components/ui/typography";
 'use client';
+import { Title } from "@/components/ui/typography";
 
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";

@@ -1,11 +1,11 @@
-import { Text } from "@/components/ui/typography";
+'use client';
 /**
  * Checklist page surface for taskcard review and action handling.
  *
  * This component owns the main checklist experience for active and archived
  * tactical items in the shared product card system.
  */
-'use client';
+import { Text } from "@/components/ui/typography";
 
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";

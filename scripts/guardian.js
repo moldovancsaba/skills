@@ -271,6 +271,12 @@ function restartOllama() {
   }
 }
 
+function reclaimPort(port) {
+  try {
+    execSync(`lsof -t -i :${port} | xargs kill -9 || true`, { stdio: "ignore" });
+  } catch (_) {}
+}
+
 /**
  * Performs a health scan of the local AI worker.
  * Triggers a process kill if the worker is found to be stuck or unresponsive.
@@ -445,6 +451,7 @@ function startWorker() {
   startedAt = Date.now();
   lastProgressAt = null;
   workerAlive = false;
+  reclaimPort(HEALTH_PORT);
 
   const node = process.execPath;  // same node binary that runs guardian.js
   const child = spawn(node, [WORKER_SCRIPT], {
@@ -504,6 +511,7 @@ function startSnapshotWorker() {
   snapshotStartedAt = Date.now();
   lastSnapshotProgressAt = null;
   snapshotWorkerAlive = false;
+  reclaimPort(SNAPSHOT_HEALTH_PORT);
 
   const node = process.execPath;
   const child = spawn(node, [SNAPSHOT_SCRIPT], {
@@ -600,6 +608,7 @@ startSnapshotWorker();
 
 // Launch the status server as a sibling process (no restart logic — it's stateless)
 (function launchStatusServer() {
+  reclaimPort(STATUS_HEALTH_PORT);
   const node = process.execPath;
   const s = spawn(node, [STATUS_SCRIPT], {
     cwd: path.join(__dirname, ".."),

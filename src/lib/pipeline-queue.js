@@ -795,7 +795,13 @@ async function syncAllCompanyPipelineJobs(prisma) {
   });
 
   for (const company of companies) {
-    await syncCompanyPipelineJobs(prisma, company.id);
+    try {
+      await syncCompanyPipelineJobs(prisma, company.id);
+    } catch (error) {
+      console.error(
+        `[PIPELINE QUEUE] Failed to sync jobs for ${company.id}: ${error?.code || error?.name || "UNKNOWN"} ${error?.message || ""}`.trim(),
+      );
+    }
   }
 }
 

@@ -8,6 +8,7 @@ dist
 build
 .DS_Store
 *.pem
+logs/
 scripts/knowledge/
 logs/guardian-heartbeat.json
 scripts/logs/

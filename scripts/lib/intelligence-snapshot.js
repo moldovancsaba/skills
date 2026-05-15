@@ -13,6 +13,7 @@ const {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_KNOWLEDGE_SAMPLE_FOR_SCORE_HEALTH = 8;
 const HEARTBEAT_FILE = path.join(__dirname, "..", "..", "logs", "guardian-heartbeat.json");
+const SNAPSHOT_REFRESH_META_KEY = "local_ai_snapshot_refresh_meta";
 const KNOWMORE_PIPELINE_JOB_TYPES = Object.freeze([
   "ENSURE_FLASHCARD_MINIMUM",
   "RESEARCH_BACKFILL",
@@ -944,7 +945,74 @@ async function refreshAllIntelligenceSnapshots(prisma) {
   }
 }
 
+async function readSnapshotRefreshMeta(prisma) {
+  const record = await prisma.globalSetting.findUnique({
+    where: { key: SNAPSHOT_REFRESH_META_KEY },
+  });
+  const value = record?.value && typeof record.value === "object" ? record.value : {};
+  return {
+    cursorCompanyId: typeof value.cursorCompanyId === "string" ? value.cursorCompanyId : null,
+    lastRunAt: value.lastRunAt ? new Date(String(value.lastRunAt)) : null,
+    lastCompletedPassAt: value.lastCompletedPassAt ? new Date(String(value.lastCompletedPassAt)) : null,
+  };
+}
+
+async function writeSnapshotRefreshMeta(prisma, next) {
+  return prisma.globalSetting.upsert({
+    where: { key: SNAPSHOT_REFRESH_META_KEY },
+    update: { value: next },
+    create: { key: SNAPSHOT_REFRESH_META_KEY, value: next },
+  });
+}
+
+async function refreshIntelligenceSnapshotSlice(prisma, options = {}) {
+  const batchSize = Math.max(1, Math.min(10, Number(options.batchSize || 2)));
+  const meta = await readSnapshotRefreshMeta(prisma);
+
+  let companies = await prisma.company.findMany({
+    orderBy: { id: "asc" },
+    take: batchSize,
+    ...(meta.cursorCompanyId
+      ? {
+          cursor: { id: meta.cursorCompanyId },
+          skip: 1,
+        }
+      : {}),
+    select: { id: true },
+  });
+
+  let wrapped = false;
+  if (companies.length === 0) {
+    companies = await prisma.company.findMany({
+      orderBy: { id: "asc" },
+      take: batchSize,
+      select: { id: true },
+    });
+    wrapped = true;
+  }
+
+  for (const company of companies) {
+    await refreshCompanyIntelligenceSnapshot(prisma, company.id);
+  }
+
+  const nextCursorCompanyId = companies.length > 0 ? companies[companies.length - 1].id : meta.cursorCompanyId;
+  const payload = {
+    cursorCompanyId: nextCursorCompanyId,
+    lastRunAt: new Date().toISOString(),
+    lastCompletedPassAt: wrapped ? new Date().toISOString() : (meta.lastCompletedPassAt ? meta.lastCompletedPassAt.toISOString() : null),
+  };
+  await writeSnapshotRefreshMeta(prisma, payload);
+
+  return {
+    refreshedCompanies: companies.length,
+    wrapped,
+    cursorCompanyId: nextCursorCompanyId,
+    lastCompletedPassAt: payload.lastCompletedPassAt,
+  };
+}
+
 module.exports = {
   refreshCompanyIntelligenceSnapshot,
   refreshAllIntelligenceSnapshots,
+  refreshIntelligenceSnapshotSlice,
 };

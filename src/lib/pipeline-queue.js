@@ -812,7 +812,10 @@ async function recoverStaleRunningPipelineJobs(prisma) {
   return prisma.pipelineJob.updateMany({
     where: {
       status: "RUNNING",
-      updatedAt: { lt: cutoff },
+      OR: [
+        { lastTriedAt: { lt: cutoff } },
+        { lastTriedAt: null },
+      ],
     },
     data: {
       status: "ACTIVE",

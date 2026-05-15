@@ -15,6 +15,13 @@ Important:
 - the planner and quality engine remain the authoritative work contracts
 - this document changes how the worker executes those contracts safely under continuous load
 
+Shipped progress status:
+
+- foreground duplicate full-company queue sync before every claim has been removed
+- snapshot refresh has been moved out of the foreground lane into a dedicated `snapshot-worker`
+- memory-band gating now exists for both foreground and background lanes
+- guardian and status surfaces now carry separate foreground and background worker truth
+
 ## 1. Purpose
 
 The local AI runtime must behave like a dependable 24/7 operating system, not a best-effort background script.
@@ -35,7 +42,7 @@ This design exists because the current runtime still has structural weaknesses.
 Verified problems in the current code path:
 
 - the foreground worker loop still performs heavy non-job work before and after queue execution
-- queue synchronization is still on the hot path in both `scripts/sync.js` and `scripts/lib/pipeline-jobs.js`
+- queue synchronization is still on the hot path, although the duplicate pre-claim global sync has been removed and replaced with a bounded foreground sync interval
 - snapshot refresh still shares the same execution lane as claimable planner work
 - low-memory handling is partial; the runtime defers some work, but it still carries too much overhead in the main loop
 - one logical worker can still look non-linear to operators because system chores happen around the claimed job
@@ -544,6 +551,11 @@ Acceptance:
 
 - foreground claim path no longer performs global sync every cycle
 - queue claim latency drops measurably under backlog
+
+Current status:
+
+- first hardening slice shipped: duplicate full-company sync before every claim has been removed
+- remaining work: remove bounded global sync from the foreground cycle entirely and replace it with touched-company plus shard sync
 
 ### Phase 3. Background snapshot worker
 

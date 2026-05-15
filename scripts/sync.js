@@ -1,8 +1,8 @@
 const { PrismaClient } = require("@prisma/client");
 const http = require("http");
-const os = require("os");
 const { OLLAMA_MODEL, envFlag } = require("./lib/core");
 const { runPipelineQueueBatch } = require("./lib/pipeline-jobs");
+const { recoverOrphanedRunningPipelineJobs } = require("../src/lib/pipeline-queue");
 const packageJson = require("../package.json");
 const APP_VERSION = packageJson.version;
 
@@ -17,8 +17,13 @@ const PORT = 10005;
  */
 const { getSynthesisProgress, collectGlobalWorkerSettings, updateProgress, synthesisState } = require("./lib/synthesis");
 const { scrubDatabaseElemental } = require("./lib/maintenance");
-const { refreshAllIntelligenceSnapshots, refreshIntelligenceSnapshotSlice } = require("./lib/intelligence-snapshot");
+const { refreshAllIntelligenceSnapshots } = require("./lib/intelligence-snapshot");
 const { processPendingWorkerCommands } = require("./lib/system-commands");
+const {
+  getFreeMemoryMb,
+  getResourceBand,
+  shouldAllowForegroundWork,
+} = require("./lib/runtime/resource-bands");
 
 // --- CONTINUOUS HEARTBEAT ---
 // Persist progress even while the worker is between queue batches so the
@@ -34,12 +39,11 @@ const IDLE_INTERVAL = 300000;
 const ACTIVE_INTERVAL = 30000;
 const POLLING_INTERVAL = 30000;
 const STARTUP_SCRUB_INTERVAL = 6 * 60 * 60 * 1000;
-const SNAPSHOT_REFRESH_MIN_FREE_MB = 1024;
-const SNAPSHOT_REFRESH_COMPANY_BATCH_SIZE = 2;
 
 let isRunning = false;
 let wakeRequested = false;
 let lastStartupScrubAt = 0;
+let recoveredOrphanedRunningJobs = false;
 
 async function runStartupIntegrityPass() {
   const now = Date.now();
@@ -55,36 +59,6 @@ async function runStartupIntegrityPass() {
   await scrubDatabaseElemental(prisma);
 }
 
-async function shouldRunSnapshotRefresh() {
-  const freeMemMb = Math.round(os.freemem() / (1024 * 1024));
-  if (freeMemMb < SNAPSHOT_REFRESH_MIN_FREE_MB) {
-    return {
-      allowed: false,
-      reason: `Deferring snapshot refresh due to low free memory (${freeMemMb}MB)`,
-      freeMemMb,
-    };
-  }
-
-  const activeBacklog = await prisma.pipelineJob.count({
-    where: { status: "ACTIVE" },
-  });
-  if (activeBacklog > 0) {
-    return {
-      allowed: false,
-      reason: `Deferring snapshot refresh while ${activeBacklog} queued job(s) remain active`,
-      freeMemMb,
-      activeBacklog,
-    };
-  }
-
-  return {
-    allowed: true,
-    reason: "Refreshing bounded intelligence snapshot slice",
-    freeMemMb,
-    activeBacklog,
-  };
-}
-
 async function runWorkerLoop() {
   if (isRunning) return;
   isRunning = true;
@@ -93,6 +67,39 @@ async function runWorkerLoop() {
     console.log(`[SCHEDULER] Initiating queue-owned worker cycle...`);
     lastCycleStartTime = Date.now();
     wakeRequested = false;
+
+    if (!recoveredOrphanedRunningJobs) {
+      await recoverOrphanedRunningPipelineJobs(prisma);
+      recoveredOrphanedRunningJobs = true;
+    }
+
+    const freeMemMb = getFreeMemoryMb();
+    const foregroundDecision = shouldAllowForegroundWork(freeMemMb);
+    const resourceBand = getResourceBand(freeMemMb);
+
+    if (!foregroundDecision.allowed) {
+      await updateProgress(prisma, {
+        state: "idle",
+        stage: "PAUSED_LOW_MEMORY",
+        currentCompany: null,
+        activeTask: `Foreground queue paused due to ${resourceBand} memory pressure (${freeMemMb}MB free)`,
+        metrics: {
+          ...(synthesisState.metrics || {}),
+          freeMemMb,
+          resourceBand,
+        },
+      });
+
+      const targetWakeTime = Date.now() + IDLE_INTERVAL;
+      while (Date.now() < targetWakeTime) {
+        if (wakeRequested) break;
+        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+      }
+
+      isRunning = false;
+      runWorkerLoop();
+      return;
+    }
 
     await runStartupIntegrityPass();
     await updateProgress(prisma, {
@@ -107,28 +114,15 @@ async function runWorkerLoop() {
       stage: "PIPELINE_QUEUE",
       currentCompany: null,
       activeTask: "Scanning pipeline queue for runnable jobs",
+      metrics: {
+        ...(synthesisState.metrics || {}),
+        freeMemMb,
+        resourceBand,
+      },
     });
     // Queue execution is the only mutation lane. Any revisit, synthesis,
     // repair, or maintenance work must arrive through claimable jobs.
     const queueOps = await runPipelineQueueBatch(prisma, 1);
-    const snapshotDecision = await shouldRunSnapshotRefresh();
-    if (snapshotDecision.allowed) {
-      await updateProgress(prisma, {
-        state: "running",
-        stage: "SNAPSHOT_REFRESH",
-        currentCompany: null,
-        activeTask: "Refreshing intelligence snapshots",
-      });
-      const snapshotResult = await refreshIntelligenceSnapshotSlice(prisma, {
-        batchSize: SNAPSHOT_REFRESH_COMPANY_BATCH_SIZE,
-      });
-      await updateProgress(prisma, {
-        state: "running",
-        stage: "SNAPSHOT_REFRESH",
-        currentCompany: null,
-        activeTask: `Refreshed intelligence snapshots for ${snapshotResult.refreshedCompanies} compan${snapshotResult.refreshedCompanies === 1 ? "y" : "ies"}`,
-      });
-    }
 
     await updateProgress(prisma, {
       state: "idle",

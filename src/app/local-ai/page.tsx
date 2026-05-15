@@ -11,6 +11,7 @@ import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui
 
 const STATUS_API_URL = "http://127.0.0.1:10006/api/status";
 const RAW_HEALTH_URL = "http://127.0.0.1:10005/health";
+const RAW_SNAPSHOT_HEALTH_URL = "http://127.0.0.1:10007/health";
 const RAW_COMMAND_CENTER_URL = "http://127.0.0.1:10006";
 const JOB_LABELS: Record<string, string> = {
   FEEDBACK_RECONCILIATION: "Feedback reconciliation",
@@ -166,6 +167,7 @@ export default function LocalAiMissionControlPage() {
   const inventory = data?.inventory || {};
   const inventoryHistory = Array.isArray(data?.inventoryHistory) ? [...data.inventoryHistory] : [];
   const worker = data?.worker || {};
+  const backgroundWorker = data?.backgroundWorker || {};
   const guardian = data?.guardian || {};
   const buildIdentity = worker?.settings?.buildIdentity || {};
   const actualCurrentTask = String(worker.activeTask || "Idle");
@@ -233,6 +235,7 @@ export default function LocalAiMissionControlPage() {
         actions={
           <Group gap="sm">
             <Anchor component={Link} href={RAW_HEALTH_URL} target="_blank" rel="noreferrer">Raw Health JSON</Anchor>
+            <Anchor component={Link} href={RAW_SNAPSHOT_HEALTH_URL} target="_blank" rel="noreferrer">Raw Snapshot Health</Anchor>
             <Anchor component={Link} href={RAW_COMMAND_CENTER_URL} target="_blank" rel="noreferrer">Raw Command Center</Anchor>
           </Group>
         }
@@ -257,10 +260,11 @@ export default function LocalAiMissionControlPage() {
             <MetricCard icon={Brain} color="strategy" label="Current Company" value={actualCurrentCompany} detail={worker.currentCompany ? "Worker-locked company" : "No company locked right now"} />
             <MetricCard icon={ListCheck} color="checklist" label="Current Task" value={actualCurrentTask} detail={worker.currentCompany ? "Worker runtime authority" : String(worker.stage || "—")} />
             <MetricCard icon={Server} color="knowmore" label="Worker Build" value={String(buildIdentity.appVersion || "unknown")} detail={String(buildIdentity.gitSha || "—").slice(0, 12)} />
+            <MetricCard icon={Server} color="strategy" label="Background State" value={String(backgroundWorker.state || "unknown")} detail={String(backgroundWorker.stage || "—")} />
             <MetricCard icon={Activity} color="review" label="Queue Depth" value={queue.totalActiveJobs ?? 0} detail={`${queue.runningJobs ?? 0} running · ${queue.failedJobs ?? 0} failed`} />
             <MetricCard icon={Hierarchy} color="tactical" label="Datacards" value={inventory.datacards ?? 0} detail={`${inventory.sources ?? 0} sources · ${inventory.files ?? 0} files`} />
             <MetricCard icon={Brain} color="strategy" label="Cards" value={inventory.totalCards ?? 0} detail={`${inventory.flashcards ?? 0} flashcards · ${inventory.goalcards ?? 0} goals · ${inventory.taskcards ?? 0} tasks`} />
-            <MetricCard icon={Heartbeat} color="review" label="Guardian" value={guardian.workerAlive ? "Watching" : "Degraded"} detail={formatTimestamp(guardian.lastHealthAt)} />
+            <MetricCard icon={Heartbeat} color="review" label="Guardian" value={guardian.workerAlive ? "Watching" : "Degraded"} detail={`${formatTimestamp(guardian.lastHealthAt)} · ${guardian.resources?.freeMem ?? "—"}MB free`} />
           </SimpleGrid>
 
           <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
@@ -292,6 +296,9 @@ export default function LocalAiMissionControlPage() {
 
                 <Notice title="Raw worker stage">
                   {actualCurrentTask}
+                </Notice>
+                <Notice title="Background snapshot lane">
+                  {String(backgroundWorker.activeTask || "Waiting for snapshot work")}
                 </Notice>
               </UnifiedCardBody>
             </UnifiedCard>

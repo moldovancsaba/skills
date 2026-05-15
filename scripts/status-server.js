@@ -260,8 +260,9 @@ async function captureInventoryHistory(inventory) {
 // --- API ENDPOINTS ---
 
 async function handleApi(req, res) {
-  const [setting, heartbeat, inventory, queue] = await Promise.all([
+  const [setting, snapshotSetting, heartbeat, inventory, queue] = await Promise.all([
     prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
+    prisma.globalSetting.findUnique({ where: { key: "local_ai_snapshot_worker_progress" } }),
     Promise.resolve(readHeartbeat()),
     getGlobalInventory(),
     getGlobalQueueSnapshot(),
@@ -276,9 +277,17 @@ async function handleApi(req, res) {
     worker = { online: (Date.now() - lastUpdate) < 5 * 60 * 1000, ...data };
   }
 
+  let backgroundWorker = { online: false };
+  if (snapshotSetting) {
+    const data = snapshotSetting.value;
+    const lastUpdate = new Date(snapshotSetting.updatedAt).getTime();
+    backgroundWorker = { online: (Date.now() - lastUpdate) < 10 * 60 * 1000, ...data };
+  }
+
   const payload = {
     ts: new Date().toISOString(),
     worker,
+    backgroundWorker,
     guardian: heartbeat,
     logTail,
     inventory,

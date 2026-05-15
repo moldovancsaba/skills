@@ -14,17 +14,20 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { PrismaClient } = require("@prisma/client");
+const { getResourceBand } = require("./lib/runtime/resource-bands");
 const prisma = new PrismaClient();
 
 // --- CONFIGURATION ---
 const WORKER_SCRIPT    = path.join(__dirname, "sync.js");
 const STATUS_SCRIPT    = path.join(__dirname, "status-server.js");
+const SNAPSHOT_SCRIPT  = path.join(__dirname, "snapshot-worker.js");
 const LOG_DIR          = path.join(__dirname, "..", "logs");
 const LOG_FILE         = path.join(LOG_DIR, "guardian.log");
 const HEARTBEAT_FILE   = path.join(LOG_DIR, "guardian-heartbeat.json");
 const MAX_LOG_LINES    = 10_000;
 
 const HEALTH_PORT             = 10005;
+const SNAPSHOT_HEALTH_PORT    = 10007;
 const STATUS_HEALTH_PORT      = 10006;
 const HEALTH_PATH             = "/health";
 const STUCK_MS                = 15 * 60 * 1000; // 15 min without progress = stuck
@@ -70,11 +73,17 @@ const err  = (msg) => writeLog("ERROR", msg);
 // State
 // ---------------------------------------------------------------------------
 let workerProcess      = null;
+let snapshotProcess    = null;
 let restartCount       = 0;
+let snapshotRestartCount = 0;
 let restartMs          = RESTART_BASE_MS;
+let snapshotRestartMs  = RESTART_BASE_MS;
 let workerAlive        = false;
+let snapshotWorkerAlive = false;
 let startedAt          = null;
+let snapshotStartedAt  = null;
 let lastProgressAt     = null;    // last value from /health
+let lastSnapshotProgressAt = null;
 let healthCheckTimer   = null;
 let heartbeatTimer     = null;
 let useSafeMode        = false; // If true, tells worker to use fallback model
@@ -131,11 +140,13 @@ async function executeCommand(cmd) {
   switch (cmd.command) {
     case "RESTART":
       log(`[BRIDGE] Manual restart triggered via dashboard`);
-      killWorker("dashboard-manual-restart"); 
+      killWorker("dashboard-manual-restart");
+      killSnapshotWorker("dashboard-manual-restart");
       break;
     case "PURGE_CACHE":
       log(`[BRIDGE] Purging local model cache`);
       killWorker("dashboard-purge-cache");
+      killSnapshotWorker("dashboard-purge-cache");
       break;
     default:
       throw new Error(`Command "${cmd.command}" is not implemented in this version.`);
@@ -153,11 +164,16 @@ function writeHeartbeat(extra = {}) {
   const data = {
     guardianPid:   process.pid,
     workerPid:     workerProcess?.pid ?? null,
+    snapshotWorkerPid: snapshotProcess?.pid ?? null,
     workerAlive,
+    snapshotWorkerAlive,
     restartCount,
+    snapshotRestartCount,
     startedAt,
+    snapshotStartedAt,
     lastHealthAt:  new Date().toISOString(),
     lastProgressAt,
+    lastSnapshotProgressAt,
     useSafeMode,
     resources: resourceStats,
     ...extra,
@@ -227,7 +243,8 @@ function checkResources() {
   resourceStats = {
     freeMem: freeMB,
     totalMem: Math.round(totalMem / 1024 / 1024),
-    loadAvg: os.loadavg()
+    loadAvg: os.loadavg(),
+    resourceBand: getResourceBand(freeMB),
   };
   
   if (freeMB < MEM_THRESHOLD_MB) {
@@ -314,6 +331,56 @@ function pollHealth() {
   });
 }
 
+function pollSnapshotWorkerHealth() {
+  if (!snapshotWorkerAlive) return;
+  if (snapshotStartedAt && Date.now() - snapshotStartedAt < STARTUP_GRACE_MS) return;
+
+  const req = http.get(
+    { hostname: "127.0.0.1", port: SNAPSHOT_HEALTH_PORT, path: HEALTH_PATH, timeout: 8000 },
+    (res) => {
+      let body = "";
+      res.on("data", (c) => (body += c));
+      res.on("end", () => {
+        try {
+          const data = JSON.parse(body);
+          const prog = data.progress || {};
+          const freshAt = prog.lastProgressAt || null;
+
+          if (prog.state === "running" && freshAt && freshAt === lastSnapshotProgressAt) {
+            const staleSince = Date.now() - new Date(freshAt).getTime();
+            if (staleSince > STUCK_MS) {
+              warn(`Snapshot worker STUCK for ${Math.round(staleSince / 60000)} min at stage=${prog.stage}. Killing.`);
+              killSnapshotWorker("stuck");
+              return;
+            }
+          }
+
+          if (freshAt) lastSnapshotProgressAt = freshAt;
+
+          log(`SNAPSHOT OK | state=${prog.state} stage=${prog.stage}`);
+          writeHeartbeat({ snapshotState: prog.state, snapshotStage: prog.stage });
+        } catch (e) {
+          warn(`Snapshot health parse error: ${e.message}`);
+        }
+      });
+    }
+  );
+
+  req.on("error", (e) => {
+    warn(`Snapshot worker health check failed: ${e.message}`);
+    writeHeartbeat({ snapshotHealthError: e.message });
+    if (snapshotStartedAt && Date.now() - snapshotStartedAt > STARTUP_GRACE_MS * 2) {
+      warn("Snapshot worker unresponsive after grace period. Killing.");
+      killSnapshotWorker("unresponsive");
+    }
+  });
+
+  req.on("timeout", () => {
+    req.destroy();
+    warn("Snapshot worker health check timeout.");
+  });
+}
+
 /**
  * Actively probes the Status Server port to ensure the dashboard is live.
  * Restarts the status server if port 10006 is unresponsive.
@@ -355,6 +422,15 @@ function killWorker(reason) {
   try { workerProcess.kill("SIGTERM"); } catch (_) {}
   setTimeout(() => {
     try { if (workerProcess) workerProcess.kill("SIGKILL"); } catch (_) {}
+  }, 5000);
+}
+
+function killSnapshotWorker(reason) {
+  if (!snapshotProcess) return;
+  warn(`Killing snapshot worker (reason: ${reason}) pid=${snapshotProcess.pid}`);
+  try { snapshotProcess.kill("SIGTERM"); } catch (_) {}
+  setTimeout(() => {
+    try { if (snapshotProcess) snapshotProcess.kill("SIGKILL"); } catch (_) {}
   }, 5000);
 }
 
@@ -421,6 +497,63 @@ function startWorker() {
   log(`Worker PID=${child.pid}`);
 }
 
+function startSnapshotWorker() {
+  if (snapshotProcess) return;
+
+  log(`Starting snapshot worker (attempt #${snapshotRestartCount + 1}) | back-off=${snapshotRestartMs}ms`);
+  snapshotStartedAt = Date.now();
+  lastSnapshotProgressAt = null;
+  snapshotWorkerAlive = false;
+
+  const node = process.execPath;
+  const child = spawn(node, [SNAPSHOT_SCRIPT], {
+    cwd: path.join(__dirname, ".."),
+    env: {
+      ...process.env,
+      PATH: process.env.PATH || "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+    detached: false,
+  });
+
+  snapshotProcess = child;
+  snapshotWorkerAlive = true;
+
+  child.stdout.on("data", (d) => {
+    String(d).split("\n").filter(Boolean).forEach((line) => log(`[SNAPSHOT] ${line}`));
+  });
+  child.stderr.on("data", (d) => {
+    String(d).split("\n").filter(Boolean).forEach((line) => err(`[SNAPSHOT] ${line}`));
+  });
+
+  child.on("exit", (code, signal) => {
+    snapshotProcess = null;
+    snapshotWorkerAlive = false;
+    warn(`Snapshot worker exited | code=${code} signal=${signal} restarts=${snapshotRestartCount}`);
+    writeHeartbeat({ snapshotExitCode: code, snapshotExitSignal: signal });
+    if (isShuttingDown) {
+      log("Guardian shutdown in progress. Snapshot worker restart suppressed.");
+      return;
+    }
+    scheduleSnapshotRestart();
+  });
+
+  child.on("error", (e) => {
+    err(`Snapshot worker spawn error: ${e.message}`);
+    snapshotProcess = null;
+    snapshotWorkerAlive = false;
+    if (isShuttingDown) {
+      log("Guardian shutdown in progress. Snapshot worker spawn recovery suppressed.");
+      return;
+    }
+    scheduleSnapshotRestart();
+  });
+
+  snapshotRestartCount++;
+  writeHeartbeat();
+  log(`Snapshot worker PID=${child.pid}`);
+}
+
 /**
  * Schedules a worker restart with exponential back-off logic.
  */
@@ -438,6 +571,20 @@ function scheduleRestart() {
   }, delay);
 }
 
+function scheduleSnapshotRestart() {
+  if (isShuttingDown) {
+    log("Guardian shutdown in progress. Snapshot restart skipped.");
+    return;
+  }
+  const delay = snapshotRestartMs;
+  snapshotRestartMs = Math.min(snapshotRestartMs * 2, RESTART_MAX_MS);
+  warn(`Scheduling snapshot worker restart in ${Math.round(delay / 1000)}s...`);
+  setTimeout(() => {
+    snapshotRestartMs = RESTART_BASE_MS;
+    startSnapshotWorker();
+  }, delay);
+}
+
 // ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
@@ -449,6 +596,7 @@ log(`  PID:      ${process.pid}`);
 log("═══════════════════════════════════════════");
 
 startWorker();
+startSnapshotWorker();
 
 // Launch the status server as a sibling process (no restart logic — it's stateless)
 (function launchStatusServer() {
@@ -469,6 +617,7 @@ startWorker();
 
 // Periodic health poll
 healthCheckTimer = setInterval(pollHealth, HEALTH_INTERVAL);
+setInterval(pollSnapshotWorkerHealth, HEALTH_INTERVAL);
 
 // Periodic status server health poll
 setInterval(checkStatusServerHealth, STATUS_HEALTH_INTERVAL);
@@ -503,6 +652,7 @@ process.on("SIGTERM", () => {
   isShuttingDown = true;
   log("Guardian received SIGTERM. Shutting down worker.");
   killWorker("guardian-shutdown");
+  killSnapshotWorker("guardian-shutdown");
   setTimeout(() => process.exit(0), 6000);
 });
 
@@ -510,6 +660,7 @@ process.on("SIGINT", () => {
   isShuttingDown = true;
   log("Guardian received SIGINT. Shutting down worker.");
   killWorker("guardian-shutdown");
+  killSnapshotWorker("guardian-shutdown");
   setTimeout(() => process.exit(0), 6000);
 });
 

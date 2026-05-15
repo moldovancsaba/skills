@@ -49,6 +49,7 @@ Read first:
 - the deterministic planner is now the shipped runtime contract for company classification, lane refill, weakest-upstream ceilings, timeout handling, and oldest-first maintenance
 - quality-engine jobs are now part of the shipped runtime contract for opportunity mining, novelty suppression, editorial gating, research policy, and feedback-pressure regeneration
 - the next major runtime hardening track is documented separately in `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md`; it is the target design for strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery
+- the first major hardening slice is now shipped: snapshot refresh runs in a dedicated `snapshot-worker`, the foreground queue worker no longer shares that lane, and both lanes expose separate health/progress truth
 - current human controls are drag/drop between queue columns, drag/drop reordering, and `Reset to AI Only`
 - source-backed Knowmore cards now carry durable citation snapshots plus explicit conflict flags and summaries
 - maintenance now includes oldest-first revisit jobs for unresolved modified candidates and declined high-potential candidates
@@ -160,6 +161,8 @@ The work is not done until:
 - The worker now consumes persisted queue jobs before the broader synthesis cycle.
 - The planner and quality engine are the authoritative queue families now; legacy `COMPANY_SYNTHESIS` and `FULL_MAINTENANCE` remain compatibility paths, not the main operating model.
 - The current shipped foreground worker loop is still heavier than the target 24/7 runtime design; use `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md` as the implementation plan for strict one-job foreground execution and background-work isolation.
+- The duplicate full-company queue sync that used to happen before every claim has been removed. The current shipped foreground worker now performs at most one bounded global sync per foreground interval, but full decoupling from the hot path is still outstanding.
+- `snapshot-worker` owns bounded intelligence snapshot refresh. Do not move snapshot refresh back into `sync.js`; that would reintroduce the exact starvation problem this hardening slice removed.
 - Human drag-and-drop on the `AI Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now expressed through persisted queue/repair intents; the local AI worker is the only authority that escalates queue work through the shared queue contract.

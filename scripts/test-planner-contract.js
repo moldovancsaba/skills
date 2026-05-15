@@ -11,7 +11,11 @@ const {
   getWorkerBuildIdentity,
 } = require("./lib/planner/telemetry");
 const { withPlannerTimeout } = require("./lib/planner/timeout");
-const { PIPELINE_JOB_TYPES } = require("../src/lib/pipeline-queue");
+const {
+  PIPELINE_JOB_TYPES,
+  GLOBAL_PIPELINE_SYNC_INTERVAL_MS,
+  shouldRunGlobalPipelineSync,
+} = require("../src/lib/pipeline-queue");
 
 function createMockPrisma() {
   const store = new Map();
@@ -136,6 +140,21 @@ async function main() {
   assert.equal(PIPELINE_JOB_TYPES.includes("MINE_FLASHCARD_OPPORTUNITIES"), true, "flashcard opportunity mining must be a managed queue job");
   assert.equal(PIPELINE_JOB_TYPES.includes("MINE_TASK_OPPORTUNITIES"), true, "task opportunity mining must be a managed queue job");
   assert.equal(PIPELINE_JOB_TYPES.includes("FEEDBACK_PRESSURE_REGENERATION"), true, "feedback pressure regeneration must be a managed queue job");
+  assert.equal(
+    shouldRunGlobalPipelineSync(0, 1_000, GLOBAL_PIPELINE_SYNC_INTERVAL_MS),
+    true,
+    "queue sync must run when there is no previous sync timestamp",
+  );
+  assert.equal(
+    shouldRunGlobalPipelineSync(10_000, 10_000 + GLOBAL_PIPELINE_SYNC_INTERVAL_MS - 1, GLOBAL_PIPELINE_SYNC_INTERVAL_MS),
+    false,
+    "queue sync must not rerun before the hardening interval elapses",
+  );
+  assert.equal(
+    shouldRunGlobalPipelineSync(10_000, 10_000 + GLOBAL_PIPELINE_SYNC_INTERVAL_MS, GLOBAL_PIPELINE_SYNC_INTERVAL_MS),
+    true,
+    "queue sync must rerun once the hardening interval elapses",
+  );
 
   const buildIdentity = getWorkerBuildIdentity();
   assert.equal(typeof buildIdentity.appVersion, "string", "build identity must expose app version");

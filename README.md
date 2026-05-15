@@ -105,6 +105,7 @@ Frontend system:
 - Unsloth, LLaMA-Factory, and Axolotl are parked research only and are not part of the active delivery plan
 - the deterministic local AI planner is now the shipped runtime contract for bootstrap, lane refill, maintenance, and timeout handling
 - the Local AI Quality Engine is now the shipped runtime contract for opportunity mining, research-backed updates, novelty suppression, editorial quality gating, and feedback-pressure regeneration
+- the local AI runtime now uses a dedicated `snapshot-worker` background process so intelligence snapshot refresh no longer shares the foreground planner queue lane
 
 Worker queue controls:
 

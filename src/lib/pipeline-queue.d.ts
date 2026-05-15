@@ -56,12 +56,20 @@ export const LEGACY_COMPAT_PIPELINE_JOB_TYPES: readonly PipelineJobType[];
 export const PIPELINE_QUEUE_COLUMNS: readonly PipelineQueueColumn[];
 export const PIPELINE_CONTROL_MODES: readonly PipelineControlMode[];
 export const PIPELINE_JOB_STATUSES: readonly PipelineJobStatus[];
+export const GLOBAL_PIPELINE_SYNC_INTERVAL_MS: number;
 
 export function getPipelineJobLabel(jobType: PipelineJobType): string;
 export function getQueueColumnRank(column: PipelineQueueColumn): number;
+export function shouldRunGlobalPipelineSync(lastSyncAt: number, now?: number, intervalMs?: number): boolean;
 export function gatherCompanyPipelineSignals(prisma: unknown, companyId: string): Promise<unknown>;
 export function syncCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
 export function syncAllCompanyPipelineJobs(prisma: unknown): Promise<void>;
+export function syncPipelineJobsForCompanyShard(prisma: unknown, limit?: number): Promise<number>;
+export function syncAllCompanyPipelineJobsIfDue(
+  prisma: unknown,
+  options?: { now?: number; force?: boolean },
+): Promise<boolean>;
+export function recoverOrphanedRunningPipelineJobs(prisma: unknown): Promise<unknown>;
 export function listCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
 export function listPersistedCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
 export function resetCompanyPipelineJobsToAiOnly(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;

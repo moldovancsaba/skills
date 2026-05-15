@@ -6,7 +6,9 @@ const {
   PLANNER_BOOTSTRAP_JOB_TYPES,
   PLANNER_QUALITY_JOB_TYPES,
   PLANNER_MAINTENANCE_JOB_TYPES,
-  syncAllCompanyPipelineJobs,
+  recoverStaleRunningPipelineJobs,
+  syncPipelineJobsForCompanyShard,
+  syncAllCompanyPipelineJobsIfDue,
   getPipelineJobLabel,
 } = require("../../src/lib/pipeline-queue");
 const { processFeedbackEvents } = require("./feedback");
@@ -324,8 +326,13 @@ function startRunningJobHeartbeat(prisma, job, companyName, entityLabel) {
 }
 
 async function runPipelineQueueBatch(prisma, limit = 1) {
-  await syncAllCompanyPipelineJobs(prisma);
-  const claimed = await claimNextPipelineJobs(prisma, limit);
+  await recoverStaleRunningPipelineJobs(prisma);
+  let claimed = await claimNextPipelineJobs(prisma, limit);
+  if (claimed.length === 0) {
+    await syncPipelineJobsForCompanyShard(prisma, limit + 1);
+    await syncAllCompanyPipelineJobsIfDue(prisma);
+    claimed = await claimNextPipelineJobs(prisma, limit);
+  }
   let executed = 0;
 
   for (const job of claimed) {

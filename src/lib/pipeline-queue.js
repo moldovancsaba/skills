@@ -60,6 +60,8 @@ const PIPELINE_QUEUE_COLUMNS = Object.freeze(["NOW", "SOON", "LATER", "PARKED"])
 const PIPELINE_CONTROL_MODES = Object.freeze(["AI_ONLY", "HUMAN_GUIDED"]);
 const PIPELINE_JOB_STATUSES = Object.freeze(["ACTIVE", "RUNNING", "PAUSED", "FAILED"]);
 const STALE_RUNNING_JOB_MS = 15 * 60 * 1000;
+const GLOBAL_PIPELINE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+let lastGlobalPipelineSyncAt = 0;
 
 const QUEUE_COLUMN_RANK = Object.freeze({
   NOW: 0,
@@ -807,6 +809,45 @@ async function syncAllCompanyPipelineJobs(prisma) {
   }
 }
 
+async function syncPipelineJobsForCompanyShard(prisma, limit = 3) {
+  const companies = await prisma.company.findMany({
+    select: { id: true },
+    orderBy: { updatedAt: "asc" },
+    take: Math.max(1, Math.min(10, Number(limit || 3))),
+  });
+
+  let syncedCompanies = 0;
+  for (const company of companies) {
+    try {
+      await syncCompanyPipelineJobs(prisma, company.id);
+      syncedCompanies += 1;
+    } catch (error) {
+      console.error(
+        `[PIPELINE QUEUE] Failed to sync shard jobs for ${company.id}: ${error?.code || error?.name || "UNKNOWN"} ${error?.message || ""}`.trim(),
+      );
+    }
+  }
+
+  return syncedCompanies;
+}
+
+function shouldRunGlobalPipelineSync(lastSyncAt, now = Date.now(), intervalMs = GLOBAL_PIPELINE_SYNC_INTERVAL_MS) {
+  if (!Number.isFinite(lastSyncAt) || lastSyncAt <= 0) return true;
+  return now - lastSyncAt >= intervalMs;
+}
+
+async function syncAllCompanyPipelineJobsIfDue(prisma, options = {}) {
+  const now = Number.isFinite(options.now) ? options.now : Date.now();
+  const force = options.force === true;
+  if (!force && !shouldRunGlobalPipelineSync(lastGlobalPipelineSyncAt, now, GLOBAL_PIPELINE_SYNC_INTERVAL_MS)) {
+    return false;
+  }
+
+  await syncAllCompanyPipelineJobs(prisma);
+  lastGlobalPipelineSyncAt = now;
+  return true;
+}
+
 async function recoverStaleRunningPipelineJobs(prisma) {
   const cutoff = new Date(Date.now() - STALE_RUNNING_JOB_MS);
   return prisma.pipelineJob.updateMany({
@@ -821,6 +862,19 @@ async function recoverStaleRunningPipelineJobs(prisma) {
       status: "ACTIVE",
       updatedAt: new Date(),
       lastError: "Recovered automatically after stale RUNNING timeout.",
+    },
+  });
+}
+
+async function recoverOrphanedRunningPipelineJobs(prisma) {
+  return prisma.pipelineJob.updateMany({
+    where: {
+      status: "RUNNING",
+    },
+    data: {
+      status: "ACTIVE",
+      updatedAt: new Date(),
+      lastError: "Recovered automatically after worker restart.",
     },
   });
 }
@@ -914,7 +968,6 @@ async function applyManualPipelineQueueMove(prisma, companyId, movedJobId, sourc
 }
 
 async function claimNextPipelineJobs(prisma, limit = 3) {
-  await syncAllCompanyPipelineJobs(prisma);
   const candidates = await prisma.pipelineJob.findMany({
     where: {
       status: { in: ["ACTIVE", "FAILED"] },
@@ -1069,13 +1122,18 @@ module.exports = {
   PIPELINE_QUEUE_COLUMNS,
   PIPELINE_CONTROL_MODES,
   PIPELINE_JOB_STATUSES,
+  GLOBAL_PIPELINE_SYNC_INTERVAL_MS,
   getPipelineJobLabel,
   getQueueColumnRank,
   buildAutoJobProfile,
+  shouldRunGlobalPipelineSync,
   gatherCompanyPipelineSignals,
   syncCompanyPipelineJobs,
   syncAllCompanyPipelineJobs,
+  syncPipelineJobsForCompanyShard,
+  syncAllCompanyPipelineJobsIfDue,
   recoverStaleRunningPipelineJobs,
+  recoverOrphanedRunningPipelineJobs,
   listCompanyPipelineJobs,
   listPersistedCompanyPipelineJobs,
   resetCompanyPipelineJobsToAiOnly,

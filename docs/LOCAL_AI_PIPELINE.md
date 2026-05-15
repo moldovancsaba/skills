@@ -44,7 +44,7 @@ Authoritative boundary:
 
 ## Runtime processes
 
-The local runtime has 3 always-on processes:
+The local runtime now has 4 always-on processes:
 
 1. `guardian`
    - watchdog only
@@ -57,6 +57,11 @@ The local runtime has 3 always-on processes:
 3. `status-server`
    - observability and control surface
    - does not own business-state mutation
+
+4. `snapshot-worker`
+   - background read-model refresher
+   - owns bounded intelligence snapshot refresh only
+   - must not claim planner queue jobs
 
 ## Canonical flow
 
@@ -98,7 +103,7 @@ That means:
 Current worker loop:
 
 1. startup integrity scrub
-2. sync queue state
+2. sync queue state only when the bounded foreground sync interval says it is due
 3. claim the next bounded pipeline batch
 4. execute only those jobs
 5. rest briefly
@@ -109,8 +114,10 @@ The worker rests for a short active interval after productive queue work and a l
 Runtime hardening note:
 
 - this foreground loop is still the current shipped contract
-- the target 24/7 hardening plan removes snapshot refresh and other background work from this foreground lane
-- that target design is defined in [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
+- the claim path no longer performs duplicated full-company queue sync before every single claim
+- snapshot refresh has now been removed from this foreground lane and moved into a dedicated `snapshot-worker`
+- memory-band gating now pauses the foreground worker under `CRITICAL` memory pressure and pauses the background worker unless memory is `HEALTHY`
+- the broader hardening design is defined in [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 
 ## Deterministic planner and quality engine
 

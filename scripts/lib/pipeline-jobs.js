@@ -279,6 +279,50 @@ async function recordPipelineJobUsage(prisma, job, input) {
   });
 }
 
+function startRunningJobHeartbeat(prisma, job, companyName, entityLabel) {
+  let stopped = false;
+  let inFlight = false;
+  const heartbeatMs = 30000;
+
+  const tick = async () => {
+    if (stopped || inFlight) return;
+    inFlight = true;
+    try {
+      const now = new Date();
+      await Promise.all([
+        updateProgress(prisma, {
+          state: "running",
+          stage: "PIPELINE_QUEUE",
+          currentCompany: companyName,
+          activeTask: buildActiveTaskString(job, companyName, entityLabel),
+        }),
+        prisma.pipelineJob.updateMany({
+          where: {
+            id: job.id,
+            status: "RUNNING",
+          },
+          data: {
+            updatedAt: now,
+          },
+        }),
+      ]);
+    } catch (error) {
+      console.warn(`[PIPELINE QUEUE] Heartbeat failed for ${job.jobType} ${job.id}: ${error?.message || error}`);
+    } finally {
+      inFlight = false;
+    }
+  };
+
+  const timer = setInterval(() => {
+    void tick();
+  }, heartbeatMs);
+
+  return async () => {
+    stopped = true;
+    clearInterval(timer);
+  };
+}
+
 async function runPipelineQueueBatch(prisma, limit = 1) {
   await syncAllCompanyPipelineJobs(prisma);
   const claimed = await claimNextPipelineJobs(prisma, limit);
@@ -286,6 +330,7 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
 
   for (const job of claimed) {
     const startedAt = Date.now();
+    let stopHeartbeat = null;
     try {
       const companyName = job.company?.name
         || (job.companyId
@@ -301,7 +346,12 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         currentCompany: companyName,
         activeTask: buildActiveTaskString(job, companyName, entityLabel),
       });
+      stopHeartbeat = startRunningJobHeartbeat(prisma, job, companyName, entityLabel);
       const result = await executePipelineJob(prisma, job);
+      if (stopHeartbeat) {
+        await stopHeartbeat();
+        stopHeartbeat = null;
+      }
       const workloadUnits = typeof result === "number" ? Math.max(1, result) : 1;
       await completePipelineJob(
         prisma,
@@ -320,6 +370,10 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
       });
       executed += 1;
     } catch (error) {
+      if (stopHeartbeat) {
+        await stopHeartbeat();
+        stopHeartbeat = null;
+      }
       console.error(`[PIPELINE QUEUE] ${job.jobType} failed for ${job.company?.name ?? job.companyId}:`, error.message);
       await failPipelineJob(prisma, job.id, error);
       await recordPipelineJobUsage(prisma, job, {

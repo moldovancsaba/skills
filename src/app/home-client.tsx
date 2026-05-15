@@ -249,114 +249,117 @@ export default function Home() {
           </UnifiedCard>
         ) : (
           <Stack gap={48}>
-            {Array.isArray(companies) && companies.map((c: any) => (
-              <Box key={c.id}>
-                <Group justify="space-between" align="flex-end" mb="md">
-                  <Stack gap={4}>
-                    <Group gap="sm">
-                      <Title 
-                        order={2} 
-                        onClick={() => router.push(`/${c.id}`)}
-                      >
-                        {c.name}
-                      </Title>
-                      <Group gap={6}>
-                        {c.industries?.map((tag: string) => (
-                          <Badge key={tag} variant="outline" color="ingress" size="xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </Group>
-                    </Group>
-                    <Text size="xs" c="dimmed">
-                      {t("home.unitId", { id: c.id.slice(0, 8) })}
-                    </Text>
-                  </Stack>
-                  
-                  {canManageCompanies && (
-                    <Group gap="xs">
-                      <Tooltip label={t("home.editUnit")}>
-                        <ActionIcon onClick={() => startEdit(c)} variant="light" color="gray" size="lg">
-                          <Edit size={18} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label={t("home.purgeUnit")}>
-                        <ActionIcon onClick={() => handleDeleteCompany(c.id)} variant="light" color="review" size="lg">
-                          <Trash2 size={18} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                  )}
-                </Group>
-                <Divider mb="md" />
+            {Array.isArray(companies) &&
+              companies.map((c: any) => {
+                const checklistMetric = Number(c.metrics?.checklist ?? 0);
+                const planningMetric = Math.max(Number(c.metrics?.tactical ?? 0), checklistMetric);
 
-                <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }}>
-                  <LinkCard
-                    href={`/${c.id}/data`}
-                    icon={Database}
-                    variant="ingress"
-                    metric={c.metrics?.data ?? 0}
-                    title={t("nav.data")}
-                    chartData={chartSeries(c.analytics, "sources", "dataIngress")}
-                    density="compact"
-                  />
-                  <LinkCard
-                    href={`/${c.id}/topics`}
-                    icon={Layers}
-                    variant="synthesis"
-                    metric={c.metrics?.topics ?? 0}
-                    title={t("nav.topics")}
-                    chartData={chartSeries(c.analytics, "topics", "topicSynthesis")}
-                    density="compact"
-                  />
-                  <LinkCard
-                    href={`/${c.id}/goals`}
-                    icon={Target}
-                    variant="strategy"
-                    metric={c.metrics?.goals ?? 0}
-                    title={t("nav.goals")}
-                    chartData={chartSeries(c.analytics, "goals", "strategicGoals", "checklist", "nba")}
-                    density="compact"
-                  />
-                  <LinkCard
-                    href={`/${c.id}/review`}
-                    icon={History}
-                    variant="review"
-                    metric={c.metrics?.review ?? 0}
-                    title={t("nav.review")}
-                    chartData={chartSeries(c.analytics, "reviewGateway", "checklist", "nba")}
-                    density="compact"
-                  />
-                  <LinkCard
-                    href={`/${c.id}/knowmore`}
-                    icon={Sparkles}
-                    variant="knowmore"
-                    metric={c.metrics?.knowmore ?? 0}
-                    title={t("nav.knowmore")}
-                    chartData={chartSeries(c.analytics, "flashcards", "knowmore")}
-                    density="compact"
-                  />
-                  <LinkCard
-                    href={`/${c.id}/tactical`}
-                    icon={LayoutDashboard}
-                    variant="tactical"
-                    metric={c.metrics?.tactical ?? 0}
-                    title={t("nav.tactical")}
-                    chartData={chartSeries(c.analytics, "tacticalBoard", "tacticalCount", "checklistTasks", "nba")}
-                    density="compact"
-                  />
-                  <LinkCard
-                    href={`/${c.id}/checklist`}
-                    icon={ListCheck}
-                    variant="checklist"
-                    metric={c.metrics?.checklist ?? 0}
-                    title={t("nav.checklist")}
-                    chartData={chartSeries(c.analytics, "checklist", "nba")}
-                    density="compact"
-                  />
-                </RouteCardGrid>
-              </Box>
-            ))}
+                return (
+                  <Box key={c.id}>
+                    <Group justify="space-between" align="flex-end" mb="md">
+                      <Stack gap={4}>
+                        <Group gap="sm">
+                          <Title order={2} onClick={() => router.push(`/${c.id}`)}>
+                            {c.name}
+                          </Title>
+                          <Group gap={6}>
+                            {c.industries?.map((tag: string) => (
+                              <Badge key={tag} variant="outline" color="ingress" size="xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </Group>
+                        </Group>
+                        <Text size="xs" c="dimmed">
+                          {t("home.unitId", { id: c.id.slice(0, 8) })}
+                        </Text>
+                      </Stack>
+
+                      {canManageCompanies && (
+                        <Group gap="xs">
+                          <Tooltip label={t("home.editUnit")}>
+                            <ActionIcon onClick={() => startEdit(c)} variant="light" color="gray" size="lg">
+                              <Edit size={18} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label={t("home.purgeUnit")}>
+                            <ActionIcon onClick={() => handleDeleteCompany(c.id)} variant="light" color="review" size="lg">
+                              <Trash2 size={18} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      )}
+                    </Group>
+                    <Divider mb="md" />
+
+                    <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }}>
+                      <LinkCard
+                        href={`/${c.id}/data`}
+                        icon={Database}
+                        variant="ingress"
+                        metric={c.metrics?.data ?? 0}
+                        title={t("nav.data")}
+                        chartData={chartSeries(c.analytics, "sources", "dataIngress")}
+                        density="compact"
+                      />
+                      <LinkCard
+                        href={`/${c.id}/topics`}
+                        icon={Layers}
+                        variant="synthesis"
+                        metric={c.metrics?.topics ?? 0}
+                        title={t("nav.topics")}
+                        chartData={chartSeries(c.analytics, "topics", "topicSynthesis")}
+                        density="compact"
+                      />
+                      <LinkCard
+                        href={`/${c.id}/goals`}
+                        icon={Target}
+                        variant="strategy"
+                        metric={c.metrics?.goals ?? 0}
+                        title={t("nav.goals")}
+                        chartData={chartSeries(c.analytics, "goals", "strategicGoals", "checklist", "nba")}
+                        density="compact"
+                      />
+                      <LinkCard
+                        href={`/${c.id}/review`}
+                        icon={History}
+                        variant="review"
+                        metric={c.metrics?.review ?? 0}
+                        title={t("nav.review")}
+                        chartData={chartSeries(c.analytics, "reviewGateway", "checklist", "nba")}
+                        density="compact"
+                      />
+                      <LinkCard
+                        href={`/${c.id}/knowmore`}
+                        icon={Sparkles}
+                        variant="knowmore"
+                        metric={c.metrics?.knowmore ?? 0}
+                        title={t("nav.knowmore")}
+                        chartData={chartSeries(c.analytics, "flashcards", "knowmore")}
+                        density="compact"
+                      />
+                      <LinkCard
+                        href={`/${c.id}/tactical`}
+                        icon={LayoutDashboard}
+                        variant="tactical"
+                        metric={planningMetric}
+                        title={t("nav.tactical")}
+                        chartData={chartSeries(c.analytics, "tacticalBoard", "tacticalCount", "checklistTasks", "nba")}
+                        density="compact"
+                      />
+                      <LinkCard
+                        href={`/${c.id}/checklist`}
+                        icon={ListCheck}
+                        variant="checklist"
+                        metric={checklistMetric}
+                        title={t("nav.checklist")}
+                        chartData={chartSeries(c.analytics, "checklist", "nba")}
+                        density="compact"
+                      />
+                    </RouteCardGrid>
+                  </Box>
+                );
+              })}
 
             {!canManageCompanies && companies.length === 0 && (
               <EmptyState

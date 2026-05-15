@@ -283,6 +283,7 @@ export default function CompanyDashboard() {
   const priorityBandShare = scoreHealth?.taskcards.priorityHealth?.dominantPriorityBand?.share ?? 0;
   const dominantTupleLabel = scoreHealth?.taskcards.dominantTuple?.label ?? "-";
   const topScoreAlert = scoreHealth?.alerts[0] ?? null;
+  const planningCount = Math.max(Number(counts.tacticalCount || 0), Number(counts.checklistCount || 0));
 
   return (
     <PageShell width="full">
@@ -336,7 +337,7 @@ export default function CompanyDashboard() {
           href={`/${companyId}/tactical`}
           icon={LayoutDashboard}
           variant="tactical"
-          metric={counts.tacticalCount}
+          metric={planningCount}
           title={t("dashboard.tactical")}
           chartData={chartSeries("tacticalBoard", "tacticalCount", "checklistTasks", "nba")}
           density="compact"

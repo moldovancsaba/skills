@@ -19,6 +19,9 @@ const HEARTBEAT_FILE   = path.join(__dirname, "..", "logs", "guardian-heartbeat.
 const INVENTORY_HISTORY_KEY = "local_ai_inventory_history";
 const INVENTORY_HISTORY_LIMIT = 168;
 const QUEUE_COLUMN_RANK = Object.freeze({ NOW: 0, SOON: 1, LATER: 2, PARKED: 3 });
+const STATUS_CACHE_TTL_MS = 5000;
+let statusPayloadCache = null;
+let statusPayloadGeneratedAt = 0;
 
 function sortQueueJobs(left, right) {
   const leftRunning = left.status === "RUNNING" ? 1 : 0;
@@ -257,9 +260,7 @@ async function captureInventoryHistory(inventory) {
   return nextHistory;
 }
 
-// --- API ENDPOINTS ---
-
-async function handleApi(req, res) {
+async function buildStatusPayload() {
   const [setting, snapshotSetting, heartbeat, inventory, queue] = await Promise.all([
     prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
     prisma.globalSetting.findUnique({ where: { key: "local_ai_snapshot_worker_progress" } }),
@@ -268,7 +269,7 @@ async function handleApi(req, res) {
     getGlobalQueueSnapshot(),
   ]);
   const inventoryHistory = await captureInventoryHistory(inventory);
-  
+
   const logTail = readLogTail(80);
   let worker = { online: false };
   if (setting) {
@@ -284,7 +285,7 @@ async function handleApi(req, res) {
     backgroundWorker = { online: (Date.now() - lastUpdate) < 10 * 60 * 1000, ...data };
   }
 
-  const payload = {
+  return {
     ts: new Date().toISOString(),
     worker,
     backgroundWorker,
@@ -298,8 +299,26 @@ async function handleApi(req, res) {
     activeEntityLabel: worker.currentCompany ? queue.currentJob?.entityLabel || null : null,
     activeCompany: worker.currentCompany || (!worker.online ? queue.currentJob?.companyName || null : null),
     activeModel: worker.activeModel,
-    lastLatency: worker.metrics?.lastLatency
+    lastLatency: worker.metrics?.lastLatency,
   };
+}
+
+async function getStatusPayload({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && statusPayloadCache && now - statusPayloadGeneratedAt < STATUS_CACHE_TTL_MS) {
+    return statusPayloadCache;
+  }
+
+  const payload = await buildStatusPayload();
+  statusPayloadCache = payload;
+  statusPayloadGeneratedAt = now;
+  return payload;
+}
+
+// --- API ENDPOINTS ---
+
+async function handleApi(req, res) {
+  const payload = await getStatusPayload();
 
   res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" });
   res.end(JSON.stringify(payload));
@@ -624,6 +643,16 @@ const HTML = `<!DOCTYPE html>
 </html>`;
 
 const server = http.createServer(async (req, res) => {
+  if (req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({
+      ok: true,
+      ts: new Date().toISOString(),
+      cachedAt: statusPayloadGeneratedAt ? new Date(statusPayloadGeneratedAt).toISOString() : null,
+      cacheAgeMs: statusPayloadGeneratedAt ? Date.now() - statusPayloadGeneratedAt : null,
+    }));
+    return;
+  }
   if (req.url.startsWith("/api/status")) return handleApi(req, res);
   if (req.url === "/api/settings" && req.method === "POST") return handleSaveSettings(req, res);
   if (req.url === "/api/reanimate" && req.method === "POST") return handleReanimate(res);

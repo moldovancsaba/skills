@@ -21,6 +21,9 @@ Shipped progress status:
 - snapshot refresh has been moved out of the foreground lane into a dedicated `snapshot-worker`
 - memory-band gating now exists for both foreground and background lanes
 - guardian and status surfaces now carry separate foreground and background worker truth
+- planner telemetry is now best-effort under retryable Prisma write conflicts and no longer fails jobs
+- startup integrity scrub now persists its cooldown across process restarts
+- the status server now exposes a lightweight `/health` endpoint and briefly caches expensive status payload assembly
 
 ## 1. Purpose
 

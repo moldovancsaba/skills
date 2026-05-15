@@ -50,6 +50,9 @@ Read first:
 - quality-engine jobs are now part of the shipped runtime contract for opportunity mining, novelty suppression, editorial gating, research policy, and feedback-pressure regeneration
 - the next major runtime hardening track is documented separately in `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md`; it is the target design for strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery
 - the first major hardening slice is now shipped: snapshot refresh runs in a dedicated `snapshot-worker`, the foreground queue worker no longer shares that lane, and both lanes expose separate health/progress truth
+- startup integrity scrub cooldown now persists across restarts instead of firing again on every guardian bounce
+- planner telemetry now retries and degrades to best-effort on retryable Prisma write conflicts instead of failing the owning job
+- the status server now exposes a lightweight `/health` probe and briefly caches expensive payload assembly
 - current human controls are drag/drop between queue columns, drag/drop reordering, and `Reset to AI Only`
 - source-backed Knowmore cards now carry durable citation snapshots plus explicit conflict flags and summaries
 - maintenance now includes oldest-first revisit jobs for unresolved modified candidates and declined high-potential candidates

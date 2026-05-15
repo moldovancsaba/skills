@@ -11,6 +11,7 @@ const {
 const PLANNER_TELEMETRY_KEY = "planner_telemetry_events";
 const PLANNER_TELEMETRY_MAX_EVENTS = 200;
 const TELEMETRY_LOG_PATH = path.join(__dirname, "..", "..", "logs", "telemetry.ndjson");
+const TELEMETRY_RETRYABLE_ERROR_CODES = new Set(["P2034"]);
 
 function readPackageVersion() {
   try {
@@ -76,15 +77,24 @@ async function recordPlannerTelemetry(prisma, event) {
   const serialized = serializePlannerEvent(event);
   appendPlannerTelemetryLog(serialized);
 
-  const existing = await prisma.globalSetting.findUnique({ where: { key: PLANNER_TELEMETRY_KEY } });
-  const currentEvents = Array.isArray(existing?.value) ? existing.value : [];
-  const nextEvents = [...currentEvents, serialized].slice(-PLANNER_TELEMETRY_MAX_EVENTS);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const existing = await prisma.globalSetting.findUnique({ where: { key: PLANNER_TELEMETRY_KEY } });
+      const currentEvents = Array.isArray(existing?.value) ? existing.value : [];
+      const nextEvents = [...currentEvents, serialized].slice(-PLANNER_TELEMETRY_MAX_EVENTS);
 
-  await prisma.globalSetting.upsert({
-    where: { key: PLANNER_TELEMETRY_KEY },
-    create: { key: PLANNER_TELEMETRY_KEY, value: nextEvents },
-    update: { value: nextEvents },
-  });
+      await prisma.globalSetting.upsert({
+        where: { key: PLANNER_TELEMETRY_KEY },
+        create: { key: PLANNER_TELEMETRY_KEY, value: nextEvents },
+        update: { value: nextEvents },
+      });
+      return serialized;
+    } catch (error) {
+      const retryable = Boolean(error?.code && TELEMETRY_RETRYABLE_ERROR_CODES.has(error.code));
+      if (!retryable) break;
+      await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
+    }
+  }
 
   return serialized;
 }

@@ -8,6 +8,7 @@ const APP_VERSION = packageJson.version;
 
 const prisma = new PrismaClient();
 const PORT = 10005;
+const STARTUP_SCRUB_SETTING_KEY = "local_ai_startup_integrity_last_ran_at";
 
 /**
  * Main entry point for the recurring local AI worker loop.
@@ -45,11 +46,43 @@ let wakeRequested = false;
 let lastStartupScrubAt = 0;
 let recoveredOrphanedRunningJobs = false;
 
+async function readLastStartupScrubAt(prisma) {
+  if (lastStartupScrubAt > 0) return lastStartupScrubAt;
+
+  const setting = await prisma.globalSetting.findUnique({
+    where: { key: STARTUP_SCRUB_SETTING_KEY },
+    select: { value: true },
+  });
+  const rawValue = setting?.value?.lastRanAt;
+  if (!rawValue) return 0;
+
+  const parsed = new Date(rawValue).getTime();
+  if (Number.isFinite(parsed) && parsed > 0) {
+    lastStartupScrubAt = parsed;
+    return parsed;
+  }
+  return 0;
+}
+
+async function writeLastStartupScrubAt(prisma, timestampMs) {
+  lastStartupScrubAt = timestampMs;
+  await prisma.globalSetting.upsert({
+    where: { key: STARTUP_SCRUB_SETTING_KEY },
+    create: {
+      key: STARTUP_SCRUB_SETTING_KEY,
+      value: { lastRanAt: new Date(timestampMs).toISOString() },
+    },
+    update: {
+      value: { lastRanAt: new Date(timestampMs).toISOString() },
+    },
+  });
+}
+
 async function runStartupIntegrityPass() {
   const now = Date.now();
-  if (now - lastStartupScrubAt < STARTUP_SCRUB_INTERVAL) return;
+  const lastRanAt = await readLastStartupScrubAt(prisma);
+  if (now - lastRanAt < STARTUP_SCRUB_INTERVAL) return;
 
-  lastStartupScrubAt = now;
   await updateProgress(prisma, {
     state: "running",
     stage: "STARTUP_MAINTENANCE",
@@ -57,6 +90,7 @@ async function runStartupIntegrityPass() {
     activeTask: "Running startup integrity maintenance",
   });
   await scrubDatabaseElemental(prisma);
+  await writeLastStartupScrubAt(prisma, now);
 }
 
 async function runWorkerLoop() {

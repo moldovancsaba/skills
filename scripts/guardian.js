@@ -392,7 +392,7 @@ function pollSnapshotWorkerHealth() {
  * Restarts the status server if port 10006 is unresponsive.
  */
 function checkStatusServerHealth() {
-  const req = http.get({ hostname: "127.0.0.1", port: STATUS_HEALTH_PORT, path: "/", timeout: 5000 }, (res) => {
+  const req = http.get({ hostname: "127.0.0.1", port: STATUS_HEALTH_PORT, path: "/health", timeout: 5000 }, (res) => {
     if (res.statusCode !== 200) {
       warn(`Status server returned non-200 status: ${res.statusCode}.`);
     }

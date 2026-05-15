@@ -117,6 +117,9 @@ Runtime hardening note:
 - the claim path no longer performs duplicated full-company queue sync before every single claim
 - snapshot refresh has now been removed from this foreground lane and moved into a dedicated `snapshot-worker`
 - memory-band gating now pauses the foreground worker under `CRITICAL` memory pressure and pauses the background worker unless memory is `HEALTHY`
+- startup integrity scrub cooldown now survives worker restarts instead of re-running on every bounce
+- planner telemetry writes are best-effort under retryable Prisma conflicts and no longer take jobs down
+- the status server now exposes a lightweight `/health` probe and short-lived payload caching to reduce probe and dashboard load
 - the broader hardening design is defined in [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 
 ## Deterministic planner and quality engine

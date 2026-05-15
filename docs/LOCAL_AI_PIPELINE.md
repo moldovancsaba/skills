@@ -106,6 +106,12 @@ Current worker loop:
 
 The worker rests for a short active interval after productive queue work and a longer idle interval when no queue work is available.
 
+Runtime hardening note:
+
+- this foreground loop is still the current shipped contract
+- the target 24/7 hardening plan removes snapshot refresh and other background work from this foreground lane
+- that target design is defined in [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
+
 ## Deterministic planner and quality engine
 
 The planner and quality engine are now part of the shipped runtime contract.
@@ -114,6 +120,7 @@ Authoritative designs:
 
 - [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
 - [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
+- [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 
 Shipped planner behavior includes:
 

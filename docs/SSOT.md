@@ -115,6 +115,7 @@ The repetitive-job contract now also includes:
 - no separate compact tweak menu today; the board itself is the canonical tweak surface
 - deterministic planner-owned bootstrap and maintenance jobs for inventory, lane refill, quality ceilings, timeout recovery, and oldest-first refresh
 - quality-engine jobs for opportunity mining, editorial gating, research-backed regeneration, novelty suppression, and feedback-pressure repair
+- the 24/7 runtime hardening plan for strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery is defined in `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md`
 
 Backlog contract:
 

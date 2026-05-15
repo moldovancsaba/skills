@@ -210,3 +210,4 @@ They are compatibility paths, not the primary operating contract.
 - `docs/LOCAL_AI_PLANNER_LLD.md` is the authoritative low-level design for bootstrap, lane refill, weakest-upstream ceilings, timeout handling, and oldest-first maintenance
 - `docs/LOCAL_AI_QUALITY_ENGINE_LLD.md` is the authoritative low-level design for opportunity mining, editorial quality, novelty suppression, feedback pressure, and research-backed regeneration
 - build/release identity must be observable from the live worker so operators can see whether runtime matches repository history
+- `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md` is the authoritative target design for 24/7 worker hardening, strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery

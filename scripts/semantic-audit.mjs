@@ -38,6 +38,10 @@ const typographyOverrideAllowlist = new Set([
   "src/components/ui/typography.tsx",
 ]);
 
+const rawDomAllowlist = new Set([
+  "src/app/layout.tsx",
+]);
+
 function walk(dir) {
   const entries = readdirSync(dir, { withFileTypes: true });
   const files = [];
@@ -100,6 +104,42 @@ for (const root of SEARCH_ROOTS) {
           file: rel,
           label: "raw typography override",
           match: typographyOverrideMatch[0],
+        });
+      }
+    }
+
+    if (
+      (rel.startsWith("src/app/") || rel.startsWith("src/components/")) &&
+      !rawDomAllowlist.has(rel)
+    ) {
+      const rawDomMatch = content.match(/<(div|span|p|h1|h2|h3|h4|h5|h6|section|article|aside|header|footer|main|nav)\b/);
+      if (rawDomMatch) {
+        findings.push({
+          file: rel,
+          label: "raw feature-level DOM node",
+          match: rawDomMatch[0],
+        });
+      }
+    }
+
+    if (rel !== "src/app/layout.tsx") {
+      const classNameMatch = content.match(/\bclassName=/);
+      if (classNameMatch) {
+        findings.push({
+          file: rel,
+          label: "feature-level className hook",
+          match: classNameMatch[0],
+        });
+      }
+    }
+
+    if (!typographyOverrideAllowlist.has(rel)) {
+      const rawMantineTypographyImportMatch = content.match(/import\s*\{[^}]*\b(Text|Title)\b[^}]*\}\s*from\s*["']@mantine\/core["']/m);
+      if (rawMantineTypographyImportMatch) {
+        findings.push({
+          file: rel,
+          label: "raw Mantine typography import",
+          match: rawMantineTypographyImportMatch[0].slice(0, 120),
         });
       }
     }

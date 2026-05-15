@@ -2,11 +2,56 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Badge, Button, Group, Loader, SimpleGrid, Stack, Table } from "@mantine/core";
+import { Badge, Box, Button, Group, Loader, SimpleGrid, Stack, Table } from "@mantine/core";
 import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCoins as Coins, IconGauge as Gauge, IconHeartbeat as Heartbeat, IconListCheck as ListCheck, IconRefresh as RefreshIcon, IconStethoscope as Stethoscope } from "@tabler/icons-react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
+
+const QUEUE_COLUMN_RANK: Record<string, number> = {
+  NOW: 0,
+  SOON: 1,
+  LATER: 2,
+  PARKED: 3,
+};
+
+function sortQueueJobs(jobs: any[]) {
+  return [...jobs].sort((left, right) => {
+    const leftRunning = left.status === "RUNNING" ? 1 : 0;
+    const rightRunning = right.status === "RUNNING" ? 1 : 0;
+    if (leftRunning !== rightRunning) {
+      return rightRunning - leftRunning;
+    }
+
+    const leftRank = QUEUE_COLUMN_RANK[left.queueColumn] ?? 99;
+    const rightRank = QUEUE_COLUMN_RANK[right.queueColumn] ?? 99;
+    if (leftRank !== rightRank) {
+      return leftRank - rightRank;
+    }
+
+    const leftPriority = Number(left.priorityScore ?? 0);
+    const rightPriority = Number(right.priorityScore ?? 0);
+    if (leftPriority !== rightPriority) {
+      return rightPriority - leftPriority;
+    }
+
+    return String(left.jobType || "").localeCompare(String(right.jobType || ""));
+  });
+}
+
+function chartTooltipFormatter(value: unknown) {
+  if (value == null) {
+    return ["—", "Value"];
+  }
+  if (typeof value === "number") {
+    return [Math.round(value * 10) / 10, "Value"];
+  }
+  if (typeof value === "string") {
+    return [value, "Value"];
+  }
+  return [String(value), "Value"];
+}
 
 export default function ObservabilityPage() {
   const params = useParams();
@@ -64,6 +109,20 @@ export default function ObservabilityPage() {
   const planner = data?.planner || { unmetLaneTargets: [], recentEvents: [] };
   const workerBuild = data?.workerBuild || {};
   const quality = data?.quality || {};
+  const sortedQueueJobs = sortQueueJobs(queue.jobs || []);
+  const currentJob = sortedQueueJobs[0] || null;
+  const upcomingJobs = currentJob ? sortedQueueJobs.slice(1, 21) : sortedQueueJobs.slice(0, 20);
+  const cardHealthChartData = [
+    { family: "Flashcards", aggregate: Number(quality.flashcards?.averages?.aggregate ?? 0) },
+    { family: "Goals", aggregate: Number(quality.goals?.averages?.aggregate ?? 0) },
+    { family: "Tasks", aggregate: Number(quality.tasks?.averages?.aggregate ?? 0) },
+  ];
+  const cardCountChartData = [
+    { family: "Datacards", count: Number(planner.datacardCount ?? 0) },
+    { family: "Flashcards", count: Number(quality.flashcards?.sampleSize ?? 0) },
+    { family: "Goals", count: Number(quality.goals?.sampleSize ?? 0) },
+    { family: "Tasks", count: Number(quality.tasks?.sampleSize ?? 0) },
+  ];
 
   return (
     <PageShell width="full">
@@ -203,6 +262,119 @@ export default function ObservabilityPage() {
       </UnifiedCard>
 
       <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
+        <UnifiedCard tone="review">
+          <UnifiedCardHeader
+            title="Live Agent Pipeline"
+            supporting={<Badge variant="light" color="review">{sortedQueueJobs.length} active jobs</Badge>}
+          />
+          <UnifiedCardBody>
+            <Stack gap="md">
+              {currentJob ? (
+                <UnifiedCard tone="checklist">
+                  <UnifiedCardHeader
+                    title="Current Task"
+                    supporting={<Badge variant="light" color="checklist">{currentJob.status}</Badge>}
+                  />
+                  <UnifiedCardBody>
+                    <Stack gap="xs">
+                      <Group justify="space-between" align="flex-start">
+                        <Stack gap={2}>
+                          <Box style={{ fontWeight: 700 }}>
+                            <BodyText>{currentJob.jobType}</BodyText>
+                          </Box>
+                          <MetaText>{currentJob.reason || "Worker is actively processing this pipeline job."}</MetaText>
+                        </Stack>
+                        <Stack gap={2} align="flex-end">
+                          <Badge variant="outline" color="gray">{currentJob.queueColumn}</Badge>
+                          <MetaText>Priority {Math.round(Number(currentJob.priorityScore ?? 0))}</MetaText>
+                        </Stack>
+                      </Group>
+                    </Stack>
+                  </UnifiedCardBody>
+                </UnifiedCard>
+              ) : (
+                <Notice title="No active pipeline task">The worker does not currently report an active queue job for this company.</Notice>
+              )}
+
+              <Stack gap="xs">
+                <Group justify="space-between">
+                  <Box style={{ fontWeight: 700 }}>
+                    <BodyText>Queue Next</BodyText>
+                  </Box>
+                  <MetaText>Next {upcomingJobs.length} jobs headed to the agent</MetaText>
+                </Group>
+                {upcomingJobs.length ? (
+                  upcomingJobs.map((job: any, index: number) => (
+                    <Group
+                      key={job.id}
+                      justify="space-between"
+                      align="flex-start"
+                      p="sm"
+                      style={{
+                        border: "1px solid var(--border-primary)",
+                        borderRadius: "12px",
+                        background: "rgba(255,255,255,0.02)",
+                      }}
+                    >
+                      <Stack gap={2} flex={1}>
+                        <Group gap="xs">
+                          <Badge variant="light" color={job.queueColumn === "NOW" ? "checklist" : job.queueColumn === "SOON" ? "tactical" : job.queueColumn === "LATER" ? "strategy" : "gray"}>
+                            #{index + 1}
+                          </Badge>
+                          <Box style={{ fontWeight: 600 }}>
+                            <BodyText>{job.jobType}</BodyText>
+                          </Box>
+                        </Group>
+                        <MetaText>{job.reason || "No planner reason persisted."}</MetaText>
+                      </Stack>
+                      <Stack gap={2} align="flex-end">
+                        <Badge variant="outline" color="gray">{job.queueColumn}</Badge>
+                        <MetaText>{job.status}</MetaText>
+                      </Stack>
+                    </Group>
+                  ))
+                ) : (
+                  <Notice title="Queue clear">No additional queued jobs are waiting behind the current task.</Notice>
+                )}
+              </Stack>
+            </Stack>
+          </UnifiedCardBody>
+        </UnifiedCard>
+
+        <UnifiedCard tone="knowmore">
+          <UnifiedCardHeader title="Card Health" supporting={<Badge variant="light" color="knowmore">aggregate quality</Badge>} />
+          <UnifiedCardBody>
+            <Box h={320}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={cardHealthChartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
+                  <XAxis dataKey="family" tickLine={false} axisLine={false} />
+                  <YAxis domain={[0, 100]} tickLine={false} axisLine={false} />
+                  <Tooltip formatter={(value) => chartTooltipFormatter(value)} />
+                  <Bar dataKey="aggregate" fill="var(--mantine-color-cyan-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </UnifiedCardBody>
+        </UnifiedCard>
+
+        <UnifiedCard tone="strategy">
+          <UnifiedCardHeader title="Sum of Cards" supporting={<Badge variant="light" color="strategy">current persisted totals</Badge>} />
+          <UnifiedCardBody>
+            <Box h={320}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={cardCountChartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
+                  <XAxis dataKey="family" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} />
+                  <Tooltip formatter={(value) => chartTooltipFormatter(value)} />
+                  <Bar dataKey="count" fill="var(--mantine-color-orange-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </UnifiedCardBody>
+        </UnifiedCard>
+
         <UnifiedCard tone="knowmore">
           <UnifiedCardHeader title="Quality Dimensions" />
           <UnifiedCardBody>
@@ -286,30 +458,6 @@ export default function ObservabilityPage() {
                     <Table.Td>{event.eventType}</Table.Td>
                     <Table.Td>{event.entityType || "—"}</Table.Td>
                     <Table.Td>{event.reason || "—"}</Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </UnifiedCardBody>
-        </UnifiedCard>
-
-        <UnifiedCard tone="review">
-          <UnifiedCardHeader title="Active Queue Work" />
-          <UnifiedCardBody>
-            <Table highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Job</Table.Th>
-                  <Table.Th>Column</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {(queue.jobs || []).map((job: any) => (
-                  <Table.Tr key={job.id}>
-                    <Table.Td>{job.jobType}</Table.Td>
-                    <Table.Td>{job.queueColumn}</Table.Td>
-                    <Table.Td>{job.status}</Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>

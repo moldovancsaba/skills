@@ -1,27 +1,11 @@
+import { Text, Title } from "@/components/ui/typography";
 'use client';
 
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams, usePathname } from "next/navigation";
 import { 
-  Stack, 
-  Group, 
-  Text, 
-  SegmentedControl, 
-  FileButton, 
-  ScrollArea,
-  Box,
-  Divider,
-  Title,
-  Button,
-  Badge,
-  rem,
-  Center,
-  Loader,
-  ThemeIcon,
-  Tooltip,
-  ActionIcon,
-} from "@mantine/core";
+  Stack, Group, SegmentedControl, FileButton, ScrollArea, Box, Divider, Button, Badge, rem, Center, Loader, ThemeIcon, Tooltip, ActionIcon } from "@mantine/core";
 import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconFileText as ScrollText, IconFilter as ListFilter, IconSortAscending as SortAsc, IconUsers as Users, IconPencil as Edit2, IconInfoCircle as Info, IconDatabase as Database } from "@tabler/icons-react";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";

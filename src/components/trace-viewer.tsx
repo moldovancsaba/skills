@@ -3,18 +3,8 @@
 import { useState, useEffect } from "react";
 import { IconGitBranch as GitBranch, IconFileText as FileText, IconBulb as Lightbulb, IconSquareCheck as CheckSquare, IconX as X } from "@tabler/icons-react";
 import { 
-  Box, 
-  Stack, 
-  Group, 
-  Text, 
-  ActionIcon, 
-  ThemeIcon, 
-  Loader, 
-  Center,
-  rem,
-  ScrollArea
-} from "@mantine/core";
-import { BodyText, MetaText, SectionTitle } from "@/components/ui/typography";
+  Box, Stack, Group, ActionIcon, ThemeIcon, Loader, Center, rem, ScrollArea } from "@mantine/core";
+import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import {
   getSemanticHaloStyle,
   getSemanticDividerStyle,

@@ -54,6 +54,7 @@ Approved product UI system:
 - Mantine `Card` as the only approved base card primitive
 - `UnifiedCard` as the only approved feature-level product card API
 - `UnifiedCardModal` as the only approved modal content shell for product cards
+- DS-owned `Text` and `Title` wrappers in `src/components/ui/typography.tsx` are the only approved general-purpose typography escape hatches
 - first-class entity card surfaces must expose canonical ICE through the shared card header contract
 - semantic tones only for product color meaning
 - ICE updates, rescoring, and repair must run through shared scoring contracts and oldest-first maintenance or queue flows, not local ad hoc math
@@ -72,6 +73,10 @@ Forbidden for product UI:
 - shadcn component fragments
 - raw feature-level `Paper` surfaces
 - raw feature-level `Card` surfaces for product-owned card UI
+- raw feature-level DOM nodes such as `div`, `span`, `section`, and `main` when an approved Mantine or DS primitive should be used instead
+- feature-level `className` hooks
+- raw Mantine `Text` imports in feature code
+- raw Mantine `Title` imports in feature code
 - parallel visual systems
 - local color vocabularies
 - local type scales
@@ -171,10 +176,13 @@ Allowed product typography roles are intentionally limited:
 - `MetaText`
 - `LabelText`
 - `ActionLabel`
+- `Text`
+- `Title`
 
 Rules:
 
 - feature surfaces must collapse visible copy into these roles instead of inventing local title ladders
+- feature code must not import `Text` or `Title` from `@mantine/core`; it must import the DS-owned wrappers from `src/components/ui/typography.tsx`
 - decorative filler labels are forbidden
 - repeated orientation copy such as “Access Layer” is forbidden when the route title, icon, and click behavior already express the same meaning
 - sidebar labels, card counts, footer/legal text, and route-card descriptions must reuse the approved roles instead of local `Text size=...` patterns

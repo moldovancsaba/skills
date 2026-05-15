@@ -1,24 +1,6 @@
 'use client';
 
-import {
-  AppShellNavbar,
-  AppShellSection,
-  NavLink,
-  Stack,
-  Group,
-  Box,
-  Text,
-  Avatar,
-  Menu,
-  rem,
-  UnstyledButton,
-  ScrollArea,
-  ThemeIcon,
-  Badge,
-  Divider,
-  Button,
-  Anchor,
-} from "@mantine/core";
+import { AppShellNavbar, AppShellSection, NavLink, Stack, Group, Box, Avatar, Menu, rem, UnstyledButton, ScrollArea, ThemeIcon, Badge, Divider, Button, Anchor } from "@mantine/core";
 import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
@@ -331,7 +313,6 @@ export function ClientNav() {
             }}
             p="xs"
             style={getSidebarButtonStyle()}
-            className="theme-toggle-button"
           >
               <Group justify="space-between">
                 <Group gap="sm">
@@ -349,7 +330,6 @@ export function ClientNav() {
                 <UnstyledButton
                   p="xs"
                   style={getSidebarButtonStyle()}
-                  className="user-profile-button"
                 >
                     <Group justify="space-between">
                       <Group gap="sm">

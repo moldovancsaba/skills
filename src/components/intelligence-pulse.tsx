@@ -3,25 +3,12 @@
 import { useEffect, useState } from "react";
 import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCircleCheck as CheckCircle2, IconGauge as Gauge, IconTimeline as Timeline, IconBolt as Zap } from "@tabler/icons-react";
 import { 
-  Stack, 
-  Group, 
-  Text, 
-  Badge, 
-  Box, 
-  SimpleGrid, 
-  ThemeIcon,
-  rem,
-  Progress,
-  Tooltip,
-  Center,
-  Loader,
-  Title
-} from "@mantine/core";
+  Stack, Group, Badge, Box, SimpleGrid, ThemeIcon, rem, Progress, Tooltip, Center, Loader } from "@mantine/core";
 import { formatDistanceToNow } from 'date-fns';
 import { getSemanticIndicatorStyle } from "@/lib/semantic-theme";
 import { resolveStateTone } from "@/lib/ui-state";
 import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
-import { BodyText, MetaText } from "@/components/ui/typography";
+import { BodyText, MetaText, Text, Title } from "@/components/ui/typography";
 
 type HealthData = {
   status: string;

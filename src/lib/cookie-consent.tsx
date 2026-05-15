@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { IconCheck as Check } from "@tabler/icons-react";
+import { Text } from "@/components/ui/typography";
 
 type ConsentSettings = {
   essential: boolean;
@@ -10,10 +11,7 @@ type ConsentSettings = {
 };
 
 const DEFAULT_CONSENT: ConsentSettings = {
-  essential: true,
-  analytics: false,
-  personalization: false,
-};
+  essential: true, analytics: false, personalization: false, };
 
 const STORAGE_KEY = "cookie_consent_v2";
 
@@ -47,8 +45,8 @@ export function useCookieConsent() {
   return { showBanner, settings, acceptAll, acceptSelected, close };
 }
 
-import { Affix, Card, Text, Group, Button, Checkbox, Stack, Box, rem, Container } from "@mantine/core";
-import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
+import { Affix, Group, Button, Checkbox, Stack, Box, rem, Container } from "@mantine/core";
+import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 
 export function CookieBanner() {
   const [analytics, setAnalytics] = useState(false);
@@ -61,18 +59,10 @@ export function CookieBanner() {
     <Affix position={{ bottom: 0, left: 0, right: 0 }} zIndex={1000}>
       <Container fluid px="md" style={{ paddingLeft: 'var(--app-shell-navbar-offset, 280px)' }}>
         <Box py="md">
-          <Card 
-            radius="lg" 
-            p="xl" 
-            withBorder 
-            shadow="xl"
-            style={{ 
-              ...getSemanticSurfaceStyle("neutral"),
-              maxWidth: '1200px',
-              margin: '0 auto'
-            }}
-          >
-            <Stack gap="md">
+          <Box maw={1200} mx="auto">
+            <UnifiedCard tone="neutral">
+              <UnifiedCardBody>
+                <Stack gap="md">
               <Group justify="space-between" align="flex-start" wrap="nowrap">
                 <Stack gap={4} flex={1}>
                   <Text size="sm" fw={700}>Cookie Preferences</Text>
@@ -116,8 +106,10 @@ export function CookieBanner() {
                   </Button>
                 </Group>
               </Group>
-            </Stack>
-          </Card>
+                </Stack>
+              </UnifiedCardBody>
+            </UnifiedCard>
+          </Box>
         </Box>
       </Container>
     </Affix>

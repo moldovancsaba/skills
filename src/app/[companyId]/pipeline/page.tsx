@@ -1,26 +1,11 @@
+import { Text } from "@/components/ui/typography";
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  DragDropContext,
-  Draggable,
-  Droppable,
-  type DropResult,
-} from "@hello-pangea/dnd";
+  DragDropContext, Draggable, Droppable, type DropResult, } from "@hello-pangea/dnd";
 import {
-  Badge,
-  Box,
-  Button,
-  Center,
-  Divider,
-  Group,
-  Loader,
-  SimpleGrid,
-  Stack,
-  Text,
-  ThemeIcon,
-  rem,
-} from "@mantine/core";
+  Badge, Box, Button, Center, Divider, Group, Loader, SimpleGrid, Stack, ThemeIcon, rem } from "@mantine/core";
 import {
   IconAlertTriangle as AlertTriangle,
   IconArrowBackUp as ResetIcon,
@@ -348,10 +333,10 @@ export default function PipelineQueuePage() {
                   >
                     <Stack gap="md">
                       <Group justify="space-between">
-                        <div>
+                        <Box>
                           <Text size="lg">{column.label}</Text>
                           <Text size="xs" c="dimmed">{column.description}</Text>
-                        </div>
+                        </Box>
                         <Badge color={column.tone}>{columnJobs.length}</Badge>
                       </Group>
 

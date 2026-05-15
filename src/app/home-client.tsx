@@ -1,21 +1,7 @@
+import { Text, Title } from "@/components/ui/typography";
 'use client';
 
-import { 
-  Stack, 
-  Group, 
-  Text, 
-  Title, 
-  ActionIcon, 
-  Tooltip, 
-  Divider, 
-  Box, 
-  Loader, 
-  Alert,
-  ThemeIcon,
-  Button,
-  Badge,
-  Center
-} from "@mantine/core";
+import { Stack, Group, ActionIcon, Tooltip, Divider, Box, Loader, Alert, ThemeIcon, Button, Badge, Center } from "@mantine/core";
 import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListCheck, IconLayoutDashboard as LayoutDashboard, IconLayersIntersect as Layers, IconHistory as History } from "@tabler/icons-react";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";

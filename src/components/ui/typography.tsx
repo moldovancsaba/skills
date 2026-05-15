@@ -1,7 +1,20 @@
 'use client';
 
 import type { ReactNode } from "react";
-import { Text, Title } from "@mantine/core";
+import {
+  Text as MantineText,
+  Title as MantineTitle,
+} from "@mantine/core";
+
+type MantineTextFacadeProps = {
+  children?: ReactNode;
+  [key: string]: any;
+};
+
+type MantineTitleFacadeProps = {
+  children?: ReactNode;
+  [key: string]: any;
+};
 
 type TextCommonProps = {
   children: ReactNode;
@@ -18,15 +31,23 @@ type TextCommonProps = {
 };
 
 export function PageTitle({ children }: { children: ReactNode }) {
-  return <Title order={1}>{children}</Title>;
+  return <MantineTitle order={1}>{children}</MantineTitle>;
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
-  return <Title order={2} size="h3">{children}</Title>;
+  return <MantineTitle order={2} size="h3">{children}</MantineTitle>;
 }
 
 export function CardTitle({ children, lineClamp }: { children: ReactNode; lineClamp?: number }) {
-  return <Text size="xl" fw={700} lh={1.25} lineClamp={lineClamp}>{children}</Text>;
+  return <MantineText size="xl" fw={700} lh={1.25} lineClamp={lineClamp}>{children}</MantineText>;
+}
+
+export function Text(props: MantineTextFacadeProps) {
+  return <MantineText {...props} />;
+}
+
+export function Title(props: MantineTitleFacadeProps) {
+  return <MantineTitle {...props} />;
 }
 
 export function BodyText({
@@ -40,7 +61,7 @@ export function BodyText({
   mb,
 }: TextCommonProps) {
   return (
-    <Text
+    <MantineText
       size="sm"
       c="var(--text-secondary)"
       lh={1.6}
@@ -53,7 +74,7 @@ export function BodyText({
       mb={mb}
     >
       {children}
-    </Text>
+    </MantineText>
   );
 }
 
@@ -71,7 +92,7 @@ export function MetaText({
   opacity,
 }: TextCommonProps) {
   return (
-    <Text
+    <MantineText
       size="xs"
       c={c}
       truncate={truncate}
@@ -85,7 +106,7 @@ export function MetaText({
       opacity={opacity}
     >
       {children}
-    </Text>
+    </MantineText>
   );
 }
 
@@ -96,9 +117,9 @@ export function LabelText({
   lineClamp,
 }: Pick<TextCommonProps, "children" | "c" | "truncate" | "lineClamp">) {
   return (
-    <Text size="sm" fw={600} lh={1.35} c={c} truncate={truncate} lineClamp={lineClamp}>
+    <MantineText size="sm" fw={600} lh={1.35} c={c} truncate={truncate} lineClamp={lineClamp}>
       {children}
-    </Text>
+    </MantineText>
   );
 }
 
@@ -107,8 +128,8 @@ export function ActionLabel({
   c = "var(--text-primary)",
 }: Pick<TextCommonProps, "children" | "c">) {
   return (
-    <Text size="sm" fw={700} tt="uppercase" lts={0.6} c={c}>
+    <MantineText size="sm" fw={700} tt="uppercase" lts={0.6} c={c}>
       {children}
-    </Text>
+    </MantineText>
   );
 }

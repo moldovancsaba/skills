@@ -1,6 +1,7 @@
+import { Text } from "@/components/ui/typography";
 "use client";
 
-import { Group, Text, ThemeIcon, Anchor } from "@mantine/core";
+import { Group, ThemeIcon, Anchor } from "@mantine/core";
 import { IconCheckbox as LogoIcon } from "@tabler/icons-react";
 import Link from "next/link";
 

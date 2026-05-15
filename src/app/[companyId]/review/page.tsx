@@ -1,3 +1,4 @@
+import { Text } from "@/components/ui/typography";
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
@@ -5,22 +6,7 @@ import { useParams } from "next/navigation";
 import { IconHistory as History, IconDeviceFloppy as Save, IconAlertCircle as AlertCircle, IconInfoCircle as Info } from "@tabler/icons-react";
 
 import { 
-  Button, 
-  Stack, 
-  Skeleton, 
-  Text, 
-  Center, 
-  NumberInput, 
-  Group, 
-  Box,
-  Title,
-  Loader,
-  Badge,
-  SimpleGrid,
-  ThemeIcon,
-  Card,
-  rem
-} from "@mantine/core";
+  Button, Stack, Skeleton, Center, NumberInput, Group, Box, Loader, Badge, SimpleGrid, ThemeIcon, Card, rem } from "@mantine/core";
 import { EmptyState, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardActions, UnifiedCardSection } from "@/components/ui/unified-card";
 import { calculateKnowledgeIceScore, calculateTaskIceScore } from "@/lib/scoring-contract";
@@ -176,7 +162,7 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
   const metricLabel = item._type === 'TASK' ? 'Ease' : 'Weight';
 
   return (
-    <div>
+    <>
       <UnifiedCard tone="review">
         <UnifiedCardHeader 
           title={stripTechnicalMetadata(item.title)} 
@@ -216,6 +202,6 @@ function ReviewEditorCard({ item, onSave, isSaving }: { item: any; onSave: any, 
           </Stack>
         </UnifiedCardBody>
       </UnifiedCard>
-    </div>
+    </>
   );
 }

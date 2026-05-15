@@ -1,3 +1,4 @@
+import { Text } from "@/components/ui/typography";
 /**
  * Checklist page surface for taskcard review and action handling.
  *
@@ -11,19 +12,7 @@ import { useStore } from "@/lib/store";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
-  Group, 
-  Loader, 
-  Stack, 
-  Title, 
-  Text, 
-  Button, 
-  ActionIcon, 
-  Tooltip, 
-  rem, 
-  Box,
-  Divider,
-  Center
-} from "@mantine/core";
+  Group, Loader, Stack, Button, ActionIcon, Tooltip, rem, Box, Divider, Center } from "@mantine/core";
 import { EmptyState, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";

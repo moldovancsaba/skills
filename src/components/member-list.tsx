@@ -1,25 +1,9 @@
 'use client';
 
+import { Stack, Group, Avatar, ActionIcon, Tooltip, Badge, Box, ThemeIcon, Loader, rem } from "@mantine/core";
 import { 
-  Stack, 
-  Group, 
-  Text,
-  Avatar, 
-  ActionIcon, 
-  Tooltip, 
-  Badge, 
-  Box, 
-  ThemeIcon,
-  Loader,
-  rem
-} from "@mantine/core";
-import { 
-  UnifiedCard, 
-  UnifiedCardHeader, 
-  UnifiedCardBody,
-  UnifiedCardSection,
-} from "@/components/ui/unified-card";
-import { BodyText, LabelText, MetaText } from "@/components/ui/typography";
+  UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardSection, } from "@/components/ui/unified-card";
+import { BodyText, LabelText, MetaText, Text } from "@/components/ui/typography";
 import { FormInput } from "@/components/ui/form-fields";
 import { Button } from "@mantine/core";
 import { IconUsers as Users, IconUserPlus as UserPlus, IconTrash as Trash2, IconShield as Shield, IconUser as UserIcon, IconMail as Mail } from "@tabler/icons-react";

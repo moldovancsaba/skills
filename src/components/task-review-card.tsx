@@ -7,7 +7,6 @@
 import { useState } from "react";
 import { IconCalendar as CalendarIcon, IconCheck as Check, IconChecks as CheckCheck, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconHistory as History, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";
 import { 
-  Text, 
   Badge, 
   Button, 
   Group, 
@@ -25,7 +24,7 @@ import {
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { TraceViewer } from "@/components/trace-viewer";
 import { CardShareAction } from "@/components/ui/card-share-action";
-import { BodyText, MetaText } from "@/components/ui/typography";
+import { BodyText, MetaText, Text } from "@/components/ui/typography";
 import { getGoalCardFreshness, getTaskCardFreshness } from "@/lib/card-freshness";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getDisplayableHumanComment, stripTechnicalMetadata } from "@/lib/ui-utils";

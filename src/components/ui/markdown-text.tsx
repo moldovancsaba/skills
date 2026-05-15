@@ -1,8 +1,9 @@
+import { Text } from "@/components/ui/typography";
 'use client';
 
 import type { ReactNode } from "react";
 import { Fragment } from "react";
-import { Box, List, Text } from "@mantine/core";
+import { Box, List } from "@mantine/core";
 import { getSemanticPillStyle } from "@/lib/semantic-theme";
 
 type MarkdownTextProps = {

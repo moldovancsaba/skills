@@ -1,23 +1,11 @@
+import { Text } from "@/components/ui/typography";
 'use client';
 
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, useParams } from "next/navigation";
 import { 
-  Stack, 
-  Group, 
-  Text, 
-  Title, 
-  Button, 
-  Badge, 
-  TextInput, 
-  rem, 
-  ActionIcon, 
-  Tooltip, 
-  SimpleGrid, 
-  Loader, 
-  Center 
-} from "@mantine/core";
+  Stack, Group, Button, Badge, TextInput, rem, ActionIcon, Tooltip, SimpleGrid, Loader, Center } from "@mantine/core";
 import { 
   IconDatabase as Database, 
   IconSearch as Search, 

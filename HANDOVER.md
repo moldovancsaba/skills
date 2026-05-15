@@ -25,6 +25,7 @@ Read first:
 - Mantine `Card` is the base card primitive
 - `UnifiedCard` is the only approved feature-level product card API
 - `UnifiedCardModal` is the only approved modal content shell for card content
+- DS-owned `Text` and `Title` wrappers in `src/components/ui/typography.tsx` are the only approved general-purpose typography bridge for feature code
 - first-class entity cards must expose canonical ICE visibly through the shared card header contract
 - typography is centrally defined in the theme and DS typography primitives only
 - layout grammar is centrally defined in the shared shell/navigation primitives only
@@ -108,6 +109,9 @@ System:
 
 - raw feature-level `Paper` surfaces
 - raw feature-level `Card` surfaces for product-owned cards
+- raw feature-level DOM wrappers where approved Mantine/DS primitives should be used
+- feature-level `className` hooks
+- raw Mantine `Text` / `Title` imports in feature code
 - legacy color aliases like `blue`, `brand`, `orange`, `green`, `purple`, `teal`
 - ad hoc text sizing and custom title scales in feature code
 - local transition or hover systems for product surfaces

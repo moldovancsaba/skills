@@ -10,37 +10,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  DropResult,
-  DragStart,
-} from "@hello-pangea/dnd";
+  DragDropContext, Droppable, Draggable, DropResult, DragStart, } from "@hello-pangea/dnd";
 import {
-  Title,
-  Text,
-  Group,
-  Stack,
-  Badge,
-  Loader,
-  Center,
-  Modal,
-  Divider,
-  ActionIcon,
-  Tooltip,
-  rem,
-  Select,
-  Button,
-  Box,
-  ScrollArea,
-  ThemeIcon,
-  SimpleGrid,
-} from "@mantine/core";
+  Group, Stack, Badge, Loader, Center, Modal, Divider, ActionIcon, Tooltip, rem, Select, Button, Box, ScrollArea, ThemeIcon, SimpleGrid } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { PageShell, PageHeader, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardFreshnessBadge, UnifiedCardSection } from "@/components/ui/unified-card";
 import { CardShareAction } from "@/components/ui/card-share-action";
-import { MetaText } from "@/components/ui/typography";
+import { MetaText, Text, Title } from "@/components/ui/typography";
 import { getTaskCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";

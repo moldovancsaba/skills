@@ -84,6 +84,7 @@ Frontend system:
 - Mantine `Card` is the only approved base for product card surfaces
 - `UnifiedCard` is the only approved product card API for feature code
 - `UnifiedCardModal` is the only approved modal content shell for product cards
+- DS-owned `Text` and `Title` wrappers in `src/components/ui/typography.tsx` are the only approved general-purpose typography bridge for feature code
 - first-class entity card surfaces must expose their canonical ICE score through the shared card header contract
 - Typography is defined centrally in the Mantine theme and DS typography primitives only
 - ICE management must run through the canonical scoring contract and the oldest-first maintenance queue across upstream cards, knowledge, goals, and tasks
@@ -181,6 +182,9 @@ These files define the live UI contract:
 - No Tailwind utilities for product UI
 - No shadcn fragments for product UI
 - No raw `Paper` or raw feature-level `Card` surfaces
+- No raw feature-level DOM wrappers such as `div` or `span` when approved Mantine/DS primitives exist
+- No feature-level `className` hooks
+- No raw `Text` or `Title` imports from `@mantine/core` in feature code
 - No direct visual `style` overrides on `UnifiedCard` family components
 - No legacy color aliases like `blue`, `brand`, `orange`, `green`, `purple`, `teal`, `cyan`, `amber`
 - No local typography overrides for `fontSize`, `letterSpacing`, or ad hoc title scales in feature code

@@ -58,6 +58,7 @@ Frontend:
 - centralized Mantine theme
 - centralized semantic token layer
 - centralized card system through `UnifiedCard`
+- centralized DS-owned typography, including the approved `Text` and `Title` wrappers in `src/components/ui/typography.tsx`
 
 ## 4. Product UI SSOT
 

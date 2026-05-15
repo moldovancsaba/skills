@@ -1,7 +1,7 @@
 import { Metadata } from "next";
-import { Container, Title, Text, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
+import { Container, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
 import { IconShieldCheck as ShieldCheck, IconFileText as FileText, IconCpu as Cpu, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconRefresh as RefreshCw } from "@tabler/icons-react";
-import { SectionTitle } from "@/components/ui/typography";
+import { SectionTitle, Text, Title } from "@/components/ui/typography";
 
 export const metadata: Metadata = {
   title: "Terms of Service - checklist OS",

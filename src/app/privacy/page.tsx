@@ -1,7 +1,7 @@
 import { Metadata } from "next";
-import { Container, Title, Text, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
+import { Container, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
 import { IconShield as Shield, IconDatabase as Database, IconLock as Lock, IconEye as Eye, IconMail as Mail } from "@tabler/icons-react";
-import { SectionTitle } from "@/components/ui/typography";
+import { SectionTitle, Text, Title } from "@/components/ui/typography";
 
 export const metadata: Metadata = {
   title: "Privacy Policy - checklist OS",

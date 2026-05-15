@@ -1,3 +1,4 @@
+import { Text, Title } from "@/components/ui/typography";
 /**
  * Topics focus page.
  *
@@ -11,24 +12,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { 
-  Stack, 
-  Group, 
-  Text, 
-  Card,
-  Badge as MantineBadge,
-  ActionIcon,
-  Tooltip,
-  Title,
-  Button,
-  Checkbox,
-  TextInput,
-  rem,
-  Center,
-  Loader,
-  Box,
-  Divider,
-  ThemeIcon
-} from "@mantine/core";
+  Stack, Group, Card, Badge as MantineBadge, ActionIcon, Tooltip, Button, Checkbox, TextInput, rem, Center, Loader, Box, Divider, ThemeIcon } from "@mantine/core";
 import { IconGripVertical as GripVertical, IconPlus as Plus, IconTrash as Trash2, IconArrowUp as ArrowUp, IconArrowDown as ArrowDown, IconInfoCircle as Info, IconLayoutList as LayoutList, IconLayersIntersect as Layers } from "@tabler/icons-react";
 import { EmptyState, Notice, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { 

@@ -1,3 +1,4 @@
+import { Text } from "@/components/ui/typography";
 /**
  * Knowmore intelligence page.
  *
@@ -10,22 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { IconDatabase as Database, IconSearch as Search, IconSparkles as Sparkles, IconTarget as Target, IconBolt as Bolt, IconFilter as Filter, IconLayoutList as LayoutList, IconTrendingUp as TrendingUp, IconShieldCheck as ShieldCheck, IconRefresh as RefreshIcon, IconStethoscope as Stethoscope, IconAlertTriangle as AlertTriangle } from "@tabler/icons-react";
 import { 
-  Badge, 
-  Button, 
-  Group, 
-  TextInput, 
-  Box, 
-  Stack, 
-  Skeleton, 
-  Loader, 
-  Center,
-  Text,
-  ActionIcon,
-  Title,
-  Card,
-  rem,
-  ThemeIcon
-} from "@mantine/core";
+  Badge, Button, Group, TextInput, Box, Stack, Skeleton, Loader, Center, ActionIcon, Card, rem, ThemeIcon } from "@mantine/core";
 import {
   EmptyState,
   MetricCard,

@@ -1,3 +1,4 @@
+import { Text } from "@/components/ui/typography";
 /**
  * Tactical board route.
  *
@@ -8,7 +9,7 @@
 
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
-import { Center, Loader, Stack, Text } from "@mantine/core";
+import { Center, Loader, Stack } from "@mantine/core";
 
 const TacticalBoard = dynamic(
   () => import("@/components/tactical-board").then(m => ({ default: m.TacticalBoard })),

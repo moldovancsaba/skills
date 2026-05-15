@@ -35,7 +35,7 @@ The frontend is intentionally rigid.
 - `semantic-theme.ts` defines semantic surface helpers
 - `ui-state.ts` defines state semantics
 - `ui-interactions.ts` defines interaction helpers
-- `typography.tsx` defines DS text primitives
+- `typography.tsx` defines DS text primitives and the approved `Text` / `Title` wrappers
 - `unified-card.tsx` defines the card shell hierarchy
 - `unified-card-modal.tsx` defines the modal shell
 - `app-shell.tsx` defines page and layout primitives
@@ -45,6 +45,8 @@ The frontend is intentionally rigid.
 - Mantine only
 - Mantine `Card` only as base card primitive
 - feature code uses `UnifiedCard`
+- feature code uses DS-owned `Text` / `Title` wrappers instead of raw Mantine typography imports
+- feature code does not use raw DOM wrappers or feature-level `className` hooks as a parallel composition path
 - feature code does not create parallel card shells
 - feature code does not create local type systems
 - feature code does not create local hover/motion systems

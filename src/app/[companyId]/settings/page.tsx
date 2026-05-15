@@ -4,26 +4,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { IconBell as Bell, IconShieldCheck as ShieldCheck, IconKey as Key, IconSettings as SettingsIcon, IconCopy as Copy, IconRefresh as RefreshCcw, IconEye as Eye, IconEyeOff as EyeOff, IconMessage2 as MessageSquare, IconMail as Mail, IconDeviceMobile as Smartphone, IconWebhook as Webhook, IconGlobe as Globe, IconLanguage as Languages } from "@tabler/icons-react";
 import { 
-  Text, 
-  Title, 
-  Switch, 
-  Slider, 
-  Button, 
-  TextInput, 
-  Select, 
-  Group, 
-  Stack, 
-  Badge, 
-  Divider, 
-  ActionIcon, 
-  Tooltip, 
-  ThemeIcon,
-  Box,
-  SimpleGrid
-} from "@mantine/core";
+  Switch, Slider, Button, TextInput, Select, Group, Stack, Badge, Divider, ActionIcon, Tooltip, ThemeIcon, Box, SimpleGrid } from "@mantine/core";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardSection } from "@/components/ui/unified-card";
-import { BodyText, MetaText, SectionTitle } from "@/components/ui/typography";
+import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { notifications } from "@mantine/notifications";
 import { UiLanguageSelect } from "@/components/ui-language-select";

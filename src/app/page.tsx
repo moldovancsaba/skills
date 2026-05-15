@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import HomeClient from "./home-client";
-import { Center, Loader, Stack, Text } from "@mantine/core";
+import { Center, Loader, Stack } from "@mantine/core";
+import { Text } from "@/components/ui/typography";
 
 export default function Home() {
   return (

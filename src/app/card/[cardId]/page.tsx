@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Badge, Box, Center, Group, Loader, Stack, Text, ThemeIcon } from "@mantine/core";
+import { Badge, Box, Center, Group, Loader, Stack, ThemeIcon } from "@mantine/core";
 import { IconDatabase as Database, IconLayersIntersect as Layers, IconSparkles as Sparkles, IconTarget as Target, IconListCheck as ListCheck } from "@tabler/icons-react";
 import { PageShell } from "@/components/ui/app-shell";
-import { BodyText, MetaText } from "@/components/ui/typography";
+import { BodyText, MetaText, Text } from "@/components/ui/typography";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";

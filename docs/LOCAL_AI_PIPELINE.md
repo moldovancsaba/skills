@@ -106,24 +106,32 @@ Current worker loop:
 
 The worker rests for a short active interval after productive queue work and a longer idle interval when no queue work is available.
 
-## Deterministic planner rollout
+## Deterministic planner and quality engine
 
-The current shipped runtime still contains the broader queue-owned synthesis path.
+The planner and quality engine are now part of the shipped runtime contract.
 
-The target replacement design for bootstrap and maintenance behavior is governed by:
+Authoritative designs:
 
 - [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
+- [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
 
-That planner design introduces:
+Shipped planner behavior includes:
 
 - explicit company operating modes: `INACTIVE`, `BOOTSTRAP`, `MAINTENANCE`
 - deterministic lane minimums for `CHECKLIST`, `TODO`, `BACKLOG`, `ROADMAP`, and `IDEABANK`
 - weakest-upstream status ceilings for flashcards and taskcards
 - explicit bootstrap fallback from task generation to flashcard generation to datacard research backfill
 - oldest-first maintenance cadence by card layer
-- timeout-based kill and recovery for stalled generation work
+- timeout-based bounded execution for generation work
 
-Until implementation is complete, treat `docs/LOCAL_AI_PIPELINE.md` as the current shipped runtime contract and `docs/LOCAL_AI_PLANNER_LLD.md` as the target rollout contract.
+Shipped quality-engine behavior includes:
+
+- datacard-to-flashcard opportunity mining
+- flashcard-to-task opportunity mining
+- research-backed create and refresh policy
+- novelty suppression before publish
+- editorial quality gate for create and refresh flows
+- feedback-pressure regeneration priority
 
 ## Queue-owned scheduler contract
 
@@ -134,10 +142,27 @@ Current managed job families:
 - `FEEDBACK_RECONCILIATION`
 - `CARD_RESCORING`
 - `FRONTIER_RECOMPUTE`
-- `FULL_MAINTENANCE`
+- `ENSURE_FLASHCARD_MINIMUM`
+- `RESEARCH_BACKFILL`
+- `ENSURE_IDEABANK_MINIMUM`
+- `ENSURE_ROADMAP_MINIMUM`
+- `ENSURE_BACKLOG_MINIMUM`
+- `ENSURE_TODO_MINIMUM`
+- `ENSURE_CHECKLIST_MINIMUM`
+- `MINE_FLASHCARD_OPPORTUNITIES`
+- `MINE_TASK_OPPORTUNITIES`
+- `FEEDBACK_PRESSURE_REGENERATION`
+- `REFRESH_FLASHCARDS`
+- `REFRESH_TASKS`
+- `REFRESH_DATACARDS`
+- `REFRESH_GOALS`
 - `SCORE_ALERT_REPAIR`
-- `COMPANY_SYNTHESIS`
 - `WORKFLOW_BLUEPRINT`
+
+Legacy compatibility jobs may still appear:
+
+- `FULL_MAINTENANCE`
+- `COMPANY_SYNTHESIS`
 
 This replaces the older “serial per-company cycle” model as the authoritative runtime contract.
 

@@ -50,11 +50,13 @@ Read these in order. Lower documents must not contradict higher ones.
 2. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 3. [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
 4. [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
-5. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
-6. [docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md](/Users/Shared/Projects/checklist/docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md)
-7. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
-8. [DESIGN_SYSTEM_AGENT_HANDOFF.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM_AGENT_HANDOFF.md)
-9. [documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md](/Users/Shared/Projects/checklist/documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md)
+5. [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
+6. [CHANGELOG.md](/Users/Shared/Projects/checklist/CHANGELOG.md)
+7. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
+8. [docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md](/Users/Shared/Projects/checklist/docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md)
+9. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
+10. [DESIGN_SYSTEM_AGENT_HANDOFF.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM_AGENT_HANDOFF.md)
+11. [documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md](/Users/Shared/Projects/checklist/documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md)
 
 If two docs disagree:
 
@@ -99,12 +101,15 @@ Frontend system:
 - task and knowledge cards now persist lineage fields for version family, duplicate cluster, generated origins, and refined origins
 - the active self-learning path is Apple-Silicon-first: checklist exports local training datasets, fine-tunes through MLX / MLX-LM, and deploys candidate models back through Ollama after evaluation gates
 - Unsloth, LLaMA-Factory, and Axolotl are parked research only and are not part of the active delivery plan
+- the deterministic local AI planner is now the shipped runtime contract for bootstrap, lane refill, maintenance, and timeout handling
+- the Local AI Quality Engine is now the shipped runtime contract for opportunity mining, research-backed updates, novelty suppression, editorial quality gating, and feedback-pressure regeneration
 
 Worker queue controls:
 
 - the webapp implementation is an `AI Queue` board at `/:companyId/pipeline`
 - queue claiming must not starve untouched jobs behind repeatedly retried jobs from the same company
-- companies with knowledge cards but zero task inventory are a bootstrap condition; `COMPANY_SYNTHESIS` must escalate to immediate queue priority until tactical/checklist inventory exists
+- sparse companies are handled through explicit planner jobs for bootstrap and fallback work instead of relying on broad synthesis as the primary operating mode
+- active quality work is also queue-owned through explicit jobs for opportunity mining and feedback-pressure regeneration
 - the shipped human controls are:
   - drag and drop jobs between `Now`, `Soon`, `Later`, and `Parked`
   - drag and drop reordering inside a column
@@ -142,6 +147,19 @@ Knowmore evidence durability:
 - citation snapshots persist normalized URL, excerpt, fetch timing, and content hash for source-backed knowledge
 - conflicting source evidence lowers knowledge confidence and forces explicit review state instead of silent merge certainty
 - oldest-first maintenance backfills missing citation snapshots and revisits unresolved/declined high-potential task candidates
+- oldest-first maintenance now performs real refresh work across flashcards, taskcards, datacards, and goalcards, including research-backed updates when policy requires it
+
+## Release Status
+
+Current shipped release:
+
+- `v0.16.0`
+
+Release artifacts:
+
+- [CHANGELOG.md](/Users/Shared/Projects/checklist/CHANGELOG.md)
+- [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
+- [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
 
 ## Frontend Sources Of Truth
 

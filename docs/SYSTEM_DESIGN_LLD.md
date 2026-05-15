@@ -111,6 +111,35 @@ The repetitive-job system now has a first-class queue model:
 - queue board reads must return persisted `PipelineJob` state only; webapp reads must not trigger queue synchronization
 - workflow edits and operator repair actions are bridged into persisted `SystemCommand` records for the local AI worker to consume
 
+The shipped planner and quality-engine queue families are:
+
+- `FEEDBACK_RECONCILIATION`
+- `CARD_RESCORING`
+- `FRONTIER_RECOMPUTE`
+- `ENSURE_FLASHCARD_MINIMUM`
+- `RESEARCH_BACKFILL`
+- `ENSURE_IDEABANK_MINIMUM`
+- `ENSURE_ROADMAP_MINIMUM`
+- `ENSURE_BACKLOG_MINIMUM`
+- `ENSURE_TODO_MINIMUM`
+- `ENSURE_CHECKLIST_MINIMUM`
+- `MINE_FLASHCARD_OPPORTUNITIES`
+- `MINE_TASK_OPPORTUNITIES`
+- `FEEDBACK_PRESSURE_REGENERATION`
+- `REFRESH_FLASHCARDS`
+- `REFRESH_TASKS`
+- `REFRESH_DATACARDS`
+- `REFRESH_GOALS`
+- `SCORE_ALERT_REPAIR`
+- `WORKFLOW_BLUEPRINT`
+
+Legacy compatibility jobs may still exist in persisted state:
+
+- `FULL_MAINTENANCE`
+- `COMPANY_SYNTHESIS`
+
+They are compatibility paths, not the primary operating contract.
+
 ## 7. Evidence Durability And Conflict Handling
 
 - source-backed Knowmore synthesis must persist durable `CitationSnapshot` records with normalized URL, excerpt, fetch timing, and content hash
@@ -173,3 +202,9 @@ The repetitive-job system now has a first-class queue model:
   - Ollama canary and promotion
 - `training/` is the repository workspace for self-learning configuration and rollout scaffolding
 - parked research trainers such as Unsloth, LLaMA-Factory, and Axolotl may remain documented as future options, but they are not active delivery dependencies in the current architecture
+
+## 12. Planner And Quality Architecture
+
+- `docs/LOCAL_AI_PLANNER_LLD.md` is the authoritative low-level design for bootstrap, lane refill, weakest-upstream ceilings, timeout handling, and oldest-first maintenance
+- `docs/LOCAL_AI_QUALITY_ENGINE_LLD.md` is the authoritative low-level design for opportunity mining, editorial quality, novelty suppression, feedback pressure, and research-backed regeneration
+- build/release identity must be observable from the live worker so operators can see whether runtime matches repository history

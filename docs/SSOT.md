@@ -112,6 +112,8 @@ The repetitive-job contract now also includes:
 - one-step reset back to AI-only scheduling
 - drag/drop queue column changes and drag/drop manual ordering as the shipped human-tweak controls
 - no separate compact tweak menu today; the board itself is the canonical tweak surface
+- deterministic planner-owned bootstrap and maintenance jobs for inventory, lane refill, quality ceilings, timeout recovery, and oldest-first refresh
+- quality-engine jobs for opportunity mining, editorial gating, research-backed regeneration, novelty suppression, and feedback-pressure repair
 
 Backlog contract:
 
@@ -140,6 +142,8 @@ The current intelligence-operations contract also includes:
 - persisted enrichment waterfall policies for provider ordering and fallback governance, applied at runtime during URL intelligence enrichment
 - one AI workload budget-governor layer that persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records for company/feature attribution, estimated cost, workload units, retry pressure, reviewable budget events, and explicit operator-applied controls
 - one Apple-Silicon-native self-learning path that exports supervised, preference, and evaluation datasets from feedback and correction history, trains candidates through MLX / MLX-LM, and promotes them back into Ollama only after evaluation gates
+- one local AI quality engine that periodically revisits datacards for new flashcard opportunities and revisits flashcards for new task opportunities, even when minimum inventory targets are already satisfied
+- recurring user feedback must influence not only immediate card outcomes but also future refresh, research, suppression, and regeneration priority through persisted pressure signals
 
 Tactical placement contract:
 

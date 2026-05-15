@@ -1,0 +1,30 @@
+# Changelog
+
+## v0.16.0 - 2026-05-15
+
+This release completes the local AI planner rollout and ships the first full Local AI Quality Engine.
+
+### Added
+
+- deterministic planner queue taxonomy for bootstrap, maintenance, and quality work
+- global oldest-first maintenance refresh with real rewrite, rescore, taxonomy, and source-refresh behavior
+- source/datacard lifecycle contract that caps flashcard status by weakest upstream evidence
+- persistent manual lane override cooldown for tactical tasks
+- UI language bootstrap for first paint, including RTL `dir` handling
+- canonical quality contract and observability surfaces
+- research policy engine for create and refresh flows
+- flashcard and task opportunity-mining jobs
+- novelty suppression and duplicate-cluster checks before publish
+- feedback-pressure model that influences recurring regeneration
+- editorial quality gate for create and refresh paths
+- regression scripts for planner, quality, research policy, novelty, feedback pressure, and editorial gate
+
+### Changed
+
+- queue authority is now explicit and planner-owned instead of relying on broad synthesis as the main operating model
+- pipeline docs and low-level design now describe the shipped planner and quality engine instead of a target rollout
+- release metadata is aligned on `0.16.0`
+
+### Operational Outcome
+
+- the local AI worker is deployed on the live local runtime and reports healthy status after the quality-engine rollout

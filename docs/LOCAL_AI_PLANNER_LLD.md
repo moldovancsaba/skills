@@ -1,8 +1,6 @@
 # CHECKLIST Local AI Planner LLD
 
-This document defines the target low-level design for the deterministic local AI planner introduced under GitHub umbrella issue `#191`.
-
-It is a design-and-implementation contract for the planner rollout.
+This document defines the shipped low-level design for the deterministic local AI planner introduced under GitHub umbrella issue `#191`.
 
 It is subordinate to:
 
@@ -12,9 +10,9 @@ It is subordinate to:
 
 Important:
 
-- this document describes the target planner architecture
-- current shipped behavior still includes the broader `COMPANY_SYNTHESIS` queue path
-- implementation work must converge runtime behavior onto this planner instead of letting both models drift in parallel
+- this document describes the live planner architecture
+- legacy `COMPANY_SYNTHESIS` and `FULL_MAINTENANCE` queue items may still exist for compatibility, but they are not the primary runtime contract
+- quality-engine behavior that builds on the planner is documented separately in [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
 
 ## 1. Purpose
 
@@ -120,7 +118,7 @@ Planner execution remains queue-owned.
 
 The planner decomposes broad synthesis into explicit work families.
 
-Target job families:
+Shipped job families:
 
 - `ENSURE_CHECKLIST_MINIMUM`
 - `ENSURE_TODO_MINIMUM`
@@ -134,13 +132,22 @@ Target job families:
 - `REFRESH_DATACARDS`
 - `REFRESH_GOALS`
 - `FEEDBACK_RECONCILIATION`
+- `CARD_RESCORING`
 - `FRONTIER_RECOMPUTE`
 - `SCORE_ALERT_REPAIR`
+- `MINE_FLASHCARD_OPPORTUNITIES`
+- `MINE_TASK_OPPORTUNITIES`
+- `FEEDBACK_PRESSURE_REGENERATION`
+- `WORKFLOW_BLUEPRINT`
+
+Compatibility families:
+
 - `FULL_MAINTENANCE`
+- `COMPANY_SYNTHESIS`
 
 Notes:
 
-- `COMPANY_SYNTHESIS` is legacy orchestration and should be reduced or retired as the explicit planner jobs take over
+- compatibility jobs must dispatch into the explicit planner or quality-engine handlers when they are encountered
 - planner jobs must record machine-readable reasons for claim and execution
 
 ## 5. Company Classification
@@ -368,12 +375,12 @@ Sparse-company fairness remains required:
 
 ## 13. Frontier Integration
 
-Current frontier logic is percentile-driven.
+The live frontier logic is planner-driven.
 
-Target change:
+Current contract:
 
-- frontier becomes a deterministic lane organizer under planner control
-- percentile-only placement must not remain the primary organizer for active planning lanes
+- frontier is a deterministic lane organizer under planner control
+- percentile-only placement is not the primary organizer for active planning lanes
 
 Allowed role for percentile or blended ranking:
 
@@ -449,7 +456,7 @@ This planner LLD does not authorize:
 
 GitHub implementation umbrella:
 
-- [#191 Local AI Planner: deterministic bootstrap and maintenance workflow umbrella](https://github.com/sovereignsquad/checklist/issues/191)
+- [#191 Local AI Planner: deterministic bootstrap and maintenance workflow umbrella](https://github.com/sovereignsquad/checklist/issues/191) - completed
 
 Child execution issues:
 

@@ -45,8 +45,8 @@ Read first:
 - worker scheduling supports explicit `AI_ONLY` and `HUMAN_GUIDED` modes
 - the shipped webapp tweak surface is the `AI Queue` board, not a separate compact menu
 - queue claiming now gives untouched jobs fairness priority and spreads initial claims across companies so repeated work from one company cannot starve another company's first synthesis pass indefinitely
-- a company with knowledge cards but zero task inventory is a bootstrap condition; `COMPANY_SYNTHESIS` must be escalated ahead of normal background synthesis until tactical/checklist inventory exists
-- the target deterministic replacement for broad synthesis is documented in [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md); planner rollout work must converge runtime behavior toward that design instead of widening generic synthesis logic further
+- the deterministic planner is now the shipped runtime contract for company classification, lane refill, weakest-upstream ceilings, timeout handling, and oldest-first maintenance
+- quality-engine jobs are now part of the shipped runtime contract for opportunity mining, novelty suppression, editorial gating, research policy, and feedback-pressure regeneration
 - current human controls are drag/drop between queue columns, drag/drop reordering, and `Reset to AI Only`
 - source-backed Knowmore cards now carry durable citation snapshots plus explicit conflict flags and summaries
 - maintenance now includes oldest-first revisit jobs for unresolved modified candidates and declined high-potential candidates
@@ -98,6 +98,7 @@ System:
 - [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 - [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
 - [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
+- [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
 - [docs/LOCAL_SELF_LEARNING_SYSTEM.md](/Users/Shared/Projects/checklist/docs/LOCAL_SELF_LEARNING_SYSTEM.md)
 - [src/lib/pipeline-queue.js](/Users/Shared/Projects/checklist/src/lib/pipeline-queue.js)
 - [scripts/lib/pipeline-jobs.js](/Users/Shared/Projects/checklist/scripts/lib/pipeline-jobs.js)
@@ -151,6 +152,7 @@ The work is not done until:
 ## Pipeline Queue Notes
 
 - The worker now consumes persisted queue jobs before the broader synthesis cycle.
+- The planner and quality engine are the authoritative queue families now; legacy `COMPANY_SYNTHESIS` and `FULL_MAINTENANCE` remain compatibility paths, not the main operating model.
 - Human drag-and-drop on the `AI Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now expressed through persisted queue/repair intents; the local AI worker is the only authority that escalates queue work through the shared queue contract.

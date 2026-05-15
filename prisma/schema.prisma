@@ -173,10 +173,10 @@ model Flashcard {
   feedbackWeightDelta     Int                   @default(0)
   fingerprint             String?
   kind                    String                @default("SUMMARY")
-  appVersion              String?               @default("0.8.0")
-  brainVersion            String?               @default("local-brain@0.8.0")
+  appVersion              String?               @default("0.16.0")
+  brainVersion            String?               @default("local-brain@0.16.0")
   generatedAt             DateTime?
-  promptVersion           String?               @default("flashcard-policy@1.4.0")
+  promptVersion           String?               @default("flashcard-policy@0.16.0")
   promptHash              String?
   promptName              String?               @default("flashcard-generation")
   modelName               String?               @default("granite-3.1-8b")
@@ -312,8 +312,8 @@ model Goalcard {
   feedbackWeightDelta     Int                   @default(0)
   fingerprint             String?
   kind                    String                @default("GOAL")
-  appVersion              String?               @default("0.14.0")
-  brainVersion            String?               @default("local-brain@0.14.0")
+  appVersion              String?               @default("0.16.0")
+  brainVersion            String?               @default("local-brain@0.16.0")
   generatedAt             DateTime?
   intelligenceType        IntelligenceType      @default(INTERNAL)
   lastAuditedAt           DateTime? // Legacy shared audit timestamp. Deprecated in favor of purpose-specific fields.
@@ -404,8 +404,8 @@ model ChecklistTask {
   createdBy          String?
   sourceFlashcardIds String[]   @default([])
   publicId           Int?       @unique
-  appVersion         String?    @default("0.8.0")
-  brainVersion       String?    @default("local-brain@0.8.0")
+  appVersion         String?    @default("0.16.0")
+  brainVersion       String?    @default("local-brain@0.16.0")
   generatedAt        DateTime?
   hashtags           String[]   @default([])
   lastAuditedAt      DateTime? // Legacy shared audit timestamp. Deprecated in favor of purpose-specific fields.
@@ -414,7 +414,7 @@ model ChecklistTask {
   hashtagMaintainedAt DateTime?
   hashtagEvaluationPending Boolean @default(true)
   lastHashtagError   String?
-  promptVersion      String?    @default("checklist-policy@1.4.0")
+  promptVersion      String?    @default("checklist-policy@0.16.0")
   promptHash         String?
   promptName         String?    @default("checklist-generation")
   modelName          String?    @default("granite-3.1-8b")

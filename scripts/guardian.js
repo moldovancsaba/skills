@@ -647,6 +647,13 @@ commandTimer = setInterval(pollCommands, 20_000);
 
 log("[GUARDIAN] Scheduler unification active: taxonomy audits and kanban recomputes are queue-owned, not watchdog-owned.");
 
+// Prime truth surfaces immediately instead of waiting for the first interval.
+checkResources();
+writeHeartbeat();
+setTimeout(pollHealth, 1_000);
+setTimeout(pollSnapshotWorkerHealth, 1_500);
+setTimeout(checkStatusServerHealth, 2_000);
+
 // Graceful self-shutdown
 process.on("SIGTERM", () => {
   isShuttingDown = true;

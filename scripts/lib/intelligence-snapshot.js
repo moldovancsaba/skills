@@ -763,7 +763,6 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
         title: true,
         description: true,
         kind: true,
-        evidence: true,
         hashtags: true,
       },
       take: 100,

@@ -16,6 +16,8 @@ const prisma = new PrismaClient();
 const STATUS_PORT      = 10006;
 const LOG_FILE         = path.join(__dirname, "..", "logs", "guardian.log");
 const HEARTBEAT_FILE   = path.join(__dirname, "..", "logs", "guardian-heartbeat.json");
+const INVENTORY_HISTORY_KEY = "local_ai_inventory_history";
+const INVENTORY_HISTORY_LIMIT = 168;
 const QUEUE_COLUMN_RANK = Object.freeze({ NOW: 0, SOON: 1, LATER: 2, PARKED: 3 });
 
 function sortQueueJobs(left, right) {
@@ -191,6 +193,70 @@ async function getGlobalInventory() {
   return { sources: s, files: f, flashcards: fc, goalcards: gc, taskcards: tc, datacards: s + f, totalCards: fc + gc + tc };
 }
 
+function getHourBucketStart(value = new Date()) {
+  const date = new Date(value);
+  date.setMinutes(0, 0, 0);
+  return date.toISOString();
+}
+
+function normalizeInventoryHistory(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object" && Array.isArray(value.points)) return value.points;
+  return [];
+}
+
+function buildInventoryHistoryPoint(inventory, now = new Date()) {
+  const bucketStart = getHourBucketStart(now);
+  return {
+    bucketStart,
+    capturedAt: now.toISOString(),
+    datacards: Number(inventory.datacards ?? 0),
+    flashcards: Number(inventory.flashcards ?? 0),
+    goalcards: Number(inventory.goalcards ?? 0),
+    taskcards: Number(inventory.taskcards ?? 0),
+    totalCards: Number(inventory.totalCards ?? 0),
+  };
+}
+
+function inventoryPointEquals(left, right) {
+  return ["datacards", "flashcards", "goalcards", "taskcards", "totalCards"].every(
+    (field) => Number(left?.[field] ?? 0) === Number(right?.[field] ?? 0),
+  );
+}
+
+async function captureInventoryHistory(inventory) {
+  const now = new Date();
+  const nextPoint = buildInventoryHistoryPoint(inventory, now);
+  const existing = await prisma.globalSetting.findUnique({ where: { key: INVENTORY_HISTORY_KEY } });
+  const history = normalizeInventoryHistory(existing?.value);
+  const lastPoint = history[history.length - 1] || null;
+  let nextHistory = history;
+
+  if (!lastPoint) {
+    nextHistory = [nextPoint];
+  } else if (lastPoint.bucketStart === nextPoint.bucketStart) {
+    if (!inventoryPointEquals(lastPoint, nextPoint)) {
+      nextHistory = [...history.slice(0, -1), { ...lastPoint, ...nextPoint }];
+    }
+  } else {
+    nextHistory = [...history, nextPoint];
+  }
+
+  if (nextHistory.length > INVENTORY_HISTORY_LIMIT) {
+    nextHistory = nextHistory.slice(-INVENTORY_HISTORY_LIMIT);
+  }
+
+  if (nextHistory !== history) {
+    await prisma.globalSetting.upsert({
+      where: { key: INVENTORY_HISTORY_KEY },
+      create: { key: INVENTORY_HISTORY_KEY, value: { points: nextHistory } },
+      update: { value: { points: nextHistory }, updatedAt: now },
+    });
+  }
+
+  return nextHistory;
+}
+
 // --- API ENDPOINTS ---
 
 async function handleApi(req, res) {
@@ -200,6 +266,7 @@ async function handleApi(req, res) {
     getGlobalInventory(),
     getGlobalQueueSnapshot(),
   ]);
+  const inventoryHistory = await captureInventoryHistory(inventory);
   
   const logTail = readLogTail(80);
   let worker = { online: false };
@@ -215,6 +282,7 @@ async function handleApi(req, res) {
     guardian: heartbeat,
     logTail,
     inventory,
+    inventoryHistory,
     queue,
     activeTask: worker.activeTask || queue.currentJob?.jobType || null,
     activeEntityType: queue.currentJob?.entityType || null,

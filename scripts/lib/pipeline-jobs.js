@@ -7,6 +7,7 @@ const {
   PLANNER_QUALITY_JOB_TYPES,
   PLANNER_MAINTENANCE_JOB_TYPES,
   syncAllCompanyPipelineJobs,
+  getPipelineJobLabel,
 } = require("../../src/lib/pipeline-queue");
 const { processFeedbackEvents } = require("./feedback");
 const { runMaintenance, rescorePeriodicCards } = require("./maintenance");
@@ -95,10 +96,12 @@ async function resolvePipelineEntityLabel(prisma, job) {
 }
 
 function buildActiveTaskString(job, companyName, entityLabel) {
-  const taskParts = [job.jobType];
-  if (entityLabel) taskParts.push(entityLabel);
-  if (companyName) taskParts.push(`for ${companyName}`);
-  return taskParts.join(" · ");
+  const jobLabel = getPipelineJobLabel(job.jobType);
+  const entityType = String(job.entityType || "COMPANY").toUpperCase();
+  if (entityType === "COMPANY" || !entityLabel || entityLabel === job.companyId) {
+    return companyName ? `${jobLabel} for ${companyName}` : jobLabel;
+  }
+  return companyName ? `${jobLabel} for ${companyName}: ${entityLabel}` : `${jobLabel}: ${entityLabel}`;
 }
 
 async function runPlannerBootstrapJob(prisma, company) {

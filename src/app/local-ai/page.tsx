@@ -12,6 +12,29 @@ import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui
 const STATUS_API_URL = "http://127.0.0.1:10006/api/status";
 const RAW_HEALTH_URL = "http://127.0.0.1:10005/health";
 const RAW_COMMAND_CENTER_URL = "http://127.0.0.1:10006";
+const JOB_LABELS: Record<string, string> = {
+  FEEDBACK_RECONCILIATION: "Feedback reconciliation",
+  CARD_RESCORING: "Card rescoring",
+  FRONTIER_RECOMPUTE: "Frontier recompute",
+  SCORE_ALERT_REPAIR: "Score alert repair",
+  ENSURE_FLASHCARD_MINIMUM: "Ensure flashcard minimum",
+  RESEARCH_BACKFILL: "Research backfill",
+  ENSURE_IDEABANK_MINIMUM: "Ensure ideabank minimum",
+  ENSURE_ROADMAP_MINIMUM: "Ensure roadmap minimum",
+  ENSURE_BACKLOG_MINIMUM: "Ensure backlog minimum",
+  ENSURE_TODO_MINIMUM: "Ensure Next minimum",
+  ENSURE_CHECKLIST_MINIMUM: "Ensure checklist minimum",
+  MINE_FLASHCARD_OPPORTUNITIES: "Mine flashcard opportunities",
+  MINE_TASK_OPPORTUNITIES: "Mine task opportunities",
+  FEEDBACK_PRESSURE_REGENERATION: "Feedback pressure regeneration",
+  REFRESH_FLASHCARDS: "Refresh flashcards",
+  REFRESH_TASKS: "Refresh tasks",
+  REFRESH_DATACARDS: "Refresh datacards",
+  REFRESH_GOALS: "Refresh goals",
+  FULL_MAINTENANCE: "Full maintenance",
+  COMPANY_SYNTHESIS: "Company synthesis",
+  WORKFLOW_BLUEPRINT: "Workflow blueprint",
+};
 
 function formatTimestamp(value: unknown) {
   if (!value) return "—";
@@ -20,11 +43,20 @@ function formatTimestamp(value: unknown) {
   return date.toLocaleString();
 }
 
+function getHumanJobLabel(jobType: unknown) {
+  const key = typeof jobType === "string" ? jobType : "";
+  return JOB_LABELS[key] || key.replace(/_/g, " ").toLowerCase() || "Queue task";
+}
+
 function formatJobLabel(job: any) {
   if (!job) return "No active task";
-  const entityType = job.entityType ? String(job.entityType).replace(/_/g, " ") : "SYSTEM";
-  if (job.entityLabel) return `${job.jobType} · ${entityType} · ${job.entityLabel}`;
-  return `${job.jobType} · ${entityType}`;
+  const jobLabel = getHumanJobLabel(job.jobType);
+  const entityType = String(job.entityType || "COMPANY").toUpperCase();
+  const companyName = job.companyName || job.companyId || null;
+  if (entityType === "COMPANY" || !job.entityLabel || job.entityLabel === job.companyId) {
+    return companyName ? `${jobLabel} for ${companyName}` : jobLabel;
+  }
+  return companyName ? `${jobLabel} for ${companyName}: ${job.entityLabel}` : `${jobLabel}: ${job.entityLabel}`;
 }
 
 function chartTooltipFormatter(value: unknown) {
@@ -118,7 +150,7 @@ export default function LocalAiMissionControlPage() {
           <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
             <MetricCard icon={Heartbeat} color="review" label="Worker State" value={String(worker.state || "unknown")} detail={String(worker.stage || "—")} />
             <MetricCard icon={Brain} color="strategy" label="Current Company" value={String(data?.activeCompany || worker.currentCompany || "Idle Rotation")} detail={String(currentJob?.companyId || "—")} />
-            <MetricCard icon={ListCheck} color="checklist" label="Current Task" value={currentJob?.jobType || worker.activeTask || "Idle"} detail={currentJob?.entityLabel || "No active queue entity"} />
+            <MetricCard icon={ListCheck} color="checklist" label="Current Task" value={formatJobLabel(currentJob) || worker.activeTask || "Idle"} detail={currentJob?.reason || worker.activeTask || "No active queue entity"} />
             <MetricCard icon={Server} color="knowmore" label="Worker Build" value={String(buildIdentity.appVersion || "unknown")} detail={String(buildIdentity.gitSha || "—").slice(0, 12)} />
             <MetricCard icon={Activity} color="review" label="Queue Depth" value={queue.totalActiveJobs ?? 0} detail={`${queue.runningJobs ?? 0} running · ${queue.failedJobs ?? 0} failed`} />
             <MetricCard icon={Hierarchy} color="tactical" label="Datacards" value={inventory.datacards ?? 0} detail={`${inventory.sources ?? 0} sources · ${inventory.files ?? 0} files`} />
@@ -183,10 +215,8 @@ export default function LocalAiMissionControlPage() {
                           <Badge variant="light" color={job.queueColumn === "NOW" ? "checklist" : job.queueColumn === "SOON" ? "tactical" : job.queueColumn === "LATER" ? "strategy" : "gray"}>
                             #{index + 1}
                           </Badge>
-                          <BodyText>{job.jobType}</BodyText>
+                          <BodyText>{formatJobLabel(job)}</BodyText>
                         </Group>
-                        <MetaText>{job.companyName || job.companyId}</MetaText>
-                        <MetaText>{job.entityLabel || job.entityType || "No entity label persisted."}</MetaText>
                         <MetaText>{job.reason || "No planner reason persisted."}</MetaText>
                       </Stack>
                       <Stack gap={2} align="flex-end">

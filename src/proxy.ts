@@ -13,6 +13,10 @@ export function proxy(req: NextRequest) {
   const accept = req.headers.get("accept") || "";
   const isDocumentRequest = req.method === "GET" && accept.includes("text/html");
 
+  if (pathname === "/" && !session && isDocumentRequest) {
+    return redirect(new URL("/local-ai", req.url));
+  }
+
   // 1. Allow these specific public paths
   const publicPaths = ["/login", "/auth", "/auth/callback", "/api/auth", "/api/bridge", "/api/test-public", "/card", "/api/cards", "/local-ai"];
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));

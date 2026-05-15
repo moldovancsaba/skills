@@ -883,13 +883,19 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
     excludeSourceIds: Array.from(new Set(unprocessed.map((source) => source.id))),
     take: opportunitySlots,
   });
+  const bootstrapRevisitSources = (
+    inventory.flashcardCount < PLANNER_MIN_FLASHCARDS && unprocessed.length === 0
+  )
+    ? sources.filter((source) => synthesizedIds.has(source.id)).slice(0, orbitLimit)
+    : [];
 
   // M2.1: Build evidence batches for multi-cardinality synthesis
   const batches = buildEvidenceBatches(unprocessed, 3);
   const opportunityBatches = opportunitySources.map((source) => [source]);
-  const plannedBatches = [...batches, ...opportunityBatches].slice(0, orbitLimit);
+  const bootstrapBatches = bootstrapRevisitSources.map((source) => [source]);
+  const plannedBatches = [...batches, ...opportunityBatches, ...bootstrapBatches].slice(0, orbitLimit);
   console.log(
-    `[GENERATOR] ${company.name}: ${unprocessed.length} unprocessed sources → ${batches.length} evidence batches; ${opportunitySources.length} opportunity sources selected.`,
+    `[GENERATOR] ${company.name}: ${unprocessed.length} unprocessed sources → ${batches.length} evidence batches; ${opportunitySources.length} opportunity sources selected; ${bootstrapRevisitSources.length} bootstrap revisit sources.`,
   );
 
   if (opportunitySources.length > 0) {
@@ -902,6 +908,22 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
       details: {
         sourceIds: opportunitySources.map((source) => source.id),
         revisitDays: FLASHCARD_OPPORTUNITY_REVISIT_DAYS,
+      },
+    });
+  }
+
+  if (bootstrapRevisitSources.length > 0) {
+    await recordPlannerTelemetry(prisma, {
+      companyId: cid,
+      entityType: "SOURCE",
+      entityId: bootstrapRevisitSources[0].id,
+      eventType: "OPPORTUNITY_MINING_RUN",
+      reason: "Company is below flashcard minimum, so previously processed datacards were revisited for bootstrap generation.",
+      details: {
+        sourceIds: bootstrapRevisitSources.map((source) => source.id),
+        flashcardCount: inventory.flashcardCount,
+        flashcardTarget: PLANNER_MIN_FLASHCARDS,
+        bootstrapRevisit: true,
       },
     });
   }

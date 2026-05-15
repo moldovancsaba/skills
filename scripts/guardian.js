@@ -396,6 +396,7 @@ function checkStatusServerHealth() {
     if (res.statusCode !== 200) {
       warn(`Status server returned non-200 status: ${res.statusCode}.`);
     }
+    res.resume();
   });
 
   req.on("error", (e) => {

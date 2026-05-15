@@ -72,6 +72,7 @@ async function runWorkerLoop() {
     await updateProgress(prisma, {
       state: "running",
       stage: "PIPELINE_QUEUE",
+      currentCompany: null,
       activeTask: "Scanning pipeline queue for runnable jobs",
     });
     // Queue execution is the only mutation lane. Any revisit, synthesis,

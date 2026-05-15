@@ -131,6 +131,9 @@ export default function LocalAiMissionControlPage() {
   const worker = data?.worker || {};
   const guardian = data?.guardian || {};
   const buildIdentity = worker?.settings?.buildIdentity || {};
+  const actualCurrentTask = String(worker.activeTask || "Idle");
+  const actualCurrentCompany = String(worker.currentCompany || "No company locked");
+  const topQueueJobLabel = currentJob ? formatJobLabel(currentJob) : "No queued job";
 
   const cardCountChartData = [
     { family: "Datacards", count: Number(inventory.datacards ?? 0) },
@@ -189,8 +192,8 @@ export default function LocalAiMissionControlPage() {
         <Stack gap="lg">
           <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
             <MetricCard icon={Heartbeat} color="review" label="Worker State" value={String(worker.state || "unknown")} detail={String(worker.stage || "—")} />
-            <MetricCard icon={Brain} color="strategy" label="Current Company" value={String(data?.activeCompany || worker.currentCompany || "Idle Rotation")} detail={String(currentJob?.companyId || "—")} />
-            <MetricCard icon={ListCheck} color="checklist" label="Current Task" value={formatJobLabel(currentJob) || worker.activeTask || "Idle"} detail={currentJob?.reason || worker.activeTask || "No active queue entity"} />
+            <MetricCard icon={Brain} color="strategy" label="Current Company" value={actualCurrentCompany} detail={worker.currentCompany ? "Worker-locked company" : "No company locked right now"} />
+            <MetricCard icon={ListCheck} color="checklist" label="Current Task" value={actualCurrentTask} detail={worker.currentCompany ? "Worker runtime authority" : String(worker.stage || "—")} />
             <MetricCard icon={Server} color="knowmore" label="Worker Build" value={String(buildIdentity.appVersion || "unknown")} detail={String(buildIdentity.gitSha || "—").slice(0, 12)} />
             <MetricCard icon={Activity} color="review" label="Queue Depth" value={queue.totalActiveJobs ?? 0} detail={`${queue.runningJobs ?? 0} running · ${queue.failedJobs ?? 0} failed`} />
             <MetricCard icon={Hierarchy} color="tactical" label="Datacards" value={inventory.datacards ?? 0} detail={`${inventory.sources ?? 0} sources · ${inventory.files ?? 0} files`} />
@@ -208,12 +211,12 @@ export default function LocalAiMissionControlPage() {
                 {currentJob ? (
                   <UnifiedCard tone="checklist">
                     <UnifiedCardHeader
-                      title="Current Task"
+                      title="Top Queue Job"
                       supporting={<Badge variant="light" color="checklist">{currentJob.status}</Badge>}
                     />
                     <UnifiedCardBody>
                       <Stack gap="xs">
-                        <BodyText>{formatJobLabel(currentJob)}</BodyText>
+                        <BodyText>{topQueueJobLabel}</BodyText>
                         <MetaText>Company: {currentJob.companyName || currentJob.companyId || "—"}</MetaText>
                         <MetaText>Queue: {currentJob.queueColumn || "—"} · Priority {Math.round(Number(currentJob.priorityScore ?? 0))}</MetaText>
                         <MetaText>Reason: {currentJob.reason || "Worker is actively processing this queue job."}</MetaText>
@@ -226,7 +229,7 @@ export default function LocalAiMissionControlPage() {
                 )}
 
                 <Notice title="Raw worker stage">
-                  {worker.activeTask || "No explicit active task string is being persisted by the worker right now."}
+                  {actualCurrentTask}
                 </Notice>
               </UnifiedCardBody>
             </UnifiedCard>

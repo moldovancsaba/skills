@@ -78,9 +78,19 @@ function getSynthesisProgress() {
 }
 
 async function withPlannerStageTimeout(prisma, company, label, operation, metadata = {}) {
+  const stage = String(metadata?.stage || label || "");
+  let timeoutMs;
+  if (stage.includes("flashcard_generation") || stage.includes("task_generation")) {
+    // Per-model inference is still capped separately at 120s. The outer planner
+    // stage needs enough budget to finish a valid multi-step generation pass.
+    timeoutMs = 5 * 60 * 1000;
+  } else if (stage.includes("judging")) {
+    timeoutMs = 3 * 60 * 1000;
+  }
   return withPlannerTimeout(prisma, {
     companyId: company?.id || null,
     label,
+    timeoutMs,
     metadata,
   }, operation);
 }
@@ -947,14 +957,34 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
         batch,
         memoryPrompt,
         topic,
-        { researchContext },
+        {
+          researchContext,
+          allowedCategories: ["FLASHCARD"],
+        },
       );
       if (drafts && drafts.length > 0) {
         for (const draft of drafts) {
           const { category, ...cleanDraft } = draft;
+          const normalizedCategory = String(category || "FLASHCARD").toUpperCase();
           let createdItem;
 
-          if (category === "GOALCARD") {
+          if (normalizedCategory !== "FLASHCARD") {
+            await recordPlannerTelemetry(prisma, {
+              companyId: cid,
+              entityType: "SOURCE",
+              entityId: batch[0]?.id || null,
+              eventType: "CATEGORY_BLOCKED",
+              reason: `Datacard generation only publishes flashcards. ${normalizedCategory} output was skipped.`,
+              details: {
+                category: normalizedCategory,
+                title: cleanDraft.title || null,
+                sourceIds: batch.map((src) => src.id),
+              },
+            });
+            continue;
+          }
+
+          if (normalizedCategory === "GOALCARD") {
             const editorialDraft = await applyEditorialGate(prisma, company, {
               entityType: "GOAL",
               entityId: cleanDraft.id,
@@ -1030,7 +1060,7 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
               generatedBody: cleanDraft.body,
               selected: true,
               payload: {
-                category,
+                category: normalizedCategory,
                 hashtags: cleanDraft.hashtags || [],
               },
               teachingWeight: 45,
@@ -1048,7 +1078,7 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
                 }
               }).catch(() => {});
             }
-          } else if (category === "TASKCARD") {
+          } else if (normalizedCategory === "TASKCARD") {
             const sourceIds = batch.map(src => src.id);
             const editorialDraft = await applyEditorialGate(prisma, company, {
               entityType: "TASK",
@@ -1125,7 +1155,7 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
               generatedBody: cleanDraft.body,
               selected: true,
               payload: {
-                category,
+                category: normalizedCategory,
                 hashtags: cleanDraft.hashtags || [],
                 iceScore: normalizedScores.iceScore,
                 impact: normalizedScores.impact,
@@ -1221,7 +1251,7 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
               generatedBody: cleanDraft.body,
               selected: true,
               payload: {
-                category: "FLASHCARD",
+                category: normalizedCategory,
                 hashtags: cleanDraft.hashtags || [],
                 confidence: cleanDraft.confidence,
               },

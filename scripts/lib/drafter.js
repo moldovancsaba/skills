@@ -56,28 +56,6 @@ function joinBody(body) {
 }
 
 // ---------------------------------------------------------------------------
-// Active-inventory dedup guard
-// Pre-persistence check: skip candidates with identical fingerprints to what
-// already exists in the ACTIVE candidate pool. Generator is allowed to be
-// prolific — but not careless (§8.6).
-// ---------------------------------------------------------------------------
-async function buildActiveInventoryFingerprints(prisma, companyId) {
-  const active = await prisma.checklistTask.findMany({
-    where: {
-      companyId,
-      activityState: { in: ["ACTIVE", "STALE"] },
-    },
-    select: { fingerprint: true, title: true },
-  });
-  const set = new Set();
-  for (const item of active) {
-    if (item.fingerprint) set.add(item.fingerprint);
-    if (item.title) set.add(item.title.toLowerCase().slice(0, 80));
-  }
-  return set;
-}
-
-// ---------------------------------------------------------------------------
 // 1. Flashcard Generator (KnowledgeItem generation from EvidenceUnit batch)
 // Supports 1→many and many→1 cardinalities via evidence batch context.
 // ---------------------------------------------------------------------------
@@ -101,8 +79,11 @@ async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPromp
 async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, memoryPrompt, topic = null, options = {}) {
   const bodyLimit = await getWorkerConfig(prisma, company, "draft_body_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
-  const activeFingerprints = await buildActiveInventoryFingerprints(prisma, company.id);
   const researchContext = typeof options?.researchContext === "string" ? options.researchContext.trim() : "";
+  const allowedCategories = Array.isArray(options?.allowedCategories)
+    ? options.allowedCategories.map((value) => String(value || "").toUpperCase()).filter(Boolean)
+    : [];
+  const restrictToFlashcards = allowedCategories.length === 1 && allowedCategories[0] === "FLASHCARD";
 
   const { getSkillForSource } = require("./skills");
   const skill = getSkillForSource(evidenceBatch[0]);
@@ -132,12 +113,25 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
     isGrouped
       ? `\nYou are processing ${evidenceBatch.length} RELATED evidence units simultaneously. Look for CROSS-EVIDENCE insights. You MUST emit at least one cross-evidence candidate if one exists.`
       : "\nYou are processing one evidence unit. Extract all distinct insights.",
+    restrictToFlashcards
+      ? "\nCATEGORY RULE: This pass is for knowledge generation only. Every emitted item MUST be a FLASHCARD. Do NOT emit GOALCARD or TASKCARD items in this run."
+      : "",
     "### [CATALOGING AXIOM]",
-    "You MUST classify every insight into one of these categories based on the content's nature relative to the company identity:",
-    "  - 'FLASHCARD': Fact, capability, current state, or research finding (What the company IS or DOES).",
-    "  - 'GOALCARD': Strategic objective, milestone, or aspirational state (What the company WANTS TO BECOME/ACHIEVE).",
-    "  - 'TASKCARD': Specific actionable directive or execution step (What the company MUST DO).",
-    "Example: For a tech company, 'Achieve Social Media Dominance' is a GOALCARD. For a marketing agency, it is a FLASHCARD (Capability).",
+    restrictToFlashcards
+      ? "You MUST classify every emitted insight as 'FLASHCARD': Fact, capability, current state, or research finding (What the company IS or DOES)."
+      : "You MUST classify every insight into one of these categories based on the content's nature relative to the company identity:",
+    restrictToFlashcards
+      ? ""
+      : "  - 'FLASHCARD': Fact, capability, current state, or research finding (What the company IS or DOES).",
+    restrictToFlashcards
+      ? ""
+      : "  - 'GOALCARD': Strategic objective, milestone, or aspirational state (What the company WANTS TO BECOME/ACHIEVE).",
+    restrictToFlashcards
+      ? ""
+      : "  - 'TASKCARD': Specific actionable directive or execution step (What the company MUST DO).",
+    restrictToFlashcards
+      ? ""
+      : "Example: For a tech company, 'Achieve Social Media Dominance' is a GOALCARD. For a marketing agency, it is a FLASHCARD (Capability).",
     "\nRequired fields per item: title, body, category, kind, confidence, impact, weight, semanticTags (array of 3-5 lowercase hashtag strings).",
     "AXIOM: Return decimal scores for confidence, impact, and weight on a 1.0-10.0 scale with up to one decimal place. NO zeros. NO percentages.",
     "COVERAGE OVER POLISH: Prefer extracting more distinct insights over perfecting fewer.",
@@ -209,10 +203,6 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
 
   for (const item of finalDraftsArray) {
     if (!item.title || !item.body) continue;
-
-    // Pre-persistence dedup against active inventory
-    const titleKey = String(item.title).toLowerCase().slice(0, 80);
-    if (activeFingerprints.has(titleKey)) continue;
 
     const publicId = await nextPublicId(prisma, "Flashcard");
     let confidence, impact, weight;
@@ -356,7 +346,6 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
 async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryPrompt, topic = null, options = {}) {
   const descLimit = await getWorkerConfig(prisma, company, "draft_desc_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
-  const activeFingerprints = await buildActiveInventoryFingerprints(prisma, company.id);
   const researchContext = typeof options?.researchContext === "string" ? options.researchContext.trim() : "";
 
   const kind = String(flashCard.kind || "").toUpperCase();
@@ -407,9 +396,6 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
 
   for (const item of rawArray) {
     if (!item.title || !item.description) continue;
-
-    const titleKey = String(item.title).toLowerCase().slice(0, 80);
-    if (activeFingerprints.has(titleKey)) continue;
 
     const publicId = await nextPublicId(prisma, "checklist");
     let confidence, impact, ease;

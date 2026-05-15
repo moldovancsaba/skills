@@ -17,18 +17,30 @@ function unifyArray(data) {
   if (Array.isArray(data)) return data;
   if (typeof data !== "object" || data === null) return [];
 
+  // If the object itself already looks like a card, preserve it before
+  // scanning nested properties. Otherwise arrays like semanticTags can
+  // accidentally hijack the normalization result.
+  if (data.title || data.body || data.description) return [data];
+
   // Look for common wrapper names used by different languages/models
   const commonKeys = ["cards", "items", "flashcards", "tasks", "nba", "item", "kartyak", "feladatok"];
   for (const key of commonKeys) {
     if (Array.isArray(data[key])) return data[key];
   }
 
-  // Fallback: Find the first property that is an array
-  const firstArray = Object.values(data).find(v => Array.isArray(v));
+  // Fallback: Find the first property that is an array of objects or card-like
+  // records. Ignore scalar arrays such as semanticTags.
+  const firstArray = Object.values(data).find((value) =>
+    Array.isArray(value)
+    && value.length > 0
+    && value.every((entry) =>
+      entry
+      && typeof entry === "object"
+      && !Array.isArray(entry)
+      && (entry.title || entry.body || entry.description),
+    ),
+  );
   if (firstArray) return firstArray;
-
-  // Final fallback: wrap the object itself if it looks like a card
-  if (data.title || data.body || data.description) return [data];
 
   return [];
 }

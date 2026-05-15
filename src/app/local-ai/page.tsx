@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Badge, Box, Group, Loader, SimpleGrid, Stack, Table, Anchor } from "@mantine/core";
 import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconBrain as Brain, IconHeartbeat as Heartbeat, IconHierarchy as Hierarchy, IconListCheck as ListCheck, IconServer as Server } from "@tabler/icons-react";
@@ -82,10 +82,10 @@ function formatHistoryHourLabel(value: unknown) {
   });
 }
 
-function formatDelta(current: number, previous: number) {
-  const delta = Number(current || 0) - Number(previous || 0);
-  const sign = delta > 0 ? "+" : "";
-  return `${sign}${delta}`;
+function formatSignedValue(value: number | null | undefined) {
+  const resolved = Math.round((Number(value || 0)) * 10) / 10;
+  const sign = resolved > 0 ? "+" : "";
+  return `${sign}${resolved}`;
 }
 
 const CARD_TYPE_HISTORY = [
@@ -94,6 +94,37 @@ const CARD_TYPE_HISTORY = [
   { key: "goalcards", label: "Goals", color: "var(--mantine-color-lime-6)" },
   { key: "taskcards", label: "Tasks", color: "var(--mantine-color-blue-6)" },
 ] as const;
+
+type ChartFrameProps = {
+  height: number;
+  children: ReactNode;
+};
+
+function ChartFrame({ height, children }: ChartFrameProps) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const node = hostRef.current;
+    if (!node) return;
+
+    const updateReady = () => {
+      setIsReady(node.clientWidth > 0 && node.clientHeight > 0);
+    };
+
+    updateReady();
+    const observer = new ResizeObserver(() => updateReady());
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <Box ref={hostRef} h={height} w="100%" style={{ minWidth: 0 }}>
+      {isReady ? children : null}
+    </Box>
+  );
+}
 
 export default function LocalAiMissionControlPage() {
   const [data, setData] = useState<any | null>(null);
@@ -133,7 +164,7 @@ export default function LocalAiMissionControlPage() {
   const currentJob = queue.currentJob || null;
   const nextJobs = queue.nextJobs || [];
   const inventory = data?.inventory || {};
-  const inventoryHistory = Array.isArray(data?.inventoryHistory) ? data.inventoryHistory : [];
+  const inventoryHistory = Array.isArray(data?.inventoryHistory) ? [...data.inventoryHistory] : [];
   const worker = data?.worker || {};
   const guardian = data?.guardian || {};
   const buildIdentity = worker?.settings?.buildIdentity || {};
@@ -155,6 +186,7 @@ export default function LocalAiMissionControlPage() {
     }));
 
   const inventoryHistoryChartData = inventoryHistory
+    .sort((left: any, right: any) => new Date(left.bucketStart || 0).getTime() - new Date(right.bucketStart || 0).getTime())
     .slice(-48)
     .map((point: any) => ({
       hour: formatHistoryHourLabel(point.bucketStart),
@@ -307,7 +339,7 @@ export default function LocalAiMissionControlPage() {
             <UnifiedCard tone="strategy">
               <UnifiedCardHeader title="Sum of Cards" supporting={<Badge variant="light" color="strategy">global totals</Badge>} />
               <UnifiedCardBody>
-                <Box h={320}>
+                <ChartFrame height={320}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={cardCountChartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
                       <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
@@ -317,7 +349,7 @@ export default function LocalAiMissionControlPage() {
                       <Bar dataKey="count" fill="var(--mantine-color-orange-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} />
                     </BarChart>
                   </ResponsiveContainer>
-                </Box>
+                </ChartFrame>
               </UnifiedCardBody>
             </UnifiedCard>
 
@@ -328,7 +360,7 @@ export default function LocalAiMissionControlPage() {
               />
               <UnifiedCardBody>
                 {inventoryDeltaChartData.length ? (
-                  <Box h={320}>
+                  <ChartFrame height={320}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={inventoryDeltaChartData} margin={{ top: 8, right: 16, left: -20, bottom: 8 }}>
                         <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
@@ -338,7 +370,7 @@ export default function LocalAiMissionControlPage() {
                         <Bar dataKey="totalCardsDelta" fill="var(--mantine-color-orange-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} name="Total cards" />
                       </BarChart>
                     </ResponsiveContainer>
-                  </Box>
+                  </ChartFrame>
                 ) : (
                   <Notice title="Not enough hourly history yet">The status server needs at least two hourly snapshots before it can calculate change.</Notice>
                 )}
@@ -349,7 +381,7 @@ export default function LocalAiMissionControlPage() {
               <UnifiedCardHeader title="Queue by Company" supporting={<Badge variant="light" color="knowmore">nice to have</Badge>} />
               <UnifiedCardBody>
                 {(queueByCompanyChartData || []).length ? (
-                  <Box h={320}>
+                  <ChartFrame height={320}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={queueByCompanyChartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
                         <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
@@ -359,7 +391,7 @@ export default function LocalAiMissionControlPage() {
                         <Bar dataKey="jobs" fill="var(--mantine-color-cyan-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} />
                       </BarChart>
                     </ResponsiveContainer>
-                  </Box>
+                  </ChartFrame>
                 ) : (
                   <Notice title="No global queue pressure">No company currently has queued work waiting in the global pipeline.</Notice>
                 )}
@@ -375,13 +407,12 @@ export default function LocalAiMissionControlPage() {
                   supporting={
                     <Badge variant="light" color="strategy">
                       {latestDeltaPoint
-                        ? formatDelta(
+                        ? formatSignedValue(
                             Number(
                               latestDeltaPoint[
                                 `${entry.key}Delta` as "datacardsDelta" | "flashcardsDelta" | "goalcardsDelta" | "taskcardsDelta"
                               ] ?? 0,
                             ),
-                            0,
                           )
                         : "no delta"}
                     </Badge>
@@ -389,7 +420,7 @@ export default function LocalAiMissionControlPage() {
                 />
                 <UnifiedCardBody>
                   {inventoryDeltaChartData.length ? (
-                    <Box h={220}>
+                    <ChartFrame height={220}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={inventoryDeltaChartData} margin={{ top: 8, right: 8, left: -24, bottom: 8 }}>
                           <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
@@ -405,7 +436,7 @@ export default function LocalAiMissionControlPage() {
                           />
                         </BarChart>
                       </ResponsiveContainer>
-                    </Box>
+                    </ChartFrame>
                   ) : (
                     <Notice title="Not enough hourly history yet">No prior hour exists yet for {entry.label.toLowerCase()} change.</Notice>
                   )}

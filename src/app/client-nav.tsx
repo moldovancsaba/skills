@@ -173,7 +173,7 @@ export function ClientNav() {
     });
   }, [activeCompanyId, pathname]);
 
-  if (pathname === "/login" || pathname === "/auth" || pathname?.startsWith("/auth/")) {
+  if (pathname === "/login" || pathname === "/auth" || pathname?.startsWith("/auth/") || pathname?.startsWith("/local-ai")) {
     return null;
   }
 

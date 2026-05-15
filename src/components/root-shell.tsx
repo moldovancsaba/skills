@@ -13,8 +13,9 @@ type RootShellProps = {
 export function RootShell({ children }: RootShellProps) {
   const pathname = usePathname();
   const isStandaloneCard = pathname?.startsWith("/card/");
+  const isStandaloneOperatorSurface = pathname?.startsWith("/local-ai");
 
-  if (isStandaloneCard) {
+  if (isStandaloneCard || isStandaloneOperatorSurface) {
     return (
       <>
         {children}

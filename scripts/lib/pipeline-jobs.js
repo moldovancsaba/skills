@@ -4,6 +4,7 @@ const {
   completePipelineJob,
   failPipelineJob,
   PLANNER_BOOTSTRAP_JOB_TYPES,
+  PLANNER_QUALITY_JOB_TYPES,
   PLANNER_MAINTENANCE_JOB_TYPES,
   syncAllCompanyPipelineJobs,
 } = require("../../src/lib/pipeline-queue");
@@ -31,6 +32,10 @@ function isPlannerBootstrapJob(jobType) {
 
 function isPlannerMaintenanceJob(jobType) {
   return PLANNER_MAINTENANCE_JOB_TYPES.includes(jobType);
+}
+
+function isPlannerQualityJob(jobType) {
+  return PLANNER_QUALITY_JOB_TYPES.includes(jobType);
 }
 
 async function runPlannerBootstrapJob(prisma, company) {
@@ -62,6 +67,31 @@ async function runPlannerMaintenanceJob(prisma, company, jobType) {
   }
 }
 
+async function runPlannerQualityJob(prisma, company, jobType) {
+  const cycleRunId = crypto.randomUUID();
+  const workerContext = {
+    cycleRunId,
+    workerId: `pipeline-quality:${process.pid}`,
+  };
+  await processMemoryUpdates(prisma, company);
+  const memoryPrompt = await getHumanMemoryPrompt(prisma, company);
+
+  switch (jobType) {
+    case "MINE_FLASHCARD_OPPORTUNITIES":
+      return performCompanyWriting(prisma, company, memoryPrompt, null, workerContext);
+    case "MINE_TASK_OPPORTUNITIES":
+      return performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext);
+    case "FEEDBACK_PRESSURE_REGENERATION": {
+      const taskOps = await performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext);
+      const refreshOps = await refreshOldestTasks(prisma, company);
+      await recomputeFrontier(prisma, company);
+      return taskOps + refreshOps.length + 1;
+    }
+    default:
+      return 0;
+  }
+}
+
 async function executePipelineJob(prisma, job) {
   const company = job.company ?? await prisma.company.findUnique({ where: { id: job.companyId } });
   if (!company) {
@@ -73,6 +103,9 @@ async function executePipelineJob(prisma, job) {
   }
   if (isPlannerMaintenanceJob(job.jobType)) {
     return runPlannerMaintenanceJob(prisma, company, job.jobType);
+  }
+  if (isPlannerQualityJob(job.jobType)) {
+    return runPlannerQualityJob(prisma, company, job.jobType);
   }
 
   switch (job.jobType) {

@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { computeCompanyScoreHealth } = require("../../src/lib/score-health");
 const { gatherCompanyPipelineSignals } = require("../../src/lib/pipeline-queue");
+const { scoreProfileQuality } = require("../../src/lib/scoring-contract");
 const {
   getWorkerBuildIdentity,
   listPlannerTelemetry,
@@ -50,6 +51,70 @@ function normalizeTagSelectionKey(tags = []) {
   return [...new Set((Array.isArray(tags) ? tags : []).map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean))]
     .sort()
     .join("|");
+}
+
+function summarizeCardQuality(records = []) {
+  const entries = (Array.isArray(records) ? records : [])
+    .map((record) => scoreProfileQuality(record?.scoreProfile, record || {}))
+    .filter(Boolean);
+  if (entries.length === 0) {
+    return {
+      sampleSize: 0,
+      averages: {
+        evidenceQuality: 0,
+        linguisticQuality: 0,
+        actionabilityQuality: 0,
+        strategicValue: 0,
+        aggregate: 0,
+      },
+      weakestDimension: null,
+      degradationCounts: {
+        evidenceQuality: 0,
+        linguisticQuality: 0,
+        actionabilityQuality: 0,
+        strategicValue: 0,
+      },
+    };
+  }
+
+  const averages = {
+    evidenceQuality: 0,
+    linguisticQuality: 0,
+    actionabilityQuality: 0,
+    strategicValue: 0,
+    aggregate: 0,
+  };
+  const degradationCounts = {
+    evidenceQuality: 0,
+    linguisticQuality: 0,
+    actionabilityQuality: 0,
+    strategicValue: 0,
+  };
+
+  for (const entry of entries) {
+    averages.evidenceQuality += Number(entry.evidenceQuality || 0);
+    averages.linguisticQuality += Number(entry.linguisticQuality || 0);
+    averages.actionabilityQuality += Number(entry.actionabilityQuality || 0);
+    averages.strategicValue += Number(entry.strategicValue || 0);
+    averages.aggregate += Number(entry.aggregate || 0);
+    if (entry.weakestDimension && degradationCounts[entry.weakestDimension] !== undefined) {
+      degradationCounts[entry.weakestDimension] += 1;
+    }
+  }
+
+  for (const key of Object.keys(averages)) {
+    averages[key] = Math.round((averages[key] / entries.length) * 100) / 100;
+  }
+
+  const weakestDimension = Object.entries(degradationCounts)
+    .sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
+
+  return {
+    sampleSize: entries.length,
+    averages,
+    weakestDimension,
+    degradationCounts,
+  };
 }
 
 function combinations(items, maxSize = 3) {
@@ -639,7 +704,7 @@ async function buildBudgetSummary(prisma, companyId) {
 }
 
 async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
-  const [activeJobs, workerReports, recentEvents, budget, plannerSignals, plannerEvents] = await Promise.all([
+  const [activeJobs, workerReports, recentEvents, budget, plannerSignals, plannerEvents, flashcards, goals, tasks] = await Promise.all([
     prisma.pipelineJob.findMany({
       where: { companyId, status: { in: ["ACTIVE", "RUNNING", "FAILED"] } },
       orderBy: [{ updatedAt: "desc" }],
@@ -657,6 +722,52 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
     buildBudgetSummary(prisma, companyId),
     gatherCompanyPipelineSignals(prisma, companyId),
     listPlannerTelemetry(prisma, { companyId, limit: 20 }),
+    prisma.flashcard.findMany({
+      where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } },
+      select: {
+        scoreProfile: true,
+        confidenceScore: true,
+        impact: true,
+        weight: true,
+        title: true,
+        body: true,
+        kind: true,
+        evidence: true,
+        hashtags: true,
+      },
+      take: 100,
+    }),
+    prisma.goalcard.findMany({
+      where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } },
+      select: {
+        scoreProfile: true,
+        confidenceScore: true,
+        impact: true,
+        weight: true,
+        title: true,
+        body: true,
+        kind: true,
+        evidence: true,
+        hashtags: true,
+      },
+      take: 100,
+    }),
+    prisma.checklistTask.findMany({
+      where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } },
+      select: {
+        scoreProfile: true,
+        confidenceScore: true,
+        impact: true,
+        ease: true,
+        qualityScore: true,
+        title: true,
+        description: true,
+        kind: true,
+        evidence: true,
+        hashtags: true,
+      },
+      take: 100,
+    }),
   ]);
 
   const guardianHeartbeat = readGuardianHeartbeat();
@@ -675,6 +786,11 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
   const localLearningEvents = recentEvents.filter((event) => String(event.outcomeType || "").startsWith("LOCAL_LEARNING_"));
   const plannerState = buildPlannerStateSnapshot(plannerSignals);
   const plannerEventSummary = buildPlannerEventSummary(plannerEvents);
+  const qualityByCardType = {
+    flashcards: summarizeCardQuality(flashcards),
+    goals: summarizeCardQuality(goals),
+    tasks: summarizeCardQuality(tasks),
+  };
 
   return {
     guardianHeartbeat,
@@ -690,6 +806,11 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
       ...plannerState,
       ...plannerEventSummary,
       recentEvents: plannerEvents,
+    },
+    quality: {
+      flashcards: qualityByCardType.flashcards,
+      goals: qualityByCardType.goals,
+      tasks: qualityByCardType.tasks,
     },
     recommendedActions: {
       escalateScoreRepair: Boolean(criticalAlert || normalizedScoreHealth?.overallBand === "SUSPICIOUS"),

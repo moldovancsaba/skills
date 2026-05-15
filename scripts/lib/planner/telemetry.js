@@ -123,14 +123,32 @@ function buildPlannerEventSummary(events = []) {
   const timeoutEvents = events.filter((event) => event.eventType === "TIMEOUT");
   const qualityCeilingEvents = events.filter((event) => event.eventType === "QUALITY_CEILING_APPLIED");
   const manualCooldownEvents = events.filter((event) => event.eventType === "MANUAL_COOLDOWN_BLOCK");
+  const researchRunEvents = events.filter((event) => event.eventType === "RESEARCH_POLICY_RUN");
+  const researchSkipEvents = events.filter((event) => event.eventType === "RESEARCH_POLICY_SKIP");
+  const noveltyBlockedEvents = events.filter((event) => event.eventType === "NOVELTY_BLOCKED");
+  const feedbackPressureBlockEvents = events.filter((event) => event.eventType === "FEEDBACK_PRESSURE_BLOCK");
+  const feedbackPressureSkipEvents = events.filter((event) => event.eventType === "FEEDBACK_PRESSURE_SKIP");
+  const editorialDowngradeEvents = events.filter((event) => event.eventType === "EDITORIAL_GATE_DOWNGRADE");
 
   return {
     timeoutEvents,
     qualityCeilingEvents,
     manualCooldownEvents,
+    researchRunEvents,
+    researchSkipEvents,
+    noveltyBlockedEvents,
+    feedbackPressureBlockEvents,
+    feedbackPressureSkipEvents,
+    editorialDowngradeEvents,
     timeoutCount: timeoutEvents.length,
     qualityCeilingCount: qualityCeilingEvents.length,
     manualCooldownBlockCount: manualCooldownEvents.length,
+    researchRunCount: researchRunEvents.length,
+    researchSkipCount: researchSkipEvents.length,
+    noveltyBlockedCount: noveltyBlockedEvents.length,
+    feedbackPressureBlockCount: feedbackPressureBlockEvents.length,
+    feedbackPressureSkipCount: feedbackPressureSkipEvents.length,
+    editorialDowngradeCount: editorialDowngradeEvents.length,
   };
 }
 

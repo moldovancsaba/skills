@@ -17,6 +17,8 @@ const { auditCheckedFlashCard, evaluateNBAItemBatch } = require("../evaluator");
 const { auditCardTaxonomy } = require("../auditor");
 const { truncate } = require("../shared");
 const { recordPlannerTelemetry } = require("./telemetry");
+const { decideResearchPolicy, buildResearchContextFromDecision } = require("./research-policy");
+const { applyEditorialQualityGate } = require("./editorial-gate");
 
 const PLANNER_MAINTENANCE_COUNTS = Object.freeze({
   flashcards: 3,
@@ -109,37 +111,34 @@ async function loadTaskLinkedSources(prisma, task) {
   });
 }
 
-async function buildResearchContextFromSources(sources) {
-  const urls = Array.from(new Set(
-    sources.flatMap((source) => [
-      ...extractUrlsFromText(source.provenance),
-      ...extractUrlsFromText(source.content),
-      ...extractUrlsFromText(source.metadata?.url),
-    ]),
-  )).slice(0, 1);
+async function buildResearchContextFromSources(sources, policyInput = null) {
+  const decision = decideResearchPolicy({
+    ...(policyInput || {}),
+    sources,
+  });
 
-  const snippets = [];
-  for (const url of urls) {
-    try {
-      const content = await fetchUrlContent(url);
-      if (content?.content) {
-        snippets.push(`URL: ${url}\n${truncate(content.content, 1200)}`);
-      }
-    } catch (_error) {
-      // Skip unreachable sources during maintenance refresh.
-    }
+  const remoteContext = await buildResearchContextFromDecision(decision);
+  if (remoteContext) {
+    return {
+      decision,
+      context: remoteContext,
+    };
   }
 
-  if (snippets.length === 0) {
+  if (!decision.shouldResearch) {
     const sourceSummaries = sources
       .slice(0, 2)
       .map((source) => truncate(source.canonicalContent || source.content || "", 800))
       .filter(Boolean);
-    if (sourceSummaries.length === 0) return null;
-    return `Linked evidence snapshots:\n${sourceSummaries.join("\n\n---\n\n")}`;
+    if (sourceSummaries.length === 0) {
+      return { decision, context: null };
+    }
+    return {
+      decision,
+      context: `Linked evidence snapshots:\n${sourceSummaries.join("\n\n---\n\n")}`,
+    };
   }
-
-  return `Fresh external research context:\n${snippets.join("\n\n---\n\n")}`;
+  return { decision, context: null };
 }
 
 async function enforceSourceBoundStatus(model, id, currentStatus, sourceStatuses, telemetry = null) {
@@ -200,7 +199,18 @@ async function refreshOldestFlashcards(prisma, _company = null, refreshedAt = ne
   for (const flashcard of flashcards) {
     const { company, memoryPrompt } = await getCompanyRefreshContext(prisma, flashcard.companyId, contextCache);
     const linkedSources = await loadFlashcardLinkedSources(prisma, flashcard.id);
-    const refreshContext = await buildResearchContextFromSources(linkedSources);
+    const { decision, context: refreshContext } = await buildResearchContextFromSources(linkedSources, {
+      operation: "FLASHCARD_REFRESH",
+      entity: flashcard,
+    });
+    await recordPlannerTelemetry(prisma, {
+      companyId: flashcard.companyId,
+      entityType: "FLASHCARD",
+      entityId: flashcard.id,
+      eventType: decision.shouldResearch ? "RESEARCH_POLICY_RUN" : "RESEARCH_POLICY_SKIP",
+      reason: decision.reason,
+      details: decision,
+    });
     const rewritten = await refineDraftFlashCard(
       prisma,
       { ...flashcard, company },
@@ -208,13 +218,32 @@ async function refreshOldestFlashcards(prisma, _company = null, refreshedAt = ne
       null,
       refreshContext,
     );
+    const editorial = applyEditorialQualityGate("FLASHCARD", {
+      ...(rewritten || flashcard),
+      body: rewritten?.body ?? flashcard.body,
+      title: rewritten?.title ?? flashcard.title,
+      processingStatus: rewritten?.processingStatus ?? flashcard.processingStatus,
+    }, { bodyLimit: 1200 });
     const baseUpdate = {
       ...(rewritten || {}),
+      title: editorial.title,
+      body: editorial.body,
+      processingStatus: editorial.processingStatus,
       lastRescoredAt: refreshedAt,
       lastTaxonomyAuditedAt: refreshedAt,
       hashtagEvaluationPending: true,
       refreshedAt,
     };
+    if (editorial.editorialGate?.shouldDowngrade) {
+      await recordPlannerTelemetry(prisma, {
+        companyId: flashcard.companyId,
+        entityType: "FLASHCARD",
+        entityId: flashcard.id,
+        eventType: "EDITORIAL_GATE_DOWNGRADE",
+        reason: `Maintenance editorial gate downgraded flashcard because ${editorial.editorialGate.weakestDimension} quality was too low.`,
+        details: editorial.editorialGate,
+      });
+    }
 
     await prisma.flashcard.update({
       where: { id: flashcard.id },
@@ -306,7 +335,18 @@ async function refreshOldestGoals(prisma, _company = null, refreshedAt = new Dat
   for (const goalcard of goalcards) {
     const { company, memoryPrompt } = await getCompanyRefreshContext(prisma, goalcard.companyId, contextCache);
     const linkedSources = await loadGoalcardLinkedSources(prisma, goalcard.id);
-    const refreshContext = await buildResearchContextFromSources(linkedSources);
+    const { decision, context: refreshContext } = await buildResearchContextFromSources(linkedSources, {
+      operation: "GOAL_REFRESH",
+      entity: goalcard,
+    });
+    await recordPlannerTelemetry(prisma, {
+      companyId: goalcard.companyId,
+      entityType: "GOAL",
+      entityId: goalcard.id,
+      eventType: decision.shouldResearch ? "RESEARCH_POLICY_RUN" : "RESEARCH_POLICY_SKIP",
+      reason: decision.reason,
+      details: decision,
+    });
     const rewritten = await refineGoalCard(
       prisma,
       { ...goalcard, company },
@@ -314,6 +354,22 @@ async function refreshOldestGoals(prisma, _company = null, refreshedAt = new Dat
       null,
       refreshContext,
     );
+    const editorial = applyEditorialQualityGate("GOAL", {
+      ...(rewritten || goalcard),
+      body: rewritten?.body ?? goalcard.body,
+      title: rewritten?.title ?? goalcard.title,
+      processingStatus: rewritten?.processingStatus ?? goalcard.processingStatus,
+    }, { bodyLimit: 1200 });
+    if (editorial.editorialGate?.shouldDowngrade) {
+      await recordPlannerTelemetry(prisma, {
+        companyId: goalcard.companyId,
+        entityType: "GOAL",
+        entityId: goalcard.id,
+        eventType: "EDITORIAL_GATE_DOWNGRADE",
+        reason: `Maintenance editorial gate downgraded goalcard because ${editorial.editorialGate.weakestDimension} quality was too low.`,
+        details: editorial.editorialGate,
+      });
+    }
 
     await prisma.goalcard.update({
       where: { id: goalcard.id },
@@ -323,6 +379,9 @@ async function refreshOldestGoals(prisma, _company = null, refreshedAt = new Dat
           impact: goalcard.impact,
           weight: goalcard.weight,
         })),
+        title: editorial.title,
+        body: editorial.body,
+        processingStatus: editorial.processingStatus,
         lastRescoredAt: refreshedAt,
         lastTaxonomyAuditedAt: refreshedAt,
         hashtagEvaluationPending: true,
@@ -386,7 +445,18 @@ async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Dat
   for (const taskcard of taskcards) {
     const { company, memoryPrompt } = await getCompanyRefreshContext(prisma, taskcard.companyId, contextCache);
     const linkedSources = await loadTaskLinkedSources(prisma, taskcard);
-    const refreshContext = await buildResearchContextFromSources(linkedSources);
+    const { decision, context: refreshContext } = await buildResearchContextFromSources(linkedSources, {
+      operation: "TASK_REFRESH",
+      entity: taskcard,
+    });
+    await recordPlannerTelemetry(prisma, {
+      companyId: taskcard.companyId,
+      entityType: "TASK",
+      entityId: taskcard.id,
+      eventType: decision.shouldResearch ? "RESEARCH_POLICY_RUN" : "RESEARCH_POLICY_SKIP",
+      reason: decision.reason,
+      details: decision,
+    });
     const rewritten = await refineDraftTaskCard(
       prisma,
       { ...taskcard, company },
@@ -394,6 +464,22 @@ async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Dat
       null,
       refreshContext,
     );
+    const editorial = applyEditorialQualityGate("TASK", {
+      ...(rewritten || taskcard),
+      description: rewritten?.description ?? taskcard.description,
+      title: rewritten?.title ?? taskcard.title,
+      processingStatus: rewritten?.processingStatus ?? taskcard.processingStatus,
+    }, { bodyLimit: 1200 });
+    if (editorial.editorialGate?.shouldDowngrade) {
+      await recordPlannerTelemetry(prisma, {
+        companyId: taskcard.companyId,
+        entityType: "TASK",
+        entityId: taskcard.id,
+        eventType: "EDITORIAL_GATE_DOWNGRADE",
+        reason: `Maintenance editorial gate downgraded taskcard because ${editorial.editorialGate.weakestDimension} quality was too low.`,
+        details: editorial.editorialGate,
+      });
+    }
 
     await prisma.checklistTask.update({
       where: { id: taskcard.id },
@@ -403,6 +489,9 @@ async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Dat
           impact: taskcard.impact,
           ease: taskcard.ease,
         })),
+        title: editorial.title,
+        description: editorial.description,
+        processingStatus: editorial.processingStatus,
         lastRescoredAt: refreshedAt,
         lastTaxonomyAuditedAt: refreshedAt,
         hashtagEvaluationPending: true,
@@ -450,7 +539,12 @@ async function refreshOldestDatacards(prisma, _company = null, refreshedAt = new
       ...extractUrlsFromText(source.metadata?.url),
     ][0];
 
-    if (refreshUrl) {
+    const decision = decideResearchPolicy({
+      operation: "DATACARD_REFRESH",
+      sources: [source],
+      entity: source,
+    });
+    if (refreshUrl && decision.shouldResearch) {
       try {
         const fetched = await fetchUrlContent(refreshUrl);
         if (fetched?.content) {
@@ -460,6 +554,14 @@ async function refreshOldestDatacards(prisma, _company = null, refreshedAt = new
         // Keep the existing datacard content when the live URL is unreachable.
       }
     }
+    await recordPlannerTelemetry(prisma, {
+      companyId: source.companyId,
+      entityType: "SOURCE",
+      entityId: source.id,
+      eventType: decision.shouldResearch ? "RESEARCH_POLICY_RUN" : "RESEARCH_POLICY_SKIP",
+      reason: decision.reason,
+      details: decision,
+    });
 
     const profile = deriveDataCardScoreProfile({
       content: latestContent,

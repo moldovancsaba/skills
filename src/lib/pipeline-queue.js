@@ -6,6 +6,7 @@ const {
   PLANNER_MIN_DATACARDS_FOR_ACTIVE,
   getCompanyOperatingMode,
 } = require("./planner-contract");
+const { readFeedbackPressureIndex, countCompanyBlockedFamilies } = require("../../scripts/lib/planner/feedback-pressure");
 
 const CORE_PIPELINE_JOB_TYPES = Object.freeze([
   "FEEDBACK_RECONCILIATION",
@@ -24,6 +25,12 @@ const PLANNER_BOOTSTRAP_JOB_TYPES = Object.freeze([
   "ENSURE_CHECKLIST_MINIMUM",
 ]);
 
+const PLANNER_QUALITY_JOB_TYPES = Object.freeze([
+  "MINE_FLASHCARD_OPPORTUNITIES",
+  "MINE_TASK_OPPORTUNITIES",
+  "FEEDBACK_PRESSURE_REGENERATION",
+]);
+
 const PLANNER_MAINTENANCE_JOB_TYPES = Object.freeze([
   "REFRESH_FLASHCARDS",
   "REFRESH_TASKS",
@@ -39,6 +46,7 @@ const LEGACY_COMPAT_PIPELINE_JOB_TYPES = Object.freeze([
 const PIPELINE_JOB_TYPES = Object.freeze([
   ...CORE_PIPELINE_JOB_TYPES,
   ...PLANNER_BOOTSTRAP_JOB_TYPES,
+  ...PLANNER_QUALITY_JOB_TYPES,
   ...PLANNER_MAINTENANCE_JOB_TYPES,
 ]);
 
@@ -70,6 +78,9 @@ const JOB_LABELS = Object.freeze({
   ENSURE_BACKLOG_MINIMUM: "Ensure Backlog Minimum",
   ENSURE_TODO_MINIMUM: "Ensure Next Minimum",
   ENSURE_CHECKLIST_MINIMUM: "Ensure Checklist Minimum",
+  MINE_FLASHCARD_OPPORTUNITIES: "Mine Flashcard Opportunities",
+  MINE_TASK_OPPORTUNITIES: "Mine Task Opportunities",
+  FEEDBACK_PRESSURE_REGENERATION: "Feedback Pressure Regeneration",
   REFRESH_FLASHCARDS: "Refresh Flashcards",
   REFRESH_TASKS: "Refresh Tasks",
   REFRESH_DATACARDS: "Refresh Datacards",
@@ -300,6 +311,69 @@ function buildAutoJobProfile(jobType, signals) {
       return buildPlannerLaneProfile("TODO", signals);
     case "ENSURE_CHECKLIST_MINIMUM":
       return buildPlannerLaneProfile("CHECKLIST", signals);
+    case "MINE_FLASHCARD_OPPORTUNITIES":
+      if (mode === "INACTIVE") {
+        return {
+          queueColumn: "PARKED",
+          priorityScore: 0,
+          reason: "Company is inactive because it has no datacards yet.",
+          sourceSignal: "inactive-no-datacards",
+        };
+      }
+      if (datacardCount > 0 && flashcardCount >= PLANNER_MIN_FLASHCARDS) {
+        return {
+          queueColumn: "LATER",
+          priorityScore: roundPriority(58 + Math.min(datacardCount, 20) + staleDatacardCount * 2),
+          reason: "Flashcard opportunity mining runs as recurring quality work after knowledge minimums are met.",
+          sourceSignal: "quality-opportunity-flashcards",
+        };
+      }
+      return {
+        queueColumn: "PARKED",
+        priorityScore: 0,
+        reason: "Flashcard opportunity mining waits until the company has enough datacards and baseline flashcards.",
+        sourceSignal: "quality-opportunity-flashcards-idle",
+      };
+    case "MINE_TASK_OPPORTUNITIES":
+      if (mode === "INACTIVE") {
+        return {
+          queueColumn: "PARKED",
+          priorityScore: 0,
+          reason: "Company is inactive because it has no datacards yet.",
+          sourceSignal: "inactive-no-datacards",
+        };
+      }
+      if (activeKnowledgeCount > 0) {
+        return {
+          queueColumn: deficits.length > 0 ? "SOON" : "LATER",
+          priorityScore: roundPriority(62 + Math.min(activeKnowledgeCount, 20) + deficits.length * 4),
+          reason: deficits.length > 0
+            ? "Task opportunity mining stays warm while planning lanes still need refill support."
+            : "Task opportunity mining runs as recurring quality work from active flashcards.",
+          sourceSignal: deficits.length > 0 ? "quality-opportunity-tasks-with-deficits" : "quality-opportunity-tasks",
+        };
+      }
+      return {
+        queueColumn: "PARKED",
+        priorityScore: 0,
+        reason: "Task opportunity mining waits until the company has active flashcard knowledge.",
+        sourceSignal: "quality-opportunity-tasks-idle",
+      };
+    case "FEEDBACK_PRESSURE_REGENERATION":
+      if (signals.blockedFeedbackFamiliesCount > 0) {
+        return {
+          queueColumn: "SOON",
+          priorityScore: roundPriority(88 + signals.blockedFeedbackFamiliesCount * 8),
+          reason: `${signals.blockedFeedbackFamiliesCount} feedback-blocked family signal(s) need regeneration-aware queue attention.`,
+          sourceSignal: "feedback-pressure-regeneration",
+        };
+      }
+      return {
+        queueColumn: "PARKED",
+        priorityScore: 0,
+        reason: "No blocked feedback pressure families currently require regeneration work.",
+        sourceSignal: "feedback-pressure-idle",
+      };
     case "REFRESH_FLASHCARDS":
       return staleFlashcardCount > 0
         ? {
@@ -410,6 +484,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
     activeManualCooldownCount,
     taskLaneCounts,
     scoreHealth,
+    feedbackPressureIndex,
   ] = await Promise.all([
     prisma.feedback.count({
       where: {
@@ -507,6 +582,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
       _count: { _all: true },
     }),
     computeCompanyScoreHealth(companyId, prisma),
+    readFeedbackPressureIndex(prisma),
   ]);
 
   const laneCounts = Object.fromEntries(
@@ -541,6 +617,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
       flashcardCount,
       laneCounts,
     }),
+    blockedFeedbackFamiliesCount: countCompanyBlockedFamilies(feedbackPressureIndex, companyId),
     staleAuditCount: staleFlashcards + staleGoals + staleTasks + staleSources + staleTopics + staleFiles,
     scoreHealth,
   };
@@ -958,6 +1035,7 @@ async function failPipelineJob(prisma, jobId, error) {
 module.exports = {
   CORE_PIPELINE_JOB_TYPES,
   PLANNER_BOOTSTRAP_JOB_TYPES,
+  PLANNER_QUALITY_JOB_TYPES,
   PLANNER_MAINTENANCE_JOB_TYPES,
   LEGACY_COMPAT_PIPELINE_JOB_TYPES,
   PIPELINE_JOB_TYPES,

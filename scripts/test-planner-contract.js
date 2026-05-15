@@ -94,11 +94,23 @@ async function main() {
     { eventType: "TIMEOUT" },
     { eventType: "QUALITY_CEILING_APPLIED" },
     { eventType: "MANUAL_COOLDOWN_BLOCK" },
+    { eventType: "RESEARCH_POLICY_RUN" },
+    { eventType: "RESEARCH_POLICY_SKIP" },
+    { eventType: "NOVELTY_BLOCKED" },
+    { eventType: "FEEDBACK_PRESSURE_BLOCK" },
+    { eventType: "FEEDBACK_PRESSURE_SKIP" },
+    { eventType: "EDITORIAL_GATE_DOWNGRADE" },
     { eventType: "TIMEOUT" },
   ]);
   assert.equal(eventSummary.timeoutCount, 2, "timeout count must be aggregated");
   assert.equal(eventSummary.qualityCeilingCount, 1, "quality ceiling count must be aggregated");
   assert.equal(eventSummary.manualCooldownBlockCount, 1, "manual cooldown count must be aggregated");
+  assert.equal(eventSummary.researchRunCount, 1, "research run count must be aggregated");
+  assert.equal(eventSummary.researchSkipCount, 1, "research skip count must be aggregated");
+  assert.equal(eventSummary.noveltyBlockedCount, 1, "novelty block count must be aggregated");
+  assert.equal(eventSummary.feedbackPressureBlockCount, 1, "feedback pressure block count must be aggregated");
+  assert.equal(eventSummary.feedbackPressureSkipCount, 1, "feedback pressure skip count must be aggregated");
+  assert.equal(eventSummary.editorialDowngradeCount, 1, "editorial downgrade count must be aggregated");
 
   const prisma = createMockPrisma();
   await assert.rejects(
@@ -121,6 +133,9 @@ async function main() {
 
   assert.equal(PIPELINE_JOB_TYPES.includes("ENSURE_CHECKLIST_MINIMUM"), true, "explicit checklist planner job must be managed");
   assert.equal(PIPELINE_JOB_TYPES.includes("REFRESH_GOALS"), true, "explicit goal refresh job must be managed");
+  assert.equal(PIPELINE_JOB_TYPES.includes("MINE_FLASHCARD_OPPORTUNITIES"), true, "flashcard opportunity mining must be a managed queue job");
+  assert.equal(PIPELINE_JOB_TYPES.includes("MINE_TASK_OPPORTUNITIES"), true, "task opportunity mining must be a managed queue job");
+  assert.equal(PIPELINE_JOB_TYPES.includes("FEEDBACK_PRESSURE_REGENERATION"), true, "feedback pressure regeneration must be a managed queue job");
 
   const buildIdentity = getWorkerBuildIdentity();
   assert.equal(typeof buildIdentity.appVersion, "string", "build identity must expose app version");

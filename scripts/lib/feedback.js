@@ -25,6 +25,7 @@
 
 const { CandidateState, ReworkRoute, toRework, toSuppressed, toArchived, toDelivered } = require("./lifecycle");
 const { triggerFrontierRecompute } = require("./frontier");
+const { applyFeedbackPressure } = require("./planner/feedback-pressure");
 
 // ---------------------------------------------------------------------------
 // 1. Decline Routing Map
@@ -121,6 +122,41 @@ async function handleDecline(prisma, feedbackRecord, item) {
     where: { id: item.id },
     data: stateUpdate,
   });
+}
+
+async function suppressTaskFamily(prisma, item, blockedFamilyKeys = []) {
+  if (!Array.isArray(blockedFamilyKeys) || blockedFamilyKeys.length === 0) return 0;
+
+  const familyWhere = [];
+  if (item.duplicateClusterId) {
+    familyWhere.push({ duplicateClusterId: item.duplicateClusterId });
+  }
+  if (item.versionFamilyId) {
+    familyWhere.push({ versionFamilyId: item.versionFamilyId });
+  }
+  if (Array.isArray(item.sourceFlashcardIds) && item.sourceFlashcardIds.length > 0) {
+    familyWhere.push({ sourceFlashcardIds: { hasSome: item.sourceFlashcardIds } });
+  }
+  if (familyWhere.length === 0) return 0;
+
+  const result = await prisma.checklistTask.updateMany({
+    where: {
+      companyId: item.companyId,
+      id: { not: item.id },
+      activityState: { in: ["ACTIVE", "STALE"] },
+      status: { notIn: ["ARCHIVED", "COMPLETED"] },
+      OR: familyWhere,
+    },
+    data: {
+      candidateState: CandidateState.SUPPRESSED,
+      activityState: "ARCHIVED",
+      processingStatus: "DECLINED",
+      status: "DECLINED",
+      evaluationReason: `Suppressed by feedback pressure block (${blockedFamilyKeys.join(", ")}) until upstream evidence is repaired.`,
+    },
+  });
+
+  return Number(result?.count || 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -249,6 +285,14 @@ async function processFeedbackEvents(prisma, company) {
               description: f.modifiedDescription || item.description,
             },
           });
+        }
+      }
+
+      const refreshedItem = await prisma.checklistTask.findUnique({ where: { id: item.id } });
+      if (refreshedItem) {
+        const pressure = await applyFeedbackPressure(prisma, company.id, f, refreshedItem);
+        if (pressure.blockedFamilyKeys.length > 0) {
+          await suppressTaskFamily(prisma, refreshedItem, pressure.blockedFamilyKeys);
         }
       }
 

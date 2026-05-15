@@ -93,15 +93,16 @@ async function buildActiveInventoryFingerprints(prisma, companyId) {
  * @param {object|null} topic
  * @returns {object[]} Draft flashcard records ready for prisma.flashcard.create
  */
-async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPrompt, topic = null) {
+async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPrompt, topic = null, options = {}) {
   // Legacy single-source call — wrap in batch
-  return draftFlashcardsFromEvidenceBatch(prisma, company, [dataCard], memoryPrompt, topic);
+  return draftFlashcardsFromEvidenceBatch(prisma, company, [dataCard], memoryPrompt, topic, options);
 }
 
-async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, memoryPrompt, topic = null) {
+async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, memoryPrompt, topic = null, options = {}) {
   const bodyLimit = await getWorkerConfig(prisma, company, "draft_body_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
   const activeFingerprints = await buildActiveInventoryFingerprints(prisma, company.id);
+  const researchContext = typeof options?.researchContext === "string" ? options.researchContext.trim() : "";
 
   const { getSkillForSource } = require("./skills");
   const skill = getSkillForSource(evidenceBatch[0]);
@@ -169,6 +170,9 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
 
     // Input Injection (§217): We ALWAYS re-inject the raw evidence to prevent drift
     let loopUserPrompt = `Company: ${company.name}\n\n[INPUT INJECTION: RAW EVIDENCE]\n${evidenceContext}`;
+    if (researchContext) {
+      loopUserPrompt += `\n\n[LIVE RESEARCH CONTEXT]\n${researchContext}`;
+    }
     
     if (!isFirstLoop && currentDraftsRaw) {
       loopUserPrompt += `\n\n[CURRENT STATE: PREVIOUS DRAFT]\n${JSON.stringify(currentDraftsRaw, null, 2)}\n\n[TASK] Improve and refine the previous draft based on the Phase Guidance above. Return the FULL updated JSON array.`;
@@ -349,10 +353,11 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
 /**
  * Generates actionable TaskCard DRAFTs from a verified Flashcard (KnowledgeItem).
  */
-async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryPrompt, topic = null) {
+async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryPrompt, topic = null, options = {}) {
   const descLimit = await getWorkerConfig(prisma, company, "draft_desc_limit", 1200);
   const strategicContext = await getCompanyStrategicContext(prisma, company.id);
   const activeFingerprints = await buildActiveInventoryFingerprints(prisma, company.id);
+  const researchContext = typeof options?.researchContext === "string" ? options.researchContext.trim() : "";
 
   const kind = String(flashCard.kind || "").toUpperCase();
   let tacticalGuidance = "";
@@ -385,7 +390,12 @@ async function draftTaskcardFromFlashCard(prisma, company, flashCard, memoryProm
     memoryPrompt
   ].join("\n");
 
-  const userPrompt = `Company: ${company.name}\nKnowledgeItem Title: ${flashCard.title}\nKnowledgeItem Body: ${truncate(flashCard.body || flashCard.generatedBody || "", 1000)}`;
+  const userPrompt = [
+    `Company: ${company.name}`,
+    `KnowledgeItem Title: ${flashCard.title}`,
+    `KnowledgeItem Body: ${truncate(flashCard.body || flashCard.generatedBody || "", 1000)}`,
+    researchContext ? `LIVE RESEARCH CONTEXT:\n${researchContext}` : null,
+  ].filter(Boolean).join("\n");
 
   const modelList = await getStageModels(prisma, "WRITE", company);
   const res = await callOllamaWithFailover(systemPrompt, userPrompt, modelList, { timeoutMs: WRITE_STAGE_TIMEOUT_MS });

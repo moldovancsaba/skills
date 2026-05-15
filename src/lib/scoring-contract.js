@@ -102,6 +102,12 @@ const PRIORITY_STATE_MULTIPLIERS = Object.freeze({
   GENERATED: 0.72,
 });
 const PRIORITY_DENSITY_BUCKET_SIZE = 15;
+const QUALITY_DIMENSION_KEYS = Object.freeze([
+  "evidenceQuality",
+  "linguisticQuality",
+  "actionabilityQuality",
+  "strategicValue",
+]);
 
 function clampMetric(value, min = SCORE_MIN, max = SCORE_MAX) {
   const numeric = Number(value);
@@ -552,6 +558,18 @@ function buildScoreProfile(input = {}) {
   const finalIceScore = scoreKind === "KNOWLEDGE"
     ? calculateKnowledgeIceScore(blend.final)
     : calculateTaskIceScore(blend.final);
+  const quality = buildQualityEnvelope({
+    ...input,
+    title: input.title ?? input.agent?.title ?? input.calibrated?.title,
+    description: input.description ?? input.body ?? input.agent?.description ?? input.calibrated?.description,
+    body: input.body ?? input.description ?? input.agent?.body ?? input.calibrated?.body,
+    impact: blend.final.impact,
+    confidence: blend.final.confidence,
+    confidenceScore: blend.final.confidence,
+    effort: blend.final.effort,
+    weight: blend.final.effort,
+    ease: blend.final.effort,
+  });
 
   return {
     version: 3,
@@ -576,6 +594,7 @@ function buildScoreProfile(input = {}) {
         agentWeight,
       ),
     },
+    quality,
     rationale: input.rationale || null,
     generatedAt: new Date().toISOString(),
   };
@@ -592,46 +611,149 @@ function scoreProfileTriplet(profile = {}, fallbacks = {}) {
 
 function persistTaskScoresFromProfile(profile = {}) {
   const final = scoreProfileTriplet(profile);
+  const quality = scoreProfileQuality(profile, final);
   return {
     impact: roundMetricToInt(final.impact),
     confidence: roundMetricToInt(final.confidence),
     confidenceScore: roundMetricToInt(final.confidence),
     ease: roundMetricToInt(final.effort),
     iceScore: Number(calculateTaskIceScore(final).toFixed(2)),
+    qualityScore: Number((quality.aggregate / SCORE_MAX).toFixed(4)),
+    scoreProfile: {
+      ...(profile && typeof profile === "object" ? profile : {}),
+      quality: {
+        version: 1,
+        aggregate: quality.aggregate,
+        weakestDimension: quality.weakestDimension,
+        dimensions: {
+          evidenceQuality: quality.evidenceQuality,
+          linguisticQuality: quality.linguisticQuality,
+          actionabilityQuality: quality.actionabilityQuality,
+          strategicValue: quality.strategicValue,
+        },
+      },
+    },
   };
 }
 
 function persistKnowledgeScoresFromProfile(profile = {}) {
   const final = scoreProfileTriplet(profile);
+  const quality = scoreProfileQuality(profile, final);
   return {
     impact: roundMetricToInt(final.impact),
     confidence: roundMetricToInt(final.confidence),
     confidenceScore: roundMetricToInt(final.confidence),
     weight: roundMetricToInt(final.effort),
     iceScore: Number(calculateKnowledgeIceScore(final).toFixed(2)),
+    scoreProfile: {
+      ...(profile && typeof profile === "object" ? profile : {}),
+      quality: {
+        version: 1,
+        aggregate: quality.aggregate,
+        weakestDimension: quality.weakestDimension,
+        dimensions: {
+          evidenceQuality: quality.evidenceQuality,
+          linguisticQuality: quality.linguisticQuality,
+          actionabilityQuality: quality.actionabilityQuality,
+          strategicValue: quality.strategicValue,
+        },
+      },
+    },
   };
 }
 
 function normalizeTaskScores(input = {}) {
   const triplet = normalizeScoreTriplet(input);
-  return persistTaskScoresFromProfile({
-    final: {
-      impact: triplet.impact,
-      confidence: triplet.confidence,
-      effort: triplet.effort,
-    },
-  });
+  const existingProfile = input.scoreProfile && typeof input.scoreProfile === "object" ? input.scoreProfile : null;
+  const profile = existingProfile
+    ? {
+        ...existingProfile,
+        scoreKind: existingProfile.scoreKind || "TASK",
+        final: {
+          impact: triplet.impact,
+          confidence: triplet.confidence,
+          effort: triplet.effort,
+          iceScore: Number(calculateTaskIceScore(triplet).toFixed(2)),
+        },
+        quality: buildQualityEnvelope({
+          ...input,
+          impact: triplet.impact,
+          confidence: triplet.confidence,
+          confidenceScore: triplet.confidence,
+          ease: triplet.effort,
+          effort: triplet.effort,
+        }),
+      }
+    : buildScoreProfile({
+        scoreKind: "TASK",
+        ...input,
+        agent: {
+          impact: triplet.impact,
+          confidence: triplet.confidence,
+          effort: triplet.effort,
+          title: input.title,
+          description: input.description,
+          body: input.body,
+          kind: input.kind,
+        },
+        calibrated: {
+          impact: triplet.impact,
+          confidence: triplet.confidence,
+          effort: triplet.effort,
+          title: input.title,
+          description: input.description,
+          body: input.body,
+          kind: input.kind,
+        },
+      });
+  return persistTaskScoresFromProfile(profile);
 }
 
 function normalizeKnowledgeScores(input = {}) {
   const triplet = normalizeScoreTriplet(input);
-  return persistKnowledgeScoresFromProfile({
-    final: {
-      impact: triplet.impact,
-      confidence: triplet.confidence,
-      effort: triplet.effort,
-    },
-  });
+  const existingProfile = input.scoreProfile && typeof input.scoreProfile === "object" ? input.scoreProfile : null;
+  const profile = existingProfile
+    ? {
+        ...existingProfile,
+        scoreKind: existingProfile.scoreKind || "KNOWLEDGE",
+        final: {
+          impact: triplet.impact,
+          confidence: triplet.confidence,
+          effort: triplet.effort,
+          iceScore: Number(calculateKnowledgeIceScore(triplet).toFixed(2)),
+        },
+        quality: buildQualityEnvelope({
+          ...input,
+          impact: triplet.impact,
+          confidence: triplet.confidence,
+          confidenceScore: triplet.confidence,
+          weight: triplet.effort,
+          effort: triplet.effort,
+        }),
+      }
+    : buildScoreProfile({
+        scoreKind: "KNOWLEDGE",
+        ...input,
+        agent: {
+          impact: triplet.impact,
+          confidence: triplet.confidence,
+          effort: triplet.effort,
+          title: input.title,
+          description: input.description,
+          body: input.body,
+          kind: input.kind,
+        },
+        calibrated: {
+          impact: triplet.impact,
+          confidence: triplet.confidence,
+          effort: triplet.effort,
+          title: input.title,
+          description: input.description,
+          body: input.body,
+          kind: input.kind,
+        },
+      });
+  return persistKnowledgeScoresFromProfile(profile);
 }
 
 function normalizeGoalScores(input = {}) {
@@ -758,6 +880,115 @@ function deriveKnowledgeKindSignal(kind = "") {
     default:
       return 6;
   }
+}
+
+function deriveLinguisticQualitySignal(input = {}) {
+  const title = String(input.title || "");
+  const body = String(input.body || input.description || "");
+  const combined = `${title} ${body}`.trim();
+  if (!combined) return 1;
+
+  let score = 4;
+  if (title.length >= 12 && title.length <= 110) score += 1.5;
+  if (body.length >= 80) score += 1.5;
+  if (body.length >= 180) score += 1;
+  if (!/\[object Object\]/i.test(combined)) score += 1;
+  if (!/\s{3,}/.test(combined)) score += 0.5;
+  if (!/[!?]{2,}/.test(combined)) score += 0.5;
+  if (/[.?!]/.test(body)) score += 0.5;
+  return clampMetric(score);
+}
+
+function deriveActionabilityQualitySignal(input = {}) {
+  const title = String(input.title || "");
+  const body = String(input.body || input.description || "");
+  const specificity = deriveSpecificitySignal(title, body);
+  const urgency = deriveUrgencySignal(input.kind, title, body);
+  const complexity = deriveComplexitySignal(title, body);
+  return clampMetric(specificity * 0.5 + urgency * 0.25 + convertDifficultyToEaseSignal(complexity) * 0.25);
+}
+
+function deriveStrategicValueSignal(input = {}) {
+  const impact = clampMetric(input.impact ?? input.scoreProfile?.final?.impact ?? 5);
+  const kindSignal = deriveKnowledgeKindSignal(input.kind);
+  const humanSignal = computeHumanPrioritySignal(input) * SCORE_MAX;
+  return clampMetric(impact * 0.5 + kindSignal * 0.25 + humanSignal * 0.25);
+}
+
+function deriveEvidenceQualitySignal(input = {}) {
+  const confidence = clampMetric(input.confidenceScore ?? input.confidence ?? input.scoreProfile?.final?.confidence ?? 5);
+  const evidence = deriveEvidenceStrengthSignal(input);
+  const rationale = scoreProfileRationale(input);
+  const historySupport = clampMetric(
+    rationale?.historyConfidence ??
+    rationale?.historySupport ??
+    rationale?.historyAcceptance ??
+    confidence,
+  );
+  return clampMetric(confidence * 0.4 + evidence * 0.4 + historySupport * 0.2);
+}
+
+function buildQualityDimensionScores(input = {}) {
+  const evidenceQuality = deriveEvidenceQualitySignal(input);
+  const linguisticQuality = deriveLinguisticQualitySignal(input);
+  const actionabilityQuality = deriveActionabilityQualitySignal(input);
+  const strategicValue = deriveStrategicValueSignal(input);
+  const aggregate = clampMetricPrecise(
+    evidenceQuality * 0.32 +
+    linguisticQuality * 0.22 +
+    actionabilityQuality * 0.22 +
+    strategicValue * 0.24,
+  );
+  const dimensions = {
+    evidenceQuality,
+    linguisticQuality,
+    actionabilityQuality,
+    strategicValue,
+  };
+  const weakestDimension = QUALITY_DIMENSION_KEYS.reduce((weakest, key) => {
+    if (!weakest) return key;
+    return dimensions[key] < dimensions[weakest] ? key : weakest;
+  }, null);
+
+  return {
+    ...dimensions,
+    aggregate,
+    weakestDimension,
+  };
+}
+
+function buildQualityEnvelope(input = {}) {
+  const quality = buildQualityDimensionScores(input);
+  return {
+    version: 1,
+    aggregate: quality.aggregate,
+    weakestDimension: quality.weakestDimension,
+    dimensions: {
+      evidenceQuality: quality.evidenceQuality,
+      linguisticQuality: quality.linguisticQuality,
+      actionabilityQuality: quality.actionabilityQuality,
+      strategicValue: quality.strategicValue,
+    },
+  };
+}
+
+function scoreProfileQuality(profile = {}, fallbacks = {}) {
+  const quality = profile && typeof profile === "object" ? profile.quality : null;
+  if (quality && typeof quality === "object" && quality.dimensions && typeof quality.dimensions === "object") {
+    return {
+      evidenceQuality: clampMetric(quality.dimensions.evidenceQuality ?? fallbacks.evidenceQuality ?? 5),
+      linguisticQuality: clampMetric(quality.dimensions.linguisticQuality ?? fallbacks.linguisticQuality ?? 5),
+      actionabilityQuality: clampMetric(quality.dimensions.actionabilityQuality ?? fallbacks.actionabilityQuality ?? 5),
+      strategicValue: clampMetric(quality.dimensions.strategicValue ?? fallbacks.strategicValue ?? 5),
+      aggregate: clampMetricPrecise(quality.aggregate ?? fallbacks.aggregate ?? 5),
+      weakestDimension: String(quality.weakestDimension || fallbacks.weakestDimension || "evidenceQuality"),
+    };
+  }
+
+  return buildQualityDimensionScores({
+    ...fallbacks,
+    scoreProfile: profile,
+  });
 }
 
 function weightedSignalAverage(entries = [], fallback = SCORE_MIN) {
@@ -971,6 +1202,9 @@ module.exports = {
   computePriorityCohortProfiles,
   blendScoreTriplets,
   buildScoreProfile,
+  buildQualityEnvelope,
+  buildQualityDimensionScores,
+  scoreProfileQuality,
   scoreProfileTriplet,
   persistTaskScoresFromProfile,
   persistKnowledgeScoresFromProfile,

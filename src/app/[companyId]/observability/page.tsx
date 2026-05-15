@@ -63,6 +63,7 @@ export default function ObservabilityPage() {
   const budget = data?.budget || { pressure: "UNKNOWN", usageByFeature: [], openEvents: [], recommendations: [] };
   const planner = data?.planner || { unmetLaneTargets: [], recentEvents: [] };
   const workerBuild = data?.workerBuild || {};
+  const quality = data?.quality || {};
 
   return (
     <PageShell width="full">
@@ -91,7 +92,12 @@ export default function ObservabilityPage() {
         <MetricCard icon={Gauge} color="strategy" label="Planner Mode" value={String(planner.operatingMode || "UNKNOWN")} detail={`${planner.unmetLaneTargets?.length ?? 0} unmet lanes`} />
         <MetricCard icon={AlertTriangle} color="review" label="Planner Timeouts" value={planner.timeoutCount ?? 0} detail={`${planner.qualityCeilingCount ?? 0} quality caps`} />
         <MetricCard icon={Activity} color="checklist" label="Manual Cooldowns" value={planner.activeManualCooldownCount ?? 0} detail={`${planner.manualCooldownBlockCount ?? 0} active blocks`} />
+        <MetricCard icon={RefreshIcon} color="knowmore" label="Research Policy" value={planner.researchRunCount ?? 0} detail={`${planner.researchSkipCount ?? 0} skips`} />
+        <MetricCard icon={AlertTriangle} color="strategy" label="Novelty Blocks" value={planner.noveltyBlockedCount ?? 0} detail="publish suppressions" />
+        <MetricCard icon={Gauge} color="tactical" label="Feedback Pressure" value={planner.feedbackPressureBlockCount ?? 0} detail={`${planner.feedbackPressureSkipCount ?? 0} generation skips`} />
+        <MetricCard icon={Activity} color="review" label="Editorial Gate" value={planner.editorialDowngradeCount ?? 0} detail="downgrades to review" />
         <MetricCard icon={Heartbeat} color="review" label="Worker Build" value={String(workerBuild.appVersion || "unknown")} detail={String(workerBuild.gitSha || "—").slice(0, 12)} />
+        <MetricCard icon={Gauge} color="knowmore" label="Task Quality" value={quality.tasks?.averages?.aggregate ?? 0} detail={String(quality.tasks?.weakestDimension || "—")} />
       </SimpleGrid>
 
       {scoreHealth?.alerts?.length ? (
@@ -197,6 +203,40 @@ export default function ObservabilityPage() {
       </UnifiedCard>
 
       <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
+        <UnifiedCard tone="knowmore">
+          <UnifiedCardHeader title="Quality Dimensions" />
+          <UnifiedCardBody>
+            <Table highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Card Family</Table.Th>
+                  <Table.Th>Evidence</Table.Th>
+                  <Table.Th>Linguistic</Table.Th>
+                  <Table.Th>Actionability</Table.Th>
+                  <Table.Th>Strategic</Table.Th>
+                  <Table.Th>Weakest</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {[
+                  ["Flashcards", quality.flashcards],
+                  ["Goals", quality.goals],
+                  ["Tasks", quality.tasks],
+                ].map(([label, snapshot]: any) => (
+                  <Table.Tr key={label}>
+                    <Table.Td>{label}</Table.Td>
+                    <Table.Td>{snapshot?.averages?.evidenceQuality ?? 0}</Table.Td>
+                    <Table.Td>{snapshot?.averages?.linguisticQuality ?? 0}</Table.Td>
+                    <Table.Td>{snapshot?.averages?.actionabilityQuality ?? 0}</Table.Td>
+                    <Table.Td>{snapshot?.averages?.strategicValue ?? 0}</Table.Td>
+                    <Table.Td>{snapshot?.weakestDimension || "—"}</Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </UnifiedCardBody>
+        </UnifiedCard>
+
         <UnifiedCard tone="strategy">
           <UnifiedCardHeader title="Planner State" />
           <UnifiedCardBody>

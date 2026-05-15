@@ -33,6 +33,14 @@ const {
 } = require("../../src/lib/source-contract");
 const { withPlannerTimeout } = require("./planner/timeout");
 const { getWorkerBuildIdentity, recordPlannerTelemetry } = require("./planner/telemetry");
+const { decideResearchPolicy, buildResearchContextFromDecision } = require("./planner/research-policy");
+const { evaluateCandidateNovelty } = require("./planner/novelty");
+const {
+  readFeedbackPressureIndex,
+  getPressureForFamilyKeys,
+  isAnyFamilyBlocked,
+} = require("./planner/feedback-pressure");
+const { applyEditorialQualityGate } = require("./planner/editorial-gate");
 
 /**
  * checklist LOCAL AI ENGINE
@@ -83,6 +91,15 @@ const PROCESSING_STATUS_ORDER = Object.freeze({
   VERIFIED: 2,
   ACCEPTED: 2,
 });
+const FLASHCARD_OPPORTUNITY_REVISIT_DAYS = 7;
+const TASK_OPPORTUNITY_REVISIT_DAYS = 7;
+
+function isOlderThanDays(value, days) {
+  if (!value) return true;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return true;
+  return (Date.now() - date.getTime()) > days * 24 * 60 * 60 * 1000;
+}
 
 function findPlannerLaneDeficits(laneCounts) {
   return PLANNER_LANE_ORDER.filter((lane) => Number(laneCounts?.[lane] || 0) < Number(PLANNER_LANE_TARGETS[lane] || 0));
@@ -275,6 +292,181 @@ async function loadCompanyPlannerInventory(prisma, companyId) {
       laneCounts,
     }),
   };
+}
+
+async function loadBatchLinkedSources(prisma, flashcardIds) {
+  if (!Array.isArray(flashcardIds) || flashcardIds.length === 0) return [];
+  const links = await prisma.flashcardSource.findMany({
+    where: {
+      flashcardId: { in: flashcardIds },
+      sourceType: "SOURCE",
+    },
+    select: { sourceId: true },
+  });
+  if (links.length === 0) return [];
+  return prisma.source.findMany({
+    where: { id: { in: Array.from(new Set(links.map((link) => link.sourceId))) } },
+  });
+}
+
+async function loadFlashcardOpportunitySources(prisma, companyId, {
+  excludeSourceIds = [],
+  take = 5,
+} = {}) {
+  if (!take || take <= 0) return [];
+
+  const sources = await prisma.source.findMany({
+    where: {
+      companyId,
+      ...(excludeSourceIds.length > 0 ? { id: { notIn: excludeSourceIds } } : {}),
+    },
+    orderBy: [
+      { updatedAt: "asc" },
+      { createdAt: "asc" },
+    ],
+    take: take * 6,
+  });
+  if (sources.length === 0) return [];
+
+  const links = await prisma.flashcardSource.findMany({
+    where: {
+      sourceType: "SOURCE",
+      sourceId: { in: sources.map((source) => source.id) },
+      flashcard: {
+        companyId,
+        activityState: { in: ["ACTIVE", "STALE"] },
+      },
+    },
+    select: { sourceId: true },
+  });
+  const linkCounts = new Map();
+  for (const link of links) {
+    linkCounts.set(link.sourceId, (linkCounts.get(link.sourceId) || 0) + 1);
+  }
+
+  return sources
+    .filter((source) => (linkCounts.get(source.id) || 0) > 0)
+    .filter((source) => isOlderThanDays(
+      source.metadata?.lastOpportunityMinedAt || source.updatedAt || source.createdAt,
+      FLASHCARD_OPPORTUNITY_REVISIT_DAYS,
+    ))
+    .sort((left, right) => {
+      const linkDelta = (linkCounts.get(left.id) || 0) - (linkCounts.get(right.id) || 0);
+      if (linkDelta !== 0) return linkDelta;
+      const ageDelta = new Date(left.updatedAt || left.createdAt || 0) - new Date(right.updatedAt || right.createdAt || 0);
+      if (ageDelta !== 0) return ageDelta;
+      return Number(right.iceScore || 0) - Number(left.iceScore || 0);
+    })
+    .slice(0, take);
+}
+
+async function markOpportunityBatchMined(prisma, sources, workerContext, outcome = {}) {
+  const minedAt = new Date().toISOString();
+  await Promise.all(
+    sources.map((source) => prisma.source.update({
+      where: { id: source.id },
+      data: {
+        metadata: {
+          ...(source.metadata || {}),
+          lastOpportunityMinedAt: minedAt,
+          lastOpportunityMiningRunId: workerContext?.cycleRunId || null,
+          lastOpportunityMiningCreatedCount: Number(outcome.createdCount || 0),
+        },
+      },
+    })),
+  );
+}
+
+async function loadTaskOpportunityTaskCounts(prisma, companyId, flashcards) {
+  const counts = new Map();
+  await Promise.all(
+    flashcards.map(async (flashcard) => {
+      const count = await prisma.checklistTask.count({
+        where: {
+          companyId,
+          activityState: { in: ["ACTIVE", "STALE"] },
+          status: { notIn: ["ARCHIVED", "COMPLETED"] },
+          sourceFlashcardIds: { has: flashcard.id },
+        },
+      });
+      counts.set(flashcard.id, count);
+    }),
+  );
+  return counts;
+}
+
+async function buildGenerationResearchContext(prisma, company, {
+  operation,
+  entityType,
+  entityId = null,
+  inventory = null,
+  entity = null,
+  sources = [],
+  flashcards = [],
+}) {
+  const decision = decideResearchPolicy({
+    operation,
+    company,
+    inventory,
+    entity,
+    sources,
+    flashcards,
+  });
+  await recordPlannerTelemetry(prisma, {
+    companyId: company.id,
+    entityType,
+    entityId,
+    eventType: decision.shouldResearch ? "RESEARCH_POLICY_RUN" : "RESEARCH_POLICY_SKIP",
+    reason: decision.reason,
+    details: decision,
+  });
+  const context = await buildResearchContextFromDecision(decision);
+  return { decision, context };
+}
+
+async function applyNoveltyGate(prisma, company, {
+  entityType,
+  entityId = null,
+  candidate,
+  inventory = null,
+}) {
+  const novelty = await evaluateCandidateNovelty(prisma, {
+    companyId: company.id,
+    entityType,
+    candidate,
+    inventory,
+  });
+  if (!novelty.shouldPublish) {
+    await recordPlannerTelemetry(prisma, {
+      companyId: company.id,
+      entityType,
+      entityId,
+      eventType: "NOVELTY_BLOCKED",
+      reason: novelty.reason,
+      details: novelty,
+    });
+  }
+  return novelty;
+}
+
+async function applyEditorialGate(prisma, company, {
+  entityType,
+  entityId = null,
+  candidate,
+  bodyLimit,
+}) {
+  const gated = applyEditorialQualityGate(entityType, candidate, { bodyLimit });
+  if (gated?.editorialGate?.shouldDowngrade) {
+    await recordPlannerTelemetry(prisma, {
+      companyId: company.id,
+      entityType,
+      entityId,
+      eventType: "EDITORIAL_GATE_DOWNGRADE",
+      reason: `Editorial gate downgraded ${entityType.toLowerCase()} copy because ${gated.editorialGate.weakestDimension} quality was too low.`,
+      details: gated.editorialGate,
+    });
+  }
+  return gated;
 }
 
 async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, workerContext) {
@@ -598,6 +790,23 @@ async function runSynthesisCycle(prisma) {
 }
 
 async function performCompanyScrubbing(prisma, company, memoryPrompt, topic, workerContext) {
+  const inventory = await loadCompanyPlannerInventory(prisma, company.id);
+  const decision = decideResearchPolicy({
+    operation: "RESEARCH_BACKFILL",
+    company,
+    inventory,
+  });
+  await recordPlannerTelemetry(prisma, {
+    companyId: company.id,
+    entityType: "COMPANY",
+    entityId: company.id,
+    eventType: decision.shouldResearch ? "RESEARCH_POLICY_RUN" : "RESEARCH_POLICY_SKIP",
+    reason: decision.reason,
+    details: decision,
+  });
+  if (!decision.shouldResearch) {
+    return 0;
+  }
   const results = await performResearchHarvest(prisma, company, topic);
   let ops = 0;
 
@@ -629,6 +838,31 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
   let dbFlashcards = [];
   const cid = company.id;
   const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
+  const inventory = await loadCompanyPlannerInventory(prisma, cid);
+  const [flashcardNoveltyInventory, taskNoveltyInventory, goalNoveltyInventory] = await Promise.all([
+    prisma.flashcard.findMany({
+      where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE"] } },
+      orderBy: { updatedAt: "desc" },
+      take: 150,
+      select: { id: true, publicId: true, title: true, body: true, hashtags: true },
+    }),
+    prisma.checklistTask.findMany({
+      where: {
+        companyId: cid,
+        activityState: { in: ["ACTIVE", "STALE"] },
+        status: { notIn: ["ARCHIVED", "COMPLETED"] },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 150,
+      select: { id: true, publicId: true, title: true, description: true, hashtags: true },
+    }),
+    prisma.goalcard.findMany({
+      where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE"] } },
+      orderBy: { updatedAt: "desc" },
+      take: 150,
+      select: { id: true, publicId: true, title: true, body: true, hashtags: true },
+    }),
+  ]);
 
   // M2.1: Use evidence.js for source selection with topic-hint filtering
   const topicFilter = topic ? [topic.label] : [];
@@ -644,45 +878,123 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
   });
   const synthesizedIds = new Set(synthesizedSourceLinks.map(l => l.sourceId));
   const unprocessed = sources.filter(s => !synthesizedIds.has(s.id));
+  const opportunitySlots = Math.max(0, orbitLimit - Math.min(orbitLimit, unprocessed.length));
+  const opportunitySources = await loadFlashcardOpportunitySources(prisma, cid, {
+    excludeSourceIds: Array.from(new Set(unprocessed.map((source) => source.id))),
+    take: opportunitySlots,
+  });
 
   // M2.1: Build evidence batches for multi-cardinality synthesis
   const batches = buildEvidenceBatches(unprocessed, 3);
-  console.log(`[GENERATOR] ${company.name}: ${unprocessed.length} unprocessed sources → ${batches.length} evidence batches`);
+  const opportunityBatches = opportunitySources.map((source) => [source]);
+  const plannedBatches = [...batches, ...opportunityBatches].slice(0, orbitLimit);
+  console.log(
+    `[GENERATOR] ${company.name}: ${unprocessed.length} unprocessed sources → ${batches.length} evidence batches; ${opportunitySources.length} opportunity sources selected.`,
+  );
 
-  for (const batch of batches.slice(0, orbitLimit)) {
+  if (opportunitySources.length > 0) {
+    await recordPlannerTelemetry(prisma, {
+      companyId: cid,
+      entityType: "SOURCE",
+      entityId: opportunitySources[0].id,
+      eventType: "OPPORTUNITY_MINING_RUN",
+      reason: "Previously mined datacards were revisited to search for additional flashcard opportunities.",
+      details: {
+        sourceIds: opportunitySources.map((source) => source.id),
+        revisitDays: FLASHCARD_OPPORTUNITY_REVISIT_DAYS,
+      },
+    });
+  }
+
+  for (const batch of plannedBatches) {
     try {
-      const drafts = await draftFlashcardsFromEvidenceBatch(prisma, company, batch, memoryPrompt, topic);
+      const isOpportunityBatch = batch.every((source) => synthesizedIds.has(source.id));
+      const { context: researchContext } = await buildGenerationResearchContext(prisma, company, {
+        operation: "FLASHCARD_CREATE",
+        entityType: "SOURCE",
+        entityId: batch[0]?.id || null,
+        inventory,
+        entity: {
+          iceScore: Math.max(...batch.map((source) => Number(source?.iceScore ?? 0)), 0),
+        },
+        sources: batch,
+      });
+      const drafts = await draftFlashcardsFromEvidenceBatch(
+        prisma,
+        company,
+        batch,
+        memoryPrompt,
+        topic,
+        { researchContext },
+      );
       if (drafts && drafts.length > 0) {
         for (const draft of drafts) {
           const { category, ...cleanDraft } = draft;
           let createdItem;
 
           if (category === "GOALCARD") {
-            const normalizedScores = normalizeKnowledgeScores(cleanDraft);
+            const editorialDraft = await applyEditorialGate(prisma, company, {
+              entityType: "GOAL",
+              entityId: cleanDraft.id,
+              candidate: cleanDraft,
+              bodyLimit: 1200,
+            });
+            const novelty = await applyNoveltyGate(prisma, company, {
+              entityType: "GOAL",
+              entityId: editorialDraft.id,
+              candidate: {
+                title: editorialDraft.title,
+                body: editorialDraft.body,
+                hashtags: editorialDraft.hashtags,
+              },
+              inventory: goalNoveltyInventory,
+            });
+            if (!novelty.shouldPublish) continue;
+            const normalizedScores = normalizeKnowledgeScores(editorialDraft);
+            if (editorialDraft.scoreProfile && typeof editorialDraft.scoreProfile === "object") {
+              editorialDraft.scoreProfile = {
+                ...editorialDraft.scoreProfile,
+                rationale: {
+                  ...(editorialDraft.scoreProfile.rationale || {}),
+                  noveltyScore: novelty.noveltyScore,
+                  maxSimilarity: novelty.maxSimilarity,
+                  noveltyClusterId: novelty.noveltyClusterId,
+                  noveltyClosestMatch: novelty.closestMatch,
+                  editorialGate: editorialDraft.editorialGate,
+                },
+              };
+            }
             createdItem = await prisma.goalcard.create({
               data: {
-                id: cleanDraft.id,
-                publicId: cleanDraft.publicId,
+                id: editorialDraft.id,
+                publicId: editorialDraft.publicId,
                 companyId: cid,
-                title: cleanDraft.title,
-                body: cleanDraft.body,
+                title: editorialDraft.title,
+                body: editorialDraft.body,
                 confidence: normalizedScores.confidence,
                 confidenceScore: normalizedScores.confidenceScore,
                 impact: normalizedScores.impact,
                 weight: normalizedScores.weight,
                 iceScore: normalizedScores.iceScore,
-                scoreProfile: cleanDraft.scoreProfile ?? undefined,
-                processingStatus: "DRAFT",
-                activityState: cleanDraft.activityState ?? "ACTIVE",
-                createdBy: cleanDraft.createdBy ?? "generator-agent",
-                refreshedAt: cleanDraft.refreshedAt ?? await getServerTime(prisma),
-                hashtags: cleanDraft.hashtags ?? [],
-                evidence: cleanDraft.evidence ?? undefined,
-                fingerprint: cleanDraft.fingerprint ?? undefined,
-                kind: cleanDraft.kind ?? "GOAL",
-                intelligenceType: cleanDraft.intelligenceType ?? "INTERNAL",
+                scoreProfile: editorialDraft.scoreProfile ?? undefined,
+                processingStatus: editorialDraft.processingStatus === "REVIEW" ? "REVIEW" : "DRAFT",
+                activityState: editorialDraft.activityState ?? "ACTIVE",
+                createdBy: editorialDraft.createdBy ?? "generator-agent",
+                refreshedAt: editorialDraft.refreshedAt ?? await getServerTime(prisma),
+                hashtags: editorialDraft.hashtags ?? [],
+                evidence: editorialDraft.evidence ?? undefined,
+                fingerprint: editorialDraft.fingerprint ?? undefined,
+                kind: editorialDraft.kind ?? "GOAL",
+                intelligenceType: editorialDraft.intelligenceType ?? "INTERNAL",
                 createdAt: await getServerTime(prisma)
               }
+            });
+            goalNoveltyInventory.unshift({
+              id: createdItem.id,
+              publicId: createdItem.publicId,
+              title: createdItem.title,
+              body: createdItem.body,
+              hashtags: createdItem.hashtags,
             });
             await recordGenerationEvent(prisma, {
               companyId: cid,
@@ -716,27 +1028,68 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
             }
           } else if (category === "TASKCARD") {
             const sourceIds = batch.map(src => src.id);
+            const editorialDraft = await applyEditorialGate(prisma, company, {
+              entityType: "TASK",
+              entityId: cleanDraft.id,
+              candidate: {
+                ...cleanDraft,
+                description: cleanDraft.body,
+              },
+              bodyLimit: 1200,
+            });
+            const novelty = await applyNoveltyGate(prisma, company, {
+              entityType: "TASK",
+              entityId: editorialDraft.id,
+              candidate: {
+                title: editorialDraft.title,
+                description: editorialDraft.description,
+                hashtags: editorialDraft.hashtags,
+              },
+              inventory: taskNoveltyInventory,
+            });
+            if (!novelty.shouldPublish) continue;
             const normalizedScores = normalizeTaskScores({
-              impact: cleanDraft.impact,
-              confidence: cleanDraft.confidenceScore ?? cleanDraft.confidence,
-              ease: cleanDraft.weight ?? cleanDraft.ease,
+              impact: editorialDraft.impact,
+              confidence: editorialDraft.confidenceScore ?? editorialDraft.confidence,
+              ease: editorialDraft.weight ?? editorialDraft.ease,
             });
             createdItem = await prisma.checklistTask.create({
               data: {
                 companyId: cid,
-                title: cleanDraft.title,
-                description: cleanDraft.body,
+                title: editorialDraft.title,
+                description: editorialDraft.description,
                 status: "PENDING",
                 confidence: normalizedScores.confidence,
                 confidenceScore: normalizedScores.confidenceScore,
                 impact: normalizedScores.impact,
                 ease: normalizedScores.ease,
                 iceScore: normalizedScores.iceScore,
-                hashtags: cleanDraft.hashtags,
+                hashtags: editorialDraft.hashtags,
                 cycleRunId: workerContext.cycleRunId,
                 generatedFromIds: sourceIds,
                 candidateState: "GENERATED",
+                processingStatus: editorialDraft.processingStatus === "REVIEW" ? "REVIEW" : undefined,
+                scoreProfile: editorialDraft.scoreProfile
+                  ? {
+                      ...editorialDraft.scoreProfile,
+                      rationale: {
+                        ...(editorialDraft.scoreProfile.rationale || {}),
+                        noveltyScore: novelty.noveltyScore,
+                        maxSimilarity: novelty.maxSimilarity,
+                        noveltyClusterId: novelty.noveltyClusterId,
+                        noveltyClosestMatch: novelty.closestMatch,
+                        editorialGate: editorialDraft.editorialGate,
+                      },
+                    }
+                  : undefined,
               }
+            });
+            taskNoveltyInventory.unshift({
+              id: createdItem.id,
+              publicId: createdItem.publicId,
+              title: createdItem.title,
+              description: createdItem.description,
+              hashtags: createdItem.hashtags,
             });
             await recordGenerationEvent(prisma, {
               companyId: cid,
@@ -762,40 +1115,77 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
             });
           } else {
             // Default: FLASHCARD
-            const normalizedScores = normalizeKnowledgeScores(cleanDraft);
+            const editorialDraft = await applyEditorialGate(prisma, company, {
+              entityType: "FLASHCARD",
+              entityId: cleanDraft.id,
+              candidate: cleanDraft,
+              bodyLimit: 1200,
+            });
+            const novelty = await applyNoveltyGate(prisma, company, {
+              entityType: "FLASHCARD",
+              entityId: editorialDraft.id,
+              candidate: {
+                title: editorialDraft.title,
+                body: editorialDraft.body,
+                hashtags: editorialDraft.hashtags,
+              },
+              inventory: flashcardNoveltyInventory,
+            });
+            if (!novelty.shouldPublish) continue;
+            const normalizedScores = normalizeKnowledgeScores(editorialDraft);
+            const noveltyAwareScoreProfile = editorialDraft.scoreProfile && typeof editorialDraft.scoreProfile === "object"
+              ? {
+                  ...editorialDraft.scoreProfile,
+                  rationale: {
+                    ...(editorialDraft.scoreProfile.rationale || {}),
+                    noveltyScore: novelty.noveltyScore,
+                    maxSimilarity: novelty.maxSimilarity,
+                    noveltyClusterId: novelty.noveltyClusterId,
+                    noveltyClosestMatch: novelty.closestMatch,
+                    editorialGate: editorialDraft.editorialGate,
+                  },
+                }
+              : editorialDraft.scoreProfile ?? undefined;
             createdItem = await prisma.flashcard.create({
               data: {
-                id: cleanDraft.id,
-                publicId: cleanDraft.publicId,
+                id: editorialDraft.id,
+                publicId: editorialDraft.publicId,
                 companyId: cid,
-                title: cleanDraft.title,
-                body: cleanDraft.body,
+                title: editorialDraft.title,
+                body: editorialDraft.body,
                 confidence: normalizedScores.confidence,
                 confidenceScore: normalizedScores.confidenceScore,
                 impact: normalizedScores.impact,
                 weight: normalizedScores.weight,
                 iceScore: normalizedScores.iceScore,
-                scoreProfile: cleanDraft.scoreProfile ?? undefined,
-                processingStatus: "DRAFT",
-                activityState: cleanDraft.activityState ?? "ACTIVE",
-                status: cleanDraft.status ?? "ACTIVE",
-                reviewStatus: cleanDraft.reviewStatus ?? "PENDING",
-                createdBy: cleanDraft.createdBy ?? "generator-agent",
-                refreshedAt: cleanDraft.refreshedAt ?? await getServerTime(prisma),
-                hashtags: cleanDraft.hashtags ?? [],
-                evidence: cleanDraft.evidence ?? undefined,
-                citationSnapshotIds: cleanDraft.citationSnapshotIds ?? [],
-                conflictDetected: cleanDraft.conflictDetected ?? false,
-                conflictSummary: cleanDraft.conflictSummary ?? undefined,
-                fingerprint: cleanDraft.fingerprint ?? undefined,
-                kind: cleanDraft.kind ?? "SUMMARY",
-                intelligenceType: cleanDraft.intelligenceType ?? "INTERNAL",
-                generatedFromIds: cleanDraft.generatedFromIds ?? [],
-                versionFamilyId: cleanDraft.versionFamilyId ?? undefined,
+                scoreProfile: noveltyAwareScoreProfile,
+                processingStatus: editorialDraft.processingStatus === "REVIEW" ? "REVIEW" : "DRAFT",
+                activityState: editorialDraft.activityState ?? "ACTIVE",
+                status: editorialDraft.status ?? "ACTIVE",
+                reviewStatus: editorialDraft.reviewStatus ?? "PENDING",
+                createdBy: editorialDraft.createdBy ?? "generator-agent",
+                refreshedAt: editorialDraft.refreshedAt ?? await getServerTime(prisma),
+                hashtags: editorialDraft.hashtags ?? [],
+                evidence: editorialDraft.evidence ?? undefined,
+                citationSnapshotIds: editorialDraft.citationSnapshotIds ?? [],
+                conflictDetected: editorialDraft.conflictDetected ?? false,
+                conflictSummary: editorialDraft.conflictSummary ?? undefined,
+                fingerprint: editorialDraft.fingerprint ?? undefined,
+                kind: editorialDraft.kind ?? "SUMMARY",
+                intelligenceType: editorialDraft.intelligenceType ?? "INTERNAL",
+                generatedFromIds: editorialDraft.generatedFromIds ?? [],
+                versionFamilyId: editorialDraft.versionFamilyId ?? undefined,
                 cycleRunId: workerContext.cycleRunId,
                 createdByRunId: workerContext.cycleRunId,
                 createdAt: await getServerTime(prisma)
               }
+            });
+            flashcardNoveltyInventory.unshift({
+              id: createdItem.id,
+              publicId: createdItem.publicId,
+              title: createdItem.title,
+              body: createdItem.body,
+              hashtags: createdItem.hashtags,
             });
             await recordGenerationEvent(prisma, {
               companyId: cid,
@@ -833,6 +1223,11 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
             dbFlashcards.push(createdItem);
           }
         }
+        if (isOpportunityBatch) {
+          await markOpportunityBatchMined(prisma, batch, workerContext, { createdCount: drafts.length });
+        }
+      } else if (isOpportunityBatch) {
+        await markOpportunityBatchMined(prisma, batch, workerContext, { createdCount: 0 });
       }
     } catch (err) {
       console.error(`[GENERATOR] Failed batch:`, err.message);
@@ -961,6 +1356,18 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
   let ops = 0;
   const cid = company.id;
   const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
+  const inventory = await loadCompanyPlannerInventory(prisma, cid);
+  const taskNoveltyInventory = await prisma.checklistTask.findMany({
+    where: {
+      companyId: cid,
+      activityState: { in: ["ACTIVE", "STALE"] },
+      status: { notIn: ["ARCHIVED", "COMPLETED"] },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 150,
+    select: { id: true, publicId: true, title: true, description: true, hashtags: true },
+  });
+  const feedbackPressureIndex = await readFeedbackPressureIndex(prisma);
 
   // 1. Find active Flashcards that haven't spawned actions recently.
   // Bootstrap mode may need to generate from CHECKED/DRAFT inventory as well.
@@ -999,23 +1406,128 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
       (PROCESSING_STATUS_ORDER[String(right.processingStatus || "DRAFT").toUpperCase()] ?? 0) -
       (PROCESSING_STATUS_ORDER[String(left.processingStatus || "DRAFT").toUpperCase()] ?? 0);
     if (statusDelta !== 0) return statusDelta;
+    const iceDelta = Number(right.iceScore || 0) - Number(left.iceScore || 0);
+    if (iceDelta !== 0) return iceDelta;
     return new Date(left.lastActionAt || left.updatedAt || left.createdAt || 0) - new Date(right.lastActionAt || right.updatedAt || right.createdAt || 0);
   });
+  const taskOpportunityCounts = await loadTaskOpportunityTaskCounts(prisma, cid, rankedKnowledgeBase);
+  const eligibleKnowledgeBase = rankedKnowledgeBase
+    .map((flashcard) => ({
+      ...flashcard,
+      _taskOpportunityCount: taskOpportunityCounts.get(flashcard.id) || 0,
+      _feedbackPressure: getPressureForFamilyKeys(feedbackPressureIndex, [`flashcard:${flashcard.id}`]),
+      _feedbackBlocked: isAnyFamilyBlocked(feedbackPressureIndex, [`flashcard:${flashcard.id}`]),
+    }))
+    .filter((flashcard) => !flashcard._feedbackBlocked)
+    .filter((flashcard) => (
+      flashcard._taskOpportunityCount === 0
+      || isOlderThanDays(flashcard.lastActionAt || flashcard.updatedAt || flashcard.createdAt, TASK_OPPORTUNITY_REVISIT_DAYS)
+    ))
+    .sort((left, right) => {
+      const pressureDelta = Number(right._feedbackPressure || 0) - Number(left._feedbackPressure || 0);
+      if (pressureDelta !== 0) return pressureDelta;
+      const taskCountDelta = (left._taskOpportunityCount || 0) - (right._taskOpportunityCount || 0);
+      if (taskCountDelta !== 0) return taskCountDelta;
+      const statusDelta =
+        (PROCESSING_STATUS_ORDER[String(right.processingStatus || "DRAFT").toUpperCase()] ?? 0) -
+        (PROCESSING_STATUS_ORDER[String(left.processingStatus || "DRAFT").toUpperCase()] ?? 0);
+      if (statusDelta !== 0) return statusDelta;
+      const iceDelta = Number(right.iceScore || 0) - Number(left.iceScore || 0);
+      if (iceDelta !== 0) return iceDelta;
+      return new Date(left.lastActionAt || left.updatedAt || left.createdAt || 0) - new Date(right.lastActionAt || right.updatedAt || right.createdAt || 0);
+    });
 
-  console.log(`[ACTION] ${company.name}: Found ${rankedKnowledgeBase.length} active Flashcards to mine for actions`);
+  if (eligibleKnowledgeBase.length > 0) {
+    await recordPlannerTelemetry(prisma, {
+      companyId: cid,
+      entityType: "FLASHCARD",
+      entityId: eligibleKnowledgeBase[0].id,
+      eventType: "OPPORTUNITY_MINING_RUN",
+      reason: "Flashcards with low downstream task yield or stale action timing were selected for renewed task opportunity mining.",
+      details: {
+        flashcardIds: eligibleKnowledgeBase.slice(0, orbitLimit).map((flashcard) => flashcard.id),
+        revisitDays: TASK_OPPORTUNITY_REVISIT_DAYS,
+      },
+    });
+  }
+  const blockedFlashcards = rankedKnowledgeBase.filter((flashcard) =>
+    isAnyFamilyBlocked(feedbackPressureIndex, [`flashcard:${flashcard.id}`]),
+  );
+  for (const flashcard of blockedFlashcards.slice(0, 10)) {
+    await recordPlannerTelemetry(prisma, {
+      companyId: cid,
+      entityType: "FLASHCARD",
+      entityId: flashcard.id,
+      eventType: "FEEDBACK_PRESSURE_SKIP",
+      reason: "Flashcard task generation is blocked by repeated negative feedback on its downstream family.",
+      details: {
+        familyKeys: [`flashcard:${flashcard.id}`],
+      },
+    });
+  }
 
-  for (const fc of rankedKnowledgeBase.slice(0, orbitLimit)) {
+  console.log(`[ACTION] ${company.name}: Found ${eligibleKnowledgeBase.length} active Flashcards to mine for actions`);
+
+  for (const fc of eligibleKnowledgeBase.slice(0, orbitLimit)) {
     try {
       const taskStatusCeiling = getStatusCeilingFromValues([fc.processingStatus]);
+      const linkedSources = await loadBatchLinkedSources(prisma, [fc.id]);
+      const { context: researchContext } = await buildGenerationResearchContext(prisma, company, {
+        operation: "TASK_CREATE",
+        entityType: "FLASHCARD",
+        entityId: fc.id,
+        inventory,
+        entity: fc,
+        sources: linkedSources,
+        flashcards: [fc],
+      });
       // Step 1: GENERATE (M2.1 Drafter)
       const generatedCandidates = await withPlannerStageTimeout(
+        prisma,
+        company,
         `${company.name}:task_generation_from_flashcard:${fc.id}`,
-        () => draftTaskcardFromFlashCard(prisma, company, fc, memoryPrompt, topic),
+        () => draftTaskcardFromFlashCard(prisma, company, fc, memoryPrompt, topic, { researchContext }),
+        { stage: "task_generation_from_flashcard", flashcardId: fc.id },
       );
       if (!generatedCandidates || generatedCandidates.length === 0) continue;
+      const publishableCandidates = [];
+      for (const draft of generatedCandidates) {
+        const editorialDraft = await applyEditorialGate(prisma, company, {
+          entityType: "TASK",
+          entityId: draft.id,
+          candidate: draft,
+          bodyLimit: 1200,
+        });
+        const novelty = await applyNoveltyGate(prisma, company, {
+          entityType: "TASK",
+          entityId: editorialDraft.id,
+          candidate: {
+            title: editorialDraft.title,
+            description: editorialDraft.description ?? editorialDraft.body,
+            hashtags: editorialDraft.hashtags,
+          },
+          inventory: taskNoveltyInventory,
+        });
+        if (!novelty.shouldPublish) continue;
+        if (editorialDraft.scoreProfile && typeof editorialDraft.scoreProfile === "object") {
+          editorialDraft.scoreProfile = {
+            ...editorialDraft.scoreProfile,
+            rationale: {
+              ...(editorialDraft.scoreProfile.rationale || {}),
+              noveltyScore: novelty.noveltyScore,
+              maxSimilarity: novelty.maxSimilarity,
+              noveltyClusterId: novelty.noveltyClusterId,
+              noveltyClosestMatch: novelty.closestMatch,
+              editorialGate: editorialDraft.editorialGate,
+            },
+          };
+        }
+        publishableCandidates.push(editorialDraft);
+      }
+      if (publishableCandidates.length === 0) continue;
 
       // Ensure fingerprint and other default fields for generated candidates
-      const dbCandidates = await Promise.all(generatedCandidates.map(async draft => {
+      const dbCandidates = await Promise.all(publishableCandidates.map(async draft => {
         const lifecycleCeiling = buildTaskLifecycleCeiling(taskStatusCeiling);
         const created = await prisma.checklistTask.create({
           data: {
@@ -1047,6 +1559,13 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
           },
           teachingWeight: 50,
           cycleRunId: workerContext.cycleRunId,
+        });
+        taskNoveltyInventory.unshift({
+          id: created.id,
+          publicId: created.publicId,
+          title: created.title,
+          description: created.description,
+          hashtags: created.hashtags,
         });
         return created;
       }));

@@ -95,8 +95,31 @@ export type ScoreProfile = {
       };
     };
   };
+  quality?: {
+    version: number;
+    aggregate: number;
+    weakestDimension: string | null;
+    dimensions: {
+      evidenceQuality: number;
+      linguisticQuality: number;
+      actionabilityQuality: number;
+      strategicValue: number;
+    };
+  };
   rationale: Record<string, unknown> | null;
   generatedAt: string;
+};
+
+export type QualityEnvelope = {
+  version: number;
+  aggregate: number;
+  weakestDimension: string | null;
+  dimensions: {
+    evidenceQuality: number;
+    linguisticQuality: number;
+    actionabilityQuality: number;
+    strategicValue: number;
+  };
 };
 
 export function clampMetric(value: number | null | undefined, min?: number, max?: number): number;
@@ -130,6 +153,26 @@ export function buildScoreProfile(input?: {
   agentWeight?: number | null;
   rationale?: Record<string, unknown> | null;
 }): ScoreProfile;
+export function buildQualityEnvelope(input?: CanonicalTripletInput & Record<string, unknown>): QualityEnvelope;
+export function buildQualityDimensionScores(input?: CanonicalTripletInput & Record<string, unknown>): {
+  evidenceQuality: number;
+  linguisticQuality: number;
+  actionabilityQuality: number;
+  strategicValue: number;
+  aggregate: number;
+  weakestDimension: string | null;
+};
+export function scoreProfileQuality(
+  profile?: ScoreProfile | Record<string, unknown> | null,
+  fallbacks?: CanonicalTripletInput,
+): {
+  evidenceQuality: number;
+  linguisticQuality: number;
+  actionabilityQuality: number;
+  strategicValue: number;
+  aggregate: number;
+  weakestDimension: string;
+};
 export function scoreProfileTriplet(
   profile?: ScoreProfile | Record<string, unknown> | null,
   fallbacks?: CanonicalTripletInput,
@@ -171,6 +214,8 @@ export function persistTaskScoresFromProfile(profile?: ScoreProfile | Record<str
   confidenceScore: number;
   ease: number;
   iceScore: number;
+  qualityScore: number;
+  scoreProfile: ScoreProfile | Record<string, unknown>;
 };
 export function persistKnowledgeScoresFromProfile(profile?: ScoreProfile | Record<string, unknown> | null): {
   impact: number;
@@ -178,6 +223,7 @@ export function persistKnowledgeScoresFromProfile(profile?: ScoreProfile | Recor
   confidenceScore: number;
   weight: number;
   iceScore: number;
+  scoreProfile: ScoreProfile | Record<string, unknown>;
 };
 export function normalizeTaskScores(input?: CanonicalTripletInput): {
   impact: number;
@@ -185,6 +231,8 @@ export function normalizeTaskScores(input?: CanonicalTripletInput): {
   confidenceScore: number;
   ease: number;
   iceScore: number;
+  qualityScore: number;
+  scoreProfile: ScoreProfile | Record<string, unknown>;
 };
 export function normalizeKnowledgeScores(input?: CanonicalTripletInput): {
   impact: number;
@@ -192,6 +240,7 @@ export function normalizeKnowledgeScores(input?: CanonicalTripletInput): {
   confidenceScore: number;
   weight: number;
   iceScore: number;
+  scoreProfile: ScoreProfile | Record<string, unknown>;
 };
 export function normalizeGoalScores(input?: CanonicalTripletInput): {
   impact: number;
@@ -199,6 +248,7 @@ export function normalizeGoalScores(input?: CanonicalTripletInput): {
   confidenceScore: number;
   weight: number;
   iceScore: number;
+  scoreProfile: ScoreProfile | Record<string, unknown>;
 };
 export function deriveSpecificitySignal(title?: string | null, description?: string | null): number;
 export function deriveUrgencySignal(kind?: string | null, title?: string | null, description?: string | null): number;

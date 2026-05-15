@@ -23,6 +23,7 @@ const {
   performCompanyJudging,
   performCompanyActionGeneration,
   runCompanyPlannerCycle,
+  updateProgress,
 } = require("./synthesis");
 const { getHumanMemoryPrompt, processMemoryUpdates } = require("./memory");
 
@@ -36,6 +37,68 @@ function isPlannerMaintenanceJob(jobType) {
 
 function isPlannerQualityJob(jobType) {
   return PLANNER_QUALITY_JOB_TYPES.includes(jobType);
+}
+
+function buildSourceLabel(source) {
+  const provenance = typeof source?.provenance === "string" ? source.provenance.trim() : "";
+  if (provenance) return provenance;
+  const content = typeof source?.content === "string" ? source.content.replace(/\s+/g, " ").trim() : "";
+  if (!content) return source?.publicId ? `Datacard #${source.publicId}` : "Datacard";
+  return content.length > 96 ? `${content.slice(0, 96).trimEnd()}...` : content;
+}
+
+async function resolvePipelineEntityLabel(prisma, job) {
+  if (!job?.entityId) return null;
+  const entityType = String(job.entityType || "").toUpperCase();
+
+  if (entityType === "FLASHCARD") {
+    const flashcard = await prisma.flashcard.findUnique({
+      where: { id: job.entityId },
+      select: { title: true, publicId: true },
+    });
+    return flashcard?.title || (flashcard?.publicId ? `Flashcard #${flashcard.publicId}` : "Flashcard");
+  }
+
+  if (entityType === "CHECKLIST_TASK" || entityType === "TASK" || entityType === "CHECKLIST") {
+    const task = await prisma.checklistTask.findUnique({
+      where: { id: job.entityId },
+      select: { title: true, publicId: true },
+    });
+    return task?.title || (task?.publicId ? `Task #${task.publicId}` : "Task");
+  }
+
+  if (entityType === "GOALCARD" || entityType === "GOAL") {
+    const goal = await prisma.goalcard.findUnique({
+      where: { id: job.entityId },
+      select: { title: true, publicId: true },
+    });
+    return goal?.title || (goal?.publicId ? `Goal #${goal.publicId}` : "Goal");
+  }
+
+  if (entityType === "SOURCE" || entityType === "DATACARD") {
+    const source = await prisma.source.findUnique({
+      where: { id: job.entityId },
+      select: { publicId: true, provenance: true, content: true },
+    });
+    return buildSourceLabel(source);
+  }
+
+  if (entityType === "FILE" || entityType === "UPLOADED_SOURCE_FILE") {
+    const file = await prisma.uploadedSourceFile.findUnique({
+      where: { id: job.entityId },
+      select: { name: true, publicId: true },
+    });
+    return file?.name || (file?.publicId ? `File #${file.publicId}` : "File");
+  }
+
+  return null;
+}
+
+function buildActiveTaskString(job, companyName, entityLabel) {
+  const taskParts = [job.jobType];
+  if (entityLabel) taskParts.push(entityLabel);
+  if (companyName) taskParts.push(`for ${companyName}`);
+  return taskParts.join(" · ");
 }
 
 async function runPlannerBootstrapJob(prisma, company) {
@@ -221,6 +284,20 @@ async function runPipelineQueueBatch(prisma, limit = 3) {
   for (const job of claimed) {
     const startedAt = Date.now();
     try {
+      const companyName = job.company?.name
+        || (job.companyId
+          ? (await prisma.company.findUnique({
+              where: { id: job.companyId },
+              select: { name: true },
+            }))?.name || job.companyId
+          : null);
+      const entityLabel = await resolvePipelineEntityLabel(prisma, job);
+      await updateProgress(prisma, {
+        state: "running",
+        stage: "PIPELINE_QUEUE",
+        currentCompany: companyName,
+        activeTask: buildActiveTaskString(job, companyName, entityLabel),
+      });
       const result = await executePipelineJob(prisma, job);
       const workloadUnits = typeof result === "number" ? Math.max(1, result) : 1;
       await completePipelineJob(

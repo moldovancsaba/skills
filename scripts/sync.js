@@ -43,7 +43,12 @@ async function runStartupIntegrityPass() {
   if (now - lastStartupScrubAt < STARTUP_SCRUB_INTERVAL) return;
 
   lastStartupScrubAt = now;
-  await updateProgress(prisma, { state: "running", stage: "STARTUP_MAINTENANCE" });
+  await updateProgress(prisma, {
+    state: "running",
+    stage: "STARTUP_MAINTENANCE",
+    currentCompany: null,
+    activeTask: "Running startup integrity maintenance",
+  });
   await scrubDatabaseElemental(prisma);
 }
 
@@ -57,16 +62,35 @@ async function runWorkerLoop() {
     wakeRequested = false;
 
     await runStartupIntegrityPass();
-    await updateProgress(prisma, { state: "running", stage: "SYSTEM_COMMANDS" });
+    await updateProgress(prisma, {
+      state: "running",
+      stage: "SYSTEM_COMMANDS",
+      currentCompany: null,
+      activeTask: "Processing worker system commands",
+    });
     await processPendingWorkerCommands(prisma, refreshAllIntelligenceSnapshots);
-    await updateProgress(prisma, { state: "running", stage: "PIPELINE_QUEUE" });
+    await updateProgress(prisma, {
+      state: "running",
+      stage: "PIPELINE_QUEUE",
+      activeTask: "Scanning pipeline queue for runnable jobs",
+    });
     // Queue execution is the only mutation lane. Any revisit, synthesis,
     // repair, or maintenance work must arrive through claimable jobs.
     const queueOps = await runPipelineQueueBatch(prisma, 4);
-    await updateProgress(prisma, { state: "running", stage: "SNAPSHOT_REFRESH" });
+    await updateProgress(prisma, {
+      state: "running",
+      stage: "SNAPSHOT_REFRESH",
+      currentCompany: null,
+      activeTask: "Refreshing intelligence snapshots",
+    });
     await refreshAllIntelligenceSnapshots(prisma);
 
-    await updateProgress(prisma, { state: "idle", stage: "IDLE" });
+    await updateProgress(prisma, {
+      state: "idle",
+      stage: "IDLE",
+      currentCompany: null,
+      activeTask: "Waiting for the next planner cycle",
+    });
 
     const restInterval = queueOps > 0 ? ACTIVE_INTERVAL : IDLE_INTERVAL;
     console.log(
@@ -87,6 +111,7 @@ async function runWorkerLoop() {
     await updateProgress(prisma, {
       state: "idle",
       stage: "ERROR",
+      activeTask: "Worker loop failed",
       errorStats: {
         ...synthesisState.errorStats,
         attempts: (synthesisState.errorStats?.attempts || 0) + 1,
@@ -116,6 +141,8 @@ const server = http.createServer(async (req, res) => {
         pass: progress.pass,
         lastProgressAt: progress.lastProgressAt,
         currentCompany: progress.currentCompany,
+        activeTask: progress.activeTask,
+        activeModel: progress.activeModel,
         cycleCount: progress.cycleCount,
         enrichmentModeFlashcards: progress.enrichmentModeFlashcards,
         enrichmentModeTasks: progress.enrichmentModeTasks,

@@ -216,10 +216,10 @@ async function handleApi(req, res) {
     logTail,
     inventory,
     queue,
-    activeTask: queue.currentJob?.jobType || worker.activeTask,
+    activeTask: worker.activeTask || queue.currentJob?.jobType || null,
     activeEntityType: queue.currentJob?.entityType || null,
     activeEntityLabel: queue.currentJob?.entityLabel || null,
-    activeCompany: queue.currentJob?.companyName || worker.currentCompany,
+    activeCompany: worker.currentCompany || queue.currentJob?.companyName || null,
     activeModel: worker.activeModel,
     lastLatency: worker.metrics?.lastLatency
   };

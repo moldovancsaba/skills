@@ -313,7 +313,7 @@ function pollHealth() {
           if (freshAt) lastProgressAt = freshAt;
 
           log(`HEALTH OK | state=${prog.state} stage=${prog.stage} cycle=${prog.cycleCount} company=${prog.currentCompany || "-"}`);
-          writeHeartbeat({ healthState: prog.state, healthStage: prog.stage });
+          writeHeartbeat({ healthState: prog.state, healthStage: prog.stage, lastProgressAt: freshAt });
         } catch (e) {
           warn(`Health parse error: ${e.message}`);
         }
@@ -364,7 +364,7 @@ function pollSnapshotWorkerHealth() {
           if (freshAt) lastSnapshotProgressAt = freshAt;
 
           log(`SNAPSHOT OK | state=${prog.state} stage=${prog.stage}`);
-          writeHeartbeat({ snapshotState: prog.state, snapshotStage: prog.stage });
+          writeHeartbeat({ snapshotState: prog.state, snapshotStage: prog.stage, lastSnapshotProgressAt: freshAt });
         } catch (e) {
           warn(`Snapshot health parse error: ${e.message}`);
         }

@@ -84,6 +84,10 @@ let startedAt          = null;
 let snapshotStartedAt  = null;
 let lastProgressAt     = null;    // last value from /health
 let lastSnapshotProgressAt = null;
+let currentWorkFingerprint = null;
+let currentWorkStartedAt = null;
+let currentSnapshotFingerprint = null;
+let currentSnapshotStartedAt = null;
 let healthCheckTimer   = null;
 let heartbeatTimer     = null;
 let useSafeMode        = false; // If true, tells worker to use fallback model
@@ -277,6 +281,14 @@ function reclaimPort(port) {
   } catch (_) {}
 }
 
+function buildWorkFingerprint(progress = {}) {
+  return JSON.stringify({
+    stage: progress.stage || null,
+    activeTask: progress.activeTask || null,
+    currentCompany: progress.currentCompany || null,
+  });
+}
+
 /**
  * Performs a health scan of the local AI worker.
  * Triggers a process kill if the worker is found to be stuck or unresponsive.
@@ -299,6 +311,7 @@ function pollHealth() {
           const data = JSON.parse(body);
           const prog = data.progress || {};
           const freshAt = prog.lastProgressAt || null;
+          const nextFingerprint = buildWorkFingerprint(prog);
 
           // Detect stuck: same lastProgressAt for > STUCK_MS while state is "running"
           if (prog.state === "running" && freshAt && freshAt === lastProgressAt) {
@@ -308,6 +321,22 @@ function pollHealth() {
               killWorker("stuck");
               return;
             }
+          }
+
+          if (prog.state === "running" && prog.activeTask) {
+            if (nextFingerprint !== currentWorkFingerprint) {
+              currentWorkFingerprint = nextFingerprint;
+              currentWorkStartedAt = Date.now();
+            } else if (currentWorkStartedAt && Date.now() - currentWorkStartedAt > STUCK_MS) {
+              warn(
+                `Worker exceeded ${Math.round(STUCK_MS / 60000)} minutes on the same task (${prog.activeTask}) for ${prog.currentCompany || "-"}. Killing.`,
+              );
+              killWorker("same-task-timeout");
+              return;
+            }
+          } else {
+            currentWorkFingerprint = null;
+            currentWorkStartedAt = null;
           }
 
           if (freshAt) lastProgressAt = freshAt;
@@ -351,6 +380,7 @@ function pollSnapshotWorkerHealth() {
           const data = JSON.parse(body);
           const prog = data.progress || {};
           const freshAt = prog.lastProgressAt || null;
+          const nextFingerprint = buildWorkFingerprint(prog);
 
           if (prog.state === "running" && freshAt && freshAt === lastSnapshotProgressAt) {
             const staleSince = Date.now() - new Date(freshAt).getTime();
@@ -359,6 +389,22 @@ function pollSnapshotWorkerHealth() {
               killSnapshotWorker("stuck");
               return;
             }
+          }
+
+          if (prog.state === "running" && prog.activeTask) {
+            if (nextFingerprint !== currentSnapshotFingerprint) {
+              currentSnapshotFingerprint = nextFingerprint;
+              currentSnapshotStartedAt = Date.now();
+            } else if (currentSnapshotStartedAt && Date.now() - currentSnapshotStartedAt > STUCK_MS) {
+              warn(
+                `Snapshot worker exceeded ${Math.round(STUCK_MS / 60000)} minutes on the same task (${prog.activeTask}). Killing.`,
+              );
+              killSnapshotWorker("same-task-timeout");
+              return;
+            }
+          } else {
+            currentSnapshotFingerprint = null;
+            currentSnapshotStartedAt = null;
           }
 
           if (freshAt) lastSnapshotProgressAt = freshAt;
@@ -426,6 +472,8 @@ function checkStatusServerHealth() {
 function killWorker(reason) {
   if (!workerProcess) return;
   warn(`Killing worker (reason: ${reason}) pid=${workerProcess.pid}`);
+  currentWorkFingerprint = null;
+  currentWorkStartedAt = null;
   try { workerProcess.kill("SIGTERM"); } catch (_) {}
   setTimeout(() => {
     try { if (workerProcess) workerProcess.kill("SIGKILL"); } catch (_) {}
@@ -435,6 +483,8 @@ function killWorker(reason) {
 function killSnapshotWorker(reason) {
   if (!snapshotProcess) return;
   warn(`Killing snapshot worker (reason: ${reason}) pid=${snapshotProcess.pid}`);
+  currentSnapshotFingerprint = null;
+  currentSnapshotStartedAt = null;
   try { snapshotProcess.kill("SIGTERM"); } catch (_) {}
   setTimeout(() => {
     try { if (snapshotProcess) snapshotProcess.kill("SIGKILL"); } catch (_) {}
@@ -451,6 +501,8 @@ function startWorker() {
   log(`Starting local AI worker (attempt #${restartCount + 1}) | back-off=${restartMs}ms`);
   startedAt = Date.now();
   lastProgressAt = null;
+  currentWorkFingerprint = null;
+  currentWorkStartedAt = null;
   workerAlive = false;
   reclaimPort(HEALTH_PORT);
 
@@ -511,6 +563,8 @@ function startSnapshotWorker() {
   log(`Starting snapshot worker (attempt #${snapshotRestartCount + 1}) | back-off=${snapshotRestartMs}ms`);
   snapshotStartedAt = Date.now();
   lastSnapshotProgressAt = null;
+  currentSnapshotFingerprint = null;
+  currentSnapshotStartedAt = null;
   snapshotWorkerAlive = false;
   reclaimPort(SNAPSHOT_HEALTH_PORT);
 

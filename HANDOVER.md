@@ -53,6 +53,7 @@ Read first:
 - startup integrity scrub cooldown now persists across restarts instead of firing again on every guardian bounce
 - planner telemetry now retries and degrades to best-effort on retryable Prisma write conflicts instead of failing the owning job
 - the status server now exposes a lightweight `/health` probe and briefly caches expensive payload assembly
+- wedged foreground work now has a 10-minute no-progress breaker; the worker is killed and the stale `RUNNING` job is auto-failed for later retry
 - current human controls are drag/drop between queue columns, drag/drop reordering, and `Reset to AI Only`
 - source-backed Knowmore cards now carry durable citation snapshots plus explicit conflict flags and summaries
 - maintenance now includes oldest-first revisit jobs for unresolved modified candidates and declined high-potential candidates

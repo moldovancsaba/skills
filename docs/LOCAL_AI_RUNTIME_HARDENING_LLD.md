@@ -24,6 +24,7 @@ Shipped progress status:
 - planner telemetry is now best-effort under retryable Prisma write conflicts and no longer fails jobs
 - startup integrity scrub now persists its cooldown across process restarts
 - the status server now exposes a lightweight `/health` endpoint and briefly caches expensive status payload assembly
+- the foreground worker and stale-job recovery now enforce a 10-minute no-progress breaker for wedged queue work
 
 ## 1. Purpose
 

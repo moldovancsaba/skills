@@ -59,7 +59,7 @@ const MANAGED_PIPELINE_JOB_TYPES = Object.freeze([
 const PIPELINE_QUEUE_COLUMNS = Object.freeze(["NOW", "SOON", "LATER", "PARKED"]);
 const PIPELINE_CONTROL_MODES = Object.freeze(["AI_ONLY", "HUMAN_GUIDED"]);
 const PIPELINE_JOB_STATUSES = Object.freeze(["ACTIVE", "RUNNING", "PAUSED", "FAILED"]);
-const STALE_RUNNING_JOB_MS = 15 * 60 * 1000;
+const PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS = 10 * 60 * 1000;
 const GLOBAL_PIPELINE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 let lastGlobalPipelineSyncAt = 0;
 
@@ -113,6 +113,11 @@ async function withPipelineRetry(operation, attempt = 0) {
 
 function getPipelineJobLabel(jobType) {
   return JOB_LABELS[jobType] ?? jobType;
+}
+
+function buildNoProgressTimeoutMessage(timeoutMs = PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS) {
+  const minutes = Math.max(1, Math.round(timeoutMs / 60000));
+  return `Automatically failed after ${minutes}-minute no-progress timeout. Released for later retry.`;
 }
 
 function roundPriority(value) {
@@ -849,7 +854,7 @@ async function syncAllCompanyPipelineJobsIfDue(prisma, options = {}) {
 }
 
 async function recoverStaleRunningPipelineJobs(prisma) {
-  const cutoff = new Date(Date.now() - STALE_RUNNING_JOB_MS);
+  const cutoff = new Date(Date.now() - PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS);
   return prisma.pipelineJob.updateMany({
     where: {
       status: "RUNNING",
@@ -859,9 +864,9 @@ async function recoverStaleRunningPipelineJobs(prisma) {
       ],
     },
     data: {
-      status: "ACTIVE",
+      status: "FAILED",
       updatedAt: new Date(),
-      lastError: "Recovered automatically after stale RUNNING timeout.",
+      lastError: buildNoProgressTimeoutMessage(),
     },
   });
 }
@@ -1122,9 +1127,11 @@ module.exports = {
   PIPELINE_QUEUE_COLUMNS,
   PIPELINE_CONTROL_MODES,
   PIPELINE_JOB_STATUSES,
+  PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS,
   GLOBAL_PIPELINE_SYNC_INTERVAL_MS,
   getPipelineJobLabel,
   getQueueColumnRank,
+  buildNoProgressTimeoutMessage,
   buildAutoJobProfile,
   shouldRunGlobalPipelineSync,
   gatherCompanyPipelineSignals,

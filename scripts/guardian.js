@@ -30,7 +30,7 @@ const HEALTH_PORT             = 10005;
 const SNAPSHOT_HEALTH_PORT    = 10007;
 const STATUS_HEALTH_PORT      = 10006;
 const HEALTH_PATH             = "/health";
-const STUCK_MS                = 15 * 60 * 1000; // 15 min without progress = stuck
+const STUCK_MS                = 10 * 60 * 1000; // 10 min without progress = kill and release the job
 const STARTUP_GRACE_MS        = 60 * 1000;      // 1 min grace
 const RESTART_BASE_MS         = 5000;
 const RESTART_MAX_MS          = 60000;

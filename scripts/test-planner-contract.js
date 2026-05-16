@@ -13,6 +13,8 @@ const {
 const { withPlannerTimeout } = require("./lib/planner/timeout");
 const {
   PIPELINE_JOB_TYPES,
+  PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS,
+  buildNoProgressTimeoutMessage,
   GLOBAL_PIPELINE_SYNC_INTERVAL_MS,
   shouldRunGlobalPipelineSync,
 } = require("../src/lib/pipeline-queue");
@@ -140,6 +142,16 @@ async function main() {
   assert.equal(PIPELINE_JOB_TYPES.includes("MINE_FLASHCARD_OPPORTUNITIES"), true, "flashcard opportunity mining must be a managed queue job");
   assert.equal(PIPELINE_JOB_TYPES.includes("MINE_TASK_OPPORTUNITIES"), true, "task opportunity mining must be a managed queue job");
   assert.equal(PIPELINE_JOB_TYPES.includes("FEEDBACK_PRESSURE_REGENERATION"), true, "feedback pressure regeneration must be a managed queue job");
+  assert.equal(
+    PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS,
+    10 * 60 * 1000,
+    "queue no-progress timeout must cut loose stalled jobs after 10 minutes",
+  );
+  assert.match(
+    buildNoProgressTimeoutMessage(),
+    /10-minute no-progress timeout/i,
+    "timeout message must explain the 10-minute breaker clearly",
+  );
   assert.equal(
     shouldRunGlobalPipelineSync(0, 1_000, GLOBAL_PIPELINE_SYNC_INTERVAL_MS),
     true,

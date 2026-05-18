@@ -10,6 +10,10 @@ const {
   getPipelineJobRetryLimit,
   buildRunnablePipelineJobWhere,
   buildLowMemoryDecompositionChildPlans,
+  enqueueDirtyPipelineTopologyCompany,
+  drainDirtyPipelineTopologyCompanies,
+  normalizePipelineTopologyState,
+  recordPipelineTopologySyncResult,
 } = require("../src/lib/pipeline-queue");
 const {
   shouldAllowForegroundWork,
@@ -268,6 +272,54 @@ async function main() {
     true,
     "child slices must keep the bounded minimal execution profile",
   );
+
+  const dirtyState = enqueueDirtyPipelineTopologyCompany(
+    { dirtyCompanies: [], recentSyncs: [] },
+    "company-1",
+    "job-success:REFRESH_FLASHCARDS",
+    new Date("2026-05-18T12:00:00.000Z"),
+  );
+  const dedupedDirtyState = enqueueDirtyPipelineTopologyCompany(
+    dirtyState,
+    "company-1",
+    "job-success:REFRESH_TASKS",
+    new Date("2026-05-18T12:05:00.000Z"),
+  );
+  assert.equal(dedupedDirtyState.dirtyCompanies.length, 1, "touched-company queue should dedupe the same company instead of growing forever");
+  assert.equal(dedupedDirtyState.dirtyCompanies[0].reason, "job-success:REFRESH_TASKS", "latest touched-company reason should replace stale queue reasons");
+
+  const drainedTopology = drainDirtyPipelineTopologyCompanies({
+    dirtyCompanies: [
+      { companyId: "company-1", reason: "job-success:A", requestedAt: "2026-05-18T12:00:00.000Z" },
+      { companyId: "company-2", reason: "job-success:B", requestedAt: "2026-05-18T12:01:00.000Z" },
+      { companyId: "company-3", reason: "job-success:C", requestedAt: "2026-05-18T12:02:00.000Z" },
+    ],
+    recentSyncs: [],
+  }, 2);
+  assert.deepEqual(
+    drainedTopology.drained.map((entry) => entry.companyId),
+    ["company-1", "company-2"],
+    "topology drain should preserve oldest-first touched-company order",
+  );
+  assert.deepEqual(
+    drainedTopology.remaining.map((entry) => entry.companyId),
+    ["company-3"],
+    "topology drain should leave untouched companies behind for later background repair",
+  );
+
+  const topologyHistory = recordPipelineTopologySyncResult(
+    normalizePipelineTopologyState({ dirtyCompanies: [], recentSyncs: [] }),
+    {
+      companyId: "company-1",
+      companyName: "Alpha",
+      reason: "job-success:REFRESH_FLASHCARDS",
+      status: "SYNCED",
+      trigger: "snapshot-worker",
+    },
+    new Date("2026-05-18T12:10:00.000Z"),
+  );
+  assert.equal(topologyHistory.recentSyncs.length, 1, "topology observability should record targeted sync results");
+  assert.equal(topologyHistory.recentSyncs[0].companyName, "Alpha", "topology observability should preserve company labels when known");
 
   console.log("Runtime hardening tests passed.");
 }

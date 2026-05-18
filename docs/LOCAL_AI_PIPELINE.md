@@ -173,6 +173,7 @@ Runtime hardening note:
 - oversized jobs no longer only bounce in low-memory deferral; the worker now shrinks them into degraded or minimal execution profiles before deferring them
 - repeated low-memory deferrals can now fan one oversized parent job out into multiple bounded child slices with persisted selection offsets, so the queue can keep moving through distinct smaller units instead of retrying only one minimal slice forever
 - scheduled runtime verification now runs from `snapshot-worker`, persists the latest report, and exposes the result through `/local-ai`
+- productive company jobs now refresh queue topology for that touched company directly, and only fall back to the dirty-company retry queue when that targeted refresh cannot be completed inline
 - the broader hardening design is defined in [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 
 ## Deterministic planner and quality engine

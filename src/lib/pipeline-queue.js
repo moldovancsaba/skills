@@ -61,6 +61,8 @@ const PIPELINE_CONTROL_MODES = Object.freeze(["AI_ONLY", "HUMAN_GUIDED"]);
 const PIPELINE_JOB_STATUSES = Object.freeze(["ACTIVE", "RUNNING", "PAUSED", "FAILED"]);
 const PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS = 10 * 60 * 1000;
 const GLOBAL_PIPELINE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const PIPELINE_TOPOLOGY_STATE_KEY = "local_ai_pipeline_topology_state";
+const PIPELINE_TOPOLOGY_RECENT_SYNC_LIMIT = 24;
 const PIPELINE_JOB_RETRY_LIMITS = Object.freeze({
   SCORE_ALERT_REPAIR: 6,
   CARD_RESCORING: 6,
@@ -247,6 +249,84 @@ function isPlainObject(value) {
 
 function getPipelineJobMetadata(job) {
   return isPlainObject(job?.metadata) ? job.metadata : {};
+}
+
+function normalizePipelineTopologyState(value) {
+  const dirtyCompanies = Array.isArray(value?.dirtyCompanies)
+    ? value.dirtyCompanies.filter((entry) => isPlainObject(entry) && typeof entry.companyId === "string" && entry.companyId)
+    : [];
+  const recentSyncs = Array.isArray(value?.recentSyncs)
+    ? value.recentSyncs.filter((entry) => isPlainObject(entry) && typeof entry.companyId === "string" && entry.companyId)
+    : [];
+  return {
+    dirtyCompanies,
+    recentSyncs: recentSyncs.slice(-PIPELINE_TOPOLOGY_RECENT_SYNC_LIMIT),
+  };
+}
+
+function enqueueDirtyPipelineTopologyCompany(state, companyId, reason = "topology-change", now = new Date()) {
+  const normalized = normalizePipelineTopologyState(state);
+  const requestedAt = now.toISOString();
+  const nextDirty = normalized.dirtyCompanies.filter((entry) => entry.companyId !== companyId);
+  nextDirty.push({
+    companyId,
+    reason,
+    requestedAt,
+  });
+  return {
+    dirtyCompanies: nextDirty.sort((left, right) => new Date(left.requestedAt).getTime() - new Date(right.requestedAt).getTime()),
+    recentSyncs: normalized.recentSyncs,
+  };
+}
+
+function drainDirtyPipelineTopologyCompanies(state, limit = 3) {
+  const normalized = normalizePipelineTopologyState(state);
+  const boundedLimit = Math.max(1, Math.min(20, Number(limit || 3)));
+  return {
+    drained: normalized.dirtyCompanies.slice(0, boundedLimit),
+    remaining: normalized.dirtyCompanies.slice(boundedLimit),
+    recentSyncs: normalized.recentSyncs,
+  };
+}
+
+function recordPipelineTopologySyncResult(state, result, now = new Date()) {
+  const normalized = normalizePipelineTopologyState(state);
+  const event = {
+    companyId: result.companyId,
+    companyName: result.companyName || null,
+    reason: result.reason || "topology-sync",
+    status: result.status || "SYNCED",
+    trigger: result.trigger || "background-dirty-drain",
+    syncedAt: now.toISOString(),
+    error: result.error || null,
+  };
+  return {
+    dirtyCompanies: normalized.dirtyCompanies,
+    recentSyncs: [...normalized.recentSyncs, event].slice(-PIPELINE_TOPOLOGY_RECENT_SYNC_LIMIT),
+  };
+}
+
+async function readPipelineTopologyState(prisma) {
+  const setting = await prisma.globalSetting.findUnique({
+    where: { key: PIPELINE_TOPOLOGY_STATE_KEY },
+    select: { value: true },
+  });
+  return normalizePipelineTopologyState(setting?.value);
+}
+
+async function writePipelineTopologyState(prisma, state) {
+  const normalized = normalizePipelineTopologyState(state);
+  await prisma.globalSetting.upsert({
+    where: { key: PIPELINE_TOPOLOGY_STATE_KEY },
+    create: { key: PIPELINE_TOPOLOGY_STATE_KEY, value: normalized },
+    update: { value: normalized, updatedAt: new Date() },
+  });
+  return normalized;
+}
+
+async function appendPipelineTopologySyncResult(prisma, result, now = new Date()) {
+  const state = await readPipelineTopologyState(prisma);
+  return writePipelineTopologyState(prisma, recordPipelineTopologySyncResult(state, result, now));
 }
 
 function isDecomposedPipelineJob(job) {
@@ -1018,6 +1098,74 @@ async function syncPipelineJobsForCompanyShard(prisma, limit = 3) {
   return syncedCompanies;
 }
 
+async function markCompanyPipelineTopologyDirty(prisma, companyId, reason = "topology-change") {
+  if (!companyId) return null;
+  const nextState = enqueueDirtyPipelineTopologyCompany(
+    await readPipelineTopologyState(prisma),
+    companyId,
+    reason,
+    new Date(),
+  );
+  return writePipelineTopologyState(prisma, nextState);
+}
+
+async function syncDirtyCompanyPipelineJobs(prisma, options = {}) {
+  const trigger = typeof options.trigger === "string" ? options.trigger : "background-dirty-drain";
+  const limit = Math.max(1, Math.min(20, Number(options.limit || 3)));
+  const state = await readPipelineTopologyState(prisma);
+  const plan = drainDirtyPipelineTopologyCompanies(state, limit);
+  if (plan.drained.length === 0) {
+    return {
+      syncedCompanies: 0,
+      dirtyCompaniesRemaining: plan.remaining.length,
+      recentSyncs: plan.recentSyncs,
+    };
+  }
+
+  let nextState = {
+    dirtyCompanies: plan.remaining,
+    recentSyncs: plan.recentSyncs,
+  };
+  let syncedCompanies = 0;
+
+  for (const entry of plan.drained) {
+    try {
+      await syncCompanyPipelineJobs(prisma, entry.companyId);
+      syncedCompanies += 1;
+      const company = await prisma.company.findUnique({
+        where: { id: entry.companyId },
+        select: { name: true },
+      });
+      nextState = recordPipelineTopologySyncResult(nextState, {
+        companyId: entry.companyId,
+        companyName: company?.name || null,
+        reason: entry.reason,
+        status: "SYNCED",
+        trigger,
+      });
+    } catch (error) {
+      console.error(
+        `[PIPELINE QUEUE] Failed targeted topology sync for ${entry.companyId}: ${error?.code || error?.name || "UNKNOWN"} ${error?.message || ""}`.trim(),
+      );
+      nextState = recordPipelineTopologySyncResult(nextState, {
+        companyId: entry.companyId,
+        reason: entry.reason,
+        status: "FAILED",
+        trigger,
+        error: error?.message || String(error),
+      });
+      nextState = enqueueDirtyPipelineTopologyCompany(nextState, entry.companyId, entry.reason, new Date());
+    }
+  }
+
+  const persisted = await writePipelineTopologyState(prisma, nextState);
+  return {
+    syncedCompanies,
+    dirtyCompaniesRemaining: persisted.dirtyCompanies.length,
+    recentSyncs: persisted.recentSyncs,
+  };
+}
+
 function shouldRunGlobalPipelineSync(lastSyncAt, now = Date.now(), intervalMs = GLOBAL_PIPELINE_SYNC_INTERVAL_MS) {
   if (!Number.isFinite(lastSyncAt) || lastSyncAt <= 0) return true;
   return now - lastSyncAt >= intervalMs;
@@ -1284,14 +1432,55 @@ async function completeDecompositionParentIfReady(prisma, childJob) {
 }
 
 async function finalizeSuccessfulPipelineJob(prisma, job, reason = null) {
+  const topologyReason = isDecomposedPipelineJob(job)
+    ? `child-success:${job.jobType}`
+    : `job-success:${job.jobType}`;
+
   if (!isDecomposedPipelineJob(job)) {
-    return completePipelineJob(prisma, job.id, reason);
+    const completed = await completePipelineJob(prisma, job.id, reason);
+    try {
+      await syncCompanyPipelineJobs(prisma, job.companyId);
+      await appendPipelineTopologySyncResult(prisma, {
+        companyId: job.companyId,
+        reason: topologyReason,
+        status: "SYNCED",
+        trigger: "foreground-job-success",
+      });
+    } catch (error) {
+      await markCompanyPipelineTopologyDirty(prisma, job.companyId, topologyReason);
+      await appendPipelineTopologySyncResult(prisma, {
+        companyId: job.companyId,
+        reason: topologyReason,
+        status: "FAILED",
+        trigger: "foreground-job-success",
+        error: error?.message || String(error),
+      });
+    }
+    return completed;
   }
 
   await prisma.pipelineJob.delete({
     where: { id: job.id },
   });
   await completeDecompositionParentIfReady(prisma, job);
+  try {
+    await syncCompanyPipelineJobs(prisma, job.companyId);
+    await appendPipelineTopologySyncResult(prisma, {
+      companyId: job.companyId,
+      reason: topologyReason,
+      status: "SYNCED",
+      trigger: "foreground-child-success",
+    });
+  } catch (error) {
+    await markCompanyPipelineTopologyDirty(prisma, job.companyId, topologyReason);
+    await appendPipelineTopologySyncResult(prisma, {
+      companyId: job.companyId,
+      reason: topologyReason,
+      status: "FAILED",
+      trigger: "foreground-child-success",
+      error: error?.message || String(error),
+    });
+  }
   return null;
 }
 
@@ -1506,6 +1695,13 @@ module.exports = {
   syncAllCompanyPipelineJobs,
   syncPipelineJobsForCompanyShard,
   syncAllCompanyPipelineJobsIfDue,
+  readPipelineTopologyState,
+  markCompanyPipelineTopologyDirty,
+  syncDirtyCompanyPipelineJobs,
+  normalizePipelineTopologyState,
+  enqueueDirtyPipelineTopologyCompany,
+  drainDirtyPipelineTopologyCompanies,
+  recordPipelineTopologySyncResult,
   recoverStaleRunningPipelineJobs,
   recoverOrphanedRunningPipelineJobs,
   listCompanyPipelineJobs,

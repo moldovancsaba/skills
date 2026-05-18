@@ -170,6 +170,7 @@ The work is not done until:
 - The duplicate full-company queue sync that used to happen before every claim has been removed. The shipped foreground worker no longer performs inline shard or global queue sync on claim miss. If claim returns no runnable job, foreground force-wakes `snapshot-worker` and leaves queue-topology refresh to the background lane.
 - `snapshot-worker` owns bounded intelligence snapshot refresh. Do not move snapshot refresh back into `sync.js`; that would reintroduce the exact starvation problem this hardening slice removed.
 - `snapshot-worker` also owns scheduled runtime verification. The latest verification report is persisted, exposed by `status-server`, and rendered on `/local-ai`.
+- productive queue work now refreshes queue topology for the touched company directly; if that direct refresh fails, the company falls back into a topology-dirty background retry queue owned by `snapshot-worker`.
 - Human drag-and-drop on the `AI Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now expressed through persisted queue/repair intents; the local AI worker is the only authority that escalates queue work through the shared queue contract.

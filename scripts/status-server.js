@@ -19,6 +19,7 @@ const HEARTBEAT_FILE   = path.join(__dirname, "..", "logs", "guardian-heartbeat.
 const INVENTORY_HISTORY_KEY = "local_ai_inventory_history";
 const INVENTORY_HISTORY_LIMIT = 168;
 const RUNTIME_VERIFICATION_STATE_KEY = "local_ai_runtime_verification_last_run";
+const PIPELINE_TOPOLOGY_STATE_KEY = "local_ai_pipeline_topology_state";
 const QUEUE_COLUMN_RANK = Object.freeze({ NOW: 0, SOON: 1, LATER: 2, PARKED: 3 });
 const STATUS_CACHE_TTL_MS = 5000;
 let statusPayloadCache = null;
@@ -316,11 +317,12 @@ async function captureInventoryHistory(inventory) {
 }
 
 async function buildStatusPayload() {
-  const [setting, snapshotSetting, memoryGovernorSetting, verificationSetting, heartbeat, inventory, queue] = await Promise.all([
+  const [setting, snapshotSetting, memoryGovernorSetting, verificationSetting, topologySetting, heartbeat, inventory, queue] = await Promise.all([
     prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
     prisma.globalSetting.findUnique({ where: { key: "local_ai_snapshot_worker_progress" } }),
     prisma.globalSetting.findUnique({ where: { key: "local_ai_memory_governor_state" } }),
     prisma.globalSetting.findUnique({ where: { key: RUNTIME_VERIFICATION_STATE_KEY } }),
+    prisma.globalSetting.findUnique({ where: { key: PIPELINE_TOPOLOGY_STATE_KEY } }),
     Promise.resolve(readHeartbeat()),
     getGlobalInventory(),
     getGlobalQueueSnapshot(),
@@ -344,6 +346,7 @@ async function buildStatusPayload() {
 
   const memoryGovernor = isPlainObject(memoryGovernorSetting?.value) ? memoryGovernorSetting.value : {};
   const verification = isPlainObject(verificationSetting?.value) ? verificationSetting.value : null;
+  const topologyState = isPlainObject(topologySetting?.value) ? topologySetting.value : {};
 
   return {
     ts: new Date().toISOString(),
@@ -359,6 +362,10 @@ async function buildStatusPayload() {
       recentEvents: Array.isArray(memoryGovernor.recentEvents) ? memoryGovernor.recentEvents.slice(-8).reverse() : [],
     },
     verification,
+    topology: {
+      dirtyCompanies: Array.isArray(topologyState.dirtyCompanies) ? topologyState.dirtyCompanies : [],
+      recentSyncs: Array.isArray(topologyState.recentSyncs) ? topologyState.recentSyncs.slice(-8).reverse() : [],
+    },
     logTail,
     inventory,
     inventoryHistory,

@@ -1,7 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const http = require("http");
 const { refreshIntelligenceSnapshotSlice } = require("./lib/intelligence-snapshot");
-const { syncAllCompanyPipelineJobsIfDue } = require("../src/lib/pipeline-queue");
+const { syncAllCompanyPipelineJobsIfDue, syncDirtyCompanyPipelineJobs } = require("../src/lib/pipeline-queue");
 const {
   getFreeMemoryMb,
   getResourceBand,
@@ -105,6 +105,10 @@ async function runSnapshotLoop() {
       metrics: { freeMemMb, resourceBand, batchSize: SNAPSHOT_BATCH_SIZE },
     });
 
+    const targetedSyncResult = await syncDirtyCompanyPipelineJobs(prisma, {
+      trigger: "snapshot-worker",
+      limit: SNAPSHOT_BATCH_SIZE,
+    });
     const didSyncQueue = await syncAllCompanyPipelineJobsIfDue(prisma);
 
     const snapshotResult = await refreshIntelligenceSnapshotSlice(prisma, {
@@ -125,6 +129,8 @@ async function runSnapshotLoop() {
       metrics: {
         freeMemMb,
         resourceBand,
+        targetedQueueSyncs: targetedSyncResult.syncedCompanies,
+        dirtyCompaniesRemaining: targetedSyncResult.dirtyCompaniesRemaining,
         didSyncQueue,
         refreshedCompanies: snapshotResult.refreshedCompanies,
         wrapped: snapshotResult.wrapped,

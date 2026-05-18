@@ -245,6 +245,7 @@ Architecture note:
 - `snapshot-worker` owns background intelligence snapshot refresh
 - `status-server` owns runtime observability payload assembly
 - `snapshot-worker` also owns scheduled runtime verification and persists the latest operator-readable verification report
+- productive company jobs now refresh queue topology for the touched company directly, with `snapshot-worker` only handling the dirty-company retry queue and the slower broad coverage path
 
 ### Local operator URLs
 

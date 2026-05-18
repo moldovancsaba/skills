@@ -201,12 +201,15 @@ export default function LocalAiMissionControlPage() {
   const guardian = data?.guardian || {};
   const memoryGovernor = data?.memoryGovernor || {};
   const verification = data?.verification || null;
+  const topology = data?.topology || {};
   const buildIdentity = worker?.settings?.buildIdentity || {};
   const actualCurrentTask = String(worker.activeTask || "Idle");
   const actualCurrentCompany = String(worker.currentCompany || "No company locked");
   const topQueueJobLabel = currentJob ? formatJobLabel(currentJob) : "No queued job";
   const memoryGovernorEvents = Array.isArray(memoryGovernor.recentEvents) ? memoryGovernor.recentEvents : [];
   const latestGovernorEvaluation = memoryGovernor.latestEvaluation || {};
+  const topologyRecentSyncs = Array.isArray(topology?.recentSyncs) ? topology.recentSyncs : [];
+  const topologyDirtyCompanies = Array.isArray(topology?.dirtyCompanies) ? topology.dirtyCompanies : [];
   const verificationChecks = Array.isArray(verification?.checks) ? verification.checks : [];
   const failingVerificationChecks = verificationChecks.filter((check: any) => !check.ok).slice(0, 4);
 
@@ -610,6 +613,79 @@ export default function LocalAiMissionControlPage() {
                   </Table>
                 ) : (
                   <Notice title="No recent governor interventions">The memory governor has not needed to intervene recently.</Notice>
+                )}
+              </UnifiedCardBody>
+            </UnifiedCard>
+          </SimpleGrid>
+
+          <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
+            <UnifiedCard tone="knowmore">
+              <UnifiedCardHeader
+                title="Topology Sync"
+                supporting={<Badge variant="light" color="knowmore">{topologyDirtyCompanies.length} dirty</Badge>}
+              />
+              <UnifiedCardBody>
+                <Notice title="Targeted queue ownership">
+                  Productive company work now marks that company as topology-dirty, and `snapshot-worker` drains those targeted refreshes before slower global sync.
+                </Notice>
+                {topologyRecentSyncs.length ? (
+                  <Table highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>When</Table.Th>
+                        <Table.Th>Company</Table.Th>
+                        <Table.Th>Status</Table.Th>
+                        <Table.Th>Reason</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {topologyRecentSyncs.map((entry: any, index: number) => (
+                        <Table.Tr key={`${entry.companyId || "company"}-${entry.syncedAt || index}`}>
+                          <Table.Td>{formatTimestamp(entry.syncedAt)}</Table.Td>
+                          <Table.Td>{entry.companyName || entry.companyId || "—"}</Table.Td>
+                          <Table.Td>
+                            <Badge variant="light" color={entry.status === "SYNCED" ? "strategy" : "review"}>
+                              {entry.status || "—"}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>{entry.reason || entry.trigger || "—"}</Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                ) : (
+                  <Notice title="No targeted syncs yet">No company-specific topology sync has been recorded since the current retention window began.</Notice>
+                )}
+              </UnifiedCardBody>
+            </UnifiedCard>
+
+            <UnifiedCard tone="tactical">
+              <UnifiedCardHeader
+                title="Dirty Companies"
+                supporting={<Badge variant="light" color="tactical">{topologyDirtyCompanies.length} queued</Badge>}
+              />
+              <UnifiedCardBody>
+                {topologyDirtyCompanies.length ? (
+                  <Table highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Company ID</Table.Th>
+                        <Table.Th>Reason</Table.Th>
+                        <Table.Th>Requested</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {topologyDirtyCompanies.slice(0, 8).map((entry: any, index: number) => (
+                        <Table.Tr key={`${entry.companyId || "company"}-${entry.requestedAt || index}`}>
+                          <Table.Td>{entry.companyId || "—"}</Table.Td>
+                          <Table.Td>{entry.reason || "topology-change"}</Table.Td>
+                          <Table.Td>{formatTimestamp(entry.requestedAt)}</Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                ) : (
+                  <Notice title="No pending topology refresh">The background worker does not currently have any touched-company topology refresh requests queued.</Notice>
                 )}
               </UnifiedCardBody>
             </UnifiedCard>

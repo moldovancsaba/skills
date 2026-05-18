@@ -127,7 +127,10 @@ Rules:
 3. background snapshot work owns queue sync cadence
 4. background worker may be force-woken by foreground claim miss
 5. a full company queue sync runs only on a slower interval in the background lane
-6. queue sync is what guarantees that:
+6. productive company work now immediately refreshes queue topology for the touched company only
+7. if that direct touched-company refresh fails, the company is marked topology-dirty for background retry
+8. `snapshot-worker` drains touched-company topology refreshes before the slower broad sync path
+9. queue sync is what guarantees that:
    - new companies enter the queue
    - deleted companies lose queue work
    - changed companies get new or updated jobs

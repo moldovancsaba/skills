@@ -30,6 +30,7 @@ Shipped progress status:
 - oversized queue jobs now use resource-aware execution profiles (`full`, `degraded`, `minimal`) so repeat low-memory pressure can shrink work instead of only deferring it forever
 - repeated low-memory pressure can now decompose one oversized parent job into multiple bounded child slices with persisted selection offsets
 - scheduled runtime verification now runs from `snapshot-worker`, persists the latest report, and exposes the result through `/local-ai`
+- productive company work can now refresh queue topology for the touched company directly, with a dirty-company retry queue kept as the fallback path for background recovery
 
 ## 1. Purpose
 
@@ -51,7 +52,7 @@ This design exists because the runtime has improved materially, but is not yet f
 Verified remaining problems in the current code path:
 
 - the foreground worker loop still performs some non-job work around queue execution, even after the worst hot-path waste was removed
-- queue synchronization is still present in the foreground lane on a bounded interval, rather than being fully isolated to background hygiene paths
+- queue synchronization is now background-owned, but touched-company refresh still needs continued tightening and measurement
 - low-memory handling is real and job downgrade now exists, but total machine headroom remains tight
 - one logical worker can still feel non-linear to operators because bounded system chores still happen around claimed work
 - stale `RUNNING` protection is much better than before, but operator trust still depends on strong heartbeat and reclaim behavior remaining intact

@@ -186,7 +186,9 @@ They are compatibility paths, not the primary operating contract.
 ## 6.1 Execution ownership
 
 - `sync` is the only foreground worker allowed to mutate planner-owned business state
+- `sync` claim miss must not perform inline queue-topology synchronization; it may only force-wake the background lane and then return to rest
 - `snapshot-worker` must not claim planner queue jobs
+- `snapshot-worker` owns background queue-sync cadence and bounded queue-topology refresh in addition to snapshot refresh
 - `status-server` is read-only for business state and operator truth assembly
 - `guardian` supervises processes and recovery, but does not own planner mutation logic
 

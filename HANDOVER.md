@@ -167,7 +167,7 @@ The work is not done until:
 - The worker now consumes persisted queue jobs before the broader synthesis cycle.
 - The planner and quality engine are the authoritative queue families now; legacy `COMPANY_SYNTHESIS` and `FULL_MAINTENANCE` remain compatibility paths, not the main operating model.
 - The current shipped foreground worker loop is still heavier than the target 24/7 runtime design; use `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md` as the implementation plan for strict one-job foreground execution and background-work isolation.
-- The duplicate full-company queue sync that used to happen before every claim has been removed. The current shipped foreground worker now performs at most one bounded global sync per foreground interval, but full decoupling from the hot path is still outstanding.
+- The duplicate full-company queue sync that used to happen before every claim has been removed. The shipped foreground worker no longer performs inline shard or global queue sync on claim miss. If claim returns no runnable job, foreground force-wakes `snapshot-worker` and leaves queue-topology refresh to the background lane.
 - `snapshot-worker` owns bounded intelligence snapshot refresh. Do not move snapshot refresh back into `sync.js`; that would reintroduce the exact starvation problem this hardening slice removed.
 - Human drag-and-drop on the `AI Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.

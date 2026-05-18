@@ -248,18 +248,24 @@ Contract:
 
 `syncAllCompanyPipelineJobs(prisma)` must not run before every claim.
 
-Target design:
+Shipped contract:
 
-- foreground loop only syncs:
-  - the company of the claimed job
-  - or a bounded stale-company subset when no job is claimed
+- foreground loop does not perform inline queue-topology synchronization on claim miss
+- foreground may only:
+  - claim runnable work
+  - execute claimed work
+  - force-wake `snapshot-worker` when no runnable job is available
 - full queue sync moves to:
   - background worker
-  - or a slower bounded repair interval
+  - or a slower bounded repair path outside the foreground hot lane
 
 ### 6.3 Incremental sync policy
 
-Target queue sync policy:
+Current queue sync policy:
+
+- `snapshot-worker` owns background queue-sync cadence
+- foreground claim miss may wake `snapshot-worker`
+- queue-topology refresh is no longer part of the foreground execution path
 
 ### 6.4 Resource-aware execution profiles
 

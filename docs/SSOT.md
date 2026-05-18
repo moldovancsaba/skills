@@ -132,8 +132,12 @@ Foreground execution contract:
 
 1. recover stale or wedged work if needed
 2. claim one runnable queue job
-3. execute one queue job
-4. complete or fail that job
+3. if no runnable job exists:
+   - wake `snapshot-worker` for background queue-topology refresh
+   - rest briefly
+4. if a job is claimed:
+   - execute one queue job
+   - complete or fail that job
 5. rest briefly
 
 The older broad per-company “load companies and run a full synthesis cycle” description is no longer the runtime contract.
@@ -151,6 +155,7 @@ The repetitive-job contract now also includes:
 - the 24/7 runtime hardening plan for strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery is defined in `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md`
 - the shipped step-by-step runtime sequence and rules are defined in `docs/LOCAL_AI_RUNTIME_SOP.md`
 - intelligence snapshot refresh is no longer part of the foreground queue lane; it runs in the dedicated `snapshot-worker`
+- queue-topology refresh on claim miss is also delegated out of the foreground lane; `snapshot-worker` owns the background queue-sync cadence and may be force-woken by foreground
 
 Backlog contract:
 

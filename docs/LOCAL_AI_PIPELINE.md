@@ -139,11 +139,15 @@ That means:
 Current worker loop:
 
 1. startup integrity scrub
-2. sync queue state only when the bounded foreground sync interval says it is due
+2. process worker control commands
 3. claim the next bounded pipeline batch
-4. execute only those jobs
-5. rest briefly
-6. repeat
+4. if claim misses:
+   - wake `snapshot-worker` for background queue-topology refresh
+   - rest
+   - retry later
+5. execute only the claimed jobs
+6. rest briefly
+7. repeat
 
 The worker rests for a short active interval after productive queue work and a longer idle interval when no queue work is available.
 
@@ -151,6 +155,8 @@ Runtime hardening note:
 
 - this foreground loop is still the current shipped contract
 - the claim path no longer performs duplicated full-company queue sync before every single claim
+- the foreground worker no longer performs inline shard/global queue sync on claim miss
+- queue-topology refresh now belongs to `snapshot-worker`, which may be force-woken by the foreground worker when no runnable job is available
 - snapshot refresh has now been removed from this foreground lane and moved into a dedicated `snapshot-worker`
 - memory-band gating now pauses the background worker unless memory is `HEALTHY`
 - foreground work uses a harder floor:

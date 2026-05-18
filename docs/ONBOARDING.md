@@ -113,7 +113,7 @@ The guardian supervises:
 
 ## Canonical Local URLs
 
-- production: `https://checklist.checklistsquad.com`
+- production: `https://checklist.sovereignsquad.com`
 - local development default: `http://localhost:3000`
 - local development on an alternate port example: `http://localhost:3415`
 - local-only local AI operator dashboard: `http://localhost:3415/local-ai`

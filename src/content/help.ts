@@ -111,7 +111,7 @@ export const manualSections: HelpSection[] = [
     summary: "Repair buttons do not make the webapp do AI work directly.",
     bullets: [
       "Knowmore health and Observability actions write repair intents or worker commands into MongoDB Atlas.",
-      "The local AI worker picks those commands up on its loop and performs queue sync, repair, recovery, or snapshot refresh work.",
+      "The local AI runtime picks those commands up through its supervised worker processes and performs queue repair, recovery, queue-refresh wakeups, or snapshot refresh work.",
       "If a repair button was pressed but nothing changes, check the local worker health and the shared database connection before blaming the webapp.",
       "Queue pages should show persisted queue state; simply opening a page should not recalculate or repair anything.",
     ],

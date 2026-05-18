@@ -9,6 +9,7 @@ const {
   classifyPipelineJobError,
   getPipelineJobRetryLimit,
   buildRunnablePipelineJobWhere,
+  buildLowMemoryDecompositionChildPlans,
 } = require("../src/lib/pipeline-queue");
 const {
   shouldAllowForegroundWork,
@@ -245,6 +246,27 @@ async function main() {
     shouldDelegateQueueRefresh({ executed: 1, claimedAny: true }),
     false,
     "foreground must not delegate queue refresh after it successfully claimed work",
+  );
+
+  const childPlans = buildLowMemoryDecompositionChildPlans(
+    { jobType: "MINE_FLASHCARD_OPPORTUNITIES", queueColumn: "SOON" },
+    {
+      profile: "minimal",
+      batchLimitOverride: 1,
+      disableResearchBackfill: true,
+      countOverrides: { flashcards: 1 },
+    },
+  );
+  assert.equal(childPlans.length, 3, "decomposition should fan out oversized work into multiple bounded child slices");
+  assert.deepEqual(
+    childPlans.map((plan) => plan.executionOptions.selectionOffset),
+    [0, 1, 2],
+    "child slices must persist unique selection offsets so they do distinct work",
+  );
+  assert.equal(
+    childPlans.every((plan) => plan.executionOptions.profile === "minimal"),
+    true,
+    "child slices must keep the bounded minimal execution profile",
   );
 
   console.log("Runtime hardening tests passed.");

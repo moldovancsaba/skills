@@ -865,6 +865,9 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
     ),
   );
   const inventory = await loadCompanyPlannerInventory(prisma, cid);
+  const selectionOffset = Number.isFinite(executionOptions.selectionOffset)
+    ? Math.max(0, Number(executionOptions.selectionOffset))
+    : 0;
   const [flashcardNoveltyInventory, taskNoveltyInventory, goalNoveltyInventory] = await Promise.all([
     prisma.flashcard.findMany({
       where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE"] } },
@@ -892,7 +895,7 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
 
   // M2.1: Use evidence.js for source selection with topic-hint filtering
   const topicFilter = topic ? [topic.label] : [];
-  const sources = await selectEvidenceForGeneration(prisma, company, topicFilter, orbitLimit * 3);
+  const sources = await selectEvidenceForGeneration(prisma, company, topicFilter, (orbitLimit + selectionOffset) * 3);
 
   // Filter to unprocessed sources only (no active flashcard linked)
   const synthesizedSourceLinks = await prisma.flashcardSource.findMany({
@@ -907,7 +910,7 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
   const opportunitySlots = Math.max(0, orbitLimit - Math.min(orbitLimit, unprocessed.length));
   const opportunitySources = await loadFlashcardOpportunitySources(prisma, cid, {
     excludeSourceIds: Array.from(new Set(unprocessed.map((source) => source.id))),
-    take: opportunitySlots,
+    take: opportunitySlots + selectionOffset,
   });
   const bootstrapRevisitSources = (
     inventory.flashcardCount < PLANNER_MIN_FLASHCARDS && unprocessed.length === 0
@@ -919,9 +922,9 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
   const batches = buildEvidenceBatches(unprocessed, 3);
   const opportunityBatches = opportunitySources.map((source) => [source]);
   const bootstrapBatches = bootstrapRevisitSources.map((source) => [source]);
-  const plannedBatches = [...batches, ...opportunityBatches, ...bootstrapBatches].slice(0, orbitLimit);
+  const plannedBatches = [...batches, ...opportunityBatches, ...bootstrapBatches].slice(selectionOffset, selectionOffset + orbitLimit);
   console.log(
-    `[GENERATOR] ${company.name}: ${unprocessed.length} unprocessed sources → ${batches.length} evidence batches; ${opportunitySources.length} opportunity sources selected; ${bootstrapRevisitSources.length} bootstrap revisit sources.`,
+    `[GENERATOR] ${company.name}: ${unprocessed.length} unprocessed sources → ${batches.length} evidence batches; ${opportunitySources.length} opportunity sources selected; ${bootstrapRevisitSources.length} bootstrap revisit sources; offset=${selectionOffset}.`,
   );
 
   if (opportunitySources.length > 0) {
@@ -1441,6 +1444,9 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
     ),
   );
   const inventory = await loadCompanyPlannerInventory(prisma, cid);
+  const selectionOffset = Number.isFinite(executionOptions.selectionOffset)
+    ? Math.max(0, Number(executionOptions.selectionOffset))
+    : 0;
   const taskNoveltyInventory = await prisma.checklistTask.findMany({
     where: {
       companyId: cid,
@@ -1465,7 +1471,8 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
       { lastActionAt: "asc" },
       { updatedAt: "asc" },
     ],
-    take: orbitLimit * 2,
+    skip: selectionOffset,
+    take: (orbitLimit * 2) + selectionOffset,
   });
 
   if (knowledgeBase.length === 0) return 0;

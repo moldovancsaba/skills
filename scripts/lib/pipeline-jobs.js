@@ -187,6 +187,7 @@ function buildExecutionOptionsForJob(job, resourceBand) {
     batchLimitOverride: null,
     disableResearchBackfill: false,
     countOverrides: null,
+    selectionOffset: 0,
     weightClass,
   };
 
@@ -271,6 +272,7 @@ function resolvePipelineJobExecutionPlan(job, freeMemOverride = null) {
         countOverrides: metadataOptions.countOverrides && typeof metadataOptions.countOverrides === "object"
           ? metadataOptions.countOverrides
           : null,
+        selectionOffset: Number.isFinite(metadataOptions.selectionOffset) ? Number(metadataOptions.selectionOffset) : 0,
         weightClass: PIPELINE_JOB_WEIGHT_CLASS[job?.jobType] || JOB_WEIGHT_CLASSES.MEDIUM,
       },
     };

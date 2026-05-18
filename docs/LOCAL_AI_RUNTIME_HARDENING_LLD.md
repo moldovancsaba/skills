@@ -293,11 +293,12 @@ Shipped extension:
 
 1. repeated low-memory deferrals can now pause a parent job and spawn a bounded child queue slice with persisted execution options
 2. successful child completion can release the parent back into the normal recurring contract
+3. repeated low-memory deferrals can now fan one oversized parent job into multiple bounded child slices with persisted selection offsets so the slices work distinct portions of the backlog
 
 Remaining target:
 
-1. richer multi-child decomposition for jobs that should fan out into multiple bounded units
-2. explicit operator metrics for downgraded versus fully executed jobs
+1. explicit operator metrics for downgraded versus fully executed jobs
+2. richer per-slice runtime progress visibility beyond parent/child state alone
 
 - on worker boot:
   - run one bounded queue repair pass

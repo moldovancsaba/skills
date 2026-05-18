@@ -52,10 +52,14 @@ function buildActiveMaintenanceWhere() {
   };
 }
 
-async function loadOldestModifiedBatch(model, where, take) {
+async function loadOldestModifiedBatch(model, where, take, executionOptions = {}) {
   if (!take || take <= 0) {
     return [];
   }
+
+  const skip = Number.isFinite(executionOptions?.selectionOffset)
+    ? Math.max(0, Number(executionOptions.selectionOffset))
+    : 0;
 
   return model.findMany({
     where,
@@ -63,6 +67,7 @@ async function loadOldestModifiedBatch(model, where, take) {
       { updatedAt: "asc" },
       { createdAt: "asc" },
     ],
+    skip,
     take,
   });
 }
@@ -206,6 +211,7 @@ async function refreshOldestFlashcards(prisma, _company = null, refreshedAt = ne
     prisma.flashcard,
     buildActiveMaintenanceWhere(),
     resolveMaintenanceTake("flashcards", executionOptions),
+    executionOptions,
   );
 
   for (const flashcard of flashcards) {
@@ -343,6 +349,7 @@ async function refreshOldestGoals(prisma, _company = null, refreshedAt = new Dat
     prisma.goalcard,
     buildActiveMaintenanceWhere(),
     resolveMaintenanceTake("goalcards", executionOptions),
+    executionOptions,
   );
 
   for (const goalcard of goalcards) {
@@ -453,6 +460,7 @@ async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Dat
       status: { notIn: ["ARCHIVED", "COMPLETED"] },
     },
     resolveMaintenanceTake("taskcards", executionOptions),
+    executionOptions,
   );
 
   for (const taskcard of taskcards) {
@@ -542,6 +550,7 @@ async function refreshOldestDatacards(prisma, _company = null, refreshedAt = new
     prisma.source,
     {},
     resolveMaintenanceTake("datacards", executionOptions),
+    executionOptions,
   );
 
   for (const source of sources) {

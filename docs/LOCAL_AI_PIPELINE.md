@@ -169,6 +169,7 @@ Runtime hardening note:
 - runtime mutation writes now go through shared allowlist payload builders for flashcard and task update paths instead of writing model-shaped AI objects directly to Prisma
 - queue failures now classify into retryable cooldowns versus terminal dead-letter states, and retryable jobs use `scheduledAt` backoff instead of immediately hot-looping
 - oversized jobs no longer only bounce in low-memory deferral; the worker now shrinks them into degraded or minimal execution profiles before deferring them
+- repeated low-memory deferrals can now fan one oversized parent job out into multiple bounded child slices with persisted selection offsets, so the queue can keep moving through distinct smaller units instead of retrying only one minimal slice forever
 - the broader hardening design is defined in [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 
 ## Deterministic planner and quality engine

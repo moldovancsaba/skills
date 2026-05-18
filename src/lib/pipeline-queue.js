@@ -96,6 +96,7 @@ const PIPELINE_FAILURE_CLASSES = Object.freeze({
 let lastGlobalPipelineSyncAt = 0;
 const DECOMPOSED_PIPELINE_ENTITY_TYPE = "PIPELINE_SLICE";
 const DECOMPOSED_PIPELINE_SOURCE_PREFIX = "decomp:";
+const DECOMPOSITION_CHILD_LIMIT = 3;
 
 const QUEUE_COLUMN_RANK = Object.freeze({
   NOW: 0,
@@ -259,6 +260,33 @@ function getDecompositionParentJobId(job) {
 
 function buildDecompositionSourceSignal(parentJobId) {
   return `${DECOMPOSED_PIPELINE_SOURCE_PREFIX}${parentJobId}`;
+}
+
+function buildLowMemoryDecompositionChildPlans(job, executionOptions = {}) {
+  const selectionOffsets = [0, 1, 2];
+  const baseOptions = {
+    profile: "minimal",
+    batchLimitOverride: 1,
+    disableResearchBackfill: true,
+    countOverrides: {
+      flashcards: 1,
+      taskcards: 1,
+      datacards: 1,
+      goalcards: 1,
+    },
+    ...executionOptions,
+  };
+
+  const childPlans = selectionOffsets.map((selectionOffset, index) => ({
+    childIndex: index,
+    childCount: selectionOffsets.length,
+    executionOptions: {
+      ...baseOptions,
+      selectionOffset,
+    },
+  }));
+
+  return childPlans.slice(0, DECOMPOSITION_CHILD_LIMIT);
 }
 
 function buildRunnablePipelineJobWhere(now = new Date()) {
@@ -1246,6 +1274,9 @@ async function completeDecompositionParentIfReady(prisma, childJob) {
           ...(isPlainObject(metadata.decomposition) ? metadata.decomposition : {}),
           state: "COMPLETED",
           completedAt: new Date().toISOString(),
+          completedChildCount: Array.isArray(metadata.decomposition?.children)
+            ? metadata.decomposition.children.length
+            : Number(metadata.decomposition?.childCount || 0) || null,
         },
       },
     },
@@ -1365,7 +1396,7 @@ async function spawnLowMemoryDecompositionChildJob(prisma, job, executionOptions
 
   const parentMetadata = getPipelineJobMetadata(job);
   const decompositionSignal = buildDecompositionSourceSignal(job.id);
-  const existingChild = await prisma.pipelineJob.findFirst({
+  const existingChildren = await prisma.pipelineJob.findMany({
     where: {
       companyId: job.companyId,
       jobType: job.jobType,
@@ -1375,20 +1406,13 @@ async function spawnLowMemoryDecompositionChildJob(prisma, job, executionOptions
     },
   });
 
-  if (existingChild) {
-    return existingChild;
+  if (existingChildren.length > 0) {
+    return existingChildren;
   }
 
-  const childMetadata = {
-    parentJobId: job.id,
-    parentQueueColumn: job.queueColumn,
-    spawnedFromAttemptCount: Number(job.attemptCount || 0),
-    executionOptions,
-    decomposition: {
-      state: "ACTIVE_CHILD",
-      spawnedAt: new Date().toISOString(),
-    },
-  };
+  const childPlans = buildLowMemoryDecompositionChildPlans(job, executionOptions);
+
+  const decomposedAt = new Date().toISOString();
 
   await prisma.pipelineJob.update({
     where: { id: job.id },
@@ -1404,30 +1428,54 @@ async function spawnLowMemoryDecompositionChildJob(prisma, job, executionOptions
         decomposition: {
           state: "DECOMPOSED",
           childSignal: decompositionSignal,
+          childCount: childPlans.length,
+          children: childPlans.map((plan) => ({
+            childIndex: plan.childIndex,
+            selectionOffset: plan.executionOptions.selectionOffset,
+            profile: plan.executionOptions.profile,
+          })),
           executionOptions,
-          decomposedAt: new Date().toISOString(),
+          decomposedAt,
         },
         parentQueueColumn: job.queueColumn,
       },
     },
   });
 
-  return prisma.pipelineJob.create({
-    data: {
-      companyId: job.companyId,
-      jobType: job.jobType,
-      entityType: DECOMPOSED_PIPELINE_ENTITY_TYPE,
-      entityId: `${job.id}:slice:${Date.now()}`,
-      status: "ACTIVE",
-      controlMode: "AI_ONLY",
-      queueColumn: "NOW",
-      manualSortOrder: 0,
-      priorityScore: Math.max(Number(job.priorityScore || 0), 140),
-      reason: `Bounded child slice for ${job.jobType} under low-memory decomposition.`,
-      sourceSignal: decompositionSignal,
-      metadata: childMetadata,
-    },
-  });
+  const createdChildren = [];
+  for (const plan of childPlans) {
+    const childMetadata = {
+      parentJobId: job.id,
+      parentQueueColumn: job.queueColumn,
+      spawnedFromAttemptCount: Number(job.attemptCount || 0),
+      executionOptions: plan.executionOptions,
+      decomposition: {
+        state: "ACTIVE_CHILD",
+        spawnedAt: decomposedAt,
+        childIndex: plan.childIndex,
+        childCount: plan.childCount,
+      },
+    };
+
+    createdChildren.push(await prisma.pipelineJob.create({
+      data: {
+        companyId: job.companyId,
+        jobType: job.jobType,
+        entityType: DECOMPOSED_PIPELINE_ENTITY_TYPE,
+        entityId: `${job.id}:slice:${plan.childIndex}:${Date.now()}`,
+        status: "ACTIVE",
+        controlMode: "AI_ONLY",
+        queueColumn: "NOW",
+        manualSortOrder: 0,
+        priorityScore: Math.max(Number(job.priorityScore || 0), 140 - plan.childIndex),
+        reason: `Bounded child slice ${plan.childIndex + 1}/${plan.childCount} for ${job.jobType} under low-memory decomposition.`,
+        sourceSignal: decompositionSignal,
+        metadata: childMetadata,
+      },
+    }));
+  }
+
+  return createdChildren;
 }
 
 module.exports = {
@@ -1470,6 +1518,7 @@ module.exports = {
   escalateCompanyPipelineJob,
   recoverFailedCompanyPipelineJobs,
   failPipelineJob,
+  buildLowMemoryDecompositionChildPlans,
   spawnLowMemoryDecompositionChildJob,
   sortPipelineJobs,
 };

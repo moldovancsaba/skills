@@ -14,6 +14,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_KNOWLEDGE_SAMPLE_FOR_SCORE_HEALTH = 8;
 const HEARTBEAT_FILE = path.join(__dirname, "..", "..", "logs", "guardian-heartbeat.json");
 const SNAPSHOT_REFRESH_META_KEY = "local_ai_snapshot_refresh_meta";
+const PROJECTION_REFRESH_STATE_KEY = "local_ai_webapp_projection_refresh_state";
+const PROJECTION_RECENT_REFRESH_LIMIT = 24;
 const KNOWMORE_PIPELINE_JOB_TYPES = Object.freeze([
   "ENSURE_FLASHCARD_MINIMUM",
   "RESEARCH_BACKFILL",
@@ -52,6 +54,94 @@ function normalizeTagSelectionKey(tags = []) {
   return [...new Set((Array.isArray(tags) ? tags : []).map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean))]
     .sort()
     .join("|");
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeProjectionRefreshState(value) {
+  const dirtyCompanies = Array.isArray(value?.dirtyCompanies)
+    ? value.dirtyCompanies.filter((entry) => isPlainObject(entry) && typeof entry.companyId === "string" && entry.companyId)
+    : [];
+  const recentRefreshes = Array.isArray(value?.recentRefreshes)
+    ? value.recentRefreshes.filter((entry) => isPlainObject(entry) && typeof entry.companyId === "string" && entry.companyId)
+    : [];
+  return {
+    dirtyCompanies,
+    recentRefreshes: recentRefreshes.slice(-PROJECTION_RECENT_REFRESH_LIMIT),
+  };
+}
+
+function enqueueDirtyProjectionCompany(state, companyId, reason = "projection-repair", now = new Date()) {
+  const normalized = normalizeProjectionRefreshState(state);
+  const requestedAt = now.toISOString();
+  const nextDirty = normalized.dirtyCompanies.filter((entry) => entry.companyId !== companyId);
+  nextDirty.push({
+    companyId,
+    reason,
+    requestedAt,
+  });
+  return {
+    dirtyCompanies: nextDirty.sort((left, right) => new Date(left.requestedAt).getTime() - new Date(right.requestedAt).getTime()),
+    recentRefreshes: normalized.recentRefreshes,
+  };
+}
+
+function drainDirtyProjectionCompanies(state, limit = 3) {
+  const normalized = normalizeProjectionRefreshState(state);
+  const boundedLimit = Math.max(1, Math.min(20, Number(limit || 3)));
+  return {
+    drained: normalized.dirtyCompanies.slice(0, boundedLimit),
+    remaining: normalized.dirtyCompanies.slice(boundedLimit),
+    recentRefreshes: normalized.recentRefreshes,
+  };
+}
+
+function recordProjectionRefreshResult(state, result, now = new Date()) {
+  const normalized = normalizeProjectionRefreshState(state);
+  const event = {
+    companyId: result.companyId,
+    companyName: result.companyName || null,
+    reason: result.reason || "projection-refresh",
+    status: result.status || "REFRESHED",
+    trigger: result.trigger || "background-dirty-drain",
+    refreshedAt: now.toISOString(),
+    error: result.error || null,
+  };
+  return {
+    dirtyCompanies: normalized.dirtyCompanies,
+    recentRefreshes: [...normalized.recentRefreshes, event].slice(-PROJECTION_RECENT_REFRESH_LIMIT),
+  };
+}
+
+async function readProjectionRefreshState(prisma) {
+  const setting = await prisma.globalSetting.findUnique({
+    where: { key: PROJECTION_REFRESH_STATE_KEY },
+    select: { value: true },
+  });
+  return normalizeProjectionRefreshState(setting?.value);
+}
+
+async function writeProjectionRefreshState(prisma, state) {
+  const normalized = normalizeProjectionRefreshState(state);
+  await prisma.globalSetting.upsert({
+    where: { key: PROJECTION_REFRESH_STATE_KEY },
+    create: { key: PROJECTION_REFRESH_STATE_KEY, value: normalized },
+    update: { value: normalized, updatedAt: new Date() },
+  });
+  return normalized;
+}
+
+async function markCompanyProjectionDirty(prisma, companyId, reason = "projection-repair") {
+  if (!companyId) return null;
+  const nextState = enqueueDirtyProjectionCompany(
+    await readProjectionRefreshState(prisma),
+    companyId,
+    reason,
+    new Date(),
+  );
+  return writeProjectionRefreshState(prisma, nextState);
 }
 
 function summarizeCardQuality(records = []) {
@@ -1105,8 +1195,71 @@ async function refreshIntelligenceSnapshotSlice(prisma, options = {}) {
   };
 }
 
+async function refreshDirtyCompanyIntelligenceSnapshots(prisma, options = {}) {
+  const trigger = typeof options.trigger === "string" ? options.trigger : "background-dirty-drain";
+  const limit = Math.max(1, Math.min(20, Number(options.limit || 3)));
+  const state = await readProjectionRefreshState(prisma);
+  const plan = drainDirtyProjectionCompanies(state, limit);
+  if (plan.drained.length === 0) {
+    return {
+      refreshedCompanies: 0,
+      dirtyCompaniesRemaining: plan.remaining.length,
+      recentRefreshes: plan.recentRefreshes,
+    };
+  }
+
+  let nextState = {
+    dirtyCompanies: plan.remaining,
+    recentRefreshes: plan.recentRefreshes,
+  };
+  let refreshedCompanies = 0;
+
+  for (const entry of plan.drained) {
+    try {
+      await refreshCompanyIntelligenceSnapshot(prisma, entry.companyId);
+      refreshedCompanies += 1;
+      const company = await prisma.company.findUnique({
+        where: { id: entry.companyId },
+        select: { name: true },
+      });
+      nextState = recordProjectionRefreshResult(nextState, {
+        companyId: entry.companyId,
+        companyName: company?.name || null,
+        reason: entry.reason,
+        status: "REFRESHED",
+        trigger,
+      });
+    } catch (error) {
+      console.error(
+        `[INTELLIGENCE SNAPSHOT] Failed targeted projection refresh for ${entry.companyId}: ${error?.code || error?.name || "UNKNOWN"} ${error?.message || ""}`.trim(),
+      );
+      nextState = recordProjectionRefreshResult(nextState, {
+        companyId: entry.companyId,
+        reason: entry.reason,
+        status: "FAILED",
+        trigger,
+        error: error?.message || String(error),
+      });
+      nextState = enqueueDirtyProjectionCompany(nextState, entry.companyId, entry.reason, new Date());
+    }
+  }
+
+  const persisted = await writeProjectionRefreshState(prisma, nextState);
+  return {
+    refreshedCompanies,
+    dirtyCompaniesRemaining: persisted.dirtyCompanies.length,
+    recentRefreshes: persisted.recentRefreshes,
+  };
+}
+
 module.exports = {
+  drainDirtyProjectionCompanies,
+  enqueueDirtyProjectionCompany,
+  markCompanyProjectionDirty,
+  normalizeProjectionRefreshState,
+  recordProjectionRefreshResult,
   refreshCompanyIntelligenceSnapshot,
   refreshAllIntelligenceSnapshots,
+  refreshDirtyCompanyIntelligenceSnapshots,
   refreshIntelligenceSnapshotSlice,
 };

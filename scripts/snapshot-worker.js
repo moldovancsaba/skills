@@ -1,6 +1,10 @@
 const { PrismaClient } = require("@prisma/client");
 const http = require("http");
-const { refreshIntelligenceSnapshotSlice } = require("./lib/intelligence-snapshot");
+const {
+  markCompanyProjectionDirty,
+  refreshDirtyCompanyIntelligenceSnapshots,
+  refreshIntelligenceSnapshotSlice,
+} = require("./lib/intelligence-snapshot");
 const { syncAllCompanyPipelineJobsIfDue, syncDirtyCompanyPipelineJobs } = require("../src/lib/pipeline-queue");
 const {
   getFreeMemoryMb,
@@ -110,6 +114,29 @@ async function runSnapshotLoop() {
       limit: SNAPSHOT_BATCH_SIZE,
     });
     const didSyncQueue = await syncAllCompanyPipelineJobsIfDue(prisma);
+    for (const entry of Array.isArray(targetedSyncResult.syncedEntries) ? targetedSyncResult.syncedEntries : []) {
+      await markCompanyProjectionDirty(prisma, entry.companyId, `topology-sync:${entry.reason || "background-dirty-drain"}`);
+    }
+
+    await updateSnapshotWorkerProgress(prisma, {
+      state: "running",
+      stage: "TARGETED_PROJECTION_REFRESH",
+      activeTask: "Refreshing touched-company webapp projections",
+      currentCompany: null,
+      metrics: {
+        freeMemMb,
+        resourceBand,
+        batchSize: SNAPSHOT_BATCH_SIZE,
+        targetedQueueSyncs: targetedSyncResult.syncedCompanies,
+        dirtyCompaniesRemaining: targetedSyncResult.dirtyCompaniesRemaining,
+        didSyncQueue,
+      },
+    });
+
+    const targetedProjectionResult = await refreshDirtyCompanyIntelligenceSnapshots(prisma, {
+      trigger: "snapshot-worker",
+      limit: SNAPSHOT_BATCH_SIZE,
+    });
 
     const snapshotResult = await refreshIntelligenceSnapshotSlice(prisma, {
       batchSize: SNAPSHOT_BATCH_SIZE,
@@ -131,6 +158,8 @@ async function runSnapshotLoop() {
         resourceBand,
         targetedQueueSyncs: targetedSyncResult.syncedCompanies,
         dirtyCompaniesRemaining: targetedSyncResult.dirtyCompaniesRemaining,
+        targetedProjectionRefreshes: targetedProjectionResult.refreshedCompanies,
+        dirtyProjectionCompaniesRemaining: targetedProjectionResult.dirtyCompaniesRemaining,
         didSyncQueue,
         refreshedCompanies: snapshotResult.refreshedCompanies,
         wrapped: snapshotResult.wrapped,

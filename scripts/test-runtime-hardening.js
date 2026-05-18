@@ -20,6 +20,12 @@ const {
   FOREGROUND_HARD_PAUSE_MB,
 } = require("./lib/runtime/resource-bands");
 const {
+  enqueueDirtyProjectionCompany,
+  drainDirtyProjectionCompanies,
+  normalizeProjectionRefreshState,
+  recordProjectionRefreshResult,
+} = require("./lib/intelligence-snapshot");
+const {
   MEMORY_GOVERNOR_ACTIONS,
   DEFAULT_MEMORY_GOVERNOR_POLICY,
   createMemoryGovernorObservedState,
@@ -320,6 +326,54 @@ async function main() {
   );
   assert.equal(topologyHistory.recentSyncs.length, 1, "topology observability should record targeted sync results");
   assert.equal(topologyHistory.recentSyncs[0].companyName, "Alpha", "topology observability should preserve company labels when known");
+
+  const dirtyProjectionState = enqueueDirtyProjectionCompany(
+    { dirtyCompanies: [], recentRefreshes: [] },
+    "company-1",
+    "job-success:REFRESH_FLASHCARDS",
+    new Date("2026-05-18T12:00:00.000Z"),
+  );
+  const dedupedProjectionState = enqueueDirtyProjectionCompany(
+    dirtyProjectionState,
+    "company-1",
+    "job-success:REFRESH_TASKS",
+    new Date("2026-05-18T12:05:00.000Z"),
+  );
+  assert.equal(dedupedProjectionState.dirtyCompanies.length, 1, "projection repair queue should dedupe the same company instead of growing forever");
+  assert.equal(dedupedProjectionState.dirtyCompanies[0].reason, "job-success:REFRESH_TASKS", "latest projection repair reason should replace stale reasons");
+
+  const drainedProjections = drainDirtyProjectionCompanies({
+    dirtyCompanies: [
+      { companyId: "company-1", reason: "job-success:A", requestedAt: "2026-05-18T12:00:00.000Z" },
+      { companyId: "company-2", reason: "job-success:B", requestedAt: "2026-05-18T12:01:00.000Z" },
+      { companyId: "company-3", reason: "job-success:C", requestedAt: "2026-05-18T12:02:00.000Z" },
+    ],
+    recentRefreshes: [],
+  }, 2);
+  assert.deepEqual(
+    drainedProjections.drained.map((entry) => entry.companyId),
+    ["company-1", "company-2"],
+    "projection repair drain should preserve oldest-first touched-company order",
+  );
+  assert.deepEqual(
+    drainedProjections.remaining.map((entry) => entry.companyId),
+    ["company-3"],
+    "projection repair drain should leave untouched companies behind for later background repair",
+  );
+
+  const projectionHistory = recordProjectionRefreshResult(
+    normalizeProjectionRefreshState({ dirtyCompanies: [], recentRefreshes: [] }),
+    {
+      companyId: "company-1",
+      companyName: "Alpha",
+      reason: "job-success:REFRESH_FLASHCARDS",
+      status: "REFRESHED",
+      trigger: "snapshot-worker",
+    },
+    new Date("2026-05-18T12:10:00.000Z"),
+  );
+  assert.equal(projectionHistory.recentRefreshes.length, 1, "projection observability should record targeted refresh results");
+  assert.equal(projectionHistory.recentRefreshes[0].companyName, "Alpha", "projection observability should preserve company labels when known");
 
   console.log("Runtime hardening tests passed.");
 }

@@ -202,6 +202,7 @@ export default function LocalAiMissionControlPage() {
   const memoryGovernor = data?.memoryGovernor || {};
   const verification = data?.verification || null;
   const topology = data?.topology || {};
+  const projections = data?.projections || {};
   const buildIdentity = worker?.settings?.buildIdentity || {};
   const actualCurrentTask = String(worker.activeTask || "Idle");
   const actualCurrentCompany = String(worker.currentCompany || "No company locked");
@@ -210,6 +211,8 @@ export default function LocalAiMissionControlPage() {
   const latestGovernorEvaluation = memoryGovernor.latestEvaluation || {};
   const topologyRecentSyncs = Array.isArray(topology?.recentSyncs) ? topology.recentSyncs : [];
   const topologyDirtyCompanies = Array.isArray(topology?.dirtyCompanies) ? topology.dirtyCompanies : [];
+  const projectionRecentRefreshes = Array.isArray(projections?.recentRefreshes) ? projections.recentRefreshes : [];
+  const projectionDirtyCompanies = Array.isArray(projections?.dirtyCompanies) ? projections.dirtyCompanies : [];
   const verificationChecks = Array.isArray(verification?.checks) ? verification.checks : [];
   const failingVerificationChecks = verificationChecks.filter((check: any) => !check.ok).slice(0, 4);
 
@@ -686,6 +689,79 @@ export default function LocalAiMissionControlPage() {
                   </Table>
                 ) : (
                   <Notice title="No pending topology refresh">The background worker does not currently have any touched-company topology refresh requests queued.</Notice>
+                )}
+              </UnifiedCardBody>
+            </UnifiedCard>
+          </SimpleGrid>
+
+          <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
+            <UnifiedCard tone="strategy">
+              <UnifiedCardHeader
+                title="Projection Refresh"
+                supporting={<Badge variant="light" color="strategy">{projectionDirtyCompanies.length} dirty</Badge>}
+              />
+              <UnifiedCardBody>
+                <Notice title="Touched-company read-model repair">
+                  Successful company work now marks that company as projection-dirty, and `snapshot-worker` refreshes those webapp-ready projections before the slower broad snapshot sweep.
+                </Notice>
+                {projectionRecentRefreshes.length ? (
+                  <Table highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>When</Table.Th>
+                        <Table.Th>Company</Table.Th>
+                        <Table.Th>Status</Table.Th>
+                        <Table.Th>Reason</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {projectionRecentRefreshes.map((entry: any, index: number) => (
+                        <Table.Tr key={`${entry.companyId || "company"}-${entry.refreshedAt || index}`}>
+                          <Table.Td>{formatTimestamp(entry.refreshedAt)}</Table.Td>
+                          <Table.Td>{entry.companyName || entry.companyId || "—"}</Table.Td>
+                          <Table.Td>
+                            <Badge variant="light" color={entry.status === "REFRESHED" ? "strategy" : "review"}>
+                              {entry.status || "—"}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>{entry.reason || entry.trigger || "—"}</Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                ) : (
+                  <Notice title="No targeted projection refreshes yet">No company-specific webapp projection refresh has been recorded since the current retention window began.</Notice>
+                )}
+              </UnifiedCardBody>
+            </UnifiedCard>
+
+            <UnifiedCard tone="strategy">
+              <UnifiedCardHeader
+                title="Dirty Projections"
+                supporting={<Badge variant="light" color="strategy">{projectionDirtyCompanies.length} queued</Badge>}
+              />
+              <UnifiedCardBody>
+                {projectionDirtyCompanies.length ? (
+                  <Table highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Company ID</Table.Th>
+                        <Table.Th>Reason</Table.Th>
+                        <Table.Th>Requested</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {projectionDirtyCompanies.slice(0, 8).map((entry: any, index: number) => (
+                        <Table.Tr key={`${entry.companyId || "company"}-${entry.requestedAt || index}`}>
+                          <Table.Td>{entry.companyId || "—"}</Table.Td>
+                          <Table.Td>{entry.reason || "projection-repair"}</Table.Td>
+                          <Table.Td>{formatTimestamp(entry.requestedAt)}</Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                ) : (
+                  <Notice title="No pending projection refresh">The background worker does not currently have any touched-company webapp projection refresh requests queued.</Notice>
                 )}
               </UnifiedCardBody>
             </UnifiedCard>

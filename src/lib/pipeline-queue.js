@@ -1117,6 +1117,8 @@ async function syncDirtyCompanyPipelineJobs(prisma, options = {}) {
   if (plan.drained.length === 0) {
     return {
       syncedCompanies: 0,
+      syncedEntries: [],
+      failedEntries: [],
       dirtyCompaniesRemaining: plan.remaining.length,
       recentSyncs: plan.recentSyncs,
     };
@@ -1127,6 +1129,8 @@ async function syncDirtyCompanyPipelineJobs(prisma, options = {}) {
     recentSyncs: plan.recentSyncs,
   };
   let syncedCompanies = 0;
+  const syncedEntries = [];
+  const failedEntries = [];
 
   for (const entry of plan.drained) {
     try {
@@ -1143,6 +1147,11 @@ async function syncDirtyCompanyPipelineJobs(prisma, options = {}) {
         status: "SYNCED",
         trigger,
       });
+      syncedEntries.push({
+        companyId: entry.companyId,
+        companyName: company?.name || null,
+        reason: entry.reason,
+      });
     } catch (error) {
       console.error(
         `[PIPELINE QUEUE] Failed targeted topology sync for ${entry.companyId}: ${error?.code || error?.name || "UNKNOWN"} ${error?.message || ""}`.trim(),
@@ -1154,6 +1163,11 @@ async function syncDirtyCompanyPipelineJobs(prisma, options = {}) {
         trigger,
         error: error?.message || String(error),
       });
+      failedEntries.push({
+        companyId: entry.companyId,
+        reason: entry.reason,
+        error: error?.message || String(error),
+      });
       nextState = enqueueDirtyPipelineTopologyCompany(nextState, entry.companyId, entry.reason, new Date());
     }
   }
@@ -1161,6 +1175,8 @@ async function syncDirtyCompanyPipelineJobs(prisma, options = {}) {
   const persisted = await writePipelineTopologyState(prisma, nextState);
   return {
     syncedCompanies,
+    syncedEntries,
+    failedEntries,
     dirtyCompaniesRemaining: persisted.dirtyCompanies.length,
     recentSyncs: persisted.recentSyncs,
   };

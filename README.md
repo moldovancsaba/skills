@@ -251,6 +251,7 @@ Architecture note:
 - `snapshot-worker` also owns scheduled runtime verification and persists the latest operator-readable verification report
 - productive company jobs now refresh queue topology for the touched company directly, with `snapshot-worker` only handling the dirty-company retry queue and the slower broad coverage path
 - the local AI side also owns the webapp-ready company read model; the online app consumes those projections rather than recomputing many live counts on hot routes
+- productive company jobs now also mark that company projection-dirty so `snapshot-worker` can repair webapp-ready data quickly before the slower broad snapshot pass
 
 ### Local operator URLs
 

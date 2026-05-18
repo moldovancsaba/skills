@@ -193,6 +193,7 @@ The repetitive-job contract now also includes:
 - scheduled runtime verification runs from `snapshot-worker`, persists its latest report into global settings, and surfaces the result on `/local-ai`
 - intelligence snapshot refresh is no longer part of the foreground queue lane; it runs in the dedicated `snapshot-worker`
 - queue-topology refresh on claim miss is also delegated out of the foreground lane; `snapshot-worker` owns the background queue-sync cadence and may be force-woken by foreground
+- touched-company projection refresh now follows the same background ownership pattern: successful company work marks the company projection-dirty, and `snapshot-worker` drains those targeted repairs before the slower broad snapshot sweep
 
 Backlog contract:
 

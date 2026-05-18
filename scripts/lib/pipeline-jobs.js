@@ -35,6 +35,7 @@ const {
   updateProgress,
 } = require("./synthesis");
 const { getHumanMemoryPrompt, processMemoryUpdates } = require("./memory");
+const { markCompanyProjectionDirty } = require("./intelligence-snapshot");
 
 function isPlannerBootstrapJob(jobType) {
   return PLANNER_BOOTSTRAP_JOB_TYPES.includes(jobType);
@@ -577,6 +578,15 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
           ? `${job.jobType} completed with ${result} operation(s).`
           : `${job.jobType} completed successfully.`,
       );
+      if (job.companyId) {
+        await markCompanyProjectionDirty(
+          prisma,
+          job.companyId,
+          job.entityType === "PIPELINE_SLICE"
+            ? `child-success:${job.jobType}`
+            : `job-success:${job.jobType}`,
+        );
+      }
       await recordPipelineJobUsage(prisma, job, {
         status: "COMPLETED",
         workloadUnits,

@@ -124,6 +124,7 @@ The local AI side owns:
 Current implementation owner:
 
 - `scripts/lib/intelligence-snapshot.js`
+- `scripts/snapshot-worker.js`
 
 ### 5.2 Webapp ownership
 
@@ -173,6 +174,8 @@ The first slice of this architecture is now:
 - snapshot-backed planning summary reads for tactical and checklist surfaces
 - projection freshness telemetry on dashboard, tactical, and checklist surfaces
 - shared projection normalization in `src/lib/webapp-projection.ts`
+- touched-company projection dirty queue drained by `snapshot-worker`
+- targeted projection repair after successful company work lands
 
 Hot routes improved in this slice:
 
@@ -187,9 +190,9 @@ The first slice is not the end state.
 
 Still required:
 
-1. projection invalidation and targeted refresh triggers after touched-company work
-2. larger analytics and card-detail reads audited to avoid hot-path fan-out
-3. broader freshness visibility where operators actually need it
+1. larger analytics and card-detail reads audited to avoid hot-path fan-out
+2. broader freshness visibility where operators actually need it
+3. stricter projection backfill/repair guarantees for cold-start environments
 
 ## 9. Why This Matters Operationally
 
@@ -212,6 +215,7 @@ This architecture is considered healthy when:
 3. product page loads remain fast even while the local AI runtime is active
 4. the webapp no longer behaves like a second analytics engine
 5. projection freshness and fallbacks are documented and observable
+6. touched-company work triggers fast targeted projection repair instead of waiting only for broad snapshot sweeps
 
 ## 11. GitHub Breakdown
 

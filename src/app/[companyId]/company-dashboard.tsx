@@ -122,9 +122,18 @@ export default function CompanyDashboard() {
   useEffect(() => {
     if (!companyId) return;
 
-    const initializeDashboard = async (cid: string) => {
+    const fetchCompany = async (cid: string) => {
       try {
-        await loadDashboard(cid);
+        const companies = await fetch(`/api/companies`).then((res) => res.json());
+        if (!Array.isArray(companies)) return;
+        const found = companies.find((c: any) => c.id === cid);
+        if (!found) {
+          router.push("/");
+          return;
+        }
+
+        setCompany(found);
+        await loadDashboard(found.id);
       } catch (error) {
         console.error("Dashboard initialization failed:", error);
       } finally {
@@ -132,8 +141,8 @@ export default function CompanyDashboard() {
       }
     };
 
-    void initializeDashboard(companyId);
-  }, [companyId, loadDashboard]);
+    void fetchCompany(companyId);
+  }, [companyId, loadDashboard, router, setCompany]);
 
   const resetActionForm = useCallback(() => {
     setActionMode(null);

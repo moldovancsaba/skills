@@ -484,7 +484,7 @@ async function applyEditorialGate(prisma, company, {
   return gated;
 }
 
-async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, workerContext) {
+async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, workerContext, executionOptions = {}) {
   let ops = 0;
   let inventory = await loadCompanyPlannerInventory(prisma, company.id);
 
@@ -502,7 +502,7 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
       prisma,
       company,
       `${company.name}:bootstrap_flashcard_generation`,
-      () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext),
+      () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext, executionOptions),
       { stage: "bootstrap_flashcard_generation", mode: inventory.mode },
     ).catch((error) => {
       console.warn(error.message);
@@ -522,14 +522,16 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
   }
 
   if (inventory.flashcardCount < PLANNER_MIN_FLASHCARDS && inventory.datacardCount <= 3) {
-    const researchOps = await performCompanyScrubbing(prisma, company, memoryPrompt, topic, workerContext);
+    const researchOps = executionOptions.disableResearchBackfill
+      ? 0
+      : await performCompanyScrubbing(prisma, company, memoryPrompt, topic, workerContext);
     ops += researchOps;
     if (researchOps > 0) {
       ops += await withPlannerStageTimeout(
         prisma,
         company,
         `${company.name}:research_backfill_flashcard_generation`,
-        () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext),
+        () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext, executionOptions),
         { stage: "research_backfill_flashcard_generation", mode: inventory.mode },
       ).catch((error) => {
         console.warn(error.message);
@@ -554,7 +556,7 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
       prisma,
       company,
       `${company.name}:lane_deficit_task_generation`,
-      () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext),
+      () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext, executionOptions),
       { stage: "lane_deficit_task_generation", deficits: inventory.deficits },
     ).catch((error) => {
       console.warn(error.message);
@@ -568,7 +570,7 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
       prisma,
       company,
       `${company.name}:lane_deficit_flashcard_generation`,
-      () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext),
+      () => performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext, executionOptions),
       { stage: "lane_deficit_flashcard_generation", deficits: inventory.deficits },
     ).catch((error) => {
       console.warn(error.message);
@@ -588,7 +590,7 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
       prisma,
       company,
       `${company.name}:lane_deficit_retry_task_generation`,
-      () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext),
+      () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext, executionOptions),
       { stage: "lane_deficit_retry_task_generation", deficits: inventory.deficits },
     ).catch((error) => {
       console.warn(error.message);
@@ -602,7 +604,7 @@ async function runCompanyPlannerCycle(prisma, company, memoryPrompt, topic, work
       prisma,
       company,
       `${company.name}:maintenance_task_generation`,
-      () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext),
+      () => performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext, executionOptions),
       { stage: "maintenance_task_generation", mode: inventory.mode },
     ).catch((error) => {
       console.warn(error.message);
@@ -846,13 +848,22 @@ async function performCompanyScrubbing(prisma, company, memoryPrompt, topic, wor
   return ops;
 }
 
-async function performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext) {
+async function performCompanyWriting(prisma, company, memoryPrompt, topic, workerContext, executionOptions = {}) {
   const { validateTenant, getServerTime, generateFingerprint } = require("./shared");
   validateTenant(company.id);
 
   let dbFlashcards = [];
   const cid = company.id;
-  const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
+  const configuredOrbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
+  const orbitLimit = Math.max(
+    1,
+    Math.min(
+      configuredOrbitLimit,
+      Number.isFinite(executionOptions.batchLimitOverride)
+        ? Number(executionOptions.batchLimitOverride)
+        : configuredOrbitLimit,
+    ),
+  );
   const inventory = await loadCompanyPlannerInventory(prisma, cid);
   const [flashcardNoveltyInventory, taskNoveltyInventory, goalNoveltyInventory] = await Promise.all([
     prisma.flashcard.findMany({
@@ -1413,13 +1424,22 @@ async function buildTaskCreatePayload(prisma, candidate, overrides = {}) {
  * Converts VERIFIED Flashcards (Knowledge) into executable TaskCards (Action).
  * Uses Drafter (Generator), Refiner, and Evaluator pipeline.
  */
-async function performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext) {
+async function performCompanyActionGeneration(prisma, company, memoryPrompt, topic, workerContext, executionOptions = {}) {
   const { validateTenant, getServerTime } = require("./shared");
   validateTenant(company.id);
 
   let ops = 0;
   const cid = company.id;
-  const orbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
+  const configuredOrbitLimit = await getWorkerConfig(prisma, company, "batch_limit", 5);
+  const orbitLimit = Math.max(
+    1,
+    Math.min(
+      configuredOrbitLimit,
+      Number.isFinite(executionOptions.batchLimitOverride)
+        ? Number(executionOptions.batchLimitOverride)
+        : configuredOrbitLimit,
+    ),
+  );
   const inventory = await loadCompanyPlannerInventory(prisma, cid);
   const taskNoveltyInventory = await prisma.checklistTask.findMany({
     where: {

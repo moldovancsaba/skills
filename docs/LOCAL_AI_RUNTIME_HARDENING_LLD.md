@@ -27,6 +27,7 @@ Shipped progress status:
 - the foreground worker and stale-job recovery now enforce a 10-minute no-progress breaker for wedged queue work
 - runtime mutation payloads now use shared allowlist builders for flashcard and task write-back paths, rather than passing model-shaped objects directly into Prisma
 - queue failures now classify into retryable and terminal classes, use cooldown scheduling, and dead-letter terminal jobs into `PARKED` instead of hot-looping them forever
+- oversized queue jobs now use resource-aware execution profiles (`full`, `degraded`, `minimal`) so repeat low-memory pressure can shrink work instead of only deferring it forever
 
 ## 1. Purpose
 
@@ -49,10 +50,11 @@ Verified remaining problems in the current code path:
 
 - the foreground worker loop still performs some non-job work around queue execution, even after the worst hot-path waste was removed
 - queue synchronization is still present in the foreground lane on a bounded interval, rather than being fully isolated to background hygiene paths
-- low-memory handling is real but still coarse; the runtime now pauses lanes under pressure, but total machine headroom remains tight
+- low-memory handling is real and job downgrade now exists, but total machine headroom remains tight
 - one logical worker can still feel non-linear to operators because bounded system chores still happen around claimed work
 - stale `RUNNING` protection is much better than before, but operator trust still depends on strong heartbeat and reclaim behavior remaining intact
 - observability has improved, but some surfaces still mix worker truth, queue truth, and derived read-model truth more than ideal
+- always-too-heavy jobs now shrink automatically, but they do not yet decompose into durable child jobs
 
 No longer current:
 
@@ -257,6 +259,34 @@ Target design:
 ### 6.3 Incremental sync policy
 
 Target queue sync policy:
+
+### 6.4 Resource-aware execution profiles
+
+The runtime must not rely only on defer-and-retry for large jobs.
+
+Shipped contract:
+
+1. each queue job is mapped to a runtime weight class:
+   - `LIGHT`
+   - `MEDIUM`
+   - `HEAVY`
+   - `BURST`
+2. memory-intensive jobs may execute in one of 3 profiles:
+   - `full`
+   - `degraded`
+   - `minimal`
+3. constrained memory may shrink a job before deferring it
+4. repeated low-memory attempts may force a smaller profile automatically
+5. minimal profiles reduce blast radius by:
+   - lowering batch size
+   - refreshing fewer cards
+   - disabling research backfill when needed
+
+Remaining target:
+
+1. child-job decomposition for permanently oversized work
+2. durable execution-profile persistence per job
+3. explicit operator metrics for downgraded versus fully executed jobs
 
 - on worker boot:
   - run one bounded queue repair pass

@@ -149,6 +149,7 @@ The repetitive-job contract now also includes:
 - deterministic planner-owned bootstrap and maintenance jobs for inventory, lane refill, quality ceilings, timeout recovery, and oldest-first refresh
 - quality-engine jobs for opportunity mining, editorial gating, research-backed regeneration, novelty suppression, and feedback-pressure repair
 - the 24/7 runtime hardening plan for strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery is defined in `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md`
+- the shipped step-by-step runtime sequence and rules are defined in `docs/LOCAL_AI_RUNTIME_SOP.md`
 - intelligence snapshot refresh is no longer part of the foreground queue lane; it runs in the dedicated `snapshot-worker`
 
 Backlog contract:

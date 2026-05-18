@@ -16,6 +16,7 @@ const {
 const {
   getFreeMemoryMb,
   getResourceBand,
+  RESOURCE_BANDS,
 } = require("./runtime/resource-bands");
 const { processFeedbackEvents } = require("./feedback");
 const { runMaintenance, rescorePeriodicCards } = require("./maintenance");
@@ -127,6 +128,37 @@ const MEMORY_INTENSIVE_PIPELINE_JOB_TYPES = new Set([
   "WORKFLOW_BLUEPRINT",
 ]);
 
+const JOB_WEIGHT_CLASSES = Object.freeze({
+  LIGHT: "LIGHT",
+  MEDIUM: "MEDIUM",
+  HEAVY: "HEAVY",
+  BURST: "BURST",
+});
+
+const PIPELINE_JOB_WEIGHT_CLASS = Object.freeze({
+  FEEDBACK_RECONCILIATION: JOB_WEIGHT_CLASSES.LIGHT,
+  CARD_RESCORING: JOB_WEIGHT_CLASSES.MEDIUM,
+  FRONTIER_RECOMPUTE: JOB_WEIGHT_CLASSES.LIGHT,
+  SCORE_ALERT_REPAIR: JOB_WEIGHT_CLASSES.MEDIUM,
+  ENSURE_FLASHCARD_MINIMUM: JOB_WEIGHT_CLASSES.HEAVY,
+  RESEARCH_BACKFILL: JOB_WEIGHT_CLASSES.BURST,
+  ENSURE_IDEABANK_MINIMUM: JOB_WEIGHT_CLASSES.HEAVY,
+  ENSURE_ROADMAP_MINIMUM: JOB_WEIGHT_CLASSES.HEAVY,
+  ENSURE_BACKLOG_MINIMUM: JOB_WEIGHT_CLASSES.HEAVY,
+  ENSURE_TODO_MINIMUM: JOB_WEIGHT_CLASSES.HEAVY,
+  ENSURE_CHECKLIST_MINIMUM: JOB_WEIGHT_CLASSES.HEAVY,
+  MINE_FLASHCARD_OPPORTUNITIES: JOB_WEIGHT_CLASSES.HEAVY,
+  MINE_TASK_OPPORTUNITIES: JOB_WEIGHT_CLASSES.HEAVY,
+  FEEDBACK_PRESSURE_REGENERATION: JOB_WEIGHT_CLASSES.HEAVY,
+  REFRESH_FLASHCARDS: JOB_WEIGHT_CLASSES.MEDIUM,
+  REFRESH_TASKS: JOB_WEIGHT_CLASSES.MEDIUM,
+  REFRESH_DATACARDS: JOB_WEIGHT_CLASSES.MEDIUM,
+  REFRESH_GOALS: JOB_WEIGHT_CLASSES.MEDIUM,
+  COMPANY_SYNTHESIS: JOB_WEIGHT_CLASSES.HEAVY,
+  FULL_MAINTENANCE: JOB_WEIGHT_CLASSES.BURST,
+  WORKFLOW_BLUEPRINT: JOB_WEIGHT_CLASSES.BURST,
+});
+
 function createPipelineDeferredError(message, retryAfterMs) {
   const error = new Error(message);
   error.pipelineClass = "LOW_MEMORY_SKIP";
@@ -135,28 +167,110 @@ function createPipelineDeferredError(message, retryAfterMs) {
   return error;
 }
 
-function assertPipelineJobCanRun(job) {
-  const freeMemMb = getFreeMemoryMb();
-  const resourceBand = getResourceBand(freeMemMb);
-  if (!MEMORY_INTENSIVE_PIPELINE_JOB_TYPES.has(job.jobType)) {
-    return;
+function buildExecutionOptionsForJob(job, resourceBand) {
+  const attemptCount = Number(job?.attemptCount || 0);
+  const weightClass = PIPELINE_JOB_WEIGHT_CLASS[job?.jobType] || JOB_WEIGHT_CLASSES.MEDIUM;
+  const executionOptions = {
+    profile: "full",
+    batchLimitOverride: null,
+    disableResearchBackfill: false,
+    countOverrides: null,
+    weightClass,
+  };
+
+  if (resourceBand === RESOURCE_BANDS.HEALTHY) {
+    return executionOptions;
   }
 
-  if (resourceBand === "DEGRADED") {
+  if (resourceBand === RESOURCE_BANDS.CONSTRAINED) {
+    if (weightClass === JOB_WEIGHT_CLASSES.HEAVY || weightClass === JOB_WEIGHT_CLASSES.BURST) {
+      return {
+        ...executionOptions,
+        profile: attemptCount >= 2 ? "minimal" : "degraded",
+        batchLimitOverride: attemptCount >= 2 ? 1 : 2,
+        disableResearchBackfill: attemptCount >= 2,
+        countOverrides: {
+          flashcards: 1,
+          taskcards: 1,
+          datacards: 1,
+          goalcards: 1,
+        },
+      };
+    }
+    return {
+      ...executionOptions,
+      profile: "degraded",
+      batchLimitOverride: 2,
+      countOverrides: {
+        flashcards: 1,
+        taskcards: 1,
+        datacards: 1,
+        goalcards: 1,
+      },
+    };
+  }
+
+  if (resourceBand === RESOURCE_BANDS.DEGRADED) {
+    if (weightClass === JOB_WEIGHT_CLASSES.LIGHT || weightClass === JOB_WEIGHT_CLASSES.MEDIUM) {
+      return {
+        ...executionOptions,
+        profile: "minimal",
+        batchLimitOverride: 1,
+        countOverrides: {
+          flashcards: 1,
+          taskcards: 1,
+          datacards: 1,
+          goalcards: 1,
+        },
+      };
+    }
+
+    if (attemptCount >= 2) {
+      return {
+        ...executionOptions,
+        profile: "minimal",
+        batchLimitOverride: 1,
+        disableResearchBackfill: true,
+        countOverrides: {
+          flashcards: 1,
+          taskcards: 1,
+          datacards: 1,
+          goalcards: 1,
+        },
+      };
+    }
+  }
+
+  return null;
+}
+
+function resolvePipelineJobExecutionPlan(job, freeMemOverride = null) {
+  const freeMemMb = Number.isFinite(freeMemOverride) ? Number(freeMemOverride) : getFreeMemoryMb();
+  const resourceBand = getResourceBand(freeMemMb);
+  const executionOptions = buildExecutionOptionsForJob(job, resourceBand);
+  if (!MEMORY_INTENSIVE_PIPELINE_JOB_TYPES.has(job.jobType)) {
+    return {
+      freeMemMb,
+      resourceBand,
+      executionOptions,
+    };
+  }
+
+  if (!executionOptions) {
     throw createPipelineDeferredError(
       `${job.jobType} deferred because memory pressure is ${resourceBand} (${freeMemMb}MB free).`,
       5 * 60 * 1000,
     );
   }
-  if (resourceBand === "CONSTRAINED" && isPlannerQualityJob(job.jobType)) {
-    throw createPipelineDeferredError(
-      `${job.jobType} deferred because memory pressure is ${resourceBand} (${freeMemMb}MB free).`,
-      3 * 60 * 1000,
-    );
-  }
+
+  return {
+    freeMemMb,
+    resourceBand,
+    executionOptions,
+  };
 }
 
-async function runPlannerBootstrapJob(prisma, company) {
+async function runPlannerBootstrapJob(prisma, company, executionOptions = {}) {
   const cycleRunId = crypto.randomUUID();
   const workerContext = {
     cycleRunId,
@@ -164,28 +278,28 @@ async function runPlannerBootstrapJob(prisma, company) {
   };
   await processMemoryUpdates(prisma, company);
   const memoryPrompt = await getHumanMemoryPrompt(prisma, company);
-  return runCompanyPlannerCycle(prisma, company, memoryPrompt, null, workerContext);
+  return runCompanyPlannerCycle(prisma, company, memoryPrompt, null, workerContext, executionOptions);
 }
 
-async function runPlannerMaintenanceJob(prisma, company, jobType) {
+async function runPlannerMaintenanceJob(prisma, company, jobType, executionOptions = {}) {
   switch (jobType) {
     case "REFRESH_FLASHCARDS":
-      return (await refreshOldestFlashcards(prisma, company)).length;
+      return (await refreshOldestFlashcards(prisma, company, new Date(), executionOptions)).length;
     case "REFRESH_TASKS": {
-      const refreshed = await refreshOldestTasks(prisma, company);
+      const refreshed = await refreshOldestTasks(prisma, company, new Date(), executionOptions);
       await recomputeFrontier(prisma, company);
       return refreshed.length + 1;
     }
     case "REFRESH_DATACARDS":
-      return (await refreshOldestDatacards(prisma, company)).length;
+      return (await refreshOldestDatacards(prisma, company, new Date(), executionOptions)).length;
     case "REFRESH_GOALS":
-      return (await refreshOldestGoals(prisma, company)).length;
+      return (await refreshOldestGoals(prisma, company, new Date(), executionOptions)).length;
     default:
       return 0;
   }
 }
 
-async function runPlannerQualityJob(prisma, company, jobType) {
+async function runPlannerQualityJob(prisma, company, jobType, executionOptions = {}) {
   const cycleRunId = crypto.randomUUID();
   const workerContext = {
     cycleRunId,
@@ -196,12 +310,12 @@ async function runPlannerQualityJob(prisma, company, jobType) {
 
   switch (jobType) {
     case "MINE_FLASHCARD_OPPORTUNITIES":
-      return performCompanyWriting(prisma, company, memoryPrompt, null, workerContext);
+      return performCompanyWriting(prisma, company, memoryPrompt, null, workerContext, executionOptions);
     case "MINE_TASK_OPPORTUNITIES":
-      return performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext);
+      return performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext, executionOptions);
     case "FEEDBACK_PRESSURE_REGENERATION": {
-      const taskOps = await performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext);
-      const refreshOps = await refreshOldestTasks(prisma, company);
+      const taskOps = await performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext, executionOptions);
+      const refreshOps = await refreshOldestTasks(prisma, company, new Date(), executionOptions);
       await recomputeFrontier(prisma, company);
       return taskOps + refreshOps.length + 1;
     }
@@ -210,20 +324,20 @@ async function runPlannerQualityJob(prisma, company, jobType) {
   }
 }
 
-async function executePipelineJob(prisma, job) {
+async function executePipelineJob(prisma, job, executionOptions = {}) {
   const company = job.company ?? await prisma.company.findUnique({ where: { id: job.companyId } });
   if (!company) {
     throw new Error(`Pipeline job ${job.id} has no company`);
   }
 
   if (isPlannerBootstrapJob(job.jobType)) {
-    return runPlannerBootstrapJob(prisma, company);
+    return runPlannerBootstrapJob(prisma, company, executionOptions);
   }
   if (isPlannerMaintenanceJob(job.jobType)) {
-    return runPlannerMaintenanceJob(prisma, company, job.jobType);
+    return runPlannerMaintenanceJob(prisma, company, job.jobType, executionOptions);
   }
   if (isPlannerQualityJob(job.jobType)) {
-    return runPlannerQualityJob(prisma, company, job.jobType);
+    return runPlannerQualityJob(prisma, company, job.jobType, executionOptions);
   }
 
   switch (job.jobType) {
@@ -242,7 +356,7 @@ async function executePipelineJob(prisma, job) {
       await recomputeFrontier(prisma, company);
       return 1;
     case "COMPANY_SYNTHESIS": {
-      return runPlannerBootstrapJob(prisma, company);
+      return runPlannerBootstrapJob(prisma, company, executionOptions);
     }
     case "WORKFLOW_BLUEPRINT": {
       const blueprint = job.entityId
@@ -277,7 +391,7 @@ async function executePipelineJob(prisma, job) {
         ops += 1;
       }
       if (kinds.has("ANSWER")) {
-        ops += await performCompanyWriting(prisma, company, memoryPrompt, null, workerContext);
+        ops += await performCompanyWriting(prisma, company, memoryPrompt, null, workerContext, executionOptions);
       }
       if (kinds.has("REVIEW")) {
         ops += await performCompanyJudging(prisma, company, memoryPrompt, null, workerContext);
@@ -326,6 +440,8 @@ async function recordPipelineJobUsage(prisma, job, input) {
         queueColumn: job.queueColumn,
         controlMode: job.controlMode,
         reason: input.reason || null,
+        executionProfile: input.executionProfile || "full",
+        resourceBand: input.resourceBand || null,
       },
     },
   });
@@ -409,8 +525,8 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         activeTask: buildActiveTaskString(job, companyName, entityLabel),
       });
       stopHeartbeat = startRunningJobHeartbeat(prisma, job, companyName, entityLabel);
-      assertPipelineJobCanRun(job);
-      const result = await executePipelineJob(prisma, job);
+      const executionPlan = resolvePipelineJobExecutionPlan(job);
+      const result = await executePipelineJob(prisma, job, executionPlan.executionOptions);
       if (stopHeartbeat) {
         await stopHeartbeat();
         stopHeartbeat = null;
@@ -430,6 +546,8 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         retryCount: job.attemptCount || 0,
         valueSignal: workloadUnits > 0 ? "QUEUE_WORK_COMPLETED" : "NO_OP",
         reason: typeof result === "number" ? `${result} operation(s)` : "completed",
+        executionProfile: executionPlan.executionOptions?.profile || "full",
+        resourceBand: executionPlan.resourceBand,
       });
       executed += 1;
     } catch (error) {
@@ -463,4 +581,6 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
 module.exports = {
   executePipelineJob,
   runPipelineQueueBatch,
+  resolvePipelineJobExecutionPlan,
+  JOB_WEIGHT_CLASSES,
 };

@@ -31,6 +31,13 @@ const PLANNER_MAINTENANCE_COUNTS = Object.freeze({
   datacards: 1,
   goalcards: 1,
 });
+
+function resolveMaintenanceTake(cardType, executionOptions = {}) {
+  const override = executionOptions?.countOverrides?.[cardType];
+  const fallback = PLANNER_MAINTENANCE_COUNTS[cardType] || 1;
+  if (!Number.isFinite(override)) return fallback;
+  return Math.max(1, Math.min(fallback, Number(override)));
+}
 const PROCESSING_STATUS_ORDER = Object.freeze({
   DRAFT: 0,
   CHECKED: 1,
@@ -193,12 +200,12 @@ async function enforceTaskBoundStatus(prisma, task) {
   );
 }
 
-async function refreshOldestFlashcards(prisma, _company = null, refreshedAt = new Date()) {
+async function refreshOldestFlashcards(prisma, _company = null, refreshedAt = new Date(), executionOptions = {}) {
   const contextCache = new Map();
   const flashcards = await loadOldestModifiedBatch(
     prisma.flashcard,
     buildActiveMaintenanceWhere(),
-    PLANNER_MAINTENANCE_COUNTS.flashcards,
+    resolveMaintenanceTake("flashcards", executionOptions),
   );
 
   for (const flashcard of flashcards) {
@@ -330,12 +337,12 @@ async function refreshOldestFlashcards(prisma, _company = null, refreshedAt = ne
   return flashcards;
 }
 
-async function refreshOldestGoals(prisma, _company = null, refreshedAt = new Date()) {
+async function refreshOldestGoals(prisma, _company = null, refreshedAt = new Date(), executionOptions = {}) {
   const contextCache = new Map();
   const goalcards = await loadOldestModifiedBatch(
     prisma.goalcard,
     buildActiveMaintenanceWhere(),
-    PLANNER_MAINTENANCE_COUNTS.goalcards,
+    resolveMaintenanceTake("goalcards", executionOptions),
   );
 
   for (const goalcard of goalcards) {
@@ -429,7 +436,7 @@ async function refreshOldestGoals(prisma, _company = null, refreshedAt = new Dat
   return goalcards;
 }
 
-async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Date()) {
+async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Date(), executionOptions = {}) {
   const contextCache = new Map();
   const taskcards = await loadOldestModifiedBatch(
     prisma.checklistTask,
@@ -445,7 +452,7 @@ async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Dat
       },
       status: { notIn: ["ARCHIVED", "COMPLETED"] },
     },
-    PLANNER_MAINTENANCE_COUNTS.taskcards,
+    resolveMaintenanceTake("taskcards", executionOptions),
   );
 
   for (const taskcard of taskcards) {
@@ -530,11 +537,11 @@ async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Dat
   return taskcards;
 }
 
-async function refreshOldestDatacards(prisma, _company = null, refreshedAt = new Date()) {
+async function refreshOldestDatacards(prisma, _company = null, refreshedAt = new Date(), executionOptions = {}) {
   const sources = await loadOldestModifiedBatch(
     prisma.source,
     {},
-    PLANNER_MAINTENANCE_COUNTS.datacards,
+    resolveMaintenanceTake("datacards", executionOptions),
   );
 
   for (const source of sources) {

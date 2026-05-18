@@ -17,8 +17,13 @@ const { PrismaClient } = require("@prisma/client");
 const { getResourceBand } = require("./lib/runtime/resource-bands");
 const {
   MEMORY_GOVERNOR_ACTIONS,
-  MEMORY_GOVERNOR_COOLDOWN_MS,
-  decideMemoryGovernorAction,
+  MEMORY_GOVERNOR_STATE_KEY,
+  MEMORY_GOVERNOR_EVENTS_LIMIT,
+  DEFAULT_MEMORY_GOVERNOR_POLICY,
+  createMemoryGovernorObservedState,
+  normalizeMemoryGovernorPolicy,
+  evaluateMemoryGovernorPolicy,
+  buildMemoryGovernorEvent,
 } = require("./lib/runtime/memory-governor");
 const prisma = new PrismaClient();
 
@@ -102,6 +107,9 @@ let isShuttingDown     = false;
 let latestWorkerProgress = null;
 let lastMemoryGovernorActionAt = 0;
 let lastMemoryGovernorReason = null;
+let memoryGovernorPolicy = normalizeMemoryGovernorPolicy(DEFAULT_MEMORY_GOVERNOR_POLICY);
+let memoryGovernorObservedState = createMemoryGovernorObservedState();
+let latestMemoryGovernorEvaluation = null;
 
 // --- Command bridge supervision ---
 
@@ -188,6 +196,16 @@ function writeHeartbeat(extra = {}) {
     lastSnapshotProgressAt,
     useSafeMode,
     resources: resourceStats,
+    memoryGovernor: {
+      policyVersion: memoryGovernorPolicy.version,
+      lastActionAt: lastMemoryGovernorActionAt ? new Date(lastMemoryGovernorActionAt).toISOString() : null,
+      lastActionReason: lastMemoryGovernorReason,
+      observedTierKey: memoryGovernorObservedState.activeTierKey,
+      observedTierSince: memoryGovernorObservedState.activeTierSince
+        ? new Date(memoryGovernorObservedState.activeTierSince).toISOString()
+        : null,
+      latestEvaluation: latestMemoryGovernorEvaluation,
+    },
     ...extra,
   };
   try {
@@ -292,6 +310,68 @@ function evictOllamaRunner(reason) {
   }
 }
 
+async function loadMemoryGovernorState() {
+  try {
+    const setting = await prisma.globalSetting.findUnique({
+      where: { key: MEMORY_GOVERNOR_STATE_KEY },
+      select: { value: true },
+    });
+    const value = setting?.value && typeof setting.value === "object" ? setting.value : {};
+    memoryGovernorPolicy = normalizeMemoryGovernorPolicy(value.policy || DEFAULT_MEMORY_GOVERNOR_POLICY);
+    memoryGovernorObservedState = createMemoryGovernorObservedState(value.observedState || {});
+    lastMemoryGovernorActionAt = value.lastActionAt ? new Date(value.lastActionAt).getTime() : 0;
+    lastMemoryGovernorReason = typeof value.lastActionReason === "string" ? value.lastActionReason : null;
+  } catch (error) {
+    warn(`[MEMORY GOVERNOR] Failed to load persisted state: ${error.message}`);
+  }
+}
+
+async function persistMemoryGovernorState(event = null) {
+  try {
+    const existing = await prisma.globalSetting.findUnique({
+      where: { key: MEMORY_GOVERNOR_STATE_KEY },
+      select: { value: true },
+    });
+    const currentValue = existing?.value && typeof existing.value === "object" ? existing.value : {};
+    const priorEvents = Array.isArray(currentValue.recentEvents) ? currentValue.recentEvents : [];
+    const nextEvents = event ? [...priorEvents, event].slice(-MEMORY_GOVERNOR_EVENTS_LIMIT) : priorEvents;
+    const counters = { ...(currentValue.counters && typeof currentValue.counters === "object" ? currentValue.counters : {}) };
+    if (event?.action && event.action !== MEMORY_GOVERNOR_ACTIONS.NONE) {
+      counters[event.action] = Number(counters[event.action] || 0) + 1;
+    }
+
+    await prisma.globalSetting.upsert({
+      where: { key: MEMORY_GOVERNOR_STATE_KEY },
+      create: {
+        key: MEMORY_GOVERNOR_STATE_KEY,
+        value: {
+          policy: memoryGovernorPolicy,
+          observedState: memoryGovernorObservedState,
+          lastActionAt: lastMemoryGovernorActionAt ? new Date(lastMemoryGovernorActionAt).toISOString() : null,
+          lastActionReason: lastMemoryGovernorReason,
+          latestEvaluation: latestMemoryGovernorEvaluation,
+          recentEvents: nextEvents,
+          counters,
+        },
+      },
+      update: {
+        value: {
+          policy: memoryGovernorPolicy,
+          observedState: memoryGovernorObservedState,
+          lastActionAt: lastMemoryGovernorActionAt ? new Date(lastMemoryGovernorActionAt).toISOString() : null,
+          lastActionReason: lastMemoryGovernorReason,
+          latestEvaluation: latestMemoryGovernorEvaluation,
+          recentEvents: nextEvents,
+          counters,
+        },
+        updatedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    warn(`[MEMORY GOVERNOR] Failed to persist state: ${error.message}`);
+  }
+}
+
 function forceWorkerWake(reason) {
   const req = http.request(
     { hostname: "127.0.0.1", port: HEALTH_PORT, path: "/force", method: "POST", timeout: 3000 },
@@ -315,25 +395,59 @@ function forceWorkerWake(reason) {
 
 function applyMemoryGovernor() {
   if (isShuttingDown) return;
-  if (Date.now() - lastMemoryGovernorActionAt < MEMORY_GOVERNOR_COOLDOWN_MS) return;
 
   const runnerPresent = hasOllamaRunnerProcess();
-  const decision = decideMemoryGovernorAction({
+  const decision = evaluateMemoryGovernorPolicy({
     freeMemMb: resourceStats.freeMem,
     runnerPresent,
     workerProgress: latestWorkerProgress || {},
+    lastActionAt: lastMemoryGovernorActionAt,
+    observedState: memoryGovernorObservedState,
+    policy: memoryGovernorPolicy,
   });
+  memoryGovernorObservedState = decision.nextObservedState;
+  latestMemoryGovernorEvaluation = {
+    ts: new Date().toISOString(),
+    freeMemMb: resourceStats.freeMem,
+    resourceBand: resourceStats.resourceBand,
+    runnerPresent,
+    action: decision.action,
+    reason: decision.reason,
+    tierKey: decision.tierKey || null,
+    gatedByCooldown: Boolean(decision.gatedByCooldown),
+    gatedBySustain: Boolean(decision.gatedBySustain),
+    sustainRemainingMs: Number(decision.sustainRemainingMs || 0),
+    cooldownRemainingMs: Number(decision.cooldownRemainingMs || 0),
+  };
+  void persistMemoryGovernorState();
 
   if (decision.action === MEMORY_GOVERNOR_ACTIONS.NONE) return;
 
   lastMemoryGovernorActionAt = Date.now();
   evictOllamaRunner(decision.reason);
+  const event = buildMemoryGovernorEvent({
+    action: decision.action,
+    reason: decision.reason,
+    freeMemMb: resourceStats.freeMem,
+    runnerPresent,
+    workerProgress: latestWorkerProgress || {},
+    policy: memoryGovernorPolicy,
+    tierKey: decision.tierKey,
+  });
+  latestMemoryGovernorEvaluation = {
+    ...latestMemoryGovernorEvaluation,
+    actionTakenAt: event.ts,
+  };
 
   if (decision.action === MEMORY_GOVERNOR_ACTIONS.EVICT_OLLAMA_AND_RESTART_WORKER) {
+    lastMemoryGovernorReason = decision.reason;
+    void persistMemoryGovernorState(event);
     killWorker(`memory-governor:${decision.reason}`);
     return;
   }
 
+  lastMemoryGovernorReason = decision.reason;
+  void persistMemoryGovernorState(event);
   forceWorkerWake(`memory-governor:${decision.reason}`);
 }
 
@@ -714,18 +828,21 @@ function scheduleSnapshotRestart() {
 // ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
-log("═══════════════════════════════════════════");
-log("  checklist GUARDIAN STARTING");
-log(`  Watching: ${WORKER_SCRIPT}`);
-log(`  Log:      ${LOG_FILE}`);
-log(`  PID:      ${process.pid}`);
-log("═══════════════════════════════════════════");
+async function bootGuardian() {
+  log("═══════════════════════════════════════════");
+  log("  checklist GUARDIAN STARTING");
+  log(`  Watching: ${WORKER_SCRIPT}`);
+  log(`  Log:      ${LOG_FILE}`);
+  log(`  PID:      ${process.pid}`);
+  log("═══════════════════════════════════════════");
 
-startWorker();
-startSnapshotWorker();
+  await loadMemoryGovernorState();
 
-// Launch the status server as a sibling process (no restart logic — it's stateless)
-(function launchStatusServer() {
+  startWorker();
+  startSnapshotWorker();
+
+  // Launch the status server as a sibling process (no restart logic — it's stateless)
+  (function launchStatusServer() {
   reclaimPort(STATUS_HEALTH_PORT);
   const node = process.execPath;
   const s = spawn(node, [STATUS_SCRIPT], {
@@ -740,14 +857,14 @@ startSnapshotWorker();
     setTimeout(launchStatusServer, 5000);
   });
   log(`Status server PID=${s.pid} → http://127.0.0.1:10006`);
-})();
+  })();
 
-// Periodic health poll
-healthCheckTimer = setInterval(pollHealth, HEALTH_INTERVAL);
-setInterval(pollSnapshotWorkerHealth, HEALTH_INTERVAL);
+  // Periodic health poll
+  healthCheckTimer = setInterval(pollHealth, HEALTH_INTERVAL);
+  setInterval(pollSnapshotWorkerHealth, HEALTH_INTERVAL);
 
-// Periodic status server health poll
-setInterval(checkStatusServerHealth, STATUS_HEALTH_INTERVAL);
+  // Periodic status server health poll
+  setInterval(checkStatusServerHealth, STATUS_HEALTH_INTERVAL);
 
 /**
  * Checks for a restart signal file from the status server.
@@ -761,25 +878,26 @@ function checkRestartSignal() {
   }
 }
 
-// Watch for restart signals every 5s
-setInterval(checkRestartSignal, 5000);
+  // Watch for restart signals every 5s
+  setInterval(checkRestartSignal, 5000);
 
-log("[GUARDIAN] SCI sidecar audits disabled in watchdog mode; queue worker is the only mutation authority.");
+  log("[GUARDIAN] SCI sidecar audits disabled in watchdog mode; queue worker is the only mutation authority.");
 
-// Periodic heartbeat even when idle
-heartbeatTimer = setInterval(() => writeHeartbeat(), 15_000);
+  // Periodic heartbeat even when idle
+  heartbeatTimer = setInterval(() => writeHeartbeat(), 15_000);
 
-// Periodic command bridge check
-commandTimer = setInterval(pollCommands, 20_000); 
+  // Periodic command bridge check
+  commandTimer = setInterval(pollCommands, 20_000); 
 
-log("[GUARDIAN] Scheduler unification active: taxonomy audits and kanban recomputes are queue-owned, not watchdog-owned.");
+  log("[GUARDIAN] Scheduler unification active: taxonomy audits and kanban recomputes are queue-owned, not watchdog-owned.");
 
-// Prime truth surfaces immediately instead of waiting for the first interval.
-checkResources();
-writeHeartbeat();
-setTimeout(pollHealth, 1_000);
-setTimeout(pollSnapshotWorkerHealth, 1_500);
-setTimeout(checkStatusServerHealth, 2_000);
+  // Prime truth surfaces immediately instead of waiting for the first interval.
+  checkResources();
+  writeHeartbeat();
+  setTimeout(pollHealth, 1_000);
+  setTimeout(pollSnapshotWorkerHealth, 1_500);
+  setTimeout(checkStatusServerHealth, 2_000);
+}
 
 // Graceful self-shutdown
 process.on("SIGTERM", () => {
@@ -800,4 +918,9 @@ process.on("SIGINT", () => {
 
 process.on("uncaughtException", (e) => {
   err(`Guardian uncaught exception: ${e.stack}`);
+});
+
+bootGuardian().catch((error) => {
+  err(`Guardian boot failure: ${error.stack || error.message || error}`);
+  process.exit(1);
 });

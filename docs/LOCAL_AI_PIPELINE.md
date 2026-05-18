@@ -97,6 +97,7 @@ Rules:
 - `/local-ai` is global runtime observability, not a company route
 - `/local-ai` is local-only and not login-gated on localhost-style operator hosts
 - bare `/` rewrites to `/local-ai` only on local operator hosts; production root stays on the main webapp/login flow
+- the official runtime step-by-step sequence and recovery rules are defined in [docs/LOCAL_AI_RUNTIME_SOP.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_RUNTIME_SOP.md)
 
 ## Canonical flow
 
@@ -161,6 +162,7 @@ Runtime hardening note:
 - a 10-minute no-progress breaker now kills wedged foreground work and auto-fails stale `RUNNING` jobs so the queue can move on
 - runtime mutation writes now go through shared allowlist payload builders for flashcard and task update paths instead of writing model-shaped AI objects directly to Prisma
 - queue failures now classify into retryable cooldowns versus terminal dead-letter states, and retryable jobs use `scheduledAt` backoff instead of immediately hot-looping
+- oversized jobs no longer only bounce in low-memory deferral; the worker now shrinks them into degraded or minimal execution profiles before deferring them
 - the broader hardening design is defined in [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 
 ## Deterministic planner and quality engine

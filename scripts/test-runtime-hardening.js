@@ -16,11 +16,14 @@ const {
 } = require("./lib/runtime/resource-bands");
 const {
   MEMORY_GOVERNOR_ACTIONS,
-  OLLAMA_IDLE_EVICT_MB,
-  OLLAMA_FORCE_EVICT_MB,
+  DEFAULT_MEMORY_GOVERNOR_POLICY,
+  createMemoryGovernorObservedState,
   isWorkerActivelyUsingModel,
-  decideMemoryGovernorAction,
+  evaluateMemoryGovernorPolicy,
 } = require("./lib/runtime/memory-governor");
+const {
+  resolvePipelineJobExecutionPlan,
+} = require("./lib/pipeline-jobs");
 
 async function main() {
   const taskPayload = buildTaskUpdatePayload({
@@ -135,14 +138,22 @@ async function main() {
     "queue scanning must not count as active model work",
   );
 
-  const idleEviction = decideMemoryGovernorAction({
-    freeMemMb: OLLAMA_IDLE_EVICT_MB,
+  const idleObservedState = createMemoryGovernorObservedState({
+    activeTierKey: "idle-evict-low-memory",
+    activeTierSince: Date.now() - 61_000,
+  });
+  const idleEviction = evaluateMemoryGovernorPolicy({
+    freeMemMb: 700,
     runnerPresent: true,
     workerProgress: {
       state: "idle",
       stage: "IDLE",
       activeTask: "Waiting for the next planner cycle",
     },
+    observedState: idleObservedState,
+    lastActionAt: 0,
+    now: Date.now(),
+    policy: DEFAULT_MEMORY_GOVERNOR_POLICY,
   });
   assert.equal(
     idleEviction.action,
@@ -150,19 +161,47 @@ async function main() {
     "idle low-memory state should evict the Ollama runner and wake the worker",
   );
 
-  const busyEviction = decideMemoryGovernorAction({
-    freeMemMb: OLLAMA_FORCE_EVICT_MB,
+  const busyObservedState = createMemoryGovernorObservedState({
+    activeTierKey: "force-evict-busy-worker",
+    activeTierSince: Date.now() - 21_000,
+  });
+  const busyEviction = evaluateMemoryGovernorPolicy({
+    freeMemMb: 450,
     runnerPresent: true,
     workerProgress: {
       state: "running",
       stage: "PIPELINE_QUEUE",
       activeTask: "Ensure flashcard minimum for rmbd",
     },
+    observedState: busyObservedState,
+    lastActionAt: 0,
+    now: Date.now(),
+    policy: DEFAULT_MEMORY_GOVERNOR_POLICY,
   });
   assert.equal(
     busyEviction.action,
     MEMORY_GOVERNOR_ACTIONS.EVICT_OLLAMA_AND_RESTART_WORKER,
     "hard low-memory state during active model work should evict the runner and restart the worker lane",
+  );
+
+  const constrainedHeavyPlan = resolvePipelineJobExecutionPlan({
+    jobType: "ENSURE_FLASHCARD_MINIMUM",
+    attemptCount: 0,
+  }, 1100);
+  assert.equal(constrainedHeavyPlan.executionOptions.profile, "degraded", "heavy jobs should downgrade under constrained memory");
+  assert.equal(constrainedHeavyPlan.executionOptions.batchLimitOverride, 2, "constrained downgrade should reduce batch size");
+
+  const degradedHeavyRetryPlan = resolvePipelineJobExecutionPlan({
+    jobType: "MINE_FLASHCARD_OPPORTUNITIES",
+    attemptCount: 2,
+  }, 700);
+  assert.equal(degradedHeavyRetryPlan.executionOptions.profile, "minimal", "repeatedly deferred heavy jobs should eventually run a minimal profile");
+  assert.equal(degradedHeavyRetryPlan.executionOptions.disableResearchBackfill, true, "minimal heavy profiles should disable research backfill");
+
+  assert.throws(
+    () => resolvePipelineJobExecutionPlan({ jobType: "MINE_FLASHCARD_OPPORTUNITIES", attemptCount: 0 }, 700),
+    /memory pressure is DEGRADED/i,
+    "fresh heavy jobs should still defer when degraded memory cannot safely support them",
   );
 
   console.log("Runtime hardening tests passed.");

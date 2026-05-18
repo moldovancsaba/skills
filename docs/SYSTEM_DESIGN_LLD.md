@@ -45,12 +45,13 @@ If the default port is occupied, the app may be started on another free port suc
 
 - `http://localhost:3415`
 
-Public operator surface:
+Local operator surface:
 
 - `/local-ai`
   - global local-AI mission-control page
   - not company-scoped
-  - not login-gated
+  - not login-gated on localhost-style hosts
+  - not available on the online webapp domains
 
 Raw local runtime endpoints:
 
@@ -258,4 +259,5 @@ They are compatibility paths, not the primary operating contract.
 - `docs/LOCAL_AI_QUALITY_ENGINE_LLD.md` is the authoritative low-level design for opportunity mining, editorial quality, novelty suppression, feedback pressure, and research-backed regeneration
 - build/release identity must be observable from the live worker so operators can see whether runtime matches repository history
 - `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md` is the authoritative target design for 24/7 worker hardening, strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery
+- `docs/LOCAL_AI_RUNTIME_SOP.md` is the authoritative shipped sequence and rulebook for the foreground loop, background loop, queue sync, card creation, and failure recovery
 - the first shipped runtime-hardening slice now includes a dedicated `snapshot-worker` process and foreground/background separation for planner queue execution versus intelligence snapshot refresh

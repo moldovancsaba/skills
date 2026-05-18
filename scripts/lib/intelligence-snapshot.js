@@ -16,6 +16,7 @@ const HEARTBEAT_FILE = path.join(__dirname, "..", "..", "logs", "guardian-heartb
 const SNAPSHOT_REFRESH_META_KEY = "local_ai_snapshot_refresh_meta";
 const PROJECTION_REFRESH_STATE_KEY = "local_ai_webapp_projection_refresh_state";
 const PROJECTION_RECENT_REFRESH_LIMIT = 24;
+const WEBAPP_PROJECTION_VERSION = 1;
 const KNOWMORE_PIPELINE_JOB_TYPES = Object.freeze([
   "ENSURE_FLASHCARD_MINIMUM",
   "RESEARCH_BACKFILL",
@@ -84,6 +85,16 @@ function normalizeProjectionRefreshState(value) {
     dirtyCompanies,
     recentRefreshes: recentRefreshes.slice(-PROJECTION_RECENT_REFRESH_LIMIT),
   };
+}
+
+function getProjectionBackfillStatus(webappProjection) {
+  if (!isPlainObject(webappProjection)) return "MISSING";
+  const version = Number(webappProjection.version || 0);
+  if (version < WEBAPP_PROJECTION_VERSION) return "OUTDATED_VERSION";
+  if (typeof webappProjection.generatedAt !== "string" || !webappProjection.generatedAt) return "MISSING";
+  const generatedMs = new Date(webappProjection.generatedAt).getTime();
+  if (!Number.isFinite(generatedMs)) return "MISSING";
+  return "READY";
 }
 
 function enqueueDirtyProjectionCompany(state, companyId, reason = "projection-repair", now = new Date()) {
@@ -1037,7 +1048,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       ? observabilitySummary.queue
       : {};
   const webappProjection = {
-    version: 1,
+    version: WEBAPP_PROJECTION_VERSION,
     generatedAt: new Date().toISOString(),
     counts: {
       sources: dataSources + uploadedFiles,
@@ -1266,9 +1277,79 @@ async function refreshDirtyCompanyIntelligenceSnapshots(prisma, options = {}) {
   };
 }
 
+async function refreshMissingProjectionSnapshots(prisma, options = {}) {
+  const trigger = typeof options.trigger === "string" ? options.trigger : "projection-backfill";
+  const limit = Math.max(1, Math.min(20, Number(options.limit || 3)));
+  const companies = await prisma.company.findMany({
+    orderBy: { id: "asc" },
+    select: {
+      id: true,
+      name: true,
+      intelligenceSnapshot: {
+        select: {
+          webappProjection: true,
+        },
+      },
+    },
+  });
+
+  const candidates = companies.filter((company) => {
+    const status = getProjectionBackfillStatus(company.intelligenceSnapshot?.webappProjection);
+    return status !== "READY";
+  });
+
+  if (candidates.length === 0) {
+    return {
+      refreshedCompanies: 0,
+      remainingCandidates: 0,
+      candidateIds: [],
+    };
+  }
+
+  const selected = candidates.slice(0, limit);
+  let refreshedCompanies = 0;
+  let nextState = await readProjectionRefreshState(prisma);
+
+  for (const company of selected) {
+    try {
+      await refreshCompanyIntelligenceSnapshot(prisma, company.id);
+      refreshedCompanies += 1;
+      nextState = recordProjectionRefreshResult(nextState, {
+        companyId: company.id,
+        companyName: company.name || null,
+        reason: "cold-start-backfill",
+        status: "REFRESHED",
+        trigger,
+      });
+    } catch (error) {
+      console.error(
+        `[INTELLIGENCE SNAPSHOT] Failed projection backfill for ${company.id}: ${error?.code || error?.name || "UNKNOWN"} ${error?.message || ""}`.trim(),
+      );
+      nextState = recordProjectionRefreshResult(nextState, {
+        companyId: company.id,
+        companyName: company.name || null,
+        reason: "cold-start-backfill",
+        status: "FAILED",
+        trigger,
+        error: error?.message || String(error),
+      });
+      nextState = enqueueDirtyProjectionCompany(nextState, company.id, "cold-start-backfill", new Date());
+    }
+  }
+
+  await writeProjectionRefreshState(prisma, nextState);
+
+  return {
+    refreshedCompanies,
+    remainingCandidates: Math.max(0, candidates.length - refreshedCompanies),
+    candidateIds: selected.map((company) => company.id),
+  };
+}
+
 module.exports = {
   drainDirtyProjectionCompanies,
   enqueueDirtyProjectionCompany,
+  getProjectionBackfillStatus,
   markCompanyProjectionDirty,
   normalizeProjectionRefreshState,
   recordProjectionRefreshResult,
@@ -1276,4 +1357,5 @@ module.exports = {
   refreshAllIntelligenceSnapshots,
   refreshDirtyCompanyIntelligenceSnapshots,
   refreshIntelligenceSnapshotSlice,
+  refreshMissingProjectionSnapshots,
 };

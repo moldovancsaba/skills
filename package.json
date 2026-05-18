@@ -40,7 +40,8 @@
     "guardian": "node scripts/guardian.js",
     "guardian:logs": "tail -f logs/guardian.log",
     "status": "node scripts/status-server.js",
-    "verify:runtime": "node scripts/run-runtime-verification.js"
+    "verify:runtime": "node scripts/run-runtime-verification.js",
+    "profile:webapp": "node scripts/profile-webapp-routes.mjs"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

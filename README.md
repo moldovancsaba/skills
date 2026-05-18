@@ -258,6 +258,7 @@ Architecture note:
 - productive company jobs now refresh queue topology for the touched company directly, with `snapshot-worker` only handling the dirty-company retry queue and the slower broad coverage path
 - the local AI side also owns the webapp-ready company read model; the online app consumes those projections rather than recomputing many live counts on hot routes
 - productive company jobs now also mark that company projection-dirty so `snapshot-worker` can repair webapp-ready data quickly before the slower broad snapshot pass
+- `snapshot-worker` also performs bounded cold-start projection backfill so a fresh environment does not sit on missing prepared product reads indefinitely
 - the company dashboard now boots from server-loaded projection data instead of waiting for a client-side dashboard fetch after mount
 - the home/main dashboard now also boots from server-loaded prepared company data instead of waiting for a post-mount `/api/companies` waterfall
 - company-card trend charts are now carried inside the prepared webapp projection, so the home route does not need full snapshot analytics payloads to render summary cards
@@ -269,6 +270,7 @@ Current performance-debugging rule:
 
 - after the shipped projection-first and server-bootstrap slices, the next correct move for stubborn slowness is authenticated live-route profiling, not more blind trimming
 - the authenticated hot-route APIs now emit `Server-Timing`, and `?profile=1` exposes named timing steps in the JSON response for live-route investigation
+- repeatable live-route profiling now runs through `npm run profile:webapp` with an authenticated session token or cookie, so residual slowness is measured instead of guessed at
 
 ### Local operator URLs
 

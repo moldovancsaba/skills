@@ -205,8 +205,9 @@ The repetitive-job contract now also includes:
 - intelligence snapshot refresh is no longer part of the foreground queue lane; it runs in the dedicated `snapshot-worker`
 - queue-topology refresh on claim miss is also delegated out of the foreground lane; `snapshot-worker` owns the background queue-sync cadence and may be force-woken by foreground
 - touched-company projection refresh now follows the same background ownership pattern: successful company work marks the company projection-dirty, and `snapshot-worker` drains those targeted repairs before the slower broad snapshot sweep
+- `snapshot-worker` also performs bounded cold-start projection backfill so missing or outdated product projections are repaired even before a company is touched again
 - the home/main dashboard is now part of the same server-bootstrap contract: it should not wait for post-mount company/session/industry fetch waterfalls when prepared product data is available
-- once the projection-first and server-bootstrap path is shipped, persistent slowness on authenticated product routes should be investigated through real live-route profiling rather than further blind trimming
+- persistent slowness on authenticated product routes should be investigated through real live-route profiling (`Server-Timing` plus `npm run profile:webapp`) rather than further blind trimming
 
 Backlog contract:
 

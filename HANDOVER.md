@@ -59,6 +59,7 @@ Read first:
 - the shipped follow-up slice now also includes server-bootstrapped shell identity, so the authenticated sidebar can render immediately from the signed session cookie instead of waiting for a post-mount identity request
 - the shipped follow-up slice now also defers home-card chart rendering until those cards approach the viewport, reducing up-front client chart work on the landing page
 - the dashboard first response is now intentionally narrower: non-critical member and identity details are not supposed to sit on the critical product-summary path
+- the shipped follow-up slice now also includes bounded cold-start projection backfill in `snapshot-worker`, so fresh or repaired environments do not sit indefinitely on missing product read models
 - startup integrity scrub cooldown now persists across restarts instead of firing again on every guardian bounce
 - planner telemetry now retries and degrades to best-effort on retryable Prisma write conflicts instead of failing the owning job
 - the status server now exposes a lightweight `/health` probe and briefly caches expensive payload assembly
@@ -180,7 +181,7 @@ The work is not done until:
 - `snapshot-worker` also owns scheduled runtime verification. The latest verification report is persisted, exposed by `status-server`, and rendered on `/local-ai`.
 - productive queue work now refreshes queue topology for the touched company directly; if that direct refresh fails, the company falls back into a topology-dirty background retry queue owned by `snapshot-worker`.
 - the same touched-company pattern now also matters for product projections: company list/dashboard/nav should prefer `IntelligenceSnapshot.webappProjection`, with background/local-AI refresh owning projection freshness instead of hot-route live fan-out.
-- after those shipped read-model and server-bootstrap slices, further dashboard slowness should be attacked with authenticated live-route profiling, not blind payload trimming.
+- after those shipped read-model and server-bootstrap slices, further dashboard slowness should be attacked with authenticated live-route profiling (`Server-Timing` plus `npm run profile:webapp`), not blind payload trimming.
 - future mini-app work must follow `docs/IMPLEMENTATION_RULEBOOK.md`; do not repeat the pattern where prepared data exists but the webapp still rebuilds or overfetches live state on hot routes.
 - Human drag-and-drop on the `AI Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.

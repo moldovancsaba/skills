@@ -21,6 +21,7 @@ const INVENTORY_HISTORY_LIMIT = 168;
 const RUNTIME_VERIFICATION_STATE_KEY = "local_ai_runtime_verification_last_run";
 const PIPELINE_TOPOLOGY_STATE_KEY = "local_ai_pipeline_topology_state";
 const PROJECTION_REFRESH_STATE_KEY = "local_ai_webapp_projection_refresh_state";
+const WEBAPP_PROJECTION_VERSION = 1;
 const QUEUE_COLUMN_RANK = Object.freeze({ NOW: 0, SOON: 1, LATER: 2, PARKED: 3 });
 const STATUS_CACHE_TTL_MS = 5000;
 let statusPayloadCache = null;
@@ -278,6 +279,66 @@ function buildInventoryHistoryPoint(inventory, now = new Date()) {
   };
 }
 
+function getProjectionFreshnessStatus(generatedAt) {
+  if (typeof generatedAt !== "string" || !generatedAt) return "MISSING";
+  const generatedMs = new Date(generatedAt).getTime();
+  if (!Number.isFinite(generatedMs)) return "MISSING";
+  const ageMinutes = Math.max(0, Math.round((Date.now() - generatedMs) / 60000));
+  if (ageMinutes <= 10) return "FRESH";
+  if (ageMinutes <= 60) return "AGING";
+  return "STALE";
+}
+
+async function getProjectionCoverageSummary() {
+  const companies = await prisma.company.findMany({
+    select: {
+      id: true,
+      intelligenceSnapshot: {
+        select: {
+          webappProjection: true,
+        },
+      },
+    },
+  });
+
+  const summary = {
+    totalCompanies: companies.length,
+    ready: 0,
+    missing: 0,
+    outdatedVersion: 0,
+    fresh: 0,
+    aging: 0,
+    stale: 0,
+  };
+
+  for (const company of companies) {
+    const projection = company.intelligenceSnapshot?.webappProjection;
+    if (!projection || typeof projection !== "object") {
+      summary.missing += 1;
+      continue;
+    }
+
+    const version = Number(projection.version || 0);
+    if (version < WEBAPP_PROJECTION_VERSION) {
+      summary.outdatedVersion += 1;
+      continue;
+    }
+
+    const freshness = getProjectionFreshnessStatus(projection.generatedAt);
+    if (freshness === "MISSING") {
+      summary.missing += 1;
+      continue;
+    }
+
+    summary.ready += 1;
+    if (freshness === "FRESH") summary.fresh += 1;
+    else if (freshness === "AGING") summary.aging += 1;
+    else summary.stale += 1;
+  }
+
+  return summary;
+}
+
 function inventoryPointEquals(left, right) {
   return ["datacards", "flashcards", "goalcards", "taskcards", "totalCards"].every(
     (field) => Number(left?.[field] ?? 0) === Number(right?.[field] ?? 0),
@@ -318,7 +379,7 @@ async function captureInventoryHistory(inventory) {
 }
 
 async function buildStatusPayload() {
-  const [setting, snapshotSetting, memoryGovernorSetting, verificationSetting, topologySetting, projectionSetting, heartbeat, inventory, queue] = await Promise.all([
+  const [setting, snapshotSetting, memoryGovernorSetting, verificationSetting, topologySetting, projectionSetting, heartbeat, inventory, queue, projectionCoverage] = await Promise.all([
     prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
     prisma.globalSetting.findUnique({ where: { key: "local_ai_snapshot_worker_progress" } }),
     prisma.globalSetting.findUnique({ where: { key: "local_ai_memory_governor_state" } }),
@@ -328,6 +389,7 @@ async function buildStatusPayload() {
     Promise.resolve(readHeartbeat()),
     getGlobalInventory(),
     getGlobalQueueSnapshot(),
+    getProjectionCoverageSummary(),
   ]);
   const inventoryHistory = await captureInventoryHistory(inventory);
 
@@ -370,6 +432,7 @@ async function buildStatusPayload() {
       recentSyncs: Array.isArray(topologyState.recentSyncs) ? topologyState.recentSyncs.slice(-8).reverse() : [],
     },
     projections: {
+      coverage: projectionCoverage,
       dirtyCompanies: Array.isArray(projectionState.dirtyCompanies) ? projectionState.dirtyCompanies : [],
       recentRefreshes: Array.isArray(projectionState.recentRefreshes) ? projectionState.recentRefreshes.slice(-8).reverse() : [],
     },

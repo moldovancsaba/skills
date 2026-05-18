@@ -204,6 +204,7 @@ They are compatibility paths, not the primary operating contract.
 - non-critical UI concerns such as member management or identity decoration should not sit on the critical first dashboard payload
 - once those constraints are satisfied, remaining route slowness should be debugged with authenticated live-route profiling, not guesswork
 - authenticated profiling is part of the architecture now: critical dashboard APIs emit `Server-Timing`, and explicit profiling requests may return named timing steps for production investigation
+- repeatable profiling should run through `npm run profile:webapp` with an authenticated session cookie or token, not through ad hoc one-off scripts
 
 ## 7. Evidence Durability And Conflict Handling
 
@@ -231,6 +232,7 @@ They are compatibility paths, not the primary operating contract.
 - the online webapp must stay projection-first on hot product routes
 - `IntelligenceSnapshot.webappProjection` is the canonical per-company product read model for company summary surfaces
 - the local AI side owns projection creation and refresh
+- `snapshot-worker` owns bounded cold-start projection backfill so missing or outdated product projections are repaired before operators touch every company again
 - the webapp owns projection normalization, rendering, and bounded fallback only
 - product pages must not recompute many live counts on load when a prepared projection exists
 - prepared home-card chart series should also live in the projection so the company list route does not need the full snapshot analytics document on its hot path

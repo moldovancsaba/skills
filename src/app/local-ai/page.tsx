@@ -203,6 +203,7 @@ export default function LocalAiMissionControlPage() {
   const verification = data?.verification || null;
   const topology = data?.topology || {};
   const projections = data?.projections || {};
+  const projectionCoverage = projections?.coverage || {};
   const buildIdentity = worker?.settings?.buildIdentity || {};
   const actualCurrentTask = String(worker.activeTask || "Idle");
   const actualCurrentCompany = String(worker.currentCompany || "No company locked");
@@ -732,6 +733,26 @@ export default function LocalAiMissionControlPage() {
                 ) : (
                   <Notice title="No targeted projection refreshes yet">No company-specific webapp projection refresh has been recorded since the current retention window began.</Notice>
                 )}
+              </UnifiedCardBody>
+            </UnifiedCard>
+
+            <UnifiedCard tone="strategy">
+              <UnifiedCardHeader
+                title="Projection Coverage"
+                supporting={<Badge variant="light" color="strategy">{projectionCoverage.ready || 0}/{projectionCoverage.totalCompanies || 0} ready</Badge>}
+              />
+              <UnifiedCardBody>
+                <Notice title="Prepared product read coverage">
+                  Product routes should read prepared company projections first. Missing or outdated projections are now backfilled by `snapshot-worker` before slower broad refresh sweeps.
+                </Notice>
+                <SimpleGrid cols={{ base: 2, md: 3 }} spacing="md">
+                  <MetricCard icon={Activity} color="strategy" label="Fresh" value={projectionCoverage.fresh ?? 0} />
+                  <MetricCard icon={AlertTriangle} color="review" label="Aging" value={projectionCoverage.aging ?? 0} />
+                  <MetricCard icon={AlertTriangle} color="review" label="Stale" value={projectionCoverage.stale ?? 0} />
+                  <MetricCard icon={Hierarchy} color="review" label="Missing" value={projectionCoverage.missing ?? 0} />
+                  <MetricCard icon={Server} color="review" label="Outdated Ver." value={projectionCoverage.outdatedVersion ?? 0} />
+                  <MetricCard icon={Brain} color="knowmore" label="Total" value={projectionCoverage.totalCompanies ?? 0} />
+                </SimpleGrid>
               </UnifiedCardBody>
             </UnifiedCard>
 

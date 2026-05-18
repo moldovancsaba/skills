@@ -199,16 +199,15 @@ Hot routes improved in this slice:
 - server-side home bootstrap in `src/lib/server-home-page-data.ts`
 - server-side company dashboard bootstrap in `src/lib/server-company-page-data.ts`
 
-## 8. Remaining Work
+## 8. Delivered Hardening Follow-Through
 
-The first slice is not the end state.
+The first slice is now backed by the remaining support work that keeps it trustworthy in production:
 
-Still required:
-
-1. larger analytics and card-detail reads audited to avoid hot-path fan-out
-2. broader freshness visibility where operators actually need it
-3. stricter projection backfill/repair guarantees for cold-start environments
-4. authenticated live-route profiling on the deployed dashboard path so residual slowness is measured instead of guessed at
+1. projection coverage is visible to operators on `/local-ai`
+2. `snapshot-worker` performs bounded cold-start projection backfill before slower broad refresh sweeps
+3. touched-company projection repair remains the fast path after productive work
+4. authenticated dashboard routes expose `Server-Timing` and named profiling steps
+5. a dedicated CLI exists for repeatable live authenticated profiling instead of ad hoc browser guessing
 
 ## 8.1 Authenticated route profiling contract
 
@@ -232,6 +231,11 @@ Purpose:
 
 - identify whether slowness is in auth/session, membership checks, projection reads, or fallback query paths
 - keep future dashboard work evidence-driven instead of intuition-driven
+
+Operational tool:
+
+- `npm run profile:webapp -- --base-url https://checklist.sovereignsquad.com --session-token <token>`
+- or provide a raw cookie string through `CHECKLIST_PROFILE_COOKIE`
 
 ## 9. Why This Matters Operationally
 

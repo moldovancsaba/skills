@@ -22,6 +22,7 @@ const {
 const {
   enqueueDirtyProjectionCompany,
   drainDirtyProjectionCompanies,
+  getProjectionBackfillStatus,
   normalizeProjectionRefreshState,
   recordProjectionRefreshResult,
 } = require("./lib/intelligence-snapshot");
@@ -374,6 +375,10 @@ async function main() {
   );
   assert.equal(projectionHistory.recentRefreshes.length, 1, "projection observability should record targeted refresh results");
   assert.equal(projectionHistory.recentRefreshes[0].companyName, "Alpha", "projection observability should preserve company labels when known");
+  assert.equal(getProjectionBackfillStatus(null), "MISSING", "missing projections must be backfilled");
+  assert.equal(getProjectionBackfillStatus({ version: 0, generatedAt: "2026-05-18T12:00:00.000Z" }), "OUTDATED_VERSION", "older projection versions must be backfilled");
+  assert.equal(getProjectionBackfillStatus({ version: 1, generatedAt: "not-a-date" }), "MISSING", "invalid projection timestamps must be backfilled");
+  assert.equal(getProjectionBackfillStatus({ version: 1, generatedAt: "2026-05-18T12:00:00.000Z" }), "READY", "current projections with valid timestamps should not be backfilled");
 
   console.log("Runtime hardening tests passed.");
 }

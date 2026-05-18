@@ -2,6 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const http = require("http");
 const {
   markCompanyProjectionDirty,
+  refreshMissingProjectionSnapshots,
   refreshDirtyCompanyIntelligenceSnapshots,
   refreshIntelligenceSnapshotSlice,
 } = require("./lib/intelligence-snapshot");
@@ -120,6 +121,26 @@ async function runSnapshotLoop() {
 
     await updateSnapshotWorkerProgress(prisma, {
       state: "running",
+      stage: "PROJECTION_BACKFILL",
+      activeTask: "Backfilling missing webapp projections",
+      currentCompany: null,
+      metrics: {
+        freeMemMb,
+        resourceBand,
+        batchSize: SNAPSHOT_BATCH_SIZE,
+        targetedQueueSyncs: targetedSyncResult.syncedCompanies,
+        dirtyCompaniesRemaining: targetedSyncResult.dirtyCompaniesRemaining,
+        didSyncQueue,
+      },
+    });
+
+    const projectionBackfillResult = await refreshMissingProjectionSnapshots(prisma, {
+      trigger: "snapshot-worker",
+      limit: SNAPSHOT_BATCH_SIZE,
+    });
+
+    await updateSnapshotWorkerProgress(prisma, {
+      state: "running",
       stage: "TARGETED_PROJECTION_REFRESH",
       activeTask: "Refreshing touched-company webapp projections",
       currentCompany: null,
@@ -129,6 +150,8 @@ async function runSnapshotLoop() {
         batchSize: SNAPSHOT_BATCH_SIZE,
         targetedQueueSyncs: targetedSyncResult.syncedCompanies,
         dirtyCompaniesRemaining: targetedSyncResult.dirtyCompaniesRemaining,
+        projectionBackfills: projectionBackfillResult.refreshedCompanies,
+        missingProjectionCompaniesRemaining: projectionBackfillResult.remainingCandidates,
         didSyncQueue,
       },
     });
@@ -158,6 +181,8 @@ async function runSnapshotLoop() {
         resourceBand,
         targetedQueueSyncs: targetedSyncResult.syncedCompanies,
         dirtyCompaniesRemaining: targetedSyncResult.dirtyCompaniesRemaining,
+        projectionBackfills: projectionBackfillResult.refreshedCompanies,
+        missingProjectionCompaniesRemaining: projectionBackfillResult.remainingCandidates,
         targetedProjectionRefreshes: targetedProjectionResult.refreshedCompanies,
         dirtyProjectionCompaniesRemaining: targetedProjectionResult.dirtyCompaniesRemaining,
         didSyncQueue,

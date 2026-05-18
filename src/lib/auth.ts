@@ -120,8 +120,7 @@ export function createAppSession(session: AppSession): string {
   }, SESSION_MAX_AGE);
 }
 
-export async function readAppSession(req: NextRequest): Promise<AppSession | null> {
-  const token = req.cookies.get(APP_SESSION_COOKIE)?.value;
+export function readAppSessionToken(token: string | null | undefined): AppSession | null {
   if (!token) return null;
   const data = parseSignedPayload(token);
   if (!data || typeof data.sub !== "string" || typeof data.email !== "string" || typeof data.name !== "string") {
@@ -135,6 +134,10 @@ export async function readAppSession(req: NextRequest): Promise<AppSession | nul
     picture: typeof data.picture === "string" ? data.picture : undefined,
     provider: "google",
   };
+}
+
+export async function readAppSession(req: NextRequest): Promise<AppSession | null> {
+  return readAppSessionToken(req.cookies.get(APP_SESSION_COOKIE)?.value);
 }
 
 function normalizeEmail(value: string | null | undefined) {

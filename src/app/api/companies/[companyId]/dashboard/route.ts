@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { APP_VERSION, BRAIN_VERSION } from "@/lib/release";
+import { createRequestProfiler } from "@/lib/request-profile";
 import { getProjectionFreshness, normalizeWebappProjection } from "@/lib/webapp-projection";
 
 export const dynamic = "force-dynamic";
@@ -16,15 +17,16 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ companyId: string }> }
 ) {
+  const profiler = createRequestProfiler(request, "company-dashboard");
   const { companyId } = await params;
   if (!companyId) return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
 
-  const auth = await verifyMembership(request, companyId);
+  const auth = await profiler.measure("verifyMembership", () => verifyMembership(request, companyId));
   if (auth.error) return auth.error;
 
   try {
     const cid = companyId;
-    const [company, members, snapshot] = await Promise.all([
+    const [company, members, snapshot] = await profiler.measure("loadDashboardModels", () => Promise.all([
       prisma.company.findUnique({ where: { id: cid } }),
       prisma.user.findMany({
         where: { companyId: cid },
@@ -38,7 +40,7 @@ export async function GET(
         },
       }),
       prisma.intelligenceSnapshot.findUnique({ where: { companyId: cid } }),
-    ]);
+    ]));
 
     const scoreHealth = snapshot?.scoreHealth && typeof snapshot.scoreHealth === "object" ? snapshot.scoreHealth : null;
     const observabilitySummary =
@@ -72,7 +74,7 @@ export async function GET(
         liveChecklistCount,
         liveReviewCount,
         liveTopTasks,
-      ] = await Promise.all([
+      ] = await profiler.measure("liveFallbackCounts", () => Promise.all([
         prisma.source.count({ where: { companyId: cid } }),
         prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
         prisma.topic.count({ where: { companyId: cid } }),
@@ -112,7 +114,7 @@ export async function GET(
           orderBy: { iceScore: "desc" },
           take: 3,
         }),
-      ]);
+      ]));
       const checklistCount = Math.max(liveChecklistCount, liveTopTasks.length);
       counts = {
         sources: liveSourceCount + liveFileCount,
@@ -146,7 +148,7 @@ export async function GET(
       }));
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       company,
       members,
       counts,
@@ -178,7 +180,9 @@ export async function GET(
         updatedAt: snapshot?.updatedAt
       },
       viewerRole: auth.membership.role,
+      ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),
     });
+    return profiler.apply(response);
 
   } catch (error) {
     console.error("[API:DashboardSummary] Failure:", error);

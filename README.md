@@ -258,6 +258,7 @@ Architecture note:
 Current performance-debugging rule:
 
 - after the shipped projection-first and server-bootstrap slices, the next correct move for stubborn slowness is authenticated live-route profiling, not more blind trimming
+- the authenticated dashboard APIs now emit `Server-Timing`, and `?profile=1` exposes named timing steps in the JSON response for live-route investigation
 
 ### Local operator URLs
 

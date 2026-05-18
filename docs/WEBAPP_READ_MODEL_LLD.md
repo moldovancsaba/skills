@@ -197,6 +197,28 @@ Still required:
 3. stricter projection backfill/repair guarantees for cold-start environments
 4. authenticated live-route profiling on the deployed dashboard path so residual slowness is measured instead of guessed at
 
+## 8.1 Authenticated route profiling contract
+
+The deployed authenticated product routes must be measurable without ad hoc debug patches.
+
+Current profiling support:
+
+- `GET /api/auth/session`
+- `GET /api/companies/[companyId]/dashboard`
+- `GET /api/companies/[companyId]/nav`
+- `GET /api/companies/[companyId]/planning-summary`
+
+Profiling behavior:
+
+- every profiled response emits `Server-Timing`
+- if `?profile=1` is present, the JSON payload also includes a `profile` object with total time and named steps
+- if header `x-checklist-profile: 1` is present, profiling is also exposed
+
+Purpose:
+
+- identify whether slowness is in auth/session, membership checks, projection reads, or fallback query paths
+- keep future dashboard work evidence-driven instead of intuition-driven
+
 ## 9. Why This Matters Operationally
 
 This is not only a performance project.

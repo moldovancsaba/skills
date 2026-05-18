@@ -199,6 +199,7 @@ They are compatibility paths, not the primary operating contract.
 - the company dashboard route is expected to render from server-loaded projection-backed data on first response instead of waiting for a client fetch after mount
 - non-critical UI concerns such as member management or identity decoration should not sit on the critical first dashboard payload
 - once those constraints are satisfied, remaining route slowness should be debugged with authenticated live-route profiling, not guesswork
+- authenticated profiling is part of the architecture now: critical dashboard APIs emit `Server-Timing`, and explicit profiling requests may return named timing steps for production investigation
 
 ## 7. Evidence Durability And Conflict Handling
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
+import { createRequestProfiler } from "@/lib/request-profile";
 import { normalizeWebappProjection } from "@/lib/webapp-projection";
 
 export const dynamic = "force-dynamic";
@@ -9,16 +10,17 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ companyId: string }> },
 ) {
+  const profiler = createRequestProfiler(request, "company-nav");
   const { companyId } = await params;
   if (!companyId) {
     return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
   }
 
-  const auth = await verifyMembership(request, companyId);
+  const auth = await profiler.measure("verifyMembership", () => verifyMembership(request, companyId));
   if (auth.error) return auth.error;
 
   try {
-    const [company, snapshot] = await Promise.all([
+    const [company, snapshot] = await profiler.measure("loadNavModels", () => Promise.all([
       prisma.company.findUnique({
         where: { id: companyId },
         select: { id: true, name: true },
@@ -37,7 +39,7 @@ export async function GET(
           webappProjection: true,
         },
       }),
-    ]);
+    ]));
 
     if (!company) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -64,14 +66,16 @@ export async function GET(
       pipeline: Number(queue.totalActiveJobs ?? 0),
     };
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       company,
       counts: {
         ...counts,
         tactical: Math.max(Number(counts.tactical || 0), Number(counts.checklist || 0)),
         pipeline: Number(queue.totalActiveJobs ?? counts.pipeline ?? 0),
       },
+      ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),
     });
+    return profiler.apply(response);
   } catch (error) {
     console.error("[API:CompanyNav] Failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });

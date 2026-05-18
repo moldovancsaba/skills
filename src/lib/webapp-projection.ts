@@ -48,6 +48,15 @@ export type WebappProjection = {
   version: number;
   generatedAt: string;
   counts: ProjectionCounts;
+  homeCharts: {
+    data: Array<{ date: string; value: number }>;
+    topics: Array<{ date: string; value: number }>;
+    goals: Array<{ date: string; value: number }>;
+    review: Array<{ date: string; value: number }>;
+    knowmore: Array<{ date: string; value: number }>;
+    tactical: Array<{ date: string; value: number }>;
+    checklist: Array<{ date: string; value: number }>;
+  };
   planningSummary: {
     laneCounts: PlanningLaneCounts;
     tacticalCount: number;
@@ -84,6 +93,16 @@ const EMPTY_LANE_COUNTS: PlanningLaneCounts = {
   BACKLOG: 0,
   TODO: 0,
   CHECKLIST: 0,
+};
+
+const EMPTY_HOME_CHARTS: WebappProjection["homeCharts"] = {
+  data: [],
+  topics: [],
+  goals: [],
+  review: [],
+  knowmore: [],
+  tactical: [],
+  checklist: [],
 };
 
 export function getProjectionFreshness(generatedAt: string | null | undefined, now = new Date()): ProjectionFreshness {
@@ -135,6 +154,22 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
   const laneCountsValue = planningSummaryValue.laneCounts && typeof planningSummaryValue.laneCounts === "object"
     ? planningSummaryValue.laneCounts as Record<string, unknown>
     : {};
+  const homeChartsValue = candidate.homeCharts && typeof candidate.homeCharts === "object"
+    ? candidate.homeCharts as Record<string, unknown>
+    : {};
+  const normalizeChart = (entry: unknown) =>
+    Array.isArray(entry)
+      ? entry
+          .filter((point) => point && typeof point === "object")
+          .map((point) => {
+            const value = point as Record<string, unknown>;
+            return {
+              date: String(value.date || ""),
+              value: Number(value.value || 0),
+            };
+          })
+          .filter((point) => point.date)
+      : [];
   const topTasks = Array.isArray(candidate.topTasks)
     ? candidate.topTasks
         .filter((task) => task && typeof task === "object")
@@ -172,6 +207,16 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
     version: Number(candidate.version || 1),
     generatedAt: String(candidate.generatedAt || ""),
     counts: resolvedCounts,
+    homeCharts: {
+      ...EMPTY_HOME_CHARTS,
+      data: normalizeChart(homeChartsValue.data),
+      topics: normalizeChart(homeChartsValue.topics),
+      goals: normalizeChart(homeChartsValue.goals),
+      review: normalizeChart(homeChartsValue.review),
+      knowmore: normalizeChart(homeChartsValue.knowmore),
+      tactical: normalizeChart(homeChartsValue.tactical),
+      checklist: normalizeChart(homeChartsValue.checklist),
+    },
     planningSummary: {
       laneCounts: {
         IDEABANK: Number(laneCountsValue.IDEABANK || 0),

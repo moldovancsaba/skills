@@ -96,6 +96,14 @@ Minimum contract:
   - `tactical`
   - `pipeline`
 - `topTasks`
+- `homeCharts`
+  - `data`
+  - `topics`
+  - `goals`
+  - `review`
+  - `knowmore`
+  - `tactical`
+  - `checklist`
 - `planningSummary`
   - `laneCounts`
   - `tacticalCount`
@@ -177,6 +185,8 @@ The first slice of this architecture is now:
 - touched-company projection dirty queue drained by `snapshot-worker`
 - targeted projection repair after successful company work lands
 - server-side company dashboard bootstrap from prepared projection data instead of a post-mount dashboard fetch
+- server-side home/main dashboard bootstrap from prepared company data instead of a post-mount `/api/companies` waterfall
+- company summary-card charts embedded into `webappProjection.homeCharts` so the home route does not need heavy `analyticsHistory` reads
 - lighter first dashboard payload by moving non-critical identity/member reads off the critical response
 
 Hot routes improved in this slice:
@@ -184,6 +194,7 @@ Hot routes improved in this slice:
 - `GET /api/companies`
 - `GET /api/companies/[companyId]/dashboard`
 - `GET /api/companies/[companyId]/nav`
+- server-side home bootstrap in `src/lib/server-home-page-data.ts`
 - server-side company dashboard bootstrap in `src/lib/server-company-page-data.ts`
 
 ## 8. Remaining Work
@@ -203,6 +214,7 @@ The deployed authenticated product routes must be measurable without ad hoc debu
 
 Current profiling support:
 
+- `GET /api/companies`
 - `GET /api/auth/session`
 - `GET /api/companies/[companyId]/dashboard`
 - `GET /api/companies/[companyId]/nav`

@@ -2,8 +2,10 @@ import { Suspense } from "react";
 import HomeClient from "./home-client";
 import { Center, Loader, Stack } from "@mantine/core";
 import { Text } from "@/components/ui/typography";
+import { getHomeInitialData } from "@/lib/server-home-page-data";
 
-export default function Home() {
+export default async function Home() {
+  const initialData = await getHomeInitialData();
   return (
     <Suspense fallback={
       <Center h="100vh">
@@ -13,7 +15,12 @@ export default function Home() {
         </Stack>
       </Center>
     }>
-      <HomeClient />
+      <HomeClient
+        initialCompanies={initialData.companies}
+        initialSuggestedIndustries={initialData.suggestedIndustries}
+        initialSession={initialData.session}
+        initialDataReady
+      />
     </Suspense>
   );
 }

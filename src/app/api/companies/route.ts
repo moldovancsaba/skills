@@ -6,6 +6,7 @@ import { verifyMembership, verifySuperAdmin } from "@/lib/permissions";
 import { normalizeIndustryHashtags } from "@/lib/hashtags";
 import { validateCompanyProfile } from "@/lib/profile-validation";
 import { getProjectionFreshness, normalizeWebappProjection } from "@/lib/webapp-projection";
+import { createRequestProfiler } from "@/lib/request-profile";
 
 export const dynamic = 'force-dynamic';
 
@@ -24,13 +25,14 @@ function isCompanyMainGoal(value: unknown): value is CompanyMainGoal {
 }
 
 export async function GET(request: NextRequest) {
+  const profiler = createRequestProfiler(request, "companies-list");
   try {
-    const session = await readAppSession(request);
+    const session = await profiler.measure("readAppSession", () => readAppSession(request));
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return profiler.apply(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
     }
 
-    const companies = await prisma.company.findMany({
+    const companies = await profiler.measure("listCompanies", () => prisma.company.findMany({
       where: {
         users: {
           some: {
@@ -38,32 +40,47 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      include: {
-        intelligenceSnapshot: true,
+      select: {
+        id: true,
+        name: true,
+        industry: true,
+        industries: true,
+        description: true,
+        targetMarket: true,
+        website: true,
+        businessModel: true,
+        productCategories: true,
+        demographics: true,
+        competitors: true,
+        mainGoal: true,
+        intelligenceSnapshot: {
+          select: {
+            updatedAt: true,
+            webappProjection: true,
+          },
+        },
       },
-    });
+      orderBy: { name: "asc" },
+    }));
 
     const enrichedCompanies = companies.map((company) => {
       const snapshot = company.intelligenceSnapshot;
       const projection = normalizeWebappProjection(snapshot?.webappProjection);
-      const snapshotChecklistCount = Number(snapshot?.checklistCount || 0);
-      const snapshotTacticalCount = Number(snapshot?.tacticalBoardCount || 0);
-      const snapshotReviewCount = Number(snapshot?.reviewGatewayCount || 0);
       const counts = projection?.counts;
       const navCounts = projection?.navCounts;
-      const checklistCount = Number(navCounts?.checklist ?? counts?.checklistCount ?? snapshotChecklistCount);
+      const checklistCount = Number(navCounts?.checklist ?? counts?.checklistCount ?? 0);
       const tacticalCount = Math.max(
-        Number(navCounts?.tactical ?? counts?.tacticalCount ?? snapshotTacticalCount),
+        Number(navCounts?.tactical ?? counts?.tacticalCount ?? 0),
         checklistCount,
       );
       return {
         ...company,
         metrics: {
-          data: Number(navCounts?.data ?? ((counts?.sources ?? snapshot?.dataIngressCount ?? 0) + (counts?.files ?? 0))),
-          topics: Number(navCounts?.topics ?? counts?.topics ?? snapshot?.topicSynthesisCount ?? 0),
-          knowmore: Number(navCounts?.knowmore ?? counts?.flashcards ?? snapshot?.knowmoreCount ?? 0),
-          goals: Number(navCounts?.goals ?? counts?.goals ?? snapshot?.strategicGoalsCount ?? 0),
-          review: Number(navCounts?.review ?? counts?.reviewCount ?? snapshotReviewCount),
+          data: Number(navCounts?.data ?? counts?.sources ?? 0),
+          topics: Number(navCounts?.topics ?? counts?.topics ?? 0),
+          knowmore: Number(navCounts?.knowmore ?? counts?.flashcards ?? 0),
+          goals: Number(navCounts?.goals ?? counts?.goals ?? 0),
+          review: Number(navCounts?.review ?? counts?.reviewCount ?? 0),
           checklist: checklistCount,
           tactical: tacticalCount,
         },
@@ -72,13 +89,26 @@ export async function GET(request: NextRequest) {
           freshness: getProjectionFreshness(projection?.generatedAt ?? null),
           generatedAt: projection?.generatedAt ?? null,
         },
-        analytics: Array.isArray(snapshot?.analyticsHistory) ? snapshot.analyticsHistory : [],
+        charts: projection?.homeCharts ?? {
+          data: [],
+          topics: [],
+          goals: [],
+          review: [],
+          knowmore: [],
+          tactical: [],
+          checklist: [],
+        },
       };
     });
 
-    return NextResponse.json(enrichedCompanies);
+    const response = NextResponse.json(
+      profiler.enabled
+        ? { companies: enrichedCompanies, profile: profiler.getSummary() }
+        : enrichedCompanies,
+    );
+    return profiler.apply(response);
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return profiler.apply(NextResponse.json({ error: String(error) }, { status: 500 }));
   }
 }
 

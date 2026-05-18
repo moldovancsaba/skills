@@ -170,8 +170,10 @@ Hot product reads that should prefer that projection:
 
 Dashboard route contract:
 
+- the home/main dashboard should bootstrap from server-loaded prepared company data on the first response
 - the company dashboard should bootstrap from server-loaded prepared data on the first response
 - non-critical panels such as membership or identity details should not block the first product-summary render
+- home-card chart data should come from the prepared projection too, not from broad snapshot analytics reads on the hot path
 
 Allowed bounded fallback:
 
@@ -199,6 +201,7 @@ The repetitive-job contract now also includes:
 - intelligence snapshot refresh is no longer part of the foreground queue lane; it runs in the dedicated `snapshot-worker`
 - queue-topology refresh on claim miss is also delegated out of the foreground lane; `snapshot-worker` owns the background queue-sync cadence and may be force-woken by foreground
 - touched-company projection refresh now follows the same background ownership pattern: successful company work marks the company projection-dirty, and `snapshot-worker` drains those targeted repairs before the slower broad snapshot sweep
+- the home/main dashboard is now part of the same server-bootstrap contract: it should not wait for post-mount company/session/industry fetch waterfalls when prepared product data is available
 - once the projection-first and server-bootstrap path is shipped, persistent slowness on authenticated product routes should be investigated through real live-route profiling rather than further blind trimming
 
 Backlog contract:

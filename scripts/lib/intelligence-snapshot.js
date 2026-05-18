@@ -50,6 +50,19 @@ function normalizeAlerts(alerts = []) {
   }));
 }
 
+function buildProjectionHomeCharts(analyticsHistory = []) {
+  const history = Array.isArray(analyticsHistory) ? analyticsHistory.slice(-14) : [];
+  return {
+    data: history.map((point) => ({ date: point.date, value: Number(point.sources ?? point.dataIngress ?? 0) })),
+    topics: history.map((point) => ({ date: point.date, value: Number(point.topics ?? point.topicSynthesis ?? 0) })),
+    goals: history.map((point) => ({ date: point.date, value: Number(point.goals ?? point.strategicGoals ?? point.checklist ?? point.nba ?? 0) })),
+    review: history.map((point) => ({ date: point.date, value: Number(point.reviewGateway ?? point.checklist ?? point.nba ?? 0) })),
+    knowmore: history.map((point) => ({ date: point.date, value: Number(point.flashcards ?? point.knowmore ?? 0) })),
+    tactical: history.map((point) => ({ date: point.date, value: Number(point.tacticalBoard ?? point.tacticalCount ?? point.checklistTasks ?? point.nba ?? 0) })),
+    checklist: history.map((point) => ({ date: point.date, value: Number(point.checklist ?? point.nba ?? 0) })),
+  };
+}
+
 function normalizeTagSelectionKey(tags = []) {
   return [...new Set((Array.isArray(tags) ? tags : []).map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean))]
     .sort()
@@ -1037,6 +1050,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       reviewCount,
       pipelineJobs: Number(queueSummary.totalActiveJobs || 0),
     },
+    homeCharts: buildProjectionHomeCharts(analyticsHistory),
     planningSummary: {
       laneCounts,
       tacticalCount: Math.max(checklistTasks, checklistCount),

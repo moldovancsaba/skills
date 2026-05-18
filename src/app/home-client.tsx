@@ -13,30 +13,66 @@ import { useState, useEffect, useCallback } from "react";
 import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 import { useI18n } from "@/lib/ui-i18n";
 
-export default function Home() {
+type HomeCompany = {
+  id: string;
+  name: string;
+  industry?: string | null;
+  industries?: string[];
+  metrics?: Record<string, number>;
+  projection?: {
+    available: boolean;
+    freshness?: {
+      status: string;
+      generatedAt: string | null;
+      ageMinutes: number | null;
+    };
+    generatedAt: string | null;
+  };
+  charts?: Record<string, Array<{ date: string; value: number }>>;
+};
+
+type HomeSession = {
+  authenticated: boolean;
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
+  isSuperAdmin?: boolean;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    picture?: string;
+    isSuperAdmin?: boolean;
+  };
+} | null;
+
+type HomeProps = {
+  initialCompanies?: HomeCompany[];
+  initialSuggestedIndustries?: string[];
+  initialSession?: HomeSession;
+  initialDataReady?: boolean;
+};
+
+export default function Home({
+  initialCompanies = [],
+  initialSuggestedIndustries = [],
+  initialSession = null,
+  initialDataReady = false,
+}: HomeProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setCompany, setSources } = useStore();
   const { t } = useI18n();
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [companies, setCompanies] = useState<HomeCompany[]>(initialCompanies);
+  const [loading, setLoading] = useState(!initialDataReady);
   const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: "", industry: "", industries: [] as string[] });
-  const [suggestedIndustries, setSuggestedIndustries] = useState<string[]>([]);
-  const [session, setSession] = useState<any>(null);
-
-  const chartSeries = useCallback((history: any[] | undefined, ...keys: string[]) => {
-    return (history || []).map((point: any) => {
-      const value = keys.reduce<number | null>((resolved, key) => {
-        if (resolved !== null) return resolved;
-        return typeof point?.[key] === "number" ? point[key] : null;
-      }, null);
-      return { date: point.date, value: value ?? 0 };
-    });
-  }, []);
+  const [suggestedIndustries, setSuggestedIndustries] = useState<string[]>(initialSuggestedIndustries);
+  const [session, setSession] = useState<HomeSession>(initialSession);
 
   const canManageCompanies = Boolean(session?.isSuperAdmin);
 
@@ -49,6 +85,8 @@ export default function Home() {
   }, [router, setCompany, setSources]);
 
   useEffect(() => {
+    if (initialDataReady) return;
+
     fetch("/api/companies")
       .then(async (res) => {
         const data = await res.json();
@@ -60,37 +98,47 @@ export default function Home() {
       .then((data) => {
         if (Array.isArray(data)) {
           setCompanies(data);
+        } else if (Array.isArray(data?.companies)) {
+          setCompanies(data.companies);
         } else {
           setCompanies([]);
           console.error("Received non-array data:", data);
-        }
-        setLoading(false);
-        
-        if (companyParam && Array.isArray(data)) {
-          const found = data.find((c: any) => c.id === companyParam);
-          if (found) {
-            selectCompany(found);
-          }
         }
       })
       .catch((err) => {
         console.error(err);
         setError(err.message);
+      })
+      .finally(() => {
         setLoading(false);
       });
+  }, [initialDataReady, t]);
 
-    // Fetch industry suggestions
+  useEffect(() => {
+    if (initialSuggestedIndustries.length > 0 || !canManageCompanies) return;
+
     fetch("/api/industries")
       .then(res => res.ok ? res.json() : [])
       .then(data => setSuggestedIndustries(data))
       .catch(console.error);
+  }, [canManageCompanies, initialSuggestedIndustries.length]);
 
-    // Fetch session profile
+  useEffect(() => {
+    if (initialSession) return;
+
     fetch("/api/auth/session")
       .then(res => res.ok ? res.json() : null)
       .then(data => setSession(data))
       .catch(console.error);
-  }, [companyParam, selectCompany, t]);
+  }, [initialSession]);
+
+  useEffect(() => {
+    if (!companyParam || companies.length === 0) return;
+    const found = companies.find((c) => c.id === companyParam);
+    if (found) {
+      selectCompany(found);
+    }
+  }, [companies, companyParam, selectCompany]);
 
   const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -299,7 +347,7 @@ export default function Home() {
                         variant="ingress"
                         metric={c.metrics?.data ?? 0}
                         title={t("nav.data")}
-                        chartData={chartSeries(c.analytics, "sources", "dataIngress")}
+                        chartData={c.charts?.data ?? []}
                         density="compact"
                       />
                       <LinkCard
@@ -308,7 +356,7 @@ export default function Home() {
                         variant="synthesis"
                         metric={c.metrics?.topics ?? 0}
                         title={t("nav.topics")}
-                        chartData={chartSeries(c.analytics, "topics", "topicSynthesis")}
+                        chartData={c.charts?.topics ?? []}
                         density="compact"
                       />
                       <LinkCard
@@ -317,7 +365,7 @@ export default function Home() {
                         variant="strategy"
                         metric={c.metrics?.goals ?? 0}
                         title={t("nav.goals")}
-                        chartData={chartSeries(c.analytics, "goals", "strategicGoals", "checklist", "nba")}
+                        chartData={c.charts?.goals ?? []}
                         density="compact"
                       />
                       <LinkCard
@@ -326,7 +374,7 @@ export default function Home() {
                         variant="review"
                         metric={c.metrics?.review ?? 0}
                         title={t("nav.review")}
-                        chartData={chartSeries(c.analytics, "reviewGateway", "checklist", "nba")}
+                        chartData={c.charts?.review ?? []}
                         density="compact"
                       />
                       <LinkCard
@@ -335,7 +383,7 @@ export default function Home() {
                         variant="knowmore"
                         metric={c.metrics?.knowmore ?? 0}
                         title={t("nav.knowmore")}
-                        chartData={chartSeries(c.analytics, "flashcards", "knowmore")}
+                        chartData={c.charts?.knowmore ?? []}
                         density="compact"
                       />
                       <LinkCard
@@ -344,7 +392,7 @@ export default function Home() {
                         variant="tactical"
                         metric={planningMetric}
                         title={t("nav.tactical")}
-                        chartData={chartSeries(c.analytics, "tacticalBoard", "tacticalCount", "checklistTasks", "nba")}
+                        chartData={c.charts?.tactical ?? []}
                         density="compact"
                       />
                       <LinkCard
@@ -353,7 +401,7 @@ export default function Home() {
                         variant="checklist"
                         metric={checklistMetric}
                         title={t("nav.checklist")}
-                        chartData={chartSeries(c.analytics, "checklist", "nba")}
+                        chartData={c.charts?.checklist ?? []}
                         density="compact"
                       />
                     </RouteCardGrid>

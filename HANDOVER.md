@@ -54,6 +54,7 @@ Read first:
 - the next product-performance hardening slice is now projection-first webapp reads: the local AI side prepares company read models so the online app does not keep recomputing hot-route summary counts live
 - the shipped follow-up slice now includes projection-backed planning summaries and projection-freshness telemetry for dashboard, tactical, and checklist surfaces
 - the shipped follow-up slice now also includes server-side company dashboard bootstrap from prepared projection data, so the first page response is no longer blocked on a client dashboard fetch
+- the shipped follow-up slice now also includes server-side home/main dashboard bootstrap plus projection-backed home-card chart payloads, so the landing route no longer needs to pull full snapshot analytics documents on first load
 - the dashboard first response is now intentionally narrower: non-critical member and identity details are not supposed to sit on the critical product-summary path
 - startup integrity scrub cooldown now persists across restarts instead of firing again on every guardian bounce
 - planner telemetry now retries and degrades to best-effort on retryable Prisma write conflicts instead of failing the owning job

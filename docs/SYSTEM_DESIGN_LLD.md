@@ -196,6 +196,7 @@ They are compatibility paths, not the primary operating contract.
 ## 6.2 Product route bootstrap
 
 - hot authenticated product routes should prefer server-first bootstrap from prepared projection data
+- the home/main dashboard route should render its company list from server-loaded prepared data on first response instead of waiting for a client waterfall
 - the company dashboard route is expected to render from server-loaded projection-backed data on first response instead of waiting for a client fetch after mount
 - non-critical UI concerns such as member management or identity decoration should not sit on the critical first dashboard payload
 - once those constraints are satisfied, remaining route slowness should be debugged with authenticated live-route profiling, not guesswork
@@ -229,6 +230,7 @@ They are compatibility paths, not the primary operating contract.
 - the local AI side owns projection creation and refresh
 - the webapp owns projection normalization, rendering, and bounded fallback only
 - product pages must not recompute many live counts on load when a prepared projection exists
+- prepared home-card chart series should also live in the projection so the company list route does not need the full snapshot analytics document on its hot path
 - runtime/operator truth such as worker stage, memory governor state, and queue hardening remains outside this product projection and belongs to `/local-ai` plus runtime endpoints
 
 Current first-slice projection consumers:
@@ -237,6 +239,7 @@ Current first-slice projection consumers:
 - `GET /api/companies/[companyId]/dashboard`
 - `GET /api/companies/[companyId]/nav`
 - `GET /api/companies/[companyId]/planning-summary`
+- server-side home/main dashboard bootstrap
 - server-side company dashboard bootstrapping
 
 ## 9. Blended Priority Architecture

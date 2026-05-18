@@ -10,6 +10,10 @@ const {
   getPipelineJobRetryLimit,
   buildRunnablePipelineJobWhere,
 } = require("../src/lib/pipeline-queue");
+const {
+  shouldAllowForegroundWork,
+  FOREGROUND_HARD_PAUSE_MB,
+} = require("./lib/runtime/resource-bands");
 
 async function main() {
   const taskPayload = buildTaskUpdatePayload({
@@ -91,6 +95,18 @@ async function main() {
       ],
     },
     "claim path must treat missing scheduledAt as runnable under Prisma Mongo",
+  );
+
+  assert.equal(FOREGROUND_HARD_PAUSE_MB, 256, "foreground hard-pause threshold must stay explicit");
+  assert.equal(
+    shouldAllowForegroundWork(433).allowed,
+    true,
+    "foreground worker must keep running lightweight queue work above the hard-pause floor",
+  );
+  assert.equal(
+    shouldAllowForegroundWork(203).allowed,
+    false,
+    "foreground worker must still pause when free memory drops below the hard floor",
   );
 
   console.log("Runtime hardening tests passed.");

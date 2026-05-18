@@ -3,6 +3,8 @@ const {
   claimNextPipelineJobs,
   completePipelineJob,
   failPipelineJob,
+  classifyPipelineJobError,
+  PIPELINE_FAILURE_CLASSES,
   PLANNER_BOOTSTRAP_JOB_TYPES,
   PLANNER_QUALITY_JOB_TYPES,
   PLANNER_MAINTENANCE_JOB_TYPES,
@@ -375,15 +377,20 @@ function startRunningJobHeartbeat(prisma, job, companyName, entityLabel) {
 
 async function runPipelineQueueBatch(prisma, limit = 1) {
   await recoverStaleRunningPipelineJobs(prisma);
-  let claimed = await claimNextPipelineJobs(prisma, limit);
+  const targetExecutions = Math.max(1, limit);
+  const maxClaims = targetExecutions + 3;
+  let claimed = await claimNextPipelineJobs(prisma, 1);
   if (claimed.length === 0) {
-    await syncPipelineJobsForCompanyShard(prisma, limit + 1);
+    await syncPipelineJobsForCompanyShard(prisma, targetExecutions + 1);
     await syncAllCompanyPipelineJobsIfDue(prisma);
-    claimed = await claimNextPipelineJobs(prisma, limit);
+    claimed = await claimNextPipelineJobs(prisma, 1);
   }
   let executed = 0;
+  let claimsAttempted = 0;
 
-  for (const job of claimed) {
+  while (claimed.length > 0 && claimsAttempted < maxClaims && executed < targetExecutions) {
+    const [job] = claimed;
+    claimsAttempted += 1;
     const startedAt = Date.now();
     let stopHeartbeat = null;
     try {
@@ -440,7 +447,14 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         valueSignal: "RETRY_WASTE_RISK",
         reason: error.message,
       });
+
+      const classification = classifyPipelineJobError(error);
+      if (classification.class !== PIPELINE_FAILURE_CLASSES.LOW_MEMORY_SKIP) {
+        break;
+      }
     }
+
+    claimed = executed < targetExecutions ? await claimNextPipelineJobs(prisma, 1) : [];
   }
 
   return executed;

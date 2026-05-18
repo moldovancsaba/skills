@@ -28,6 +28,7 @@ import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { CompanyScoreHealth } from "@/lib/score-health";
 import { BodyText, SectionTitle } from "@/components/ui/typography";
 import { useI18n } from "@/lib/ui-i18n";
+import type { ProjectionFreshness } from "@/lib/webapp-projection";
 
 type ChecklistTask = {
   id: string;
@@ -80,6 +81,7 @@ export default function CompanyDashboard() {
   const [declineClass, setDeclineClass] = useState<string>("WRONG");
   const [chartData, setChartData] = useState<any[]>([]);
   const [scoreHealth, setScoreHealth] = useState<CompanyScoreHealth | null>(null);
+  const [projectionFreshness, setProjectionFreshness] = useState<ProjectionFreshness | null>(null);
 
   const chartSeries = useCallback((...keys: string[]) => {
     return chartData.map((point) => {
@@ -104,9 +106,17 @@ export default function CompanyDashboard() {
       setSources(Array.isArray(data.sources) ? data.sources : []);
       setMembers(Array.isArray(data.members) ? data.members : []);
       setCounts(data.counts);
-      setTopTasks(data.topTasks);
+      setTopTasks(
+        Array.isArray(data.topTasks)
+          ? data.topTasks.map((task: ChecklistTask & { description?: string | null }) => ({
+              ...task,
+              description: task.description ?? "",
+            }))
+          : [],
+      );
       setChartData(data.analytics);
       setScoreHealth(data.metrics?.scoreHealth ?? null);
+      setProjectionFreshness(data.projection?.freshness ?? null);
       setIsOwner(data.viewerRole === "OWNER" || data.viewerRole === "SUPERADMIN");
     } catch (err) {
       console.error("[DASHBOARD] Sync failure:", err);
@@ -145,7 +155,7 @@ export default function CompanyDashboard() {
     setActionItemId(item.id);
     setAnnotation(stripTechnicalMetadata(item.userAnnotation));
     setDraftTitle(item.title);
-    setDraftDescription(item.description);
+    setDraftDescription(item.description ?? "");
     setDeclineClass("WRONG");
   }, []);
 
@@ -271,9 +281,32 @@ export default function CompanyDashboard() {
   const dominantTupleLabel = scoreHealth?.taskcards.dominantTuple?.label ?? "-";
   const topScoreAlert = scoreHealth?.alerts[0] ?? null;
   const planningCount = Math.max(Number(counts.tacticalCount || 0), Number(counts.checklistCount || 0));
+  const projectionFreshnessLabel =
+    projectionFreshness?.status === "FRESH"
+      ? `Projection fresh${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`
+      : projectionFreshness?.status === "AGING"
+        ? `Projection aging${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`
+        : projectionFreshness?.status === "STALE"
+          ? `Projection stale${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`
+          : "Projection missing";
 
   return (
     <PageShell width="full">
+      <Group gap="sm" mb="md">
+        <Badge size="sm" variant="light" color="tactical">
+          Planning {planningCount}
+        </Badge>
+        <Badge size="sm" variant="light" color="checklist">
+          Checklist {counts.checklistCount}
+        </Badge>
+        <Badge
+          size="sm"
+          variant="outline"
+          color={projectionFreshness?.status === "STALE" ? "review" : projectionFreshness?.status === "AGING" ? "strategy" : "gray"}
+        >
+          {projectionFreshnessLabel}
+        </Badge>
+      </Group>
       <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }} mb="xl">
         <LinkCard
           href={`/${companyId}/data`}

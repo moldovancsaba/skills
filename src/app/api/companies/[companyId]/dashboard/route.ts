@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { APP_VERSION, BRAIN_VERSION } from "@/lib/release";
-import { normalizeWebappProjection } from "@/lib/webapp-projection";
+import { getProjectionFreshness, normalizeWebappProjection } from "@/lib/webapp-projection";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +49,7 @@ export async function GET(
       ? observabilitySummary.queue as Record<string, unknown>
       : {};
     const projection = normalizeWebappProjection(snapshot?.webappProjection);
+    const projectionFreshness = getProjectionFreshness(projection?.generatedAt ?? null);
 
     let counts = projection?.counts
       ? {
@@ -150,6 +151,13 @@ export async function GET(
       members,
       counts,
       topTasks,
+      projection: {
+        available: Boolean(projection),
+        freshness: projectionFreshness,
+        generatedAt: projection?.generatedAt ?? null,
+        snapshotUpdatedAt: snapshot?.updatedAt?.toISOString() ?? null,
+        planningSummary: projection?.planningSummary ?? null,
+      },
       analytics: Array.isArray(snapshot?.analyticsHistory) ? snapshot.analyticsHistory : [],
       metrics: {
         synthesisYield: snapshot?.synthesisYield || 0,

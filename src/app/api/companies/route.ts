@@ -5,7 +5,7 @@ import { readAppSession } from "@/lib/auth";
 import { verifyMembership, verifySuperAdmin } from "@/lib/permissions";
 import { normalizeIndustryHashtags } from "@/lib/hashtags";
 import { validateCompanyProfile } from "@/lib/profile-validation";
-import { normalizeWebappProjection } from "@/lib/webapp-projection";
+import { getProjectionFreshness, normalizeWebappProjection } from "@/lib/webapp-projection";
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +66,11 @@ export async function GET(request: NextRequest) {
           review: Number(navCounts?.review ?? counts?.reviewCount ?? snapshotReviewCount),
           checklist: checklistCount,
           tactical: tacticalCount,
+        },
+        projection: {
+          available: Boolean(projection),
+          freshness: getProjectionFreshness(projection?.generatedAt ?? null),
+          generatedAt: projection?.generatedAt ?? null,
         },
         analytics: Array.isArray(snapshot?.analyticsHistory) ? snapshot.analyticsHistory : [],
       };

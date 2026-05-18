@@ -96,6 +96,10 @@ Minimum contract:
   - `tactical`
   - `pipeline`
 - `topTasks`
+- `planningSummary`
+  - `laneCounts`
+  - `tacticalCount`
+  - `checklistCount`
 
 Rules:
 
@@ -166,6 +170,8 @@ The first slice of this architecture is now:
 - snapshot-backed company dashboard reads
 - snapshot-backed company nav reads
 - snapshot-backed company list metrics
+- snapshot-backed planning summary reads for tactical and checklist surfaces
+- projection freshness telemetry on dashboard, tactical, and checklist surfaces
 - shared projection normalization in `src/lib/webapp-projection.ts`
 
 Hot routes improved in this slice:
@@ -181,11 +187,9 @@ The first slice is not the end state.
 
 Still required:
 
-1. snapshot-first tactical board summaries
-2. snapshot-first checklist summaries
-3. explicit projection age / freshness telemetry on operator surfaces
-4. projection invalidation and targeted refresh triggers after touched-company work
-5. larger analytics and card-detail reads audited to avoid hot-path fan-out
+1. projection invalidation and targeted refresh triggers after touched-company work
+2. larger analytics and card-detail reads audited to avoid hot-path fan-out
+3. broader freshness visibility where operators actually need it
 
 ## 9. Why This Matters Operationally
 

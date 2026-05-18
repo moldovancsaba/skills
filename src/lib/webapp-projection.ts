@@ -10,6 +10,20 @@ type ProjectionCounts = {
   pipelineJobs: number;
 };
 
+type PlanningLaneCounts = {
+  IDEABANK: number;
+  ROADMAP: number;
+  BACKLOG: number;
+  TODO: number;
+  CHECKLIST: number;
+};
+
+export type ProjectionFreshness = {
+  status: "FRESH" | "AGING" | "STALE" | "MISSING";
+  generatedAt: string | null;
+  ageMinutes: number | null;
+};
+
 export type WebappProjectionTask = {
   id: string;
   publicId: number | null;
@@ -34,6 +48,11 @@ export type WebappProjection = {
   version: number;
   generatedAt: string;
   counts: ProjectionCounts;
+  planningSummary: {
+    laneCounts: PlanningLaneCounts;
+    tacticalCount: number;
+    checklistCount: number;
+  };
   navCounts: {
     data: number;
     topics: number;
@@ -59,6 +78,40 @@ const EMPTY_COUNTS: ProjectionCounts = {
   pipelineJobs: 0,
 };
 
+const EMPTY_LANE_COUNTS: PlanningLaneCounts = {
+  IDEABANK: 0,
+  ROADMAP: 0,
+  BACKLOG: 0,
+  TODO: 0,
+  CHECKLIST: 0,
+};
+
+export function getProjectionFreshness(generatedAt: string | null | undefined, now = new Date()): ProjectionFreshness {
+  if (!generatedAt) {
+    return {
+      status: "MISSING",
+      generatedAt: null,
+      ageMinutes: null,
+    };
+  }
+
+  const generatedMs = new Date(generatedAt).getTime();
+  if (!Number.isFinite(generatedMs)) {
+    return {
+      status: "MISSING",
+      generatedAt: null,
+      ageMinutes: null,
+    };
+  }
+
+  const ageMinutes = Math.max(0, Math.round((now.getTime() - generatedMs) / 60000));
+  return {
+    status: ageMinutes <= 10 ? "FRESH" : ageMinutes <= 60 ? "AGING" : "STALE",
+    generatedAt,
+    ageMinutes,
+  };
+}
+
 export function normalizeWebappProjection(value: unknown): WebappProjection | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Record<string, unknown>;
@@ -76,6 +129,12 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
     reviewCount: Number(countsValue.reviewCount || 0),
     pipelineJobs: Number(countsValue.pipelineJobs || 0),
   };
+  const planningSummaryValue = candidate.planningSummary && typeof candidate.planningSummary === "object"
+    ? candidate.planningSummary as Record<string, unknown>
+    : {};
+  const laneCountsValue = planningSummaryValue.laneCounts && typeof planningSummaryValue.laneCounts === "object"
+    ? planningSummaryValue.laneCounts as Record<string, unknown>
+    : {};
   const topTasks = Array.isArray(candidate.topTasks)
     ? candidate.topTasks
         .filter((task) => task && typeof task === "object")
@@ -113,6 +172,20 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
     version: Number(candidate.version || 1),
     generatedAt: String(candidate.generatedAt || ""),
     counts: resolvedCounts,
+    planningSummary: {
+      laneCounts: {
+        IDEABANK: Number(laneCountsValue.IDEABANK || 0),
+        ROADMAP: Number(laneCountsValue.ROADMAP || 0),
+        BACKLOG: Number(laneCountsValue.BACKLOG || 0),
+        TODO: Number(laneCountsValue.TODO || 0),
+        CHECKLIST: Number(laneCountsValue.CHECKLIST || 0),
+      },
+      tacticalCount: Math.max(
+        Number(planningSummaryValue.tacticalCount || resolvedCounts.tacticalCount),
+        Number(planningSummaryValue.checklistCount || resolvedCounts.checklistCount),
+      ),
+      checklistCount: Number(planningSummaryValue.checklistCount || resolvedCounts.checklistCount),
+    },
     navCounts: {
       data: resolvedCounts.sources,
       topics: resolvedCounts.topics,

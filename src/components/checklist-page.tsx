@@ -19,6 +19,7 @@ import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterPara
 import { TaskReviewCard } from "@/components/task-review-card";
 import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowLeft as ArrowLeft, IconListCheck as ListCheck } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
+import type { ProjectionFreshness } from "@/lib/webapp-projection";
 
 /**
  * Representational interface for a tactical intelligence unit (Task).
@@ -64,6 +65,9 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const [declineClass, setDeclineClass] = useState<string>("WRONG");
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string>("");
+  const [planningSummary, setPlanningSummary] = useState<{ tacticalCount: number; checklistCount: number } | null>(null);
+  const [projectionFreshness, setProjectionFreshness] = useState<ProjectionFreshness | null>(null);
 
   const loadChecklist = useCallback(async (cid: string) => {
     setLoading(true);
@@ -86,19 +90,24 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
 
     const fetchCompany = async (cid: string) => {
       try {
-        const companies = await fetch(`/api/companies`).then((res) => res.json());
-        if (!Array.isArray(companies)) {
-          console.error("Invalid companies response:", companies);
-          return;
+        const res = await fetch(`/api/companies/${cid}/planning-summary`);
+        if (!res.ok) {
+          if (res.status === 404) {
+            router.push("/");
+            return;
+          }
+          throw new Error("Failed to load planning summary");
         }
-        const found = companies.find((entry: any) => entry.id === cid);
-        if (!found) {
-          router.push("/");
+        const data = await res.json();
+        if (!data?.company?.id) {
           return;
         }
 
-        setCompany(found);
-        await loadChecklist(found.id);
+        setCompany(data.company);
+        setCompanyName(data.company.name || "");
+        setPlanningSummary(data.planningSummary ?? null);
+        setProjectionFreshness(data.projection?.freshness ?? null);
+        await loadChecklist(data.company.id);
       } catch (error) {
         console.error(error);
       }
@@ -343,6 +352,14 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
 
   const filteredItems = items.filter((item) => matchesAllHashtags(item.hashtags, activeHashtags));
   const selectedItem = items.find((item) => item.id === selectedItemId) ?? null;
+  const projectionFreshnessLabel =
+    projectionFreshness?.status === "FRESH"
+      ? `Projection fresh${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`
+      : projectionFreshness?.status === "AGING"
+        ? `Projection aging${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`
+        : projectionFreshness?.status === "STALE"
+          ? `Projection stale${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`
+          : "Projection missing";
 
   return (
     <PageShell width="full">
@@ -359,6 +376,26 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                 {archived ? <Archive size={12} color="var(--module-checklist-color)" /> : <Sparkles size={12} color="var(--module-checklist-color)" />}
                 <Text size="xs" c="checklist">
                   {archived ? "Archive" : "Active Intelligence"}
+                </Text>
+              </Group>
+              <Group gap="xs" mt={6}>
+                {companyName ? (
+                  <Text size="xs" c="dimmed">
+                    {companyName}
+                  </Text>
+                ) : null}
+                {planningSummary ? (
+                  <>
+                    <Text size="xs" c="dimmed">
+                      Planning {Math.max(Number(planningSummary.tacticalCount || 0), Number(planningSummary.checklistCount || 0))}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Checklist {Number(planningSummary.checklistCount || 0)}
+                    </Text>
+                  </>
+                ) : null}
+                <Text size="xs" c={projectionFreshness?.status === "STALE" ? "review" : projectionFreshness?.status === "AGING" ? "strategy" : "dimmed"}>
+                  {projectionFreshnessLabel}
                 </Text>
               </Group>
             </Stack>

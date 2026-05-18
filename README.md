@@ -157,6 +157,7 @@ New operator surfaces:
 - Knowmore now also exposes bounded health/repair intent capture directly on the knowledge surface instead of forcing operators through generic observability only
 - queue reads, feedback analytics, and hashtag recommendations are now persisted-state or snapshot-backed reads; loading a page must not trigger worker synchronization or app-layer recomputation
 - company list, dashboard, and nav reads must prefer `IntelligenceSnapshot.webappProjection` before attempting bounded fallback logic
+- tactical and checklist page summaries should also read the prepared planning summary and projection freshness before falling back to live recomputation
 - `/:companyId/workflows` provides bounded workflow blueprints and enrichment-waterfall policy management
 - active workflow blueprints are not passive records: they materialize into claimable `WORKFLOW_BLUEPRINT` queue jobs and execute through the shared worker queue
 - enrichment-waterfall policies now affect runtime provider selection for URL intelligence instead of living as config-only records

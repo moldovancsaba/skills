@@ -52,6 +52,7 @@ Read first:
 - the shipped runtime step-by-step loop and recovery rules are now documented in `docs/LOCAL_AI_RUNTIME_SOP.md`
 - the first major hardening slice is now shipped: snapshot refresh runs in a dedicated `snapshot-worker`, the foreground queue worker no longer shares that lane, and both lanes expose separate health/progress truth
 - the next product-performance hardening slice is now projection-first webapp reads: the local AI side prepares company read models so the online app does not keep recomputing hot-route summary counts live
+- the shipped follow-up slice now includes projection-backed planning summaries and projection-freshness telemetry for dashboard, tactical, and checklist surfaces
 - startup integrity scrub cooldown now persists across restarts instead of firing again on every guardian bounce
 - planner telemetry now retries and degrades to best-effort on retryable Prisma write conflicts instead of failing the owning job
 - the status server now exposes a lightweight `/health` probe and briefly caches expensive payload assembly

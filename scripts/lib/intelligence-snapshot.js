@@ -839,7 +839,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
     ? progressSetting.value
     : {};
 
-  const [dataSources, uploadedFiles, topics, flashcards, goals, checklistTasks, checklistCount, reviewCount, scoreHealth, analyticsHistory, feedbackAnalytics, hashtagAnalytics] = await Promise.all([
+  const [dataSources, uploadedFiles, topics, flashcards, goals, checklistTasks, checklistCount, reviewCount, laneCountRows, scoreHealth, analyticsHistory, feedbackAnalytics, hashtagAnalytics] = await Promise.all([
     prisma.source.count({ where: { companyId } }),
     prisma.uploadedSourceFile.count({ where: { companyId } }),
     prisma.topic.count({ where: { companyId } }),
@@ -862,11 +862,32 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
         activityState: { in: ["ACTIVE", "STALE"] },
       },
     }),
+    prisma.checklistTask.groupBy({
+      by: ["kanbanColumn"],
+      where: {
+        companyId,
+        activityState: { in: ["ACTIVE", "STALE"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+      },
+      _count: { _all: true },
+    }),
     computeCompanyScoreHealth(companyId, prisma),
     buildAnalyticsHistory(prisma, companyId),
     buildFeedbackAnalytics(prisma, companyId),
     buildHashtagAnalytics(prisma, companyId),
   ]);
+  const laneCounts = {
+    IDEABANK: 0,
+    ROADMAP: 0,
+    BACKLOG: 0,
+    TODO: 0,
+    CHECKLIST: 0,
+  };
+  for (const row of laneCountRows) {
+    if (Object.prototype.hasOwnProperty.call(laneCounts, row.kanbanColumn)) {
+      laneCounts[row.kanbanColumn] = Number(row._count?._all || 0);
+    }
+  }
 
   const normalizedScoreHealth = scoreHealth
     ? {
@@ -925,6 +946,11 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       checklistCount,
       reviewCount,
       pipelineJobs: Number(queueSummary.totalActiveJobs || 0),
+    },
+    planningSummary: {
+      laneCounts,
+      tacticalCount: Math.max(checklistTasks, checklistCount),
+      checklistCount,
     },
     navCounts: {
       data: dataSources + uploadedFiles,

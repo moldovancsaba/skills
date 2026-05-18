@@ -22,6 +22,7 @@ import { getTaskCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";
 import { getModuleTheme, getSemanticDropzoneStyle } from "@/lib/semantic-theme";
+import type { ProjectionFreshness } from "@/lib/webapp-projection";
 
 type ChecklistKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
@@ -433,6 +434,12 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   const [loading, setLoading] = useState(true);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
+  const [planningSummary, setPlanningSummary] = useState<{
+    laneCounts: Record<ChecklistKanbanColumn, number>;
+    tacticalCount: number;
+    checklistCount: number;
+  } | null>(null);
+  const [projectionFreshness, setProjectionFreshness] = useState<ProjectionFreshness | null>(null);
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
 
   const fetchItems = useCallback(async () => {
@@ -450,16 +457,30 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
     }
   }, [companyId]);
 
+  const fetchPlanningSummary = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/companies/${companyId}/planning-summary`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setPlanningSummary(data.planningSummary ?? null);
+      setProjectionFreshness(data.projection?.freshness ?? null);
+    } catch (error) {
+      console.error("[KANBAN] Planning summary fetch failed:", error);
+    }
+  }, [companyId]);
+
   useEffect(() => {
     void (async () => {
+      await fetchPlanningSummary();
       await fetchItems();
     })();
 
     const interval = setInterval(() => {
+      void fetchPlanningSummary();
       void fetchItems();
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [fetchItems]);
+  }, [fetchItems, fetchPlanningSummary]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to archive this task?")) return;
@@ -553,6 +574,15 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
     );
   }
 
+  const projectionFreshnessLabel =
+    projectionFreshness?.status === "FRESH"
+      ? `Projection fresh${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`
+      : projectionFreshness?.status === "AGING"
+        ? `Projection aging${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`
+        : projectionFreshness?.status === "STALE"
+          ? `Projection stale${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`
+          : "Projection missing";
+
   return (
     <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
@@ -602,6 +632,21 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
           title="Tactical Board" 
           icon={LayoutDashboard} 
         />
+          <Group gap="sm" mb="md">
+            <Badge size="sm" variant="light" color="tactical">
+              Planning {Math.max(Number(planningSummary?.tacticalCount || 0), Number(planningSummary?.checklistCount || 0))}
+            </Badge>
+            <Badge size="sm" variant="light" color="checklist">
+              Checklist {Number(planningSummary?.checklistCount || 0)}
+            </Badge>
+            <Badge
+              size="sm"
+              variant="outline"
+              color={projectionFreshness?.status === "STALE" ? "review" : projectionFreshness?.status === "AGING" ? "strategy" : "gray"}
+            >
+              {projectionFreshnessLabel}
+            </Badge>
+          </Group>
           <Group 
             wrap="nowrap" 
             align="flex-start" 

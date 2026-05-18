@@ -166,6 +166,7 @@ Hot product reads that should prefer that projection:
 - company list
 - company dashboard
 - company nav/sidebar counts
+- tactical/checklist planning summaries
 
 Allowed bounded fallback:
 

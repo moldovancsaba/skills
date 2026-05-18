@@ -228,6 +228,7 @@ Current first-slice projection consumers:
 - `GET /api/companies`
 - `GET /api/companies/[companyId]/dashboard`
 - `GET /api/companies/[companyId]/nav`
+- `GET /api/companies/[companyId]/planning-summary`
 - server-side company dashboard bootstrapping
 
 ## 9. Blended Priority Architecture

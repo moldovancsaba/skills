@@ -44,6 +44,7 @@ Authoritative boundary:
 - the online app records user interactions to the database
 - the local AI layer pulls those records, calculates, and pushes updated state back
 - the online app should not rebuild company-level product summaries from many live hot-path queries when prepared projections already exist
+- the local AI layer now also prepares planning-summary and projection-freshness data for tactical/checklist product surfaces
 
 ## Runtime processes
 

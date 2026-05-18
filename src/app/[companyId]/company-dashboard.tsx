@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { 
   SimpleGrid, 
@@ -28,7 +28,6 @@ import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { CompanyScoreHealth } from "@/lib/score-health";
 import { BodyText, SectionTitle } from "@/components/ui/typography";
 import { useI18n } from "@/lib/ui-i18n";
-import type { DashboardInitialData } from "@/lib/server-company-page-data";
 
 type ChecklistTask = {
   id: string;
@@ -52,21 +51,18 @@ type ChecklistTask = {
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
 
-export default function CompanyDashboard({
-  companyId,
-  initialData,
-}: {
-  companyId: string;
-  initialData?: DashboardInitialData | null;
-}) {
+export default function CompanyDashboard() {
   const router = useRouter();
+  const params = useParams();
+  const companyId = params.companyId as string;
 
   const { company, setCompany, sources, setSources } = useStore();
   const { t } = useI18n();
-  const [loading, setLoading] = useState(!initialData);
-  const [isOwner, setIsOwner] = useState(Boolean(initialData?.isOwner));
-  const [topTasks, setTopTasks] = useState<ChecklistTask[]>(() => initialData?.topTasks ?? []);
-  const [counts, setCounts] = useState(() => initialData?.counts ?? {
+  const [loading, setLoading] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
+  const [members, setMembers] = useState<any[]>([]);
+  const [topTasks, setTopTasks] = useState<ChecklistTask[]>([]);
+  const [counts, setCounts] = useState({
     sources: 0,
     topics: 0,
     flashcards: 0,
@@ -82,13 +78,8 @@ export default function CompanyDashboard({
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
   const [declineClass, setDeclineClass] = useState<string>("WRONG");
-  const [chartData, setChartData] = useState<any[]>(() => initialData?.analytics ?? []);
-  const [scoreHealth, setScoreHealth] = useState<CompanyScoreHealth | null>(() => initialData?.scoreHealth ?? null);
-
-  useEffect(() => {
-    if (!initialData) return;
-    setCompany(initialData.company);
-  }, [initialData, setCompany]);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [scoreHealth, setScoreHealth] = useState<CompanyScoreHealth | null>(null);
 
   const chartSeries = useCallback((...keys: string[]) => {
     return chartData.map((point) => {
@@ -111,17 +102,12 @@ export default function CompanyDashboard({
       
       setCompany(data.company);
       setSources(Array.isArray(data.sources) ? data.sources : []);
+      setMembers(Array.isArray(data.members) ? data.members : []);
       setCounts(data.counts);
       setTopTasks(data.topTasks);
       setChartData(data.analytics);
       setScoreHealth(data.metrics?.scoreHealth ?? null);
-      
-      const sessionRes = await fetch("/api/auth/session");
-      if (sessionRes.ok) {
-        const session = await sessionRes.json();
-        const myMembership = Array.isArray(data.members) ? data.members.find((m: any) => m.email === session.email) : null;
-        setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
-      }
+      setIsOwner(data.viewerRole === "OWNER" || data.viewerRole === "SUPERADMIN");
     } catch (err) {
       console.error("[DASHBOARD] Sync failure:", err);
     } finally {
@@ -130,7 +116,7 @@ export default function CompanyDashboard({
   }, [setCompany, setSources]);
 
   useEffect(() => {
-    if (!companyId || initialData) return;
+    if (!companyId) return;
 
     const initializeDashboard = async (cid: string) => {
       try {
@@ -143,7 +129,7 @@ export default function CompanyDashboard({
     };
 
     void initializeDashboard(companyId);
-  }, [companyId, initialData, loadDashboard]);
+  }, [companyId, loadDashboard]);
 
   const resetActionForm = useCallback(() => {
     setActionMode(null);
@@ -498,7 +484,7 @@ export default function CompanyDashboard({
             ))}
             
             <ExpertTipCard tip={tip} />
-        <MemberList companyId={companyId} isOwner={isOwner} initialMembers={initialData?.members} />
+            <MemberList companyId={companyId} isOwner={isOwner} initialMembers={members} />
           </SimpleGrid>
         </Stack>
       </Stack>

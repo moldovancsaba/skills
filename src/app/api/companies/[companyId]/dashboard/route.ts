@@ -39,7 +39,17 @@ export async function GET(
       liveReviewCount,
     ] = await Promise.all([
       prisma.company.findUnique({ where: { id: cid } }),
-      prisma.user.findMany({ where: { companyId: cid } }),
+      prisma.user.findMany({
+        where: { companyId: cid },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          acceptedAt: true,
+          createdAt: true,
+        },
+      }),
       prisma.intelligenceSnapshot.findUnique({ where: { companyId: cid } }),
       prisma.source.count({ where: { companyId: cid } }),
       prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
@@ -145,7 +155,8 @@ export async function GET(
         activeTask: snapshot?.activeTask || "Scanning...",
         stage: snapshot?.stage || "STANDBY",
         updatedAt: snapshot?.updatedAt
-      }
+      },
+      viewerRole: auth.membership.role,
     });
 
   } catch (error) {

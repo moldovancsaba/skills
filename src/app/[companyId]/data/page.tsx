@@ -89,6 +89,7 @@ export default function CompanyDataPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedDataId, setSelectedDataId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [members, setMembers] = useState<any[]>([]);
   const [fileCount, setFileCount] = useState(0);
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
@@ -159,27 +160,14 @@ export default function CompanyDataPage() {
         }
 
         setCompany(found);
+        setMembers(Array.isArray(dashboard?.members) ? dashboard.members : []);
         await loadAllData(found.id);
 
-        const [f, checklistItems, members, sessionRes] = await Promise.all([
-          fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
-          fetch(`/api/checklist?companyId=${cid}`).then((res) => res.json()),
-          fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
-          fetch("/api/auth/session")
-        ]);
-
-        setFileCount(Array.isArray(f) ? f.length : 0);
+        setFileCount(Number(dashboard?.counts?.files ?? 0));
         setPendingTaskCount(
-          Array.isArray(checklistItems)
-            ? checklistItems.filter((t: any) => ["DRAFT", "CHECKED", "VERIFIED"].includes(t.processingStatus)).length
-            : 0,
+          Number(dashboard?.counts?.checklistCount ?? 0),
         );
-
-        if (sessionRes.ok) {
-          const session = await sessionRes.json();
-          const myMembership = Array.isArray(members) ? members.find((m: any) => m.email === session.email) : null;
-          setIsOwner(myMembership?.role === "OWNER" || myMembership?.role === "SUPERADMIN");
-        }
+        setIsOwner(dashboard?.viewerRole === "OWNER" || dashboard?.viewerRole === "SUPERADMIN");
       } catch (error) {
         console.error(error);
       }
@@ -575,7 +563,7 @@ export default function CompanyDataPage() {
 
           <UnifiedGrid cols={{ base: 1, xl: 2 }}>
             <ExpertTipCard tip={tip} />
-            <MemberList companyId={companyId} isOwner={isOwner} />
+            <MemberList companyId={companyId} isOwner={isOwner} initialMembers={members} />
           </UnifiedGrid>
 
           {(sortedItems.length > visibleItems.length || sourceHasMore) && (

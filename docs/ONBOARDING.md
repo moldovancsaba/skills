@@ -116,16 +116,16 @@ The guardian supervises:
 - production: `https://checklist.checklistsquad.com`
 - local development default: `http://localhost:3000`
 - local development on an alternate port example: `http://localhost:3415`
-- public local AI operator dashboard: `http://localhost:3415/local-ai`
+- local-only local AI operator dashboard: `http://localhost:3415/local-ai`
 - raw worker health: `http://127.0.0.1:10005/health`
 - raw status payload: `http://127.0.0.1:10006/api/status`
 - raw snapshot-worker health: `http://127.0.0.1:10007/health`
 
 Important:
 
-- `/local-ai` is public and not login-gated
+- `/local-ai` is local-only and not login-gated on localhost
 - it is a global local-AI mission-control surface, not a company page
-- when there is no app session, bare `/` rewrites to `/local-ai`
+- when there is no app session, bare `/` rewrites to `/local-ai` only on localhost-style operator hosts
 
 ## Core Product Routes
 

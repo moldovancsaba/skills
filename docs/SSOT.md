@@ -123,7 +123,7 @@ Local startup contract:
 
 Operator surface contract:
 
-- `/local-ai` is the public global mission-control route for the local AI runtime
+- `/local-ai` is the local-only global mission-control route for the local AI runtime
 - it is not company-scoped
 - it is not login-gated
 - worker and background health are also exposed through the raw local endpoints on ports `10005`, `10006`, and `10007`

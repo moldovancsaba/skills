@@ -150,7 +150,7 @@ New operator surfaces:
 - Search & Answers no longer silently widens to all layers when the operator deselects every layer; it now requires at least one explicit search layer before running
 - Search & Answers now clears stale ranked results and grounded answers immediately when the operator changes the selected layers, so visible output always matches the active scope
 - `/:companyId/observability` provides mission-control visibility into worker health, queue pressure, score health, AI workload budget pressure, and recent outcomes
-- `/local-ai` provides a public no-login local runtime mission-control view for the worker itself: current task, current company, global queue, and card totals
+- `/local-ai` provides a local-only no-login runtime mission-control view for the worker itself: current task, current company, global queue, and card totals
 - Observability now captures bounded repair intents and budget-control records for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls; the local AI system pulls those records from MongoDB Atlas and executes them
 - Knowmore now also exposes bounded health/repair intent capture directly on the knowledge surface instead of forcing operators through generic observability only
 - queue reads, feedback analytics, and hashtag recommendations are now persisted-state or snapshot-backed reads; loading a page must not trigger worker synchronization or app-layer recomputation
@@ -259,10 +259,10 @@ Raw local AI endpoints:
 
 Important:
 
-- `/local-ai` is the public mission-control page for the local AI runtime
+- `/local-ai` is the local-only mission-control page for the local AI runtime
 - it is not company-scoped
 - it is not login-gated
-- bare `/` rewrites to `/local-ai` when there is no session
+- bare `/` rewrites to `/local-ai` only on local operator hosts such as `localhost`
 
 Related architecture references:
 

@@ -87,7 +87,7 @@ npm run dev -- --port 3415
 
 Operator surfaces:
 
-- public mission-control page: `http://localhost:3415/local-ai`
+- local-only mission-control page: `http://localhost:3415/local-ai`
 - worker health: `http://127.0.0.1:10005/health`
 - status payload: `http://127.0.0.1:10006/api/status`
 - snapshot-worker health: `http://127.0.0.1:10007/health`
@@ -95,8 +95,8 @@ Operator surfaces:
 Rules:
 
 - `/local-ai` is global runtime observability, not a company route
-- `/local-ai` is not login-gated
-- bare `/` rewrites to `/local-ai` when no app session exists
+- `/local-ai` is local-only and not login-gated on localhost-style operator hosts
+- bare `/` rewrites to `/local-ai` only on local operator hosts; production root stays on the main webapp/login flow
 
 ## Canonical flow
 

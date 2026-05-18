@@ -6,19 +6,35 @@ function redirect(url: URL) {
   return NextResponse.redirect(url, 302);
 }
 
+function isLocalOperatorHost(hostHeader: string | null) {
+  const host = String(hostHeader || "").trim().toLowerCase();
+  if (!host) return false;
+
+  const hostname = host.split(":")[0];
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
 // Renamed from 'middleware' to 'proxy' to conform to Next.js 16.2.2 Turbopack expectations.
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const session = req.cookies.get(APP_SESSION_COOKIE)?.value;
   const accept = req.headers.get("accept") || "";
   const isDocumentRequest = req.method === "GET" && accept.includes("text/html");
+  const localOperatorHost = isLocalOperatorHost(req.headers.get("host"));
 
-  if (pathname === "/" && !session && isDocumentRequest) {
+  if (pathname === "/" && !session && isDocumentRequest && localOperatorHost) {
     return redirect(new URL("/local-ai", req.url));
   }
 
+  if (pathname.startsWith("/local-ai") && !localOperatorHost) {
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
   // 1. Allow these specific public paths
-  const publicPaths = ["/login", "/auth", "/auth/callback", "/api/auth", "/api/bridge", "/api/test-public", "/card", "/api/cards", "/local-ai"];
+  const publicPaths = ["/login", "/auth", "/auth/callback", "/api/auth", "/api/bridge", "/api/test-public", "/card", "/api/cards"];
+  if (localOperatorHost) {
+    publicPaths.push("/local-ai");
+  }
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 
   // 2. Allow static files regardless of auth

@@ -1290,11 +1290,17 @@ async function performCompanyWriting(prisma, company, memoryPrompt, topic, worke
   if (dbFlashcards.length > 1) {
     const { refined, suppressed } = await refineFlashcardBatch(prisma, company, dbFlashcards, memoryPrompt);
     for (const r of refined) {
-      await prisma.flashcard.update({ where: { id: r.id }, data: r });
+      await prisma.flashcard.update({
+        where: { id: r.id },
+        data: buildFlashcardRefineUpdatePayload(r),
+      });
       await enforceFlashcardProcessingCeiling(prisma, r.id);
     }
     for (const s of suppressed) {
-      await prisma.flashcard.update({ where: { id: s.id }, data: s });
+      await prisma.flashcard.update({
+        where: { id: s.id },
+        data: buildFlashcardRefineUpdatePayload(s),
+      });
     }
     console.log(`[GENERATOR] ${company.name}: Refined ${dbFlashcards.length} → ${refined.length} flashcards.`);
   }
@@ -1388,6 +1394,65 @@ function buildTaskUpdatePayload(candidate) {
     refinedFromId: candidate?.refinedFromId ?? null,
     kanbanColumn: candidate?.kanbanColumn,
     sortOrder: candidate?.sortOrder,
+  };
+}
+
+function buildFlashcardRefineUpdatePayload(candidate) {
+  return {
+    title: candidate?.title,
+    body: candidate?.body ?? candidate?.description ?? undefined,
+    confidence: candidate?.confidence,
+    impact: candidate?.impact,
+    weight: candidate?.weight,
+    processingStatus: candidate?.processingStatus,
+    activityState: candidate?.activityState,
+    status: candidate?.status,
+    reviewStatus: candidate?.reviewStatus,
+    userAnnotation: candidate?.userAnnotation ?? null,
+    hashtags: Array.isArray(candidate?.hashtags) ? candidate.hashtags : undefined,
+    evidence: candidate?.evidence ?? undefined,
+    citationSnapshotIds: Array.isArray(candidate?.citationSnapshotIds)
+      ? candidate.citationSnapshotIds
+      : undefined,
+    conflictDetected: candidate?.conflictDetected,
+    conflictSummary: candidate?.conflictSummary ?? null,
+    feedbackConfidenceDelta: candidate?.feedbackConfidenceDelta,
+    feedbackWeightDelta: candidate?.feedbackWeightDelta,
+    fingerprint: candidate?.fingerprint,
+    kind: candidate?.kind,
+    appVersion: candidate?.appVersion,
+    brainVersion: candidate?.brainVersion,
+    generatedAt: candidate?.generatedAt ?? null,
+    promptVersion: candidate?.promptVersion,
+    promptHash: candidate?.promptHash ?? null,
+    promptName: candidate?.promptName,
+    modelName: candidate?.modelName,
+    modelVersion: candidate?.modelVersion ?? null,
+    temperature: candidate?.temperature ?? null,
+    createdByRunId: candidate?.createdByRunId ?? null,
+    cycleRunId: candidate?.cycleRunId ?? null,
+    intelligenceType: candidate?.intelligenceType,
+    lastAuditedAt: candidate?.lastAuditedAt ?? null,
+    lastRescoredAt: candidate?.lastRescoredAt ?? null,
+    lastTaxonomyAuditedAt: candidate?.lastTaxonomyAuditedAt ?? null,
+    lastCorrectionReconciledAt: candidate?.lastCorrectionReconciledAt ?? null,
+    iceScore: candidate?.iceScore,
+    scoreProfile: candidate?.scoreProfile ?? undefined,
+    versionFamilyId: candidate?.versionFamilyId ?? null,
+    duplicateClusterId: candidate?.duplicateClusterId ?? null,
+    generatedFromIds: Array.isArray(candidate?.generatedFromIds)
+      ? candidate.generatedFromIds
+      : undefined,
+    refinedFromId: candidate?.refinedFromId ?? null,
+    refreshedAt: candidate?.refreshedAt ?? undefined,
+    generatedTitle: candidate?.generatedTitle ?? null,
+    generatedBody: candidate?.generatedBody ?? null,
+    lastActionAt: candidate?.lastActionAt ?? null,
+    manualBody: candidate?.manualBody ?? null,
+    manualTitle: candidate?.manualTitle ?? null,
+    hashtagMaintainedAt: candidate?.hashtagMaintainedAt ?? null,
+    hashtagEvaluationPending: candidate?.hashtagEvaluationPending,
+    lastHashtagError: candidate?.lastHashtagError ?? null,
   };
 }
 

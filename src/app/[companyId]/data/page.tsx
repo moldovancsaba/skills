@@ -161,18 +161,14 @@ export default function CompanyDataPage() {
         setCompany(found);
         await loadAllData(found.id);
 
-        const [f, checklistItems, members, sessionRes] = await Promise.all([
-          fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
-          fetch(`/api/checklist?companyId=${cid}`).then((res) => res.json()),
+        const [members, sessionRes] = await Promise.all([
           fetch(`/api/companies/${cid}/members`).then((res) => res.json()),
           fetch("/api/auth/session")
         ]);
 
-        setFileCount(Array.isArray(f) ? f.length : 0);
+        setFileCount(Number(dashboard?.counts?.files ?? 0));
         setPendingTaskCount(
-          Array.isArray(checklistItems)
-            ? checklistItems.filter((t: any) => ["DRAFT", "CHECKED", "VERIFIED"].includes(t.processingStatus)).length
-            : 0,
+          Number(dashboard?.counts?.checklistCount ?? 0),
         );
 
         if (sessionRes.ok) {

@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const {
   claimNextPipelineJobs,
-  completePipelineJob,
+  finalizeSuccessfulPipelineJob,
   failPipelineJob,
   classifyPipelineJobError,
   PIPELINE_FAILURE_CLASSES,
@@ -12,6 +12,7 @@ const {
   syncPipelineJobsForCompanyShard,
   syncAllCompanyPipelineJobsIfDue,
   getPipelineJobLabel,
+  spawnLowMemoryDecompositionChildJob,
 } = require("../../src/lib/pipeline-queue");
 const {
   getFreeMemoryMb,
@@ -126,6 +127,19 @@ const MEMORY_INTENSIVE_PIPELINE_JOB_TYPES = new Set([
   "COMPANY_SYNTHESIS",
   "FULL_MAINTENANCE",
   "WORKFLOW_BLUEPRINT",
+]);
+
+const LOW_MEMORY_DECOMPOSABLE_PIPELINE_JOB_TYPES = new Set([
+  "ENSURE_FLASHCARD_MINIMUM",
+  "RESEARCH_BACKFILL",
+  "ENSURE_IDEABANK_MINIMUM",
+  "ENSURE_ROADMAP_MINIMUM",
+  "ENSURE_BACKLOG_MINIMUM",
+  "ENSURE_TODO_MINIMUM",
+  "ENSURE_CHECKLIST_MINIMUM",
+  "MINE_FLASHCARD_OPPORTUNITIES",
+  "MINE_TASK_OPPORTUNITIES",
+  "FEEDBACK_PRESSURE_REGENERATION",
 ]);
 
 const JOB_WEIGHT_CLASSES = Object.freeze({
@@ -247,6 +261,22 @@ function buildExecutionOptionsForJob(job, resourceBand) {
 function resolvePipelineJobExecutionPlan(job, freeMemOverride = null) {
   const freeMemMb = Number.isFinite(freeMemOverride) ? Number(freeMemOverride) : getFreeMemoryMb();
   const resourceBand = getResourceBand(freeMemMb);
+  const metadataOptions = job?.metadata?.executionOptions;
+  if (metadataOptions && typeof metadataOptions === "object" && !Array.isArray(metadataOptions)) {
+    return {
+      freeMemMb,
+      resourceBand,
+      executionOptions: {
+        profile: typeof metadataOptions.profile === "string" ? metadataOptions.profile : "minimal",
+        batchLimitOverride: Number.isFinite(metadataOptions.batchLimitOverride) ? Number(metadataOptions.batchLimitOverride) : 1,
+        disableResearchBackfill: metadataOptions.disableResearchBackfill === true,
+        countOverrides: metadataOptions.countOverrides && typeof metadataOptions.countOverrides === "object"
+          ? metadataOptions.countOverrides
+          : null,
+        weightClass: PIPELINE_JOB_WEIGHT_CLASS[job?.jobType] || JOB_WEIGHT_CLASSES.MEDIUM,
+      },
+    };
+  }
   const executionOptions = buildExecutionOptionsForJob(job, resourceBand);
   if (!MEMORY_INTENSIVE_PIPELINE_JOB_TYPES.has(job.jobType)) {
     return {
@@ -268,6 +298,13 @@ function resolvePipelineJobExecutionPlan(job, freeMemOverride = null) {
     resourceBand,
     executionOptions,
   };
+}
+
+function shouldDecomposeLowMemoryPipelineJob(job, classification) {
+  if (classification.class !== PIPELINE_FAILURE_CLASSES.LOW_MEMORY_SKIP) return false;
+  if (!LOW_MEMORY_DECOMPOSABLE_PIPELINE_JOB_TYPES.has(job.jobType)) return false;
+  if (String(job.entityType || "") === "PIPELINE_SLICE") return false;
+  return Number(job.attemptCount || 0) >= 3;
 }
 
 async function runPlannerBootstrapJob(prisma, company, executionOptions = {}) {
@@ -532,9 +569,9 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         stopHeartbeat = null;
       }
       const workloadUnits = typeof result === "number" ? Math.max(1, result) : 1;
-      await completePipelineJob(
+      await finalizeSuccessfulPipelineJob(
         prisma,
-        job.id,
+        job,
         typeof result === "number"
           ? `${job.jobType} completed with ${result} operation(s).`
           : `${job.jobType} completed successfully.`,
@@ -556,7 +593,22 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         stopHeartbeat = null;
       }
       console.error(`[PIPELINE QUEUE] ${job.jobType} failed for ${job.company?.name ?? job.companyId}:`, error.message);
-      await failPipelineJob(prisma, job, error);
+      const classification = classifyPipelineJobError(error);
+      if (shouldDecomposeLowMemoryPipelineJob(job, classification)) {
+        await spawnLowMemoryDecompositionChildJob(prisma, job, {
+          profile: "minimal",
+          batchLimitOverride: 1,
+          disableResearchBackfill: true,
+          countOverrides: {
+            flashcards: 1,
+            taskcards: 1,
+            datacards: 1,
+            goalcards: 1,
+          },
+        });
+      } else {
+        await failPipelineJob(prisma, job, error);
+      }
       await recordPipelineJobUsage(prisma, job, {
         status: "FAILED",
         workloadUnits: 1,
@@ -566,7 +618,6 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         reason: error.message,
       });
 
-      const classification = classifyPipelineJobError(error);
       if (classification.class !== PIPELINE_FAILURE_CLASSES.LOW_MEMORY_SKIP) {
         break;
       }
@@ -583,4 +634,5 @@ module.exports = {
   runPipelineQueueBatch,
   resolvePipelineJobExecutionPlan,
   JOB_WEIGHT_CLASSES,
+  shouldDecomposeLowMemoryPipelineJob,
 };

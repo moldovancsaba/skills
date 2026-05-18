@@ -23,6 +23,7 @@ const {
 } = require("./lib/runtime/memory-governor");
 const {
   resolvePipelineJobExecutionPlan,
+  shouldDecomposeLowMemoryPipelineJob,
 } = require("./lib/pipeline-jobs");
 
 async function main() {
@@ -202,6 +203,36 @@ async function main() {
     () => resolvePipelineJobExecutionPlan({ jobType: "MINE_FLASHCARD_OPPORTUNITIES", attemptCount: 0 }, 700),
     /memory pressure is DEGRADED/i,
     "fresh heavy jobs should still defer when degraded memory cannot safely support them",
+  );
+
+  const metadataOverridePlan = resolvePipelineJobExecutionPlan({
+    jobType: "ENSURE_FLASHCARD_MINIMUM",
+    metadata: {
+      executionOptions: {
+        profile: "minimal",
+        batchLimitOverride: 1,
+        disableResearchBackfill: true,
+      },
+    },
+  }, 1200);
+  assert.equal(metadataOverridePlan.executionOptions.profile, "minimal", "persisted execution metadata must override runtime profile selection");
+  assert.equal(metadataOverridePlan.executionOptions.batchLimitOverride, 1, "persisted execution metadata must preserve bounded child batch size");
+
+  assert.equal(
+    shouldDecomposeLowMemoryPipelineJob(
+      { jobType: "ENSURE_FLASHCARD_MINIMUM", entityType: "COMPANY", attemptCount: 3 },
+      { class: "LOW_MEMORY_SKIP" },
+    ),
+    true,
+    "repeated low-memory failures on decomposable parent jobs should trigger child decomposition",
+  );
+  assert.equal(
+    shouldDecomposeLowMemoryPipelineJob(
+      { jobType: "ENSURE_FLASHCARD_MINIMUM", entityType: "PIPELINE_SLICE", attemptCount: 3 },
+      { class: "LOW_MEMORY_SKIP" },
+    ),
+    false,
+    "decomposed child jobs must not recursively decompose themselves",
   );
 
   console.log("Runtime hardening tests passed.");

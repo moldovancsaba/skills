@@ -195,14 +195,14 @@ Rules:
    - `degraded`
    - `minimal`
 3. constrained memory causes heavy jobs to shrink before they are deferred
-4. repeated low-memory attempts cause a smaller profile to be chosen automatically
+4. repeated low-memory attempts may convert a parent job into a bounded child slice with a persisted minimal profile
 5. minimal profiles reduce blast radius by:
    - lowering batch size
    - refreshing fewer cards
    - disabling research backfill when necessary
 6. only when no safe profile exists does the job defer with cooldown
 
-This prevents an always-too-heavy job from living forever in defer/retry limbo.
+This prevents an always-too-heavy job from living forever in defer/retry limbo, even if the worker restarts between attempts.
 
 ## 9. Operator meaning of queue columns
 

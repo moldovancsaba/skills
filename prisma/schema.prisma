@@ -621,6 +621,7 @@ model PipelineJob {
   reason           String?
   sourceSignal     String?
   lastError        String?
+  metadata         Json?               @default("{}")
   scheduledAt      DateTime?
   lastTriedAt      DateTime?
   lastCompletedAt  DateTime?

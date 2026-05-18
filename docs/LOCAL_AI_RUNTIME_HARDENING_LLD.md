@@ -282,11 +282,15 @@ Shipped contract:
    - refreshing fewer cards
    - disabling research backfill when needed
 
+Shipped extension:
+
+1. repeated low-memory deferrals can now pause a parent job and spawn a bounded child queue slice with persisted execution options
+2. successful child completion can release the parent back into the normal recurring contract
+
 Remaining target:
 
-1. child-job decomposition for permanently oversized work
-2. durable execution-profile persistence per job
-3. explicit operator metrics for downgraded versus fully executed jobs
+1. richer multi-child decomposition for jobs that should fan out into multiple bounded units
+2. explicit operator metrics for downgraded versus fully executed jobs
 
 - on worker boot:
   - run one bounded queue repair pass

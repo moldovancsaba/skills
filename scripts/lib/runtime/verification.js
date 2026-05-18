@@ -113,6 +113,7 @@ function buildRuntimeVerificationReport({
   const workerProgress = workerHealth?.progress || {};
   const workerBuild = workerHealth?.settings?.buildIdentity || {};
   const statusWorker = statusPayload?.worker || {};
+  const statusGuardian = statusPayload?.guardian || {};
   const statusQueue = statusPayload?.queue || {};
   const snapshotProgress = snapshotHealth?.progress || {};
   const snapshotBuild = snapshotProgress?.settings?.buildIdentity || statusPayload?.backgroundWorker?.settings?.buildIdentity || {};
@@ -234,9 +235,13 @@ function buildRuntimeVerificationReport({
   checks.push(
     buildVerificationCheck(
       "heartbeat-fresh",
-      Boolean(heartbeat?.lastHealthAt),
+      Boolean(heartbeat?.lastHealthAt || statusGuardian?.lastHealthAt),
       "Guardian heartbeat is present.",
-      heartbeat ? { lastHealthAt: heartbeat.lastHealthAt, memoryGovernor: heartbeat.memoryGovernor || null } : null,
+      {
+        directHeartbeatAt: heartbeat?.lastHealthAt || null,
+        statusHeartbeatAt: statusGuardian?.lastHealthAt || null,
+        memoryGovernor: heartbeat?.memoryGovernor || statusGuardian?.memoryGovernor || null,
+      },
     ),
   );
 

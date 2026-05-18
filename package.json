@@ -15,6 +15,7 @@
     "audit:semantic": "node scripts/semantic-audit.mjs",
     "audit:score-health": "node scripts/audit-score-health.js",
     "test:planner": "node scripts/test-planner-contract.js",
+    "test:runtime-hardening": "node scripts/test-runtime-hardening.js",
     "test:quality": "node scripts/test-quality-contract.js",
     "test:local-learning": "node scripts/test-local-learning.mjs",
     "test:research-policy": "node scripts/test-research-policy.js",

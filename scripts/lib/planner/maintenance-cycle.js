@@ -19,6 +19,11 @@ const { truncate } = require("../shared");
 const { recordPlannerTelemetry } = require("./telemetry");
 const { decideResearchPolicy, buildResearchContextFromDecision } = require("./research-policy");
 const { applyEditorialQualityGate } = require("./editorial-gate");
+const {
+  buildFlashcardRefineUpdatePayload,
+  buildFlashcardJudgeUpdatePayload,
+  buildTaskUpdatePayload,
+} = require("../runtime-write-contract");
 
 const PLANNER_MAINTENANCE_COUNTS = Object.freeze({
   flashcards: 3,
@@ -247,26 +252,28 @@ async function refreshOldestFlashcards(prisma, _company = null, refreshedAt = ne
 
     await prisma.flashcard.update({
       where: { id: flashcard.id },
-      data: rewritten
-        ? {
-            ...baseUpdate,
-            ...normalizeKnowledgeScores({
-              confidence: baseUpdate.confidenceScore ?? baseUpdate.confidence,
-              impact: baseUpdate.impact,
-              weight: baseUpdate.weight,
-            }),
-          }
-        : {
-            ...normalizeKnowledgeScores({
-              confidence: flashcard.confidenceScore ?? flashcard.confidence,
-              impact: flashcard.impact,
-              weight: flashcard.weight,
-            }),
-            lastRescoredAt: refreshedAt,
-            lastTaxonomyAuditedAt: refreshedAt,
-            hashtagEvaluationPending: true,
-            refreshedAt,
-          },
+      data: buildFlashcardRefineUpdatePayload(
+        rewritten
+          ? {
+              ...baseUpdate,
+              ...normalizeKnowledgeScores({
+                confidence: baseUpdate.confidenceScore ?? baseUpdate.confidence,
+                impact: baseUpdate.impact,
+                weight: baseUpdate.weight,
+              }),
+            }
+          : {
+              ...normalizeKnowledgeScores({
+                confidence: flashcard.confidenceScore ?? flashcard.confidence,
+                impact: flashcard.impact,
+                weight: flashcard.weight,
+              }),
+              lastRescoredAt: refreshedAt,
+              lastTaxonomyAuditedAt: refreshedAt,
+              hashtagEvaluationPending: true,
+              refreshedAt,
+            },
+      ),
     });
 
     const refreshed = await prisma.flashcard.findUnique({ where: { id: flashcard.id } });
@@ -281,12 +288,11 @@ async function refreshOldestFlashcards(prisma, _company = null, refreshedAt = ne
       if (audit) {
         await prisma.flashcard.update({
           where: { id: flashcard.id },
-          data: {
-            ...audit,
+          data: buildFlashcardJudgeUpdatePayload(audit, refreshedAt, {
             lastTaxonomyAuditedAt: refreshedAt,
             hashtagEvaluationPending: true,
             refreshedAt,
-          },
+          }),
         });
       }
     }
@@ -483,7 +489,7 @@ async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Dat
 
     await prisma.checklistTask.update({
       where: { id: taskcard.id },
-      data: {
+      data: buildTaskUpdatePayload({
         ...(rewritten || normalizeTaskScores({
           confidence: taskcard.confidenceScore ?? taskcard.confidence,
           impact: taskcard.impact,
@@ -495,7 +501,7 @@ async function refreshOldestTasks(prisma, _company = null, refreshedAt = new Dat
         lastRescoredAt: refreshedAt,
         lastTaxonomyAuditedAt: refreshedAt,
         hashtagEvaluationPending: true,
-      },
+      }),
     });
 
     const refreshed = await prisma.checklistTask.findUnique({ where: { id: taskcard.id } });

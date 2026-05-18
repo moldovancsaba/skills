@@ -154,6 +154,8 @@ Runtime hardening note:
 - planner telemetry writes are best-effort under retryable Prisma conflicts and no longer take jobs down
 - the status server now exposes a lightweight `/health` probe and short-lived payload caching to reduce probe and dashboard load
 - a 10-minute no-progress breaker now kills wedged foreground work and auto-fails stale `RUNNING` jobs so the queue can move on
+- runtime mutation writes now go through shared allowlist payload builders for flashcard and task update paths instead of writing model-shaped AI objects directly to Prisma
+- queue failures now classify into retryable cooldowns versus terminal dead-letter states, and retryable jobs use `scheduledAt` backoff instead of immediately hot-looping
 - the broader hardening design is defined in [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 
 ## Deterministic planner and quality engine

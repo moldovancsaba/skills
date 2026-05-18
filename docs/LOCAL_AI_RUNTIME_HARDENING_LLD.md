@@ -25,6 +25,8 @@ Shipped progress status:
 - startup integrity scrub now persists its cooldown across process restarts
 - the status server now exposes a lightweight `/health` endpoint and briefly caches expensive status payload assembly
 - the foreground worker and stale-job recovery now enforce a 10-minute no-progress breaker for wedged queue work
+- runtime mutation payloads now use shared allowlist builders for flashcard and task write-back paths, rather than passing model-shaped objects directly into Prisma
+- queue failures now classify into retryable and terminal classes, use cooldown scheduling, and dead-letter terminal jobs into `PARKED` instead of hot-looping them forever
 
 ## 1. Purpose
 

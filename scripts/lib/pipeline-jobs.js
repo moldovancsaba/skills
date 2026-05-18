@@ -11,6 +11,10 @@ const {
   syncAllCompanyPipelineJobsIfDue,
   getPipelineJobLabel,
 } = require("../../src/lib/pipeline-queue");
+const {
+  getFreeMemoryMb,
+  getResourceBand,
+} = require("./runtime/resource-bands");
 const { processFeedbackEvents } = require("./feedback");
 const { runMaintenance, rescorePeriodicCards } = require("./maintenance");
 const { recomputeFrontier } = require("./frontier");
@@ -104,6 +108,50 @@ function buildActiveTaskString(job, companyName, entityLabel) {
     return companyName ? `${jobLabel} for ${companyName}` : jobLabel;
   }
   return companyName ? `${jobLabel} for ${companyName}: ${entityLabel}` : `${jobLabel}: ${entityLabel}`;
+}
+
+const MEMORY_INTENSIVE_PIPELINE_JOB_TYPES = new Set([
+  "ENSURE_FLASHCARD_MINIMUM",
+  "RESEARCH_BACKFILL",
+  "MINE_FLASHCARD_OPPORTUNITIES",
+  "MINE_TASK_OPPORTUNITIES",
+  "FEEDBACK_PRESSURE_REGENERATION",
+  "REFRESH_FLASHCARDS",
+  "REFRESH_TASKS",
+  "REFRESH_DATACARDS",
+  "REFRESH_GOALS",
+  "COMPANY_SYNTHESIS",
+  "FULL_MAINTENANCE",
+  "WORKFLOW_BLUEPRINT",
+]);
+
+function createPipelineDeferredError(message, retryAfterMs) {
+  const error = new Error(message);
+  error.pipelineClass = "LOW_MEMORY_SKIP";
+  error.retryable = true;
+  error.retryAfterMs = retryAfterMs;
+  return error;
+}
+
+function assertPipelineJobCanRun(job) {
+  const freeMemMb = getFreeMemoryMb();
+  const resourceBand = getResourceBand(freeMemMb);
+  if (!MEMORY_INTENSIVE_PIPELINE_JOB_TYPES.has(job.jobType)) {
+    return;
+  }
+
+  if (resourceBand === "DEGRADED") {
+    throw createPipelineDeferredError(
+      `${job.jobType} deferred because memory pressure is ${resourceBand} (${freeMemMb}MB free).`,
+      5 * 60 * 1000,
+    );
+  }
+  if (resourceBand === "CONSTRAINED" && isPlannerQualityJob(job.jobType)) {
+    throw createPipelineDeferredError(
+      `${job.jobType} deferred because memory pressure is ${resourceBand} (${freeMemMb}MB free).`,
+      3 * 60 * 1000,
+    );
+  }
 }
 
 async function runPlannerBootstrapJob(prisma, company) {
@@ -354,6 +402,7 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         activeTask: buildActiveTaskString(job, companyName, entityLabel),
       });
       stopHeartbeat = startRunningJobHeartbeat(prisma, job, companyName, entityLabel);
+      assertPipelineJobCanRun(job);
       const result = await executePipelineJob(prisma, job);
       if (stopHeartbeat) {
         await stopHeartbeat();
@@ -382,7 +431,7 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         stopHeartbeat = null;
       }
       console.error(`[PIPELINE QUEUE] ${job.jobType} failed for ${job.company?.name ?? job.companyId}:`, error.message);
-      await failPipelineJob(prisma, job.id, error);
+      await failPipelineJob(prisma, job, error);
       await recordPipelineJobUsage(prisma, job, {
         status: "FAILED",
         workloadUnits: 1,

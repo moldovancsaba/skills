@@ -61,6 +61,38 @@ const PIPELINE_CONTROL_MODES = Object.freeze(["AI_ONLY", "HUMAN_GUIDED"]);
 const PIPELINE_JOB_STATUSES = Object.freeze(["ACTIVE", "RUNNING", "PAUSED", "FAILED"]);
 const PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS = 10 * 60 * 1000;
 const GLOBAL_PIPELINE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const PIPELINE_JOB_RETRY_LIMITS = Object.freeze({
+  SCORE_ALERT_REPAIR: 6,
+  CARD_RESCORING: 6,
+  FRONTIER_RECOMPUTE: 4,
+  FEEDBACK_RECONCILIATION: 5,
+  ENSURE_FLASHCARD_MINIMUM: 4,
+  RESEARCH_BACKFILL: 4,
+  ENSURE_IDEABANK_MINIMUM: 4,
+  ENSURE_ROADMAP_MINIMUM: 4,
+  ENSURE_BACKLOG_MINIMUM: 4,
+  ENSURE_TODO_MINIMUM: 4,
+  ENSURE_CHECKLIST_MINIMUM: 4,
+  MINE_FLASHCARD_OPPORTUNITIES: 4,
+  MINE_TASK_OPPORTUNITIES: 4,
+  FEEDBACK_PRESSURE_REGENERATION: 4,
+  REFRESH_FLASHCARDS: 4,
+  REFRESH_TASKS: 4,
+  REFRESH_DATACARDS: 4,
+  REFRESH_GOALS: 4,
+  COMPANY_SYNTHESIS: 4,
+  FULL_MAINTENANCE: 4,
+  WORKFLOW_BLUEPRINT: 3,
+});
+const PIPELINE_FAILURE_CLASSES = Object.freeze({
+  MODEL_TIMEOUT: "MODEL_TIMEOUT",
+  LOW_MEMORY_SKIP: "LOW_MEMORY_SKIP",
+  PRISMA_VALIDATION: "PRISMA_VALIDATION",
+  PRISMA_WRITE_CONFLICT: "PRISMA_WRITE_CONFLICT",
+  NOT_FOUND: "NOT_FOUND",
+  INPUT_CONTRACT: "INPUT_CONTRACT",
+  UNKNOWN: "UNKNOWN",
+});
 let lastGlobalPipelineSyncAt = 0;
 
 const QUEUE_COLUMN_RANK = Object.freeze({
@@ -118,6 +150,92 @@ function getPipelineJobLabel(jobType) {
 function buildNoProgressTimeoutMessage(timeoutMs = PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS) {
   const minutes = Math.max(1, Math.round(timeoutMs / 60000));
   return `Automatically failed after ${minutes}-minute no-progress timeout. Released for later retry.`;
+}
+
+function getPipelineJobRetryLimit(jobType) {
+  return PIPELINE_JOB_RETRY_LIMITS[jobType] ?? 3;
+}
+
+function classifyPipelineJobError(error) {
+  const code = typeof error?.code === "string" ? error.code : null;
+  const message = String(error?.message || error || "unknown pipeline failure");
+  const retryAfterMs = Number.isFinite(error?.retryAfterMs) ? Number(error.retryAfterMs) : null;
+  const explicitRetryable = typeof error?.retryable === "boolean" ? error.retryable : null;
+  const explicitClass = typeof error?.pipelineClass === "string" ? error.pipelineClass : null;
+
+  if (explicitClass) {
+    return {
+      class: explicitClass,
+      retryable: explicitRetryable !== null ? explicitRetryable : explicitClass !== PIPELINE_FAILURE_CLASSES.PRISMA_VALIDATION,
+      retryAfterMs,
+      message,
+    };
+  }
+
+  if (code === "P2034") {
+    return {
+      class: PIPELINE_FAILURE_CLASSES.PRISMA_WRITE_CONFLICT,
+      retryable: true,
+      retryAfterMs: retryAfterMs ?? 60_000,
+      message,
+    };
+  }
+
+  if (/PLANNER_TIMEOUT|timeout|timed out/i.test(message)) {
+    return {
+      class: PIPELINE_FAILURE_CLASSES.MODEL_TIMEOUT,
+      retryable: true,
+      retryAfterMs: retryAfterMs ?? 5 * 60 * 1000,
+      message,
+    };
+  }
+
+  if (/low memory|memory pressure|PAUSED_LOW_MEMORY/i.test(message)) {
+    return {
+      class: PIPELINE_FAILURE_CLASSES.LOW_MEMORY_SKIP,
+      retryable: true,
+      retryAfterMs: retryAfterMs ?? 5 * 60 * 1000,
+      message,
+    };
+  }
+
+  if (/Unknown argument|Invalid `?prisma\.|PrismaClientValidationError|Argument .* is missing/i.test(message)) {
+    return {
+      class: PIPELINE_FAILURE_CLASSES.PRISMA_VALIDATION,
+      retryable: false,
+      retryAfterMs: null,
+      message,
+    };
+  }
+
+  if (/not found|has no company/i.test(message)) {
+    return {
+      class: PIPELINE_FAILURE_CLASSES.NOT_FOUND,
+      retryable: false,
+      retryAfterMs: null,
+      message,
+    };
+  }
+
+  if (/contract|invalid input|unsupported/i.test(message)) {
+    return {
+      class: PIPELINE_FAILURE_CLASSES.INPUT_CONTRACT,
+      retryable: false,
+      retryAfterMs: null,
+      message,
+    };
+  }
+
+  return {
+    class: PIPELINE_FAILURE_CLASSES.UNKNOWN,
+    retryable: explicitRetryable !== null ? explicitRetryable : true,
+    retryAfterMs: retryAfterMs ?? 2 * 60 * 1000,
+    message,
+  };
+}
+
+function buildPipelineFailureMessage(classification) {
+  return `[${classification.class}] ${classification.message}`;
 }
 
 function roundPriority(value) {
@@ -975,8 +1093,12 @@ async function applyManualPipelineQueueMove(prisma, companyId, movedJobId, sourc
 async function claimNextPipelineJobs(prisma, limit = 3) {
   const candidates = await prisma.pipelineJob.findMany({
     where: {
-      status: { in: ["ACTIVE", "FAILED"] },
+      status: "ACTIVE",
       queueColumn: { not: "PARKED" },
+      OR: [
+        { scheduledAt: null },
+        { scheduledAt: { lte: new Date() } },
+      ],
     },
     orderBy: [{ updatedAt: "asc" }],
     include: {
@@ -1099,19 +1221,37 @@ async function recoverFailedCompanyPipelineJobs(prisma, companyId) {
       lastError: null,
       queueColumn: "NOW",
       controlMode: "AI_ONLY",
+      scheduledAt: null,
       updatedAt: new Date(),
     },
   });
   return listCompanyPipelineJobs(prisma, companyId);
 }
 
-async function failPipelineJob(prisma, jobId, error) {
+async function failPipelineJob(prisma, job, error) {
+  const classification = classifyPipelineJobError(error);
+  const retryLimit = getPipelineJobRetryLimit(job.jobType);
+  const attempts = Number(job.attemptCount || 0);
+  const shouldDeadLetter = !classification.retryable || attempts >= retryLimit;
+  const now = new Date();
+  const retryDelayMs = shouldDeadLetter
+    ? null
+    : Math.max(
+        30_000,
+        classification.retryAfterMs ?? Math.min(10 * 60 * 1000, 60_000 * Math.max(1, attempts)),
+      );
+
   return prisma.pipelineJob.update({
-    where: { id: jobId },
+    where: { id: job.id },
     data: {
-      status: "FAILED",
-      lastError: String(error?.message ?? error ?? "unknown pipeline failure"),
-      updatedAt: new Date(),
+      status: shouldDeadLetter ? "FAILED" : "ACTIVE",
+      queueColumn: shouldDeadLetter ? "PARKED" : (job.queueColumn === "NOW" ? "SOON" : job.queueColumn),
+      lastError: buildPipelineFailureMessage(classification),
+      reason: shouldDeadLetter
+        ? `${job.jobType} dead-lettered after ${attempts}/${retryLimit} attempts (${classification.class}).`
+        : `${job.jobType} cooled down for ${Math.round(retryDelayMs / 1000)}s after ${classification.class}.`,
+      scheduledAt: shouldDeadLetter ? null : new Date(now.getTime() + retryDelayMs),
+      updatedAt: now,
     },
   });
 }
@@ -1129,9 +1269,13 @@ module.exports = {
   PIPELINE_JOB_STATUSES,
   PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS,
   GLOBAL_PIPELINE_SYNC_INTERVAL_MS,
+  PIPELINE_JOB_RETRY_LIMITS,
+  PIPELINE_FAILURE_CLASSES,
   getPipelineJobLabel,
   getQueueColumnRank,
   buildNoProgressTimeoutMessage,
+  getPipelineJobRetryLimit,
+  classifyPipelineJobError,
   buildAutoJobProfile,
   shouldRunGlobalPipelineSync,
   gatherCompanyPipelineSignals,

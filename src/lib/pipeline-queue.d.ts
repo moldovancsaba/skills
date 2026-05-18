@@ -9,6 +9,9 @@ export type PipelineJobType =
   | "ENSURE_BACKLOG_MINIMUM"
   | "ENSURE_TODO_MINIMUM"
   | "ENSURE_CHECKLIST_MINIMUM"
+  | "MINE_FLASHCARD_OPPORTUNITIES"
+  | "MINE_TASK_OPPORTUNITIES"
+  | "FEEDBACK_PRESSURE_REGENERATION"
   | "REFRESH_FLASHCARDS"
   | "REFRESH_TASKS"
   | "REFRESH_DATACARDS"
@@ -51,6 +54,7 @@ export type PipelineJobRecord = {
 export const PIPELINE_JOB_TYPES: readonly PipelineJobType[];
 export const CORE_PIPELINE_JOB_TYPES: readonly PipelineJobType[];
 export const PLANNER_BOOTSTRAP_JOB_TYPES: readonly PipelineJobType[];
+export const PLANNER_QUALITY_JOB_TYPES: readonly PipelineJobType[];
 export const PLANNER_MAINTENANCE_JOB_TYPES: readonly PipelineJobType[];
 export const LEGACY_COMPAT_PIPELINE_JOB_TYPES: readonly PipelineJobType[];
 export const PIPELINE_QUEUE_COLUMNS: readonly PipelineQueueColumn[];
@@ -58,10 +62,19 @@ export const PIPELINE_CONTROL_MODES: readonly PipelineControlMode[];
 export const PIPELINE_JOB_STATUSES: readonly PipelineJobStatus[];
 export const PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS: number;
 export const GLOBAL_PIPELINE_SYNC_INTERVAL_MS: number;
+export const PIPELINE_JOB_RETRY_LIMITS: Readonly<Record<string, number>>;
+export const PIPELINE_FAILURE_CLASSES: Readonly<Record<string, string>>;
 
 export function getPipelineJobLabel(jobType: PipelineJobType): string;
 export function getQueueColumnRank(column: PipelineQueueColumn): number;
 export function buildNoProgressTimeoutMessage(timeoutMs?: number): string;
+export function getPipelineJobRetryLimit(jobType: PipelineJobType | string): number;
+export function classifyPipelineJobError(error: unknown): {
+  class: string;
+  retryable: boolean;
+  retryAfterMs: number | null;
+  message: string;
+};
 export function shouldRunGlobalPipelineSync(lastSyncAt: number, now?: number, intervalMs?: number): boolean;
 export function gatherCompanyPipelineSignals(prisma: unknown, companyId: string): Promise<unknown>;
 export function syncCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
@@ -95,4 +108,4 @@ export function escalateCompanyPipelineJob(
   entityId?: string,
 ): Promise<PipelineJobRecord | null>;
 export function recoverFailedCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
-export function failPipelineJob(prisma: unknown, jobId: string, error: unknown): Promise<PipelineJobRecord>;
+export function failPipelineJob(prisma: unknown, job: PipelineJobRecord, error: unknown): Promise<PipelineJobRecord>;

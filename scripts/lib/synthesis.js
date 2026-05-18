@@ -41,6 +41,11 @@ const {
   isAnyFamilyBlocked,
 } = require("./planner/feedback-pressure");
 const { applyEditorialQualityGate } = require("./planner/editorial-gate");
+const {
+  buildTaskUpdatePayload,
+  buildFlashcardRefineUpdatePayload,
+  buildFlashcardJudgeUpdatePayload,
+} = require("./runtime-write-contract");
 
 /**
  * checklist LOCAL AI ENGINE
@@ -1361,116 +1366,6 @@ async function performCompanyJudging(prisma, company, memoryPrompt, topic, worke
     }
   }
   return ops;
-}
-
-function buildTaskUpdatePayload(candidate) {
-  const description = candidate?.description ?? candidate?.body ?? null;
-  return {
-    title: candidate?.title,
-    description,
-    kind: candidate?.kind,
-    impact: candidate?.impact,
-    confidence: candidate?.confidence,
-    confidenceScore: candidate?.confidenceScore,
-    ease: candidate?.ease,
-    iceScore: candidate?.iceScore,
-    scoreProfile: candidate?.scoreProfile ?? undefined,
-    hashtags: Array.isArray(candidate?.hashtags) ? candidate.hashtags : undefined,
-    processingStatus: candidate?.processingStatus,
-    activityState: candidate?.activityState,
-    status: candidate?.status,
-    candidateState: candidate?.candidateState,
-    reworkRoute: candidate?.reworkRoute ?? null,
-    qualityScore: candidate?.qualityScore ?? null,
-    urgencyScore: candidate?.urgencyScore ?? null,
-    freshnessScore: candidate?.freshnessScore ?? null,
-    feedbackScore: candidate?.feedbackScore ?? 0,
-    evaluationReason: candidate?.evaluationReason ?? null,
-    fingerprint: candidate?.fingerprint,
-    sourceFlashcardIds: Array.isArray(candidate?.sourceFlashcardIds) ? candidate.sourceFlashcardIds : undefined,
-    generatedFromIds: Array.isArray(candidate?.generatedFromIds) ? candidate.generatedFromIds : undefined,
-    versionFamilyId: candidate?.versionFamilyId ?? null,
-    duplicateClusterId: candidate?.duplicateClusterId ?? null,
-    refinedFromId: candidate?.refinedFromId ?? null,
-    kanbanColumn: candidate?.kanbanColumn,
-    sortOrder: candidate?.sortOrder,
-  };
-}
-
-function buildFlashcardRefineUpdatePayload(candidate) {
-  return {
-    title: candidate?.title,
-    body: candidate?.body ?? candidate?.description ?? undefined,
-    confidence: candidate?.confidence,
-    impact: candidate?.impact,
-    weight: candidate?.weight,
-    processingStatus: candidate?.processingStatus,
-    activityState: candidate?.activityState,
-    status: candidate?.status,
-    reviewStatus: candidate?.reviewStatus,
-    userAnnotation: candidate?.userAnnotation ?? null,
-    hashtags: Array.isArray(candidate?.hashtags) ? candidate.hashtags : undefined,
-    evidence: candidate?.evidence ?? undefined,
-    citationSnapshotIds: Array.isArray(candidate?.citationSnapshotIds)
-      ? candidate.citationSnapshotIds
-      : undefined,
-    conflictDetected: candidate?.conflictDetected,
-    conflictSummary: candidate?.conflictSummary ?? null,
-    feedbackConfidenceDelta: candidate?.feedbackConfidenceDelta,
-    feedbackWeightDelta: candidate?.feedbackWeightDelta,
-    fingerprint: candidate?.fingerprint,
-    kind: candidate?.kind,
-    appVersion: candidate?.appVersion,
-    brainVersion: candidate?.brainVersion,
-    generatedAt: candidate?.generatedAt ?? null,
-    promptVersion: candidate?.promptVersion,
-    promptHash: candidate?.promptHash ?? null,
-    promptName: candidate?.promptName,
-    modelName: candidate?.modelName,
-    modelVersion: candidate?.modelVersion ?? null,
-    temperature: candidate?.temperature ?? null,
-    createdByRunId: candidate?.createdByRunId ?? null,
-    cycleRunId: candidate?.cycleRunId ?? null,
-    intelligenceType: candidate?.intelligenceType,
-    lastAuditedAt: candidate?.lastAuditedAt ?? null,
-    lastRescoredAt: candidate?.lastRescoredAt ?? null,
-    lastTaxonomyAuditedAt: candidate?.lastTaxonomyAuditedAt ?? null,
-    lastCorrectionReconciledAt: candidate?.lastCorrectionReconciledAt ?? null,
-    iceScore: candidate?.iceScore,
-    scoreProfile: candidate?.scoreProfile ?? undefined,
-    versionFamilyId: candidate?.versionFamilyId ?? null,
-    duplicateClusterId: candidate?.duplicateClusterId ?? null,
-    generatedFromIds: Array.isArray(candidate?.generatedFromIds)
-      ? candidate.generatedFromIds
-      : undefined,
-    refinedFromId: candidate?.refinedFromId ?? null,
-    refreshedAt: candidate?.refreshedAt ?? undefined,
-    generatedTitle: candidate?.generatedTitle ?? null,
-    generatedBody: candidate?.generatedBody ?? null,
-    lastActionAt: candidate?.lastActionAt ?? null,
-    manualBody: candidate?.manualBody ?? null,
-    manualTitle: candidate?.manualTitle ?? null,
-    hashtagMaintainedAt: candidate?.hashtagMaintainedAt ?? null,
-    hashtagEvaluationPending: candidate?.hashtagEvaluationPending,
-    lastHashtagError: candidate?.lastHashtagError ?? null,
-  };
-}
-
-function buildFlashcardJudgeUpdatePayload(audit, reconciledAt) {
-  return {
-    processingStatus: audit?.processingStatus,
-    reviewStatus: audit?.reviewStatus,
-    confidenceScore: audit?.confidenceScore,
-    evidence: audit?.evidence ?? undefined,
-    userAnnotation: audit?.userAnnotation ?? null,
-    promptName: audit?.promptName ?? undefined,
-    promptVersion: audit?.promptVersion ?? undefined,
-    modelName: audit?.modelName ?? undefined,
-    temperature: audit?.temperature ?? undefined,
-    lastAuditedAt: audit?.lastAuditedAt ?? reconciledAt,
-    updatedAt: reconciledAt,
-    lastCorrectionReconciledAt: reconciledAt,
-  };
 }
 
 async function buildTaskCreatePayload(prisma, candidate, overrides = {}) {

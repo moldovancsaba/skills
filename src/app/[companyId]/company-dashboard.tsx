@@ -64,11 +64,10 @@ export default function CompanyDashboard({
 }) {
   const router = useRouter();
 
-  const { company, setCompany, sources, setSources } = useStore();
+  const { company, setCompany } = useStore();
   const { t } = useI18n();
   const [loading, setLoading] = useState(!initialData);
   const [isOwner, setIsOwner] = useState(Boolean(initialData?.isOwner));
-  const [members, setMembers] = useState<any[]>(() => initialData?.members ?? []);
   const [topTasks, setTopTasks] = useState<ChecklistTask[]>(() =>
     Array.isArray(initialData?.topTasks)
       ? initialData.topTasks.map((task: ChecklistTask & { description?: string | null }) => ({
@@ -100,8 +99,7 @@ export default function CompanyDashboard({
   useEffect(() => {
     if (!initialData) return;
     setCompany(initialData.company);
-    setSources([]);
-  }, [initialData, setCompany, setSources]);
+  }, [initialData, setCompany]);
 
   const chartSeries = useCallback((...keys: string[]) => {
     return chartData.map((point) => {
@@ -123,8 +121,6 @@ export default function CompanyDashboard({
       const data = await res.json();
       
       setCompany(data.company);
-      setSources(Array.isArray(data.sources) ? data.sources : []);
-      setMembers(Array.isArray(data.members) ? data.members : []);
       setCounts(data.counts);
       setTopTasks(
         Array.isArray(data.topTasks)
@@ -143,7 +139,7 @@ export default function CompanyDashboard({
     } finally {
       setLoading(false);
     }
-  }, [setCompany, setSources]);
+  }, [setCompany]);
 
   useEffect(() => {
     if (!companyId || initialData) return;
@@ -279,7 +275,6 @@ export default function CompanyDashboard({
     );
   }
 
-  const safeSources = Array.isArray(sources) ? sources : [];
   const tip = getDashboardExpertTip({
     companyId,
     productCount: counts.sources,
@@ -537,7 +532,7 @@ export default function CompanyDashboard({
             ))}
             
             <ExpertTipCard tip={tip} />
-            <MemberList companyId={companyId} isOwner={isOwner} initialMembers={members} />
+            <MemberList companyId={companyId} isOwner={isOwner} />
           </SimpleGrid>
         </Stack>
       </Stack>

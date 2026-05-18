@@ -36,7 +36,6 @@ function buildCountsFromProjection(projection: ReturnType<typeof normalizeWebapp
 
 export type DashboardInitialData = {
   company: any;
-  members: any[];
   counts: DashboardCounts;
   topTasks: any[];
   analytics: any[];
@@ -159,9 +158,8 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
   const auth = await getSessionAndMembership(companyId);
   if (!auth) return null;
 
-  const [company, members, snapshot] = await Promise.all([
+  const [company, snapshot] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
-    prisma.user.findMany({ where: { companyId }, orderBy: { createdAt: "asc" } }),
     prisma.intelligenceSnapshot.findUnique({ where: { companyId } }),
   ]);
 
@@ -266,7 +264,6 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
 
   return {
     company,
-    members,
     counts: {
       ...counts,
       pipelineJobs: Number(queue.totalActiveJobs ?? counts.pipelineJobs ?? 0),

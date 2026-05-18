@@ -9,6 +9,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ authenticated: false });
   }
 
+  const scope = req.nextUrl.searchParams.get("scope");
+  if (scope === "identity") {
+    return NextResponse.json({
+      authenticated: true,
+      id: session.sub,
+      email: session.email,
+      name: session.name,
+      picture: session.picture,
+      user: {
+        id: session.sub,
+        email: session.email,
+        name: session.name,
+        picture: session.picture,
+      },
+    });
+  }
+
   const isSuperAdmin = await isSuperAdminEmail(session.email);
 
   return NextResponse.json({

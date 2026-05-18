@@ -96,7 +96,7 @@ export function ClientNav() {
   const companyIdFromUrl = params?.companyId as string;
 
   useEffect(() => {
-    fetch("/api/auth/session")
+    fetch("/api/auth/session?scope=identity")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setSession(data));
   }, []);

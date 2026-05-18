@@ -198,46 +198,33 @@ function writeHeartbeat(extra = {}) {
 // --- HEALTH MONITORING ---
 
 /**
- * Checks if the Ollama AI server is responsive and model is loadable.
+ * Checks if the Ollama AI server is responsive without forcing model reload.
  */
 function checkOllama() {
   const url = new URL(OLLAMA_URL);
   
-  // 1. Basic connection check
-  const req = http.get({ hostname: url.hostname, port: url.port, path: "/", timeout: 2000 }, (res) => {
-    if (res.statusCode !== 200) {
-      warn(`Ollama server returned status ${res.statusCode}`);
-      return;
-    }
-    
-    // 2. Advanced health check: check if the model is loadable
-    const model = process.env.OLLAMA_MODEL || "gemma3:1b";
-    const payload = JSON.stringify({ model, messages: [{ role: "user", content: "hi" }], stream: false });
-    
-    const chatReq = http.request(
-      new URL("/api/chat", OLLAMA_URL),
-      { method: "POST", headers: { "Content-Type": "application/json" }, timeout: 5000 },
-      (chatRes) => {
-        let body = "";
-        chatRes.on("data", (c) => body += c);
-        chatRes.on("end", () => {
-          if (chatRes.statusCode === 500) {
-            err(`Ollama MODEL FAILURE (500): ${body.slice(0, 100)}`);
-            if (!useSafeMode) {
-              warn("Triggering SAFE MODE (fallback to granite4:350m)");
-              useSafeMode = true;
-              restartOllama(); // Attempt service reset
-            }
-          } else if (chatRes.statusCode === 200) {
-            if (useSafeMode) log("Ollama primary model recovered. Disabling Safe Mode.");
-            useSafeMode = false;
-          }
-        });
+  const req = http.get({ hostname: url.hostname, port: url.port, path: "/api/ps", timeout: 2000 }, (res) => {
+    let body = "";
+    res.on("data", (chunk) => {
+      body += chunk;
+    });
+    res.on("end", () => {
+      if (res.statusCode !== 200) {
+        warn(`Ollama server returned status ${res.statusCode}`);
+        return;
       }
-    );
-    chatReq.on("error", () => {});
-    chatReq.write(payload);
-    chatReq.end();
+
+      try {
+        const payload = JSON.parse(body || "{}");
+        const loadedModels = Array.isArray(payload.models) ? payload.models.length : 0;
+        if (useSafeMode) {
+          log("Ollama server reachable. Keeping safe-mode decision to worker/runtime behavior, not health probing.");
+        }
+        log(`OLLAMA OK | loadedModels=${loadedModels}`);
+      } catch (error) {
+        warn(`Ollama /api/ps parse error: ${error.message}`);
+      }
+    });
   });
   
   req.on("error", (e) => err(`Ollama server UNREACHABLE at ${OLLAMA_URL}: ${e.message}`));

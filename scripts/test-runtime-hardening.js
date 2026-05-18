@@ -14,6 +14,13 @@ const {
   shouldAllowForegroundWork,
   FOREGROUND_HARD_PAUSE_MB,
 } = require("./lib/runtime/resource-bands");
+const {
+  MEMORY_GOVERNOR_ACTIONS,
+  OLLAMA_IDLE_EVICT_MB,
+  OLLAMA_FORCE_EVICT_MB,
+  isWorkerActivelyUsingModel,
+  decideMemoryGovernorAction,
+} = require("./lib/runtime/memory-governor");
 
 async function main() {
   const taskPayload = buildTaskUpdatePayload({
@@ -107,6 +114,55 @@ async function main() {
     shouldAllowForegroundWork(203).allowed,
     false,
     "foreground worker must still pause when free memory drops below the hard floor",
+  );
+
+  assert.equal(
+    isWorkerActivelyUsingModel({
+      state: "running",
+      stage: "PIPELINE_QUEUE",
+      activeTask: "Score Alert Repair for misisimi",
+    }),
+    true,
+    "real queue work must count as active model work",
+  );
+  assert.equal(
+    isWorkerActivelyUsingModel({
+      state: "running",
+      stage: "PIPELINE_QUEUE",
+      activeTask: "Scanning pipeline queue for runnable jobs",
+    }),
+    false,
+    "queue scanning must not count as active model work",
+  );
+
+  const idleEviction = decideMemoryGovernorAction({
+    freeMemMb: OLLAMA_IDLE_EVICT_MB,
+    runnerPresent: true,
+    workerProgress: {
+      state: "idle",
+      stage: "IDLE",
+      activeTask: "Waiting for the next planner cycle",
+    },
+  });
+  assert.equal(
+    idleEviction.action,
+    MEMORY_GOVERNOR_ACTIONS.EVICT_OLLAMA_AND_WAKE,
+    "idle low-memory state should evict the Ollama runner and wake the worker",
+  );
+
+  const busyEviction = decideMemoryGovernorAction({
+    freeMemMb: OLLAMA_FORCE_EVICT_MB,
+    runnerPresent: true,
+    workerProgress: {
+      state: "running",
+      stage: "PIPELINE_QUEUE",
+      activeTask: "Ensure flashcard minimum for rmbd",
+    },
+  });
+  assert.equal(
+    busyEviction.action,
+    MEMORY_GOVERNOR_ACTIONS.EVICT_OLLAMA_AND_RESTART_WORKER,
+    "hard low-memory state during active model work should evict the runner and restart the worker lane",
   );
 
   console.log("Runtime hardening tests passed.");

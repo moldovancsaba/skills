@@ -15,6 +15,11 @@ const path = require("path");
 const os = require("os");
 const { PrismaClient } = require("@prisma/client");
 const { getResourceBand } = require("./lib/runtime/resource-bands");
+const {
+  MEMORY_GOVERNOR_ACTIONS,
+  MEMORY_GOVERNOR_COOLDOWN_MS,
+  decideMemoryGovernorAction,
+} = require("./lib/runtime/memory-governor");
 const prisma = new PrismaClient();
 
 // --- CONFIGURATION ---
@@ -94,6 +99,9 @@ let useSafeMode        = false; // If true, tells worker to use fallback model
 let resourceStats      = { freeMem: 0, totalMem: 0, loadAvg: [] };
 let commandTimer       = null;
 let isShuttingDown     = false;
+let latestWorkerProgress = null;
+let lastMemoryGovernorActionAt = 0;
+let lastMemoryGovernorReason = null;
 
 // --- Command bridge supervision ---
 
@@ -254,6 +262,8 @@ function checkResources() {
   if (freeMB < MEM_THRESHOLD_MB) {
     warn(`LOW MEMORY: ${freeMB}MB free. System may struggle.`);
   }
+
+  applyMemoryGovernor();
 }
 
 /**
@@ -273,6 +283,71 @@ function restartOllama() {
   } catch (e) {
     err(`Failed to reset Ollama: ${e.message}`);
   }
+}
+
+function hasOllamaRunnerProcess() {
+  try {
+    const output = execSync("pgrep -f 'ollama runner --model' || true", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return output.length > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+function evictOllamaRunner(reason) {
+  warn(`[MEMORY GOVERNOR] Evicting Ollama runner (${reason}).`);
+  try {
+    execSync("pkill -f 'ollama runner --model' || true", { stdio: "ignore" });
+    lastMemoryGovernorReason = reason;
+    writeHeartbeat({ memoryGovernorReason: reason, memoryGovernorActionAt: new Date().toISOString() });
+  } catch (e) {
+    err(`[MEMORY GOVERNOR] Failed to evict Ollama runner: ${e.message}`);
+  }
+}
+
+function forceWorkerWake(reason) {
+  const req = http.request(
+    { hostname: "127.0.0.1", port: HEALTH_PORT, path: "/force", method: "POST", timeout: 3000 },
+    (res) => {
+      res.resume();
+      log(`[MEMORY GOVERNOR] Worker wake requested (${reason}) status=${res.statusCode}.`);
+    },
+  );
+
+  req.on("error", (e) => {
+    warn(`[MEMORY GOVERNOR] Worker wake request failed (${reason}): ${e.message}`);
+  });
+
+  req.on("timeout", () => {
+    req.destroy();
+    warn(`[MEMORY GOVERNOR] Worker wake request timed out (${reason}).`);
+  });
+
+  req.end();
+}
+
+function applyMemoryGovernor() {
+  if (isShuttingDown) return;
+  if (Date.now() - lastMemoryGovernorActionAt < MEMORY_GOVERNOR_COOLDOWN_MS) return;
+
+  const runnerPresent = hasOllamaRunnerProcess();
+  const decision = decideMemoryGovernorAction({
+    freeMemMb: resourceStats.freeMem,
+    runnerPresent,
+    workerProgress: latestWorkerProgress || {},
+  });
+
+  if (decision.action === MEMORY_GOVERNOR_ACTIONS.NONE) return;
+
+  lastMemoryGovernorActionAt = Date.now();
+  evictOllamaRunner(decision.reason);
+
+  if (decision.action === MEMORY_GOVERNOR_ACTIONS.EVICT_OLLAMA_AND_RESTART_WORKER) {
+    killWorker(`memory-governor:${decision.reason}`);
+    return;
+  }
+
+  forceWorkerWake(`memory-governor:${decision.reason}`);
 }
 
 function reclaimPort(port) {
@@ -310,6 +385,7 @@ function pollHealth() {
         try {
           const data = JSON.parse(body);
           const prog = data.progress || {};
+          latestWorkerProgress = prog;
           const freshAt = prog.lastProgressAt || null;
           const nextFingerprint = buildWorkFingerprint(prog);
 

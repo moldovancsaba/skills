@@ -168,6 +168,11 @@ Hot product reads that should prefer that projection:
 - company nav/sidebar counts
 - tactical/checklist planning summaries
 
+Dashboard route contract:
+
+- the company dashboard should bootstrap from server-loaded prepared data on the first response
+- non-critical panels such as membership or identity details should not block the first product-summary render
+
 Allowed bounded fallback:
 
 - lightweight snapshot-field fallback if the projection is missing
@@ -194,6 +199,7 @@ The repetitive-job contract now also includes:
 - intelligence snapshot refresh is no longer part of the foreground queue lane; it runs in the dedicated `snapshot-worker`
 - queue-topology refresh on claim miss is also delegated out of the foreground lane; `snapshot-worker` owns the background queue-sync cadence and may be force-woken by foreground
 - touched-company projection refresh now follows the same background ownership pattern: successful company work marks the company projection-dirty, and `snapshot-worker` drains those targeted repairs before the slower broad snapshot sweep
+- once the projection-first and server-bootstrap path is shipped, persistent slowness on authenticated product routes should be investigated through real live-route profiling rather than further blind trimming
 
 Backlog contract:
 

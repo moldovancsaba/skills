@@ -176,6 +176,8 @@ The first slice of this architecture is now:
 - shared projection normalization in `src/lib/webapp-projection.ts`
 - touched-company projection dirty queue drained by `snapshot-worker`
 - targeted projection repair after successful company work lands
+- server-side company dashboard bootstrap from prepared projection data instead of a post-mount dashboard fetch
+- lighter first dashboard payload by moving non-critical identity/member reads off the critical response
 
 Hot routes improved in this slice:
 
@@ -193,6 +195,7 @@ Still required:
 1. larger analytics and card-detail reads audited to avoid hot-path fan-out
 2. broader freshness visibility where operators actually need it
 3. stricter projection backfill/repair guarantees for cold-start environments
+4. authenticated live-route profiling on the deployed dashboard path so residual slowness is measured instead of guessed at
 
 ## 9. Why This Matters Operationally
 
@@ -216,6 +219,7 @@ This architecture is considered healthy when:
 4. the webapp no longer behaves like a second analytics engine
 5. projection freshness and fallbacks are documented and observable
 6. touched-company work triggers fast targeted projection repair instead of waiting only for broad snapshot sweeps
+7. the first dashboard response is projection-backed and does not require a post-mount summary fetch to become useful
 
 ## 11. GitHub Breakdown
 

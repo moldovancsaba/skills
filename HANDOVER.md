@@ -53,6 +53,8 @@ Read first:
 - the first major hardening slice is now shipped: snapshot refresh runs in a dedicated `snapshot-worker`, the foreground queue worker no longer shares that lane, and both lanes expose separate health/progress truth
 - the next product-performance hardening slice is now projection-first webapp reads: the local AI side prepares company read models so the online app does not keep recomputing hot-route summary counts live
 - the shipped follow-up slice now includes projection-backed planning summaries and projection-freshness telemetry for dashboard, tactical, and checklist surfaces
+- the shipped follow-up slice now also includes server-side company dashboard bootstrap from prepared projection data, so the first page response is no longer blocked on a client dashboard fetch
+- the dashboard first response is now intentionally narrower: non-critical member and identity details are not supposed to sit on the critical product-summary path
 - startup integrity scrub cooldown now persists across restarts instead of firing again on every guardian bounce
 - planner telemetry now retries and degrades to best-effort on retryable Prisma write conflicts instead of failing the owning job
 - the status server now exposes a lightweight `/health` probe and briefly caches expensive payload assembly
@@ -174,6 +176,7 @@ The work is not done until:
 - `snapshot-worker` also owns scheduled runtime verification. The latest verification report is persisted, exposed by `status-server`, and rendered on `/local-ai`.
 - productive queue work now refreshes queue topology for the touched company directly; if that direct refresh fails, the company falls back into a topology-dirty background retry queue owned by `snapshot-worker`.
 - the same touched-company pattern now also matters for product projections: company list/dashboard/nav should prefer `IntelligenceSnapshot.webappProjection`, with background/local-AI refresh owning projection freshness instead of hot-route live fan-out.
+- after those shipped read-model and server-bootstrap slices, further dashboard slowness should be attacked with authenticated live-route profiling, not blind payload trimming.
 - Human drag-and-drop on the `AI Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now expressed through persisted queue/repair intents; the local AI worker is the only authority that escalates queue work through the shared queue contract.

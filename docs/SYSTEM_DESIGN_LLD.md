@@ -193,6 +193,13 @@ They are compatibility paths, not the primary operating contract.
 - `status-server` is read-only for business state and operator truth assembly
 - `guardian` supervises processes and recovery, but does not own planner mutation logic
 
+## 6.2 Product route bootstrap
+
+- hot authenticated product routes should prefer server-first bootstrap from prepared projection data
+- the company dashboard route is expected to render from server-loaded projection-backed data on first response instead of waiting for a client fetch after mount
+- non-critical UI concerns such as member management or identity decoration should not sit on the critical first dashboard payload
+- once those constraints are satisfied, remaining route slowness should be debugged with authenticated live-route profiling, not guesswork
+
 ## 7. Evidence Durability And Conflict Handling
 
 - source-backed Knowmore synthesis must persist durable `CitationSnapshot` records with normalized URL, excerpt, fetch timing, and content hash

@@ -2,8 +2,20 @@ import { Suspense } from "react";
 import CompanyDashboard from "./company-dashboard";
 import { Center, Loader, Stack } from "@mantine/core";
 import { Text } from "@/components/ui/typography";
+import { redirect } from "next/navigation";
+import { getDashboardInitialData } from "@/lib/server-company-page-data";
 
-export default function CompanyPage() {
+export default async function CompanyPage({
+  params,
+}: {
+  params: Promise<{ companyId: string }>;
+}) {
+  const { companyId } = await params;
+  const initialData = await getDashboardInitialData(companyId);
+  if (!initialData) {
+    redirect("/");
+  }
+
   return (
     <Suspense 
       fallback={
@@ -17,7 +29,7 @@ export default function CompanyPage() {
         </Center>
       }
     >
-      <CompanyDashboard />
+      <CompanyDashboard companyId={companyId} initialData={initialData} />
     </Suspense>
   );
 }

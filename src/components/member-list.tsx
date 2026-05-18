@@ -10,9 +10,17 @@ import { IconUsers as Users, IconUserPlus as UserPlus, IconTrash as Trash2, Icon
 import { useState, useEffect, useCallback } from "react";
 import { resolveMantineColor } from "@/lib/semantic-theme";
 
-export function MemberList({ companyId, isOwner }: { companyId: string; isOwner: boolean }) {
-  const [members, setMembers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export function MemberList({
+  companyId,
+  isOwner,
+  initialMembers,
+}: {
+  companyId: string;
+  isOwner: boolean;
+  initialMembers?: any[];
+}) {
+  const [members, setMembers] = useState<any[]>(() => initialMembers ?? []);
+  const [loading, setLoading] = useState(() => !initialMembers);
   const [inviting, setInviting] = useState(false);
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -32,10 +40,14 @@ export function MemberList({ companyId, isOwner }: { companyId: string; isOwner:
   }, [companyId]);
 
   useEffect(() => {
+    if (initialMembers) {
+      return;
+    }
+
     void (async () => {
       await fetchMembers();
     })();
-  }, [fetchMembers]);
+  }, [fetchMembers, initialMembers]);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();

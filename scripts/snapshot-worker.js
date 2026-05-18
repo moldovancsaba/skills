@@ -11,6 +11,9 @@ const {
   getSnapshotWorkerProgress,
   updateSnapshotWorkerProgress,
 } = require("./lib/runtime/background-progress");
+const {
+  runRuntimeVerificationIfDue,
+} = require("./lib/runtime/verification");
 const packageJson = require("../package.json");
 
 const prisma = new PrismaClient();
@@ -108,6 +111,11 @@ async function runSnapshotLoop() {
       batchSize: SNAPSHOT_BATCH_SIZE,
     });
 
+    const verificationResult = await runRuntimeVerificationIfDue(prisma, {
+      mode: "scheduled",
+      trigger: "snapshot-worker",
+    });
+
     await updateSnapshotWorkerProgress(prisma, {
       state: "idle",
       stage: "IDLE",
@@ -120,6 +128,8 @@ async function runSnapshotLoop() {
         didSyncQueue,
         refreshedCompanies: snapshotResult.refreshedCompanies,
         wrapped: snapshotResult.wrapped,
+        verificationRan: Boolean(verificationResult),
+        verificationOk: verificationResult?.summary?.ok ?? null,
       },
     });
 

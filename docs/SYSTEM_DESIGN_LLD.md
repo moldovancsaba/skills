@@ -263,3 +263,4 @@ They are compatibility paths, not the primary operating contract.
 - `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md` is the authoritative target design for 24/7 worker hardening, strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery
 - `docs/LOCAL_AI_RUNTIME_SOP.md` is the authoritative shipped sequence and rulebook for the foreground loop, background loop, queue sync, card creation, and failure recovery
 - the first shipped runtime-hardening slice now includes a dedicated `snapshot-worker` process and foreground/background separation for planner queue execution versus intelligence snapshot refresh
+- the current shipped runtime contract also includes scheduled verification and synthetic chaos drills so operator health is backed by persisted runtime checks instead of raw log reading alone

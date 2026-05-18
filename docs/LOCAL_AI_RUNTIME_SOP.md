@@ -98,9 +98,23 @@ Sequence:
 6. if background work is allowed:
    - refresh queue sync if due
    - refresh a bounded intelligence snapshot slice
+   - run scheduled runtime verification if due
 7. write snapshot progress
 8. rest for the background active interval
 9. repeat
+
+Runtime verification contract:
+
+1. scheduled runtime verification runs from `snapshot-worker`, not the foreground mutation lane
+2. it checks:
+   - worker health reachability
+   - snapshot health reachability
+   - status payload reachability
+   - build identity agreement
+   - worker/status truth agreement
+   - stale running jobs
+   - decomposition consistency
+3. the latest report is persisted into global settings and exposed on `/local-ai`
 
 ## 4. Queue sync rules
 
@@ -176,6 +190,7 @@ Maintenance improvement:
 4. retry limits are bounded by job type
 5. worker restart recovers orphaned `RUNNING` jobs back to `ACTIVE`
 6. guardian kills stuck workers and restarts them
+7. runtime verification failures persist operator-visible evidence, but do not mutate queue state directly
 
 ## 8. Memory and downgrade rules
 
@@ -244,3 +259,4 @@ The simplest truthful operator summary is:
 8. rest
 9. repeat
 10. refresh read-only snapshots separately in the background
+11. persist scheduled runtime verification so the operator surface can prove the runtime still agrees with itself

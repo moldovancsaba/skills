@@ -154,6 +154,7 @@ The repetitive-job contract now also includes:
 - quality-engine jobs for opportunity mining, editorial gating, research-backed regeneration, novelty suppression, and feedback-pressure repair
 - the 24/7 runtime hardening plan for strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery is defined in `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md`
 - the shipped step-by-step runtime sequence and rules are defined in `docs/LOCAL_AI_RUNTIME_SOP.md`
+- scheduled runtime verification runs from `snapshot-worker`, persists its latest report into global settings, and surfaces the result on `/local-ai`
 - intelligence snapshot refresh is no longer part of the foreground queue lane; it runs in the dedicated `snapshot-worker`
 - queue-topology refresh on claim miss is also delegated out of the foreground lane; `snapshot-worker` owns the background queue-sync cadence and may be force-woken by foreground
 

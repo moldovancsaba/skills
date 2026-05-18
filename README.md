@@ -244,6 +244,7 @@ Architecture note:
 - `sync` is the only foreground mutating worker
 - `snapshot-worker` owns background intelligence snapshot refresh
 - `status-server` owns runtime observability payload assembly
+- `snapshot-worker` also owns scheduled runtime verification and persists the latest operator-readable verification report
 
 ### Local operator URLs
 
@@ -256,6 +257,11 @@ Raw local AI endpoints:
 - worker health: `http://127.0.0.1:10005/health`
 - status server: `http://127.0.0.1:10006/api/status`
 - snapshot-worker health: `http://127.0.0.1:10007/health`
+
+Useful runtime commands:
+
+- `npm run verify:runtime`
+- `npm run test:runtime-chaos`
 
 Important:
 

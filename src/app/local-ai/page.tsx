@@ -200,12 +200,15 @@ export default function LocalAiMissionControlPage() {
   const backgroundWorker = data?.backgroundWorker || {};
   const guardian = data?.guardian || {};
   const memoryGovernor = data?.memoryGovernor || {};
+  const verification = data?.verification || null;
   const buildIdentity = worker?.settings?.buildIdentity || {};
   const actualCurrentTask = String(worker.activeTask || "Idle");
   const actualCurrentCompany = String(worker.currentCompany || "No company locked");
   const topQueueJobLabel = currentJob ? formatJobLabel(currentJob) : "No queued job";
   const memoryGovernorEvents = Array.isArray(memoryGovernor.recentEvents) ? memoryGovernor.recentEvents : [];
   const latestGovernorEvaluation = memoryGovernor.latestEvaluation || {};
+  const verificationChecks = Array.isArray(verification?.checks) ? verification.checks : [];
+  const failingVerificationChecks = verificationChecks.filter((check: any) => !check.ok).slice(0, 4);
 
   const cardCountChartData = [
     { family: "Datacards", count: Number(inventory.datacards ?? 0) },
@@ -414,6 +417,9 @@ export default function LocalAiMissionControlPage() {
                 <Notice title="Memory governor">
                   Last action: {memoryGovernor.lastActionReason || "none"} · Last action at {formatTimestamp(memoryGovernor.lastActionAt)} · Policy v{memoryGovernor.policyVersion || "?"}
                 </Notice>
+                <Notice title="Runtime verification">
+                  Last run: {formatTimestamp(verification?.ts)} · {verification?.summary?.passedChecks ?? 0}/{verification?.summary?.totalChecks ?? 0} checks passed · Trigger {verification?.trigger || "—"} · Status {verification?.summary?.ok ? "PASS" : "FAIL"}
+                </Notice>
               </UnifiedCardBody>
             </UnifiedCard>
 
@@ -481,6 +487,54 @@ export default function LocalAiMissionControlPage() {
           </SimpleGrid>
 
           <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
+            <UnifiedCard tone="strategy">
+              <UnifiedCardHeader
+                title="Runtime Verification"
+                supporting={
+                  <Badge variant="light" color={verification?.summary?.ok ? "strategy" : "review"}>
+                    {verification?.summary?.ok ? "PASS" : "FAIL"}
+                  </Badge>
+                }
+              />
+              <UnifiedCardBody>
+                {verification ? (
+                  <Stack gap="sm">
+                    <MetaText>
+                      Last run {formatTimestamp(verification.ts)} · Mode {verification.mode || "—"} · Trigger {verification.trigger || "—"}
+                    </MetaText>
+                    <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
+                      <MetricCard icon={Activity} color="strategy" label="Checks" value={verification?.summary?.totalChecks ?? 0} detail="runtime contract checks" />
+                      <MetricCard icon={Heartbeat} color="strategy" label="Passed" value={verification?.summary?.passedChecks ?? 0} detail="green checks" />
+                      <MetricCard icon={AlertTriangle} color="review" label="Failed" value={verification?.summary?.failedChecks ?? 0} detail="needs operator attention" />
+                      <MetricCard icon={Hierarchy} color="tactical" label="Queue State" value={verification?.snapshot?.queue?.runningJobs ?? 0} detail={`${verification?.snapshot?.queue?.totalActiveJobs ?? 0} active`} />
+                    </SimpleGrid>
+                    {failingVerificationChecks.length ? (
+                      <Table highlightOnHover>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Check</Table.Th>
+                            <Table.Th>Summary</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {failingVerificationChecks.map((check: any) => (
+                            <Table.Tr key={check.id}>
+                              <Table.Td>{check.id}</Table.Td>
+                              <Table.Td>{check.summary}</Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    ) : (
+                      <Notice title="Verification passing">The latest scheduled runtime verification found no contract failures.</Notice>
+                    )}
+                  </Stack>
+                ) : (
+                  <Notice title="No runtime verification yet">The background worker has not persisted a runtime verification report yet.</Notice>
+                )}
+              </UnifiedCardBody>
+            </UnifiedCard>
+
             <UnifiedCard tone="review">
               <UnifiedCardHeader
                 title="Recent Deferred Or Decomposed Jobs"

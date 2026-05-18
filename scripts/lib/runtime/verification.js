@@ -1,0 +1,341 @@
+"use strict";
+
+const path = require("path");
+const fs = require("fs");
+const { PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS } = require("../../../src/lib/pipeline-queue");
+
+const RUNTIME_VERIFICATION_STATE_KEY = "local_ai_runtime_verification_last_run";
+const RUNTIME_VERIFICATION_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const WORKER_HEALTH_URL = "http://127.0.0.1:10005/health";
+const STATUS_API_URL = "http://127.0.0.1:10006/api/status";
+const SNAPSHOT_HEALTH_URL = "http://127.0.0.1:10007/health";
+const HEARTBEAT_FILE = path.join(__dirname, "..", "..", "logs", "guardian-heartbeat.json");
+
+function buildVerificationCheck(id, ok, summary, details = null) {
+  return { id, ok: Boolean(ok), summary, details };
+}
+
+function summarizeVerificationChecks(checks = []) {
+  const totalChecks = checks.length;
+  const failedChecks = checks.filter((check) => !check.ok).length;
+  return {
+    ok: failedChecks === 0,
+    totalChecks,
+    passedChecks: totalChecks - failedChecks,
+    failedChecks,
+  };
+}
+
+function readGuardianHeartbeatFile() {
+  try {
+    return JSON.parse(fs.readFileSync(HEARTBEAT_FILE, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url, { headers: { "user-agent": "checklist-runtime-verification" } });
+  if (!response.ok) {
+    throw new Error(`${url} returned ${response.status}`);
+  }
+  return response.json();
+}
+
+function detectStaleRunningJobs(jobs = [], now = Date.now(), timeoutMs = PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS) {
+  return jobs.filter((job) => {
+    if (job.status !== "RUNNING") return false;
+    const lastTriedAt = job.lastTriedAt ? new Date(job.lastTriedAt).getTime() : 0;
+    return !lastTriedAt || now - lastTriedAt > timeoutMs;
+  });
+}
+
+function findDecompositionAnomalies(jobs = []) {
+  const byId = new Map(jobs.map((job) => [job.id, job]));
+  const childJobs = jobs.filter((job) => String(job.entityType || "") === "PIPELINE_SLICE");
+  const parentJobs = jobs.filter((job) => job?.metadata?.decomposition?.state === "DECOMPOSED");
+  const anomalies = [];
+
+  for (const child of childJobs) {
+    const parentId = child?.metadata?.parentJobId;
+    if (!parentId || !byId.has(parentId)) {
+      anomalies.push({
+        type: "ORPHAN_CHILD",
+        jobId: child.id,
+        parentJobId: parentId || null,
+      });
+    }
+  }
+
+  for (const parent of parentJobs) {
+    const expectedSignal = parent?.metadata?.decomposition?.childSignal || null;
+    const activeChildren = childJobs.filter((job) => job?.metadata?.parentJobId === parent.id);
+    if (activeChildren.length === 0) {
+      anomalies.push({
+        type: "PARENT_WITHOUT_CHILDREN",
+        jobId: parent.id,
+        childSignal: expectedSignal,
+      });
+    }
+  }
+
+  const offsetBuckets = new Map();
+  for (const child of childJobs) {
+    const parentId = child?.metadata?.parentJobId;
+    const selectionOffset = Number(child?.metadata?.executionOptions?.selectionOffset ?? -1);
+    if (!parentId || selectionOffset < 0) continue;
+    const key = `${parentId}:${selectionOffset}`;
+    offsetBuckets.set(key, (offsetBuckets.get(key) || 0) + 1);
+  }
+  for (const [key, count] of offsetBuckets.entries()) {
+    if (count > 1) {
+      const [parentJobId, selectionOffset] = key.split(":");
+      anomalies.push({
+        type: "DUPLICATE_CHILD_OFFSET",
+        parentJobId,
+        selectionOffset: Number(selectionOffset),
+        count,
+      });
+    }
+  }
+
+  return anomalies;
+}
+
+function buildRuntimeVerificationReport({
+  workerHealth,
+  statusPayload,
+  snapshotHealth,
+  heartbeat,
+  queueJobs = [],
+}) {
+  const checks = [];
+  const workerProgress = workerHealth?.progress || {};
+  const workerBuild = workerHealth?.settings?.buildIdentity || {};
+  const statusWorker = statusPayload?.worker || {};
+  const statusQueue = statusPayload?.queue || {};
+  const snapshotProgress = snapshotHealth?.progress || {};
+  const snapshotBuild = snapshotProgress?.settings?.buildIdentity || statusPayload?.backgroundWorker?.settings?.buildIdentity || {};
+  const statusBuild = statusWorker?.settings?.buildIdentity || {};
+  const now = Date.now();
+  const staleRunningJobs = detectStaleRunningJobs(queueJobs, now);
+  const decompositionAnomalies = findDecompositionAnomalies(queueJobs);
+
+  checks.push(
+    buildVerificationCheck(
+      "worker-health-reachable",
+      Boolean(workerHealth?.progress),
+      "Foreground worker health endpoint returned structured progress.",
+      workerHealth ? { hasProgress: Boolean(workerHealth.progress) } : null,
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "snapshot-health-reachable",
+      Boolean(snapshotHealth?.progress),
+      "Snapshot worker health endpoint returned structured progress.",
+      snapshotHealth ? { hasProgress: Boolean(snapshotHealth.progress) } : null,
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "status-endpoint-reachable",
+      Boolean(statusPayload?.worker && statusPayload?.queue),
+      "Status server returned worker and queue payloads.",
+      statusPayload ? { hasWorker: Boolean(statusPayload.worker), hasQueue: Boolean(statusPayload.queue) } : null,
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "worker-build-clean",
+      workerBuild.matchesOriginMain === true && workerBuild.gitDirty === false,
+      "Foreground worker build identity matches origin/main and is clean.",
+      workerBuild,
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "snapshot-build-clean",
+      snapshotBuild.matchesOriginMain === true && snapshotBuild.gitDirty === false,
+      "Snapshot worker build identity matches origin/main and is clean.",
+      snapshotBuild,
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "build-identity-agreement",
+      Boolean(workerBuild?.gitSha)
+        && workerBuild?.gitSha === snapshotBuild?.gitSha
+        && workerBuild?.gitSha === statusBuild?.gitSha,
+      "Foreground worker, snapshot worker, and status payload agree on the runtime build identity.",
+      {
+        workerGitSha: workerBuild?.gitSha || null,
+        snapshotGitSha: snapshotBuild?.gitSha || null,
+        statusGitSha: statusBuild?.gitSha || null,
+      },
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "status-worker-truth-aligned",
+      statusWorker?.stage === workerProgress?.stage
+        && statusWorker?.activeTask === workerProgress?.activeTask
+        && (statusWorker?.currentCompany || null) === (workerProgress?.currentCompany || null),
+      "Status server agrees with foreground worker stage, active task, and current company.",
+      {
+        workerStage: workerProgress?.stage || null,
+        workerTask: workerProgress?.activeTask || null,
+        workerCompany: workerProgress?.currentCompany || null,
+        statusStage: statusWorker?.stage || null,
+        statusTask: statusWorker?.activeTask || null,
+        statusCompany: statusWorker?.currentCompany || null,
+      },
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "single-running-job",
+      Number(statusQueue?.runningJobs || 0) <= 1,
+      "At most one foreground queue job is marked RUNNING.",
+      { runningJobs: Number(statusQueue?.runningJobs || 0) },
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "no-stale-running-jobs",
+      staleRunningJobs.length === 0,
+      "No RUNNING jobs exceed the no-progress timeout budget.",
+      staleRunningJobs.map((job) => ({
+        id: job.id,
+        jobType: job.jobType,
+        companyId: job.companyId,
+        lastTriedAt: job.lastTriedAt || null,
+      })),
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "decomposition-consistency",
+      decompositionAnomalies.length === 0,
+      "Decomposed parent/child job topology is internally consistent.",
+      decompositionAnomalies,
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "heartbeat-fresh",
+      Boolean(heartbeat?.lastHealthAt),
+      "Guardian heartbeat is present.",
+      heartbeat ? { lastHealthAt: heartbeat.lastHealthAt, memoryGovernor: heartbeat.memoryGovernor || null } : null,
+    ),
+  );
+
+  const summary = summarizeVerificationChecks(checks);
+  return {
+    mode: "live",
+    ts: new Date().toISOString(),
+    summary,
+    failingCheckIds: checks.filter((check) => !check.ok).map((check) => check.id),
+    checks,
+    snapshot: {
+      worker: {
+        state: workerProgress?.state || null,
+        stage: workerProgress?.stage || null,
+        activeTask: workerProgress?.activeTask || null,
+        currentCompany: workerProgress?.currentCompany || null,
+      },
+      backgroundWorker: {
+        state: snapshotProgress?.state || null,
+        stage: snapshotProgress?.stage || null,
+        activeTask: snapshotProgress?.activeTask || null,
+      },
+      queue: {
+        runningJobs: Number(statusQueue?.runningJobs || 0),
+        totalActiveJobs: Number(statusQueue?.totalActiveJobs || 0),
+        failedJobs: Number(statusQueue?.failedJobs || 0),
+        pausedJobs: Number(statusQueue?.pausedJobs || 0),
+      },
+    },
+  };
+}
+
+async function collectRuntimeVerificationInputs(prisma) {
+  const [workerHealth, statusPayload, snapshotHealth, heartbeat, queueJobs] = await Promise.all([
+    fetchJson(WORKER_HEALTH_URL),
+    fetchJson(STATUS_API_URL),
+    fetchJson(SNAPSHOT_HEALTH_URL),
+    Promise.resolve(readGuardianHeartbeatFile()),
+    prisma.pipelineJob.findMany({
+      where: { status: { in: ["ACTIVE", "RUNNING", "FAILED", "PAUSED"] } },
+      select: {
+        id: true,
+        companyId: true,
+        jobType: true,
+        entityType: true,
+        status: true,
+        lastTriedAt: true,
+        metadata: true,
+      },
+    }),
+  ]);
+
+  return {
+    workerHealth,
+    statusPayload,
+    snapshotHealth,
+    heartbeat,
+    queueJobs,
+  };
+}
+
+async function persistRuntimeVerificationReport(prisma, report) {
+  await prisma.globalSetting.upsert({
+    where: { key: RUNTIME_VERIFICATION_STATE_KEY },
+    create: { key: RUNTIME_VERIFICATION_STATE_KEY, value: report },
+    update: { value: report, updatedAt: new Date() },
+  });
+}
+
+async function runRuntimeVerification(prisma, options = {}) {
+  const inputs = await collectRuntimeVerificationInputs(prisma);
+  const report = buildRuntimeVerificationReport(inputs);
+  report.mode = typeof options.mode === "string" ? options.mode : report.mode;
+  report.trigger = typeof options.trigger === "string" ? options.trigger : "manual";
+  await persistRuntimeVerificationReport(prisma, report);
+  return report;
+}
+
+async function runRuntimeVerificationIfDue(prisma, options = {}) {
+  const intervalMs = Number.isFinite(options.intervalMs) ? Number(options.intervalMs) : RUNTIME_VERIFICATION_INTERVAL_MS;
+  const existing = await prisma.globalSetting.findUnique({
+    where: { key: RUNTIME_VERIFICATION_STATE_KEY },
+    select: { value: true, updatedAt: true },
+  });
+  const lastRunAt = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+  if (lastRunAt > 0 && Date.now() - lastRunAt < intervalMs) {
+    return null;
+  }
+  return runRuntimeVerification(prisma, options);
+}
+
+module.exports = {
+  RUNTIME_VERIFICATION_STATE_KEY,
+  RUNTIME_VERIFICATION_INTERVAL_MS,
+  detectStaleRunningJobs,
+  findDecompositionAnomalies,
+  buildRuntimeVerificationReport,
+  collectRuntimeVerificationInputs,
+  persistRuntimeVerificationReport,
+  runRuntimeVerification,
+  runRuntimeVerificationIfDue,
+};

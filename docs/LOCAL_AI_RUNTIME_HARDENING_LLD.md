@@ -28,6 +28,8 @@ Shipped progress status:
 - runtime mutation payloads now use shared allowlist builders for flashcard and task write-back paths, rather than passing model-shaped objects directly into Prisma
 - queue failures now classify into retryable and terminal classes, use cooldown scheduling, and dead-letter terminal jobs into `PARKED` instead of hot-looping them forever
 - oversized queue jobs now use resource-aware execution profiles (`full`, `degraded`, `minimal`) so repeat low-memory pressure can shrink work instead of only deferring it forever
+- repeated low-memory pressure can now decompose one oversized parent job into multiple bounded child slices with persisted selection offsets
+- scheduled runtime verification now runs from `snapshot-worker`, persists the latest report, and exposes the result through `/local-ai`
 
 ## 1. Purpose
 
@@ -54,7 +56,7 @@ Verified remaining problems in the current code path:
 - one logical worker can still feel non-linear to operators because bounded system chores still happen around claimed work
 - stale `RUNNING` protection is much better than before, but operator trust still depends on strong heartbeat and reclaim behavior remaining intact
 - observability has improved, but some surfaces still mix worker truth, queue truth, and derived read-model truth more than ideal
-- always-too-heavy jobs now shrink automatically, but they do not yet decompose into durable child jobs
+- always-too-heavy jobs now shrink automatically and can decompose into bounded child jobs, but the verification and chaos-recovery contract is still maturing
 
 No longer current:
 
@@ -188,6 +190,23 @@ It should aggregate:
 - queue summary truth
 
 The status server must not infer activity that the worker has not explicitly claimed.
+
+### 4.4.1 Runtime verification and chaos recovery
+
+The hardened runtime now includes a dedicated verification subsystem.
+
+Contract:
+
+- live verification runs on a slow background interval from `snapshot-worker`
+- verification persists an operator-readable report in global settings
+- the report is exposed by `status-server` and rendered on `/local-ai`
+- synthetic chaos drills live in repo test scripts and exercise:
+  - stale running job detection
+  - build identity disagreement
+  - worker/status truth disagreement
+  - decomposition topology anomalies
+
+This keeps scheduled verification low-risk while still giving the repo a deterministic failure-replay suite.
 
 ## 5. Canonical Foreground Worker State Machine
 

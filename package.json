@@ -16,6 +16,7 @@
     "audit:score-health": "node scripts/audit-score-health.js",
     "test:planner": "node scripts/test-planner-contract.js",
     "test:runtime-hardening": "node scripts/test-runtime-hardening.js",
+    "test:runtime-chaos": "node scripts/test-runtime-chaos.js",
     "test:quality": "node scripts/test-quality-contract.js",
     "test:local-learning": "node scripts/test-local-learning.mjs",
     "test:research-policy": "node scripts/test-research-policy.js",
@@ -38,7 +39,8 @@
     "snapshot-worker": "node scripts/snapshot-worker.js",
     "guardian": "node scripts/guardian.js",
     "guardian:logs": "tail -f logs/guardian.log",
-    "status": "node scripts/status-server.js"
+    "status": "node scripts/status-server.js",
+    "verify:runtime": "node scripts/run-runtime-verification.js"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

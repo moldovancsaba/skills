@@ -1,7 +1,6 @@
 /**
  * TRINITY MEMORY ENGINE
  * M4.1 — Structured Feedback Memory with Scoped Lessons
- * v1.0.0 (replaces v0.12.0-DURABLE)
  *
  * Implements the Memory Layer from Trinity formal production definition §22.
  *

@@ -1,9 +1,8 @@
 /**
  * checklist MARKETING SKILL LIBRARY
- * v0.11.4-STABLE
- * 
- * Defines specialized marketing frameworks used by the Drafter to categorize 
- * and process intelligence across different domains.
+ *
+ * Specialized marketing frameworks used by the drafter to categorize and
+ * process intelligence across different domains.
  */
 
 const MARKETING_SKILLS = {

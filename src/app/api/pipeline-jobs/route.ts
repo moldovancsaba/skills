@@ -2,13 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import {
+  PIPELINE_QUEUE_COLUMNS,
   applyManualPipelineQueueMove,
   listPersistedCompanyPipelineJobs,
   resetCompanyPipelineJobsToAiOnly,
 } from "@/lib/pipeline-queue";
+import type { PipelineQueueColumn } from "@/lib/pipeline-queue";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 
 export const dynamic = "force-dynamic";
+
+function isPipelineQueueColumn(value: string): value is PipelineQueueColumn {
+  return (PIPELINE_QUEUE_COLUMNS as readonly string[]).includes(value);
+}
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -77,13 +83,16 @@ export async function PATCH(request: NextRequest) {
       if (!movedJobId || !sourceColumn || !destinationColumn) {
         return NextResponse.json({ error: "Missing reorder fields" }, { status: 400 });
       }
+      if (!isPipelineQueueColumn(sourceColumn) || !isPipelineQueueColumn(destinationColumn)) {
+        return NextResponse.json({ error: "Invalid queue column" }, { status: 400 });
+      }
 
       const result = await applyManualPipelineQueueMove(
         prisma,
         companyId,
         movedJobId,
-        sourceColumn as any,
-        destinationColumn as any,
+        sourceColumn,
+        destinationColumn,
         destinationColumnOrderIds,
         sourceColumnOrderIds,
       );

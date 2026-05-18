@@ -1,7 +1,6 @@
 /**
  * TRINITY CANDIDATE LIFECYCLE
  * M1.2 — Canonical State Machine
- * v1.0.0
  *
  * Implements the formal lifecycle state machine from the Trinity production definition §3.4.
  *

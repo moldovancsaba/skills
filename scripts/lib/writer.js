@@ -1,9 +1,8 @@
 /**
  * checklist WRITER
- * v0.11.4-STABLE
- * 
- * The refinement stage of the local AI pipeline.
- * Upgrades DRAFT cards to CHECKED by improving tone, clarity, and enforcing deduplication.
+ *
+ * Refinement stage for the local AI pipeline.
+ * Upgrades draft cards by improving tone, clarity, and deduplication hygiene.
  */
 const { callOllamaJson, callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, WRITE_STAGE_TIMEOUT_MS } = require("./core");

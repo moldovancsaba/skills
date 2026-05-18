@@ -1,7 +1,6 @@
 /**
  * checklist REFINER
  * M2.2 — Full Entropy Reduction
- * v1.0.0
  *
  * Implements the Refiner stage from the local AI production definition §9.
  *

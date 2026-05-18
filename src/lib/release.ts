@@ -7,6 +7,7 @@ export const APP_VERSION = "0.16.0";
 export const BRAIN_VERSION = `local-brain@${APP_VERSION}`;
 export const FLASHCARD_PROMPT_VERSION = `flashcard-policy@${APP_VERSION}`;
 export const CHECKLIST_PROMPT_VERSION = `checklist-policy@${APP_VERSION}`;
+export const LEGAL_PROTOCOL_LABEL = `PROTOCOL v${APP_VERSION} • LAST SYNC: MAY 2026`;
 
 export function getReleaseMetadata() {
   return {
@@ -14,5 +15,6 @@ export function getReleaseMetadata() {
     brainVersion: BRAIN_VERSION,
     flashcardPromptVersion: FLASHCARD_PROMPT_VERSION,
     checklistPromptVersion: CHECKLIST_PROMPT_VERSION,
+    legalProtocolLabel: LEGAL_PROTOCOL_LABEL,
   };
 }

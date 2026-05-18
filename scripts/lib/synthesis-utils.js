@@ -1,9 +1,8 @@
 /**
  * checklist SYNTHESIS UTILITIES
- * v0.11.4-STABLE
- * 
- * Provides robust JSON normalization for AI-generated payloads.
- * Handles cases where models wrap arrays or objects in named keys (e.g., { "cards": [...] }).
+ *
+ * JSON normalization helpers for AI-generated payloads.
+ * Handles cases where models wrap arrays or objects in named keys.
  */
 
 /**

@@ -95,15 +95,48 @@ Shared shell rule:
 
 ## 5. Processing Model
 
-The autonomous cycle remains:
+The current shipped processing model is queue-owned and process-split.
 
-1. load companies
-2. select fairly
-3. pull new evidence and feedback
-4. teach memory
-5. process through the AI pipeline
-6. update statuses and expirations
-7. push results back
+Runtime processes:
+
+1. `guardian`
+   - restart supervision
+   - heartbeat and health polling
+   - stale-work safety net
+
+2. `sync`
+   - the only foreground mutating worker
+   - claims and executes queue jobs one at a time
+
+3. `snapshot-worker`
+   - background read-model refresher
+   - refreshes intelligence snapshots outside the foreground execution lane
+
+4. `status-server`
+   - read-only observability and operator surface
+
+Local startup contract:
+
+- start the web app with `npm run dev`
+- start the local AI runtime with `npm run guardian`
+- if the default web port `3000` is occupied, run the app on another free port such as `3415`
+
+Operator surface contract:
+
+- `/local-ai` is the public global mission-control route for the local AI runtime
+- it is not company-scoped
+- it is not login-gated
+- worker and background health are also exposed through the raw local endpoints on ports `10005`, `10006`, and `10007`
+
+Foreground execution contract:
+
+1. recover stale or wedged work if needed
+2. claim one runnable queue job
+3. execute one queue job
+4. complete or fail that job
+5. rest briefly
+
+The older broad per-company “load companies and run a full synthesis cycle” description is no longer the runtime contract.
 
 The repetitive-job contract now also includes:
 
@@ -116,6 +149,7 @@ The repetitive-job contract now also includes:
 - deterministic planner-owned bootstrap and maintenance jobs for inventory, lane refill, quality ceilings, timeout recovery, and oldest-first refresh
 - quality-engine jobs for opportunity mining, editorial gating, research-backed regeneration, novelty suppression, and feedback-pressure repair
 - the 24/7 runtime hardening plan for strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery is defined in `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md`
+- intelligence snapshot refresh is no longer part of the foreground queue lane; it runs in the dedicated `snapshot-worker`
 
 Backlog contract:
 

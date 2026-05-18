@@ -1,7 +1,6 @@
 /**
  * checklist HEALTH CHECK
- * v1.0.0
- * 
+ *
  * Diagnostic utility to verify Ollama connectivity, JSON extraction,
  * and local AI pipeline readiness.
  */

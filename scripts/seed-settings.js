@@ -1,9 +1,7 @@
 /**
  * checklist SETTINGS SEEDER
- * v0.11.4-STABLE
- * 
- * Initializes the global configuration layer for the local AI engine.
- * Enforces baseline intervals, quality thresholds, and data lifecycle durations.
+ *
+ * Initializes baseline global configuration for the local AI engine.
  */
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();

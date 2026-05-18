@@ -585,7 +585,7 @@ model GlobalSetting {
 
 model ModelConfig {
   id          String   @id @default(uuid()) @map("_id")
-  stage       String   // DRAFTER | WRITER | JUDGE
+  stage       String   // DRAFT | WRITE | JUDGE
   modelName   String
   temperature Float    @default(0.7)
   isActive    Boolean  @default(true)

@@ -19,6 +19,45 @@ Primary layers:
 - shared product UI system
 - persisted pipeline queue and scheduler contract
 
+### 1.1 Runtime entrypoints
+
+The shipped local runtime is started through:
+
+- `npm run guardian`
+  - supervises the local AI process group
+
+- `npm run dev`
+  - serves the Next.js application
+
+The guardian-managed process group includes:
+
+- `sync`
+- `snapshot-worker`
+- `status-server`
+
+### 1.2 Runtime ports and operator surfaces
+
+Default local web application:
+
+- `http://localhost:3000`
+
+If the default port is occupied, the app may be started on another free port such as:
+
+- `http://localhost:3415`
+
+Public operator surface:
+
+- `/local-ai`
+  - global local-AI mission-control page
+  - not company-scoped
+  - not login-gated
+
+Raw local runtime endpoints:
+
+- worker health: `http://127.0.0.1:10005/health`
+- status payload: `http://127.0.0.1:10006/api/status`
+- snapshot-worker health: `http://127.0.0.1:10007/health`
+
 ## 2. Frontend Architecture
 
 The frontend is intentionally rigid.
@@ -142,6 +181,13 @@ Legacy compatibility jobs may still exist in persisted state:
 - `COMPANY_SYNTHESIS`
 
 They are compatibility paths, not the primary operating contract.
+
+## 6.1 Execution ownership
+
+- `sync` is the only foreground worker allowed to mutate planner-owned business state
+- `snapshot-worker` must not claim planner queue jobs
+- `status-server` is read-only for business state and operator truth assembly
+- `guardian` supervises processes and recovery, but does not own planner mutation logic
 
 ## 7. Evidence Durability And Conflict Handling
 

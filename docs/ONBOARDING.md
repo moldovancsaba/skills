@@ -57,10 +57,75 @@ npm run lint
 npx tsc --noEmit
 ```
 
-## Canonical Environments
+## Installation And Local Startup
+
+### Prerequisites
+
+- Node.js `20+`
+- npm
+- MongoDB Atlas connection string in `DATABASE_URL`
+- local or reachable Ollama runtime
+
+### Install dependencies
+
+```bash
+npm install
+```
+
+### Required environment
+
+- `DATABASE_URL`
+
+Common optional runtime variables:
+
+- `OLLAMA_URL` or `OLLAMA_HOST`
+- `OLLAMA_MODEL`
+- `FALLBACK_MODEL`
+- `USE_SAFE_MODE`
+
+### Start the web app
+
+Default:
+
+```bash
+npm run dev
+```
+
+If `3000` is already in use, run the app on an explicit free port instead:
+
+```bash
+npm run dev -- --port 3415
+```
+
+### Start the local AI runtime
+
+Recommended:
+
+```bash
+npm run guardian
+```
+
+The guardian supervises:
+
+- `sync`
+- `snapshot-worker`
+- `status-server`
+
+## Canonical Local URLs
 
 - production: `https://checklist.checklistsquad.com`
-- local development: `http://localhost:3000`
+- local development default: `http://localhost:3000`
+- local development on an alternate port example: `http://localhost:3415`
+- public local AI operator dashboard: `http://localhost:3415/local-ai`
+- raw worker health: `http://127.0.0.1:10005/health`
+- raw status payload: `http://127.0.0.1:10006/api/status`
+- raw snapshot-worker health: `http://127.0.0.1:10007/health`
+
+Important:
+
+- `/local-ai` is public and not login-gated
+- it is a global local-AI mission-control surface, not a company page
+- when there is no app session, bare `/` rewrites to `/local-ai`
 
 ## Core Product Routes
 

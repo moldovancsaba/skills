@@ -5,10 +5,8 @@ import { nextSourcePublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-id
 
 /**
  * checklist SOURCE LIBRARY
- * v0.11.4-STABLE
- * 
- * Logic for managing DataCards (Sources). 
- * Purely data-driven architecture for multi-tenant intelligence.
+ *
+ * Source and datacard management helpers for multi-tenant intelligence.
  */
 
 /**
@@ -30,7 +28,7 @@ export async function listCompanySources(companyId: string, entityTag?: string) 
 
 /**
  * Orchestrates unified source management for a company.
- * Note: Legacy backfill logic has been purged in v0.11.x.
+ * Legacy backfill logic has been removed from this path.
  * 
  * @param {string} companyId - Unique company ID
  * @returns {Promise<boolean>} Always returns true as all sources are now native DataCards

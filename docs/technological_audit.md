@@ -1,4 +1,18 @@
-# 🛠️ Technological Audit: checklist v0.14.0 (Hardened)
+# Historical Audit: checklist v0.14.0 (Hardened)
+
+Status:
+
+- historical reference only
+- not an active architecture contract
+- do not use this document as current runtime truth
+
+Current authoritative documents:
+
+- `README.md`
+- `docs/RULEBOOK.md`
+- `docs/SSOT.md`
+- `docs/SYSTEM_DESIGN_LLD.md`
+- `docs/LOCAL_AI_PIPELINE.md`
 
 ## 1. Core Architecture
 The system follows a **Private-First, Local-Authoritative** architecture. 
@@ -43,4 +57,4 @@ Immediate recomputation of the "Visible Frontier" after synthesis ensures that t
 *   **Inference**: Ollama (v0.6.3+) running `qwen2.5:7b` for strategy and `gemma3:1b` for rapid extraction.
 
 ---
-*Audit completed on 2026-05-03. Version 0.14.0 is verified as Production Ready.*
+*Audit completed on 2026-05-03. This document describes a past system state and is retained as historical evidence only.*

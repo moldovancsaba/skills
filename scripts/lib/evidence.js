@@ -1,7 +1,6 @@
 /**
  * TRINITY EVIDENCE LAYER
  * M1.1 — Canonical Evidence Model
- * v1.0.0
  *
  * Implements the EvidenceUnit contract from the Trinity formal production definition §7.
  *

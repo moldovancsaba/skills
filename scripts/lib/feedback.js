@@ -2,7 +2,6 @@
  * TRINITY FEEDBACK HANDLER
  * M3.2 — Typed Decline Classification & Rework Routing
  * M3.3 — DELIVER Signal & Downstream Reward Propagation
- * v1.0.0
  *
  * Implements the FeedbackEvent processing layer from Trinity §19–§21.
  *

@@ -151,7 +151,9 @@ The shipped quality cadence inside the queue-owned worker is:
 4. task opportunity mining
 5. oldest-first maintenance refresh
 6. feedback-pressure regeneration
-7. frontier recompute and intelligence snapshot refresh
+7. frontier recompute
+
+Snapshot refresh is a separate background concern owned by `snapshot-worker`, not part of the foreground quality-execution lane.
 
 This cadence is bounded by the existing planner timeout and fairness rules.
 

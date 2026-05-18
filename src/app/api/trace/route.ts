@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 
@@ -8,9 +8,15 @@ import { verifyMembership } from "@/lib/permissions";
  * Reconstructs the evidence -> flashcard -> task provenance chain for a
  * version family using the current persisted schema relationships.
  */
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const familyId = searchParams.get("familyId");
+type TraceNode = {
+  id: string;
+  type: "TASK" | "FLASHCARD" | "SOURCE";
+  title: string;
+  timestamp: Date;
+};
+
+export async function GET(req: NextRequest) {
+  const familyId = req.nextUrl.searchParams.get("familyId");
 
   if (!familyId) {
     return NextResponse.json({ error: "familyId required" }, { status: 400 });
@@ -28,10 +34,10 @@ export async function GET(req: Request) {
       return NextResponse.json([]);
     }
 
-    const auth = await verifyMembership(req as any, companyId);
+    const auth = await verifyMembership(req, companyId);
     if (auth.error) return auth.error;
 
-    const nodes: any[] = [];
+    const nodes: TraceNode[] = [];
     tasks.forEach(t => nodes.push({ id: t.id, type: "TASK", title: t.title, timestamp: t.createdAt }));
 
     // 2. Collect flashcard IDs referenced by these tasks
@@ -69,7 +75,8 @@ export async function GET(req: Request) {
     nodes.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     return NextResponse.json(nodes);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

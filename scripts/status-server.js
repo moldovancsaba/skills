@@ -1,8 +1,8 @@
 /**
  * checklist Local AI Command Center
- * v0.13.0 — "2026 Clean" Edition
  *
- * A standalone monitoring dashboard for the local AI runtime and supervisor.
+ * Standalone monitoring surface for the local AI runtime, queue, and
+ * supervisor processes.
  */
 
 "use strict";

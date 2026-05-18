@@ -1,12 +1,14 @@
-# Local AI Naming Normalization
+# Historical Local AI Naming Normalization Record
+
+Status:
+- historical delivery record
+- not the active source of truth for current release version
+- retained to document a completed naming cleanup
 
 Date:
 - `2026-05-13`
 
-Status:
-- `Delivered`
-
-Version:
+Delivered release at the time:
 - `0.15.5`
 
 ## Why this cleanup happened

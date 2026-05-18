@@ -63,6 +63,39 @@ The local runtime now has 4 always-on processes:
    - owns bounded intelligence snapshot refresh only
    - must not claim planner queue jobs
 
+## Runtime startup and operator access
+
+Recommended runtime startup:
+
+```bash
+npm run guardian
+```
+
+Recommended web application startup:
+
+```bash
+npm run dev
+```
+
+If the default web port is already occupied:
+
+```bash
+npm run dev -- --port 3415
+```
+
+Operator surfaces:
+
+- public mission-control page: `http://localhost:3415/local-ai`
+- worker health: `http://127.0.0.1:10005/health`
+- status payload: `http://127.0.0.1:10006/api/status`
+- snapshot-worker health: `http://127.0.0.1:10007/health`
+
+Rules:
+
+- `/local-ai` is global runtime observability, not a company route
+- `/local-ai` is not login-gated
+- bare `/` rewrites to `/local-ai` when no app session exists
+
 ## Canonical flow
 
 ### 1. Raw data ingestion

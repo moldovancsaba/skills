@@ -1,7 +1,6 @@
 /**
  * checklist EVALUATOR
  * M2.3 — Tournament Consensus Judging & Strategic Steering
- * v1.2.0-PRODUCTION
  */
 const { callOllamaWithFailover } = require("./ai");
 const { STAGE_MODELS, JUDGE_STAGE_TIMEOUT_MS, queueAiInference } = require("./core");

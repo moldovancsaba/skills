@@ -1,8 +1,7 @@
 /**
  * TRINITY AUDITOR (Intelligence Purifier)
  * M4.1 — Self-Correcting Intelligence (SCI) Layer
- * v1.0.0
- * 
+ *
  * Responsibilities:
  *   - Probes existing cards for Tri-Layer taxonomy purity.
  *   - Identifies mismatches between content and layer (Knowledge, Goal, Task).

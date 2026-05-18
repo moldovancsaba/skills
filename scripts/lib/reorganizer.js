@@ -1,8 +1,7 @@
 /**
  * TRINITY REORGANIZER
  * M4.1 — Self-Healing Intelligence Pipeline
- * v1.0.0
- * 
+ *
  * Responsibilities:
  *   - Executes re-classification of misclassified cards.
  *   - Preserves lineage and metadata during migration.

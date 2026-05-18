@@ -1,7 +1,6 @@
 /**
  * checklist AI INTERFACE
- * v0.11.4-STABLE
- * 
+ *
  * Core communication layer for Ollama and the local AI pipeline.
  * Handles JSON repair, model failover, and serial inference locking.
  */

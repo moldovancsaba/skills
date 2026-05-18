@@ -41,17 +41,21 @@ Primary hardening goals:
 
 ## 2. Verified Runtime Problems
 
-This design exists because the current runtime still has structural weaknesses.
+This design exists because the runtime has improved materially, but is not yet fully minimal or fully predictable under continuous pressure.
 
-Verified problems in the current code path:
+Verified remaining problems in the current code path:
 
-- the foreground worker loop still performs heavy non-job work before and after queue execution
-- queue synchronization is still on the hot path, although the duplicate pre-claim global sync has been removed and replaced with a bounded foreground sync interval
-- snapshot refresh still shares the same execution lane as claimable planner work
-- low-memory handling is partial; the runtime defers some work, but it still carries too much overhead in the main loop
-- one logical worker can still look non-linear to operators because system chores happen around the claimed job
-- stale `RUNNING` jobs can still distort operator perception unless heartbeat and reclaim rules stay strong
-- observability currently mixes worker truth, queue truth, and maintenance truth more than it should
+- the foreground worker loop still performs some non-job work around queue execution, even after the worst hot-path waste was removed
+- queue synchronization is still present in the foreground lane on a bounded interval, rather than being fully isolated to background hygiene paths
+- low-memory handling is real but still coarse; the runtime now pauses lanes under pressure, but total machine headroom remains tight
+- one logical worker can still feel non-linear to operators because bounded system chores still happen around claimed work
+- stale `RUNNING` protection is much better than before, but operator trust still depends on strong heartbeat and reclaim behavior remaining intact
+- observability has improved, but some surfaces still mix worker truth, queue truth, and derived read-model truth more than ideal
+
+No longer current:
+
+- snapshot refresh does not share the foreground execution lane anymore
+- duplicate full-company queue sync before every claim is no longer the shipped behavior
 
 ## 3. Design Principles
 
@@ -131,7 +135,7 @@ It must not:
 
 ### 4.3 Background worker
 
-A new bounded background lane should be introduced as a separate process:
+A bounded background lane exists as a separate process:
 
 - `snapshot-worker`
 
@@ -258,6 +262,14 @@ Heartbeat interval target:
 ## 7. Background Work Isolation
 
 ### 7.1 Snapshot refresh
+
+Snapshot refresh is already moved out of the foreground worker.
+
+Current contract:
+
+- `snapshot-worker` owns bounded intelligence snapshot refresh
+- foreground queue execution does not perform snapshot refresh inline
+- snapshot work may be paused independently under low memory or foreground backlog pressure
 
 `SNAPSHOT_REFRESH` must move out of the foreground worker.
 

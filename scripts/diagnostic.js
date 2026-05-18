@@ -1,9 +1,7 @@
 /**
  * checklist DIAGNOSTIC AUDIT
- * v0.11.4-STABLE
- * 
- * Performs a deep health audit of the database record distribution.
- * Used for verifying state transitions and multi-tenant data integrity.
+ *
+ * Performs a health audit of database record distribution and tenant state.
  */
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();

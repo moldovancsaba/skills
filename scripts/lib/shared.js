@@ -1,13 +1,15 @@
 /**
  * checklist SHARED UTILITIES
- * v2.0.0 — Ground Truth Edition
+ *
+ * Shared normalization, validation, and worker helper functions used across
+ * the local AI runtime.
  */
 const crypto = require("crypto");
 const { getStageModels } = require("./core");
 
 /**
- * v2.0.0: Canonical Text Normalization
- * Offsets and citations MUST refer to this output.
+ * Canonical text normalization.
+ * Offsets and citations should refer to this sanitized output.
  */
 function canonicalSourceText(raw) {
   if (!raw) return "";
@@ -21,24 +23,23 @@ function canonicalSourceText(raw) {
 }
 
 /**
- * v2.0.0: Idempotency Fingerprinting
+ * Idempotency fingerprinting.
  */
 function generateFingerprint(data) {
   return crypto.createHash("sha256").update(JSON.stringify(data)).digest("hex");
 }
 
 /**
- * v2.0.0: Authoritative Clock Source
- * Workers MUST fetch time from the database.
+ * Runtime clock helper.
+ * Uses the local process clock for timestamps in the single-node runtime.
  */
 async function getServerTime(prisma) {
-  // Reliable DB-backed timestamp. 
-  // In a real multi-node env, this would be a specific DB command.
+  // The prisma parameter is retained for call-site compatibility.
   return new Date(); 
 }
 
 /**
- * v2.0.0: Fail-Closed Tenant Isolation
+ * Fail-closed tenant isolation.
  */
 function validateTenant(companyId) {
   if (!companyId) {
@@ -47,7 +48,7 @@ function validateTenant(companyId) {
 }
 
 /**
- * v2.0.0: HMAC Verification for Bridge
+ * HMAC verification for bridge requests.
  */
 function verifyHmac(payload, signature, secret) {
   if (!secret) return false;

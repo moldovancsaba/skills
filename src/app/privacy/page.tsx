@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { Container, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
 import { IconShield as Shield, IconDatabase as Database, IconLock as Lock, IconEye as Eye, IconMail as Mail } from "@tabler/icons-react";
 import { SectionTitle, Text, Title } from "@/components/ui/typography";
+import { LEGAL_PROTOCOL_LABEL } from "@/lib/release";
 
 export const metadata: Metadata = {
   title: "Privacy Policy - checklist OS",
@@ -19,7 +20,7 @@ export default function PrivacyPage() {
             <Title order={1}>Privacy Policy</Title>
           </Group>
           <Text size="xs" c="dimmed" ml={rem(44)}>
-            PROTOCOL v0.16.0 • LAST SYNC: MAY 2026
+            {LEGAL_PROTOCOL_LABEL}
           </Text>
         </Box>
 

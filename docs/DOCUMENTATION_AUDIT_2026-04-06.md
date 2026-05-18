@@ -1,8 +1,22 @@
-# checklist Documentation Audit
+# Historical Documentation Audit
+
+Status:
+
+- historical audit only
+- not current product or runtime truth
+- retained to explain past documentation drift, not to define current behavior
+
+Current documentation authority:
+
+- `README.md`
+- `docs/RULEBOOK.md`
+- `docs/SSOT.md`
+- `docs/SYSTEM_DESIGN_LLD.md`
+- the active low-level local AI design documents linked from those files
 
 Date: `2026-04-06`
 Scope: repository documentation versus current codebase in `src/`, `prisma/`, and `package.json`
-Status: audit complete, documentation is inconsistent and needs consolidation
+Status: audit complete at the time it was written; preserved as a historical drift record
 
 ## Executive Summary
 

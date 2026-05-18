@@ -3,8 +3,7 @@ const { humanReadableAllowedLanguages, getLanguagePolicyPrompt } = require("./la
 
 /**
  * checklist STRATEGIC CONTEXT
- * v1.2.0-PRODUCTION
- * 
+ *
  * Orchestrates the "Strategic Stack" for AI agents.
  * Harvests user-defined tactical priorities from the Kanban board (sortOrder < 0)
  * to steer the Trinity pipeline towards user-indicated focus areas.

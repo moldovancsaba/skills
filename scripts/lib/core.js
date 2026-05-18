@@ -1,9 +1,8 @@
 /**
  * checklist CORE CONFIGURATION
- * v0.11.4-STABLE
- * 
- * Global settings, timeout thresholds, and the AI Inference Serial Lock.
- * Centralized configuration for the entire local AI engine.
+ *
+ * Centralized runtime configuration for the local AI engine, including model
+ * selection, timeout thresholds, and the serial inference queue.
  */
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });

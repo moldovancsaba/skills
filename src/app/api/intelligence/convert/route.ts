@@ -1,25 +1,95 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import type { FlashcardSourceType, IntelligenceType } from "@prisma/client";
 import { recordDecisionEvent, recordInteractionEvent, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { normalizeKnowledgeScores, normalizeTaskScores } from "@/lib/scoring-contract";
 
-export async function POST(req: Request) {
-  try {
-    const { sourceId, sourceType, targetType, companyId } = await req.json();
+type ConvertibleSourceType = "FLASHCARD" | "GOALCARD" | "TASKCARD" | "SOURCE";
+type ConvertibleTargetType = "FLASHCARD" | "GOALCARD" | "TASKCARD";
 
-    if (!sourceId || !sourceType || !targetType || !companyId) {
+type SourceLink = {
+  sourceId: string;
+  sourceType: FlashcardSourceType;
+  sourceName?: string | null;
+};
+
+type ConvertibleRecord = {
+  id: string;
+  companyId: string;
+  title?: string | null;
+  body?: string | null;
+  description?: string | null;
+  content?: string | null;
+  provenance?: string | null;
+  publicId?: number | null;
+  confidence?: number | null;
+  confidenceScore?: number | null;
+  impact?: number | null;
+  weight?: number | null;
+  ease?: number | null;
+  hashtags?: string[] | null;
+  intelligenceType?: string | null;
+  generatedFromIds?: string[] | null;
+  sources?: SourceLink[];
+};
+
+function isConvertibleSourceType(value: unknown): value is ConvertibleSourceType {
+  return value === "FLASHCARD" || value === "GOALCARD" || value === "TASKCARD" || value === "SOURCE";
+}
+
+function isConvertibleTargetType(value: unknown): value is ConvertibleTargetType {
+  return value === "FLASHCARD" || value === "GOALCARD" || value === "TASKCARD";
+}
+
+function deriveSourceTitle(source: Pick<ConvertibleRecord, "title" | "content" | "provenance" | "publicId">) {
+  if (typeof source.title === "string" && source.title.trim()) return source.title.trim();
+  if (typeof source.provenance === "string" && source.provenance.trim()) return source.provenance.trim();
+  const content = typeof source.content === "string" ? source.content.replace(/\s+/g, " ").trim() : "";
+  if (content) return content.length > 80 ? `${content.slice(0, 80).trimEnd()}...` : content;
+  return source.publicId ? `Source #${source.publicId}` : "Converted Source";
+}
+
+function normalizeIntelligenceType(value: unknown): IntelligenceType {
+  return value === "COMPETITOR" ? "COMPETITOR" : "INTERNAL";
+}
+
+function buildBaseData(sourceType: ConvertibleSourceType, sourceData: ConvertibleRecord) {
+  return {
+    companyId: sourceData.companyId,
+    title: sourceType === "SOURCE" ? deriveSourceTitle(sourceData) : String(sourceData.title || "").trim(),
+    body: sourceType === "SOURCE"
+      ? String(sourceData.content || "")
+      : String(sourceData.body || sourceData.description || ""),
+    confidence: sourceData.confidenceScore ?? sourceData.confidence ?? 5,
+    impact: sourceData.impact ?? 5,
+    weight: sourceData.weight ?? sourceData.ease ?? 5,
+    hashtags: Array.isArray(sourceData.hashtags) ? sourceData.hashtags : [],
+    intelligenceType: normalizeIntelligenceType(sourceData.intelligenceType),
+    userAnnotation: `Converted from ${sourceType} ${sourceData.id}. original title: ${sourceType === "SOURCE" ? deriveSourceTitle(sourceData) : sourceData.title || "Untitled"}`,
+  };
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const payload = await req.json();
+    const sourceId = typeof payload?.sourceId === "string" ? payload.sourceId : "";
+    const sourceType = payload?.sourceType;
+    const targetType = payload?.targetType;
+    const companyId = typeof payload?.companyId === "string" ? payload.companyId : "";
+
+    if (!sourceId || !companyId || !isConvertibleSourceType(sourceType) || !isConvertibleTargetType(targetType)) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const auth = await verifyMembership(req as any, companyId);
+    const auth = await verifyMembership(req, companyId);
     if (auth.error) return auth.error;
 
     if (sourceType === targetType) {
       return NextResponse.json({ error: "Source and target types are the same" }, { status: 400 });
     }
 
-    let sourceData: any;
+    let sourceData: ConvertibleRecord | null = null;
 
     // 1. Fetch Source Data
     if (sourceType === "FLASHCARD") {
@@ -40,6 +110,19 @@ export async function POST(req: Request) {
     } else if (sourceType === "SOURCE") {
       sourceData = await prisma.source.findUnique({
         where: { id: sourceId },
+        select: {
+          id: true,
+          companyId: true,
+          content: true,
+          provenance: true,
+          publicId: true,
+          confidence: true,
+          confidenceScore: true,
+          impact: true,
+          weight: true,
+          hashtags: true,
+          intelligenceType: true,
+        },
       });
     }
 
@@ -48,18 +131,12 @@ export async function POST(req: Request) {
     }
 
     // 2. Create Target Data
-    let createdItem: any;
-    const baseData = {
-      companyId: sourceData.companyId,
-      title: sourceData.title,
-      body: sourceData.body || sourceData.description || "",
-      confidence: sourceData.confidenceScore ?? sourceData.confidence ?? 5,
-      impact: sourceData.impact ?? 5,
-      weight: sourceData.weight ?? sourceData.ease ?? 5,
-      hashtags: sourceData.hashtags || [],
-      intelligenceType: sourceData.intelligenceType || "INTERNAL",
-      userAnnotation: `Converted from ${sourceType} ${sourceId}. original title: ${sourceData.title}`,
-    };
+    let createdItem: { id: string } | null = null;
+    const baseData = buildBaseData(sourceType, sourceData);
+
+    if (!baseData.title) {
+      return NextResponse.json({ error: "Source card has no usable title" }, { status: 400 });
+    }
 
     if (targetType === "FLASHCARD") {
       const normalizedScores = normalizeKnowledgeScores(baseData);
@@ -90,8 +167,11 @@ export async function POST(req: Request) {
         }
       });
     } else if (targetType === "TASKCARD") {
-      const generatedFromIds = sourceData.sources ? sourceData.sources.map((s: any) => s.sourceId) : 
-                               sourceData.generatedFromIds ? sourceData.generatedFromIds : [];
+      const generatedFromIds = Array.isArray(sourceData.sources)
+        ? sourceData.sources.map((source) => source.sourceId)
+        : Array.isArray(sourceData.generatedFromIds)
+          ? sourceData.generatedFromIds
+          : [];
       const normalizedScores = normalizeTaskScores(baseData);
       createdItem = await prisma.checklistTask.create({
         data: {
@@ -108,6 +188,10 @@ export async function POST(req: Request) {
           generatedFromIds: generatedFromIds,
         }
       });
+    }
+
+    if (!createdItem) {
+      return NextResponse.json({ error: "Unsupported conversion target" }, { status: 400 });
     }
 
     await recordInteractionEvent({
@@ -140,7 +224,7 @@ export async function POST(req: Request) {
     });
 
     // 3. Migrate Sources (Lineage)
-    if (sourceData.sources && sourceData.sources.length > 0 && targetType !== "TASKCARD") {
+    if (Array.isArray(sourceData.sources) && sourceData.sources.length > 0 && targetType !== "TASKCARD") {
       for (const s of sourceData.sources) {
         if (targetType === "FLASHCARD") {
           await prisma.flashcardSource.create({

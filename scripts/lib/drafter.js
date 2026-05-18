@@ -1,12 +1,11 @@
 /**
  * checklist GENERATOR (Drafter)
  * M2.1 — Multi-Cardinality Synthesis & Recurrent Depth Transformer (RDT)
- * v1.2.0-PRODUCTION
  *
  * Implements the Generator stage from the local AI production definition §8.
  * Refactored into a Multi-Phase Recurrent Agent loop inspired by the OpenMythos RDT philosophy.
  *
- * Key changes since v1.0.0:
+ * Key changes in this architecture:
  *   - Recurrent Synthesis: 3-phase computational loop (Prelude, Recurrence, Coda).
  *   - Input Injection (§217): Re-injects raw evidence in every loop to prevent drift.
  *   - Strategic Learning: Harvests user-defined Kanban priorities from context.js.

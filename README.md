@@ -36,6 +36,11 @@ This repository has one non-negotiable rule:
 
 - if the system contract changes, the documentation contract must change in the same work
 
+Documentation scope rule:
+
+- documents explicitly listed in the hierarchy below are active contract documents
+- historical audits, postmortems, migration notes, and dated research papers under `docs/` are not current runtime truth unless an active contract document explicitly incorporates them
+
 Professional operating rule:
 
 - do not hallucinate repository facts or rules
@@ -64,6 +69,11 @@ If two docs disagree:
 - `docs/RULEBOOK.md` wins
 - then `docs/SSOT.md`
 - then implementation in the designated source-of-truth files listed below
+
+If a dated audit or retrospective disagrees with active contract docs or live code:
+
+- treat the dated audit as historical evidence
+- treat the active hierarchy plus live implementation as current truth
 
 ## Approved Stack
 
@@ -159,6 +169,115 @@ Knowmore evidence durability:
 Current shipped release:
 
 - `v0.16.0`
+
+## Open Source Quickstart
+
+This is the shortest correct path for running the repository locally.
+
+### Prerequisites
+
+- Node.js `20+`
+- npm
+- MongoDB Atlas connection string in `DATABASE_URL`
+- Ollama running locally or on a reachable host
+
+Recommended local model baseline:
+
+- `qwen2.5:7b`
+- or a smaller fallback model configured through the existing worker/runtime settings
+
+### Install
+
+```bash
+npm install
+```
+
+Prisma client generation runs automatically on install and prebuild.
+
+### Configure
+
+Required environment:
+
+- `DATABASE_URL`
+
+Optional but commonly used local AI environment:
+
+- `OLLAMA_URL` or `OLLAMA_HOST`
+- `OLLAMA_MODEL`
+- `FALLBACK_MODEL`
+- `USE_SAFE_MODE`
+
+### Run the web app
+
+The Next.js app defaults to port `3000`, but you should use any free local port if `3000` is already occupied.
+
+Examples:
+
+```bash
+npm run dev
+```
+
+or on a non-default port:
+
+```bash
+npm run dev -- --port 3415
+```
+
+### Run the local AI runtime
+
+The recommended entrypoint is the guardian:
+
+```bash
+npm run guardian
+```
+
+That supervision path owns the local AI process group and keeps these runtime services alive:
+
+- `sync`
+- `snapshot-worker`
+- `status-server`
+
+Architecture note:
+
+- `guardian` is the watchdog and supervisor
+- `sync` is the only foreground mutating worker
+- `snapshot-worker` owns background intelligence snapshot refresh
+- `status-server` owns runtime observability payload assembly
+
+### Local operator URLs
+
+If you run the web app on port `3415`, the public no-login operator surface is:
+
+- `http://localhost:3415/local-ai`
+
+Raw local AI endpoints:
+
+- worker health: `http://127.0.0.1:10005/health`
+- status server: `http://127.0.0.1:10006/api/status`
+- snapshot-worker health: `http://127.0.0.1:10007/health`
+
+Important:
+
+- `/local-ai` is the public mission-control page for the local AI runtime
+- it is not company-scoped
+- it is not login-gated
+- bare `/` rewrites to `/local-ai` when there is no session
+
+Related architecture references:
+
+- [docs/SSOT.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/SSOT.md)
+- [docs/SYSTEM_DESIGN_LLD.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/SYSTEM_DESIGN_LLD.md)
+- [docs/LOCAL_AI_PIPELINE.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_PIPELINE.md)
+- [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
+
+### Verify the repo before working
+
+```bash
+npm run audit:docs
+npm run audit:semantic
+npm run lint
+npx tsc --noEmit
+```
 
 Release artifacts:
 

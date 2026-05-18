@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { readAppSession } from "@/lib/auth";
 import { verifyMembership, verifySuperAdmin } from "@/lib/permissions";
@@ -6,6 +7,20 @@ import { normalizeIndustryHashtags } from "@/lib/hashtags";
 import { validateCompanyProfile } from "@/lib/profile-validation";
 
 export const dynamic = 'force-dynamic';
+
+const COMPANY_MAIN_GOALS = [
+  "GROW_REVENUE",
+  "LAUNCH_PRODUCT",
+  "ENTER_NEW_MARKET",
+  "BUILD_AWARENESS",
+  "GENERATE_LEADS",
+] as const;
+
+type CompanyMainGoal = (typeof COMPANY_MAIN_GOALS)[number];
+
+function isCompanyMainGoal(value: unknown): value is CompanyMainGoal {
+  return typeof value === "string" && COMPANY_MAIN_GOALS.includes(value as CompanyMainGoal);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -119,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     const industries = normalizeIndustryHashtags(data.industries || (data.industry ? [data.industry] : []));
     
-    const createData: any = {
+    const createData: Prisma.CompanyCreateInput = {
       name: data.name,
       industry: industries[0] || null,
       industries,
@@ -139,7 +154,7 @@ export async function POST(request: NextRequest) {
       }
     };
     
-    if (data.mainGoal && ["GROW_REVENUE", "LAUNCH_PRODUCT", "ENTER_NEW_MARKET", "BUILD_AWARENESS", "GENERATE_LEADS"].includes(data.mainGoal)) {
+    if (isCompanyMainGoal(data.mainGoal)) {
       createData.mainGoal = data.mainGoal;
     }
     
@@ -173,20 +188,22 @@ export async function PATCH(request: NextRequest) {
 
     const industries = data.industries ? normalizeIndustryHashtags(data.industries) : undefined;
     
+    const updateData: Prisma.CompanyUpdateInput = {
+      name: data.name,
+      industry: industries ? industries[0] : (data.industry || undefined),
+      industries: industries || undefined,
+      description: data.description || null,
+      targetMarket: data.targetMarket || null,
+      website: data.website !== undefined ? data.website : undefined,
+      businessModel: data.businessModel !== undefined ? data.businessModel : undefined,
+      productCategories: data.productCategories !== undefined ? data.productCategories : undefined,
+      demographics: data.demographics !== undefined ? data.demographics : undefined,
+      competitors: data.competitors !== undefined ? data.competitors : undefined,
+    };
+
     const company = await prisma.company.update({
       where: { id },
-      data: {
-        name: data.name,
-        industry: industries ? industries[0] : (data.industry || undefined),
-        industries: industries || undefined,
-        description: data.description || null,
-        targetMarket: data.targetMarket || null,
-        website: data.website !== undefined ? data.website : undefined,
-        businessModel: data.businessModel !== undefined ? data.businessModel : undefined,
-        productCategories: data.productCategories !== undefined ? data.productCategories : undefined,
-        demographics: data.demographics !== undefined ? data.demographics : undefined,
-        competitors: data.competitors !== undefined ? data.competitors : undefined,
-      },
+      data: updateData,
     });
     
     return NextResponse.json(company);

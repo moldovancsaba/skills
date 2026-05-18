@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { Container, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
 import { IconShieldCheck as ShieldCheck, IconFileText as FileText, IconCpu as Cpu, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconRefresh as RefreshCw } from "@tabler/icons-react";
 import { SectionTitle, Text, Title } from "@/components/ui/typography";
+import { LEGAL_PROTOCOL_LABEL } from "@/lib/release";
 
 export const metadata: Metadata = {
   title: "Terms of Service - checklist OS",
@@ -19,7 +20,7 @@ export default function TermsPage() {
             <Title order={1}>Terms of Service</Title>
           </Group>
           <Text size="xs" c="dimmed" ml={rem(44)}>
-            PROTOCOL v0.16.0 • LAST SYNC: MAY 2026
+            {LEGAL_PROTOCOL_LABEL}
           </Text>
         </Box>
 

@@ -1,9 +1,8 @@
 /**
  * checklist HASHTAG UTILITIES
- * v0.11.4-STABLE
- * 
- * Logic for sanitizing, normalizing, and filtering hashtags across the intelligence layer.
- * Enforces unified formatting and handles source-type exclusions.
+ *
+ * Sanitizing, normalizing, and filtering hashtags across the intelligence
+ * layer, including source-type exclusions.
  */
 
 export const SOURCE_TYPE_TAGS = new Set(["#product", "#customer", "#competitor", "#file", "#industry"]);

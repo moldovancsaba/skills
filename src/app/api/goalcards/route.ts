@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { normalizeGoalScores } from "@/lib/scoring-contract";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get("companyId");
   const limitParam = searchParams.get("limit");
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
   }
 
-  const auth = await verifyMembership(req as any, companyId);
+  const auth = await verifyMembership(req, companyId);
   if (auth.error) return auth.error;
 
   const limit = limitParam ? Number(limitParam) : null;
@@ -71,7 +71,7 @@ export async function GET(req: Request) {
   return NextResponse.json(goalcards);
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { companyId, title, body: content, hashtags, intelligenceType, iceScore } = body;
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const auth = await verifyMembership(req as any, companyId);
+    const auth = await verifyMembership(req, companyId);
     if (auth.error) return auth.error;
 
     const normalizedScores = normalizeGoalScores({
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
       }
     });
 
-    await recordInteractionEventFromRequest(req as any, {
+    await recordInteractionEventFromRequest(req, {
       companyId,
       surface: "goals",
       interactionType: "DATACARD_PROMOTE_GOAL",
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -142,7 +142,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const auth = await verifyMembership(req as any, existing.companyId);
+    const auth = await verifyMembership(req, existing.companyId);
     if (auth.error) return auth.error;
 
     const normalizedScores = normalizeGoalScores({
@@ -168,7 +168,7 @@ export async function PATCH(req: Request) {
       }
     });
 
-    await recordInteractionEventFromRequest(req as any, {
+    await recordInteractionEventFromRequest(req, {
       companyId: existing.companyId,
       surface: "goals",
       interactionType: "GOAL_REVIEW_EDIT",
@@ -207,7 +207,7 @@ export async function PATCH(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
@@ -220,7 +220,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const auth = await verifyMembership(req as any, existing.companyId);
+  const auth = await verifyMembership(req, existing.companyId);
   if (auth.error) return auth.error;
 
   await prisma.goalcard.update({
@@ -228,7 +228,7 @@ export async function DELETE(req: Request) {
     data: { activityState: "ARCHIVED" }
   });
 
-  await recordInteractionEventFromRequest(req as any, {
+  await recordInteractionEventFromRequest(req, {
     companyId: existing.companyId,
     surface: "goals",
     interactionType: "GOAL_REVIEW_DECLINE",

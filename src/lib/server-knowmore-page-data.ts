@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { APP_SESSION_COOKIE, readAppSessionToken } from "@/lib/auth";
 import { listCompanyFlashcardsPage } from "@/lib/flashcards";
@@ -53,6 +54,45 @@ export type KnowmoreInitialData = {
   } | null;
   filters: KnowmoreInitialFilters;
 };
+
+async function buildLiveKnowmoreSummary(companyId: string) {
+  const flashcardBaseWhere: Prisma.FlashcardWhereInput = {
+    companyId,
+    activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+  };
+  const goalBaseWhere: Prisma.GoalcardWhereInput = {
+    companyId,
+    activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+  };
+
+  const [flashcardCount, goalCount, averages, reviewedCount] = await Promise.all([
+    prisma.flashcard.count({ where: flashcardBaseWhere }),
+    prisma.goalcard.count({ where: goalBaseWhere }),
+    prisma.flashcard.aggregate({
+      where: flashcardBaseWhere,
+      _avg: {
+        confidenceScore: true,
+        iceScore: true,
+        weight: true,
+      },
+    }),
+    prisma.flashcard.count({
+      where: {
+        ...flashcardBaseWhere,
+        processingStatus: { in: ["ACCEPTED", "DECLINED"] as const },
+      },
+    }),
+  ]);
+
+  return {
+    knowmoreCount: flashcardCount,
+    strategicGoalsCount: goalCount,
+    synthesisYield: flashcardCount > 0 ? Math.round((reviewedCount / flashcardCount) * 100) : 0,
+    confidenceAvg: Math.round(Number(averages._avg?.confidenceScore ?? 0)),
+    iceScoreAvg: Math.round(Number(averages._avg?.iceScore ?? 0)),
+    easeScoreAvg: Math.round(Number(averages._avg?.weight ?? 0)),
+  };
+}
 
 async function getSessionAndMembership(companyId: string) {
   const cookieStore = await cookies();
@@ -120,7 +160,7 @@ export async function getKnowmoreInitialData(
     typeof searchParams?.tags === "string" ? searchParams.tags : null,
   );
 
-  const [company, snapshotSummary, page, health, members] = await Promise.all([
+  const [company, snapshotSummary, page, health, members, liveSummary] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
       select: { id: true, name: true },
@@ -149,6 +189,7 @@ export async function getKnowmoreInitialData(
       where: { companyId },
       orderBy: { createdAt: "asc" },
     }),
+    buildLiveKnowmoreSummary(companyId),
   ]);
 
   if (!company) return null;
@@ -161,16 +202,32 @@ export async function getKnowmoreInitialData(
     health,
     isOwner: ["OWNER", "SUPERADMIN"].includes(auth.membership.role),
     members,
-    snapshotSummary: snapshotSummary
-      ? {
-          knowmoreCount: snapshotSummary.knowmoreCount,
-          strategicGoalsCount: snapshotSummary.strategicGoalsCount,
-          synthesisYield: snapshotSummary.synthesisYield,
-          confidenceAvg: snapshotSummary.confidenceAvg,
-          iceScoreAvg: snapshotSummary.iceScoreAvg,
-          easeScoreAvg: snapshotSummary.easeScoreAvg,
-        }
-      : null,
+    snapshotSummary: {
+      knowmoreCount:
+        Number(snapshotSummary?.knowmoreCount ?? 0) > 0
+          ? Number(snapshotSummary?.knowmoreCount ?? 0)
+          : liveSummary.knowmoreCount,
+      strategicGoalsCount:
+        Number(snapshotSummary?.strategicGoalsCount ?? 0) > 0
+          ? Number(snapshotSummary?.strategicGoalsCount ?? 0)
+          : liveSummary.strategicGoalsCount,
+      synthesisYield:
+        Number(snapshotSummary?.synthesisYield ?? 0) > 0
+          ? Number(snapshotSummary?.synthesisYield ?? 0)
+          : liveSummary.synthesisYield,
+      confidenceAvg:
+        Number(snapshotSummary?.confidenceAvg ?? 0) > 0
+          ? Number(snapshotSummary?.confidenceAvg ?? 0)
+          : liveSummary.confidenceAvg,
+      iceScoreAvg:
+        Number(snapshotSummary?.iceScoreAvg ?? 0) > 0
+          ? Number(snapshotSummary?.iceScoreAvg ?? 0)
+          : liveSummary.iceScoreAvg,
+      easeScoreAvg:
+        Number(snapshotSummary?.easeScoreAvg ?? 0) > 0
+          ? Number(snapshotSummary?.easeScoreAvg ?? 0)
+          : liveSummary.easeScoreAvg,
+    },
     filters: {
       searchQuery,
       filterKind,

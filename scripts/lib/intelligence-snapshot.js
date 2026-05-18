@@ -953,7 +953,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
     ? progressSetting.value
     : {};
 
-  const [dataSources, uploadedFiles, topics, flashcards, goals, checklistTasks, checklistCount, reviewCount, laneCountRows, scoreHealth, analyticsHistory, feedbackAnalytics, hashtagAnalytics] = await Promise.all([
+  const [dataSources, uploadedFiles, topics, flashcards, goals, checklistTasks, checklistCount, reviewCount, laneCountRows, flashcardAverages, reviewedFlashcards, scoreHealth, analyticsHistory, feedbackAnalytics, hashtagAnalytics] = await Promise.all([
     prisma.source.count({ where: { companyId } }),
     prisma.uploadedSourceFile.count({ where: { companyId } }),
     prisma.topic.count({ where: { companyId } }),
@@ -984,6 +984,24 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
         processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
       },
       _count: { _all: true },
+    }),
+    prisma.flashcard.aggregate({
+      where: {
+        companyId,
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+      },
+      _avg: {
+        confidenceScore: true,
+        iceScore: true,
+        weight: true,
+      },
+    }),
+    prisma.flashcard.count({
+      where: {
+        companyId,
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        processingStatus: { in: ["ACCEPTED", "DECLINED"] },
+      },
     }),
     computeCompanyScoreHealth(companyId, prisma),
     buildAnalyticsHistory(prisma, companyId),
@@ -1087,10 +1105,10 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
   };
 
   const metrics = {
-    synthesisYield: Number(progress?.metrics?.companiesCoveredThisCycle || 0),
-    confidenceAvg: 0,
-    iceScoreAvg: 0,
-    easeScoreAvg: 0,
+    synthesisYield: flashcards > 0 ? Math.round((Number(reviewedFlashcards || 0) / flashcards) * 100) : 0,
+    confidenceAvg: Math.round(Number(flashcardAverages?._avg?.confidenceScore || 0)),
+    iceScoreAvg: Math.round(Number(flashcardAverages?._avg?.iceScore || 0)),
+    easeScoreAvg: Math.round(Number(flashcardAverages?._avg?.weight || 0)),
   };
 
   return prisma.intelligenceSnapshot.upsert({

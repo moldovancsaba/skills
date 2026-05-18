@@ -200,6 +200,8 @@ Hot routes improved in this slice:
 - server-side company dashboard bootstrap in `src/lib/server-company-page-data.ts`
 - server-side Knowmore bootstrap in `src/lib/server-knowmore-page-data.ts`
 - database-level Knowmore paging/filtering in `src/lib/flashcards.ts` and `GET /api/knowmore`
+- server-side datacard bootstrap in `src/lib/server-company-page-data.ts` via `/:companyId/data`
+- server-side topics bootstrap in `src/lib/server-topics-page-data.ts` via `/:companyId/topics`
 
 ## 7.1 Knowmore pagination contract
 
@@ -219,6 +221,25 @@ Forbidden pattern:
 - then slice the array in route code or client code
 
 That pattern is exactly what made the Knowmore route feel much slower than it should.
+
+## 7.2 Follow-up audit result
+
+The first broad sibling audit after Knowmore found three surfaces in the same architectural family:
+
+- Knowmore
+- Datacards
+- Topics
+
+Shipped status:
+
+- Knowmore: fixed
+- Datacards: fixed bootstrap path to use the existing server loader instead of the older client-init page
+- Topics: fixed bootstrap path so the page no longer loads the full company list just to resolve one company shell
+
+Remaining caution:
+
+- not every large corpus route is fully paginated yet
+- any future corpus-heavy surface must be checked against the same rule before it is treated as production-ready
 
 ## 8. Delivered Hardening Follow-Through
 

@@ -58,6 +58,8 @@ Read first:
 - the shipped follow-up slice now also includes server-side home/main dashboard bootstrap plus projection-backed home-card chart payloads, so the landing route no longer needs to pull full snapshot analytics documents on first load
 - the shipped follow-up slice now also includes server-bootstrapped shell identity, so the authenticated sidebar can render immediately from the signed session cookie instead of waiting for a post-mount identity request
 - the shipped follow-up slice now also defers home-card chart rendering until those cards approach the viewport, reducing up-front client chart work on the landing page
+- the shipped Knowmore follow-up slice now also server-bootstraps the first page and uses database-level paging/filtering for knowledge rows, so the route no longer loads the full corpus and slices it in memory
+- Knowmore pagination must preserve full-corpus predictive search and filtering semantics; do not reintroduce client-only slice filtering as a shortcut
 - the dashboard first response is now intentionally narrower: non-critical member and identity details are not supposed to sit on the critical product-summary path
 - the shipped follow-up slice now also includes bounded cold-start projection backfill in `snapshot-worker`, so fresh or repaired environments do not sit indefinitely on missing product read models
 - startup integrity scrub cooldown now persists across restarts instead of firing again on every guardian bounce

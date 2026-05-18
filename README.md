@@ -40,6 +40,7 @@ Future-function rule:
 
 - new product functions must follow [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md)
 - future mini-app work must stay projection-first, server-bootstrapped where appropriate, payload-disciplined, and profiling-driven once the obvious architectural problems are removed
+- if a large corpus view needs pagination, search and filtering must still operate on the full eligible corpus, not just the visible page slice
 
 Documentation scope rule:
 

@@ -198,6 +198,27 @@ Hot routes improved in this slice:
 - `GET /api/companies/[companyId]/nav`
 - server-side home bootstrap in `src/lib/server-home-page-data.ts`
 - server-side company dashboard bootstrap in `src/lib/server-company-page-data.ts`
+- server-side Knowmore bootstrap in `src/lib/server-knowmore-page-data.ts`
+- database-level Knowmore paging/filtering in `src/lib/flashcards.ts` and `GET /api/knowmore`
+
+## 7.1 Knowmore pagination contract
+
+Knowmore is now part of the same read-model discipline.
+
+Required behavior:
+
+- the first Knowmore screen must be server-bootstrapped
+- Knowmore list reads must page in the database, not by loading the full company corpus and slicing in memory
+- search, intelligence-type filtering, kind filtering, and hashtag filtering must apply to the full company corpus
+- predictive search quality must not degrade when only one page of results is visible
+
+Forbidden pattern:
+
+- load all flashcards for the company
+- serialize the entire corpus
+- then slice the array in route code or client code
+
+That pattern is exactly what made the Knowmore route feel much slower than it should.
 
 ## 8. Delivered Hardening Follow-Through
 

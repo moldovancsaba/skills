@@ -85,6 +85,19 @@ Rules:
 - do not ship full analytics history if the page only needs a compact chart series
 - trim response shape to the route contract, not the database shape
 
+### 2.5.1 Pagination must preserve full-corpus truth
+
+Pagination is allowed and often required on large product surfaces.
+
+But pagination must not weaken search or filtering correctness.
+
+Rules:
+
+- page in the database whenever the corpus is large
+- apply search/filter predicates before paging
+- keep predictive search scoped to the full eligible corpus, not just the currently visible page
+- never implement "pagination" by loading the full corpus and slicing in memory on a hot route
+
 ### 2.6 Defer non-critical client work
 
 Prepared data is not enough if the browser still does too much work immediately.
@@ -155,6 +168,7 @@ Examples:
 - `IntelligenceSnapshot.webappProjection`
 - planning summary sub-projection
 - compact chart series inside the product projection
+- server-bootstrapped paged corpus views where the hot path still needs direct entity rows, such as Knowmore
 
 ### Step 4. Define invalidation and repair
 

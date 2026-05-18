@@ -192,7 +192,7 @@ export default function KnowmoreClient({
   const [searchQuery, setSearchQuery] = useState(initialData?.filters.searchQuery ?? "");
   const [filterKind, setFilterKind] = useState<Flashcard["kind"] | "ALL">((initialData?.filters.filterKind as Flashcard["kind"] | "ALL") ?? "ALL");
   const [activeHashtags, setActiveHashtags] = useState<string[]>(initialData?.filters.activeHashtags ?? []);
-  const [intelligenceFilter, setIntelligenceFilter] = useState<"INTERNAL" | "COMPETITOR">(initialData?.filters.intelligenceFilter ?? "INTERNAL");
+  const [intelligenceFilter, setIntelligenceFilter] = useState<"ALL" | "INTERNAL" | "COMPETITOR">(initialData?.filters.intelligenceFilter ?? "ALL");
   const [isOwner, setIsOwner] = useState(Boolean(initialData?.isOwner));
   const [members, setMembers] = useState<any[]>(initialData?.members ?? []);
   const [hasMore, setHasMore] = useState(Boolean(initialData?.hasMore));
@@ -209,7 +209,7 @@ export default function KnowmoreClient({
     const trimmedQuery = searchQuery.trim();
     if (trimmedQuery) params.set("q", trimmedQuery);
     if (filterKind !== "ALL") params.set("kind", filterKind);
-    if (intelligenceFilter) params.set("intelligenceType", intelligenceFilter);
+    if (intelligenceFilter !== "ALL") params.set("intelligenceType", intelligenceFilter);
     if (activeHashtags.length > 0) params.set("tags", stringifyHashtagFilterParam(activeHashtags));
     return `/api/knowmore?${params.toString()}`;
   }, [activeHashtags, companyId, filterKind, intelligenceFilter, searchQuery]);
@@ -371,7 +371,9 @@ export default function KnowmoreClient({
   const filteredFlashcards = flashcards;
 
   const summary = useMemo(() => {
-    const visibleCards = flashcards.filter(f => f.intelligenceType === intelligenceFilter);
+    const visibleCards = intelligenceFilter === "ALL"
+      ? flashcards
+      : flashcards.filter((f) => f.intelligenceType === intelligenceFilter);
     if (visibleCards.length === 0) return { total: 0, reviewed: 0, avgConfidence: 0, avgIceScore: 0, avgEase: 0 };
 
     const totals = visibleCards.reduce((acc, fc) => {
@@ -636,17 +638,25 @@ export default function KnowmoreClient({
             />
             <Group gap="xs">
               <Group gap={4} p={4} style={getSemanticClusterStyle("neutral")}>
-                {(["INTERNAL", "COMPETITOR"] as const).map((type) => (
+                {(["ALL", "INTERNAL", "COMPETITOR"] as const).map((type) => (
                   <Button
                     key={type}
                     variant={intelligenceFilter === type ? "light" : "subtle"}
-                    color={intelligenceFilter === type ? (type === "COMPETITOR" ? "review" : "ingress") : "gray"}
+                    color={
+                      intelligenceFilter === type
+                        ? type === "COMPETITOR"
+                          ? "review"
+                          : type === "INTERNAL"
+                            ? "ingress"
+                            : "knowmore"
+                        : "gray"
+                    }
                     size="compact-xs"
                     h={30}
                     px="md"
                     onClick={() => setIntelligenceFilter(type)}
                   >
-                    {type === "INTERNAL" ? "Unit" : "Market"}
+                    {type === "ALL" ? "All" : type === "INTERNAL" ? "Unit" : "Market"}
                   </Button>
                 ))}
               </Group>

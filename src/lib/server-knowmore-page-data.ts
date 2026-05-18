@@ -29,7 +29,7 @@ type KnowmoreHealth = {
 export type KnowmoreInitialFilters = {
   searchQuery: string;
   filterKind: string;
-  intelligenceFilter: "INTERNAL" | "COMPETITOR";
+  intelligenceFilter: "ALL" | "INTERNAL" | "COMPETITOR";
   activeHashtags: string[];
 };
 
@@ -155,7 +155,9 @@ export async function getKnowmoreInitialData(
   const searchQuery = typeof searchParams?.q === "string" ? searchParams.q : "";
   const filterKind = typeof searchParams?.kind === "string" ? searchParams.kind : "ALL";
   const intelligenceFilter =
-    searchParams?.intelligenceType === "COMPETITOR" ? "COMPETITOR" : "INTERNAL";
+    searchParams?.intelligenceType === "INTERNAL" || searchParams?.intelligenceType === "COMPETITOR"
+      ? searchParams.intelligenceType
+      : "ALL";
   const activeHashtags = parseHashtagFilterParam(
     typeof searchParams?.tags === "string" ? searchParams.tags : null,
   );
@@ -181,7 +183,7 @@ export async function getKnowmoreInitialData(
       offset: 0,
       searchQuery,
       kind: filterKind,
-      intelligenceType: intelligenceFilter,
+      intelligenceType: intelligenceFilter === "ALL" ? null : intelligenceFilter,
       hashtags: activeHashtags,
     }),
     getKnowmoreHealthSnapshot(companyId),

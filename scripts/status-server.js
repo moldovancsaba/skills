@@ -23,6 +23,45 @@ const STATUS_CACHE_TTL_MS = 5000;
 let statusPayloadCache = null;
 let statusPayloadGeneratedAt = 0;
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function getJobMetadata(job) {
+  return isPlainObject(job?.metadata) ? job.metadata : {};
+}
+
+function normalizeQueueJob(job, companyNames, entityLabels) {
+  const metadata = getJobMetadata(job);
+  const executionOptions = isPlainObject(metadata.executionOptions) ? metadata.executionOptions : {};
+  const decomposition = isPlainObject(metadata.decomposition) ? metadata.decomposition : {};
+  const executionProfile = typeof executionOptions.profile === "string" ? executionOptions.profile : "full";
+  const decompositionState = typeof decomposition.state === "string" ? decomposition.state : null;
+  const isChildSlice = String(job.entityType || "").toUpperCase() === "PIPELINE_SLICE";
+  const isDecomposedParent = decompositionState === "DECOMPOSED";
+  const parentJobId = typeof metadata.parentJobId === "string" ? metadata.parentJobId : null;
+  const lastError = typeof job.lastError === "string" ? job.lastError : "";
+  const reason = typeof job.reason === "string" ? job.reason : "";
+  const lowMemoryDeferred =
+    /\bLOW_MEMORY_SKIP\b/i.test(lastError)
+    || /memory pressure/i.test(lastError)
+    || /memory pressure/i.test(reason)
+    || /deferred/i.test(reason);
+
+  return {
+    ...job,
+    metadata,
+    companyName: companyNames.get(job.companyId) || job.companyId,
+    entityLabel: job.entityId ? entityLabels.get(job.entityId) || job.entityId : null,
+    executionProfile,
+    decompositionState,
+    isChildSlice,
+    isDecomposedParent,
+    parentJobId,
+    lowMemoryDeferred,
+  };
+}
+
 function sortQueueJobs(left, right) {
   const leftRunning = left.status === "RUNNING" ? 1 : 0;
   const rightRunning = right.status === "RUNNING" ? 1 : 0;
@@ -49,7 +88,7 @@ function buildSourceLabel(source) {
 
 async function getGlobalQueueSnapshot() {
   const jobs = await prisma.pipelineJob.findMany({
-    where: { status: { in: ["ACTIVE", "RUNNING", "FAILED"] } },
+    where: { status: { in: ["ACTIVE", "RUNNING", "FAILED", "PAUSED"] } },
     select: {
       id: true,
       companyId: true,
@@ -67,12 +106,14 @@ async function getGlobalQueueSnapshot() {
       updatedAt: true,
       lastTriedAt: true,
       lastCompletedAt: true,
+      metadata: true,
     },
     take: 200,
   });
 
   const activeJobs = jobs.filter((job) => job.status === "ACTIVE" || job.status === "RUNNING");
   const failedJobs = jobs.filter((job) => job.status === "FAILED");
+  const pausedJobs = jobs.filter((job) => job.status === "PAUSED");
   const companyIds = Array.from(new Set(jobs.map((job) => job.companyId).filter(Boolean)));
   const companies = companyIds.length
     ? await prisma.company.findMany({ where: { id: { in: companyIds } }, select: { id: true, name: true } })
@@ -124,17 +165,33 @@ async function getGlobalQueueSnapshot() {
   for (const file of files) entityLabels.set(file.id, file.name || (file.publicId ? `File #${file.publicId}` : "File"));
 
   const normalizedActiveJobs = activeJobs
-    .map((job) => ({
-      ...job,
-      companyName: companyNames.get(job.companyId) || job.companyId,
-      entityLabel: job.entityId ? entityLabels.get(job.entityId) || job.entityId : null,
-    }))
+    .map((job) => normalizeQueueJob(job, companyNames, entityLabels))
     .sort(sortQueueJobs);
+  const normalizedPausedJobs = pausedJobs
+    .map((job) => normalizeQueueJob(job, companyNames, entityLabels))
+    .sort(sortQueueJobs);
+  const normalizedFailedJobs = failedJobs
+    .map((job) => normalizeQueueJob(job, companyNames, entityLabels))
+    .sort((left, right) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime());
 
   const currentJob = normalizedActiveJobs[0] || null;
   const nextJobs = currentJob
     ? normalizedActiveJobs.filter((job) => job.id !== currentJob.id).slice(0, 20)
     : normalizedActiveJobs.slice(0, 20);
+
+  const hardeningJobs = [...normalizedActiveJobs, ...normalizedPausedJobs, ...normalizedFailedJobs];
+  const hardeningSummary = {
+    degradedJobs: hardeningJobs.filter((job) => job.executionProfile === "degraded").length,
+    minimalJobs: hardeningJobs.filter((job) => job.executionProfile === "minimal").length,
+    decomposedParentJobs: normalizedPausedJobs.filter((job) => job.isDecomposedParent).length,
+    activeChildSlices: normalizedActiveJobs.filter((job) => job.isChildSlice).length,
+    lowMemoryDeferredJobs: hardeningJobs.filter((job) => job.lowMemoryDeferred).length,
+    starvedJobs: hardeningJobs.filter((job) => Number(job.attemptCount || 0) >= 3).length,
+  };
+  const recentDeferredJobs = [...normalizedPausedJobs, ...normalizedActiveJobs, ...normalizedFailedJobs]
+    .filter((job) => job.lowMemoryDeferred || job.isDecomposedParent || job.isChildSlice)
+    .sort((left, right) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime())
+    .slice(0, 8);
 
   const companyQueueDepth = Array.from(
     normalizedActiveJobs.reduce((acc, job) => {
@@ -158,16 +215,13 @@ async function getGlobalQueueSnapshot() {
     activeJobs: normalizedActiveJobs.slice(0, 21),
     totalActiveJobs: normalizedActiveJobs.length,
     runningJobs: normalizedActiveJobs.filter((job) => job.status === "RUNNING").length,
-    failedJobs: failedJobs.length,
+    failedJobs: normalizedFailedJobs.length,
+    pausedJobs: normalizedPausedJobs.length,
     companyQueueDepth: companyQueueDepth.slice(0, 12),
-    recentFailedJobs: failedJobs
-      .sort((left, right) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime())
-      .slice(0, 8)
-      .map((job) => ({
-        ...job,
-        companyName: companyNames.get(job.companyId) || job.companyId,
-        entityLabel: job.entityId ? entityLabels.get(job.entityId) || job.entityId : null,
-      })),
+    hardening: hardeningSummary,
+    pausedParents: normalizedPausedJobs.filter((job) => job.isDecomposedParent).slice(0, 8),
+    recentDeferredJobs,
+    recentFailedJobs: normalizedFailedJobs.slice(0, 8),
   };
 }
 
@@ -261,9 +315,10 @@ async function captureInventoryHistory(inventory) {
 }
 
 async function buildStatusPayload() {
-  const [setting, snapshotSetting, heartbeat, inventory, queue] = await Promise.all([
+  const [setting, snapshotSetting, memoryGovernorSetting, heartbeat, inventory, queue] = await Promise.all([
     prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
     prisma.globalSetting.findUnique({ where: { key: "local_ai_snapshot_worker_progress" } }),
+    prisma.globalSetting.findUnique({ where: { key: "local_ai_memory_governor_state" } }),
     Promise.resolve(readHeartbeat()),
     getGlobalInventory(),
     getGlobalQueueSnapshot(),
@@ -285,11 +340,21 @@ async function buildStatusPayload() {
     backgroundWorker = { online: (Date.now() - lastUpdate) < 10 * 60 * 1000, ...data };
   }
 
+  const memoryGovernor = isPlainObject(memoryGovernorSetting?.value) ? memoryGovernorSetting.value : {};
+
   return {
     ts: new Date().toISOString(),
     worker,
     backgroundWorker,
     guardian: heartbeat,
+    memoryGovernor: {
+      policyVersion: memoryGovernor.policy?.version ?? heartbeat?.memoryGovernor?.policyVersion ?? null,
+      lastActionAt: memoryGovernor.lastActionAt ?? heartbeat?.memoryGovernor?.lastActionAt ?? null,
+      lastActionReason: memoryGovernor.lastActionReason ?? heartbeat?.memoryGovernor?.lastActionReason ?? null,
+      latestEvaluation: memoryGovernor.latestEvaluation ?? heartbeat?.memoryGovernor?.latestEvaluation ?? null,
+      counters: isPlainObject(memoryGovernor.counters) ? memoryGovernor.counters : {},
+      recentEvents: Array.isArray(memoryGovernor.recentEvents) ? memoryGovernor.recentEvents.slice(-8).reverse() : [],
+    },
     logTail,
     inventory,
     inventoryHistory,

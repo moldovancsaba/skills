@@ -60,6 +60,35 @@ function formatJobLabel(job: any) {
   return companyName ? `${jobLabel} for ${companyName}: ${job.entityLabel}` : `${jobLabel}: ${job.entityLabel}`;
 }
 
+function getExecutionProfileColor(profile: unknown) {
+  switch (String(profile || "full").toLowerCase()) {
+    case "minimal":
+      return "review";
+    case "degraded":
+      return "tactical";
+    default:
+      return "strategy";
+  }
+}
+
+function getExecutionProfileLabel(profile: unknown) {
+  switch (String(profile || "full").toLowerCase()) {
+    case "minimal":
+      return "minimal";
+    case "degraded":
+      return "degraded";
+    default:
+      return "full";
+  }
+}
+
+function getDecompositionTone(job: any) {
+  if (job?.isChildSlice) return { color: "review", label: "child slice" };
+  if (job?.isDecomposedParent) return { color: "tactical", label: "decomposed parent" };
+  if (job?.decompositionState) return { color: "gray", label: String(job.decompositionState).toLowerCase().replace(/_/g, " ") };
+  return null;
+}
+
 function chartTooltipFormatter(value: unknown) {
   if (typeof value === "number") return [Math.round(value * 10) / 10, "Value"];
   if (value == null) return ["—", "Value"];
@@ -164,15 +193,19 @@ export default function LocalAiMissionControlPage() {
   const queue = data?.queue || {};
   const currentJob = queue.currentJob || null;
   const nextJobs = queue.nextJobs || [];
+  const hardening = queue.hardening || {};
   const inventory = data?.inventory || {};
   const inventoryHistory = Array.isArray(data?.inventoryHistory) ? [...data.inventoryHistory] : [];
   const worker = data?.worker || {};
   const backgroundWorker = data?.backgroundWorker || {};
   const guardian = data?.guardian || {};
+  const memoryGovernor = data?.memoryGovernor || {};
   const buildIdentity = worker?.settings?.buildIdentity || {};
   const actualCurrentTask = String(worker.activeTask || "Idle");
   const actualCurrentCompany = String(worker.currentCompany || "No company locked");
   const topQueueJobLabel = currentJob ? formatJobLabel(currentJob) : "No queued job";
+  const memoryGovernorEvents = Array.isArray(memoryGovernor.recentEvents) ? memoryGovernor.recentEvents : [];
+  const latestGovernorEvaluation = memoryGovernor.latestEvaluation || {};
 
   const cardCountChartData = [
     { family: "Datacards", count: Number(inventory.datacards ?? 0) },
@@ -261,7 +294,7 @@ export default function LocalAiMissionControlPage() {
             <MetricCard icon={ListCheck} color="checklist" label="Current Task" value={actualCurrentTask} detail={worker.currentCompany ? "Worker runtime authority" : String(worker.stage || "—")} />
             <MetricCard icon={Server} color="knowmore" label="Worker Build" value={String(buildIdentity.appVersion || "unknown")} detail={String(buildIdentity.gitSha || "—").slice(0, 12)} />
             <MetricCard icon={Server} color="strategy" label="Background State" value={String(backgroundWorker.state || "unknown")} detail={String(backgroundWorker.stage || "—")} />
-            <MetricCard icon={Activity} color="review" label="Queue Depth" value={queue.totalActiveJobs ?? 0} detail={`${queue.runningJobs ?? 0} running · ${queue.failedJobs ?? 0} failed`} />
+            <MetricCard icon={Activity} color="review" label="Queue Depth" value={queue.totalActiveJobs ?? 0} detail={`${queue.runningJobs ?? 0} running · ${queue.failedJobs ?? 0} failed · ${queue.pausedJobs ?? 0} paused`} />
             <MetricCard icon={Hierarchy} color="tactical" label="Datacards" value={inventory.datacards ?? 0} detail={`${inventory.sources ?? 0} sources · ${inventory.files ?? 0} files`} />
             <MetricCard icon={Brain} color="strategy" label="Cards" value={inventory.totalCards ?? 0} detail={`${inventory.flashcards ?? 0} flashcards · ${inventory.goalcards ?? 0} goals · ${inventory.taskcards ?? 0} tasks`} />
             <MetricCard icon={Heartbeat} color="review" label="Guardian" value={guardian.workerAlive ? "Watching" : "Degraded"} detail={`${formatTimestamp(guardian.lastHealthAt)} · ${guardian.resources?.freeMem ?? "—"}MB free`} />
@@ -278,13 +311,26 @@ export default function LocalAiMissionControlPage() {
                   <UnifiedCard tone="checklist">
                     <UnifiedCardHeader
                       title="Top Queue Job"
-                      supporting={<Badge variant="light" color="checklist">{currentJob.status}</Badge>}
+                      supporting={
+                        <Group gap="xs">
+                          <Badge variant="light" color="checklist">{currentJob.status}</Badge>
+                          <Badge variant="light" color={getExecutionProfileColor(currentJob.executionProfile)}>
+                            {getExecutionProfileLabel(currentJob.executionProfile)}
+                          </Badge>
+                          {getDecompositionTone(currentJob) ? (
+                            <Badge variant="outline" color={getDecompositionTone(currentJob)?.color}>
+                              {getDecompositionTone(currentJob)?.label}
+                            </Badge>
+                          ) : null}
+                        </Group>
+                      }
                     />
                     <UnifiedCardBody>
                       <Stack gap="xs">
                         <BodyText>{topQueueJobLabel}</BodyText>
                         <MetaText>Company: {currentJob.companyName || currentJob.companyId || "—"}</MetaText>
                         <MetaText>Queue: {currentJob.queueColumn || "—"} · Priority {Math.round(Number(currentJob.priorityScore ?? 0))}</MetaText>
+                        <MetaText>Attempts: {Number(currentJob.attemptCount ?? 0)} · Profile: {getExecutionProfileLabel(currentJob.executionProfile)}</MetaText>
                         <MetaText>Reason: {currentJob.reason || "Worker is actively processing this queue job."}</MetaText>
                         <MetaText>Updated: {formatTimestamp(currentJob.updatedAt)}</MetaText>
                       </Stack>
@@ -327,6 +373,14 @@ export default function LocalAiMissionControlPage() {
                           <Badge variant="light" color={job.queueColumn === "NOW" ? "checklist" : job.queueColumn === "SOON" ? "tactical" : job.queueColumn === "LATER" ? "strategy" : "gray"}>
                             #{index + 1}
                           </Badge>
+                          <Badge variant="light" color={getExecutionProfileColor(job.executionProfile)}>
+                            {getExecutionProfileLabel(job.executionProfile)}
+                          </Badge>
+                          {getDecompositionTone(job) ? (
+                            <Badge variant="outline" color={getDecompositionTone(job)?.color}>
+                              {getDecompositionTone(job)?.label}
+                            </Badge>
+                          ) : null}
                           <BodyText>{formatJobLabel(job)}</BodyText>
                         </Group>
                         <MetaText>{job.reason || "No planner reason persisted."}</MetaText>
@@ -340,6 +394,26 @@ export default function LocalAiMissionControlPage() {
                     <Notice title="Queue clear">No queued jobs are waiting behind the current runtime state.</Notice>
                   )}
                 </Stack>
+              </UnifiedCardBody>
+            </UnifiedCard>
+
+            <UnifiedCard tone="review">
+              <UnifiedCardHeader
+                title="Runtime Hardening"
+                supporting={<Badge variant="light" color="review">{latestGovernorEvaluation.resourceBand || guardian.resources?.resourceBand || "unknown"}</Badge>}
+              />
+              <UnifiedCardBody>
+                <SimpleGrid cols={{ base: 2, md: 3 }} spacing="sm">
+                  <MetricCard icon={Activity} color="tactical" label="Degraded" value={hardening.degradedJobs ?? 0} detail="jobs using reduced profile" />
+                  <MetricCard icon={Activity} color="review" label="Minimal" value={hardening.minimalJobs ?? 0} detail="jobs using smallest profile" />
+                  <MetricCard icon={Hierarchy} color="review" label="Child Slices" value={hardening.activeChildSlices ?? 0} detail="active bounded child jobs" />
+                  <MetricCard icon={Hierarchy} color="strategy" label="Paused Parents" value={hardening.decomposedParentJobs ?? 0} detail="decomposed parents waiting" />
+                  <MetricCard icon={AlertTriangle} color="review" label="Deferred" value={hardening.lowMemoryDeferredJobs ?? 0} detail="recent low-memory pressure" />
+                  <MetricCard icon={AlertTriangle} color="review" label="Starved" value={hardening.starvedJobs ?? 0} detail="jobs at 3+ attempts" />
+                </SimpleGrid>
+                <Notice title="Memory governor">
+                  Last action: {memoryGovernor.lastActionReason || "none"} · Last action at {formatTimestamp(memoryGovernor.lastActionAt)} · Policy v{memoryGovernor.policyVersion || "?"}
+                </Notice>
               </UnifiedCardBody>
             </UnifiedCard>
 
@@ -401,6 +475,87 @@ export default function LocalAiMissionControlPage() {
                   </ChartFrame>
                 ) : (
                   <Notice title="No global queue pressure">No company currently has queued work waiting in the global pipeline.</Notice>
+                )}
+              </UnifiedCardBody>
+            </UnifiedCard>
+          </SimpleGrid>
+
+          <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
+            <UnifiedCard tone="review">
+              <UnifiedCardHeader
+                title="Recent Deferred Or Decomposed Jobs"
+                supporting={<Badge variant="light" color="review">{(queue.recentDeferredJobs || []).length}</Badge>}
+              />
+              <UnifiedCardBody>
+                {(queue.recentDeferredJobs || []).length ? (
+                  <Table highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Company</Table.Th>
+                        <Table.Th>Job</Table.Th>
+                        <Table.Th>Mode</Table.Th>
+                        <Table.Th>Reason</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {(queue.recentDeferredJobs || []).map((job: any) => (
+                        <Table.Tr key={job.id}>
+                          <Table.Td>{job.companyName || job.companyId || "—"}</Table.Td>
+                          <Table.Td>{formatJobLabel(job)}</Table.Td>
+                          <Table.Td>
+                            <Group gap="xs">
+                              <Badge variant="light" color={getExecutionProfileColor(job.executionProfile)}>
+                                {getExecutionProfileLabel(job.executionProfile)}
+                              </Badge>
+                              {getDecompositionTone(job) ? (
+                                <Badge variant="outline" color={getDecompositionTone(job)?.color}>
+                                  {getDecompositionTone(job)?.label}
+                                </Badge>
+                              ) : null}
+                            </Group>
+                          </Table.Td>
+                          <Table.Td>{job.reason || job.lastError || "—"}</Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                ) : (
+                  <Notice title="No recent pressure">The queue has no recent deferred or decomposed jobs right now.</Notice>
+                )}
+              </UnifiedCardBody>
+            </UnifiedCard>
+
+            <UnifiedCard tone="strategy">
+              <UnifiedCardHeader
+                title="Memory Governor Events"
+                supporting={<Badge variant="light" color="strategy">{memoryGovernorEvents.length} recent</Badge>}
+              />
+              <UnifiedCardBody>
+                {memoryGovernorEvents.length ? (
+                  <Table highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>When</Table.Th>
+                        <Table.Th>Action</Table.Th>
+                        <Table.Th>Tier</Table.Th>
+                        <Table.Th>Context</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {memoryGovernorEvents.map((event: any, index: number) => (
+                        <Table.Tr key={`${event.ts || "event"}-${index}`}>
+                          <Table.Td>{formatTimestamp(event.ts)}</Table.Td>
+                          <Table.Td>{event.action || "NONE"}</Table.Td>
+                          <Table.Td>{event.tierKey || event.reason || "—"}</Table.Td>
+                          <Table.Td>
+                            {event.freeMemMb ?? "—"}MB · {event.workerStage || "—"} · {event.currentCompany || "—"}
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                ) : (
+                  <Notice title="No recent governor interventions">The memory governor has not needed to intervene recently.</Notice>
                 )}
               </UnifiedCardBody>
             </UnifiedCard>

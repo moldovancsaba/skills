@@ -80,6 +80,7 @@ model IntelligenceSnapshot {
   scoreHealth         Json?     @default("{}")
   knowmoreHealth      Json?     @default("{}")
   observabilitySummary Json?    @default("{}")
+  webappProjection    Json?     @default("{}")
   feedbackAnalytics   Json?     @default("{}")
   hashtagAnalytics    Json?     @default("{}")
   

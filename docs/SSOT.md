@@ -142,6 +142,41 @@ Foreground execution contract:
 
 The older broad per-company “load companies and run a full synthesis cycle” description is no longer the runtime contract.
 
+## 5.1 Product read-model contract
+
+The online webapp is projection-first on hot product routes.
+
+Why:
+
+- the local AI machine is memory-fragile under sustained runtime load
+- the online webapp read path had become too expensive for what should feel instant
+
+Therefore:
+
+- the local AI side prepares company read models ahead of time
+- the online app reads those prepared projections first
+- the online app must not behave like a second analytics engine
+
+Authoritative per-company product projection:
+
+- `IntelligenceSnapshot.webappProjection`
+
+Hot product reads that should prefer that projection:
+
+- company list
+- company dashboard
+- company nav/sidebar counts
+
+Allowed bounded fallback:
+
+- lightweight snapshot-field fallback if the projection is missing
+
+Forbidden hot-path behavior:
+
+- many per-company live count queries
+- repeated broad top-task recomputation on each request
+- page-load-triggered worker synchronization
+
 The repetitive-job contract now also includes:
 
 - persisted `PipelineJob` queue records

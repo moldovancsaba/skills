@@ -123,13 +123,15 @@ export function ClientNav() {
               setCompany(data.company);
             }
           }
+          const checklistCount = Number(data.counts?.checklist || 0);
+          const planningCount = Math.max(Number(data.counts?.tactical || 0), checklistCount);
           setCounts({
             data: data.counts?.data || 0,
             topics: data.counts?.topics || 0,
             knowmore: data.counts?.knowmore || 0,
             goals: data.counts?.goals || 0,
-            checklist: data.counts?.checklist || 0,
-            tactical: data.counts?.tactical || 0,
+            checklist: checklistCount,
+            tactical: planningCount,
             review: data.counts?.review || 0,
             pipeline: data.counts?.pipeline || 0,
           });

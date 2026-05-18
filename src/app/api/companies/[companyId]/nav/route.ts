@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
+import { normalizeWebappProjection } from "@/lib/webapp-projection";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ companyId: string }> }
+  { params }: { params: Promise<{ companyId: string }> },
 ) {
   const { companyId } = await params;
   if (!companyId) {
@@ -33,6 +34,7 @@ export async function GET(
           tacticalBoardCount: true,
           reviewGatewayCount: true,
           observabilitySummary: true,
+          webappProjection: true,
         },
       }),
     ]);
@@ -41,25 +43,33 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    const projection = normalizeWebappProjection(snapshot?.webappProjection);
     const observabilitySummary =
       snapshot?.observabilitySummary && typeof snapshot.observabilitySummary === "object"
         ? snapshot.observabilitySummary as Record<string, unknown>
         : {};
-    const queue = observabilitySummary.queue && typeof observabilitySummary.queue === "object"
-      ? observabilitySummary.queue as Record<string, unknown>
-      : {};
+    const queue =
+      observabilitySummary.queue && typeof observabilitySummary.queue === "object"
+        ? observabilitySummary.queue as Record<string, unknown>
+        : {};
+
+    const counts = projection?.navCounts ?? {
+      data: Number(snapshot?.dataIngressCount ?? 0),
+      topics: Number(snapshot?.topicSynthesisCount ?? 0),
+      knowmore: Number(snapshot?.knowmoreCount ?? 0),
+      goals: Number(snapshot?.strategicGoalsCount ?? 0),
+      review: Number(snapshot?.reviewGatewayCount ?? 0),
+      checklist: Number(snapshot?.checklistCount ?? 0),
+      tactical: Math.max(Number(snapshot?.tacticalBoardCount ?? 0), Number(snapshot?.checklistCount ?? 0)),
+      pipeline: Number(queue.totalActiveJobs ?? 0),
+    };
 
     return NextResponse.json({
       company,
       counts: {
-        data: snapshot?.dataIngressCount ?? 0,
-        topics: snapshot?.topicSynthesisCount ?? 0,
-        knowmore: snapshot?.knowmoreCount ?? 0,
-        goals: snapshot?.strategicGoalsCount ?? 0,
-        checklist: snapshot?.checklistCount ?? 0,
-        tactical: Math.max(snapshot?.tacticalBoardCount ?? 0, snapshot?.checklistCount ?? 0),
-        review: snapshot?.reviewGatewayCount ?? 0,
-        pipeline: Number(queue.totalActiveJobs ?? 0),
+        ...counts,
+        tactical: Math.max(Number(counts.tactical || 0), Number(counts.checklist || 0)),
+        pipeline: Number(queue.totalActiveJobs ?? counts.pipeline ?? 0),
       },
     });
   } catch (error) {

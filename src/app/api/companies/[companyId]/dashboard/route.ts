@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { APP_VERSION, BRAIN_VERSION } from "@/lib/release";
+import { normalizeWebappProjection } from "@/lib/webapp-projection";
 
 export const dynamic = "force-dynamic";
 
@@ -23,21 +24,7 @@ export async function GET(
 
   try {
     const cid = companyId;
-    const now = new Date();
-
-    const [
-      company,
-      members,
-      snapshot,
-      liveSourceCount,
-      liveFileCount,
-      liveTopicCount,
-      liveFlashcardCount,
-      liveGoalCount,
-      liveTacticalCount,
-      liveChecklistCount,
-      liveReviewCount,
-    ] = await Promise.all([
+    const [company, members, snapshot] = await Promise.all([
       prisma.company.findUnique({ where: { id: cid } }),
       prisma.user.findMany({
         where: { companyId: cid },
@@ -51,62 +38,7 @@ export async function GET(
         },
       }),
       prisma.intelligenceSnapshot.findUnique({ where: { companyId: cid } }),
-      prisma.source.count({ where: { companyId: cid } }),
-      prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
-      prisma.topic.count({ where: { companyId: cid } }),
-      prisma.flashcard.count({
-        where: {
-          companyId: cid,
-          activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
-        },
-      }),
-      prisma.goalcard.count({
-        where: {
-          companyId: cid,
-          activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
-        },
-      }),
-      prisma.checklistTask.count({
-        where: {
-          companyId: cid,
-          activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
-        },
-      }),
-      prisma.checklistTask.count({
-        where: {
-          companyId: cid,
-          kanbanColumn: "CHECKLIST",
-          activityState: { in: ["ACTIVE", "STALE"] },
-          processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
-          OR: [
-            { scheduledDate: null },
-            { scheduledDate: { lte: now } },
-          ],
-        },
-      }),
-      prisma.checklistTask.count({
-        where: {
-          companyId: cid,
-          processingStatus: "REVIEW",
-          activityState: { in: ["ACTIVE", "STALE"] },
-        },
-      }),
     ]);
-
-    const topTasks = await prisma.checklistTask.findMany({
-      where: {
-        companyId: cid,
-        kanbanColumn: "CHECKLIST",
-        activityState: { in: ["ACTIVE", "STALE"] },
-        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
-        OR: [
-          { scheduledDate: null },
-          { scheduledDate: { lte: now } }
-        ]
-      },
-      orderBy: { iceScore: "desc" },
-      take: 3
-    });
 
     const scoreHealth = snapshot?.scoreHealth && typeof snapshot.scoreHealth === "object" ? snapshot.scoreHealth : null;
     const observabilitySummary =
@@ -116,21 +48,102 @@ export async function GET(
     const queue = observabilitySummary.queue && typeof observabilitySummary.queue === "object"
       ? observabilitySummary.queue as Record<string, unknown>
       : {};
+    const projection = normalizeWebappProjection(snapshot?.webappProjection);
 
-    const checklistCount = Math.max(liveChecklistCount, topTasks.length);
-    const planningCount = Math.max(liveTacticalCount, checklistCount);
+    let counts = projection?.counts
+      ? {
+          ...projection.counts,
+          tacticalCount: Math.max(projection.counts.tacticalCount, projection.counts.checklistCount),
+          pipelineJobs: Number(queue.totalActiveJobs ?? projection.counts.pipelineJobs ?? 0),
+        }
+      : null;
+    let topTasks = projection?.topTasks ?? [];
 
-    const counts = {
-      sources: liveSourceCount + liveFileCount,
-      files: liveFileCount,
-      topics: liveTopicCount,
-      flashcards: liveFlashcardCount,
-      goals: liveGoalCount,
-      tacticalCount: planningCount,
-      checklistCount,
-      reviewCount: liveReviewCount,
-      pipelineJobs: Number(queue.totalActiveJobs ?? 0),
-    };
+    if (!counts) {
+      const now = new Date();
+      const [
+        liveSourceCount,
+        liveFileCount,
+        liveTopicCount,
+        liveFlashcardCount,
+        liveGoalCount,
+        liveTacticalCount,
+        liveChecklistCount,
+        liveReviewCount,
+        liveTopTasks,
+      ] = await Promise.all([
+        prisma.source.count({ where: { companyId: cid } }),
+        prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
+        prisma.topic.count({ where: { companyId: cid } }),
+        prisma.flashcard.count({
+          where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } },
+        }),
+        prisma.goalcard.count({
+          where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } },
+        }),
+        prisma.checklistTask.count({
+          where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } },
+        }),
+        prisma.checklistTask.count({
+          where: {
+            companyId: cid,
+            kanbanColumn: "CHECKLIST",
+            activityState: { in: ["ACTIVE", "STALE"] },
+            processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+            OR: [{ scheduledDate: null }, { scheduledDate: { lte: now } }],
+          },
+        }),
+        prisma.checklistTask.count({
+          where: {
+            companyId: cid,
+            processingStatus: "REVIEW",
+            activityState: { in: ["ACTIVE", "STALE"] },
+          },
+        }),
+        prisma.checklistTask.findMany({
+          where: {
+            companyId: cid,
+            kanbanColumn: "CHECKLIST",
+            activityState: { in: ["ACTIVE", "STALE"] },
+            processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+            OR: [{ scheduledDate: null }, { scheduledDate: { lte: now } }],
+          },
+          orderBy: { iceScore: "desc" },
+          take: 3,
+        }),
+      ]);
+      const checklistCount = Math.max(liveChecklistCount, liveTopTasks.length);
+      counts = {
+        sources: liveSourceCount + liveFileCount,
+        files: liveFileCount,
+        topics: liveTopicCount,
+        flashcards: liveFlashcardCount,
+        goals: liveGoalCount,
+        tacticalCount: Math.max(liveTacticalCount, checklistCount),
+        checklistCount,
+        reviewCount: liveReviewCount,
+        pipelineJobs: Number(queue.totalActiveJobs ?? 0),
+      };
+      topTasks = liveTopTasks.map((task) => ({
+        id: task.id,
+        publicId: task.publicId,
+        title: task.title,
+        description: task.description ?? null,
+        impact: task.impact,
+        confidenceScore: task.confidenceScore,
+        ease: task.ease,
+        iceScore: task.iceScore,
+        processingStatus: task.processingStatus,
+        activityState: task.activityState,
+        kanbanColumn: task.kanbanColumn,
+        scheduledDate: task.scheduledDate ? task.scheduledDate.toISOString() : null,
+        userAnnotation: task.userAnnotation ?? null,
+        hashtags: task.hashtags ?? [],
+        createdAt: task.createdAt ? task.createdAt.toISOString() : null,
+        updatedAt: task.updatedAt ? task.updatedAt.toISOString() : null,
+        generatedAt: task.generatedAt ? task.generatedAt.toISOString() : null,
+      }));
+    }
 
     return NextResponse.json({
       company,

@@ -54,15 +54,16 @@ Read these in order. Lower documents must not contradict higher ones.
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
 2. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 3. [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
-4. [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
-5. [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
-6. [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
-7. [CHANGELOG.md](/Users/Shared/Projects/checklist/CHANGELOG.md)
-8. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
-9. [docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md](/Users/Shared/Projects/checklist/docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md)
-10. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
-11. [DESIGN_SYSTEM_AGENT_HANDOFF.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM_AGENT_HANDOFF.md)
-12. [documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md](/Users/Shared/Projects/checklist/documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md)
+4. [docs/WEBAPP_READ_MODEL_LLD.md](/Users/Shared/Projects/checklist/docs/WEBAPP_READ_MODEL_LLD.md)
+5. [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
+6. [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
+7. [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
+8. [CHANGELOG.md](/Users/Shared/Projects/checklist/CHANGELOG.md)
+9. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
+10. [docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md](/Users/Shared/Projects/checklist/docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md)
+11. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
+12. [DESIGN_SYSTEM_AGENT_HANDOFF.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM_AGENT_HANDOFF.md)
+13. [documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md](/Users/Shared/Projects/checklist/documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md)
 
 If two docs disagree:
 
@@ -118,6 +119,7 @@ Frontend system:
 - the deterministic local AI planner is now the shipped runtime contract for bootstrap, lane refill, maintenance, and timeout handling
 - the Local AI Quality Engine is now the shipped runtime contract for opportunity mining, research-backed updates, novelty suppression, editorial quality gating, and feedback-pressure regeneration
 - the local AI runtime now uses a dedicated `snapshot-worker` background process so intelligence snapshot refresh no longer shares the foreground planner queue lane
+- the online webapp must stay projection-first on hot product routes; the local AI side prepares fast company read models ahead of time so product page loads do not behave like a second analytics engine
 
 Worker queue controls:
 
@@ -154,6 +156,7 @@ New operator surfaces:
 - Observability now captures bounded repair intents and budget-control records for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls; the local AI system pulls those records from MongoDB Atlas and executes them
 - Knowmore now also exposes bounded health/repair intent capture directly on the knowledge surface instead of forcing operators through generic observability only
 - queue reads, feedback analytics, and hashtag recommendations are now persisted-state or snapshot-backed reads; loading a page must not trigger worker synchronization or app-layer recomputation
+- company list, dashboard, and nav reads must prefer `IntelligenceSnapshot.webappProjection` before attempting bounded fallback logic
 - `/:companyId/workflows` provides bounded workflow blueprints and enrichment-waterfall policy management
 - active workflow blueprints are not passive records: they materialize into claimable `WORKFLOW_BLUEPRINT` queue jobs and execute through the shared worker queue
 - enrichment-waterfall policies now affect runtime provider selection for URL intelligence instead of living as config-only records
@@ -246,6 +249,7 @@ Architecture note:
 - `status-server` owns runtime observability payload assembly
 - `snapshot-worker` also owns scheduled runtime verification and persists the latest operator-readable verification report
 - productive company jobs now refresh queue topology for the touched company directly, with `snapshot-worker` only handling the dirty-company retry queue and the slower broad coverage path
+- the local AI side also owns the webapp-ready company read model; the online app consumes those projections rather than recomputing many live counts on hot routes
 
 ### Local operator URLs
 
@@ -276,6 +280,7 @@ Related architecture references:
 - [docs/SSOT.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/SSOT.md)
 - [docs/SYSTEM_DESIGN_LLD.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/SYSTEM_DESIGN_LLD.md)
 - [docs/LOCAL_AI_PIPELINE.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_PIPELINE.md)
+- [docs/WEBAPP_READ_MODEL_LLD.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/WEBAPP_READ_MODEL_LLD.md)
 - [docs/LOCAL_AI_RUNTIME_SOP.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_RUNTIME_SOP.md)
 - [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 

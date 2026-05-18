@@ -15,6 +15,7 @@ Primary layers:
 - database and persistence
 - autonomous AI loop
 - background snapshot worker
+- product read-model projection layer
 - local self-learning export and Apple-Silicon training workspace
 - shared product UI system
 - persisted pipeline queue and scheduler contract
@@ -212,6 +213,22 @@ They are compatibility paths, not the primary operating contract.
 - `enrichment-waterfall.ts` owns the persisted provider-ordering and fallback policy contract for enrichment governance, and `url-enrichment.ts` consumes that policy at runtime for product/competitor research
 - ingress routes for topics, sources, files, and bridge data write raw rows only; webapp request handlers must not derive authoritative scores during ingress
 - feedback analytics and hashtag recommendations are persisted into `IntelligenceSnapshot` by the local AI system and read from there by the webapp
+
+## 8.1 Product read-model architecture
+
+- the online webapp must stay projection-first on hot product routes
+- `IntelligenceSnapshot.webappProjection` is the canonical per-company product read model for company summary surfaces
+- the local AI side owns projection creation and refresh
+- the webapp owns projection normalization, rendering, and bounded fallback only
+- product pages must not recompute many live counts on load when a prepared projection exists
+- runtime/operator truth such as worker stage, memory governor state, and queue hardening remains outside this product projection and belongs to `/local-ai` plus runtime endpoints
+
+Current first-slice projection consumers:
+
+- `GET /api/companies`
+- `GET /api/companies/[companyId]/dashboard`
+- `GET /api/companies/[companyId]/nav`
+- server-side company dashboard bootstrapping
 
 ## 9. Blended Priority Architecture
 

@@ -5,6 +5,7 @@ import { readAppSession } from "@/lib/auth";
 import { verifyMembership, verifySuperAdmin } from "@/lib/permissions";
 import { normalizeIndustryHashtags } from "@/lib/hashtags";
 import { validateCompanyProfile } from "@/lib/profile-validation";
+import { normalizeWebappProjection } from "@/lib/webapp-projection";
 
 export const dynamic = 'force-dynamic';
 
@@ -42,75 +43,33 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const enrichedCompanies = await Promise.all(companies.map(async (company) => {
+    const enrichedCompanies = companies.map((company) => {
       const snapshot = company.intelligenceSnapshot;
-      const now = new Date();
-      const [
-        liveSourceCount,
-        liveFileCount,
-        liveTopicCount,
-        liveFlashcardCount,
-        liveGoalCount,
-        liveChecklistCount,
-        liveTacticalCount,
-        liveReviewCount,
-      ] = await Promise.all([
-        prisma.source.count({ where: { companyId: company.id } }),
-        prisma.uploadedSourceFile.count({ where: { companyId: company.id } }),
-        prisma.topic.count({ where: { companyId: company.id } }),
-        prisma.flashcard.count({
-          where: {
-            companyId: company.id,
-            activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
-          },
-        }),
-        prisma.goalcard.count({
-          where: {
-            companyId: company.id,
-            activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
-          },
-        }),
-        prisma.checklistTask.count({
-          where: {
-            companyId: company.id,
-            kanbanColumn: "CHECKLIST",
-            activityState: { in: ["ACTIVE", "STALE"] },
-            processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
-            OR: [
-              { scheduledDate: null },
-              { scheduledDate: { lte: now } },
-            ],
-          },
-        }),
-        prisma.checklistTask.count({
-          where: {
-            companyId: company.id,
-            activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
-          },
-        }),
-        prisma.checklistTask.count({
-          where: {
-            companyId: company.id,
-            processingStatus: "REVIEW",
-            activityState: { in: ["ACTIVE", "STALE"] },
-          },
-        }),
-      ]);
-      const planningCount = Math.max(liveTacticalCount, liveChecklistCount);
+      const projection = normalizeWebappProjection(snapshot?.webappProjection);
+      const snapshotChecklistCount = Number(snapshot?.checklistCount || 0);
+      const snapshotTacticalCount = Number(snapshot?.tacticalBoardCount || 0);
+      const snapshotReviewCount = Number(snapshot?.reviewGatewayCount || 0);
+      const counts = projection?.counts;
+      const navCounts = projection?.navCounts;
+      const checklistCount = Number(navCounts?.checklist ?? counts?.checklistCount ?? snapshotChecklistCount);
+      const tacticalCount = Math.max(
+        Number(navCounts?.tactical ?? counts?.tacticalCount ?? snapshotTacticalCount),
+        checklistCount,
+      );
       return {
         ...company,
         metrics: {
-          data: liveSourceCount + liveFileCount,
-          topics: liveTopicCount,
-          knowmore: liveFlashcardCount,
-          goals: liveGoalCount,
-          review: liveReviewCount,
-          checklist: liveChecklistCount,
-          tactical: planningCount,
+          data: Number(navCounts?.data ?? ((counts?.sources ?? snapshot?.dataIngressCount ?? 0) + (counts?.files ?? 0))),
+          topics: Number(navCounts?.topics ?? counts?.topics ?? snapshot?.topicSynthesisCount ?? 0),
+          knowmore: Number(navCounts?.knowmore ?? counts?.flashcards ?? snapshot?.knowmoreCount ?? 0),
+          goals: Number(navCounts?.goals ?? counts?.goals ?? snapshot?.strategicGoalsCount ?? 0),
+          review: Number(navCounts?.review ?? counts?.reviewCount ?? snapshotReviewCount),
+          checklist: checklistCount,
+          tactical: tacticalCount,
         },
         analytics: Array.isArray(snapshot?.analyticsHistory) ? snapshot.analyticsHistory : [],
       };
-    }));
+    });
 
     return NextResponse.json(enrichedCompanies);
   } catch (error) {

@@ -21,6 +21,7 @@ checklist has two cooperating parts:
    - captures raw data, topics, hashtags, and feedback
    - reads persisted results from MongoDB Atlas
    - writes user interaction records back to MongoDB Atlas
+   - should read prepared product projections first on hot routes
    - must not become an authoritative calculation layer for score health, observability interpretation, analytics history, or queue recommendations
 
 2. `local AI layer`
@@ -31,6 +32,7 @@ checklist has two cooperating parts:
    - generates and revisits flashcards, goalcards, and taskcards
    - maintains scoring, freshness, and tactical placement
    - calculates operational health, score health, analytics snapshots, and repair recommendations
+   - prepares webapp-ready company read models for fast product pages
    - pushes those results back into MongoDB Atlas or runtime artifacts consumed by the app
 
 The database is the shared persistence layer between them.
@@ -41,6 +43,7 @@ Authoritative boundary:
 - the online app shows persisted results from the database
 - the online app records user interactions to the database
 - the local AI layer pulls those records, calculates, and pushes updated state back
+- the online app should not rebuild company-level product summaries from many live hot-path queries when prepared projections already exist
 
 ## Runtime processes
 

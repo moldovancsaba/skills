@@ -878,6 +878,72 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
     : null;
   const knowmoreHealth = await buildKnowmoreHealth(prisma, companyId, normalizedScoreHealth);
   const observabilitySummary = await buildObservabilitySummary(prisma, companyId, normalizedScoreHealth);
+  const topTasks = await prisma.checklistTask.findMany({
+    where: {
+      companyId,
+      kanbanColumn: "CHECKLIST",
+      activityState: { in: ["ACTIVE", "STALE"] },
+      processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+      OR: [{ scheduledDate: null }, { scheduledDate: { lte: new Date() } }],
+    },
+    orderBy: { iceScore: "desc" },
+    take: 3,
+    select: {
+      id: true,
+      publicId: true,
+      title: true,
+      description: true,
+      impact: true,
+      confidenceScore: true,
+      ease: true,
+      iceScore: true,
+      processingStatus: true,
+      activityState: true,
+      kanbanColumn: true,
+      scheduledDate: true,
+      userAnnotation: true,
+      hashtags: true,
+      createdAt: true,
+      updatedAt: true,
+      generatedAt: true,
+    },
+  });
+  const queueSummary =
+    observabilitySummary && typeof observabilitySummary.queue === "object" && observabilitySummary.queue
+      ? observabilitySummary.queue
+      : {};
+  const webappProjection = {
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    counts: {
+      sources: dataSources + uploadedFiles,
+      files: uploadedFiles,
+      topics,
+      flashcards,
+      goals,
+      tacticalCount: Math.max(checklistTasks, checklistCount),
+      checklistCount,
+      reviewCount,
+      pipelineJobs: Number(queueSummary.totalActiveJobs || 0),
+    },
+    navCounts: {
+      data: dataSources + uploadedFiles,
+      topics,
+      knowmore: flashcards,
+      goals,
+      review: reviewCount,
+      checklist: checklistCount,
+      tactical: Math.max(checklistTasks, checklistCount),
+      pipeline: Number(queueSummary.totalActiveJobs || 0),
+    },
+    topTasks: topTasks.map((task) => ({
+      ...task,
+      scheduledDate: task.scheduledDate ? task.scheduledDate.toISOString() : null,
+      createdAt: task.createdAt ? task.createdAt.toISOString() : null,
+      updatedAt: task.updatedAt ? task.updatedAt.toISOString() : null,
+      generatedAt: task.generatedAt ? task.generatedAt.toISOString() : null,
+    })),
+  };
 
   const metrics = {
     synthesisYield: Number(progress?.metrics?.companiesCoveredThisCycle || 0),
@@ -908,6 +974,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       scoreHealth: normalizedScoreHealth || {},
       knowmoreHealth,
       observabilitySummary,
+      webappProjection,
       feedbackAnalytics,
       hashtagAnalytics,
     },
@@ -932,6 +999,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       scoreHealth: normalizedScoreHealth || {},
       knowmoreHealth,
       observabilitySummary,
+      webappProjection,
       feedbackAnalytics,
       hashtagAnalytics,
     },

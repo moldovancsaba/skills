@@ -238,6 +238,17 @@ function buildPipelineFailureMessage(classification) {
   return `[${classification.class}] ${classification.message}`;
 }
 
+function buildRunnablePipelineJobWhere(now = new Date()) {
+  return {
+    status: "ACTIVE",
+    queueColumn: { not: "PARKED" },
+    OR: [
+      { scheduledAt: { isSet: false } },
+      { scheduledAt: { lte: now } },
+    ],
+  };
+}
+
 function roundPriority(value) {
   return Number(Math.max(0, value).toFixed(2));
 }
@@ -1092,14 +1103,7 @@ async function applyManualPipelineQueueMove(prisma, companyId, movedJobId, sourc
 
 async function claimNextPipelineJobs(prisma, limit = 3) {
   const candidates = await prisma.pipelineJob.findMany({
-    where: {
-      status: "ACTIVE",
-      queueColumn: { not: "PARKED" },
-      OR: [
-        { scheduledAt: null },
-        { scheduledAt: { lte: new Date() } },
-      ],
-    },
+    where: buildRunnablePipelineJobWhere(new Date()),
     orderBy: [{ updatedAt: "asc" }],
     include: {
       company: true,
@@ -1172,6 +1176,7 @@ async function completePipelineJob(prisma, jobId, reason = null) {
     where: { id: jobId },
     data: {
       status: "ACTIVE",
+      scheduledAt: { unset: true },
       lastCompletedAt: new Date(),
       lastError: null,
       updatedAt: new Date(),
@@ -1202,6 +1207,7 @@ async function escalateCompanyPipelineJob(prisma, companyId, jobType, entityType
       controlMode: "AI_ONLY",
       queueColumn: "NOW",
       status: "ACTIVE",
+      scheduledAt: { unset: true },
       priorityScore: Math.max(job.priorityScore ?? 0, 150),
       lastError: null,
       reason: `Escalated for immediate operator-guided repair. ${job.reason ?? ""}`.trim(),
@@ -1221,7 +1227,7 @@ async function recoverFailedCompanyPipelineJobs(prisma, companyId) {
       lastError: null,
       queueColumn: "NOW",
       controlMode: "AI_ONLY",
-      scheduledAt: null,
+      scheduledAt: { unset: true },
       updatedAt: new Date(),
     },
   });
@@ -1250,7 +1256,7 @@ async function failPipelineJob(prisma, job, error) {
       reason: shouldDeadLetter
         ? `${job.jobType} dead-lettered after ${attempts}/${retryLimit} attempts (${classification.class}).`
         : `${job.jobType} cooled down for ${Math.round(retryDelayMs / 1000)}s after ${classification.class}.`,
-      scheduledAt: shouldDeadLetter ? null : new Date(now.getTime() + retryDelayMs),
+      scheduledAt: shouldDeadLetter ? { unset: true } : new Date(now.getTime() + retryDelayMs),
       updatedAt: now,
     },
   });
@@ -1276,6 +1282,7 @@ module.exports = {
   buildNoProgressTimeoutMessage,
   getPipelineJobRetryLimit,
   classifyPipelineJobError,
+  buildRunnablePipelineJobWhere,
   buildAutoJobProfile,
   shouldRunGlobalPipelineSync,
   gatherCompanyPipelineSignals,

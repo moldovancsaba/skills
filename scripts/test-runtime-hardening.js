@@ -8,6 +8,7 @@ const {
 const {
   classifyPipelineJobError,
   getPipelineJobRetryLimit,
+  buildRunnablePipelineJobWhere,
 } = require("../src/lib/pipeline-queue");
 
 async function main() {
@@ -77,6 +78,20 @@ async function main() {
   assert.equal(getPipelineJobRetryLimit("ENSURE_FLASHCARD_MINIMUM"), 4, "bootstrap jobs must use bounded retry limits");
   assert.equal(getPipelineJobRetryLimit("WORKFLOW_BLUEPRINT"), 3, "workflow jobs must use tighter retry limits");
   assert.equal(getPipelineJobRetryLimit("UNKNOWN_JOB"), 3, "unknown jobs must fall back to the safe default retry limit");
+
+  const runnableWhere = buildRunnablePipelineJobWhere(new Date("2026-05-18T12:00:00.000Z"));
+  assert.deepEqual(
+    runnableWhere,
+    {
+      status: "ACTIVE",
+      queueColumn: { not: "PARKED" },
+      OR: [
+        { scheduledAt: { isSet: false } },
+        { scheduledAt: { lte: new Date("2026-05-18T12:00:00.000Z") } },
+      ],
+    },
+    "claim path must treat missing scheduledAt as runnable under Prisma Mongo",
+  );
 
   console.log("Runtime hardening tests passed.");
 }

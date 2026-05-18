@@ -1,13 +1,14 @@
 const { PrismaClient } = require("@prisma/client");
 const http = require("http");
 const { OLLAMA_MODEL, envFlag } = require("./lib/core");
-const { runPipelineQueueBatch } = require("./lib/pipeline-jobs");
+const { runPipelineQueueBatch, shouldDelegateQueueRefresh } = require("./lib/pipeline-jobs");
 const { recoverOrphanedRunningPipelineJobs } = require("../src/lib/pipeline-queue");
 const packageJson = require("../package.json");
 const APP_VERSION = packageJson.version;
 
 const prisma = new PrismaClient();
 const PORT = 10005;
+const SNAPSHOT_PORT = 10007;
 const STARTUP_SCRUB_SETTING_KEY = "local_ai_startup_integrity_last_ran_at";
 
 /**
@@ -45,6 +46,27 @@ let isRunning = false;
 let wakeRequested = false;
 let lastStartupScrubAt = 0;
 let recoveredOrphanedRunningJobs = false;
+
+function requestBackgroundQueueSync(reason = "foreground-idle-claim-miss") {
+  const req = http.request(
+    { hostname: "127.0.0.1", port: SNAPSHOT_PORT, path: "/force", method: "POST", timeout: 3000 },
+    (res) => {
+      res.resume();
+      console.log(`[SCHEDULER] Background snapshot worker wake requested (${reason}) status=${res.statusCode}.`);
+    },
+  );
+
+  req.on("error", (error) => {
+    console.warn(`[SCHEDULER] Background snapshot wake request failed (${reason}): ${error.message}`);
+  });
+
+  req.on("timeout", () => {
+    req.destroy();
+    console.warn(`[SCHEDULER] Background snapshot wake request timed out (${reason}).`);
+  });
+
+  req.end();
+}
 
 async function readLastStartupScrubAt(prisma) {
   if (lastStartupScrubAt > 0) return lastStartupScrubAt;
@@ -156,13 +178,20 @@ async function runWorkerLoop() {
     });
     // Queue execution is the only mutation lane. Any revisit, synthesis,
     // repair, or maintenance work must arrive through claimable jobs.
-    const queueOps = await runPipelineQueueBatch(prisma, 1);
+    const queueBatch = await runPipelineQueueBatch(prisma, 1);
+    const queueOps = Number(queueBatch?.executed || 0);
+
+    if (shouldDelegateQueueRefresh(queueBatch)) {
+      requestBackgroundQueueSync("foreground-claim-miss");
+    }
 
     await updateProgress(prisma, {
       state: "idle",
       stage: "IDLE",
       currentCompany: null,
-      activeTask: "Waiting for the next planner cycle",
+      activeTask: shouldDelegateQueueRefresh(queueBatch)
+        ? "Waiting for background queue sync after claim miss"
+        : "Waiting for the next planner cycle",
     });
 
     const restInterval = queueOps > 0 ? ACTIVE_INTERVAL : IDLE_INTERVAL;

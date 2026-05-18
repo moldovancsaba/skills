@@ -241,6 +241,7 @@ The foreground worker must claim exactly one job per cycle.
 Contract:
 
 - `runPipelineQueueBatch(prisma, 1)` remains the only legal claim count for foreground execution
+- foreground claim miss no longer performs inline company queue sync; it delegates queue-refresh wakeup to `snapshot-worker`
 - any future parallelism must require a deliberate separate runtime design
 
 ### 6.2 No full queue sync in hot path
@@ -626,8 +627,12 @@ Acceptance:
 
 Current status:
 
-- first hardening slice shipped: duplicate full-company sync before every claim has been removed
-- remaining work: remove bounded global sync from the foreground cycle entirely and replace it with touched-company plus shard sync
+- shipped:
+  - duplicate full-company sync before every claim has been removed
+  - foreground claim miss no longer performs inline shard/global queue sync
+  - foreground now force-wakes `snapshot-worker` and leaves queue topology refresh to the background lane
+- remaining work:
+  - reduce touched-company sync cost further through more targeted queue-topology ownership
 
 ### Phase 3. Background snapshot worker
 

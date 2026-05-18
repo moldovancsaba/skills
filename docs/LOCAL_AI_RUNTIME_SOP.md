@@ -47,39 +47,36 @@ Sequence:
 8. recover stale `RUNNING` jobs with no progress timeout
 9. claim exactly one runnable queue job
 10. if no runnable job exists:
-   - sync a bounded company shard
-   - if due, run a full company queue sync
-   - try one claim again
-11. if still no runnable job exists:
    - set state to `IDLE`
+   - request a background queue-sync wakeup from `snapshot-worker`
    - rest for the idle interval
    - start the next cycle
-12. if a job is claimed:
+11. if a job is claimed:
    - set `currentCompany`
    - set `activeTask`
    - start heartbeat
-13. resolve execution profile for the job from:
+12. resolve execution profile for the job from:
    - job type
    - current memory band
    - attempt count
-14. if no safe profile exists:
+13. if no safe profile exists:
    - defer the job with cooldown
    - try another runnable job in the same cycle if possible
-15. if a degraded or minimal profile exists:
+14. if a degraded or minimal profile exists:
    - run the job with that smaller profile
-16. on success:
+15. on success:
    - mark job complete
    - clear cooldown
    - record usage
-17. on failure:
+16. on failure:
    - classify error
    - retry with cooldown or dead-letter into `FAILED + PARKED`
-18. stop heartbeat
-19. if work happened:
+17. stop heartbeat
+18. if work happened:
    - rest for the active interval
-20. if no work happened:
+19. if no work happened:
    - rest for the idle interval
-21. start the next cycle
+20. start the next cycle
 
 ## 3. Background loop
 
@@ -111,19 +108,20 @@ The worker does not fully scan all companies every foreground cycle.
 
 Rules:
 
-1. foreground claim path first tries to claim runnable work directly
-2. if no runnable job exists, foreground syncs only a bounded company shard
-3. a full company queue sync runs only on a slower interval
-4. background snapshot work may also run a full queue sync when due
-5. queue sync is what guarantees that:
+1. foreground claim path only tries to claim runnable work directly
+2. if no runnable job exists, foreground does not mutate queue topology
+3. background snapshot work owns queue sync cadence
+4. background worker may be force-woken by foreground claim miss
+5. a full company queue sync runs only on a slower interval in the background lane
+6. queue sync is what guarantees that:
    - new companies enter the queue
    - deleted companies lose queue work
    - changed companies get new or updated jobs
 
 Coverage contract:
 
-1. shard sync keeps the fast path cheap
-2. periodic global sync guarantees eventual full company coverage
+1. foreground stays claim-and-execute only
+2. background queue sync guarantees eventual full company coverage
 
 ## 5. Company lifecycle rules
 

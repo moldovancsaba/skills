@@ -9,8 +9,6 @@ const {
   PLANNER_QUALITY_JOB_TYPES,
   PLANNER_MAINTENANCE_JOB_TYPES,
   recoverStaleRunningPipelineJobs,
-  syncPipelineJobsForCompanyShard,
-  syncAllCompanyPipelineJobsIfDue,
   getPipelineJobLabel,
   spawnLowMemoryDecompositionChildJob,
 } = require("../../src/lib/pipeline-queue");
@@ -534,9 +532,10 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
   const maxClaims = targetExecutions + 3;
   let claimed = await claimNextPipelineJobs(prisma, 1);
   if (claimed.length === 0) {
-    await syncPipelineJobsForCompanyShard(prisma, targetExecutions + 1);
-    await syncAllCompanyPipelineJobsIfDue(prisma);
-    claimed = await claimNextPipelineJobs(prisma, 1);
+    return {
+      executed: 0,
+      claimedAny: false,
+    };
   }
   let executed = 0;
   let claimsAttempted = 0;
@@ -626,7 +625,14 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
     claimed = executed < targetExecutions ? await claimNextPipelineJobs(prisma, 1) : [];
   }
 
-  return executed;
+  return {
+    executed,
+    claimedAny: true,
+  };
+}
+
+function shouldDelegateQueueRefresh(queueBatchResult) {
+  return Boolean(queueBatchResult) && queueBatchResult.claimedAny === false;
 }
 
 module.exports = {
@@ -635,4 +641,5 @@ module.exports = {
   resolvePipelineJobExecutionPlan,
   JOB_WEIGHT_CLASSES,
   shouldDecomposeLowMemoryPipelineJob,
+  shouldDelegateQueueRefresh,
 };

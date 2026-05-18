@@ -24,6 +24,7 @@ const {
 const {
   resolvePipelineJobExecutionPlan,
   shouldDecomposeLowMemoryPipelineJob,
+  shouldDelegateQueueRefresh,
 } = require("./lib/pipeline-jobs");
 
 async function main() {
@@ -233,6 +234,17 @@ async function main() {
     ),
     false,
     "decomposed child jobs must not recursively decompose themselves",
+  );
+
+  assert.equal(
+    shouldDelegateQueueRefresh({ executed: 0, claimedAny: false }),
+    true,
+    "foreground claim miss should delegate queue refresh to the background lane",
+  );
+  assert.equal(
+    shouldDelegateQueueRefresh({ executed: 1, claimedAny: true }),
+    false,
+    "foreground must not delegate queue refresh after it successfully claimed work",
   );
 
   console.log("Runtime hardening tests passed.");

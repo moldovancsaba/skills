@@ -56,6 +56,7 @@ Read first:
 - the shipped follow-up slice now also includes server-side company dashboard bootstrap from prepared projection data, so the first page response is no longer blocked on a client dashboard fetch
 - the shipped follow-up slice now also includes server-side home/main dashboard bootstrap plus projection-backed home-card chart payloads, so the landing route no longer needs to pull full snapshot analytics documents on first load
 - the shipped follow-up slice now also includes server-bootstrapped shell identity, so the authenticated sidebar can render immediately from the signed session cookie instead of waiting for a post-mount identity request
+- the shipped follow-up slice now also defers home-card chart rendering until those cards approach the viewport, reducing up-front client chart work on the landing page
 - the dashboard first response is now intentionally narrower: non-critical member and identity details are not supposed to sit on the critical product-summary path
 - startup integrity scrub cooldown now persists across restarts instead of firing again on every guardian bounce
 - planner telemetry now retries and degrades to best-effort on retryable Prisma write conflicts instead of failing the owning job

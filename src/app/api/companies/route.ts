@@ -47,15 +47,9 @@ export async function GET(request: NextRequest) {
         industries: true,
         description: true,
         targetMarket: true,
-        website: true,
-        businessModel: true,
-        productCategories: true,
-        demographics: true,
-        competitors: true,
         mainGoal: true,
         intelligenceSnapshot: {
           select: {
-            updatedAt: true,
             webappProjection: true,
           },
         },

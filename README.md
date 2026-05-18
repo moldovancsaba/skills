@@ -256,6 +256,7 @@ Architecture note:
 - the home/main dashboard now also boots from server-loaded prepared company data instead of waiting for a post-mount `/api/companies` waterfall
 - company-card trend charts are now carried inside the prepared webapp projection, so the home route does not need full snapshot analytics payloads to render summary cards
 - the authenticated shell now bootstraps basic session identity from the signed cookie on the server, so sidebar identity no longer waits for a post-mount `/api/auth/session` fetch
+- home summary charts now lazy-render when they approach the viewport, so the landing page does not pay the full mini-chart hydration/rendering cost up front
 - non-critical identity and membership reads are being pushed off the first dashboard response so the initial route focuses on the product summary itself
 
 Current performance-debugging rule:

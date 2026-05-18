@@ -1,9 +1,8 @@
 "use client";
 
-import { Line, LineChart, ResponsiveContainer, YAxis, XAxis, Tooltip } from "recharts";
-import { useMantineTheme, Box } from "@mantine/core";
-import { UnifiedCardSection } from "@/components/ui/unified-card";
-import { MetaText } from "@/components/ui/typography";
+import dynamic from "next/dynamic";
+import { Box } from "@mantine/core";
+import { useEffect, useRef, useState } from "react";
 
 type ChartData = {
   date: string;
@@ -16,40 +15,45 @@ type DashboardChartProps = {
   height?: number;
 };
 
+const DashboardChartRenderer = dynamic(() => import("./dashboard-chart-renderer"), {
+  ssr: false,
+});
+
 export function DashboardChart({ data, color, height = 64 }: DashboardChartProps) {
-  const theme = useMantineTheme();
-  const strokeColor = color || theme.colors.ingress[6];
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    if (!data || data.length === 0) return;
+    if (shouldRender) return;
+
+    const node = hostRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting || entry.intersectionRatio > 0)) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      {
+        rootMargin: "240px 0px",
+        threshold: 0.01,
+      },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [data, shouldRender]);
 
   if (!data || data.length === 0) return null;
 
   return (
-    <Box h={height} w="100%" opacity={0.6}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={strokeColor}
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
-          <YAxis hide domain={['dataMin', 'dataMax']} />
-          <XAxis hide dataKey="date" />
-          <Tooltip 
-            content={({ active, payload }) => {
-              if (active && payload && payload.length) {
-                return (
-                  <UnifiedCardSection tone="neutral">
-                    <MetaText c="var(--text-primary)">{String(payload[0].value ?? "")}</MetaText>
-                  </UnifiedCardSection>
-                );
-              }
-              return null;
-            }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+    <Box ref={hostRef} h={height} w="100%" opacity={0.6}>
+      {shouldRender ? (
+        <DashboardChartRenderer data={data} color={color} height={height} />
+      ) : null}
     </Box>
   );
 }

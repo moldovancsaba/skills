@@ -199,6 +199,7 @@ They are compatibility paths, not the primary operating contract.
 - the home/main dashboard route should render its company list from server-loaded prepared data on first response instead of waiting for a client waterfall
 - the company dashboard route is expected to render from server-loaded projection-backed data on first response instead of waiting for a client fetch after mount
 - the authenticated shell should render basic session identity from server-readable signed session state instead of waiting for a client-side identity round trip
+- product-summary charts on the home route should defer heavy client rendering work until the cards approach the viewport
 - non-critical UI concerns such as member management or identity decoration should not sit on the critical first dashboard payload
 - once those constraints are satisfied, remaining route slowness should be debugged with authenticated live-route profiling, not guesswork
 - authenticated profiling is part of the architecture now: critical dashboard APIs emit `Server-Timing`, and explicit profiling requests may return named timing steps for production investigation

@@ -154,6 +154,26 @@ The background worker must be:
 - suppressible under low memory
 - unable to claim foreground planner jobs
 
+### 4.3.1 Memory governor
+
+Guardian owns a machine-protection memory governor.
+
+Contract:
+
+- under low memory, guardian may evict the active Ollama runner process
+- eviction must preserve the checklist runtime processes:
+  - `guardian`
+  - `sync`
+  - `status-server`
+  - `snapshot-worker`
+- the Ollama server may remain alive while the loaded runner is dropped
+- model residency is not treated as sacred state
+- after eviction:
+  - idle workers should be woken immediately
+  - actively running workers may be restarted so the queue can recover and continue
+
+This is the preferred RAM-recovery mechanism on the dedicated checklist host because the Ollama runner is the single largest disposable memory owner.
+
 ### 4.4 Status server
 
 `status-server` remains read-only for business state.

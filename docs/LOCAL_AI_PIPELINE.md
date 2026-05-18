@@ -49,6 +49,8 @@ The local runtime now has 4 always-on processes:
 1. `guardian`
    - watchdog only
    - owns restart logic, health polling, heartbeat writing, and command bridge polling
+   - owns the memory governor
+   - may evict the Ollama runner under low-memory pressure to preserve checklist runtime continuity
 
 2. `sync`
    - the only state-mutating worker
@@ -149,7 +151,10 @@ Runtime hardening note:
 - this foreground loop is still the current shipped contract
 - the claim path no longer performs duplicated full-company queue sync before every single claim
 - snapshot refresh has now been removed from this foreground lane and moved into a dedicated `snapshot-worker`
-- memory-band gating now pauses the foreground worker under `CRITICAL` memory pressure and pauses the background worker unless memory is `HEALTHY`
+- memory-band gating now pauses the background worker unless memory is `HEALTHY`
+- foreground work uses a harder floor:
+  - it may still continue lightweight queue work under pressure
+  - guardian may evict the Ollama runner to recover RAM before stopping the checklist lane
 - startup integrity scrub cooldown now survives worker restarts instead of re-running on every bounce
 - planner telemetry writes are best-effort under retryable Prisma conflicts and no longer take jobs down
 - the status server now exposes a lightweight `/health` probe and short-lived payload caching to reduce probe and dashboard load

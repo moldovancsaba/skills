@@ -86,6 +86,7 @@ Application stack:
 - Prisma
 - MongoDB Atlas
 - Ollama for local model execution
+  - the live runtime may evict loaded Ollama runner processes under low-memory pressure to keep checklist healthy
 
 Frontend system:
 

@@ -3,8 +3,9 @@
 Start here only after reading:
 
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
-2. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
-3. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
+2. [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md)
+3. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
+4. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
 
 If you skip those, you do not have the current system contract.
 
@@ -27,6 +28,18 @@ This rule is not optional:
 - the local AI system pulls those persisted records, performs the calculations, and pushes the updated results back into MongoDB Atlas
 
 If you see authoritative calculation logic in the webapp layer, treat it as architecture debt and remove it.
+
+## Future Function Rule
+
+New mini-app functions must follow [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md).
+
+That means:
+
+- local AI prepares, webapp reads
+- hot routes are projection-first
+- server bootstrap beats post-mount waterfalls
+- payloads must be explicit and minimal
+- non-critical hydration should be deferred
 
 ## What The Frontend Uses
 

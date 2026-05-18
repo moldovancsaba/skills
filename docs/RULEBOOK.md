@@ -12,11 +12,12 @@ The repository must be interpreted in this order:
 1. `docs/RULEBOOK.md`
 2. `docs/SSOT.md`
 3. `docs/SYSTEM_DESIGN_LLD.md`
-4. `DESIGN_SYSTEM.md`
-5. `docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md`
-6. `HANDOVER.md`
-7. `DESIGN_SYSTEM_AGENT_HANDOFF.md`
-8. any older plan, audit, or historical note
+4. `docs/IMPLEMENTATION_RULEBOOK.md`
+5. `DESIGN_SYSTEM.md`
+6. `docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md`
+7. `HANDOVER.md`
+8. `DESIGN_SYSTEM_AGENT_HANDOFF.md`
+9. any older plan, audit, or historical note
 
 No lower document is allowed to redefine a higher-level rule.
 
@@ -277,10 +278,32 @@ Required update matrix:
   - update `docs/RULEBOOK.md`
   - update `docs/SSOT.md`
   - update `docs/SYSTEM_DESIGN_LLD.md`
+  - update `docs/IMPLEMENTATION_RULEBOOK.md` if delivery/build rules changed
   - update `HANDOVER.md`
 - agent-facing operating change:
+  - update `AGENT.md`
+  - update `SOUL.md`
+  - update `agents/README.md`
+  - update `skills/README.md` if repo-local skill guidance is affected
   - update `HANDOVER.md`
   - update `DESIGN_SYSTEM_AGENT_HANDOFF.md` if UI-related
+
+## 9.1 Implementation Rulebook
+
+Future product functions must follow the shared implementation rulebook.
+
+Authoritative file:
+
+- `docs/IMPLEMENTATION_RULEBOOK.md`
+
+Non-negotiable rules:
+
+- hot product routes must be projection-first
+- server bootstrap is preferred over post-mount client waterfalls
+- route payloads must be minimal and explicit
+- non-critical hydration and rendering must be deferred
+- stale prepared data must be repaired through background ownership
+- profiling is required before speculative performance trimming once the obvious architectural problems are removed
 
 Budget governor rules:
 

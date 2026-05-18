@@ -195,6 +195,7 @@ They are compatibility paths, not the primary operating contract.
 
 ## 6.2 Product route bootstrap
 
+- [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md) is the authoritative build rulebook for future product functions and mini-app surfaces.
 - hot authenticated product routes should prefer server-first bootstrap from prepared projection data
 - the home/main dashboard route should render its company list from server-loaded prepared data on first response instead of waiting for a client waterfall
 - the company dashboard route is expected to render from server-loaded projection-backed data on first response instead of waiting for a client fetch after mount

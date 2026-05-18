@@ -5,8 +5,9 @@ This file is mandatory reading for any agent operating in this repository.
 Read first:
 
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
-2. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
-3. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
+2. [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md)
+3. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
+4. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
 
 ## Non-Negotiable Operating Rules
 
@@ -27,3 +28,8 @@ Read first:
 ## Documentation Duty
 
 If agent behavior standards, communication standards, coding standards, or architecture rules change, update the governing docs in the same work.
+
+Implementation duty:
+
+- when building future product functions, agents must follow `docs/IMPLEMENTATION_RULEBOOK.md`
+- agents must not rebuild hot-route summary state live in the webapp when prepared projections or server bootstrap are the correct contract

@@ -8,9 +8,22 @@ import { CookieBanner } from "@/lib/cookie-consent";
 
 type RootShellProps = {
   children: ReactNode;
+  initialSession?: {
+    authenticated: boolean;
+    id: string;
+    email: string;
+    name: string;
+    picture?: string;
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      picture?: string;
+    };
+  } | null;
 };
 
-export function RootShell({ children }: RootShellProps) {
+export function RootShell({ children, initialSession = null }: RootShellProps) {
   const pathname = usePathname();
   const isStandaloneCard = pathname?.startsWith("/card/");
   const isStandaloneOperatorSurface = pathname?.startsWith("/local-ai");
@@ -32,7 +45,7 @@ export function RootShell({ children }: RootShellProps) {
         main: { background: "var(--mantine-color-body)" },
       }}
     >
-      <ClientNav />
+      <ClientNav initialSession={initialSession} />
       <AppShellMain>{children}</AppShellMain>
       <CookieBanner />
     </AppShell>

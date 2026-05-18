@@ -6,6 +6,7 @@ import "./globals.css";
 import { ColorSchemeScript } from "@mantine/core";
 import { Providers } from "@/components/providers";
 import { RootShell } from "@/components/root-shell";
+import { getShellInitialSession } from "@/lib/server-shell-data";
 
 const colorSchemeStorageKey = "checklist-color-scheme";
 const uiLanguageStorageKey = "checklist-ui-language";
@@ -40,11 +41,12 @@ const fontDisplay = Plus_Jakarta_Sans({
   variable: "--font-display",
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialSession = await getShellInitialSession();
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -64,7 +66,7 @@ export default function RootLayout({
       </head>
       <body className={`${fontBody.variable} ${fontDisplay.variable} font-body`}>
         <Providers>
-          <RootShell>{children}</RootShell>
+          <RootShell initialSession={initialSession}>{children}</RootShell>
         </Providers>
       </body>
     </html>

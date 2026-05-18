@@ -187,6 +187,7 @@ The first slice of this architecture is now:
 - server-side company dashboard bootstrap from prepared projection data instead of a post-mount dashboard fetch
 - server-side home/main dashboard bootstrap from prepared company data instead of a post-mount `/api/companies` waterfall
 - company summary-card charts embedded into `webappProjection.homeCharts` so the home route does not need heavy `analyticsHistory` reads
+- shell identity bootstrap from the signed session cookie so the authenticated sidebar does not wait for a post-mount identity fetch
 - lighter first dashboard payload by moving non-critical identity/member reads off the critical response
 
 Hot routes improved in this slice:

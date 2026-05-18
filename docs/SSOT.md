@@ -172,6 +172,7 @@ Dashboard route contract:
 
 - the home/main dashboard should bootstrap from server-loaded prepared company data on the first response
 - the company dashboard should bootstrap from server-loaded prepared data on the first response
+- the authenticated shell should bootstrap basic user identity from the signed server session where possible
 - non-critical panels such as membership or identity details should not block the first product-summary render
 - home-card chart data should come from the prepared projection too, not from broad snapshot analytics reads on the hot path
 

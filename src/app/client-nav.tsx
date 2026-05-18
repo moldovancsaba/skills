@@ -81,14 +81,30 @@ const pipelineItems = [
   },
 ];
 
-export function ClientNav() {
+type ClientNavProps = {
+  initialSession?: {
+    authenticated: boolean;
+    id: string;
+    email: string;
+    name: string;
+    picture?: string;
+    user?: {
+      id: string;
+      email: string;
+      name: string;
+      picture?: string;
+    };
+  } | null;
+};
+
+export function ClientNav({ initialSession = null }: ClientNavProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
   const { company, setCompany } = useStore();
   const { isDark, toggle } = useTheme();
   const { t } = useI18n();
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<any>(initialSession);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [resolvedCompany, setResolvedCompany] = useState<any>(null);
 
@@ -96,10 +112,11 @@ export function ClientNav() {
   const companyIdFromUrl = params?.companyId as string;
 
   useEffect(() => {
+    if (initialSession) return;
     fetch("/api/auth/session?scope=identity")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setSession(data));
-  }, []);
+  }, [initialSession]);
 
   useEffect(() => {
     const activeId = company?.id || companyIdFromUrl;

@@ -3,7 +3,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { APP_SESSION_COOKIE, readAppSessionToken } from "@/lib/auth";
-import { normalizeWebappProjection, type WebappProjectionTask } from "@/lib/webapp-projection";
+import { getProjectionFreshness, normalizeWebappProjection, type ProjectionFreshness, type WebappProjectionTask } from "@/lib/webapp-projection";
 
 type DataType = "source" | "file";
 
@@ -42,6 +42,7 @@ export type DashboardInitialData = {
   analytics: any[];
   scoreHealth: any;
   isOwner: boolean;
+  projectionFreshness: ProjectionFreshness;
 };
 
 export type DataPageInitialData = {
@@ -275,6 +276,7 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
     analytics: Array.isArray(snapshot?.analyticsHistory) ? snapshot.analyticsHistory : [],
     scoreHealth: snapshot?.scoreHealth && typeof snapshot.scoreHealth === "object" ? snapshot.scoreHealth : null,
     isOwner: ["OWNER", "SUPERADMIN"].includes(auth.membership.role),
+    projectionFreshness: getProjectionFreshness(projection?.generatedAt ?? null),
   };
 }
 

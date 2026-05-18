@@ -2,6 +2,11 @@
 
 checklist exports three dataset families.
 
+Exports now come in two scopes:
+
+- one aggregated top-level bundle under `training/exports/<stamp>/`
+- one per-company bundle under `training/exports/<stamp>/companies/<company-slug>-<company-id-prefix>/`
+
 ## Supervised fine-tuning
 
 Files:
@@ -44,6 +49,11 @@ Files:
 Format:
 
 - one prompt plus expected output and metadata
+- supported eval kinds now include:
+  - `TASK`
+  - `FLASHCARD`
+  - `GROUNDED_ANSWER`
+  - `SEARCH_RANKING`
 
 Use for:
 

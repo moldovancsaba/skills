@@ -17,6 +17,7 @@ MLX / MLX-LM is the active training path for checklist because the system runs o
 5. create a local Ollama candidate
 6. evaluate the candidate locally
 7. canary through Ollama before promotion
+8. register, promote, or rollback through the governed checklist model registry
 
 The repo can now prepare a runnable bundle automatically:
 
@@ -31,6 +32,7 @@ That produces:
 - an Ollama `Modelfile`
 - a run manifest
 - a shell command sequence for train, fuse, evaluate, and canary steps
+- registry-ready promotion commands for register / canary / promote / rollback
 
 ## Canonical command shapes
 
@@ -55,3 +57,4 @@ mlx_lm.fuse --model <path_or_hf_model>
 - if the model is quantized, MLX-LM uses QLoRA behavior
 - keep the base model stable between training and deployment
 - checklist should start with task and flashcard SFT before introducing preference tuning
+- use `npm run training:run-mlx` when you want one bounded Apple-Silicon runner instead of manually stepping through the generated shell commands

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordOutcomeEvent } from "@/lib/audit-ledger";
 import { recordAiWorkloadUsage } from "@/lib/budget-governor";
-import { getLocalLearningRun, listLocalLearningRuns } from "@/lib/local-learning";
+import { getLocalLearningRegistry, getLocalLearningRun, listLocalLearningRuns } from "@/lib/local-learning";
 import {
   EVALUATION_SUITES,
   SEEDED_EVALUATION_CASES,
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     cases: SEEDED_EVALUATION_CASES,
     comparison,
     learningRuns,
+    registry: await getLocalLearningRegistry(),
   });
 }
 
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
         runId: run.runId,
         gateStatus: run.gateStatus,
         learningRuns: await listLocalLearningRuns(),
+        registry: await getLocalLearningRegistry(),
       });
     }
 
@@ -167,6 +169,7 @@ export async function POST(request: NextRequest) {
       comparison,
       observabilityPublished: persistObservability && comparison.candidate.failedCases.length > 0,
       learningRuns: await listLocalLearningRuns(),
+      registry: await getLocalLearningRegistry(),
     });
   } catch (error) {
     console.error("[API:Evaluations] failure:", error);

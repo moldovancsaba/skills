@@ -143,6 +143,7 @@ export default function EvaluationsPage() {
   const baseline = comparison?.baseline;
   const failedCases = candidate?.failedCases || [];
   const learningRuns = data?.learningRuns || [];
+  const registry = data?.registry;
 
   return (
     <PageShell width="full">
@@ -305,6 +306,29 @@ export default function EvaluationsPage() {
           supporting={<Badge variant="light" color="strategy">{learningRuns.length} runs</Badge>}
         />
         <UnifiedCardBody>
+          <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md" mb="md">
+            <MetricCard
+              icon={Brain}
+              color="strategy"
+              label="Active Model"
+              value={registry?.active?.candidateName || "None"}
+              detail={registry?.active?.alias || "No promoted local learning candidate"}
+            />
+            <MetricCard
+              icon={Flask}
+              color="review"
+              label="Canary Alias"
+              value={registry?.canary?.alias || "None"}
+              detail={registry?.canary?.candidateName || "No active canary"}
+            />
+            <MetricCard
+              icon={Upload}
+              color="knowmore"
+              label="Registry Candidates"
+              value={registry?.candidates?.length || 0}
+              detail={registry?.updatedAt ? `Updated ${dateLabel(registry.updatedAt)}` : "Registry not initialized yet"}
+            />
+          </SimpleGrid>
           {learningRuns.length === 0 ? (
             <Notice title="No local candidate runs found" icon={Brain}>
               Prepare a local Apple Silicon training run with `npm run training:prepare-mlx` and this internal evaluation surface will surface its manifest and gate state automatically.

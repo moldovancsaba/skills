@@ -300,6 +300,23 @@ The canonical local candidate-gate command is:
 npm run training:eval -- --eval <eval_cases.jsonl> --baseline-model <baseline> --candidate-model <candidate>
 ```
 
+The canonical registry / rollout commands are:
+
+```bash
+npm run training:promote -- --action register --run <training-run-dir>
+npm run training:promote -- --action canary --run <training-run-dir>
+npm run training:promote -- --action canary --run <training-run-dir> --apply
+npm run training:promote -- --action promote --run <training-run-dir>
+npm run training:promote -- --action rollback
+```
+
+The canonical bounded Apple-Silicon runner command is:
+
+```bash
+npm run training:run-mlx -- --export <training-export-dir> --model <base-model> --output <training-run-dir>
+npm run training:run-mlx -- --export <training-export-dir> --model <base-model> --output <training-run-dir> --execute --register
+```
+
 The internal admin-only evaluation page also reads local `training/runs/` manifests and reports, so candidate run state becomes visible in-product once a run bundle has been prepared.
 
 Completed local learning runs can also be published from that internal surface into the normal observability/history ledger. This creates durable platform-visible audit evidence for candidate gate outcomes even though the raw run artifacts remain local files.
@@ -310,6 +327,7 @@ Completed local learning runs can also be published from that internal surface i
 - production runtime must not silently switch base models during promotion
 - the base model used for adapter training must match the base model used for deployment
 - canary evaluation must happen before broad rollout
+- the regression gate must cover knowledge quality, grounded answers, ranking health, and duplicate suppression before promotion
 - manual operator feedback remains the strongest teaching signal; synthetic data is allowed only as augmentation
 
 ## Phase Order

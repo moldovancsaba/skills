@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { prisma } from "@/lib/db";
 
 export type LocalLearningRunSummary = {
   runId: string;
@@ -26,9 +27,12 @@ export type LocalLearningRunSummary = {
     mlxConfig: string;
     commands: string;
     ollamaModelfile: string;
+    ggufPath?: string;
+    mlxDataset?: string;
     evaluationReport: string;
     adapterPath: string;
     fusedPath: string;
+    registryScript?: string;
   };
   report: null | {
     baselineModel: string;
@@ -39,7 +43,56 @@ export type LocalLearningRunSummary = {
     candidatePassRate: number;
     delta: number;
     totalCases: number;
+    blockedPromotion?: boolean;
   };
+};
+
+export type LocalLearningRegistry = {
+  version: number;
+  active: null | {
+    runId: string;
+    candidateName: string;
+    candidateModel: string;
+    alias: string;
+    promotedAt: string;
+    baselineModel: string;
+  };
+  canary: null | {
+    runId: string;
+    alias: string;
+    candidateName: string;
+    applied: boolean;
+    activatedAt: string;
+  };
+  rollback: null | {
+    runId: string;
+    previousStageModels: {
+      DRAFT: string | null;
+      WRITE: string | null;
+      JUDGE: string | null;
+    };
+    capturedAt: string;
+    rolledBackAt?: string;
+  };
+  candidates: Array<{
+    runId: string;
+    candidateName: string;
+    companyId: string;
+    companyName: string;
+    gateStatus: "PASS" | "REVIEW_REQUIRED" | "PENDING";
+    gateReason: string;
+    aggregateScore: number;
+    passRate: number;
+    totalCases: number;
+    status: string;
+    aliases?: {
+      candidateAlias?: string;
+      canaryAlias?: string;
+    };
+    promotedAt?: string | null;
+    canaryAt?: string | null;
+  }>;
+  updatedAt: string | null;
 };
 
 type RunManifest = {
@@ -56,6 +109,7 @@ type RunManifest = {
     status: "PENDING" | "PASS" | "REVIEW_REQUIRED";
     baselineModel: string;
     candidateModel: string;
+    candidatePath?: string;
   };
 };
 
@@ -76,6 +130,7 @@ type EvaluationReport = {
   promotionGate: {
     status: "PASS" | "REVIEW_REQUIRED";
     reason: string;
+    blockedPromotion?: boolean;
   };
 };
 
@@ -143,4 +198,19 @@ export async function listLocalLearningRuns(limit = 12): Promise<LocalLearningRu
 export async function getLocalLearningRun(runId: string): Promise<LocalLearningRunSummary | null> {
   const runs = await listLocalLearningRuns(100);
   return runs.find((run) => run.runId === runId) ?? null;
+}
+
+export async function getLocalLearningRegistry(): Promise<LocalLearningRegistry> {
+  const record = await prisma.globalSetting.findUnique({
+    where: { key: "local_learning_model_registry" },
+    select: { value: true },
+  });
+  return (record?.value as LocalLearningRegistry | null) || {
+    version: 1,
+    active: null,
+    canary: null,
+    rollback: null,
+    candidates: [],
+    updatedAt: null,
+  };
 }

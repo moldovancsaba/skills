@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 function parseArgs(argv) {
   const args = {
@@ -111,8 +111,14 @@ mlx_lm.fuse --model ${shellQuote(args.model)} --adapter-path ${shellQuote(adapte
 # 3. Evaluate the fused candidate locally against checklist cases
 npm run training:eval -- --eval ${shellQuote(join(exportDir, "eval_cases.jsonl"))} --baseline-model ${shellQuote(args.baselineModel)} --candidate-path ${shellQuote(fusedPath)} --report ${shellQuote(reportPath)}
 
-# 4. Optional: if the model family can be converted/imported cleanly, promote it into Ollama later
-# ollama create ${shellQuote(candidateName)} -f ${shellQuote(join(runDir, "Modelfile"))}
+# 4. Register the evaluated candidate in the governed checklist registry
+node ${shellQuote(resolve(process.cwd(), "scripts", "promote-learning-candidate.mjs"))} --action register --run ${shellQuote(runDir)}
+
+# 5. Optional: build an Ollama canary alias after the gate passes
+# node ${shellQuote(resolve(process.cwd(), "scripts", "promote-learning-candidate.mjs"))} --action canary --run ${shellQuote(runDir)} --apply
+
+# 6. Optional: promote the passed candidate into the runtime stage-model settings
+# node ${shellQuote(resolve(process.cwd(), "scripts", "promote-learning-candidate.mjs"))} --action promote --run ${shellQuote(runDir)}
 `;
 
   const runManifest = {
@@ -133,6 +139,7 @@ npm run training:eval -- --eval ${shellQuote(join(exportDir, "eval_cases.jsonl")
       evaluationReport: reportPath,
       adapterPath,
       fusedPath,
+      registryScript: resolve(process.cwd(), "scripts", "promote-learning-candidate.mjs"),
     },
     gate: {
       status: "PENDING",

@@ -202,6 +202,8 @@ Hot routes improved in this slice:
 - database-level Knowmore paging/filtering in `src/lib/flashcards.ts` and `GET /api/knowmore`
 - server-side datacard bootstrap in `src/lib/server-company-page-data.ts` via `/:companyId/data`
 - server-side topics bootstrap in `src/lib/server-topics-page-data.ts` via `/:companyId/topics`
+- server-side goals bootstrap in `src/lib/server-goals-page-data.ts` via `/:companyId/goals`
+- bounded file paging in `GET /api/data-files` so the datacard route no longer pulls the full file corpus on first load
 
 ## 7.1 Knowmore pagination contract
 

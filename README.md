@@ -42,6 +42,7 @@ Future-function rule:
 - future mini-app work must stay projection-first, server-bootstrapped where appropriate, payload-disciplined, and profiling-driven once the obvious architectural problems are removed
 - if a large corpus view needs pagination, search and filtering must still operate on the full eligible corpus, not just the visible page slice
 - after the Knowmore follow-up audit, the same bootstrap rule also applies explicitly to sibling corpus routes such as Datacards and Topics
+- the same read-model discipline now also applies to Goals, and large Datacard file lists must page instead of shipping the full uploaded-file corpus on first load
 
 Documentation scope rule:
 

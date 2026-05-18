@@ -63,6 +63,9 @@ export type DataPageInitialData = {
   sourceItems: any[];
   sourceTotal: number;
   sourceHasMore: boolean;
+  fileItems: any[];
+  fileTotal: number;
+  fileHasMore: boolean;
   fileCount: number;
   pendingTaskCount: number;
   isOwner: boolean;
@@ -281,7 +284,7 @@ export async function getDataPageInitialData(companyId: string, pageSize = 12): 
   const auth = await getSessionAndMembership(companyId);
   if (!auth) return null;
 
-  const [company, members, snapshot, sourceItems, sourceTotal, files] = await Promise.all([
+  const [company, members, snapshot, sourceItems, sourceTotal, files, fileTotal] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
     prisma.user.findMany({ where: { companyId }, orderBy: { createdAt: "asc" } }),
     prisma.intelligenceSnapshot.findUnique({ where: { companyId } }),
@@ -324,7 +327,9 @@ export async function getDataPageInitialData(companyId: string, pageSize = 12): 
         createdAt: true,
         updatedAt: true,
       },
+      take: pageSize,
     }),
+    prisma.uploadedSourceFile.count({ where: { companyId } }),
   ]);
 
   if (!company) return null;
@@ -357,7 +362,15 @@ export async function getDataPageInitialData(companyId: string, pageSize = 12): 
     })),
     sourceTotal,
     sourceHasMore: sourceItems.length < sourceTotal,
-    fileCount: projection?.counts.files ?? files.length,
+    fileItems: files.map((file) => ({
+      ...file,
+      body: decodeUploadedFileBody(file),
+      createdAt: file.createdAt.toISOString(),
+      updatedAt: file.updatedAt.toISOString(),
+    })),
+    fileTotal,
+    fileHasMore: files.length < fileTotal,
+    fileCount: projection?.counts.files ?? fileTotal,
     pendingTaskCount: projection?.counts.checklistCount ?? 0,
     isOwner: ["OWNER", "SUPERADMIN"].includes(auth.membership.role),
     members,

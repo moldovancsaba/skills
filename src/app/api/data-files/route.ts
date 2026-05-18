@@ -100,11 +100,17 @@ function parseHashtags(value: FormDataEntryValue | null) {
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
+  const limitParam = request.nextUrl.searchParams.get("limit");
+  const offsetParam = request.nextUrl.searchParams.get("offset");
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
 
   try {
     await ensureSourcePublicIds(companyId as string);
+    const limit = limitParam ? Number(limitParam) : null;
+    const offset = offsetParam ? Number(offsetParam) : 0;
+    const safeLimit = limit && Number.isFinite(limit) && limit > 0 ? Math.min(limit, 100) : null;
+    const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0;
     const files = await prisma.uploadedSourceFile.findMany({
       where: { companyId: companyId as string },
       orderBy: [{ publicId: "asc" }, { createdAt: "asc" }],
@@ -126,13 +132,21 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         updatedAt: true,
       },
+      ...(safeLimit ? { skip: safeOffset, take: safeLimit } : {}),
     });
-    return NextResponse.json(
-      files.map((file) => ({
-        ...file,
-        body: decodeUploadedFileBody(file),
-      })),
-    );
+    const normalized = files.map((file) => ({
+      ...file,
+      body: decodeUploadedFileBody(file),
+    }));
+    if (safeLimit) {
+      const total = await prisma.uploadedSourceFile.count({ where: { companyId: companyId as string } });
+      return NextResponse.json({
+        items: normalized,
+        total,
+        hasMore: safeOffset + normalized.length < total,
+      });
+    }
+    return NextResponse.json(normalized);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

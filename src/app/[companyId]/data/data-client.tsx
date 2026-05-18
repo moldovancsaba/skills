@@ -103,6 +103,9 @@ export default function CompanyDataClient({
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [sourceTotal, setSourceTotal] = useState(() => initialData?.sourceTotal ?? 0);
   const [sourceHasMore, setSourceHasMore] = useState(() => Boolean(initialData?.sourceHasMore));
+  const [fileItems, setFileItems] = useState<any[]>(() => initialData?.fileItems ?? []);
+  const [fileTotal, setFileTotal] = useState(() => initialData?.fileTotal ?? 0);
+  const [fileHasMore, setFileHasMore] = useState(() => Boolean(initialData?.fileHasMore));
 
   useEffect(() => {
     if (!initialData) return;
@@ -113,16 +116,20 @@ export default function CompanyDataClient({
   const loadAllData = useCallback(async (cid: string) => {
     const [s, f] = await Promise.all([
       fetch(`/api/sources?companyId=${cid}&limit=${PAGE_SIZE}&offset=0`).then((res) => res.json()),
-      fetch(`/api/data-files?companyId=${cid}`).then((res) => res.json()),
+      fetch(`/api/data-files?companyId=${cid}&limit=${PAGE_SIZE}&offset=0`).then((res) => res.json()),
     ]);
     const sourceItems = Array.isArray(s) ? s : Array.isArray(s?.items) ? s.items : [];
+    const nextFileItems = Array.isArray(f) ? f : Array.isArray(f?.items) ? f.items : [];
     setSources(sourceItems);
     setSourceTotal(typeof s?.total === "number" ? s.total : sourceItems.length);
     setSourceHasMore(Boolean(s?.hasMore));
+    setFileItems(nextFileItems);
+    setFileTotal(typeof f?.total === "number" ? f.total : nextFileItems.length);
+    setFileHasMore(Boolean(f?.hasMore));
     
     const all = [
       ...sourceItems.map((x: any) => ({ ...x, name: x.content, type: "source" as DataType })),
-      ...f.map((x: any) => ({ ...x, body: x.body, type: "file" as DataType })),
+      ...nextFileItems.map((x: any) => ({ ...x, body: x.body, type: "file" as DataType })),
     ];
     setItems(all);
     setLoading(false);
@@ -140,6 +147,19 @@ export default function CompanyDataClient({
       ...sourceItems.map((x: any) => ({ ...x, name: x.content, type: "source" as DataType })),
     ]);
   }, [company, sourceHasMore, sources, setSources, sourceTotal]);
+
+  const loadMoreFiles = useCallback(async () => {
+    if (!company || !fileHasMore) return;
+    const f = await fetch(`/api/data-files?companyId=${company.id}&limit=${PAGE_SIZE}&offset=${fileItems.length}`).then((res) => res.json());
+    const nextFileItems = Array.isArray(f?.items) ? f.items : [];
+    setFileItems((prev) => [...prev, ...nextFileItems]);
+    setFileTotal(typeof f?.total === "number" ? f.total : fileTotal);
+    setFileHasMore(Boolean(f?.hasMore));
+    setItems((prev) => [
+      ...prev,
+      ...nextFileItems.map((x: any) => ({ ...x, body: x.body, type: "file" as DataType })),
+    ]);
+  }, [company, fileHasMore, fileItems.length, fileTotal]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -585,7 +605,7 @@ export default function CompanyDataClient({
                 <MemberList companyId={companyId} isOwner={isOwner} initialMembers={initialData?.members} />
           </UnifiedGrid>
 
-          {(sortedItems.length > visibleItems.length || sourceHasMore) && (
+          {(sortedItems.length > visibleItems.length || sourceHasMore || fileHasMore) && (
             <Group justify="center">
               <Button
                 variant="light"
@@ -593,6 +613,9 @@ export default function CompanyDataClient({
                 onClick={async () => {
                   if (visibleCount >= sortedItems.length && sourceHasMore) {
                     await loadMoreSources();
+                  }
+                  if (visibleCount >= sortedItems.length && fileHasMore) {
+                    await loadMoreFiles();
                   }
                   setVisibleCount((current) => current + PAGE_SIZE);
                 }}

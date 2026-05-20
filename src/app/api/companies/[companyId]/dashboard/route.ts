@@ -70,6 +70,7 @@ export async function GET(
         liveTopicCount,
         liveFlashcardCount,
         liveGoalCount,
+        liveSalesCount,
         liveTacticalCount,
         liveChecklistCount,
         liveReviewCount,
@@ -83,6 +84,13 @@ export async function GET(
         }),
         prisma.goalcard.count({
           where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } },
+        }),
+        prisma.opportunitycard.count({
+          where: {
+            companyId: cid,
+            departmentKey: "SALES",
+            activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+          },
         }),
         prisma.checklistTask.count({
           where: { companyId: cid, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } },
@@ -122,6 +130,7 @@ export async function GET(
         topics: liveTopicCount,
         flashcards: liveFlashcardCount,
         goals: liveGoalCount,
+        sales: liveSalesCount,
         tacticalCount: Math.max(liveTacticalCount, checklistCount),
         checklistCount,
         reviewCount: liveReviewCount,

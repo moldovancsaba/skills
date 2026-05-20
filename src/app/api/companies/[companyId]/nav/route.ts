@@ -40,6 +40,15 @@ export async function GET(
         },
       }),
     ]));
+    const salesCount = await profiler.measure("loadSalesCount", () =>
+      prisma.opportunitycard.count({
+        where: {
+          companyId,
+          activityState: { in: ["ACTIVE", "STALE"] },
+          departmentKey: "SALES",
+        },
+      }),
+    );
 
     if (!company) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -55,7 +64,12 @@ export async function GET(
         ? observabilitySummary.queue as Record<string, unknown>
         : {};
 
-    const counts = projection?.navCounts ?? {
+    const counts: Record<string, number> = projection?.navCounts
+      ? {
+          ...projection.navCounts,
+          sales: salesCount,
+        }
+      : {
       data: Number(snapshot?.dataIngressCount ?? 0),
       topics: Number(snapshot?.topicSynthesisCount ?? 0),
       knowmore: Number(snapshot?.knowmoreCount ?? 0),
@@ -64,6 +78,7 @@ export async function GET(
       checklist: Number(snapshot?.checklistCount ?? 0),
       tactical: Math.max(Number(snapshot?.tacticalBoardCount ?? 0), Number(snapshot?.checklistCount ?? 0)),
       pipeline: Number(queue.totalActiveJobs ?? 0),
+      sales: salesCount,
     };
 
     const response = NextResponse.json({
@@ -72,6 +87,7 @@ export async function GET(
         ...counts,
         tactical: Math.max(Number(counts.tactical || 0), Number(counts.checklist || 0)),
         pipeline: Number(queue.totalActiveJobs ?? counts.pipeline ?? 0),
+        sales: Number(counts.sales || salesCount || 0),
       },
       ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),
     });

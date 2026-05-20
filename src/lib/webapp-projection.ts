@@ -4,6 +4,7 @@ type ProjectionCounts = {
   topics: number;
   flashcards: number;
   goals: number;
+  sales: number;
   tacticalCount: number;
   checklistCount: number;
   reviewCount: number;
@@ -67,6 +68,7 @@ export type WebappProjection = {
     topics: number;
     knowmore: number;
     goals: number;
+    sales: number;
     review: number;
     checklist: number;
     tactical: number;
@@ -81,6 +83,7 @@ const EMPTY_COUNTS: ProjectionCounts = {
   topics: 0,
   flashcards: 0,
   goals: 0,
+  sales: 0,
   tacticalCount: 0,
   checklistCount: 0,
   reviewCount: 0,
@@ -143,6 +146,7 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
     topics: Number(countsValue.topics || 0),
     flashcards: Number(countsValue.flashcards || 0),
     goals: Number(countsValue.goals || 0),
+    sales: Number(countsValue.sales || 0),
     tacticalCount: Number(countsValue.tacticalCount || 0),
     checklistCount: Number(countsValue.checklistCount || 0),
     reviewCount: Number(countsValue.reviewCount || 0),
@@ -236,6 +240,7 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
       topics: resolvedCounts.topics,
       knowmore: resolvedCounts.flashcards,
       goals: resolvedCounts.goals,
+      sales: resolvedCounts.sales,
       review: resolvedCounts.reviewCount,
       checklist: resolvedCounts.checklistCount,
       tactical: resolvedCounts.tacticalCount,

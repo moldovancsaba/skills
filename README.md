@@ -55,6 +55,12 @@ Professional operating rule:
 - do not soften explicit standards
 - do not use vague filler wording in place of precise status
 
+Terminology rule:
+
+- use [docs/CANONICAL_TERMINOLOGY.md](/Users/Shared/Projects/checklist/docs/CANONICAL_TERMINOLOGY.md) for canonical entity and surface names
+- `ChecklistTask` is a `taskcard`
+- `Tactical Board` is a surface, not a card type
+
 ## Documentation Hierarchy
 
 Read these in order. Lower documents must not contradict higher ones.
@@ -63,16 +69,17 @@ Read these in order. Lower documents must not contradict higher ones.
 2. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 3. [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
 4. [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md)
-5. [docs/WEBAPP_READ_MODEL_LLD.md](/Users/Shared/Projects/checklist/docs/WEBAPP_READ_MODEL_LLD.md)
-6. [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
-7. [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
-8. [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
-9. [CHANGELOG.md](/Users/Shared/Projects/checklist/CHANGELOG.md)
-10. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
-11. [docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md](/Users/Shared/Projects/checklist/docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md)
-12. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
-13. [DESIGN_SYSTEM_AGENT_HANDOFF.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM_AGENT_HANDOFF.md)
-14. [documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md](/Users/Shared/Projects/checklist/documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md)
+5. [docs/CANONICAL_TERMINOLOGY.md](/Users/Shared/Projects/checklist/docs/CANONICAL_TERMINOLOGY.md)
+6. [docs/WEBAPP_READ_MODEL_LLD.md](/Users/Shared/Projects/checklist/docs/WEBAPP_READ_MODEL_LLD.md)
+7. [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
+8. [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
+9. [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
+10. [CHANGELOG.md](/Users/Shared/Projects/checklist/CHANGELOG.md)
+11. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
+12. [docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md](/Users/Shared/Projects/checklist/docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md)
+13. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
+14. [DESIGN_SYSTEM_AGENT_HANDOFF.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM_AGENT_HANDOFF.md)
+15. [documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md](/Users/Shared/Projects/checklist/documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md)
 
 If two docs disagree:
 
@@ -129,6 +136,7 @@ Frontend system:
 - the Local AI Quality Engine is now the shipped runtime contract for opportunity mining, research-backed updates, novelty suppression, editorial quality gating, and feedback-pressure regeneration
 - the local AI runtime now uses a dedicated `snapshot-worker` background process so intelligence snapshot refresh no longer shares the foreground planner queue lane
 - the online webapp must stay projection-first on hot product routes; the local AI side prepares fast company read models ahead of time so product page loads do not behave like a second analytics engine
+- the online webapp must not perform authoritative business logic, lead mining, scoring, ICE calculation, dedupe, enrichment, or external-search workload; it should only persist user input, feedback, and lightweight worker intents
 
 Worker queue controls:
 

@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, usePathname } from "next/navigation";
 import { 
-  Stack, Group, SegmentedControl, FileButton, ScrollArea, Box, Divider, Button, Badge, rem, Center, Loader, ThemeIcon, Tooltip, ActionIcon } from "@mantine/core";
+  Stack, Group, SegmentedControl, FileButton, ScrollArea, Box, Divider, Button, Badge, rem, Center, Loader, ThemeIcon, Tooltip, ActionIcon, Select } from "@mantine/core";
 import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconFileText as ScrollText, IconFilter as ListFilter, IconSortAscending as SortAsc, IconUsers as Users, IconPencil as Edit2, IconInfoCircle as Info, IconDatabase as Database } from "@tabler/icons-react";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
@@ -39,6 +39,7 @@ interface DataItem {
   entityTag?: string | null;
   description?: string;
   intelligenceType?: "INTERNAL" | "COMPETITOR";
+  departmentKey?: string | null;
   createdAt: string;
   updatedAt: string;
   iceScore?: number;
@@ -98,6 +99,7 @@ export default function CompanyDataClient({
   const [pendingTaskCount, setPendingTaskCount] = useState(() => initialData?.pendingTaskCount ?? 0);
   const [activeHashtags, setActiveHashtags] = useState<string[]>([]);
   const [intelligenceType, setIntelligenceType] = useState<"INTERNAL" | "COMPETITOR">("INTERNAL");
+  const [departmentKey, setDepartmentKey] = useState<string | null>(null);
   const [listIntelligenceFilter, setListIntelligenceFilter] = useState<"ALL" | "INTERNAL" | "COMPETITOR">("ALL");
   const [sortBy, setSortBy] = useState<"ICE" | "CREATED" | "UPDATED">("CREATED");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -266,6 +268,7 @@ export default function CompanyDataClient({
             name: input,
             hashtags: normalizedHashtags,
             intelligenceType,
+            departmentKey,
           }),
         });
         if (!response.ok) throw new Error("Failed to update source");
@@ -290,6 +293,7 @@ export default function CompanyDataClient({
             content: input,
             hashtags: normalizedHashtags,
             intelligenceType,
+            departmentKey,
           }),
         });
         if (!response.ok) throw new Error("Failed to save source");
@@ -314,6 +318,7 @@ export default function CompanyDataClient({
     setInput(item.name);
     setHashtags(item.hashtags ?? []);
     setIntelligenceType(item.intelligenceType ?? "INTERNAL");
+    setDepartmentKey(item.departmentKey ?? null);
     setSelectedFiles([]);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -323,6 +328,7 @@ export default function CompanyDataClient({
     setInput("");
     setHashtags([]);
     setIntelligenceType("INTERNAL");
+    setDepartmentKey(null);
     setSelectedFiles([]);
   };
 
@@ -481,6 +487,25 @@ export default function CompanyDataClient({
                 />
               </Stack>
 
+              <Select
+                label="Department Scope"
+                description="Optional scoped workflow context such as sales."
+                placeholder="Shared research"
+                data={[
+                  { value: "", label: "Shared / General" },
+                  { value: "SALES", label: "Sales" },
+                  { value: "MARKETING", label: "Marketing" },
+                  { value: "PRODUCT", label: "Product" },
+                  { value: "LEGAL", label: "Legal" },
+                  { value: "BIZDEV", label: "BizDev" },
+                  { value: "FACTORY", label: "Factory" },
+                  { value: "OPERATIONS", label: "Operations" },
+                  { value: "DEVELOPMENT", label: "Development" },
+                ]}
+                value={departmentKey ?? ""}
+                onChange={(value) => setDepartmentKey(value || null)}
+              />
+
               <Group justify="flex-end" mt="md">
                 {editingId && (
                   <Button variant="subtle" color="gray" onClick={cancelEdit}>Cancel</Button>
@@ -582,6 +607,7 @@ export default function CompanyDataClient({
                     type={item.type}
                     onOpenDetail={() => setSelectedDataId(item.id)}
                     intelligenceType={item.intelligenceType}
+                    departmentKey={item.departmentKey}
                     hashtags={item.hashtags ?? []}
                     iceScore={item.iceScore}
                     createdAt={item.createdAt}
@@ -644,6 +670,7 @@ export default function CompanyDataClient({
             type={selectedDataItem.type}
             detailMode
             intelligenceType={selectedDataItem.intelligenceType}
+            departmentKey={selectedDataItem.departmentKey}
             hashtags={selectedDataItem.hashtags ?? []}
             iceScore={selectedDataItem.iceScore}
             createdAt={selectedDataItem.createdAt}

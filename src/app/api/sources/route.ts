@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
         hashtags: true,
         aiClusters: true,
         entityTag: true,
+        departmentKey: true,
         createdAt: true,
         updatedAt: true,
         processingStatus: true,
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
           provenance: typeof data.provenance === "string" ? data.provenance : null,
           sourceType: typeof data.sourceType === "string" ? data.sourceType : "MANUAL",
           intelligenceType: data.intelligenceType === "COMPETITOR" ? "COMPETITOR" : "INTERNAL",
+          departmentKey: typeof data.departmentKey === "string" ? data.departmentKey : null,
         },
       });
     }, TRANSACTION_SETTINGS);
@@ -115,6 +117,7 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       afterState: {
         intelligenceType: created.intelligenceType,
+        departmentKey: created.departmentKey,
         hashtags: created.hashtags,
       },
       payload: {
@@ -152,6 +155,7 @@ export async function PATCH(request: NextRequest) {
       provenance: data.provenance !== undefined ? data.provenance : existing.provenance,
       sourceType: data.sourceType !== undefined ? data.sourceType : existing.sourceType,
       intelligenceType: data.intelligenceType === "COMPETITOR" || data.intelligenceType === "INTERNAL" ? data.intelligenceType : existing.intelligenceType,
+      departmentKey: typeof data.departmentKey === "string" ? data.departmentKey : existing.departmentKey,
     };
     const lifecycleData = buildSourceLifecycleData({
       ...existing,
@@ -177,11 +181,13 @@ export async function PATCH(request: NextRequest) {
         content: existing.content,
         hashtags: existing.hashtags,
         intelligenceType: existing.intelligenceType,
+        departmentKey: existing.departmentKey,
       },
       afterState: {
         content: updated.content,
         hashtags: updated.hashtags,
         intelligenceType: updated.intelligenceType,
+        departmentKey: updated.departmentKey,
       },
       teachingWeight: 40,
     });

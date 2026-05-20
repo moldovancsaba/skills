@@ -56,6 +56,7 @@ export type DataPageInitialData = {
     aiClusters?: string[];
     entityTag?: string | null;
     intelligenceType?: "INTERNAL" | "COMPETITOR";
+    departmentKey?: string | null;
     createdAt: string;
     updatedAt: string;
     iceScore?: number;
@@ -298,6 +299,7 @@ export async function getDataPageInitialData(companyId: string, pageSize = 12): 
         hashtags: true,
         aiClusters: true,
         entityTag: true,
+        departmentKey: true,
         createdAt: true,
         updatedAt: true,
         processingStatus: true,

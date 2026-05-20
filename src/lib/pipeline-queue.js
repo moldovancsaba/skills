@@ -28,12 +28,14 @@ const PLANNER_BOOTSTRAP_JOB_TYPES = Object.freeze([
 const PLANNER_QUALITY_JOB_TYPES = Object.freeze([
   "MINE_FLASHCARD_OPPORTUNITIES",
   "MINE_TASK_OPPORTUNITIES",
+  "MINE_OPPORTUNITYCARDS",
   "FEEDBACK_PRESSURE_REGENERATION",
 ]);
 
 const PLANNER_MAINTENANCE_JOB_TYPES = Object.freeze([
   "REFRESH_FLASHCARDS",
   "REFRESH_TASKS",
+  "REFRESH_OPPORTUNITYCARDS",
   "REFRESH_DATACARDS",
   "REFRESH_GOALS",
 ]);
@@ -77,9 +79,11 @@ const PIPELINE_JOB_RETRY_LIMITS = Object.freeze({
   ENSURE_CHECKLIST_MINIMUM: 4,
   MINE_FLASHCARD_OPPORTUNITIES: 4,
   MINE_TASK_OPPORTUNITIES: 4,
+  MINE_OPPORTUNITYCARDS: 4,
   FEEDBACK_PRESSURE_REGENERATION: 4,
   REFRESH_FLASHCARDS: 4,
   REFRESH_TASKS: 4,
+  REFRESH_OPPORTUNITYCARDS: 4,
   REFRESH_DATACARDS: 4,
   REFRESH_GOALS: 4,
   COMPANY_SYNTHESIS: 4,
@@ -120,9 +124,11 @@ const JOB_LABELS = Object.freeze({
   ENSURE_CHECKLIST_MINIMUM: "Ensure Checklist Minimum",
   MINE_FLASHCARD_OPPORTUNITIES: "Mine Flashcard Opportunities",
   MINE_TASK_OPPORTUNITIES: "Mine Task Opportunities",
+  MINE_OPPORTUNITYCARDS: "Mine Opportunitycards",
   FEEDBACK_PRESSURE_REGENERATION: "Feedback Pressure Regeneration",
   REFRESH_FLASHCARDS: "Refresh Flashcards",
   REFRESH_TASKS: "Refresh Tasks",
+  REFRESH_OPPORTUNITYCARDS: "Refresh Opportunitycards",
   REFRESH_DATACARDS: "Refresh Datacards",
   REFRESH_GOALS: "Refresh Goals",
   FULL_MAINTENANCE: "Full Maintenance",
@@ -445,6 +451,10 @@ function buildAutoJobProfile(jobType, signals) {
     scoreHealth,
     activeTaskCount,
     activeKnowledgeCount,
+    salesDatacardCount,
+    salesKnowledgeCount,
+    activeOpportunityCount,
+    staleOpportunityCount,
     flashcardCount,
     datacardCount,
     sourceCount,
@@ -627,6 +637,31 @@ function buildAutoJobProfile(jobType, signals) {
         reason: "Task opportunity mining waits until the company has active flashcard knowledge.",
         sourceSignal: "quality-opportunity-tasks-idle",
       };
+    case "MINE_OPPORTUNITYCARDS":
+      if (mode === "INACTIVE") {
+        return {
+          queueColumn: "PARKED",
+          priorityScore: 0,
+          reason: "Company is inactive because it has no datacards yet.",
+          sourceSignal: "inactive-no-datacards",
+        };
+      }
+      if (salesDatacardCount > 0 || salesKnowledgeCount > 0) {
+        return {
+          queueColumn: activeOpportunityCount === 0 ? "SOON" : "LATER",
+          priorityScore: roundPriority(66 + Math.min(salesDatacardCount + salesKnowledgeCount, 24) + staleOpportunityCount * 4),
+          reason: activeOpportunityCount === 0
+            ? "Sales opportunitycard mining should bootstrap lead discovery from sales and competitor research."
+            : "Sales opportunitycard mining remains active so the local AI can keep lead discovery warm.",
+          sourceSignal: activeOpportunityCount === 0 ? "sales-opportunity-bootstrap" : "sales-opportunity-maintenance",
+        };
+      }
+      return {
+        queueColumn: "PARKED",
+        priorityScore: 0,
+        reason: "Opportunitycard mining waits until the company has sales-scoped or competitor research to mine from.",
+        sourceSignal: "sales-opportunity-idle",
+      };
     case "FEEDBACK_PRESSURE_REGENERATION":
       if (signals.blockedFeedbackFamiliesCount > 0) {
         return {
@@ -671,6 +706,28 @@ function buildAutoJobProfile(jobType, signals) {
             priorityScore: 26,
             reason: "Task refresh remains available under oldest-first global maintenance.",
             sourceSignal: "refresh-tasks-idle",
+          };
+    case "REFRESH_OPPORTUNITYCARDS":
+      if (activeOpportunityCount === 0) {
+        return {
+          queueColumn: "PARKED",
+          priorityScore: 0,
+          reason: "Opportunitycard refresh waits until the company has active sales opportunitycards.",
+          sourceSignal: "refresh-opportunitycards-idle",
+        };
+      }
+      return staleOpportunityCount > 0
+        ? {
+            queueColumn: "SOON",
+            priorityScore: roundPriority(68 + staleOpportunityCount * 4),
+            reason: `${staleOpportunityCount} opportunitycard(s) are due for oldest-first maintenance refresh.`,
+            sourceSignal: "refresh-opportunitycards",
+          }
+        : {
+            queueColumn: "LATER",
+            priorityScore: 24,
+            reason: "Opportunitycard refresh remains available under oldest-first global maintenance.",
+            sourceSignal: "refresh-opportunitycards-idle",
           };
     case "REFRESH_DATACARDS":
       return staleDatacardCount > 0 || datacardCount < PLANNER_MIN_DATACARDS_FOR_ACTIVE
@@ -740,6 +797,9 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
     pendingStrategicFeedbackCount,
     activeTaskCount,
     activeKnowledgeCount,
+    salesDatacardCount,
+    salesKnowledgeCount,
+    activeOpportunityCount,
     sourceCount,
     fileCount,
     activeTopicCount,
@@ -749,6 +809,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
     staleSources,
     staleTopics,
     staleFiles,
+    staleOpportunitycards,
     activeManualCooldownCount,
     taskLaneCounts,
     scoreHealth,
@@ -778,6 +839,34 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         companyId,
         activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
         processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+      },
+    }),
+    prisma.source.count({
+      where: {
+        companyId,
+        OR: [
+          { departmentKey: "SALES" },
+          { intelligenceType: "COMPETITOR" },
+        ],
+      },
+    }),
+    prisma.flashcard.count({
+      where: {
+        companyId,
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] },
+        OR: [
+          { departmentKey: "SALES" },
+          { intelligenceType: "COMPETITOR" },
+        ],
+      },
+    }),
+    prisma.opportunitycard.count({
+      where: {
+        companyId,
+        departmentKey: "SALES",
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "DECLINED", "REVIEW"] },
       },
     }),
     prisma.source.count({ where: { companyId } }),
@@ -834,6 +923,15 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         updatedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
     }),
+    prisma.opportunitycard.count({
+      where: {
+        companyId,
+        departmentKey: "SALES",
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "DECLINED", "REVIEW"] },
+        refreshedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    }),
     prisma.checklistTask.count({
       where: {
         companyId,
@@ -868,6 +966,9 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
     pendingStrategicFeedbackCount,
     activeTaskCount,
     activeKnowledgeCount,
+    salesDatacardCount,
+    salesKnowledgeCount,
+    activeOpportunityCount,
     flashcardCount,
     datacardCount,
     sourceCount,
@@ -877,6 +978,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
     staleGoalCount: staleGoals,
     staleTaskCount: staleTasks,
     staleDatacardCount: staleSources,
+    staleOpportunityCount: staleOpportunitycards,
     activeManualCooldownCount,
     laneCounts,
     deficits,
@@ -886,7 +988,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
       laneCounts,
     }),
     blockedFeedbackFamiliesCount: countCompanyBlockedFamilies(feedbackPressureIndex, companyId),
-    staleAuditCount: staleFlashcards + staleGoals + staleTasks + staleSources + staleTopics + staleFiles,
+    staleAuditCount: staleFlashcards + staleGoals + staleTasks + staleSources + staleTopics + staleFiles + staleOpportunitycards,
     scoreHealth,
   };
 }

@@ -953,12 +953,19 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
     ? progressSetting.value
     : {};
 
-  const [dataSources, uploadedFiles, topics, flashcards, goals, checklistTasks, checklistCount, reviewCount, laneCountRows, flashcardAverages, reviewedFlashcards, scoreHealth, analyticsHistory, feedbackAnalytics, hashtagAnalytics] = await Promise.all([
+  const [dataSources, uploadedFiles, topics, flashcards, goals, opportunitycards, checklistTasks, checklistCount, reviewCount, laneCountRows, flashcardAverages, reviewedFlashcards, scoreHealth, analyticsHistory, feedbackAnalytics, hashtagAnalytics] = await Promise.all([
     prisma.source.count({ where: { companyId } }),
     prisma.uploadedSourceFile.count({ where: { companyId } }),
     prisma.topic.count({ where: { companyId } }),
     prisma.flashcard.count({ where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } } }),
     prisma.goalcard.count({ where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } } }),
+    prisma.opportunitycard.count({
+      where: {
+        companyId,
+        departmentKey: "SALES",
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+      },
+    }),
     prisma.checklistTask.count({ where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } } }),
     prisma.checklistTask.count({
       where: {
@@ -1074,6 +1081,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       topics,
       flashcards,
       goals,
+      sales: opportunitycards,
       tacticalCount: Math.max(checklistTasks, checklistCount),
       checklistCount,
       reviewCount,
@@ -1090,6 +1098,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       topics,
       knowmore: flashcards,
       goals,
+      sales: opportunitycards,
       review: reviewCount,
       checklist: checklistCount,
       tactical: Math.max(checklistTasks, checklistCount),

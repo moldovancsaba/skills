@@ -43,6 +43,8 @@ model Company {
   aiWorkloadUsages     AiWorkloadUsage[]
   budgetPolicies       BudgetPolicy[]
   budgetEvents         BudgetEvent[]
+  opportunitycards     Opportunitycard[]
+  opportunityFeedback  OpportunitycardFeedback[]
   
   // Profile Validation Fields
   website             String?
@@ -50,6 +52,7 @@ model Company {
   productCategories   String[]              @default([])
   demographics        Json?                 @default("{}")
   competitors         Json?                 @default("[]")
+  enabledDepartments  DepartmentKey[]       @default([])
 }
 
 model IntelligenceSnapshot {
@@ -186,6 +189,7 @@ model Flashcard {
   createdByRunId          String?
   cycleRunId              String?
   intelligenceType        IntelligenceType      @default(INTERNAL)
+  departmentKey          DepartmentKey?
   lastAuditedAt           DateTime? // Legacy shared audit timestamp. Deprecated in favor of purpose-specific fields.
   lastRescoredAt          DateTime?
   lastTaxonomyAuditedAt   DateTime?
@@ -317,6 +321,7 @@ model Goalcard {
   brainVersion            String?               @default("local-brain@0.16.0")
   generatedAt             DateTime?
   intelligenceType        IntelligenceType      @default(INTERNAL)
+  departmentKey          DepartmentKey?
   lastAuditedAt           DateTime? // Legacy shared audit timestamp. Deprecated in favor of purpose-specific fields.
   lastRescoredAt          DateTime?
   lastTaxonomyAuditedAt   DateTime?
@@ -449,6 +454,7 @@ model ChecklistTask {
   manualLaneCooldownUntil DateTime?
   manualLaneFloorColumn ChecklistKanbanColumn?
   manualLaneOverrideBy String?
+  departmentKey      DepartmentKey?
 
   @@unique([companyId, fingerprint])
   @@index([companyId, processingStatus, cycleRunId])
@@ -458,6 +464,100 @@ model ChecklistTask {
   @@index([companyId, kanbanColumn, sortOrder])
   @@index([companyId, manualLaneCooldownUntil])
   @@map("ChecklistTask")
+}
+
+model Opportunitycard {
+  id                 String     @id @default(uuid()) @map("_id")
+  publicId           Int?       @unique
+  companyId          String
+  companyName        String
+  title              String
+  body               String
+  website            String?
+  linkedinUrl        String?
+  instagramUrl       String?
+  facebookUrl        String?
+  xUrl               String?
+  contactInfo        Json?      @default("{}")
+  location           String?
+  salesGeographies   String[]   @default([])
+  coreOffer          String?
+  financialBackground String?
+  fitRationale       String?
+  opportunityType    OpportunityType @default(PROSPECT)
+  departmentKey      DepartmentKey   @default(SALES)
+  confidence         Int        @default(50)
+  confidenceScore    Float      @default(50)
+  impact             Int        @default(5)
+  weight             Int        @default(5)
+  iceScore           Float      @default(0)
+  processingStatus   OpportunitycardProcessingStatus @default(DRAFT)
+  activityState      OpportunitycardActivityState    @default(ACTIVE)
+  userAnnotation     String?
+  evaluationReason   String?
+  declineCount       Int        @default(0)
+  acceptanceCount    Int        @default(0)
+  feedbackScore      Float      @default(0)
+  createdBy          String?    @default("local-opportunity-miner")
+  sourceFlashcardIds String[]   @default([])
+  generatedFromIds   String[]   @default([])
+  fingerprint        String?
+  versionFamilyId    String?
+  duplicateClusterId String?
+  refinedFromId      String?
+  scoreProfile       Json?      @default("{}")
+  evidence           Json?      @default("{}")
+  hashtags           String[]   @default([])
+  kanbanColumn       ChecklistKanbanColumn @default(IDEABANK)
+  sortOrder          Float      @default(0)
+  manualLaneOverrideAt DateTime?
+  manualLaneCooldownUntil DateTime?
+  manualLaneFloorColumn ChecklistKanbanColumn?
+  manualLaneOverrideBy String?
+  promptVersion      String?
+  promptHash         String?
+  promptName         String?
+  modelName          String?
+  modelVersion       String?
+  temperature        Float?
+  generatedAt        DateTime?
+  refreshedAt        DateTime   @default(now())
+  lastActionAt       DateTime?
+  rottenAt           DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @default(now()) @updatedAt
+  company            Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  feedback           OpportunitycardFeedback[]
+
+  @@unique([companyId, fingerprint])
+  @@index([companyId, processingStatus, kanbanColumn, sortOrder])
+  @@index([companyId, departmentKey, kanbanColumn, sortOrder])
+  @@index([companyId, duplicateClusterId])
+  @@index([companyId, versionFamilyId])
+}
+
+model OpportunitycardFeedback {
+  id                 String    @id @default(uuid()) @map("_id")
+  companyId          String
+  opportunitycardId  String
+  action             OpportunitycardActionType
+  declineReason      OpportunitycardDeclineReason?
+  annotation         String?
+  modifiedCompanyName String?
+  modifiedTitle      String?
+  modifiedBody       String?
+  modifiedWebsite    String?
+  modifiedLocation   String?
+  modifiedCoreOffer  String?
+  modifiedFitRationale String?
+  actedBy            String?   @default("webapp-user")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @default(now()) @updatedAt
+  company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  opportunitycard    Opportunitycard @relation(fields: [opportunitycardId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([opportunitycardId, createdAt])
 }
 
 enum ChecklistKanbanColumn {
@@ -532,6 +632,7 @@ model Source {
   topicHints      String[] @default([]) // topic label hints for Generator
   freshnessWindowDays Int? @default(30) // how many days this evidence is considered fresh
   intelligenceType    IntelligenceType @default(INTERNAL)
+  departmentKey       DepartmentKey?
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, publicId, createdAt])
@@ -1003,6 +1104,57 @@ enum FlashcardSourceType {
   FILE
 }
 
+enum DepartmentKey {
+  SALES
+  MARKETING
+  PRODUCT
+  LEGAL
+  BIZDEV
+  FACTORY
+  OPERATIONS
+  DEVELOPMENT
+}
+
+enum OpportunityType {
+  PROSPECT
+  PARTNER
+  RESELLER
+}
+
+enum OpportunitycardActionType {
+  ACCEPT
+  DECLINE
+  MODIFY
+  PIN
+  REQUEST_REFRESH
+  ARCHIVE
+}
+
+enum OpportunitycardDeclineReason {
+  NOT_A_COMPANY
+  IRRELEVANT_MARKET
+  BAD_FIT
+  DUPLICATE
+  LOW_CONFIDENCE
+  BAD_DATA
+}
+
+enum OpportunitycardProcessingStatus {
+  DRAFT
+  CHECKED
+  VERIFIED
+  ACCEPTED
+  DECLINED
+  REVIEW
+}
+
+enum OpportunitycardActivityState {
+  ACTIVE
+  STALE
+  EXPIRED
+  ARCHIVED
+}
+
 enum FlashcardStatus {
   DRAFT
   CHECKED
@@ -1034,9 +1186,11 @@ enum PipelineJobType {
   ENSURE_CHECKLIST_MINIMUM
   MINE_FLASHCARD_OPPORTUNITIES
   MINE_TASK_OPPORTUNITIES
+  MINE_OPPORTUNITYCARDS
   FEEDBACK_PRESSURE_REGENERATION
   REFRESH_FLASHCARDS
   REFRESH_TASKS
+  REFRESH_OPPORTUNITYCARDS
   REFRESH_DATACARDS
   REFRESH_GOALS
   FULL_MAINTENANCE

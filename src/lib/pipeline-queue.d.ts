@@ -11,9 +11,11 @@ export type PipelineJobType =
   | "ENSURE_CHECKLIST_MINIMUM"
   | "MINE_FLASHCARD_OPPORTUNITIES"
   | "MINE_TASK_OPPORTUNITIES"
+  | "MINE_OPPORTUNITYCARDS"
   | "FEEDBACK_PRESSURE_REGENERATION"
   | "REFRESH_FLASHCARDS"
   | "REFRESH_TASKS"
+  | "REFRESH_OPPORTUNITYCARDS"
   | "REFRESH_DATACARDS"
   | "REFRESH_GOALS"
   | "FULL_MAINTENANCE"
@@ -84,6 +86,7 @@ export function syncAllCompanyPipelineJobsIfDue(
   prisma: unknown,
   options?: { now?: number; force?: boolean },
 ): Promise<boolean>;
+export function markCompanyPipelineTopologyDirty(prisma: unknown, companyId: string, reason?: string): Promise<unknown>;
 export function recoverStaleRunningPipelineJobs(prisma: unknown): Promise<unknown>;
 export function recoverOrphanedRunningPipelineJobs(prisma: unknown): Promise<unknown>;
 export function listCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;

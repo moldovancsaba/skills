@@ -59,6 +59,7 @@ type BaseSourceRecord = {
   sourceName: string;
   knowledgeName: string;
   hashtags: string[];
+  departmentKey?: string | null;
   confidence?: number;
   confidenceScore?: number;
   impact?: number;
@@ -1780,6 +1781,7 @@ export async function syncBootstrapFlashcards(companyId: string) {
           citationSnapshotIds: draft.citationSnapshotIds ?? [],
           conflictDetected: Boolean(draft.conflictDetected),
           conflictSummary: draft.conflictSummary ?? null,
+          departmentKey: source.departmentKey ?? null,
           status: FlashcardStatus.ACTIVE,
           createdBy: BOOTSTRAP_CREATED_BY,
           appVersion: APP_VERSION,

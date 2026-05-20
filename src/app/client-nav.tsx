@@ -56,6 +56,14 @@ const pipelineItems = [
     tone: "knowmore",
   },
   {
+    key: "sales",
+    href: (companyId: string) => `/${companyId}/sales`,
+    labelKey: "nav.sales",
+    icon: Sparkles,
+    color: "strategy",
+    tone: "strategy",
+  },
+  {
     key: "tactical",
     href: (companyId: string) => `/${companyId}/tactical`,
     labelKey: "nav.tactical",
@@ -146,6 +154,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
             data: data.counts?.data || 0,
             topics: data.counts?.topics || 0,
             knowmore: data.counts?.knowmore || 0,
+            sales: data.counts?.sales || 0,
             goals: data.counts?.goals || 0,
             checklist: checklistCount,
             tactical: planningCount,

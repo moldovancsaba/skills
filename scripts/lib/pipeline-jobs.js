@@ -27,6 +27,10 @@ const {
   refreshOldestGoals,
 } = require("./planner/maintenance-cycle");
 const {
+  mineOpportunitycards,
+  refreshOldestOpportunitycards,
+} = require("../../src/lib/opportunitycards-runtime");
+const {
   performCompanyScrubbing,
   performCompanyWriting,
   performCompanyJudging,
@@ -118,9 +122,11 @@ const MEMORY_INTENSIVE_PIPELINE_JOB_TYPES = new Set([
   "RESEARCH_BACKFILL",
   "MINE_FLASHCARD_OPPORTUNITIES",
   "MINE_TASK_OPPORTUNITIES",
+  "MINE_OPPORTUNITYCARDS",
   "FEEDBACK_PRESSURE_REGENERATION",
   "REFRESH_FLASHCARDS",
   "REFRESH_TASKS",
+  "REFRESH_OPPORTUNITYCARDS",
   "REFRESH_DATACARDS",
   "REFRESH_GOALS",
   "COMPANY_SYNTHESIS",
@@ -162,9 +168,11 @@ const PIPELINE_JOB_WEIGHT_CLASS = Object.freeze({
   ENSURE_CHECKLIST_MINIMUM: JOB_WEIGHT_CLASSES.HEAVY,
   MINE_FLASHCARD_OPPORTUNITIES: JOB_WEIGHT_CLASSES.HEAVY,
   MINE_TASK_OPPORTUNITIES: JOB_WEIGHT_CLASSES.HEAVY,
+  MINE_OPPORTUNITYCARDS: JOB_WEIGHT_CLASSES.HEAVY,
   FEEDBACK_PRESSURE_REGENERATION: JOB_WEIGHT_CLASSES.HEAVY,
   REFRESH_FLASHCARDS: JOB_WEIGHT_CLASSES.MEDIUM,
   REFRESH_TASKS: JOB_WEIGHT_CLASSES.MEDIUM,
+  REFRESH_OPPORTUNITYCARDS: JOB_WEIGHT_CLASSES.MEDIUM,
   REFRESH_DATACARDS: JOB_WEIGHT_CLASSES.MEDIUM,
   REFRESH_GOALS: JOB_WEIGHT_CLASSES.MEDIUM,
   COMPANY_SYNTHESIS: JOB_WEIGHT_CLASSES.HEAVY,
@@ -328,6 +336,8 @@ async function runPlannerMaintenanceJob(prisma, company, jobType, executionOptio
       await recomputeFrontier(prisma, company);
       return refreshed.length + 1;
     }
+    case "REFRESH_OPPORTUNITYCARDS":
+      return (await refreshOldestOpportunitycards(prisma, company, new Date(), executionOptions)).length;
     case "REFRESH_DATACARDS":
       return (await refreshOldestDatacards(prisma, company, new Date(), executionOptions)).length;
     case "REFRESH_GOALS":
@@ -351,11 +361,16 @@ async function runPlannerQualityJob(prisma, company, jobType, executionOptions =
       return performCompanyWriting(prisma, company, memoryPrompt, null, workerContext, executionOptions);
     case "MINE_TASK_OPPORTUNITIES":
       return performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext, executionOptions);
+    case "MINE_OPPORTUNITYCARDS": {
+      const result = await mineOpportunitycards(prisma, company.id);
+      return Number(result.created || 0) + Number(result.updated || 0);
+    }
     case "FEEDBACK_PRESSURE_REGENERATION": {
       const taskOps = await performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext, executionOptions);
       const refreshOps = await refreshOldestTasks(prisma, company, new Date(), executionOptions);
+      const opportunityRefreshOps = await refreshOldestOpportunitycards(prisma, company, new Date(), executionOptions);
       await recomputeFrontier(prisma, company);
-      return taskOps + refreshOps.length + 1;
+      return taskOps + refreshOps.length + opportunityRefreshOps.length + 1;
     }
     default:
       return 0;

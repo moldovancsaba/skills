@@ -26,6 +26,7 @@ type SourceDataCardProps = {
   onOpenDetail?: () => void;
   detailMode?: boolean;
   intelligenceType?: "INTERNAL" | "COMPETITOR";
+  departmentKey?: string | null;
   hashtags: string[];
   iceScore?: number;
   createdAt?: string | null;
@@ -51,6 +52,7 @@ export function SourceDataCard({
   onOpenDetail,
   detailMode = false,
   intelligenceType,
+  departmentKey,
   hashtags,
   iceScore,
   createdAt,
@@ -88,6 +90,11 @@ export function SourceDataCard({
             >
               {isCompetitor ? "Competitor" : "Internal"}
             </Badge>
+            {departmentKey ? (
+              <Badge color="strategy" variant="light">
+                {departmentKey}
+              </Badge>
+            ) : null}
             <Badge color="ingress" variant="light" leftSection={<Icon size={10} />}>
               {type}
             </Badge>

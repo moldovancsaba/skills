@@ -188,7 +188,7 @@ export const faqItems: FaqItem[] = [
     id: "why-webapp-does-not-calculate",
     question: "Why does the webapp not calculate the AI state directly?",
     answer:
-      "Because the architecture contract is strict: the webapp shows persisted results from MongoDB Atlas and writes interaction or repair-intent records back. The local AI system is the only authority that calculates queue state, score health, observability summaries, and other intelligence outputs.",
+      "Because the architecture contract is strict: the webapp shows persisted results from MongoDB Atlas and writes interaction or repair-intent records back. The local AI system is the only authority that calculates queue state, score health, observability summaries, lead mining, enrichment, dedupe, ICE movement, and other intelligence outputs.",
   },
   {
     id: "markdown-files-in-data",

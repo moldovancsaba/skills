@@ -16,7 +16,8 @@ Read first:
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
 2. [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md)
 3. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
-4. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
+4. [docs/CANONICAL_TERMINOLOGY.md](/Users/Shared/Projects/checklist/docs/CANONICAL_TERMINOLOGY.md)
+5. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
 
 ## Current Contract
 
@@ -38,6 +39,7 @@ Read first:
 - task ease is now defined through delivery difficulty: dependencies, coordination burden, expertise requirement, time-to-value, and delivery history must inform the final ease signal
 - the scoring-overhaul execution track is closed: factorized score traces, history-aware calibration, delivery-difficulty ease, relative-rank priority, precision-preserving tuple health, and bounded historical repair are all part of the normal live contract now
 - tactical prioritization now uses the shared blended priority profile from `scoring-contract.js`; ICE remains visible, but placement also explains quality, urgency, freshness, human signal, risk, lifecycle state, and memory inputs
+- canonical naming now treats `ChecklistTask` as the `taskcard` entity; `Tactical Board` is the board surface and must not be used as a card-type name
 - frontier placement is relative-rank based inside the current candidate pool, with human anchors preserved ahead of AI-only ordering
 - remaining score-health warnings are maintenance and observability work, not permission to reopen local or ad hoc scoring math
 - Knowmore corrections are now first-class operator controls in the product surface: `PIN`, `HIDE`, `MARK_WRONG`, `REQUEST_REFRESH`, and `SUPPRESS_SOURCE`
@@ -89,6 +91,7 @@ Read first:
 - enrichment waterfall policy now influences runtime URL-intelligence provider selection for product and competitor research paths
 - AI workload governance now persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records so queue, workflow, search/answer, and observability work can be attributed by company and feature
 - task feedback now writes directly into the canonical worker feedback stream, so `DELIVER` reward propagation and lifecycle handling are not bypassed by the webapp task surface
+- sales lead generation follows the same hard boundary: the hosted webapp may persist operator actions and queue intents, but all mining, scoring, ICE movement, enrichment, dedupe, and internet-search workload must happen in the local AI worker
 - flashcards now persist lineage family/cluster/origin fields alongside task lineage so duplicate suppression and future traceability are not task-only capabilities
 - the active self-learning rollout is Apple-Silicon-native: `scripts/export-learning-datasets.mjs` exports the canonical training datasets, `training/` holds the rollout scaffolding, MLX / MLX-LM is the active fine-tuning path, and Ollama remains the runtime target after evaluation
 - Unsloth, LLaMA-Factory, and Axolotl are parked research only right now; do not reopen them as active dependencies without an explicit architecture decision

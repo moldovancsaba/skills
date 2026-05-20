@@ -259,10 +259,10 @@ export default function SalesPage() {
 
         <PipelineAccentHeader
           activeKey="sales"
-          title="Sales Lead Workflow"
+          title="Sales Lead Pipeline"
           icon={Briefcase}
         />
-        <Text size="sm">The hosted webapp only queues work. The local AI system searches, mines, enriches, scores, and ranks company-only opportunitycards.</Text>
+        <Text size="sm">Sales lead generation runs inside the main local AI pipeline. The hosted webapp only queues intent, while the worker searches, mines, enriches, scores, and ranks company-only opportunitycards when the shared company pipeline is ready.</Text>
 
         <MetricGrid>
           <MetricCard icon={Briefcase} color="strategy" label="Opportunitycards" value={counts.total} detail="active company leads" />

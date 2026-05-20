@@ -649,14 +649,22 @@ function buildAutoJobProfile(jobType, signals) {
           sourceSignal: "inactive-no-datacards",
         };
       }
+      if (mode !== "MAINTENANCE") {
+        return {
+          queueColumn: "PARKED",
+          priorityScore: 0,
+          reason: "Sales opportunitycard mining is part of the main pipeline and waits until shared bootstrap work reaches maintenance.",
+          sourceSignal: "sales-opportunity-wait-main-pipeline",
+        };
+      }
       if (salesDatacardCount > 0 || salesKnowledgeCount > 0) {
         return {
           queueColumn: activeOpportunityCount === 0 ? "SOON" : "LATER",
-          priorityScore: roundPriority(66 + Math.min(salesDatacardCount + salesKnowledgeCount, 24) + staleOpportunityCount * 4),
+          priorityScore: roundPriority(54 + Math.min(salesDatacardCount + salesKnowledgeCount, 18) + staleOpportunityCount * 4),
           reason: activeOpportunityCount === 0
-            ? "Sales opportunitycard mining should bootstrap lead discovery from sales and competitor research."
-            : "Sales opportunitycard mining remains active so the local AI can keep lead discovery warm.",
-          sourceSignal: activeOpportunityCount === 0 ? "sales-opportunity-bootstrap" : "sales-opportunity-maintenance",
+            ? "Sales opportunitycard mining now runs as main-pipeline quality work after shared knowledge bootstrap is stable."
+            : "Sales opportunitycard mining remains part of main-pipeline quality maintenance for lead generation.",
+          sourceSignal: activeOpportunityCount === 0 ? "sales-opportunity-quality-bootstrap" : "sales-opportunity-quality-maintenance",
         };
       }
       return {
@@ -674,14 +682,22 @@ function buildAutoJobProfile(jobType, signals) {
           sourceSignal: "inactive-no-datacards",
         };
       }
+      if (mode !== "MAINTENANCE") {
+        return {
+          queueColumn: "PARKED",
+          priorityScore: 0,
+          reason: "Internet lead search is part of the main pipeline and waits until shared bootstrap work reaches maintenance.",
+          sourceSignal: "sales-opportunity-search-wait-main-pipeline",
+        };
+      }
       if (salesDatacardCount > 0 || salesKnowledgeCount > 0 || activeOpportunityCount > 0) {
         return {
-          queueColumn: activeOpportunityCount === 0 ? "NOW" : "SOON",
-          priorityScore: roundPriority(72 + Math.min(salesDatacardCount + salesKnowledgeCount, 24) + activeOpportunityCount * 2),
+          queueColumn: activeOpportunityCount === 0 ? "SOON" : "LATER",
+          priorityScore: roundPriority(58 + Math.min(salesDatacardCount + salesKnowledgeCount, 18) + activeOpportunityCount * 2),
           reason: activeOpportunityCount === 0
-            ? "Worker-owned internet search should bootstrap sales lead discovery from open-web evidence."
-            : "Worker-owned internet lead search stays warm to expand and refresh the sales opportunity frontier.",
-          sourceSignal: activeOpportunityCount === 0 ? "sales-opportunity-search-bootstrap" : "sales-opportunity-search-refresh",
+            ? "Worker-owned internet lead search now runs inside the main pipeline after shared knowledge bootstrap is stable."
+            : "Worker-owned internet lead search stays inside main-pipeline quality maintenance to expand and refresh leads.",
+          sourceSignal: activeOpportunityCount === 0 ? "sales-opportunity-search-quality-bootstrap" : "sales-opportunity-search-quality-refresh",
         };
       }
       return {

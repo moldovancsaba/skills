@@ -819,7 +819,7 @@ async function buildBudgetSummary(prisma, companyId) {
 }
 
 async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
-  const [activeJobs, workerReports, recentEvents, budget, plannerSignals, plannerEvents, flashcards, goals, tasks] = await Promise.all([
+  const [activeJobs, workerReports, recentEvents, budget, plannerSignals, plannerEvents, flashcards, goals, tasks, opportunitycards] = await Promise.all([
     prisma.pipelineJob.findMany({
       where: { companyId, status: { in: ["ACTIVE", "RUNNING", "FAILED"] } },
       orderBy: [{ updatedAt: "desc" }],
@@ -882,6 +882,13 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
       },
       take: 100,
     }),
+    prisma.opportunitycard.count({
+      where: {
+        companyId,
+        departmentKey: "SALES",
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+      },
+    }),
   ]);
 
   const guardianHeartbeat = readGuardianHeartbeat();
@@ -898,6 +905,8 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
   const criticalAlert = normalizedScoreHealth?.alerts?.find((alert) => alert.severity === "CRITICAL") ?? null;
   const evaluationFailures = recentEvents.filter((event) => event.outcomeType === "EVAL_GATE_FAILED");
   const localLearningEvents = recentEvents.filter((event) => String(event.outcomeType || "").startsWith("LOCAL_LEARNING_"));
+  const salesSearchJobs = activeJobs.filter((job) => job.jobType === "SEARCH_OPPORTUNITYCARDS");
+  const salesMineJobs = activeJobs.filter((job) => job.jobType === "MINE_OPPORTUNITYCARDS");
   const plannerState = buildPlannerStateSnapshot(plannerSignals);
   const plannerEventSummary = buildPlannerEventSummary(plannerEvents);
   const qualityByCardType = {
@@ -915,6 +924,15 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
       runningJobs,
       failedJobs,
       jobs: activeJobs,
+    },
+    sales: {
+      opportunitycards,
+      searchQueued: salesSearchJobs.filter((job) => job.status === "ACTIVE").length,
+      searchRunning: salesSearchJobs.filter((job) => job.status === "RUNNING").length,
+      searchFailed: salesSearchJobs.filter((job) => job.status === "FAILED").length,
+      mineQueued: salesMineJobs.filter((job) => job.status === "ACTIVE").length,
+      mineRunning: salesMineJobs.filter((job) => job.status === "RUNNING").length,
+      mineFailed: salesMineJobs.filter((job) => job.status === "FAILED").length,
     },
     planner: {
       ...plannerState,

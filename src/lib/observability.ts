@@ -21,6 +21,15 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
       failedJobs: 0,
       jobs: [],
     },
+    sales: {
+      opportunitycards: 0,
+      searchQueued: 0,
+      searchRunning: 0,
+      searchFailed: 0,
+      mineQueued: 0,
+      mineRunning: 0,
+      mineFailed: 0,
+    },
     planner: {
       operatingMode: "UNKNOWN",
       datacardCount: 0,

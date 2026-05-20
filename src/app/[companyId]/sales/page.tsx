@@ -84,6 +84,18 @@ type Flashcard = {
   iceScore: number;
 };
 
+type SalesObservability = {
+  sales?: {
+    opportunitycards?: number;
+    searchQueued?: number;
+    searchRunning?: number;
+    searchFailed?: number;
+    mineQueued?: number;
+    mineRunning?: number;
+    mineFailed?: number;
+  };
+};
+
 const COLUMNS: Array<Opportunitycard["kanbanColumn"]> = ["IDEABANK", "ROADMAP", "BACKLOG", "TODO", "CHECKLIST"];
 
 export default function SalesPage() {
@@ -95,21 +107,29 @@ export default function SalesPage() {
   const [searching, setSearching] = useState(false);
   const [opportunitycards, setOpportunitycards] = useState<Opportunitycard[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [observability, setObservability] = useState<SalesObservability | null>(null);
 
   const load = useCallback(async () => {
-    const [opportunityRes, knowmoreRes] = await Promise.all([
+    const [opportunityRes, knowmoreRes, observabilityRes] = await Promise.all([
       fetch(`/api/opportunitycards?companyId=${encodeURIComponent(companyId)}&all=true&departmentKey=SALES`),
       fetch(`/api/knowmore?companyId=${encodeURIComponent(companyId)}&departmentKey=SALES&includeCompetitor=true&limit=24&offset=0`),
+      fetch(`/api/observability?companyId=${encodeURIComponent(companyId)}`),
     ]);
-    if (opportunityRes.status === 404 || opportunityRes.status === 403 || knowmoreRes.status === 404 || knowmoreRes.status === 403) {
+    if (
+      opportunityRes.status === 404 || opportunityRes.status === 403
+      || knowmoreRes.status === 404 || knowmoreRes.status === 403
+      || observabilityRes.status === 404 || observabilityRes.status === 403
+    ) {
       router.push("/");
       return null;
     }
     const opportunityData = await opportunityRes.json();
     const knowmoreData = await knowmoreRes.json();
+    const observabilityData = await observabilityRes.json();
     return {
       opportunitycards: Array.isArray(opportunityData) ? opportunityData : opportunityData.items || [],
       flashcards: Array.isArray(knowmoreData) ? knowmoreData : knowmoreData.items || [],
+      observability: observabilityData,
     };
   }, [companyId, router]);
 
@@ -122,6 +142,7 @@ export default function SalesPage() {
         if (cancelled || !data) return;
         setOpportunitycards(data.opportunitycards);
         setFlashcards(data.flashcards);
+        setObservability(data.observability);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -145,6 +166,7 @@ export default function SalesPage() {
       if (data) {
         setOpportunitycards(data.opportunitycards);
         setFlashcards(data.flashcards);
+        setObservability(data.observability);
       }
     } finally {
       setMining(false);
@@ -163,6 +185,7 @@ export default function SalesPage() {
       if (data) {
         setOpportunitycards(data.opportunitycards);
         setFlashcards(data.flashcards);
+        setObservability(data.observability);
       }
     } finally {
       setSearching(false);
@@ -179,6 +202,7 @@ export default function SalesPage() {
     if (data) {
       setOpportunitycards(data.opportunitycards);
       setFlashcards(data.flashcards);
+      setObservability(data.observability);
     }
   }, [load]);
 
@@ -198,7 +222,11 @@ export default function SalesPage() {
     accepted: opportunitycards.filter((item) => item.processingStatus === "ACCEPTED").length,
     ready: opportunitycards.filter((item) => item.iceScore >= 80).length,
     salesKnowledge: flashcards.length,
-  }), [flashcards.length, opportunitycards]);
+    searchQueued: Number(observability?.sales?.searchQueued || 0),
+    searchRunning: Number(observability?.sales?.searchRunning || 0),
+    mineQueued: Number(observability?.sales?.mineQueued || 0),
+    mineRunning: Number(observability?.sales?.mineRunning || 0),
+  }), [flashcards.length, observability, opportunitycards]);
 
   if (loading) {
     return (
@@ -241,6 +269,8 @@ export default function SalesPage() {
           <MetricCard icon={Sparkles} color="knowmore" label="Sales Knowmore" value={counts.salesKnowledge} detail="sales-scoped and competitor context" />
           <MetricCard icon={Briefcase} color="checklist" label="High ICE" value={counts.ready} detail="ICE 80+ ready to review" />
           <MetricCard icon={Briefcase} color="review" label="Accepted" value={counts.accepted} detail="operator-approved leads" />
+          <MetricCard icon={Sparkles} color="strategy" label="Search Queue" value={counts.searchQueued} detail={`${counts.searchRunning} running`} />
+          <MetricCard icon={Sparkles} color="tactical" label="Mine Queue" value={counts.mineQueued} detail={`${counts.mineRunning} running`} />
         </MetricGrid>
 
         <Stack gap="md">

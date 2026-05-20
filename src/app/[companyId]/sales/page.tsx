@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Badge, Button, Group, Loader, SimpleGrid, Stack, Center } from "@mantine/core";
+import dynamic from "next/dynamic";
+import { Button, Group, Loader, Stack, Center } from "@mantine/core";
 import { IconBriefcase as Briefcase, IconRefresh as RefreshCw, IconSparkles as Sparkles } from "@tabler/icons-react";
 import { EmptyState, MetricCard, MetricGrid, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
-import { OpportunityReviewCard } from "@/components/opportunity-review-card";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
 import { Text } from "@/components/ui/typography";
+import type { SalesOpportunitycard } from "@/components/sales-board";
 
 type Opportunitycard = {
   id: string;
@@ -16,6 +17,10 @@ type Opportunitycard = {
   title: string;
   body: string;
   website?: string | null;
+  linkedinUrl?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  xUrl?: string | null;
   location?: string | null;
   coreOffer?: string | null;
   financialBackground?: string | null;
@@ -34,6 +39,7 @@ type Opportunitycard = {
   generatedAt?: string | null;
   refreshedAt?: string | null;
   userAnnotation?: string | null;
+  sortOrder?: number | null;
 };
 
 type Flashcard = {
@@ -96,7 +102,17 @@ type SalesObservability = {
   };
 };
 
-const COLUMNS: Array<Opportunitycard["kanbanColumn"]> = ["IDEABANK", "ROADMAP", "BACKLOG", "TODO", "CHECKLIST"];
+const SalesBoard = dynamic(
+  () => import("@/components/sales-board").then((module) => ({ default: module.SalesBoard })),
+  {
+    ssr: false,
+    loading: () => (
+      <Center py="xl">
+        <Loader color="strategy" />
+      </Center>
+    ),
+  },
+);
 
 export default function SalesPage() {
   const params = useParams();
@@ -206,16 +222,43 @@ export default function SalesPage() {
     }
   }, [load]);
 
-  const grouped = useMemo(() => {
-    return Object.fromEntries(
-      COLUMNS.map((column) => [
-        column,
-        opportunitycards
-          .filter((item) => item.kanbanColumn === column && item.activityState !== "ARCHIVED")
-          .sort((left, right) => right.iceScore - left.iceScore),
-      ]),
-    ) as Record<Opportunitycard["kanbanColumn"], Opportunitycard[]>;
-  }, [opportunitycards]);
+  const handleReorder = useCallback(async ({
+    itemId,
+    nextItems,
+    sourceColumn,
+    destinationColumn,
+    sourceColumnOrderIds,
+    destinationColumnOrderIds,
+  }: {
+    itemId: string;
+    nextItems: SalesOpportunitycard[];
+    sourceColumn: Opportunitycard["kanbanColumn"];
+    destinationColumn: Opportunitycard["kanbanColumn"];
+    sourceColumnOrderIds?: string[];
+    destinationColumnOrderIds: string[];
+  }) => {
+    setOpportunitycards(nextItems as Opportunitycard[]);
+    try {
+      await fetch(`/api/opportunitycards?id=${encodeURIComponent(itemId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kanbanColumn: destinationColumn,
+          destinationColumn,
+          sourceColumn,
+          destinationColumnOrderIds,
+          sourceColumnOrderIds,
+        }),
+      });
+    } catch {
+      const data = await load();
+      if (data) {
+        setOpportunitycards(data.opportunitycards);
+        setFlashcards(data.flashcards);
+        setObservability(data.observability);
+      }
+    }
+  }, [load]);
 
   const counts = useMemo(() => ({
     total: opportunitycards.filter((item) => item.activityState !== "ARCHIVED").length,
@@ -237,7 +280,7 @@ export default function SalesPage() {
   }
 
   return (
-    <PageShell width="xl">
+    <PageShell width="full">
       <Stack gap="xl">
         <PageHeader
           title="Sales"
@@ -274,13 +317,6 @@ export default function SalesPage() {
         </MetricGrid>
 
         <Stack gap="md">
-          <Group gap="xs">
-            {COLUMNS.map((column) => (
-              <Badge key={column} color="strategy" variant="light">
-                {column} · {grouped[column].length}
-              </Badge>
-            ))}
-          </Group>
           {counts.total === 0 ? (
             <EmptyState
               icon={Briefcase}
@@ -289,20 +325,11 @@ export default function SalesPage() {
               tone="strategy"
             />
           ) : (
-            <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="lg">
-              {COLUMNS.map((column) => (
-                <Stack key={column} gap="sm">
-                  <Text size="sm">{column}</Text>
-                  {grouped[column].length === 0 ? (
-                    <Badge variant="outline" color="gray">No cards</Badge>
-                  ) : (
-                    grouped[column].map((item) => (
-                      <OpportunityReviewCard key={item.id} item={item} onAction={handleAction} />
-                    ))
-                  )}
-                </Stack>
-              ))}
-            </SimpleGrid>
+            <SalesBoard
+              items={opportunitycards}
+              onAction={handleAction}
+              onReorder={handleReorder}
+            />
           )}
         </Stack>
 

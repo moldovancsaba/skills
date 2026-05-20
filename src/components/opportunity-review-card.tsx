@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Badge, Button, Group, Stack, TextInput, Textarea } from "@mantine/core";
+import { Badge, Button, Group, SimpleGrid, Stack, TextInput, Textarea } from "@mantine/core";
 import { IconArchive as Archive, IconCheck as Check, IconRefresh as RefreshCw, IconX as X, IconPin as Pin, IconEdit as Edit } from "@tabler/icons-react";
 import { CardShareAction } from "@/components/ui/card-share-action";
 import { MetaText, Text } from "@/components/ui/typography";
-import { UnifiedCard, UnifiedCardActions, UnifiedCardBody, UnifiedCardFreshnessBadge, UnifiedCardHeader, UnifiedCardSection, UnifiedCardText } from "@/components/ui/unified-card";
+import { UnifiedCard, UnifiedCardActions, UnifiedCardBody, UnifiedCardFooter, UnifiedCardFreshnessBadge, UnifiedCardHeader, UnifiedCardSection, UnifiedCardText } from "@/components/ui/unified-card";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getTaskCardFreshness } from "@/lib/card-freshness";
 
@@ -14,6 +14,10 @@ type Opportunitycard = {
   title: string;
   body: string;
   website?: string | null;
+  linkedinUrl?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  xUrl?: string | null;
   location?: string | null;
   coreOffer?: string | null;
   financialBackground?: string | null;
@@ -39,6 +43,46 @@ type Props = {
   onAction: (itemId: string, action: string, payload?: Record<string, unknown>) => void;
 };
 
+function normalizeText(value: string | null | undefined) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function looksLikeUrl(value: string | null | undefined) {
+  return /^(https?:\/\/|www\.)/i.test(normalizeText(value));
+}
+
+function toHref(value: string) {
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+function toDisplayUrl(value: string) {
+  try {
+    const url = new URL(toHref(value));
+    return url.host + url.pathname.replace(/\/$/, "");
+  } catch {
+    return value;
+  }
+}
+
+function normalizeCompare(value: string | null | undefined) {
+  return normalizeText(value).replace(/^https?:\/\//i, "").replace(/^www\./i, "").toLowerCase();
+}
+
+function isMeaningfulField(value: string | null | undefined, banned: string[]) {
+  const normalized = normalizeText(value);
+  if (!normalized) return false;
+  const comparable = normalizeCompare(normalized);
+  return !banned.some((entry) => comparable === normalizeCompare(entry));
+}
+
+function isMeaningfulBody(body: string, banned: string[]) {
+  const normalized = normalizeText(body);
+  if (!normalized) return false;
+  if (looksLikeUrl(normalized)) return false;
+  if (normalized.length < 24) return false;
+  return isMeaningfulField(normalized, banned);
+}
+
 export function OpportunityReviewCard({ item, onAction }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({
@@ -55,18 +99,54 @@ export function OpportunityReviewCard({ item, onAction }: Props) {
     updatedAt: item.updatedAt,
     generatedAt: item.generatedAt || item.refreshedAt,
   });
+  const titleText = normalizeText(item.title);
+  const companyName = normalizeText(item.companyName);
+  const primaryTitle = looksLikeUrl(companyName) && !looksLikeUrl(titleText) ? titleText : companyName || titleText;
+  const secondaryTitle =
+    titleText &&
+    titleText !== primaryTitle &&
+    !looksLikeUrl(titleText)
+      ? titleText
+      : null;
+  const duplicateBlockers = [
+    companyName,
+    titleText,
+    item.website || "",
+    item.instagramUrl || "",
+    item.linkedinUrl || "",
+    item.facebookUrl || "",
+    item.xUrl || "",
+  ];
+  const socialLinks = [
+    item.website ? { label: "Website", value: item.website } : null,
+    item.linkedinUrl ? { label: "LinkedIn", value: item.linkedinUrl } : null,
+    item.instagramUrl ? { label: "Instagram", value: item.instagramUrl } : null,
+    item.facebookUrl ? { label: "Facebook", value: item.facebookUrl } : null,
+    item.xUrl ? { label: "X", value: item.xUrl } : null,
+  ].filter((entry): entry is { label: string; value: string } => Boolean(entry?.value));
+  const bodyIsUseful = isMeaningfulBody(item.body, duplicateBlockers);
+  const infoRows = [
+    isMeaningfulField(item.location, duplicateBlockers) ? { label: "Location", value: normalizeText(item.location) } : null,
+    isMeaningfulField(item.coreOffer, duplicateBlockers) ? { label: "Core Offer", value: normalizeText(item.coreOffer) } : null,
+    isMeaningfulField(item.financialBackground, duplicateBlockers) ? { label: "Financial", value: normalizeText(item.financialBackground) } : null,
+    isMeaningfulField(item.fitRationale, duplicateBlockers) ? { label: "Fit", value: normalizeText(item.fitRationale) } : null,
+  ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
+  const hasDetails = socialLinks.length > 0 || infoRows.length > 0;
 
   return (
-    <UnifiedCard tone="strategy">
+    <UnifiedCard tone="strategy" fullWidth muted={item.activityState === "ARCHIVED" || item.processingStatus === "DECLINED"}>
       <UnifiedCardHeader
-        title={item.companyName}
+        title={primaryTitle || "Opportunitycard"}
+        description={secondaryTitle || undefined}
         supporting={
-          <Group gap="xs">
-            <Badge color="strategy" variant="light">Opportunitycard</Badge>
-            <Badge color="ingress" variant="light">#{item.opportunityType}</Badge>
-            <Badge color="gray" variant="light">{item.kanbanColumn}</Badge>
-            <UnifiedCardFreshnessBadge freshness={freshness} />
-            <Group gap={4} ml="auto">
+          <Group justify="space-between" wrap="nowrap" w="100%">
+            <Group gap="xs">
+              <Badge color="strategy" variant="light">Opportunitycard</Badge>
+              <Badge color="ingress" variant="light">#{item.opportunityType}</Badge>
+              <Badge color="gray" variant="light">{item.kanbanColumn}</Badge>
+              <UnifiedCardFreshnessBadge freshness={freshness} />
+            </Group>
+            <Group gap={4}>
               <MetaText>ICE</MetaText>
               <Badge color={getIceBadgeColor(item.iceScore)}>{Math.round(item.iceScore)}</Badge>
             </Group>
@@ -74,23 +154,54 @@ export function OpportunityReviewCard({ item, onAction }: Props) {
         }
       />
       <UnifiedCardBody>
-        <UnifiedCardText disablePreview markdown>{item.body}</UnifiedCardText>
-        <Group gap={4} wrap="wrap">
-          {item.hashtags.map((tag) => (
-            <Badge key={tag} size="xs" variant="outline" color="gray">
-              #{tag}
-            </Badge>
-          ))}
-        </Group>
-        <UnifiedCardSection tone="strategy">
-          <Stack gap={4}>
-            {item.website ? <Text size="sm">Website: {item.website}</Text> : null}
-            {item.location ? <Text size="sm">Location: {item.location}</Text> : null}
-            {item.coreOffer ? <Text size="sm">Core Offer: {item.coreOffer}</Text> : null}
-            {item.fitRationale ? <Text size="sm">Fit: {item.fitRationale}</Text> : null}
-            {item.userAnnotation ? <MetaText>{item.userAnnotation}</MetaText> : null}
-          </Stack>
-        </UnifiedCardSection>
+        {bodyIsUseful ? <UnifiedCardText disablePreview markdown>{item.body}</UnifiedCardText> : null}
+        {item.hashtags.length > 0 ? (
+          <Group gap={4} wrap="wrap">
+            {item.hashtags.map((tag) => (
+              <Badge key={tag} size="xs" variant="outline" color="gray">
+                #{tag}
+              </Badge>
+            ))}
+          </Group>
+        ) : null}
+        {hasDetails ? (
+          <UnifiedCardSection tone="strategy">
+            <Stack gap="sm">
+              {socialLinks.length > 0 ? (
+                <Group gap="xs" wrap="wrap">
+                  {socialLinks.map((link) => (
+                    <Badge
+                      key={`${link.label}:${link.value}`}
+                      component="a"
+                      href={toHref(link.value)}
+                      target="_blank"
+                      rel="noreferrer"
+                      variant="light"
+                      color="strategy"
+                    >
+                      {link.label}: {toDisplayUrl(link.value)}
+                    </Badge>
+                  ))}
+                </Group>
+              ) : null}
+              {infoRows.length > 0 ? (
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm" verticalSpacing="sm">
+                  {infoRows.map((row) => (
+                    <Stack key={row.label} gap={2}>
+                      <MetaText>{row.label}</MetaText>
+                      <Text size="sm">{row.value}</Text>
+                    </Stack>
+                  ))}
+                </SimpleGrid>
+              ) : null}
+            </Stack>
+          </UnifiedCardSection>
+        ) : null}
+        {item.userAnnotation ? (
+          <UnifiedCardSection tone="review">
+            <MetaText>{item.userAnnotation}</MetaText>
+          </UnifiedCardSection>
+        ) : null}
         <UnifiedCardActions>
           <Button size="xs" color="strategy" leftSection={<Check size={14} />} onClick={() => onAction(item.id, "ACCEPT")}>Accept</Button>
           <Button
@@ -105,10 +216,7 @@ export function OpportunityReviewCard({ item, onAction }: Props) {
           >
             Decline
           </Button>
-          <Button size="xs" variant="subtle" color="strategy" leftSection={<Pin size={14} />} onClick={() => onAction(item.id, "PIN")}>Pin</Button>
-          <Button size="xs" variant="subtle" color="knowmore" leftSection={<RefreshCw size={14} />} onClick={() => onAction(item.id, "REQUEST_REFRESH")}>Refresh</Button>
-          <Button size="xs" variant="subtle" color="gray" leftSection={<Archive size={14} />} onClick={() => onAction(item.id, "ARCHIVE")}>Archive</Button>
-          <Button size="xs" variant="subtle" color="gray" leftSection={<Edit size={14} />} onClick={() => setEditing((value) => !value)}>Edit</Button>
+          <Button size="xs" variant="outline" color="gray" leftSection={<Edit size={14} />} onClick={() => setEditing((value) => !value)}>{editing ? "Close" : "Edit"}</Button>
           <Group ml="auto">
             <CardShareAction cardId={item.id} />
           </Group>
@@ -131,6 +239,16 @@ export function OpportunityReviewCard({ item, onAction }: Props) {
           </UnifiedCardSection>
         ) : null}
       </UnifiedCardBody>
+      <UnifiedCardFooter>
+        <Stack gap="xs">
+          <MetaText>Intelligence Controls</MetaText>
+          <Group gap="xs">
+            <Button size="compact-xs" variant="subtle" color="strategy" leftSection={<Pin size={12} />} onClick={() => onAction(item.id, "PIN")}>Pin</Button>
+            <Button size="compact-xs" variant="subtle" color="knowmore" leftSection={<RefreshCw size={12} />} onClick={() => onAction(item.id, "REQUEST_REFRESH")}>Refresh</Button>
+            <Button size="compact-xs" variant="subtle" color="gray" leftSection={<Archive size={12} />} onClick={() => onAction(item.id, "ARCHIVE")}>Archive</Button>
+          </Group>
+        </Stack>
+      </UnifiedCardFooter>
     </UnifiedCard>
   );
 }

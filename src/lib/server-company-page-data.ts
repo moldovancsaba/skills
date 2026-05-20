@@ -13,6 +13,7 @@ type DashboardCounts = {
   topics: number;
   flashcards: number;
   goals: number;
+  sales: number;
   tacticalCount: number;
   checklistCount: number;
   reviewCount: number;
@@ -27,6 +28,7 @@ function buildCountsFromProjection(projection: ReturnType<typeof normalizeWebapp
     topics: counts?.topics ?? 0,
     flashcards: counts?.flashcards ?? 0,
     goals: counts?.goals ?? 0,
+    sales: counts?.sales ?? 0,
     tacticalCount: counts?.tacticalCount ?? 0,
     checklistCount: counts?.checklistCount ?? 0,
     reviewCount: counts?.reviewCount ?? 0,
@@ -180,6 +182,7 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
       liveTopicCount,
       liveFlashcardCount,
       liveGoalCount,
+      liveSalesCount,
       liveTacticalCount,
       liveChecklistCount,
       liveReviewCount,
@@ -193,6 +196,13 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
       }),
       prisma.goalcard.count({
         where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } },
+      }),
+      prisma.opportunitycard.count({
+        where: {
+          companyId,
+          departmentKey: "SALES",
+          activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        },
       }),
       prisma.checklistTask.count({
         where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } },
@@ -232,6 +242,7 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
       topics: liveTopicCount,
       flashcards: liveFlashcardCount,
       goals: liveGoalCount,
+      sales: liveSalesCount,
       tacticalCount: Math.max(liveTacticalCount, checklistCount),
       checklistCount,
       reviewCount: liveReviewCount,

@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
           topics: Number(navCounts?.topics ?? counts?.topics ?? 0),
           knowmore: Number(navCounts?.knowmore ?? counts?.flashcards ?? 0),
           goals: Number(navCounts?.goals ?? counts?.goals ?? 0),
+          sales: Number(navCounts?.sales ?? counts?.sales ?? 0),
           review: Number(navCounts?.review ?? counts?.reviewCount ?? 0),
           checklist: checklistCount,
           tactical: tacticalCount,

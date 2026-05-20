@@ -23,7 +23,7 @@ import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
-import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCirclesRelation as CirclesRelation, IconHelmet as HardHat, IconSearch as Search, IconGitBranch as GitBranch, IconRadar2 as Radar } from "@tabler/icons-react";
+import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCirclesRelation as CirclesRelation, IconHelmet as HardHat, IconSearch as Search, IconGitBranch as GitBranch, IconRadar2 as Radar, IconBriefcase as Briefcase } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { CompanyScoreHealth } from "@/lib/score-health";
 import { BodyText, SectionTitle } from "@/components/ui/typography";
@@ -81,6 +81,7 @@ export default function CompanyDashboard({
     topics: 0,
     flashcards: 0,
     goals: 0,
+    sales: 0,
     checklistCount: 0,
     tacticalCount: 0,
     reviewCount: 0,
@@ -366,6 +367,14 @@ export default function CompanyDashboard({
           metric={counts.flashcards}
           title={t("dashboard.knowmore")}
           chartData={chartSeries("flashcards", "knowmore")}
+          density="compact"
+        />
+        <LinkCard
+          href={`/${companyId}/sales`}
+          icon={Briefcase}
+          variant="strategy"
+          metric={counts.sales}
+          title={t("nav.sales")}
           density="compact"
         />
         <LinkCard

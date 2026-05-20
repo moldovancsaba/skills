@@ -1464,7 +1464,8 @@ async function applyManualPipelineQueueMove(prisma, companyId, movedJobId, sourc
   };
 }
 
-async function claimNextPipelineJobs(prisma, limit = 3) {
+async function claimNextPipelineJobs(prisma, limit = 1) {
+  const linearLimit = 1;
   const candidates = await prisma.pipelineJob.findMany({
     where: buildRunnablePipelineJobWhere(new Date()),
     orderBy: [{ updatedAt: "asc" }],
@@ -1506,15 +1507,15 @@ async function claimNextPipelineJobs(prisma, limit = 3) {
     queue.push(job);
     selectedJobIds.add(job.id);
     selectedCompanyIds.add(job.companyId);
-    if (queue.length >= limit) break;
+    if (queue.length >= linearLimit) break;
   }
 
-  if (queue.length < limit) {
+  if (queue.length < linearLimit) {
     for (const job of fairOrder) {
       if (selectedJobIds.has(job.id)) continue;
       queue.push(job);
       selectedJobIds.add(job.id);
-      if (queue.length >= limit) break;
+      if (queue.length >= linearLimit) break;
     }
   }
 

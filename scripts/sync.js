@@ -26,6 +26,13 @@ const {
   getResourceBand,
   shouldAllowForegroundWork,
 } = require("./lib/runtime/resource-bands");
+const {
+  LOCK_RENEW_INTERVAL_MS,
+  acquireLinearWorkerLock,
+  createLockOwner,
+  releaseLinearWorkerLock,
+  renewLinearWorkerLock,
+} = require("./lib/runtime/linear-worker-lock");
 
 // --- CONTINUOUS HEARTBEAT ---
 // Persist progress even while the worker is between queue batches so the
@@ -46,6 +53,42 @@ let isRunning = false;
 let wakeRequested = false;
 let lastStartupScrubAt = 0;
 let recoveredOrphanedRunningJobs = false;
+const linearWorkerOwner = createLockOwner();
+let hasLinearWorkerLock = false;
+
+async function ensureLinearWorkerLock() {
+  if (hasLinearWorkerLock) {
+    const renewed = await renewLinearWorkerLock(linearWorkerOwner, {
+      activeTask: synthesisState.activeTask || null,
+      stage: synthesisState.stage || null,
+    });
+    hasLinearWorkerLock = renewed;
+    return renewed;
+  }
+
+  const lease = await acquireLinearWorkerLock(linearWorkerOwner, {
+    activeTask: synthesisState.activeTask || null,
+    stage: synthesisState.stage || "BOOT",
+  });
+  hasLinearWorkerLock = lease.acquired;
+  if (!lease.acquired) {
+    const holder = lease.holder || {};
+    console.log(
+      `[SCHEDULER] Linear worker lock held by pid=${holder.pid || "unknown"} host=${holder.hostname || "unknown"}; standing by.`,
+    );
+    return false;
+  }
+  if (lease.staleReclaimed) {
+    console.warn("[SCHEDULER] Reclaimed stale linear worker lock.");
+  }
+  return true;
+}
+
+async function releaseLinearWorkerLockIfOwned() {
+  if (!hasLinearWorkerLock) return;
+  await releaseLinearWorkerLock(linearWorkerOwner);
+  hasLinearWorkerLock = false;
+}
 
 function requestBackgroundQueueSync(reason = "foreground-idle-claim-miss") {
   const req = http.request(
@@ -120,6 +163,15 @@ async function runWorkerLoop() {
   isRunning = true;
   
   try {
+    const hasLease = await ensureLinearWorkerLock();
+    if (!hasLease) {
+      isRunning = false;
+      setTimeout(() => {
+        void runWorkerLoop();
+      }, POLLING_INTERVAL);
+      return;
+    }
+
     console.log(`[SCHEDULER] Initiating queue-owned worker cycle...`);
     lastCycleStartTime = Date.now();
     wakeRequested = false;
@@ -224,6 +276,20 @@ async function runWorkerLoop() {
     setTimeout(runWorkerLoop, 60000); // Retry in 1 min on crash
   }
 }
+
+setInterval(() => {
+  void ensureLinearWorkerLock().catch((error) => {
+    console.warn(`[SCHEDULER] Failed to renew linear worker lock: ${error.message}`);
+  });
+}, LOCK_RENEW_INTERVAL_MS);
+
+process.on("SIGINT", () => {
+  void releaseLinearWorkerLockIfOwned().finally(() => process.exit(0));
+});
+
+process.on("SIGTERM", () => {
+  void releaseLinearWorkerLockIfOwned().finally(() => process.exit(0));
+});
 
 const server = http.createServer(async (req, res) => {
   if (req.url === "/health" && req.method === "GET") {

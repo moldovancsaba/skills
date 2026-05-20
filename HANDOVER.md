@@ -52,6 +52,7 @@ Read first:
 - the deterministic planner is now the shipped runtime contract for company classification, lane refill, weakest-upstream ceilings, timeout handling, and oldest-first maintenance
 - quality-engine jobs are now part of the shipped runtime contract for opportunity mining, novelty suppression, editorial gating, research policy, and feedback-pressure regeneration
 - the next major runtime hardening track is documented separately in `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md`; it is the target design for strict foreground linearity, background isolation, low-memory degradation, and stale-work recovery
+- the shipped foreground contract is now strict linear mode as well: one foreground worker lease, one claimed queue job, one active company context, and no parallel AI task execution in that mutation lane
 - the shipped runtime step-by-step loop and recovery rules are now documented in `docs/LOCAL_AI_RUNTIME_SOP.md`
 - the first major hardening slice is now shipped: snapshot refresh runs in a dedicated `snapshot-worker`, the foreground queue worker no longer shares that lane, and both lanes expose separate health/progress truth
 - the next product-performance hardening slice is now projection-first webapp reads: the local AI side prepares company read models so the online app does not keep recomputing hot-route summary counts live
@@ -182,10 +183,11 @@ The work is not done until:
 
 - The worker now consumes persisted queue jobs before the broader synthesis cycle.
 - The planner and quality engine are the authoritative queue families now; legacy `COMPANY_SYNTHESIS` and `FULL_MAINTENANCE` remain compatibility paths, not the main operating model.
-- The current shipped foreground worker loop is still heavier than the target 24/7 runtime design; use `docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md` as the implementation plan for strict one-job foreground execution and background-work isolation.
+- The shipped foreground worker now enforces singleton linear execution through a local lock file lease plus one-job claim limits. Do not loosen that without updating the runtime hardening docs and the SOP in the same change.
 - The duplicate full-company queue sync that used to happen before every claim has been removed. The shipped foreground worker no longer performs inline shard or global queue sync on claim miss. If claim returns no runnable job, foreground force-wakes `snapshot-worker` and leaves queue-topology refresh to the background lane.
 - `snapshot-worker` owns bounded intelligence snapshot refresh. Do not move snapshot refresh back into `sync.js`; that would reintroduce the exact starvation problem this hardening slice removed.
 - `snapshot-worker` also owns scheduled runtime verification. The latest verification report is persisted, exposed by `status-server`, and rendered on `/local-ai`.
+- `snapshot-worker`, `guardian`, and `status-server` are support processes only. They must not become alternate queue runners or parallel AI mutation lanes.
 - productive queue work now refreshes queue topology for the touched company directly; if that direct refresh fails, the company falls back into a topology-dirty background retry queue owned by `snapshot-worker`.
 - the same touched-company pattern now also matters for product projections: company list/dashboard/nav should prefer `IntelligenceSnapshot.webappProjection`, with background/local-AI refresh owning projection freshness instead of hot-route live fan-out.
 - after those shipped read-model and server-bootstrap slices, further dashboard slowness should be attacked with authenticated live-route profiling (`Server-Timing` plus `npm run profile:webapp`), not blind payload trimming.

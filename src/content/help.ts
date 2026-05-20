@@ -117,6 +117,17 @@ export const manualSections: HelpSection[] = [
     ],
   },
   {
+    id: "local-ai-linear-mode",
+    title: "The local AI runtime works in linear mode",
+    summary: "The main worker is designed to stay focused, sequential, and healthy instead of doing many things at once.",
+    bullets: [
+      "The foreground local AI worker claims one queue job at a time and works one company context at a time.",
+      "The hosted webapp does not run AI jobs and does not compete with the worker for business logic.",
+      "Support processes such as guardian, status, and snapshot refresh are there to protect health and projections, not to become parallel AI mutation lanes.",
+      "If the worker is under memory pressure, it should defer, degrade, or recover cleanly instead of trying to run more work in parallel.",
+    ],
+  },
+  {
     id: "language-policy",
     title: "Use language policy intentionally",
     summary: "Permitted languages constrain what the local AI system is allowed to write.",
@@ -189,6 +200,12 @@ export const faqItems: FaqItem[] = [
     question: "Why does the webapp not calculate the AI state directly?",
     answer:
       "Because the architecture contract is strict: the webapp shows persisted results from MongoDB Atlas and writes interaction or repair-intent records back. The local AI system is the only authority that calculates queue state, score health, observability summaries, lead mining, enrichment, dedupe, ICE movement, and other intelligence outputs.",
+  },
+  {
+    id: "how-local-ai-stays-stable",
+    question: "How does the local AI runtime stay stable on limited hardware?",
+    answer:
+      "The main local AI worker now runs in strict linear mode: one foreground worker lease, one queue job at a time, and one active company context. Memory governor controls, guardian recovery, and background snapshot isolation exist to keep the system healthy instead of letting multiple AI workloads pile up at once.",
   },
   {
     id: "markdown-files-in-data",

@@ -559,7 +559,7 @@ function startRunningJobHeartbeat(prisma, job, companyName, entityLabel) {
 
 async function runPipelineQueueBatch(prisma, limit = 1) {
   await recoverStaleRunningPipelineJobs(prisma);
-  const targetExecutions = Math.max(1, limit);
+  const targetExecutions = 1;
   const maxClaims = targetExecutions + 3;
   let claimed = await claimNextPipelineJobs(prisma, 1);
   if (claimed.length === 0) {

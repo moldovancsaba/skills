@@ -303,10 +303,11 @@ export default function LocalAiMissionControlPage() {
         <Stack gap="lg">
           <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
             <MetricCard icon={Heartbeat} color="review" label="Worker State" value={String(worker.state || "unknown")} detail={String(worker.stage || "—")} />
+            <MetricCard icon={ListCheck} color="strategy" label="Execution Mode" value="LINEAR" detail="one foreground worker · one queue job" />
             <MetricCard icon={Brain} color="strategy" label="Current Company" value={actualCurrentCompany} detail={worker.currentCompany ? "Worker-locked company" : "No company locked right now"} />
             <MetricCard icon={ListCheck} color="checklist" label="Current Task" value={actualCurrentTask} detail={worker.currentCompany ? "Worker runtime authority" : String(worker.stage || "—")} />
             <MetricCard icon={Server} color="knowmore" label="Worker Build" value={String(buildIdentity.appVersion || "unknown")} detail={String(buildIdentity.gitSha || "—").slice(0, 12)} />
-            <MetricCard icon={Server} color="strategy" label="Background State" value={String(backgroundWorker.state || "unknown")} detail={String(backgroundWorker.stage || "—")} />
+            <MetricCard icon={Server} color="strategy" label="Background State" value={String(backgroundWorker.state || "unknown")} detail="support lane only" />
             <MetricCard icon={Activity} color="review" label="Queue Depth" value={queue.totalActiveJobs ?? 0} detail={`${queue.runningJobs ?? 0} running · ${queue.failedJobs ?? 0} failed · ${queue.pausedJobs ?? 0} paused`} />
             <MetricCard icon={Hierarchy} color="tactical" label="Datacards" value={inventory.datacards ?? 0} detail={`${inventory.sources ?? 0} sources · ${inventory.files ?? 0} files`} />
             <MetricCard icon={Brain} color="strategy" label="Cards" value={inventory.totalCards ?? 0} detail={`${inventory.flashcards ?? 0} flashcards · ${inventory.goalcards ?? 0} goals · ${inventory.taskcards ?? 0} tasks`} />

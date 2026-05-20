@@ -137,6 +137,8 @@ Frontend system:
 - the local AI runtime now uses a dedicated `snapshot-worker` background process so intelligence snapshot refresh no longer shares the foreground planner queue lane
 - the online webapp must stay projection-first on hot product routes; the local AI side prepares fast company read models ahead of time so product page loads do not behave like a second analytics engine
 - the online webapp must not perform authoritative business logic, lead mining, scoring, ICE calculation, dedupe, enrichment, or external-search workload; it should only persist user input, feedback, and lightweight worker intents
+- the foreground local AI runtime is strict linear mode: one foreground worker process lease, one claimed queue job, one company context, and no parallel AI task execution in that lane
+- support processes such as guardian, status-server, and snapshot-worker must stay isolated from the foreground mutation lane and must not execute competing queue-owned AI work
 
 Worker queue controls:
 

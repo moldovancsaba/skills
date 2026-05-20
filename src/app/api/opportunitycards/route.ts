@@ -302,6 +302,7 @@ export async function PATCH(request: NextRequest) {
 
       if (action === "DECLINE") {
         nextData.processingStatus = "DECLINED";
+        nextData.activityState = "ARCHIVED";
         nextData.feedbackScore = Number(existing.feedbackScore || 0) - 1;
         nextData.declineCount = { increment: 1 };
         nextData.evaluationReason = declineReason || annotation || existing.evaluationReason;
@@ -347,6 +348,9 @@ export async function PATCH(request: NextRequest) {
         data: nextData,
       });
       await markCompanyPipelineTopologyDirty(prisma, existing.companyId, `opportunitycard-action:${action.toLowerCase()}`);
+      if (action === "DECLINE" || action === "MODIFY" || action === "REQUEST_REFRESH") {
+        await escalateCompanyPipelineJob(prisma as never, existing.companyId, "REFRESH_OPPORTUNITYCARDS");
+      }
 
       await recordOutcomeEvent({
         companyId: existing.companyId,

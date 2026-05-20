@@ -31,6 +31,9 @@ const {
   refreshOldestOpportunitycards,
 } = require("../../src/lib/opportunitycards-runtime");
 const {
+  searchInternetOpportunitycards,
+} = require("./opportunity-search");
+const {
   performCompanyScrubbing,
   performCompanyWriting,
   performCompanyJudging,
@@ -123,6 +126,7 @@ const MEMORY_INTENSIVE_PIPELINE_JOB_TYPES = new Set([
   "MINE_FLASHCARD_OPPORTUNITIES",
   "MINE_TASK_OPPORTUNITIES",
   "MINE_OPPORTUNITYCARDS",
+  "SEARCH_OPPORTUNITYCARDS",
   "FEEDBACK_PRESSURE_REGENERATION",
   "REFRESH_FLASHCARDS",
   "REFRESH_TASKS",
@@ -144,6 +148,7 @@ const LOW_MEMORY_DECOMPOSABLE_PIPELINE_JOB_TYPES = new Set([
   "ENSURE_CHECKLIST_MINIMUM",
   "MINE_FLASHCARD_OPPORTUNITIES",
   "MINE_TASK_OPPORTUNITIES",
+  "SEARCH_OPPORTUNITYCARDS",
   "FEEDBACK_PRESSURE_REGENERATION",
 ]);
 
@@ -169,6 +174,7 @@ const PIPELINE_JOB_WEIGHT_CLASS = Object.freeze({
   MINE_FLASHCARD_OPPORTUNITIES: JOB_WEIGHT_CLASSES.HEAVY,
   MINE_TASK_OPPORTUNITIES: JOB_WEIGHT_CLASSES.HEAVY,
   MINE_OPPORTUNITYCARDS: JOB_WEIGHT_CLASSES.HEAVY,
+  SEARCH_OPPORTUNITYCARDS: JOB_WEIGHT_CLASSES.BURST,
   FEEDBACK_PRESSURE_REGENERATION: JOB_WEIGHT_CLASSES.HEAVY,
   REFRESH_FLASHCARDS: JOB_WEIGHT_CLASSES.MEDIUM,
   REFRESH_TASKS: JOB_WEIGHT_CLASSES.MEDIUM,
@@ -364,6 +370,13 @@ async function runPlannerQualityJob(prisma, company, jobType, executionOptions =
     case "MINE_OPPORTUNITYCARDS": {
       const result = await mineOpportunitycards(prisma, company.id);
       return Number(result.created || 0) + Number(result.updated || 0);
+    }
+    case "SEARCH_OPPORTUNITYCARDS": {
+      const result = await searchInternetOpportunitycards(prisma, company, executionOptions);
+      return Number(result.createdSources || 0)
+        + Number(result.updatedSources || 0)
+        + Number(result.createdOpportunitycards || 0)
+        + Number(result.updatedOpportunitycards || 0);
     }
     case "FEEDBACK_PRESSURE_REGENERATION": {
       const taskOps = await performCompanyActionGeneration(prisma, company, memoryPrompt, null, workerContext, executionOptions);

@@ -29,6 +29,7 @@ const PLANNER_QUALITY_JOB_TYPES = Object.freeze([
   "MINE_FLASHCARD_OPPORTUNITIES",
   "MINE_TASK_OPPORTUNITIES",
   "MINE_OPPORTUNITYCARDS",
+  "SEARCH_OPPORTUNITYCARDS",
   "FEEDBACK_PRESSURE_REGENERATION",
 ]);
 
@@ -80,6 +81,7 @@ const PIPELINE_JOB_RETRY_LIMITS = Object.freeze({
   MINE_FLASHCARD_OPPORTUNITIES: 4,
   MINE_TASK_OPPORTUNITIES: 4,
   MINE_OPPORTUNITYCARDS: 4,
+  SEARCH_OPPORTUNITYCARDS: 4,
   FEEDBACK_PRESSURE_REGENERATION: 4,
   REFRESH_FLASHCARDS: 4,
   REFRESH_TASKS: 4,
@@ -125,6 +127,7 @@ const JOB_LABELS = Object.freeze({
   MINE_FLASHCARD_OPPORTUNITIES: "Mine Flashcard Opportunities",
   MINE_TASK_OPPORTUNITIES: "Mine Task Opportunities",
   MINE_OPPORTUNITYCARDS: "Mine Opportunitycards",
+  SEARCH_OPPORTUNITYCARDS: "Search Opportunitycards",
   FEEDBACK_PRESSURE_REGENERATION: "Feedback Pressure Regeneration",
   REFRESH_FLASHCARDS: "Refresh Flashcards",
   REFRESH_TASKS: "Refresh Tasks",
@@ -661,6 +664,31 @@ function buildAutoJobProfile(jobType, signals) {
         priorityScore: 0,
         reason: "Opportunitycard mining waits until the company has sales-scoped or competitor research to mine from.",
         sourceSignal: "sales-opportunity-idle",
+      };
+    case "SEARCH_OPPORTUNITYCARDS":
+      if (mode === "INACTIVE") {
+        return {
+          queueColumn: "PARKED",
+          priorityScore: 0,
+          reason: "Company is inactive because it has no datacards yet.",
+          sourceSignal: "inactive-no-datacards",
+        };
+      }
+      if (salesDatacardCount > 0 || salesKnowledgeCount > 0 || activeOpportunityCount > 0) {
+        return {
+          queueColumn: activeOpportunityCount === 0 ? "NOW" : "SOON",
+          priorityScore: roundPriority(72 + Math.min(salesDatacardCount + salesKnowledgeCount, 24) + activeOpportunityCount * 2),
+          reason: activeOpportunityCount === 0
+            ? "Worker-owned internet search should bootstrap sales lead discovery from open-web evidence."
+            : "Worker-owned internet lead search stays warm to expand and refresh the sales opportunity frontier.",
+          sourceSignal: activeOpportunityCount === 0 ? "sales-opportunity-search-bootstrap" : "sales-opportunity-search-refresh",
+        };
+      }
+      return {
+        queueColumn: "PARKED",
+        priorityScore: 0,
+        reason: "Internet lead search waits until the company has enough profile context to search responsibly.",
+        sourceSignal: "sales-opportunity-search-idle",
       };
     case "FEEDBACK_PRESSURE_REGENERATION":
       if (signals.blockedFeedbackFamiliesCount > 0) {

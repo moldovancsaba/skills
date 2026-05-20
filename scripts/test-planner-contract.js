@@ -142,6 +142,7 @@ async function main() {
   assert.equal(PIPELINE_JOB_TYPES.includes("MINE_FLASHCARD_OPPORTUNITIES"), true, "flashcard opportunity mining must be a managed queue job");
   assert.equal(PIPELINE_JOB_TYPES.includes("MINE_TASK_OPPORTUNITIES"), true, "task opportunity mining must be a managed queue job");
   assert.equal(PIPELINE_JOB_TYPES.includes("MINE_OPPORTUNITYCARDS"), true, "opportunitycard mining must be a managed queue job");
+  assert.equal(PIPELINE_JOB_TYPES.includes("SEARCH_OPPORTUNITYCARDS"), true, "opportunitycard internet search must be a managed queue job");
   assert.equal(PIPELINE_JOB_TYPES.includes("FEEDBACK_PRESSURE_REGENERATION"), true, "feedback pressure regeneration must be a managed queue job");
   assert.equal(PIPELINE_JOB_TYPES.includes("REFRESH_OPPORTUNITYCARDS"), true, "opportunitycard refresh must be a managed queue job");
   assert.equal(

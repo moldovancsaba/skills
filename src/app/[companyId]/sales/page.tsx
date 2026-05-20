@@ -92,6 +92,7 @@ export default function SalesPage() {
   const companyId = params.companyId as string;
   const [loading, setLoading] = useState(true);
   const [mining, setMining] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [opportunitycards, setOpportunitycards] = useState<Opportunitycard[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
 
@@ -150,6 +151,24 @@ export default function SalesPage() {
     }
   }, [companyId, load]);
 
+  const handleSearch = useCallback(async () => {
+    setSearching(true);
+    try {
+      await fetch("/api/opportunitycards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyId, mode: "SEARCH" }),
+      });
+      const data = await load();
+      if (data) {
+        setOpportunitycards(data.opportunitycards);
+        setFlashcards(data.flashcards);
+      }
+    } finally {
+      setSearching(false);
+    }
+  }, [companyId, load]);
+
   const handleAction = useCallback(async (itemId: string, action: string, payload?: Record<string, unknown>) => {
     await fetch(`/api/opportunitycards?id=${encodeURIComponent(itemId)}`, {
       method: "PATCH",
@@ -197,8 +216,11 @@ export default function SalesPage() {
           description="Sales-scoped knowledge and company opportunitycards for lead generation."
           actions={
             <Group gap="sm">
+              <Button color="strategy" variant="light" leftSection={<Sparkles size={14} />} onClick={() => void handleSearch()} loading={searching}>
+                Search Internet Leads
+              </Button>
               <Button color="strategy" leftSection={<Sparkles size={14} />} onClick={() => void handleMine()} loading={mining}>
-                Mine Opportunities
+                Mine Existing Research
               </Button>
               <Button variant="light" color="gray" leftSection={<RefreshCw size={14} />} onClick={() => void load()}>
                 Refresh
@@ -212,7 +234,7 @@ export default function SalesPage() {
           title="Sales Lead Workflow"
           icon={Briefcase}
         />
-        <Text size="sm">The system mines company-only opportunitycards, ranks them by ICE, and keeps the sales knowledge context visible.</Text>
+        <Text size="sm">The hosted webapp only queues work. The local AI system searches, mines, enriches, scores, and ranks company-only opportunitycards.</Text>
 
         <MetricGrid>
           <MetricCard icon={Briefcase} color="strategy" label="Opportunitycards" value={counts.total} detail="active company leads" />
@@ -233,7 +255,7 @@ export default function SalesPage() {
             <EmptyState
               icon={Briefcase}
               title="No opportunitycards yet"
-              description="Run sales mining after you add competitor or sales-scoped datacards."
+              description="Queue internet search or mine existing competitor and sales-scoped research to let the local AI create company leads."
               tone="strategy"
             />
           ) : (

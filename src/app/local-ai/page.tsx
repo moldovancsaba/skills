@@ -28,6 +28,7 @@ const JOB_LABELS: Record<string, string> = {
   MINE_FLASHCARD_OPPORTUNITIES: "Mine flashcard opportunities",
   MINE_TASK_OPPORTUNITIES: "Mine task opportunities",
   MINE_OPPORTUNITYCARDS: "Mine opportunitycards",
+  SEARCH_OPPORTUNITYCARDS: "Search opportunitycards",
   FEEDBACK_PRESSURE_REGENERATION: "Feedback pressure regeneration",
   REFRESH_FLASHCARDS: "Refresh flashcards",
   REFRESH_TASKS: "Refresh tasks",

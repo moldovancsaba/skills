@@ -166,8 +166,18 @@ export async function GET(request: NextRequest) {
         },
       },
     );
+    }
 
-    return profiler.apply(response);
+    return profiler.apply(NextResponse.json({
+      items: serialized,
+      hasMore: false,
+      total: serialized.length,
+      ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),
+    }, {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    }));
   } catch (error) {
     console.error("[API:KNOWMORE] Get failure:", error);
     return profiler.apply(NextResponse.json({

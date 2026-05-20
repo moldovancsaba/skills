@@ -7,7 +7,7 @@ import { buildOpportunityFingerprint, buildOpportunityLearningAnnotation, SALES_
 import { nextOpportunityPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { getManualLaneCooldownUntil } from "@/lib/planner-contract";
 import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
-import { markCompanyPipelineTopologyDirty } from "@/lib/pipeline-queue";
+import { escalateCompanyPipelineJob, markCompanyPipelineTopologyDirty } from "@/lib/pipeline-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
     if (auth.error) return auth.error;
 
     if (data.mode === "MINE") {
+      await escalateCompanyPipelineJob(prisma as never, data.companyId, "MINE_OPPORTUNITYCARDS");
       await markCompanyPipelineTopologyDirty(prisma, data.companyId, "manual-opportunity-mine");
       await recordInteractionEventFromRequest(request, {
         companyId: data.companyId,
@@ -118,6 +119,25 @@ export async function POST(request: NextRequest) {
         success: true,
         queued: true,
         message: "Sales opportunitycard mining is queued for the local AI worker.",
+      }, { status: 202 });
+    }
+
+    if (data.mode === "SEARCH") {
+      await escalateCompanyPipelineJob(prisma as never, data.companyId, "SEARCH_OPPORTUNITYCARDS");
+      await markCompanyPipelineTopologyDirty(prisma, data.companyId, "manual-opportunity-search");
+      await recordInteractionEventFromRequest(request, {
+        companyId: data.companyId,
+        surface: "sales",
+        interactionType: "OPPORTUNITY_SEARCH",
+        entityType: "OPPORTUNITYCARD",
+        entityId: data.companyId,
+        payload: { queued: true, mode: "SEARCH_OPPORTUNITYCARDS" },
+        teachingWeight: 70,
+      });
+      return NextResponse.json({
+        success: true,
+        queued: true,
+        message: "Internet lead search is queued for the local AI worker.",
       }, { status: 202 });
     }
 

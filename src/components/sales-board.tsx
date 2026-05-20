@@ -8,8 +8,8 @@ import { UnifiedCard } from "@/components/ui/unified-card";
 import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { Text } from "@/components/ui/typography";
 import { getSemanticDropzoneStyle } from "@/lib/semantic-theme";
+import { getOpportunityLaneMeta, getOpportunityToneColor, OPPORTUNITY_BOARD_COLUMN_ORDER, type OpportunityKanbanColumn } from "@/lib/opportunity-ui";
 
-type OpportunityKanbanColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 export type SalesOpportunitycard = Opportunitycard & {
   sortOrder?: number | null;
 };
@@ -38,19 +38,6 @@ type DraftState = {
   coreOffer: string;
   fitRationale: string;
 };
-
-const COLUMNS: {
-  key: OpportunityKanbanColumn;
-  label: string;
-  description: string;
-  tone: "neutral" | "strategy" | "ingress" | "tactical" | "checklist";
-}[] = [
-  { key: "IDEABANK", label: "Idea Bank", description: "Someday lead pool", tone: "neutral" },
-  { key: "ROADMAP", label: "Roadmap", description: "Later qualification", tone: "strategy" },
-  { key: "BACKLOG", label: "Backlog", description: "Sooner research", tone: "ingress" },
-  { key: "TODO", label: "Next", description: "Soon review", tone: "tactical" },
-  { key: "CHECKLIST", label: "Now", description: "Active sales focus", tone: "checklist" },
-];
 
 function reorderColumnItems(
   items: SalesOpportunitycard[],
@@ -218,7 +205,7 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
       <UnifiedCardModal
         opened={Boolean(detailItem)}
         onClose={closeDetail}
-        tone="strategy"
+        tone={detailItem ? getOpportunityLaneMeta(detailItem.kanbanColumn).tone : "neutral"}
         title={detailItem?.companyName || "Opportunitycard"}
         subtitle={detailItem ? `#${detailItem.opportunityType} · ${detailItem.kanbanColumn}` : undefined}
         badge={detailItem ? `ICE ${Math.round(detailItem.iceScore)}` : undefined}
@@ -247,9 +234,10 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
       <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <Box style={{ overflowX: "auto", overflowY: "hidden" }}>
           <Group wrap="nowrap" align="flex-start" gap="lg" h="100%" pt="md">
-            {COLUMNS.map((column) => {
+            {OPPORTUNITY_BOARD_COLUMN_ORDER.map((columnKey) => {
+              const column = getOpportunityLaneMeta(columnKey);
               const columnItems = items
-                .filter((item) => item.kanbanColumn === column.key && item.activityState !== "ARCHIVED")
+                .filter((item) => item.kanbanColumn === columnKey && item.activityState !== "ARCHIVED")
                 .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0));
 
               return (
@@ -264,7 +252,7 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
                           {column.description}
                         </Text>
                       </Stack>
-                      <Badge size="sm" variant="light" color={column.tone === "neutral" ? "gray" : column.tone}>
+                      <Badge size="sm" variant="light" color={getOpportunityToneColor(column.tone)}>
                         {columnItems.length}
                       </Badge>
                     </Group>
@@ -306,6 +294,7 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
                                     >
                                       <OpportunityReviewCard
                                         item={item}
+                                        tone={column.tone}
                                         onOpenDetail={(selected) => setDetailId(selected.id)}
                                         isActionOpen={actionCardId === item.id}
                                         actionMode={actionCardId === item.id ? actionMode : null}

@@ -1,4 +1,4 @@
-import { Badge, Button, Group, Select, SimpleGrid, Stack, TextInput, Textarea, ThemeIcon } from "@mantine/core";
+import { Badge, Button, Group, Select, Stack, TextInput, Textarea, ThemeIcon } from "@mantine/core";
 import { IconArchive as Archive, IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconRefresh as RefreshCw, IconX as X, IconPin as Pin } from "@tabler/icons-react";
 import { CardShareAction } from "@/components/ui/card-share-action";
 import { MetaText, Text } from "@/components/ui/typography";
@@ -6,6 +6,8 @@ import { UnifiedCard, UnifiedCardActions, UnifiedCardBody, UnifiedCardFooter, Un
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getTaskCardFreshness } from "@/lib/card-freshness";
 import { getDisplayableHumanComment } from "@/lib/ui-utils";
+import type { ModuleTone } from "@/lib/semantic-theme";
+import { getOpportunityLaneMeta, getOpportunityToneColor } from "@/lib/opportunity-ui";
 
 export type OpportunitycardActionMode = "ACCEPT" | "DECLINE" | "MODIFY" | "PIN" | "REQUEST_REFRESH" | "ARCHIVE";
 
@@ -53,6 +55,7 @@ type OpportunityDraft = {
 
 type Props = {
   item: Opportunitycard;
+  tone?: ModuleTone;
   onOpenDetail?: (item: Opportunitycard) => void;
   detailMode?: boolean;
   isActionOpen: boolean;
@@ -120,6 +123,7 @@ function isMeaningfulBody(body: string, banned: string[]) {
 
 export function OpportunityReviewCard({
   item,
+  tone = getOpportunityLaneMeta(item.kanbanColumn).tone,
   onOpenDetail,
   detailMode = false,
   isActionOpen,
@@ -173,10 +177,11 @@ export function OpportunityReviewCard({
   ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
   const hasDetails = socialLinks.length > 0 || infoRows.length > 0;
   const displayableComment = getDisplayableHumanComment(item.userAnnotation);
+  const visibleHashtags = detailMode ? item.hashtags : item.hashtags.slice(0, 5);
 
   return (
     <UnifiedCard
-      tone="strategy"
+      tone={tone}
       fullWidth
       muted={item.processingStatus === "DECLINED" || item.activityState === "ARCHIVED"}
       onClick={onOpenDetail ? () => onOpenDetail(item) : undefined}
@@ -184,25 +189,31 @@ export function OpportunityReviewCard({
       <UnifiedCardHeader
         clampTitle={!detailMode}
         supporting={
-          <Group justify="space-between" wrap="nowrap" w="100%">
-            <Group gap="xs">
+          <Group justify="space-between" align="flex-start" wrap="nowrap" w="100%">
+            <Group gap="xs" wrap="wrap" style={{ flex: 1, minWidth: 0 }}>
               <Badge color="dark">{item.processingStatus}</Badge>
-              <Badge color="strategy" variant="light">Opportunitycard</Badge>
+              <Badge color={getOpportunityToneColor(tone)} variant="light">Opportunitycard</Badge>
               <Badge color="ingress" variant="light">#{item.opportunityType}</Badge>
               <UnifiedCardFreshnessBadge freshness={freshness} />
             </Group>
-            <Badge color={getIceBadgeColor(item.iceScore)}>ICE {Math.round(item.iceScore)}</Badge>
+            <Badge color={getIceBadgeColor(item.iceScore)} style={{ flexShrink: 0 }}>
+              ICE {Math.round(item.iceScore)}
+            </Badge>
           </Group>
         }
         title={primaryTitle || "Opportunitycard"}
       />
 
       <UnifiedCardBody>
-        {bodyIsUseful ? <UnifiedCardText disablePreview={detailMode} markdown>{item.body}</UnifiedCardText> : null}
+        {bodyIsUseful ? (
+          <UnifiedCardText disablePreview={detailMode} previewLength={detailMode ? 240 : 120} markdown>
+            {item.body}
+          </UnifiedCardText>
+        ) : null}
 
-        {item.hashtags.length > 0 ? (
+        {visibleHashtags.length > 0 ? (
           <Group gap={4} wrap="wrap">
-            {item.hashtags.map((tag) => (
+            {visibleHashtags.map((tag) => (
               <Badge key={tag} size="xs" variant="outline" color="gray">
                 #{tag}
               </Badge>
@@ -210,8 +221,8 @@ export function OpportunityReviewCard({
           </Group>
         ) : null}
 
-        {hasDetails ? (
-          <UnifiedCardSection tone="strategy">
+        {detailMode && hasDetails ? (
+          <UnifiedCardSection tone={tone}>
             <Stack gap="sm">
               {socialLinks.length > 0 ? (
                 <Group gap="xs" wrap="wrap">
@@ -223,7 +234,7 @@ export function OpportunityReviewCard({
                       target="_blank"
                       rel="noreferrer"
                       variant="light"
-                      color="strategy"
+                      color={getOpportunityToneColor(tone)}
                       onClick={(event) => event.stopPropagation()}
                     >
                       {link.label}: {toDisplayUrl(link.value)}
@@ -232,16 +243,12 @@ export function OpportunityReviewCard({
                 </Group>
               ) : null}
 
-              {infoRows.length > 0 ? (
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm" verticalSpacing="sm">
-                  {infoRows.map((row) => (
-                    <Stack key={row.label} gap={2}>
-                      <MetaText>{row.label}</MetaText>
-                      <Text size="sm">{row.value}</Text>
-                    </Stack>
-                  ))}
-                </SimpleGrid>
-              ) : null}
+              {infoRows.length > 0 ? infoRows.map((row) => (
+                <Stack key={row.label} gap={2}>
+                  <MetaText>{row.label}</MetaText>
+                  <Text size="sm">{row.value}</Text>
+                </Stack>
+              )) : null}
             </Stack>
           </UnifiedCardSection>
         ) : null}
@@ -261,7 +268,7 @@ export function OpportunityReviewCard({
           <Button
             size="xs"
             variant="light"
-            color="strategy"
+            color={getOpportunityToneColor(tone)}
             leftSection={<Check size={14} />}
             onClick={(event) => stopCardClick(event, () => onOpenAction(item, "ACCEPT"))}
             disabled={isBusy}
@@ -351,7 +358,7 @@ export function OpportunityReviewCard({
                     actionMode === "DECLINE" || actionMode === "ARCHIVE"
                       ? "review"
                       : actionMode === "MODIFY" || actionMode === "PIN"
-                        ? "strategy"
+                        ? getOpportunityToneColor(tone)
                         : "ingress"
                   }
                   onClick={(event) => stopCardClick(event, () => { void onSubmit(item.id, actionMode); })}
@@ -382,7 +389,7 @@ export function OpportunityReviewCard({
             <Button
               size="compact-xs"
               variant="subtle"
-              color="strategy"
+              color={getOpportunityToneColor(tone)}
               leftSection={<Pin size={12} />}
               onClick={(event) => stopCardClick(event, () => onOpenAction(item, "PIN"))}
             >

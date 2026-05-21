@@ -3,13 +3,73 @@ import { ChecklistKanbanColumn, DepartmentKey, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { verifyMembership } from "@/lib/permissions";
-import { buildOpportunityFingerprint, buildOpportunityLearningAnnotation, SALES_DEPARTMENT_KEY } from "@/lib/opportunitycards";
+import { buildOpportunityFingerprint, buildOpportunityLearningAnnotation, deriveOpportunityLane, normalizeOpportunityPayload, SALES_DEPARTMENT_KEY } from "@/lib/opportunitycards";
 import { nextOpportunityPublicId, TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { getManualLaneCooldownUntil } from "@/lib/planner-contract";
 import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
 import { escalateCompanyPipelineJob, markCompanyPipelineTopologyDirty } from "@/lib/pipeline-queue";
 
 export const dynamic = "force-dynamic";
+
+function normalizeEvidenceRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function buildOpportunitySearchFeedbackInput(card: {
+  website?: string | null;
+  companyName?: string | null;
+  title?: string | null;
+  hashtags?: string[] | null;
+  fitRationale?: string | null;
+  evidence?: Prisma.JsonValue | null;
+}, action: string) {
+  const evidence = normalizeEvidenceRecord(card.evidence);
+  const leadDiscovery = normalizeEvidenceRecord(evidence?.leadDiscovery);
+  const terms = [
+    card.companyName,
+    card.title,
+    card.fitRationale,
+    ...(Array.isArray(card.hashtags) ? card.hashtags : []),
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+  return {
+    action,
+    query: typeof leadDiscovery?.query === "string" ? leadDiscovery.query : null,
+    domain: typeof leadDiscovery?.searchDomain === "string"
+      ? leadDiscovery.searchDomain
+      : typeof card.website === "string"
+        ? card.website
+        : null,
+    terms,
+  };
+}
+
+async function recordOpportunitySearchFeedbackFromAction(card: {
+  companyId: string;
+  website?: string | null;
+  companyName?: string | null;
+  title?: string | null;
+  hashtags?: string[] | null;
+  fitRationale?: string | null;
+  evidence?: Prisma.JsonValue | null;
+}, action: string) {
+  if (action !== "ACCEPT" && action !== "DECLINE") return;
+  const searchLearning = await import("../../../../scripts/lib/opportunity-search.js");
+  const recordOpportunitySearchFeedback = searchLearning.recordOpportunitySearchFeedback
+    ?? searchLearning.default?.recordOpportunitySearchFeedback;
+  if (typeof recordOpportunitySearchFeedback !== "function") {
+    throw new Error("recordOpportunitySearchFeedback is unavailable");
+  }
+  await recordOpportunitySearchFeedback(prisma, card.companyId, buildOpportunitySearchFeedbackInput(card, action));
+}
+
+async function rebalanceOpportunitycardsForCompany(companyId: string) {
+  const runtime = await import("@/lib/opportunitycards-runtime.js");
+  const rebalanceOpportunitycardBoard = runtime.rebalanceOpportunitycardBoard;
+  if (typeof rebalanceOpportunitycardBoard !== "function") {
+    throw new Error("rebalanceOpportunitycardBoard is unavailable");
+  }
+  await rebalanceOpportunitycardBoard(prisma as never, companyId);
+}
 
 function buildManualLaneOverrideData(column: ChecklistKanbanColumn, actorId: string, now = new Date()) {
   return {
@@ -141,18 +201,36 @@ export async function POST(request: NextRequest) {
       }, { status: 202 });
     }
 
-    const companyName = sanitizeOptionalUserFacingText(data.companyName) || sanitizeOptionalUserFacingText(data.title) || "Opportunitycard";
-    const title = sanitizeOptionalUserFacingText(data.title) || companyName;
-    const body = sanitizeOptionalUserFacingText(data.body) || "Sales opportunity candidate.";
-    const website = sanitizeOptionalUserFacingText(data.website);
-    const opportunityType = sanitizeOpportunityType(data.opportunityType);
-    const hashtags = sanitizeHashtags(data.hashtags);
-    const salesGeographies = sanitizeStringArray(data.salesGeographies);
-    const fingerprint = buildOpportunityFingerprint({
-      website,
-      companyName,
-      opportunityType,
+    const normalized = normalizeOpportunityPayload({
+      companyName: sanitizeOptionalUserFacingText(data.companyName) || sanitizeOptionalUserFacingText(data.title) || "Opportunitycard",
+      title: sanitizeOptionalUserFacingText(data.title),
+      body: sanitizeOptionalUserFacingText(data.body),
+      website: sanitizeOptionalUserFacingText(data.website),
+      linkedinUrl: sanitizeOptionalUserFacingText(data.linkedinUrl),
+      instagramUrl: sanitizeOptionalUserFacingText(data.instagramUrl),
+      facebookUrl: sanitizeOptionalUserFacingText(data.facebookUrl),
+      xUrl: sanitizeOptionalUserFacingText(data.xUrl),
+      location: sanitizeOptionalUserFacingText(data.location),
+      coreOffer: sanitizeOptionalUserFacingText(data.coreOffer),
+      financialBackground: sanitizeOptionalUserFacingText(data.financialBackground),
+      fitRationale: sanitizeOptionalUserFacingText(data.fitRationale),
+      opportunityType: sanitizeOpportunityType(data.opportunityType),
+      hashtags: sanitizeHashtags(data.hashtags),
+      salesGeographies: sanitizeStringArray(data.salesGeographies),
+      contactInfo: data.contactInfo && typeof data.contactInfo === "object" && !Array.isArray(data.contactInfo)
+        ? data.contactInfo as Prisma.InputJsonValue
+        : null,
+      impact: Number(data.impact ?? 5),
+      confidence: Number(data.confidence ?? data.confidenceScore ?? 5),
+      confidenceScore: Number(data.confidenceScore ?? data.confidence ?? 5),
+      weight: Number(data.weight ?? 5),
     });
+    const fingerprint = buildOpportunityFingerprint({
+      website: normalized.website,
+      companyName: normalized.companyName,
+      opportunityType: normalized.opportunityType,
+    });
+    const explicitColumn = typeof data.kanbanColumn === "string" ? data.kanbanColumn : null;
 
     const created = await prisma.$transaction(async (tx) => {
       const publicId = await nextOpportunityPublicId(tx);
@@ -160,42 +238,41 @@ export async function POST(request: NextRequest) {
         data: {
           publicId,
           companyId: data.companyId,
-          companyName,
-          title,
-          body,
-          website,
-          linkedinUrl: sanitizeOptionalUserFacingText(data.linkedinUrl),
-          instagramUrl: sanitizeOptionalUserFacingText(data.instagramUrl),
-          facebookUrl: sanitizeOptionalUserFacingText(data.facebookUrl),
-          xUrl: sanitizeOptionalUserFacingText(data.xUrl),
-          location: sanitizeOptionalUserFacingText(data.location),
-          coreOffer: sanitizeOptionalUserFacingText(data.coreOffer),
-          financialBackground: sanitizeOptionalUserFacingText(data.financialBackground),
-          fitRationale: sanitizeOptionalUserFacingText(data.fitRationale),
-          opportunityType: opportunityType as never,
+          companyName: normalized.companyName,
+          title: normalized.title,
+          body: normalized.body,
+          website: normalized.website,
+          linkedinUrl: normalized.linkedinUrl,
+          instagramUrl: normalized.instagramUrl,
+          facebookUrl: normalized.facebookUrl,
+          xUrl: normalized.xUrl,
+          location: normalized.location,
+          coreOffer: normalized.coreOffer,
+          financialBackground: normalized.financialBackground,
+          fitRationale: normalized.fitRationale,
+          opportunityType: normalized.opportunityType as never,
           departmentKey: "SALES",
-          confidence: Number(data.confidence || 0),
-          confidenceScore: Number(data.confidenceScore || 0),
-          impact: Number(data.impact || 0),
-          weight: Number(data.weight || 0),
-          iceScore: Number(data.iceScore || 0),
-          hashtags,
-          salesGeographies,
-          contactInfo: data.contactInfo && typeof data.contactInfo === "object" && !Array.isArray(data.contactInfo)
-            ? data.contactInfo as Prisma.InputJsonValue
-            : null,
-          scoreProfile: null,
+          confidence: normalized.confidence,
+          confidenceScore: normalized.confidenceScore,
+          impact: normalized.impact,
+          weight: normalized.weight,
+          iceScore: normalized.iceScore,
+          hashtags: normalized.hashtags,
+          salesGeographies: normalized.salesGeographies,
+          contactInfo: normalized.contactInfo as Prisma.InputJsonValue,
+          scoreProfile: normalized.scoreProfile as Prisma.InputJsonValue,
           sourceFlashcardIds: Array.isArray(data.sourceFlashcardIds) ? data.sourceFlashcardIds : [],
           generatedFromIds: Array.isArray(data.generatedFromIds) ? data.generatedFromIds : [],
           fingerprint,
           processingStatus: "DRAFT",
           activityState: "STALE",
-          kanbanColumn: (typeof data.kanbanColumn === "string" ? data.kanbanColumn : "IDEABANK") as ChecklistKanbanColumn,
+          kanbanColumn: (explicitColumn || "IDEABANK") as ChecklistKanbanColumn,
           generatedAt: new Date(),
           refreshedAt: new Date(),
         },
       });
     }, TRANSACTION_SETTINGS);
+    await rebalanceOpportunitycardsForCompany(data.companyId);
     await markCompanyPipelineTopologyDirty(prisma, data.companyId, "opportunitycard-create");
 
     await recordInteractionEventFromRequest(request, {
@@ -268,6 +345,7 @@ export async function PATCH(request: NextRequest) {
       }, TRANSACTION_SETTINGS);
 
       const updated = await prisma.opportunitycard.findUnique({ where: { id } });
+      await rebalanceOpportunitycardsForCompany(existing.companyId);
       await markCompanyPipelineTopologyDirty(prisma, existing.companyId, "opportunitycard-reorder");
       return NextResponse.json(updated);
     }
@@ -317,7 +395,7 @@ export async function PATCH(request: NextRequest) {
       } else if (action === "ARCHIVE") {
         nextData.activityState = "ARCHIVED";
       } else if (action === "MODIFY") {
-        Object.assign(nextData, {
+        const normalized = normalizeOpportunityPayload({
           companyName: sanitizeOptionalUserFacingText(data.companyName) ?? existing.companyName,
           title: sanitizeOptionalUserFacingText(data.title) ?? existing.title,
           body: sanitizeOptionalUserFacingText(data.body) ?? existing.body,
@@ -330,16 +408,52 @@ export async function PATCH(request: NextRequest) {
           coreOffer: sanitizeOptionalUserFacingText(data.coreOffer) ?? existing.coreOffer,
           financialBackground: sanitizeOptionalUserFacingText(data.financialBackground) ?? existing.financialBackground,
           fitRationale: sanitizeOptionalUserFacingText(data.fitRationale) ?? existing.fitRationale,
-          opportunityType: sanitizeOpportunityType(data.opportunityType ?? existing.opportunityType) as never,
+          opportunityType: sanitizeOpportunityType(data.opportunityType ?? existing.opportunityType),
           hashtags: Array.isArray(data.hashtags) ? sanitizeHashtags(data.hashtags) : existing.hashtags,
           salesGeographies: Array.isArray(data.salesGeographies) ? sanitizeStringArray(data.salesGeographies) : existing.salesGeographies,
           contactInfo: data.contactInfo && typeof data.contactInfo === "object" && !Array.isArray(data.contactInfo)
             ? data.contactInfo as Prisma.InputJsonValue
             : existing.contactInfo,
+          impact: data.impact ?? existing.impact,
+          confidence: data.confidenceScore ?? data.confidence ?? existing.confidenceScore ?? existing.confidence,
+          confidenceScore: data.confidenceScore ?? data.confidence ?? existing.confidenceScore ?? existing.confidence,
+          weight: data.weight ?? existing.weight,
+          scoreProfile: existing.scoreProfile,
+        });
+        const fingerprint = buildOpportunityFingerprint({
+          website: normalized.website,
+          companyName: normalized.companyName,
+          opportunityType: normalized.opportunityType,
+        });
+        Object.assign(nextData, {
+          companyName: normalized.companyName,
+          title: normalized.title,
+          body: normalized.body,
+          website: normalized.website,
+          linkedinUrl: normalized.linkedinUrl,
+          instagramUrl: normalized.instagramUrl,
+          facebookUrl: normalized.facebookUrl,
+          xUrl: normalized.xUrl,
+          location: normalized.location,
+          coreOffer: normalized.coreOffer,
+          financialBackground: normalized.financialBackground,
+          fitRationale: normalized.fitRationale,
+          opportunityType: normalized.opportunityType as never,
+          hashtags: normalized.hashtags,
+          salesGeographies: normalized.salesGeographies,
+          contactInfo: normalized.contactInfo as Prisma.InputJsonValue,
+          confidence: normalized.confidence,
+          confidenceScore: normalized.confidenceScore,
+          impact: normalized.impact,
+          weight: normalized.weight,
+          iceScore: normalized.iceScore,
+          scoreProfile: normalized.scoreProfile as Prisma.InputJsonValue,
+          fingerprint,
           refreshedAt: new Date(),
           processingStatus: "REVIEW",
           activityState: "STALE",
           feedbackScore: Number(existing.feedbackScore || 0) + 0.5,
+          kanbanColumn: existing.manualLaneOverrideAt ? existing.kanbanColumn : existing.kanbanColumn,
         });
       }
 
@@ -347,6 +461,8 @@ export async function PATCH(request: NextRequest) {
         where: { id },
         data: nextData,
       });
+      await recordOpportunitySearchFeedbackFromAction(existing, action);
+      await rebalanceOpportunitycardsForCompany(existing.companyId);
       await markCompanyPipelineTopologyDirty(prisma, existing.companyId, `opportunitycard-action:${action.toLowerCase()}`);
       if (action === "DECLINE" || action === "MODIFY" || action === "REQUEST_REFRESH") {
         await escalateCompanyPipelineJob(prisma as never, existing.companyId, "REFRESH_OPPORTUNITYCARDS");
@@ -366,33 +482,70 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json(updated);
     }
 
+    const normalized = normalizeOpportunityPayload({
+      companyName: sanitizeOptionalUserFacingText(data.companyName) ?? existing.companyName,
+      title: sanitizeOptionalUserFacingText(data.title) ?? existing.title,
+      body: sanitizeOptionalUserFacingText(data.body) ?? existing.body,
+      website: sanitizeOptionalUserFacingText(data.website) ?? existing.website,
+      linkedinUrl: sanitizeOptionalUserFacingText(data.linkedinUrl) ?? existing.linkedinUrl,
+      instagramUrl: sanitizeOptionalUserFacingText(data.instagramUrl) ?? existing.instagramUrl,
+      facebookUrl: sanitizeOptionalUserFacingText(data.facebookUrl) ?? existing.facebookUrl,
+      xUrl: sanitizeOptionalUserFacingText(data.xUrl) ?? existing.xUrl,
+      location: sanitizeOptionalUserFacingText(data.location) ?? existing.location,
+      coreOffer: sanitizeOptionalUserFacingText(data.coreOffer) ?? existing.coreOffer,
+      financialBackground: sanitizeOptionalUserFacingText(data.financialBackground) ?? existing.financialBackground,
+      fitRationale: sanitizeOptionalUserFacingText(data.fitRationale) ?? existing.fitRationale,
+      opportunityType: sanitizeOpportunityType(data.opportunityType ?? existing.opportunityType),
+      hashtags: Array.isArray(data.hashtags) ? sanitizeHashtags(data.hashtags) : existing.hashtags,
+      salesGeographies: Array.isArray(data.salesGeographies) ? sanitizeStringArray(data.salesGeographies) : existing.salesGeographies,
+      contactInfo: data.contactInfo && typeof data.contactInfo === "object" && !Array.isArray(data.contactInfo)
+        ? data.contactInfo as Prisma.InputJsonValue
+        : existing.contactInfo,
+      impact: data.impact ?? existing.impact,
+      confidence: data.confidenceScore ?? data.confidence ?? existing.confidenceScore ?? existing.confidence,
+      confidenceScore: data.confidenceScore ?? data.confidence ?? existing.confidenceScore ?? existing.confidence,
+      weight: data.weight ?? existing.weight,
+      scoreProfile: existing.scoreProfile,
+    });
+    const fingerprint = buildOpportunityFingerprint({
+      website: normalized.website,
+      companyName: normalized.companyName,
+      opportunityType: normalized.opportunityType,
+    });
+
     const updated = await prisma.opportunitycard.update({
       where: { id },
       data: {
-        companyName: sanitizeOptionalUserFacingText(data.companyName) ?? existing.companyName,
-        title: sanitizeOptionalUserFacingText(data.title) ?? existing.title,
-        body: sanitizeOptionalUserFacingText(data.body) ?? existing.body,
-        website: sanitizeOptionalUserFacingText(data.website) ?? existing.website,
-        linkedinUrl: sanitizeOptionalUserFacingText(data.linkedinUrl) ?? existing.linkedinUrl,
-        instagramUrl: sanitizeOptionalUserFacingText(data.instagramUrl) ?? existing.instagramUrl,
-        facebookUrl: sanitizeOptionalUserFacingText(data.facebookUrl) ?? existing.facebookUrl,
-        xUrl: sanitizeOptionalUserFacingText(data.xUrl) ?? existing.xUrl,
-        location: sanitizeOptionalUserFacingText(data.location) ?? existing.location,
-        coreOffer: sanitizeOptionalUserFacingText(data.coreOffer) ?? existing.coreOffer,
-        financialBackground: sanitizeOptionalUserFacingText(data.financialBackground) ?? existing.financialBackground,
-        fitRationale: sanitizeOptionalUserFacingText(data.fitRationale) ?? existing.fitRationale,
-        opportunityType: sanitizeOpportunityType(data.opportunityType ?? existing.opportunityType) as never,
-        hashtags: Array.isArray(data.hashtags) ? sanitizeHashtags(data.hashtags) : existing.hashtags,
-        salesGeographies: Array.isArray(data.salesGeographies) ? sanitizeStringArray(data.salesGeographies) : existing.salesGeographies,
-        contactInfo: data.contactInfo && typeof data.contactInfo === "object" && !Array.isArray(data.contactInfo)
-          ? data.contactInfo as Prisma.InputJsonValue
-          : existing.contactInfo,
+        companyName: normalized.companyName,
+        title: normalized.title,
+        body: normalized.body,
+        website: normalized.website,
+        linkedinUrl: normalized.linkedinUrl,
+        instagramUrl: normalized.instagramUrl,
+        facebookUrl: normalized.facebookUrl,
+        xUrl: normalized.xUrl,
+        location: normalized.location,
+        coreOffer: normalized.coreOffer,
+        financialBackground: normalized.financialBackground,
+        fitRationale: normalized.fitRationale,
+        opportunityType: normalized.opportunityType as never,
+        hashtags: normalized.hashtags,
+        salesGeographies: normalized.salesGeographies,
+        contactInfo: normalized.contactInfo as Prisma.InputJsonValue,
+        confidence: normalized.confidence,
+        confidenceScore: normalized.confidenceScore,
+        impact: normalized.impact,
+        weight: normalized.weight,
+        iceScore: normalized.iceScore,
+        scoreProfile: normalized.scoreProfile as Prisma.InputJsonValue,
+        fingerprint,
         departmentKey: data.departmentKey ?? existing.departmentKey,
-        kanbanColumn: data.kanbanColumn ?? existing.kanbanColumn,
+        kanbanColumn: data.kanbanColumn ?? (existing.manualLaneOverrideAt ? existing.kanbanColumn : existing.kanbanColumn),
         activityState: "STALE",
         refreshedAt: new Date(),
       },
     });
+    await rebalanceOpportunitycardsForCompany(existing.companyId);
     await markCompanyPipelineTopologyDirty(prisma, existing.companyId, "opportunitycard-update");
     return NextResponse.json(updated);
   } catch (error) {

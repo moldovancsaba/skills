@@ -127,7 +127,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
   }, [initialSession]);
 
   useEffect(() => {
-    const activeId = company?.id || companyIdFromUrl;
+    const activeId = companyIdFromUrl || company?.id;
     if (!activeId) {
       const timer = window.setTimeout(() => {
         setCounts({});
@@ -185,7 +185,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
   const navCompany = resolvedCompany?.id === companyIdFromUrl
     ? resolvedCompany
     : (company?.id === companyIdFromUrl ? company : resolvedCompany || company);
-  const activeCompanyId = company?.id || companyIdFromUrl;
+  const activeCompanyId = companyIdFromUrl || company?.id;
 
   useEffect(() => {
     if (!activeCompanyId || !pathname || pathname === "/") return;
@@ -240,7 +240,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
               />
 
               {pipelineItems.map((item) => {
-                const companyId = company?.id || companyIdFromUrl;
+                const companyId = companyIdFromUrl || company?.id;
                 const itemHref = companyId ? item.href(companyId) : "";
                 const isActive = Boolean(pathname && itemHref && (pathname === itemHref || pathname.startsWith(`${itemHref}/`)));
                 const itemLabel = t(item.labelKey);

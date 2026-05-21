@@ -14,6 +14,7 @@ This file serves as the long-term cognitive anchor for Antigravity (the AI assis
 - **Database**: Prisma + MongoDB Atlas.
 - **AI Stack**: Local Ollama (llama3.2:3b).
 - **Security**: Google Auth + Multi-Tenant isolation.
+- **Runtime DB Access**: the production MongoDB URI is available locally at [`/Users/Shared/Projects/checklist/.env.prod-db-url.tmp`](/Users/Shared/Projects/checklist/.env.prod-db-url.tmp) as a raw URI file, not a shell-style `KEY=value` env file. DB-backed repair and worker verification must inject it as `DATABASE_URL` explicitly.
 
 ## 🎯 Next Strategic Priorities (from GitHub)
 1. **#111: Topics as Primary Planning Layer**: Refactor the synthesis loop to prioritize TopicCard context over raw DataCard flow.
@@ -25,3 +26,4 @@ This file serves as the long-term cognitive anchor for Antigravity (the AI assis
 - **Never use TailwindCSS utility classes** (hardened mandate).
 - Do not use placeholders; use `generate_image` or real data.
 - Avoid generic UI; prioritize "Wowed at first glance" aesthetics.
+- Do not claim runtime DB access is unavailable until the shared local URI file path above has been checked.

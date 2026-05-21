@@ -21,6 +21,7 @@ const INVENTORY_HISTORY_LIMIT = 168;
 const RUNTIME_VERIFICATION_STATE_KEY = "local_ai_runtime_verification_last_run";
 const PIPELINE_TOPOLOGY_STATE_KEY = "local_ai_pipeline_topology_state";
 const PROJECTION_REFRESH_STATE_KEY = "local_ai_webapp_projection_refresh_state";
+const OPPORTUNITYCARD_REPAIR_STATE_KEY = "opportunitycard_score_contract_repair_v1";
 const WEBAPP_PROJECTION_VERSION = 1;
 const QUEUE_COLUMN_RANK = Object.freeze({ NOW: 0, SOON: 1, LATER: 2, PARKED: 3 });
 const STATUS_CACHE_TTL_MS = 5000;
@@ -379,13 +380,14 @@ async function captureInventoryHistory(inventory) {
 }
 
 async function buildStatusPayload() {
-  const [setting, snapshotSetting, memoryGovernorSetting, verificationSetting, topologySetting, projectionSetting, heartbeat, inventory, queue, projectionCoverage] = await Promise.all([
+  const [setting, snapshotSetting, memoryGovernorSetting, verificationSetting, topologySetting, projectionSetting, opportunitycardRepairSetting, heartbeat, inventory, queue, projectionCoverage] = await Promise.all([
     prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
     prisma.globalSetting.findUnique({ where: { key: "local_ai_snapshot_worker_progress" } }),
     prisma.globalSetting.findUnique({ where: { key: "local_ai_memory_governor_state" } }),
     prisma.globalSetting.findUnique({ where: { key: RUNTIME_VERIFICATION_STATE_KEY } }),
     prisma.globalSetting.findUnique({ where: { key: PIPELINE_TOPOLOGY_STATE_KEY } }),
     prisma.globalSetting.findUnique({ where: { key: PROJECTION_REFRESH_STATE_KEY } }),
+    prisma.globalSetting.findUnique({ where: { key: OPPORTUNITYCARD_REPAIR_STATE_KEY } }),
     Promise.resolve(readHeartbeat()),
     getGlobalInventory(),
     getGlobalQueueSnapshot(),
@@ -412,6 +414,22 @@ async function buildStatusPayload() {
   const verification = isPlainObject(verificationSetting?.value) ? verificationSetting.value : null;
   const topologyState = isPlainObject(topologySetting?.value) ? topologySetting.value : {};
   const projectionState = isPlainObject(projectionSetting?.value) ? projectionSetting.value : {};
+  const repairValue = isPlainObject(opportunitycardRepairSetting?.value) ? opportunitycardRepairSetting.value : {};
+  const opportunitycardRepair = {
+    version: Number(repairValue.version || 1),
+    status: typeof repairValue.status === "string" ? repairValue.status : "PENDING",
+    processed: Number(repairValue.processed || 0),
+    updated: Number(repairValue.updated || 0),
+    lastBatchProcessed: Number(repairValue.lastBatchProcessed || 0),
+    lastBatchUpdated: Number(repairValue.lastBatchUpdated || 0),
+    batchesProcessed: Number(repairValue.batchesProcessed || 0),
+    startedAt: typeof repairValue.startedAt === "string" ? repairValue.startedAt : null,
+    lastRunAt: typeof repairValue.lastRunAt === "string" ? repairValue.lastRunAt : null,
+    completedAt: typeof repairValue.completedAt === "string" ? repairValue.completedAt : null,
+    lastError: typeof repairValue.lastError === "string" ? repairValue.lastError : null,
+    cursor: isPlainObject(repairValue.cursor) ? repairValue.cursor : null,
+    stateUpdatedAt: opportunitycardRepairSetting?.updatedAt ? new Date(opportunitycardRepairSetting.updatedAt).toISOString() : null,
+  };
 
   return {
     ts: new Date().toISOString(),
@@ -427,6 +445,7 @@ async function buildStatusPayload() {
       recentEvents: Array.isArray(memoryGovernor.recentEvents) ? memoryGovernor.recentEvents.slice(-8).reverse() : [],
     },
     verification,
+    opportunitycardRepair,
     topology: {
       dirtyCompanies: Array.isArray(topologyState.dirtyCompanies) ? topologyState.dirtyCompanies : [],
       recentSyncs: Array.isArray(topologyState.recentSyncs) ? topologyState.recentSyncs.slice(-8).reverse() : [],

@@ -37,6 +37,7 @@ The CHECKLIST UI is:
 6. Typography is centrally defined only.
 7. Interaction behavior is centralized only.
 8. Shared UI rules are enforced in code and by audit, not by convention alone.
+9. Card detail mode must fully expose persisted card-type-specific fields inside the shared card grammar; the modal shell is centralized, but detail content cannot omit known typed fields for that entity family.
 
 ## Semantic Tones
 

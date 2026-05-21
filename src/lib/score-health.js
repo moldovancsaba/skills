@@ -1,16 +1,30 @@
-const { PrismaClient } = require("@prisma/client");
 const { computePriorityCohortProfiles } = require("./scoring-contract");
 
 const globalForScoreHealth = globalThis;
-const defaultPrisma =
-  globalForScoreHealth.__scoreHealthPrisma ??
-  new PrismaClient({
+function createDefaultPrismaClient() {
+  const { PrismaClient } = require("@prisma/client");
+  return new PrismaClient({
     log: ["error"],
   });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForScoreHealth.__scoreHealthPrisma = defaultPrisma;
 }
+
+function getDefaultPrisma() {
+  if (!globalForScoreHealth.__scoreHealthPrisma) {
+    globalForScoreHealth.__scoreHealthPrisma = createDefaultPrismaClient();
+  }
+  return globalForScoreHealth.__scoreHealthPrisma;
+}
+
+const defaultPrisma = new Proxy(
+  {},
+  {
+    get(_target, property) {
+      const prisma = getDefaultPrisma();
+      const value = prisma[property];
+      return typeof value === "function" ? value.bind(prisma) : value;
+    },
+  },
+);
 
 const SCORE_HEALTH_THRESHOLDS = Object.freeze({
   exactScoreShare: Object.freeze({

@@ -5,11 +5,15 @@ const { runPipelineQueueBatch, shouldDelegateQueueRefresh } = require("./lib/pip
 const { recoverOrphanedRunningPipelineJobs } = require("../src/lib/pipeline-queue");
 const packageJson = require("../package.json");
 const APP_VERSION = packageJson.version;
+const { refreshCompanyIntelligenceSnapshot } = require("./lib/intelligence-snapshot");
 
 const prisma = new PrismaClient();
 const PORT = 10005;
 const SNAPSHOT_PORT = 10007;
 const STARTUP_SCRUB_SETTING_KEY = "local_ai_startup_integrity_last_ran_at";
+const OPPORTUNITYCARD_SCORE_REPAIR_SETTING_KEY = "opportunitycard_score_contract_repair_v1";
+const OPPORTUNITYCARD_SCORE_REPAIR_BATCH_SIZE = 100;
+const OPPORTUNITYCARD_SCORE_REPAIR_MAX_BATCHES_PER_PASS = 2;
 
 /**
  * Main entry point for the recurring local AI worker loop.
@@ -21,6 +25,7 @@ const { getSynthesisProgress, collectGlobalWorkerSettings, updateProgress, synth
 const { scrubDatabaseElemental } = require("./lib/maintenance");
 const { refreshAllIntelligenceSnapshots } = require("./lib/intelligence-snapshot");
 const { processPendingWorkerCommands } = require("./lib/system-commands");
+const { repairOpportunitycards } = require("./lib/opportunitycard-score-repair");
 const {
   getFreeMemoryMb,
   getResourceBand,
@@ -143,7 +148,143 @@ async function writeLastStartupScrubAt(prisma, timestampMs) {
   });
 }
 
+async function readOpportunitycardScoreRepairState(prisma) {
+  const setting = await prisma.globalSetting.findUnique({
+    where: { key: OPPORTUNITYCARD_SCORE_REPAIR_SETTING_KEY },
+    select: { value: true },
+  });
+  const value = setting?.value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return {
+    version: Number(value.version || 1),
+    status: typeof value.status === "string" ? value.status : "PENDING",
+    processed: Number(value.processed || 0),
+    updated: Number(value.updated || 0),
+    lastBatchProcessed: Number(value.lastBatchProcessed || 0),
+    lastBatchUpdated: Number(value.lastBatchUpdated || 0),
+    batchesProcessed: Number(value.batchesProcessed || 0),
+    startedAt: typeof value.startedAt === "string" ? value.startedAt : null,
+    lastRunAt: typeof value.lastRunAt === "string" ? value.lastRunAt : null,
+    completedAt: typeof value.completedAt === "string" ? value.completedAt : null,
+    lastError: typeof value.lastError === "string" ? value.lastError : null,
+    cursor: value.cursor && typeof value.cursor === "object" && !Array.isArray(value.cursor)
+      && typeof value.cursor.createdAt === "string" && typeof value.cursor.id === "string"
+      ? { createdAt: value.cursor.createdAt, id: value.cursor.id }
+      : null,
+  };
+}
+
+async function writeOpportunitycardScoreRepairState(prisma, value) {
+  await prisma.globalSetting.upsert({
+    where: { key: OPPORTUNITYCARD_SCORE_REPAIR_SETTING_KEY },
+    create: {
+      key: OPPORTUNITYCARD_SCORE_REPAIR_SETTING_KEY,
+      value,
+    },
+    update: {
+      value,
+    },
+  });
+}
+
+async function runOpportunitycardScoreRepairPass() {
+  const existing = await readOpportunitycardScoreRepairState(prisma);
+  if (existing?.completedAt) return existing;
+  const startedAt = existing?.startedAt || new Date().toISOString();
+  let latestState = {
+    version: 1,
+    status: "RUNNING",
+    processed: Number(existing?.processed || 0),
+    updated: Number(existing?.updated || 0),
+    lastBatchProcessed: 0,
+    lastBatchUpdated: 0,
+    batchesProcessed: Number(existing?.batchesProcessed || 0),
+    startedAt,
+    lastRunAt: new Date().toISOString(),
+    completedAt: null,
+    lastError: null,
+    cursor: existing?.cursor || null,
+  };
+
+  await writeOpportunitycardScoreRepairState(prisma, latestState);
+
+  await updateProgress(prisma, {
+    state: "running",
+    stage: "STARTUP_OPPORTUNITYCARD_REPAIR",
+    currentCompany: null,
+    activeTask: "Repairing historical opportunitycard score contract drift",
+  });
+
+  try {
+    const result = await repairOpportunitycards(prisma, {
+      batchSize: OPPORTUNITYCARD_SCORE_REPAIR_BATCH_SIZE,
+      maxBatches: OPPORTUNITYCARD_SCORE_REPAIR_MAX_BATCHES_PER_PASS,
+      startAfter: existing?.cursor || null,
+      onProgress: async ({ processed, updated, batchProcessed, batchUpdated, batchesProcessed, completed, cursor, touchedCompanyIds }) => {
+        console.log(
+          `[STARTUP_REPAIR] opportunitycards processed=${processed} updated=${updated} batches=${batchesProcessed}`,
+        );
+        for (const companyId of touchedCompanyIds) {
+          await refreshCompanyIntelligenceSnapshot(prisma, companyId);
+        }
+        latestState = {
+          version: 1,
+          status: completed ? "COMPLETED" : "PENDING",
+          processed: Number(existing?.processed || 0) + processed,
+          updated: Number(existing?.updated || 0) + updated,
+          lastBatchProcessed: batchProcessed,
+          lastBatchUpdated: batchUpdated,
+          batchesProcessed: Number(existing?.batchesProcessed || 0) + batchesProcessed,
+          startedAt,
+          lastRunAt: new Date().toISOString(),
+          completedAt: completed ? new Date().toISOString() : null,
+          lastError: null,
+          cursor,
+        };
+        await writeOpportunitycardScoreRepairState(prisma, latestState);
+      },
+    });
+    if (result.processed === 0 || (result.completed && latestState.completedAt === null)) {
+      latestState = {
+        version: 1,
+        status: result.completed ? "COMPLETED" : "PENDING",
+        processed: Number(existing?.processed || 0) + result.processed,
+        updated: Number(existing?.updated || 0) + result.updated,
+        lastBatchProcessed: result.processed,
+        lastBatchUpdated: result.updated,
+        batchesProcessed: Number(existing?.batchesProcessed || 0) + result.batchesProcessed,
+        startedAt,
+        lastRunAt: new Date().toISOString(),
+        completedAt: result.completed ? new Date().toISOString() : null,
+        lastError: null,
+        cursor: result.cursor,
+      };
+      await writeOpportunitycardScoreRepairState(prisma, latestState);
+    }
+    return latestState;
+  } catch (error) {
+    const failedState = {
+      version: 1,
+      status: "FAILED",
+      processed: Number(existing?.processed || 0),
+      updated: Number(existing?.updated || 0),
+      lastBatchProcessed: 0,
+      lastBatchUpdated: 0,
+      batchesProcessed: Number(existing?.batchesProcessed || 0),
+      startedAt,
+      lastRunAt: new Date().toISOString(),
+      completedAt: null,
+      lastError: error?.message || String(error),
+      cursor: existing?.cursor || null,
+    };
+    await writeOpportunitycardScoreRepairState(prisma, failedState);
+    throw error;
+  }
+}
+
 async function runStartupIntegrityPass() {
+  await runOpportunitycardScoreRepairPass();
+
   const now = Date.now();
   const lastRanAt = await readLastStartupScrubAt(prisma);
   if (now - lastRanAt < STARTUP_SCRUB_INTERVAL) return;

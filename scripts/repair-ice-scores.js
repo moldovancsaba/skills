@@ -11,12 +11,13 @@ const {
   computeHistoryAwareKnowledgeSignals,
   computeHistoryAwareTaskSignals,
 } = require("./lib/history-scoring");
+const { repairOpportunitycards } = require("./lib/opportunitycard-score-repair");
 
 const prisma = new PrismaClient();
 
 const DEFAULT_BATCH_SIZE = Math.max(1, Number.parseInt(process.env.BATCH_SIZE || "100", 10) || 100);
 const DEFAULT_SURFACES = new Set(
-  String(process.env.SURFACES || "flashcards,goals,tasks")
+  String(process.env.SURFACES || "flashcards,goals,tasks,opportunitycards")
     .split(",")
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean),
@@ -334,6 +335,14 @@ async function main() {
   if (DEFAULT_SURFACES.has("tasks")) {
     results.tasks = await repairTasks(DEFAULT_BATCH_SIZE);
   }
+  if (DEFAULT_SURFACES.has("opportunitycards")) {
+    results.opportunitycards = await repairOpportunitycards(prisma, {
+      batchSize: DEFAULT_BATCH_SIZE,
+      onProgress: ({ processed, updated }) => {
+        console.log(progressLabel("opportunitycards", processed, updated));
+      },
+    });
+  }
 
   if (results.flashcards) {
     console.log(`Flashcards processed: ${results.flashcards.processed}`);
@@ -346,6 +355,10 @@ async function main() {
   if (results.tasks) {
     console.log(`Taskcards processed: ${results.tasks.processed}`);
     console.log(`Taskcards updated: ${results.tasks.updated}`);
+  }
+  if (results.opportunitycards) {
+    console.log(`Opportunitycards processed: ${results.opportunitycards.processed}`);
+    console.log(`Opportunitycards updated: ${results.opportunitycards.updated}`);
   }
   console.log("ICE repair complete.");
 }

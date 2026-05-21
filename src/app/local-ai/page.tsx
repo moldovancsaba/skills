@@ -8,36 +8,134 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
+import { useI18n, type UiLanguage } from "@/lib/ui-i18n";
+import { getPipelineJobLabel, translatePipelineReason } from "@/lib/pipeline-ui-i18n";
 
 const STATUS_API_URL = "http://127.0.0.1:10006/api/status";
 const RAW_HEALTH_URL = "http://127.0.0.1:10005/health";
 const RAW_SNAPSHOT_HEALTH_URL = "http://127.0.0.1:10007/health";
 const RAW_COMMAND_CENTER_URL = "http://127.0.0.1:10006";
-const JOB_LABELS: Record<string, string> = {
-  FEEDBACK_RECONCILIATION: "Feedback reconciliation",
-  CARD_RESCORING: "Card rescoring",
-  FRONTIER_RECOMPUTE: "Frontier recompute",
-  SCORE_ALERT_REPAIR: "Score alert repair",
-  ENSURE_FLASHCARD_MINIMUM: "Ensure flashcard minimum",
-  RESEARCH_BACKFILL: "Research backfill",
-  ENSURE_IDEABANK_MINIMUM: "Ensure ideabank minimum",
-  ENSURE_ROADMAP_MINIMUM: "Ensure roadmap minimum",
-  ENSURE_BACKLOG_MINIMUM: "Ensure backlog minimum",
-  ENSURE_TODO_MINIMUM: "Ensure Next minimum",
-  ENSURE_CHECKLIST_MINIMUM: "Ensure checklist minimum",
-  MINE_FLASHCARD_OPPORTUNITIES: "Mine flashcard opportunities",
-  MINE_TASK_OPPORTUNITIES: "Mine task opportunities",
-  MINE_OPPORTUNITYCARDS: "Mine opportunitycards",
-  SEARCH_OPPORTUNITYCARDS: "Search opportunitycards",
-  FEEDBACK_PRESSURE_REGENERATION: "Feedback pressure regeneration",
-  REFRESH_FLASHCARDS: "Refresh flashcards",
-  REFRESH_TASKS: "Refresh tasks",
-  REFRESH_OPPORTUNITYCARDS: "Refresh opportunitycards",
-  REFRESH_DATACARDS: "Refresh datacards",
-  REFRESH_GOALS: "Refresh goals",
-  FULL_MAINTENANCE: "Full maintenance",
-  COMPANY_SYNTHESIS: "Company synthesis",
-  WORKFLOW_BLUEPRINT: "Workflow blueprint",
+const PAGE_TEXT: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    title: "Local AI Mission Control",
+    description: "Public operator view of the local AI runtime. Shows what the worker is doing now, which company it is touching, and the next queued work globally.",
+    rawHealth: "Raw Health JSON",
+    rawSnapshotHealth: "Raw Snapshot Health",
+    rawCommandCenter: "Raw Command Center",
+    unavailable: "Local AI status unavailable",
+    unavailableBody: "Confirm the local status server is running on port 10006.",
+    company: "Company",
+    queue: "Queue",
+    priority: "Priority",
+    attempts: "Attempts",
+    profile: "Profile",
+    reason: "Reason",
+    updated: "Updated",
+    noCurrentTask: "No current queue task",
+    noCurrentTaskBody: "The worker is currently idle or between queue claims.",
+    noPlannerReason: "Worker is actively processing this queue job.",
+    noPlannerReasonPersisted: "No planner reason persisted.",
+    queueClear: "Queue clear",
+    queueClearBody: "No queued jobs are waiting behind the current runtime state.",
+    verificationSummary: "Last run: {{ts}} · {{passed}}/{{total}} checks passed · Trigger {{trigger}} · Status {{status}}",
+    recentFailedJobs: "Recent Failed Jobs",
+  },
+  hu: {
+    title: "Helyi AI küldetésvezérlés",
+    description: "Nyilvános operátori nézet a helyi AI futásidejéről. Megmutatja, min dolgozik most a worker, melyik céget érinti, és mi a következő globális várólistás munka.",
+    rawHealth: "Nyers Health JSON",
+    rawSnapshotHealth: "Nyers Snapshot Health",
+    rawCommandCenter: "Nyers Command Center",
+    unavailable: "A helyi AI állapota nem érhető el",
+    unavailableBody: "Ellenőrizd, hogy a helyi állapotszerver fut-e a 10006-os porton.",
+    company: "Cég",
+    queue: "Várólista",
+    priority: "Prioritás",
+    attempts: "Próbálkozások",
+    profile: "Profil",
+    reason: "Indok",
+    updated: "Frissítve",
+    noCurrentTask: "Nincs aktuális várólistás feladat",
+    noCurrentTaskBody: "A worker jelenleg üresjáratban van vagy két sorigénylés között áll.",
+    noPlannerReason: "A worker aktívan feldolgozza ezt a várólistás feladatot.",
+    noPlannerReasonPersisted: "Nincs tárolt planner-indoklás.",
+    queueClear: "Üres a várólista",
+    queueClearBody: "A jelenlegi futási állapot mögött nem várakozik további feladat.",
+    verificationSummary: "Utolsó futás: {{ts}} · {{passed}}/{{total}} ellenőrzés sikeres · Indító {{trigger}} · Állapot {{status}}",
+    recentFailedJobs: "Legutóbbi sikertelen feladatok",
+  },
+  es: {
+    title: "Control de misión de IA local",
+    description: "Vista pública del operador del runtime local de IA. Muestra qué hace ahora el worker, qué empresa está tocando y el siguiente trabajo global en cola.",
+    rawHealth: "JSON de salud bruto",
+    rawSnapshotHealth: "Salud bruta del snapshot",
+    rawCommandCenter: "Centro de mando bruto",
+    unavailable: "Estado local de IA no disponible",
+    unavailableBody: "Confirma que el servidor de estado local se esté ejecutando en el puerto 10006.",
+    company: "Empresa",
+    queue: "Cola",
+    priority: "Prioridad",
+    attempts: "Intentos",
+    profile: "Perfil",
+    reason: "Motivo",
+    updated: "Actualizado",
+    noCurrentTask: "No hay tarea actual en cola",
+    noCurrentTaskBody: "El worker está inactivo o entre reclamaciones de cola.",
+    noPlannerReason: "El worker está procesando activamente este trabajo de cola.",
+    noPlannerReasonPersisted: "No hay motivo del planner persistido.",
+    queueClear: "Cola vacía",
+    queueClearBody: "No hay trabajos en cola esperando detrás del estado de ejecución actual.",
+    verificationSummary: "Última ejecución: {{ts}} · {{passed}}/{{total}} comprobaciones superadas · Disparador {{trigger}} · Estado {{status}}",
+    recentFailedJobs: "Trabajos fallidos recientes",
+  },
+  ar: {
+    title: "مركز قيادة الذكاء الاصطناعي المحلي",
+    description: "عرض عام للمشغّل لوقت تشغيل الذكاء الاصطناعي المحلي. يوضح ما الذي يفعله العامل الآن، وأي شركة يلمسها، والعمل العالمي التالي في الطابور.",
+    rawHealth: "JSON الصحة الخام",
+    rawSnapshotHealth: "صحة اللقطة الخام",
+    rawCommandCenter: "مركز الأوامر الخام",
+    unavailable: "حالة الذكاء الاصطناعي المحلي غير متاحة",
+    unavailableBody: "تأكد من أن خادم الحالة المحلي يعمل على المنفذ 10006.",
+    company: "الشركة",
+    queue: "الطابور",
+    priority: "الأولوية",
+    attempts: "المحاولات",
+    profile: "الملف",
+    reason: "السبب",
+    updated: "تم التحديث",
+    noCurrentTask: "لا توجد مهمة طابور حالية",
+    noCurrentTaskBody: "العامل في وضع خمول حاليًا أو بين مطالبات الطابور.",
+    noPlannerReason: "يقوم العامل بمعالجة هذا العمل في الطابور بشكل نشط.",
+    noPlannerReasonPersisted: "لا يوجد سبب planner محفوظ.",
+    queueClear: "الطابور فارغ",
+    queueClearBody: "لا توجد وظائف منتظرة خلف حالة التشغيل الحالية.",
+    verificationSummary: "آخر تشغيل: {{ts}} · {{passed}}/{{total}} فحصًا ناجحًا · المشغل {{trigger}} · الحالة {{status}}",
+    recentFailedJobs: "الوظائف الفاشلة الأخيرة",
+  },
+  he: {
+    title: "בקרת משימה ל-AI מקומי",
+    description: "תצוגת מפעיל ציבורית של סביבת הריצה של ה-AI המקומי. מציגה מה ה-worker עושה עכשיו, באיזו חברה הוא נוגע, ומה העבודה הגלובלית הבאה בתור.",
+    rawHealth: "JSON בריאות גולמי",
+    rawSnapshotHealth: "בריאות snapshot גולמית",
+    rawCommandCenter: "מרכז פיקוד גולמי",
+    unavailable: "סטטוס AI מקומי לא זמין",
+    unavailableBody: "אשר ששרת הסטטוס המקומי רץ על פורט 10006.",
+    company: "חברה",
+    queue: "תור",
+    priority: "עדיפות",
+    attempts: "ניסיונות",
+    profile: "פרופיל",
+    reason: "סיבה",
+    updated: "עודכן",
+    noCurrentTask: "אין כרגע משימת תור",
+    noCurrentTaskBody: "ה-worker כרגע במנוחה או בין תפיסות תור.",
+    noPlannerReason: "ה-worker מעבד כרגע באופן פעיל את משימת התור הזו.",
+    noPlannerReasonPersisted: "לא נשמר נימוק planner.",
+    queueClear: "התור פנוי",
+    queueClearBody: "אין עבודות שממתינות מאחורי מצב הריצה הנוכחי.",
+    verificationSummary: "ריצה אחרונה: {{ts}} · {{passed}}/{{total}} בדיקות עברו · טריגר {{trigger}} · סטטוס {{status}}",
+    recentFailedJobs: "עבודות שנכשלו לאחרונה",
+  },
 };
 
 function formatTimestamp(value: unknown) {
@@ -49,12 +147,12 @@ function formatTimestamp(value: unknown) {
 
 function getHumanJobLabel(jobType: unknown) {
   const key = typeof jobType === "string" ? jobType : "";
-  return JOB_LABELS[key] || key.replace(/_/g, " ").toLowerCase() || "Queue task";
+  return key.replace(/_/g, " ").toLowerCase() || "Queue task";
 }
 
-function formatJobLabel(job: any) {
+function formatJobLabel(language: UiLanguage, job: any) {
   if (!job) return "No active task";
-  const jobLabel = getHumanJobLabel(job.jobType);
+  const jobLabel = getPipelineJobLabel(language, job.jobType) || getHumanJobLabel(job.jobType);
   const entityType = String(job.entityType || "COMPANY").toUpperCase();
   const companyName = job.companyName || job.companyId || null;
   if (entityType === "COMPANY" || !job.entityLabel || job.entityLabel === job.companyId) {
@@ -160,6 +258,8 @@ function ChartFrame({ height, children }: ChartFrameProps) {
 }
 
 export default function LocalAiMissionControlPage() {
+  const { language } = useI18n();
+  const pageText = PAGE_TEXT[language] ?? PAGE_TEXT.en;
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -204,13 +304,14 @@ export default function LocalAiMissionControlPage() {
   const guardian = data?.guardian || {};
   const memoryGovernor = data?.memoryGovernor || {};
   const verification = data?.verification || null;
+  const opportunitycardRepair = data?.opportunitycardRepair || {};
   const topology = data?.topology || {};
   const projections = data?.projections || {};
   const projectionCoverage = projections?.coverage || {};
   const buildIdentity = worker?.settings?.buildIdentity || {};
   const actualCurrentTask = String(worker.activeTask || "Idle");
   const actualCurrentCompany = String(worker.currentCompany || "No company locked");
-  const topQueueJobLabel = currentJob ? formatJobLabel(currentJob) : "No queued job";
+  const topQueueJobLabel = currentJob ? formatJobLabel(language, currentJob) : "No queued job";
   const memoryGovernorEvents = Array.isArray(memoryGovernor.recentEvents) ? memoryGovernor.recentEvents : [];
   const latestGovernorEvaluation = memoryGovernor.latestEvaluation || {};
   const topologyRecentSyncs = Array.isArray(topology?.recentSyncs) ? topology.recentSyncs : [];
@@ -276,13 +377,13 @@ export default function LocalAiMissionControlPage() {
   return (
     <PageShell width="full">
       <PageHeader
-        title="Local AI Mission Control"
-        description="Public operator view of the local AI runtime. Shows what the worker is doing now, which company it is touching, and the next queued work globally."
+        title={pageText.title}
+        description={pageText.description}
         actions={
           <Group gap="sm">
-            <Anchor component={Link} href={RAW_HEALTH_URL} target="_blank" rel="noreferrer">Raw Health JSON</Anchor>
-            <Anchor component={Link} href={RAW_SNAPSHOT_HEALTH_URL} target="_blank" rel="noreferrer">Raw Snapshot Health</Anchor>
-            <Anchor component={Link} href={RAW_COMMAND_CENTER_URL} target="_blank" rel="noreferrer">Raw Command Center</Anchor>
+            <Anchor component={Link} href={RAW_HEALTH_URL} target="_blank" rel="noreferrer">{pageText.rawHealth}</Anchor>
+            <Anchor component={Link} href={RAW_SNAPSHOT_HEALTH_URL} target="_blank" rel="noreferrer">{pageText.rawSnapshotHealth}</Anchor>
+            <Anchor component={Link} href={RAW_COMMAND_CENTER_URL} target="_blank" rel="noreferrer">{pageText.rawCommandCenter}</Anchor>
           </Group>
         }
       />
@@ -294,8 +395,8 @@ export default function LocalAiMissionControlPage() {
       ) : null}
 
       {error ? (
-        <Notice title="Local AI status unavailable" icon={AlertTriangle} variant="destructive">
-          {error}. Confirm the local status server is running on port 10006.
+        <Notice title={pageText.unavailable} icon={AlertTriangle} variant="destructive">
+          {error}. {pageText.unavailableBody}
         </Notice>
       ) : null}
 
@@ -309,6 +410,7 @@ export default function LocalAiMissionControlPage() {
             <MetricCard icon={Server} color="knowmore" label="Worker Build" value={String(buildIdentity.appVersion || "unknown")} detail={String(buildIdentity.gitSha || "—").slice(0, 12)} />
             <MetricCard icon={Server} color="strategy" label="Background State" value={String(backgroundWorker.state || "unknown")} detail="support lane only" />
             <MetricCard icon={Activity} color="review" label="Queue Depth" value={queue.totalActiveJobs ?? 0} detail={`${queue.runningJobs ?? 0} running · ${queue.failedJobs ?? 0} failed · ${queue.pausedJobs ?? 0} paused`} />
+            <MetricCard icon={Activity} color="tactical" label="Opportunity Repair" value={String(opportunitycardRepair.status || "PENDING")} detail={`${opportunitycardRepair.updated ?? 0} updated · ${opportunitycardRepair.processed ?? 0} processed`} />
             <MetricCard icon={Hierarchy} color="tactical" label="Datacards" value={inventory.datacards ?? 0} detail={`${inventory.sources ?? 0} sources · ${inventory.files ?? 0} files`} />
             <MetricCard icon={Brain} color="strategy" label="Cards" value={inventory.totalCards ?? 0} detail={`${inventory.flashcards ?? 0} flashcards · ${inventory.goalcards ?? 0} goals · ${inventory.taskcards ?? 0} tasks`} />
             <MetricCard icon={Heartbeat} color="review" label="Guardian" value={guardian.workerAlive ? "Watching" : "Degraded"} detail={`${formatTimestamp(guardian.lastHealthAt)} · ${guardian.resources?.freeMem ?? "—"}MB free`} />
@@ -342,16 +444,16 @@ export default function LocalAiMissionControlPage() {
                     <UnifiedCardBody>
                       <Stack gap="xs">
                         <BodyText>{topQueueJobLabel}</BodyText>
-                        <MetaText>Company: {currentJob.companyName || currentJob.companyId || "—"}</MetaText>
-                        <MetaText>Queue: {currentJob.queueColumn || "—"} · Priority {Math.round(Number(currentJob.priorityScore ?? 0))}</MetaText>
-                        <MetaText>Attempts: {Number(currentJob.attemptCount ?? 0)} · Profile: {getExecutionProfileLabel(currentJob.executionProfile)}</MetaText>
-                        <MetaText>Reason: {currentJob.reason || "Worker is actively processing this queue job."}</MetaText>
-                        <MetaText>Updated: {formatTimestamp(currentJob.updatedAt)}</MetaText>
+                        <MetaText>{pageText.company}: {currentJob.companyName || currentJob.companyId || "—"}</MetaText>
+                        <MetaText>{pageText.queue}: {currentJob.queueColumn || "—"} · {pageText.priority} {Math.round(Number(currentJob.priorityScore ?? 0))}</MetaText>
+                        <MetaText>{pageText.attempts}: {Number(currentJob.attemptCount ?? 0)} · {pageText.profile}: {getExecutionProfileLabel(currentJob.executionProfile)}</MetaText>
+                        <MetaText>{pageText.reason}: {translatePipelineReason(language, currentJob.reason) || pageText.noPlannerReason}</MetaText>
+                        <MetaText>{pageText.updated}: {formatTimestamp(currentJob.updatedAt)}</MetaText>
                       </Stack>
                     </UnifiedCardBody>
                   </UnifiedCard>
                 ) : (
-                  <Notice title="No current queue task">The worker is currently idle or between queue claims.</Notice>
+                  <Notice title={pageText.noCurrentTask}>{pageText.noCurrentTaskBody}</Notice>
                 )}
 
                 <Notice title="Raw worker stage">
@@ -395,9 +497,9 @@ export default function LocalAiMissionControlPage() {
                               {getDecompositionTone(job)?.label}
                             </Badge>
                           ) : null}
-                          <BodyText>{formatJobLabel(job)}</BodyText>
+                          <BodyText>{formatJobLabel(language, job)}</BodyText>
                         </Group>
-                        <MetaText>{job.reason || "No planner reason persisted."}</MetaText>
+                        <MetaText>{translatePipelineReason(language, job.reason) || pageText.noPlannerReasonPersisted}</MetaText>
                       </Stack>
                       <Stack gap={2} align="flex-end">
                         <Badge variant="outline" color="gray">{job.queueColumn}</Badge>
@@ -405,7 +507,7 @@ export default function LocalAiMissionControlPage() {
                       </Stack>
                     </Group>
                   )) : (
-                    <Notice title="Queue clear">No queued jobs are waiting behind the current runtime state.</Notice>
+                    <Notice title={pageText.queueClear}>{pageText.queueClearBody}</Notice>
                   )}
                 </Stack>
               </UnifiedCardBody>
@@ -429,8 +531,18 @@ export default function LocalAiMissionControlPage() {
                   Last action: {memoryGovernor.lastActionReason || "none"} · Last action at {formatTimestamp(memoryGovernor.lastActionAt)} · Policy v{memoryGovernor.policyVersion || "?"}
                 </Notice>
                 <Notice title="Runtime verification">
-                  Last run: {formatTimestamp(verification?.ts)} · {verification?.summary?.passedChecks ?? 0}/{verification?.summary?.totalChecks ?? 0} checks passed · Trigger {verification?.trigger || "—"} · Status {verification?.summary?.ok ? "PASS" : "FAIL"}
+                  {pageText.verificationSummary
+                    .replace("{{ts}}", formatTimestamp(verification?.ts))
+                    .replace("{{passed}}", String(verification?.summary?.passedChecks ?? 0))
+                    .replace("{{total}}", String(verification?.summary?.totalChecks ?? 0))
+                    .replace("{{trigger}}", String(verification?.trigger || "—"))
+                    .replace("{{status}}", verification?.summary?.ok ? "PASS" : "FAIL")}
                 </Notice>
+                {opportunitycardRepair?.status !== "COMPLETED" ? (
+                  <Notice title="Opportunitycard contract repair">
+                    Status {String(opportunitycardRepair?.status || "PENDING")} · Updated {opportunitycardRepair?.updated ?? 0} after inspecting {opportunitycardRepair?.processed ?? 0} · Last run {formatTimestamp(opportunitycardRepair?.lastRunAt)}
+                  </Notice>
+                ) : null}
               </UnifiedCardBody>
             </UnifiedCard>
 
@@ -566,7 +678,7 @@ export default function LocalAiMissionControlPage() {
                       {(queue.recentDeferredJobs || []).map((job: any) => (
                         <Table.Tr key={job.id}>
                           <Table.Td>{job.companyName || job.companyId || "—"}</Table.Td>
-                          <Table.Td>{formatJobLabel(job)}</Table.Td>
+                            <Table.Td>{formatJobLabel(language, job)}</Table.Td>
                           <Table.Td>
                             <Group gap="xs">
                               <Badge variant="light" color={getExecutionProfileColor(job.executionProfile)}>
@@ -839,7 +951,7 @@ export default function LocalAiMissionControlPage() {
           </SimpleGrid>
 
           <UnifiedCard tone="review">
-            <UnifiedCardHeader title="Recent Failed Jobs" />
+            <UnifiedCardHeader title={pageText.recentFailedJobs} />
             <UnifiedCardBody>
               {(queue.recentFailedJobs || []).length ? (
                 <Table highlightOnHover>

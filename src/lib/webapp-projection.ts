@@ -11,6 +11,8 @@ type ProjectionCounts = {
   pipelineJobs: number;
 };
 
+export const WEBAPP_SUMMARY_REFRESH_MS = 60 * 60 * 1000;
+
 type PlanningLaneCounts = {
   IDEABANK: number;
   ROADMAP: number;
@@ -128,7 +130,7 @@ export function getProjectionFreshness(generatedAt: string | null | undefined, n
 
   const ageMinutes = Math.max(0, Math.round((now.getTime() - generatedMs) / 60000));
   return {
-    status: ageMinutes <= 10 ? "FRESH" : ageMinutes <= 60 ? "AGING" : "STALE",
+    status: ageMinutes <= 60 ? "FRESH" : ageMinutes <= 120 ? "AGING" : "STALE",
     generatedAt,
     ageMinutes,
   };

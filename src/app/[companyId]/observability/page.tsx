@@ -107,6 +107,7 @@ export default function ObservabilityPage() {
   const scoreHealth = data?.scoreHealth || null;
   const budget = data?.budget || { pressure: "UNKNOWN", usageByFeature: [], openEvents: [], recommendations: [] };
   const planner = data?.planner || { unmetLaneTargets: [], recentEvents: [] };
+  const opportunitycardRepair = data?.opportunitycardRepair || { status: "PENDING", updated: 0, processed: 0, lastError: null };
   const workerBuild = data?.workerBuild || {};
   const quality = data?.quality || {};
   const sortedQueueJobs = sortQueueJobs(queue.jobs || []);
@@ -147,6 +148,7 @@ export default function ObservabilityPage() {
         <MetricCard icon={Activity} color="checklist" label="Worker Alive" value={heartbeat.workerAlive ? "Yes" : "No"} detail={heartbeat.lastProgressAt || "—"} />
         <MetricCard icon={ListCheck} color="strategy" label="Active Queue Jobs" value={queue.totalActiveJobs ?? 0} detail={`${queue.runningJobs ?? 0} running`} />
         <MetricCard icon={AlertTriangle} color="knowmore" label="Score Health" value={scoreHealth?.overallBand || "UNKNOWN"} detail={`${scoreHealth?.alerts?.length ?? 0} active alerts`} />
+        <MetricCard icon={RefreshIcon} color="strategy" label="Opportunity Repair" value={String(opportunitycardRepair.status || "PENDING")} detail={`${opportunitycardRepair.updated ?? 0} updated / ${opportunitycardRepair.processed ?? 0} processed`} />
         <MetricCard icon={Coins} color="tactical" label="Budget Pressure" value={budget.pressure || "UNKNOWN"} detail={`$${budget.totalEstimatedCost ?? 0} est · ${budget.totalWorkloadUnits ?? 0} units`} />
         <MetricCard icon={Gauge} color="strategy" label="Planner Mode" value={String(planner.operatingMode || "UNKNOWN")} detail={`${planner.unmetLaneTargets?.length ?? 0} unmet lanes`} />
         <MetricCard icon={AlertTriangle} color="review" label="Planner Timeouts" value={planner.timeoutCount ?? 0} detail={`${planner.qualityCeilingCount ?? 0} quality caps`} />
@@ -162,6 +164,18 @@ export default function ObservabilityPage() {
       {scoreHealth?.alerts?.length ? (
         <Notice title="Top active score-health alert" icon={AlertTriangle} variant="destructive">
           {scoreHealth.alerts[0].message}
+        </Notice>
+      ) : null}
+
+      {opportunitycardRepair.status !== "COMPLETED" ? (
+        <Notice
+          title={`Opportunitycard repair ${String(opportunitycardRepair.status || "PENDING").toLowerCase()}`}
+          icon={RefreshIcon}
+          variant={opportunitycardRepair.status === "FAILED" ? "destructive" : "default"}
+        >
+          {opportunitycardRepair.status === "FAILED"
+            ? opportunitycardRepair.lastError || "Historical opportunitycard repair failed and will retry through the worker integrity loop."
+            : `Historical opportunitycard repair is running in bounded worker slices. Updated ${opportunitycardRepair.updated ?? 0} after inspecting ${opportunitycardRepair.processed ?? 0} card(s).`}
         </Notice>
       ) : null}
 

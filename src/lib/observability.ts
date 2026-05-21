@@ -1,16 +1,24 @@
 import { prisma } from "@/lib/db";
 
-export async function getCompanyObservabilitySnapshot(companyId: string) {
-  const snapshot = await prisma.intelligenceSnapshot.findUnique({
-    where: { companyId },
-    select: { observabilitySummary: true },
-  });
+function buildDefaultOpportunitycardRepairState() {
+  return {
+    version: 1,
+    status: "PENDING",
+    processed: 0,
+    updated: 0,
+    lastBatchProcessed: 0,
+    lastBatchUpdated: 0,
+    batchesProcessed: 0,
+    startedAt: null,
+    lastRunAt: null,
+    completedAt: null,
+    lastError: null,
+    cursor: null,
+    stateUpdatedAt: null,
+  };
+}
 
-  const summary = snapshot?.observabilitySummary;
-  if (summary && typeof summary === "object") {
-    return summary;
-  }
-
+function buildDefaultObservabilitySummary() {
   return {
     guardianHeartbeat: null,
     workerBuild: null,
@@ -30,6 +38,7 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
       mineRunning: 0,
       mineFailed: 0,
     },
+    opportunitycardRepair: buildDefaultOpportunitycardRepairState(),
     planner: {
       operatingMode: "UNKNOWN",
       datacardCount: 0,
@@ -112,6 +121,7 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
     },
     recommendedActions: {
       escalateScoreRepair: false,
+      reviewOpportunitycardRepair: true,
       recoverFailedJobs: false,
       reviewEvaluationFailures: false,
       reviewBudgetPressure: false,
@@ -137,5 +147,63 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
     },
     workerReports: [],
     recentEvents: [],
+  };
+}
+
+async function readLiveOpportunitycardRepairState() {
+  const setting = await prisma.globalSetting.findUnique({
+    where: { key: "opportunitycard_score_contract_repair_v1" },
+    select: { value: true, updatedAt: true },
+  });
+  const value = setting?.value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return buildDefaultOpportunitycardRepairState();
+  }
+
+  return {
+    version: Number(value.version || 1),
+    status: typeof value.status === "string" ? value.status : "PENDING",
+    processed: Number(value.processed || 0),
+    updated: Number(value.updated || 0),
+    lastBatchProcessed: Number(value.lastBatchProcessed || 0),
+    lastBatchUpdated: Number(value.lastBatchUpdated || 0),
+    batchesProcessed: Number(value.batchesProcessed || 0),
+    startedAt: typeof value.startedAt === "string" ? value.startedAt : null,
+    lastRunAt: typeof value.lastRunAt === "string" ? value.lastRunAt : null,
+    completedAt: typeof value.completedAt === "string" ? value.completedAt : null,
+    lastError: typeof value.lastError === "string" ? value.lastError : null,
+    cursor: value.cursor && typeof value.cursor === "object" && !Array.isArray(value.cursor) ? value.cursor : null,
+    stateUpdatedAt: setting?.updatedAt ? new Date(setting.updatedAt).toISOString() : null,
+  };
+}
+
+export async function getCompanyObservabilitySnapshot(companyId: string) {
+  const [snapshot, liveOpportunitycardRepair] = await Promise.all([
+    prisma.intelligenceSnapshot.findUnique({
+      where: { companyId },
+      select: { observabilitySummary: true },
+    }),
+    readLiveOpportunitycardRepairState(),
+  ]);
+
+  const summary = snapshot?.observabilitySummary;
+  const base: Record<string, unknown> =
+    summary && typeof summary === "object" && !Array.isArray(summary)
+      ? summary as Record<string, unknown>
+      : buildDefaultObservabilitySummary();
+
+  const recommendedActionsValue = base.recommendedActions;
+  const recommendedActions =
+    recommendedActionsValue && typeof recommendedActionsValue === "object" && !Array.isArray(recommendedActionsValue)
+      ? recommendedActionsValue as Record<string, unknown>
+      : {};
+
+  return {
+    ...base,
+    opportunitycardRepair: liveOpportunitycardRepair,
+    recommendedActions: {
+      ...recommendedActions,
+      reviewOpportunitycardRepair: liveOpportunitycardRepair.status !== "COMPLETED",
+    },
   };
 }

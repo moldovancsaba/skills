@@ -29,6 +29,7 @@ import type { CompanyScoreHealth } from "@/lib/score-health";
 import { BodyText, SectionTitle } from "@/components/ui/typography";
 import { useI18n } from "@/lib/ui-i18n";
 import type { ProjectionFreshness } from "@/lib/webapp-projection";
+import { WEBAPP_SUMMARY_REFRESH_MS } from "@/lib/webapp-projection";
 import type { DashboardInitialData } from "@/lib/server-company-page-data";
 
 type ChecklistTask = {
@@ -157,6 +158,16 @@ export default function CompanyDashboard({
 
     void initializeDashboard(companyId);
   }, [companyId, initialData, loadDashboard]);
+
+  useEffect(() => {
+    if (!companyId) return;
+
+    const intervalId = window.setInterval(() => {
+      void loadDashboard(companyId);
+    }, WEBAPP_SUMMARY_REFRESH_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [companyId, loadDashboard]);
 
   const resetActionForm = useCallback(() => {
     setActionMode(null);

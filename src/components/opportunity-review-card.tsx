@@ -1,7 +1,7 @@
 import { Badge, Button, Group, Select, Stack, TextInput, Textarea, ThemeIcon } from "@mantine/core";
 import { IconArchive as Archive, IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconRefresh as RefreshCw, IconX as X, IconPin as Pin } from "@tabler/icons-react";
 import { CardShareAction } from "@/components/ui/card-share-action";
-import { MetaText, Text } from "@/components/ui/typography";
+import { BodyText, MetaText, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardActions, UnifiedCardBody, UnifiedCardFooter, UnifiedCardFreshnessBadge, UnifiedCardHeader, UnifiedCardSection, UnifiedCardText } from "@/components/ui/unified-card";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getTaskCardFreshness } from "@/lib/card-freshness";
@@ -26,6 +26,8 @@ export type Opportunitycard = {
   coreOffer?: string | null;
   financialBackground?: string | null;
   fitRationale?: string | null;
+  contactInfo?: Record<string, unknown> | null;
+  salesGeographies?: string[];
   opportunityType: "PROSPECT" | "PARTNER" | "RESELLER";
   confidenceScore: number;
   impact: number;
@@ -40,7 +42,33 @@ export type Opportunitycard = {
   generatedAt?: string | null;
   refreshedAt?: string | null;
   lastActionAt?: string | null;
+  rottenAt?: string | null;
   userAnnotation?: string | null;
+  evaluationReason?: string | null;
+  acceptanceCount?: number;
+  declineCount?: number;
+  feedbackScore?: number;
+  sourceFlashcardIds?: string[];
+  generatedFromIds?: string[];
+  versionFamilyId?: string | null;
+  duplicateClusterId?: string | null;
+  refinedFromId?: string | null;
+  scoreProfile?: Record<string, unknown> | null;
+  evidence?: Record<string, unknown> | null;
+  createdBy?: string | null;
+  promptVersion?: string | null;
+  promptName?: string | null;
+  modelName?: string | null;
+  modelVersion?: string | null;
+  temperature?: number | null;
+  feedback?: Array<{
+    id: string;
+    action: string;
+    declineReason?: string | null;
+    annotation?: string | null;
+    actedBy?: string | null;
+    createdAt: string;
+  }>;
 };
 
 type OpportunityDraft = {
@@ -121,6 +149,23 @@ function isMeaningfulBody(body: string, banned: string[]) {
   return isMeaningfulField(normalized, banned);
 }
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString();
+}
+
+function stringifyStructuredValue(value: unknown) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return normalizeText(value);
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 export function OpportunityReviewCard({
   item,
   tone = getOpportunityLaneMeta(item.kanbanColumn).tone,
@@ -172,10 +217,48 @@ export function OpportunityReviewCard({
   const infoRows = [
     isMeaningfulField(item.location, duplicateBlockers) ? { label: "Location", value: normalizeText(item.location) } : null,
     isMeaningfulField(item.coreOffer, duplicateBlockers) ? { label: "Core Offer", value: normalizeText(item.coreOffer) } : null,
-    isMeaningfulField(item.financialBackground, duplicateBlockers) ? { label: "Financial", value: normalizeText(item.financialBackground) } : null,
-    isMeaningfulField(item.fitRationale, duplicateBlockers) ? { label: "Fit", value: normalizeText(item.fitRationale) } : null,
+    isMeaningfulField(item.financialBackground, duplicateBlockers) ? { label: "Financial Background", value: normalizeText(item.financialBackground) } : null,
+    isMeaningfulField(item.fitRationale, duplicateBlockers) ? { label: "Fit Rationale", value: normalizeText(item.fitRationale) } : null,
   ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
-  const hasDetails = socialLinks.length > 0 || infoRows.length > 0;
+  const scoreRows = [
+    { label: "Impact", value: String(item.impact) },
+    { label: "Confidence", value: String(item.confidenceScore) },
+    { label: "Weight", value: String(item.weight) },
+    { label: "ICE", value: String(item.iceScore) },
+    { label: "Feedback Score", value: String(Number(item.feedbackScore || 0)) },
+    { label: "Accepted", value: String(Number(item.acceptanceCount || 0)) },
+    { label: "Declined", value: String(Number(item.declineCount || 0)) },
+  ];
+  const workflowRows = [
+    { label: "Lane", value: item.kanbanColumn },
+    { label: "Processing Status", value: item.processingStatus },
+    { label: "Activity State", value: item.activityState },
+    { label: "Opportunity Type", value: item.opportunityType },
+    item.evaluationReason ? { label: "Evaluation Reason", value: normalizeText(item.evaluationReason) } : null,
+  ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
+  const lineageRows = [
+    item.versionFamilyId ? { label: "Version Family", value: item.versionFamilyId } : null,
+    item.duplicateClusterId ? { label: "Duplicate Cluster", value: item.duplicateClusterId } : null,
+    item.refinedFromId ? { label: "Refined From", value: item.refinedFromId } : null,
+  ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
+  const metadataRows = [
+    item.publicId != null ? { label: "Public ID", value: String(item.publicId) } : null,
+    item.createdBy ? { label: "Created By", value: item.createdBy } : null,
+    item.generatedAt ? { label: "Generated At", value: formatDateTime(item.generatedAt) || item.generatedAt } : null,
+    item.refreshedAt ? { label: "Refreshed At", value: formatDateTime(item.refreshedAt) || item.refreshedAt } : null,
+    item.lastActionAt ? { label: "Last Action", value: formatDateTime(item.lastActionAt) || item.lastActionAt } : null,
+    item.rottenAt ? { label: "Rotten At", value: formatDateTime(item.rottenAt) || item.rottenAt } : null,
+    item.promptName ? { label: "Prompt", value: item.promptName } : null,
+    item.promptVersion ? { label: "Prompt Version", value: item.promptVersion } : null,
+    item.modelName ? { label: "Model", value: item.modelName } : null,
+    item.modelVersion ? { label: "Model Version", value: item.modelVersion } : null,
+    item.temperature != null ? { label: "Temperature", value: String(item.temperature) } : null,
+  ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
+  const structuredPayloads = [
+    { label: "Contact Info", value: item.contactInfo },
+    { label: "Score Profile", value: item.scoreProfile },
+    { label: "Evidence", value: item.evidence },
+  ].filter((entry) => entry.value && (typeof entry.value !== "object" || Object.keys(entry.value as Record<string, unknown>).length > 0));
   const displayableComment = getDisplayableHumanComment(item.userAnnotation);
   const visibleHashtags = detailMode ? item.hashtags : item.hashtags.slice(0, 5);
 
@@ -221,7 +304,7 @@ export function OpportunityReviewCard({
           </Group>
         ) : null}
 
-        {detailMode && hasDetails ? (
+        {detailMode && (socialLinks.length > 0 || infoRows.length > 0 || (item.salesGeographies?.length ?? 0) > 0) ? (
           <UnifiedCardSection tone={tone}>
             <Stack gap="sm">
               {socialLinks.length > 0 ? (
@@ -243,12 +326,53 @@ export function OpportunityReviewCard({
                 </Group>
               ) : null}
 
-              {infoRows.length > 0 ? infoRows.map((row) => (
+              {infoRows.map((row) => (
                 <Stack key={row.label} gap={2}>
                   <MetaText>{row.label}</MetaText>
                   <Text size="sm">{row.value}</Text>
                 </Stack>
-              )) : null}
+              ))}
+
+              {Array.isArray(item.salesGeographies) && item.salesGeographies.length > 0 ? (
+                <Stack gap={2}>
+                  <MetaText>Sales Geographies</MetaText>
+                  <Group gap={4} wrap="wrap">
+                    {item.salesGeographies.map((entry) => (
+                      <Badge key={entry} size="xs" variant="light" color={getOpportunityToneColor(tone)}>
+                        {entry}
+                      </Badge>
+                    ))}
+                  </Group>
+                </Stack>
+              ) : null}
+            </Stack>
+          </UnifiedCardSection>
+        ) : null}
+
+        {detailMode ? (
+          <UnifiedCardSection tone="review">
+            <Stack gap="sm">
+              <MetaText>Workflow</MetaText>
+              {workflowRows.map((row) => (
+                <Group key={row.label} justify="space-between" gap="md" wrap="nowrap">
+                  <MetaText>{row.label}</MetaText>
+                  <BodyText ta="right">{row.value}</BodyText>
+                </Group>
+              ))}
+            </Stack>
+          </UnifiedCardSection>
+        ) : null}
+
+        {detailMode ? (
+          <UnifiedCardSection tone="strategy">
+            <Stack gap="sm">
+              <MetaText>Scoring</MetaText>
+              {scoreRows.map((row) => (
+                <Group key={row.label} justify="space-between" gap="md" wrap="nowrap">
+                  <MetaText>{row.label}</MetaText>
+                  <BodyText ta="right">{row.value}</BodyText>
+                </Group>
+              ))}
             </Stack>
           </UnifiedCardSection>
         ) : null}
@@ -261,6 +385,85 @@ export function OpportunityReviewCard({
               </ThemeIcon>
               <MetaText>{displayableComment}</MetaText>
             </Group>
+          </UnifiedCardSection>
+        ) : null}
+
+        {detailMode && Array.isArray(item.feedback) && item.feedback.length > 0 ? (
+          <UnifiedCardSection tone="knowmore">
+            <Stack gap="sm">
+              <MetaText>Recent Feedback</MetaText>
+              {item.feedback.map((entry) => (
+                <Stack key={entry.id} gap={2}>
+                  <Group gap="xs" wrap="wrap">
+                    <Badge size="xs" variant="light" color="gray">{entry.action}</Badge>
+                    {entry.declineReason ? <Badge size="xs" variant="outline" color="review">{entry.declineReason}</Badge> : null}
+                    <MetaText>{formatDateTime(entry.createdAt) || entry.createdAt}</MetaText>
+                    {entry.actedBy ? <MetaText>{entry.actedBy}</MetaText> : null}
+                  </Group>
+                  {entry.annotation ? <BodyText>{entry.annotation}</BodyText> : null}
+                </Stack>
+              ))}
+            </Stack>
+          </UnifiedCardSection>
+        ) : null}
+
+        {detailMode && ((item.sourceFlashcardIds?.length ?? 0) > 0 || (item.generatedFromIds?.length ?? 0) > 0 || lineageRows.length > 0) ? (
+          <UnifiedCardSection tone="ingress">
+            <Stack gap="sm">
+              <MetaText>Lineage</MetaText>
+              {lineageRows.map((row) => (
+                <Stack key={row.label} gap={2}>
+                  <MetaText>{row.label}</MetaText>
+                  <BodyText>{row.value}</BodyText>
+                </Stack>
+              ))}
+              {item.sourceFlashcardIds?.length ? (
+                <Stack gap={2}>
+                  <MetaText>Source Flashcard IDs</MetaText>
+                  <BodyText>{item.sourceFlashcardIds.join(", ")}</BodyText>
+                </Stack>
+              ) : null}
+              {item.generatedFromIds?.length ? (
+                <Stack gap={2}>
+                  <MetaText>Generated From IDs</MetaText>
+                  <BodyText>{item.generatedFromIds.join(", ")}</BodyText>
+                </Stack>
+              ) : null}
+            </Stack>
+          </UnifiedCardSection>
+        ) : null}
+
+        {detailMode && metadataRows.length > 0 ? (
+          <UnifiedCardSection tone="neutral">
+            <Stack gap="sm">
+              <MetaText>Generation Metadata</MetaText>
+              {metadataRows.map((row) => (
+                <Group key={row.label} justify="space-between" gap="md" wrap="nowrap">
+                  <MetaText>{row.label}</MetaText>
+                  <BodyText ta="right">{row.value}</BodyText>
+                </Group>
+              ))}
+            </Stack>
+          </UnifiedCardSection>
+        ) : null}
+
+        {detailMode && structuredPayloads.length > 0 ? (
+          <UnifiedCardSection tone="neutral">
+            <Stack gap="sm">
+              <MetaText>Persisted Structured Fields</MetaText>
+              {structuredPayloads.map((entry) => {
+                const serialized = stringifyStructuredValue(entry.value);
+                if (!serialized) return null;
+                return (
+                  <Stack key={entry.label} gap={2}>
+                    <MetaText>{entry.label}</MetaText>
+                    <Text size="sm" ff="monospace" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                      {serialized}
+                    </Text>
+                  </Stack>
+                );
+              })}
+            </Stack>
           </UnifiedCardSection>
         ) : null}
 
@@ -414,6 +617,9 @@ export function OpportunityReviewCard({
               Archive
             </Button>
           </Group>
+          {detailMode && item.refreshedAt ? (
+            <MetaText>Last refresh: {new Date(item.refreshedAt).toLocaleDateString()}</MetaText>
+          ) : null}
         </Stack>
       </UnifiedCardFooter>
     </UnifiedCard>

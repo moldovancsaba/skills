@@ -19,6 +19,8 @@ If you need the full operating rules, read in this order:
 - non-critical hydration must be deferred
 - stale prepared data is repaired by background ownership, not by turning the route into a repair engine
 - when performance remains poor, profile before guessing
+- opportunity internet discovery is worker-owned by default and must learn from operator `ACCEPT` / `DECLINE`
+- local DB-backed maintenance can use the shared raw URI file at [`/Users/Shared/Projects/checklist/.env.prod-db-url.tmp`](/Users/Shared/Projects/checklist/.env.prod-db-url.tmp) by exporting it into `DATABASE_URL`
 
 ## Blunt Rule
 

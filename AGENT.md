@@ -24,6 +24,9 @@ Read first:
 - Use direct professional language.
 - Escalate ambiguity instead of guessing.
 - Treat repository standards as enforceable operating constraints, not suggestions.
+- Before claiming runtime DB access is unavailable, check the local ignored `.env` and the shared raw URI file at [`/Users/Shared/Projects/checklist/.env.prod-db-url.tmp`](/Users/Shared/Projects/checklist/.env.prod-db-url.tmp).
+- Treat that shared file as a raw URI source, not a shell env file; DB-backed commands must inject it into `DATABASE_URL` explicitly if the local `.env` is absent.
+- Opportunity internet discovery is worker-owned by default and must learn from authoritative operator `ACCEPT` / `DECLINE` outcomes.
 
 ## Documentation Duty
 

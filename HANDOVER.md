@@ -29,6 +29,7 @@ Read first:
 - `UnifiedCardModal` is the only approved modal content shell for card content
 - DS-owned `Text` and `Title` wrappers in `src/components/ui/typography.tsx` are the only approved general-purpose typography bridge for feature code
 - first-class entity cards must expose canonical ICE visibly through the shared card header contract
+- first-class entity detail surfaces must render the full persisted type-specific card payload through the shared `UnifiedCard` and `UnifiedCardModal` grammar; detail mode is not allowed to hide known entity fields behind summary-only assumptions
 - typography is centrally defined in the theme and DS typography primitives only
 - layout grammar is centrally defined in the shared shell/navigation primitives only
 - interactions are centralized in the shared UI layer
@@ -93,6 +94,11 @@ Read first:
 - AI workload governance now persists `AiWorkloadUsage`, `BudgetPolicy`, and `BudgetEvent` records so queue, workflow, search/answer, and observability work can be attributed by company and feature
 - task feedback now writes directly into the canonical worker feedback stream, so `DELIVER` reward propagation and lifecycle handling are not bypassed by the webapp task surface
 - sales lead generation follows the same hard boundary: the hosted webapp may persist operator actions and queue intents, but all mining, scoring, ICE movement, enrichment, dedupe, and internet-search workload must happen in the local AI worker
+- opportunitycards are task-like for scoring purposes: `weight` is the persisted effort alias, all write and repair paths must normalize through the shared task scoring contract, and `scoreProfile` must remain populated and inspectable instead of being dropped on manual webapp writes
+- historical opportunitycard repair no longer depends only on an operator running a local script: the shared bounded repair module is executed by the worker integrity loop under a persisted global-setting version key, cursor, and status record so existing DB rows heal in authoritative bounded slices
+- opportunity internet-search is now an explicit default requirement, not an optional tactic: the local AI worker must keep discovering possible company leads online, create them as `DRAFT` opportunitycards, and continue enrichment/refresh work afterward
+- opportunity search now carries persisted per-company learning memory in `globalSetting`, preserves originating query/domain provenance on mined leads, and feeds operator `ACCEPT` / `DECLINE` outcomes back into search query/domain/term scoring so search quality improves from real usage
+- opportunitycard lane placement now follows the same shared tactical relative-ranking discipline as the tactical board instead of fixed ICE thresholds: active sales cards are rebalanced company-by-company into the five horizons with blended-priority ordering, manual lane overrides preserved, and historical non-company brief rows plus active-declined drift repaired out of the visible board
 - flashcards now persist lineage family/cluster/origin fields alongside task lineage so duplicate suppression and future traceability are not task-only capabilities
 - the active self-learning rollout is Apple-Silicon-native: `scripts/export-learning-datasets.mjs` exports the canonical training datasets, `training/` holds the rollout scaffolding, MLX / MLX-LM is the active fine-tuning path, and Ollama remains the runtime target after evaluation
 - Unsloth, LLaMA-Factory, and Axolotl are parked research only right now; do not reopen them as active dependencies without an explicit architecture decision
@@ -198,7 +204,7 @@ The work is not done until:
 - Workflow edits, Knowmore repair actions, and Observability repair actions now enqueue persisted worker commands instead of executing queue authority in app routes.
 - Topic/source/file ingress routes no longer derive authoritative scores in the webapp layer; they persist raw rows and let the local AI system score them later.
 - Frontier recompute assigns tactical columns by relative blended-priority rank, not raw ICE alone, while preserving manual human drag/drop anchors.
-- Historical flashcard and task rescoring must continue through the bounded `scripts/repair-ice-scores.js` path; do not replace it with one-off bulk rewrites.
+- Historical flashcard, task, and opportunitycard rescoring must continue through the bounded `scripts/repair-ice-scores.js` path or the shared worker-owned repair module behind it; do not replace them with one-off bulk rewrites.
 - The Refiner now owns duplicate-cluster tagging and split-aware task refinement in addition to merge/suppress/enrich behavior. Do not collapse it back into text-only rewriting.
 - Budget governor is observability-first: usage/cost values are estimates unless explicitly marked actual, and controls are recorded as events/policies rather than hidden scheduling overrides.
 - Future autonomous implementation selection must ignore ideabank-only items unless an operator explicitly promotes them into an active delivery column first.

@@ -57,8 +57,14 @@ Approved product UI system:
 - `UnifiedCardModal` as the only approved modal content shell for product cards
 - DS-owned `Text` and `Title` wrappers in `src/components/ui/typography.tsx` are the only approved general-purpose typography escape hatches
 - first-class entity card surfaces must expose canonical ICE through the shared card header contract
+- first-class entity detail views must render all persisted type-specific fields through the shared `UnifiedCard` / `UnifiedCardModal` grammar; summary cards may preview, detail views may not silently drop known persisted fields
 - semantic tones only for product color meaning
 - ICE updates, rescoring, and repair must run through shared scoring contracts and oldest-first maintenance or queue flows, not local ad hoc math
+- opportunitycards are part of the task-like scoring family: they must normalize through the shared task scoring contract, persist normalized metrics plus `scoreProfile`, and must not persist ad hoc raw ICE fields on create, update, modify, refresh, or repair paths
+- historical opportunitycard contract repair must be callable through the shared bounded repair module and must execute from the DB-backed worker startup integrity path; local scripts may reuse that module but are not the only authoritative execution lane
+- opportunity discovery is worker-owned by default: internet search, company-candidate filtering, draft lead creation, enrichment, dedupe, and follow-up refresh must execute in the local AI worker, not as ad hoc hosted-webapp logic
+- opportunity search must be self-improving by default: successful queries, accepted leads, and declined leads must persist into per-company search memory so future internet-search query selection is shaped by real operator outcomes rather than static heuristics
+- mined internet leads must start as `DRAFT` opportunitycards with preserved search provenance; operator `ACCEPT` and `DECLINE` are authoritative signals that must reward or penalize the originating search query/domain/terms
 - score generation must persist provenance between agent proposal, calibrated heuristic score, and final blended score profile
 - tactical placement must use the shared blended priority contract, which keeps ICE visible but ranks work through explainable ICE, quality, urgency, freshness, human-signal, risk, lifecycle-state, and memory inputs
 - tactical placement must use relative ranking within the active peer pool; fixed scalar thresholds are not sufficient on their own
@@ -426,7 +432,7 @@ Rules:
 - the scoring contract must treat company-specific accepted, declined, modified, and delivered history as first-class calibration input for new-card impact/confidence where history exists
 - task `ease` must not be inferred from text complexity alone; it must be calibrated from delivery difficulty factors such as dependencies, coordination, expertise burden, time-to-value, and delivery history
 - supported priority components are ICE, quality, urgency, freshness, human signal, risk, lifecycle state, and memory signal
-- historical flashcard and task rescoring must use the bounded `scripts/repair-ice-scores.js` path and remain compatible with score-health observability
+- historical flashcard, task, and opportunitycard rescoring must use the bounded `scripts/repair-ice-scores.js` path or the shared worker-owned repair module behind it, and remain compatible with score-health observability
 - human-guided planning anchors must remain visible and must not be silently erased by AI reprioritization
 - frontier placement and tactical board ordering must use blended priority where available
 - frontier placement should be relative-rank based inside the active pool, not raw fixed ICE thresholds alone

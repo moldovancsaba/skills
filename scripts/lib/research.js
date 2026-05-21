@@ -72,7 +72,8 @@ function harvestResearch(queries) {
             results.push({
               title,
               snippet: snippet || "Click to view full intelligence source.",
-              url: rawUrl
+              url: rawUrl,
+              query,
             });
           }
         }

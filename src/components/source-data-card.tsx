@@ -1,5 +1,5 @@
-import { IconFileUpload as FileUp, IconPencil as Pencil, IconFileText as ScrollText, IconTrash as Trash2, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";
-import { Badge, Button, Group, Stack, Divider, Tooltip } from "@mantine/core";
+import { IconFileUpload as FileUp, IconPencil as Pencil, IconFileText as ScrollText, IconTrash as Trash2 } from "@tabler/icons-react";
+import { Badge, Button, Group, Stack, Divider } from "@mantine/core";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getDataCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
@@ -35,7 +35,7 @@ type SourceDataCardProps = {
   onDelete: () => void;
   activeHashtags?: string[];
   onToggleHashtag?: (tag: string) => void;
-  onConvert?: (id: string, targetType: "KNOWLEDGE" | "GOAL" | "TASK") => void;
+  onConvert?: (id: string, targetType: "KNOWLEDGE" | "GOAL" | "TASK", sourceType: DataType) => void;
 };
 
 const typeIcon = {
@@ -149,39 +149,18 @@ export function SourceDataCard({
         </UnifiedCardActions>
       </UnifiedCardBody>
 
-      <UnifiedCardFooter>
-        <Stack gap="sm">
-          <MetaText>Intelligence Controls</MetaText>
-          <Group gap="xs" wrap="wrap">
-            <Tooltip label="Pin relevant evidence">
-              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<Pin size={12} />} onClick={(event) => event.stopPropagation()}>
-                Pin
-              </Button>
-            </Tooltip>
-            <Tooltip label="Refresh knowledge">
-              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<RefreshCw size={12} />} onClick={(event) => event.stopPropagation()}>
-                Refresh
-              </Button>
-            </Tooltip>
-            <Tooltip label="Archive intelligence">
-              <Button variant="subtle" size="compact-xs" color="ingress" leftSection={<Archive size={12} />} onClick={(event) => event.stopPropagation()}>
-                Archive
-              </Button>
-            </Tooltip>
-          </Group>
-
-          {onConvert && (
-            <>
-              <Divider my="xs" label="Convert Research Into" labelPosition="center" />
-              <Group gap="xs" justify="center">
-                <Button variant="outline" size="compact-xs" color="knowmore" onClick={(event) => stopCardClick(event, () => onConvert(id, "KNOWLEDGE"))}>Knowledge</Button>
-                <Button variant="outline" size="compact-xs" color="strategy" onClick={(event) => stopCardClick(event, () => onConvert(id, "GOAL"))}>Goal</Button>
-                <Button variant="outline" size="compact-xs" color="checklist" onClick={(event) => stopCardClick(event, () => onConvert(id, "TASK"))}>Task</Button>
-              </Group>
-            </>
-          )}
-        </Stack>
-      </UnifiedCardFooter>
+      {onConvert ? (
+        <UnifiedCardFooter>
+          <Stack gap="sm">
+            <Divider my="xs" label="Convert Research Into" labelPosition="center" />
+            <Group gap="xs" justify="center">
+              <Button variant="outline" size="compact-xs" color="knowmore" onClick={(event) => stopCardClick(event, () => onConvert(id, "KNOWLEDGE", type))}>Knowledge</Button>
+              <Button variant="outline" size="compact-xs" color="strategy" onClick={(event) => stopCardClick(event, () => onConvert(id, "GOAL", type))}>Goal</Button>
+              <Button variant="outline" size="compact-xs" color="checklist" onClick={(event) => stopCardClick(event, () => onConvert(id, "TASK", type))}>Task</Button>
+            </Group>
+          </Stack>
+        </UnifiedCardFooter>
+      ) : null}
     </UnifiedCard>
   );
 }

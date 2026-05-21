@@ -359,22 +359,29 @@ export default function CompanyDataClient({
     loadAllData(company.id);
   };
 
-  const handleConvert = async (id: string, targetType: string) => {
+  const handleConvert = async (id: string, targetType: "KNOWLEDGE" | "GOAL" | "TASK", sourceType: "source" | "file") => {
     if (!company) return;
     try {
+      setErrorMessage(null);
       const res = await fetch("/api/intelligence/convert", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sourceId: id,
-          sourceType: "SOURCE",
+          sourceType: sourceType === "file" ? "FILE" : "SOURCE",
           targetType: targetType === "KNOWLEDGE" ? "FLASHCARD" : targetType === "GOAL" ? "GOALCARD" : "TASKCARD",
           companyId: company.id
         })
       });
-      if (res.ok) loadAllData(company.id);
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error || "Conversion failed");
+      }
+      closeDetailModal();
+      await loadAllData(company.id);
     } catch (err) {
       console.error("Conversion failed:", err);
+      setErrorMessage(err instanceof Error ? err.message : "Conversion failed");
     }
   };
 

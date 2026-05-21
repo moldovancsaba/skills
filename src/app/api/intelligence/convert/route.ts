@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { normalizeKnowledgeScores, normalizeTaskScores } from "@/lib/scoring-contract";
 
-type ConvertibleSourceType = "FLASHCARD" | "GOALCARD" | "TASKCARD" | "SOURCE";
+type ConvertibleSourceType = "FLASHCARD" | "GOALCARD" | "TASKCARD" | "SOURCE" | "FILE";
 type ConvertibleTargetType = "FLASHCARD" | "GOALCARD" | "TASKCARD";
 
 type SourceLink = {
@@ -17,10 +17,11 @@ type SourceLink = {
 type ConvertibleRecord = {
   id: string;
   companyId: string;
+  name?: string | null;
   title?: string | null;
   body?: string | null;
   description?: string | null;
-  content?: string | null;
+  content?: string | Uint8Array | Buffer | null;
   provenance?: string | null;
   publicId?: number | null;
   confidence?: number | null;
@@ -31,18 +32,21 @@ type ConvertibleRecord = {
   hashtags?: string[] | null;
   intelligenceType?: string | null;
   generatedFromIds?: string[] | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
   sources?: SourceLink[];
 };
 
 function isConvertibleSourceType(value: unknown): value is ConvertibleSourceType {
-  return value === "FLASHCARD" || value === "GOALCARD" || value === "TASKCARD" || value === "SOURCE";
+  return value === "FLASHCARD" || value === "GOALCARD" || value === "TASKCARD" || value === "SOURCE" || value === "FILE";
 }
 
 function isConvertibleTargetType(value: unknown): value is ConvertibleTargetType {
   return value === "FLASHCARD" || value === "GOALCARD" || value === "TASKCARD";
 }
 
-function deriveSourceTitle(source: Pick<ConvertibleRecord, "title" | "content" | "provenance" | "publicId">) {
+function deriveSourceTitle(source: Pick<ConvertibleRecord, "title" | "content" | "provenance" | "publicId"> & { name?: string | null }) {
+  if (typeof source.name === "string" && source.name.trim()) return source.name.trim();
   if (typeof source.title === "string" && source.title.trim()) return source.title.trim();
   if (typeof source.provenance === "string" && source.provenance.trim()) return source.provenance.trim();
   const content = typeof source.content === "string" ? source.content.replace(/\s+/g, " ").trim() : "";
@@ -55,19 +59,47 @@ function normalizeIntelligenceType(value: unknown): IntelligenceType {
 }
 
 function buildBaseData(sourceType: ConvertibleSourceType, sourceData: ConvertibleRecord) {
+  const fileBody = sourceType === "FILE" ? decodeUploadedFileContent(sourceData) : "";
+  const body = sourceType === "SOURCE"
+    ? String(sourceData.content || "")
+    : sourceType === "FILE"
+      ? fileBody
+      : String(sourceData.body || sourceData.description || "");
   return {
     companyId: sourceData.companyId,
-    title: sourceType === "SOURCE" ? deriveSourceTitle(sourceData) : String(sourceData.title || "").trim(),
-    body: sourceType === "SOURCE"
-      ? String(sourceData.content || "")
-      : String(sourceData.body || sourceData.description || ""),
+    title: sourceType === "SOURCE" || sourceType === "FILE" ? deriveSourceTitle(sourceData) : String(sourceData.title || "").trim(),
+    body,
     confidence: sourceData.confidenceScore ?? sourceData.confidence ?? 5,
     impact: sourceData.impact ?? 5,
     weight: sourceData.weight ?? sourceData.ease ?? 5,
     hashtags: Array.isArray(sourceData.hashtags) ? sourceData.hashtags : [],
     intelligenceType: normalizeIntelligenceType(sourceData.intelligenceType),
-    userAnnotation: `Converted from ${sourceType} ${sourceData.id}. original title: ${sourceType === "SOURCE" ? deriveSourceTitle(sourceData) : sourceData.title || "Untitled"}`,
+    userAnnotation: `Converted from ${sourceType} ${sourceData.id}. original title: ${sourceType === "SOURCE" || sourceType === "FILE" ? deriveSourceTitle(sourceData) : sourceData.title || "Untitled"}`,
   };
+}
+
+function isBinaryLike(bytes: Uint8Array) {
+  const sample = bytes.subarray(0, Math.min(bytes.length, 512));
+  for (const byte of sample) {
+    if (byte === 0) return true;
+  }
+  return false;
+}
+
+function decodeUploadedFileContent(source: Pick<ConvertibleRecord, "content"> & { name?: string | null; mimeType?: string | null; sizeBytes?: number | null }) {
+  const content = source.content;
+  if (!(content instanceof Uint8Array) && !Buffer.isBuffer(content)) {
+    return source.mimeType ? `${source.mimeType}` : "";
+  }
+  const bytes = content instanceof Uint8Array ? content : new Uint8Array(content);
+  if (bytes.length === 0 || isBinaryLike(bytes)) {
+    const parts = [source.mimeType || "file"];
+    if (Number.isFinite(source.sizeBytes) && Number(source.sizeBytes) > 0) {
+      parts.push(`${source.sizeBytes} bytes`);
+    }
+    return parts.join(" • ");
+  }
+  return Buffer.from(bytes).toString("utf8").replace(/^\uFEFF/, "").trim();
 }
 
 export async function POST(req: NextRequest) {
@@ -122,6 +154,24 @@ export async function POST(req: NextRequest) {
           weight: true,
           hashtags: true,
           intelligenceType: true,
+        },
+      });
+    } else if (sourceType === "FILE") {
+      sourceData = await prisma.uploadedSourceFile.findUnique({
+        where: { id: sourceId },
+        select: {
+          id: true,
+          companyId: true,
+          name: true,
+          content: true,
+          publicId: true,
+          confidence: true,
+          confidenceScore: true,
+          impact: true,
+          weight: true,
+          hashtags: true,
+          sizeBytes: true,
+          mimeType: true,
         },
       });
     }
@@ -269,6 +319,10 @@ export async function POST(req: NextRequest) {
       });
     } else if (sourceType === "SOURCE") {
       await prisma.source.delete({
+        where: { id: sourceId }
+      });
+    } else if (sourceType === "FILE") {
+      await prisma.uploadedSourceFile.delete({
         where: { id: sourceId }
       });
     }

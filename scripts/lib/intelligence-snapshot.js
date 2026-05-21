@@ -819,7 +819,7 @@ async function buildBudgetSummary(prisma, companyId) {
 }
 
 async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
-  const [activeJobs, workerReports, recentEvents, budget, plannerSignals, plannerEvents, flashcards, goals, tasks, opportunitycards] = await Promise.all([
+  const [activeJobs, workerReports, recentEvents, budget, plannerSignals, plannerEvents, flashcards, goals, tasks, opportunitycards, opportunitycardRepairSetting] = await Promise.all([
     prisma.pipelineJob.findMany({
       where: { companyId, status: { in: ["ACTIVE", "RUNNING", "FAILED"] } },
       orderBy: [{ updatedAt: "desc" }],
@@ -889,6 +889,10 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
         activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
       },
     }),
+    prisma.globalSetting.findUnique({
+      where: { key: "opportunitycard_score_contract_repair_v1" },
+      select: { value: true, updatedAt: true },
+    }),
   ]);
 
   const guardianHeartbeat = readGuardianHeartbeat();
@@ -909,6 +913,27 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
   const salesMineJobs = activeJobs.filter((job) => job.jobType === "MINE_OPPORTUNITYCARDS");
   const plannerState = buildPlannerStateSnapshot(plannerSignals);
   const plannerEventSummary = buildPlannerEventSummary(plannerEvents);
+  const repairValue =
+    opportunitycardRepairSetting?.value && typeof opportunitycardRepairSetting.value === "object" && !Array.isArray(opportunitycardRepairSetting.value)
+      ? opportunitycardRepairSetting.value
+      : {};
+  const opportunitycardRepair = {
+    version: Number(repairValue.version || 1),
+    status: typeof repairValue.status === "string" ? repairValue.status : "PENDING",
+    processed: Number(repairValue.processed || 0),
+    updated: Number(repairValue.updated || 0),
+    lastBatchProcessed: Number(repairValue.lastBatchProcessed || 0),
+    lastBatchUpdated: Number(repairValue.lastBatchUpdated || 0),
+    batchesProcessed: Number(repairValue.batchesProcessed || 0),
+    startedAt: typeof repairValue.startedAt === "string" ? repairValue.startedAt : null,
+    lastRunAt: typeof repairValue.lastRunAt === "string" ? repairValue.lastRunAt : null,
+    completedAt: typeof repairValue.completedAt === "string" ? repairValue.completedAt : null,
+    lastError: typeof repairValue.lastError === "string" ? repairValue.lastError : null,
+    cursor: repairValue.cursor && typeof repairValue.cursor === "object" && !Array.isArray(repairValue.cursor)
+      ? repairValue.cursor
+      : null,
+    stateUpdatedAt: opportunitycardRepairSetting?.updatedAt ? new Date(opportunitycardRepairSetting.updatedAt).toISOString() : null,
+  };
   const qualityByCardType = {
     flashcards: summarizeCardQuality(flashcards),
     goals: summarizeCardQuality(goals),
@@ -934,6 +959,7 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
       mineRunning: salesMineJobs.filter((job) => job.status === "RUNNING").length,
       mineFailed: salesMineJobs.filter((job) => job.status === "FAILED").length,
     },
+    opportunitycardRepair,
     planner: {
       ...plannerState,
       ...plannerEventSummary,
@@ -946,6 +972,7 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
     },
     recommendedActions: {
       escalateScoreRepair: Boolean(criticalAlert || normalizedScoreHealth?.overallBand === "SUSPICIOUS"),
+      reviewOpportunitycardRepair: opportunitycardRepair.status !== "COMPLETED",
       recoverFailedJobs: failedJobs > 0,
       reviewEvaluationFailures: evaluationFailures.length > 0,
       reviewBudgetPressure: budget.pressure !== "NORMAL" || budget.openEvents.length > 0,

@@ -457,6 +457,7 @@ function buildAutoJobProfile(jobType, signals) {
     salesDatacardCount,
     salesKnowledgeCount,
     activeOpportunityCount,
+    hasSalesDiscoveryContext,
     staleOpportunityCount,
     flashcardCount,
     datacardCount,
@@ -642,29 +643,35 @@ function buildAutoJobProfile(jobType, signals) {
       };
     case "MINE_OPPORTUNITYCARDS":
       if (mode === "INACTIVE") {
+        if (salesDatacardCount > 0 || salesKnowledgeCount > 0) {
+          return {
+            queueColumn: "NOW",
+            priorityScore: roundPriority(146 + Math.min(salesDatacardCount + salesKnowledgeCount, 18)),
+            reason: "Sales board is empty while sales-scoped evidence already exists. Bootstrap opportunitycard mining now.",
+            sourceSignal: "sales-opportunity-bootstrap-from-sales-evidence",
+          };
+        }
         return {
           queueColumn: "PARKED",
           priorityScore: 0,
-          reason: "Company is inactive because it has no datacards yet.",
-          sourceSignal: "inactive-no-datacards",
-        };
-      }
-      if (mode !== "MAINTENANCE") {
-        return {
-          queueColumn: "PARKED",
-          priorityScore: 0,
-          reason: "Sales opportunitycard mining is part of the main pipeline and waits until shared bootstrap work reaches maintenance.",
-          sourceSignal: "sales-opportunity-wait-main-pipeline",
+          reason: "Opportunitycard mining waits until the company has sales-scoped or competitor research to mine from.",
+          sourceSignal: "sales-opportunity-idle",
         };
       }
       if (salesDatacardCount > 0 || salesKnowledgeCount > 0) {
         return {
-          queueColumn: activeOpportunityCount === 0 ? "SOON" : "LATER",
-          priorityScore: roundPriority(54 + Math.min(salesDatacardCount + salesKnowledgeCount, 18) + staleOpportunityCount * 4),
+          queueColumn: activeOpportunityCount === 0 ? "NOW" : mode === "MAINTENANCE" ? "LATER" : "SOON",
+          priorityScore: roundPriority((activeOpportunityCount === 0 ? 138 : 54) + Math.min(salesDatacardCount + salesKnowledgeCount, 18) + staleOpportunityCount * 4),
           reason: activeOpportunityCount === 0
-            ? "Sales opportunitycard mining now runs as main-pipeline quality work after shared knowledge bootstrap is stable."
+            ? "Sales board is empty. Opportunitycard mining must bootstrap from available sales-scoped evidence."
+            : mode !== "MAINTENANCE"
+              ? "Sales opportunitycard mining stays warm during shared bootstrap so the sales board does not empty out."
             : "Sales opportunitycard mining remains part of main-pipeline quality maintenance for lead generation.",
-          sourceSignal: activeOpportunityCount === 0 ? "sales-opportunity-quality-bootstrap" : "sales-opportunity-quality-maintenance",
+          sourceSignal: activeOpportunityCount === 0
+            ? "sales-opportunity-quality-bootstrap"
+            : mode !== "MAINTENANCE"
+              ? "sales-opportunity-quality-bootstrap-maintained"
+              : "sales-opportunity-quality-maintenance",
         };
       }
       return {
@@ -674,30 +681,28 @@ function buildAutoJobProfile(jobType, signals) {
         sourceSignal: "sales-opportunity-idle",
       };
     case "SEARCH_OPPORTUNITYCARDS":
-      if (mode === "INACTIVE") {
+      if (mode === "INACTIVE" && !hasSalesDiscoveryContext) {
         return {
           queueColumn: "PARKED",
           priorityScore: 0,
-          reason: "Company is inactive because it has no datacards yet.",
-          sourceSignal: "inactive-no-datacards",
+          reason: "Internet lead search waits until the company has at least minimal sales discovery context.",
+          sourceSignal: "sales-opportunity-search-idle-no-context",
         };
       }
-      if (mode !== "MAINTENANCE") {
+      if (hasSalesDiscoveryContext || activeOpportunityCount > 0) {
         return {
-          queueColumn: "PARKED",
-          priorityScore: 0,
-          reason: "Internet lead search is part of the main pipeline and waits until shared bootstrap work reaches maintenance.",
-          sourceSignal: "sales-opportunity-search-wait-main-pipeline",
-        };
-      }
-      if (salesDatacardCount > 0 || salesKnowledgeCount > 0 || activeOpportunityCount > 0) {
-        return {
-          queueColumn: activeOpportunityCount === 0 ? "SOON" : "LATER",
-          priorityScore: roundPriority(58 + Math.min(salesDatacardCount + salesKnowledgeCount, 18) + activeOpportunityCount * 2),
+          queueColumn: activeOpportunityCount === 0 ? "NOW" : mode === "MAINTENANCE" ? "LATER" : "SOON",
+          priorityScore: roundPriority((activeOpportunityCount === 0 ? 144 : 58) + Math.min(salesDatacardCount + salesKnowledgeCount, 18) + activeOpportunityCount * 2),
           reason: activeOpportunityCount === 0
-            ? "Worker-owned internet lead search now runs inside the main pipeline after shared knowledge bootstrap is stable."
+            ? "Sales board is empty. Worker-owned internet lead search must bootstrap new company leads now."
+            : mode !== "MAINTENANCE"
+              ? "Worker-owned internet lead search stays available during shared bootstrap so sales lead inventory does not stall."
             : "Worker-owned internet lead search stays inside main-pipeline quality maintenance to expand and refresh leads.",
-          sourceSignal: activeOpportunityCount === 0 ? "sales-opportunity-search-quality-bootstrap" : "sales-opportunity-search-quality-refresh",
+          sourceSignal: activeOpportunityCount === 0
+            ? "sales-opportunity-search-quality-bootstrap"
+            : mode !== "MAINTENANCE"
+              ? "sales-opportunity-search-bootstrap-maintained"
+              : "sales-opportunity-search-quality-refresh",
         };
       }
       return {
@@ -837,6 +842,7 @@ function buildAutoJobProfile(jobType, signals) {
 
 async function gatherCompanyPipelineSignals(prisma, companyId) {
   const [
+    company,
     pendingFeedbackCount,
     pendingStrategicFeedbackCount,
     activeTaskCount,
@@ -859,6 +865,15 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
     scoreHealth,
     feedbackPressureIndex,
   ] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        website: true,
+        industry: true,
+        targetMarket: true,
+        description: true,
+      },
+    }),
     prisma.feedback.count({
       where: {
         checklistTask: { companyId },
@@ -910,7 +925,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         companyId,
         departmentKey: "SALES",
         activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
-        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "DECLINED", "REVIEW"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "REVIEW"] },
       },
     }),
     prisma.source.count({ where: { companyId } }),
@@ -972,7 +987,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
         companyId,
         departmentKey: "SALES",
         activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
-        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "DECLINED", "REVIEW"] },
+        processingStatus: { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "REVIEW"] },
         refreshedAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
     }),
@@ -1004,6 +1019,14 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
   const deficits = PLANNER_LANE_ORDER.filter((lane) => Number(laneCounts[lane] || 0) < Number(PLANNER_LANE_TARGETS[lane] || 0));
   const datacardCount = sourceCount;
   const flashcardCount = activeKnowledgeCount;
+  const hasSalesDiscoveryContext = Boolean(
+    salesDatacardCount > 0
+    || salesKnowledgeCount > 0
+    || String(company?.website || "").trim()
+    || String(company?.industry || "").trim()
+    || String(company?.targetMarket || "").trim()
+    || String(company?.description || "").trim(),
+  );
 
   return {
     pendingFeedbackCount,
@@ -1034,6 +1057,7 @@ async function gatherCompanyPipelineSignals(prisma, companyId) {
     blockedFeedbackFamiliesCount: countCompanyBlockedFamilies(feedbackPressureIndex, companyId),
     staleAuditCount: staleFlashcards + staleGoals + staleTasks + staleSources + staleTopics + staleFiles + staleOpportunitycards,
     scoreHealth,
+    hasSalesDiscoveryContext,
   };
 }
 

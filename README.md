@@ -224,6 +224,12 @@ Required environment:
 
 - `DATABASE_URL`
 
+Repository-local runtime note:
+
+- this checkout now uses an ignored local [`.env`](/Users/chappie/.codex/worktrees/4aa5/checklist/.env) for `DATABASE_URL`
+- the shared local source of truth for that value is [`/Users/Shared/Projects/checklist/.env.prod-db-url.tmp`](/Users/Shared/Projects/checklist/.env.prod-db-url.tmp)
+- that shared file contains a raw MongoDB URI, not a `KEY=value` shell export, so if the local `.env` is missing it must be injected into `DATABASE_URL` explicitly
+
 Optional but commonly used local AI environment:
 
 - `OLLAMA_URL` or `OLLAMA_HOST`

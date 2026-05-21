@@ -10,37 +10,7 @@ import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
 import { Text } from "@/components/ui/typography";
 import type { SalesOpportunitycard } from "@/components/sales-board";
 
-type Opportunitycard = {
-  id: string;
-  publicId: number | null;
-  companyName: string;
-  title: string;
-  body: string;
-  website?: string | null;
-  linkedinUrl?: string | null;
-  instagramUrl?: string | null;
-  facebookUrl?: string | null;
-  xUrl?: string | null;
-  location?: string | null;
-  coreOffer?: string | null;
-  financialBackground?: string | null;
-  fitRationale?: string | null;
-  opportunityType: "PROSPECT" | "PARTNER" | "RESELLER";
-  confidenceScore: number;
-  impact: number;
-  weight: number;
-  iceScore: number;
-  processingStatus: "DRAFT" | "CHECKED" | "VERIFIED" | "ACCEPTED" | "DECLINED" | "REVIEW";
-  activityState: "ACTIVE" | "STALE" | "EXPIRED" | "ARCHIVED";
-  hashtags: string[];
-  kanbanColumn: "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
-  createdAt?: string | null;
-  updatedAt?: string | null;
-  generatedAt?: string | null;
-  refreshedAt?: string | null;
-  userAnnotation?: string | null;
-  sortOrder?: number | null;
-};
+type Opportunitycard = SalesOpportunitycard;
 
 type Flashcard = {
   id: string;
@@ -127,7 +97,7 @@ export default function SalesPage() {
 
   const load = useCallback(async () => {
     const [opportunityRes, knowmoreRes, observabilityRes] = await Promise.all([
-      fetch(`/api/opportunitycards?companyId=${encodeURIComponent(companyId)}&all=true&departmentKey=SALES`),
+      fetch(`/api/opportunitycards?companyId=${encodeURIComponent(companyId)}&departmentKey=SALES`),
       fetch(`/api/knowmore?companyId=${encodeURIComponent(companyId)}&departmentKey=SALES&includeCompetitor=true&limit=24&offset=0`),
       fetch(`/api/observability?companyId=${encodeURIComponent(companyId)}`),
     ]);

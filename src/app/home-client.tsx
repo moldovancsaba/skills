@@ -12,6 +12,7 @@ import { useStore } from "@/lib/store";
 import { useState, useEffect, useCallback } from "react";
 import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 import { useI18n } from "@/lib/ui-i18n";
+import { WEBAPP_SUMMARY_REFRESH_MS } from "@/lib/webapp-projection";
 
 type HomeCompany = {
   id: string;
@@ -112,6 +113,33 @@ export default function Home({
       .finally(() => {
         setLoading(false);
       });
+  }, [initialDataReady, t]);
+
+  useEffect(() => {
+    if (!initialDataReady) return;
+
+    const refreshCompanies = async () => {
+      try {
+        const res = await fetch("/api/companies");
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || t("home.failedCompanies"));
+        }
+        if (Array.isArray(data)) {
+          setCompanies(data);
+        } else if (Array.isArray(data?.companies)) {
+          setCompanies(data.companies);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void refreshCompanies();
+    }, WEBAPP_SUMMARY_REFRESH_MS);
+
+    return () => window.clearInterval(intervalId);
   }, [initialDataReady, t]);
 
   useEffect(() => {

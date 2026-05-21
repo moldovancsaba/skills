@@ -61,6 +61,7 @@ Frontend:
 - centralized semantic token layer
 - centralized card system through `UnifiedCard`
 - centralized DS-owned typography, including the approved `Text` and `Title` wrappers in `src/components/ui/typography.tsx`
+- centralized entity-detail rendering contract: `UnifiedCardModal` owns the shell, while each first-class card family must render its full persisted typed detail set inside the shared card grammar
 
 ## 4. Product UI SSOT
 
@@ -222,6 +223,11 @@ The current intelligence-operations contract also includes:
 - first-class entity search results deep-link into the canonical shared `/card/[uuid]` detail route for Data, Topics, Knowmore, Goals, and Tasks
 - one blended tactical priority profile that keeps ICE visible while ranking work through explainable ICE, quality, urgency, freshness, human-signal, risk, lifecycle-state, and memory inputs
 - one persisted score provenance profile per scored card, preserving agent proposal, calibrated heuristic score, and final blended score
+- opportunitycards use the same canonical task-like scoring family as taskcards, with `weight` acting as the persisted effort alias; create/update/modify/refresh/repair paths must normalize and persist `scoreProfile`, not raw ad hoc ICE fields
+- historical opportunitycard score repair is worker-owned: the bounded repair module is reused by the CLI repair script and by the worker integrity loop inside the DB-backed local-AI runtime so existing rows self-heal in authoritative bounded slices with persisted cursor/state tracking
+- internet opportunity discovery is also worker-owned: online search, candidate filtering, draft-card creation, enrichment, dedupe, and refresh must run in the local AI worker rather than in the hosted webapp
+- opportunity search memory is a persisted per-company contract: the worker must retain query/domain/term learning, preserve search provenance on mined leads, and update that memory from authoritative operator `ACCEPT` / `DECLINE` outcomes so future search queries improve over time
+- internet-discovered opportunitycards must begin life as drafts, not final checked leads; the worker is expected to continue working the draft through refresh and enrichment after creation
 - one direct Knowmore correction surface for pin/hide/wrong/refresh/source-suppression controls, persisted as durable correction events
 - one grounded answer layer over company context using explicit evidence objects
 - grounded answers now expose intent, confidence, evidence-group framing, and the applied entity-layer scope as first-class contract fields

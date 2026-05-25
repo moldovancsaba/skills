@@ -9,9 +9,7 @@ const { truncate, hashValue, getWorkerConfig, parseBoundedInt, getStageModels, c
 const { unifyObject, unifyArray } = require("./synthesis-utils");
 const { CandidateState, ReworkRoute, toEvaluated, toRework, toSuppressed, toArchived } = require("./lifecycle");
 
-// ---------------------------------------------------------------------------
-// 1. Constants
-// ---------------------------------------------------------------------------
+// Constants
 
 // Starvation detection: if fewer than this many ELIGIBLE candidates exist,
 // apply fallback threshold to avoid frontier emptiness (§10.7)
@@ -28,9 +26,7 @@ const DISPOSITION = {
   ARCHIVE:     "ARCHIVE",
 };
 
-// ---------------------------------------------------------------------------
-// 2. Score Computation
-// ---------------------------------------------------------------------------
+// Score computation
 
 /**
  * Computes absolute quality score (0-1) from ICE dimensions.
@@ -77,9 +73,7 @@ function computeRelativeDominance(candidate, pool) {
   return 1 - (rank / pool.length);
 }
 
-// ---------------------------------------------------------------------------
-// 3. Disposition Engine
-// ---------------------------------------------------------------------------
+// Disposition engine
 
 /**
  * M3.4: Tournament Consensus Voter (Phase 5)
@@ -152,7 +146,7 @@ async function evaluateCandidate(prisma, company, candidate, comparisonPool, cur
 
   const userPrompt = `Title: ${candidate.title}\nDescription: ${candidate.description || candidate.body || ""}`;
 
-  // NBA 5: Tournament Judging - Fetch specialized models
+  // Tournament judging: fetch specialized models
   const judgeModels = await getStageModels(prisma, "JUDGE", company);
   
   // Call up to 2 models for tournament consensus (Phase 5)
@@ -191,12 +185,10 @@ async function evaluateCandidate(prisma, company, candidate, comparisonPool, cur
   };
 }
 
-// ---------------------------------------------------------------------------
-// 4. Batch Evaluation
-// ---------------------------------------------------------------------------
+// Batch evaluation
 
 /**
- * Evaluates a batch of REFINED NBA candidates and writes dispositions to the database.
+ * Evaluates a batch of REFINED task candidates and writes dispositions to the database.
  *
  * @param {PrismaClient} prisma
  * @param {object} company
@@ -206,7 +198,7 @@ async function evaluateCandidate(prisma, company, candidate, comparisonPool, cur
  */
 /**
  * M4.4: Tournament-style Batch Evaluation
- * Evaluates a batch of REFINED NBA candidates by presenting them all to the LLM
+ * Evaluates a batch of REFINED task candidates by presenting them all to the LLM
  * at once, allowing for direct relative ranking and champion selection.
  */
 async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
@@ -244,7 +236,7 @@ async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
 
   const userPrompt = `Candidates for evaluation:\n${candidateSummary}`;
 
-  // NBA 5: Tournament Judging - Fetch specialized judge model if configured
+  // Tournament judging: fetch a specialized judge model when configured
   const tournamentJudge = await getWorkerConfig(prisma, company, "tournament_judge_model", null);
   const judgeModels = tournamentJudge ? [tournamentJudge, ...STAGE_MODELS.JUDGE] : await getStageModels(prisma, "JUDGE", company);
 
@@ -306,9 +298,7 @@ async function evaluateNBAItemBatch(prisma, company, candidates, memoryPrompt) {
   return results;
 }
 
-// ---------------------------------------------------------------------------
-// 5. Backward-Compatible Judge Wrappers
-// ---------------------------------------------------------------------------
+// Backward-Compatible judge wrappers
 
 /**
  * Backward-compatible wrapper — audits a CHECKED Flashcard (used by synthesis.js).

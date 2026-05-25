@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         description: data.description,
         processingStatus: "DRAFT",
         activityState: "ACTIVE",
-        status: "PENDING", // Legacy Sync
+        status: "PENDING", // Legacy status bridge
         scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : null,
         createdBy: data.createdBy,
         appVersion: APP_VERSION,

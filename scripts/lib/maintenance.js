@@ -23,7 +23,7 @@ const {
  * Handles periodic rescoring, lifecycle cleanup, feedback reconciliation, and
  * supporting integrity jobs across the active card layers.
  */
-// --- DATA INTEGRITY ---
+// Data integrity
 
 function isRetryableWriteConflict(error) {
   return Boolean(error && typeof error === "object" && error.code === "P2034");
@@ -54,7 +54,7 @@ async function scrubDatabaseElemental(prisma) {
   const validKinds = ["SUMMARY", "EXPLANATION", "COMPARISON", "NEWS", "CONCLUSION", "EVALUATION", "OPINION", "JUDGMENT", "RECOMMENDATION", "RESEARCH", "FORECAST", "STOCK", "GOSSIP", "PRICE"];
   const validProc = ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED", "DECLINED"];
 
-  // 1. Flashcards (Batch Scrub — fix invalid processingStatus)
+  // Flashcards (Batch Scrub — fix invalid processingStatus)
   try {
     const fcToFix = await prisma.flashcard.findMany({
       where: {
@@ -82,7 +82,7 @@ async function scrubDatabaseElemental(prisma) {
     console.warn(`[MAINTENANCE] Flashcard scrub partially failed: ${e.message}`);
   }
 
-  // 2. NBA Items — fix invalid legacy statuses only.
+  // Taskcards: fix invalid legacy status values only.
   // NOTE: State transitions are now handled by the CandidateState lifecycle machine.
   //       Annotation-string inference has been removed. Never infer state from userAnnotation.
   try {
@@ -123,7 +123,7 @@ async function scrubDatabaseElemental(prisma) {
 async function processUserFeedback(prisma, company) {
   const cid = company.id;
   
-  // 1. Find Unprocessed Feedback for this company
+  // Find Unprocessed Feedback for this company
   const pendingFeedback = await prisma.feedback.findMany({
     where: { 
       checklistTask: { companyId: cid },
@@ -168,7 +168,7 @@ async function processUserFeedback(prisma, company) {
       ease: newEase,
     });
 
-    // c. Update NBA Item Intelligence
+    // c. Update taskcard intelligence
       await prisma.checklistTask.update({
       where: { id: item.id },
       data: {
@@ -433,7 +433,7 @@ async function revisitDeclinedHighPotentialCandidates(prisma, company) {
   return queued;
 }
 
-// --- LIFECYCLE MANAGEMENT ---
+// Lifecycle management
 
 /**
  * Scrub company rejection annotations for cosmetic consistency only.
@@ -488,7 +488,7 @@ async function runMaintenance(prisma, company) {
 
   console.log(`[MAINTENANCE] ${company.name}: Cleaning up aged cards...`);
 
-  // 0. Brain Reconciliation (User Feedback)
+  // Brain Reconciliation (User Feedback)
   await processUserFeedback(prisma, company);
 
   // 0.25 Periodic rescoring across all active card layers with oldest-first queueing.
@@ -500,7 +500,7 @@ async function runMaintenance(prisma, company) {
   await revisitOldestModifiedCandidates(prisma, company);
   await revisitDeclinedHighPotentialCandidates(prisma, company);
 
-  // 1. Flashcards Ageing
+  // Flashcards Ageing
   // EXPIRED (7 days)
   await prisma.flashcard.updateMany({
     where: { companyId: cid, activityState: "ACTIVE", updatedAt: { lt: expiryThreshold } },
@@ -519,7 +519,7 @@ async function runMaintenance(prisma, company) {
     data: { activityState: "ARCHIVED" }
   });
 
-  // 2. NBAItems Ageing
+  // Taskcard ageing
   await prisma.checklistTask.updateMany({
     where: { companyId: cid, activityState: "ACTIVE", updatedAt: { lt: expiryThreshold } },
     data: { activityState: "EXPIRED" }
@@ -535,7 +535,7 @@ async function runMaintenance(prisma, company) {
     data: { activityState: "ARCHIVED" }
   });
   
-  // 3. Language cleanup
+  // Language cleanup
   const allCards = await Promise.all([
     prisma.flashcard.findMany({ where: { companyId: cid, activityState: { not: "ARCHIVED" } } }),
     prisma.checklistTask.findMany({ where: { companyId: cid, activityState: { not: "ARCHIVED" } } })
@@ -544,21 +544,21 @@ async function runMaintenance(prisma, company) {
   for (const fc of allCards[0]) await enforceLanguagePolicy(prisma, fc, "FLASHCARD", company);
   for (const tc of allCards[1]) await enforceLanguagePolicy(prisma, tc, "TASK", company);
 
-  // 4. Source re-validation and strategy drift handling
+  // Source re-validation and strategy drift handling
   await revalidateSources(prisma, company);
   await detectStrategyDrift(prisma, company);
   await auditConfidenceCalibration(prisma, company);
 
-  // 5. Enrichment, merging, and decay
+  // Enrichment, merging, and decay
   await mergeDuplicates(prisma, cid);
   await enrichOldestCards(prisma, company);
   await applyFreshnessDecay(prisma, company);
 
-  // 6. Background maintenance jobs
+  // Background maintenance jobs
   await compactStructuredMemory(prisma, company);
   await garbageCollectOrphanedSources(prisma, company);
 
-  // 7. Frontier recompute
+  // Frontier recompute
   // Recomputes the Top-3 visible items based on quality, urgency, and candidate state.
   await recomputeFrontier(prisma, company);
 }
@@ -674,7 +674,7 @@ async function mergeDuplicates(prisma, cid) {
 async function enrichOldestCards(prisma, company) {
   const cid = company.id;
   
-  // 1. Check Thresholds
+  // Check Thresholds
   const [sourceCount, fileCount, flashcardCount, activeTasksCount] = await Promise.all([
     prisma.source.count({ where: { companyId: cid } }),
     prisma.uploadedSourceFile.count({ where: { companyId: cid } }),
@@ -764,7 +764,7 @@ async function applyFreshnessDecay(prisma, company) {
     }
   });
 
-  // NBAItems
+  // taskcards
   const tcDecayed = await prisma.checklistTask.updateMany({
     where: { 
       companyId: cid, 
@@ -867,7 +867,7 @@ async function revalidateSources(prisma, company) {
 async function detectStrategyDrift(prisma, company) {
   const cid = company.id;
   
-  // 1. Flashcards
+  // Flashcards
   const activeFc = await prisma.flashcard.findMany({
     where: { companyId: cid, processingStatus: "VERIFIED", activityState: "ACTIVE" },
     select: { id: true, userAnnotation: true, updatedAt: true }
@@ -889,7 +889,7 @@ async function detectStrategyDrift(prisma, company) {
     }
   }
 
-  // 2. Taskcards
+  // Taskcards
   const activeTc = await prisma.checklistTask.findMany({
     where: { companyId: cid, processingStatus: "VERIFIED", activityState: "ACTIVE" },
     select: { id: true, userAnnotation: true, updatedAt: true }
@@ -969,9 +969,7 @@ async function auditConfidenceCalibration(prisma, company) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// M4.2: Trinity Background Jobs
-// ---------------------------------------------------------------------------
+// M4.2: trinity background jobs
 
 /**
  * Compacts the structured memory layer to prevent context window bloat.

@@ -9,7 +9,7 @@ import type { SourceProcessingStatus } from "@prisma/client";
 export const dynamic = "force-dynamic";
 
 /**
- * CRM Context Bridge API (NBA 4)
+ * CRM context bridge API
  * Specialized ingestor for structured customer and sales data.
  */
 export async function POST(request: NextRequest) {

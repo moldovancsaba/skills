@@ -26,9 +26,7 @@ const { CandidateState, ReworkRoute, toRework, toSuppressed, toArchived, toDeliv
 const { triggerFrontierRecompute } = require("./frontier");
 const { applyFeedbackPressure } = require("./planner/feedback-pressure");
 
-// ---------------------------------------------------------------------------
-// 1. Decline Routing Map
-// ---------------------------------------------------------------------------
+// Decline routing map
 
 // Maps DeclineClass → { candidateState, reworkRoute? }
 const DECLINE_ROUTING = {
@@ -44,9 +42,7 @@ const DECLINE_ROUTING = {
   IGNORANT_OUTPUT: { candidateState: CandidateState.ARCHIVED,   reworkRoute: null },
 };
 
-// ---------------------------------------------------------------------------
-// 2. Decline Handler (M3.2)
-// ---------------------------------------------------------------------------
+// Decline handler (M3.2)
 
 /**
  * Processes a DECLINE feedback event with typed classification.
@@ -158,9 +154,7 @@ async function suppressTaskFamily(prisma, item, blockedFamilyKeys = []) {
   return Number(result?.count || 0);
 }
 
-// ---------------------------------------------------------------------------
-// 3. DELIVER Handler (M3.3)
-// ---------------------------------------------------------------------------
+// Deliver handler (M3.3)
 
 /**
  * Processes a DELIVER feedback event — the strongest positive signal.
@@ -224,9 +218,7 @@ async function handleDeliver(prisma, feedbackRecord, item) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 4. ACCEPT Handler
-// ---------------------------------------------------------------------------
+// Accept handler
 
 async function handleAccept(prisma, feedbackRecord, item) {
   const newFeedbackScore = (item.feedbackScore || 0) + 1;
@@ -240,9 +232,7 @@ async function handleAccept(prisma, feedbackRecord, item) {
   console.log(`[FEEDBACK] ${item.companyId} tc:${item.id} ACCEPTED`);
 }
 
-// ---------------------------------------------------------------------------
-// 5. Main Entry Point — dispatches to typed handlers
-// ---------------------------------------------------------------------------
+// Main entry point: dispatch to typed handlers
 
 /**
  * Processes all unprocessed feedback events for a company using typed handlers.

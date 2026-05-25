@@ -1459,7 +1459,7 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
   });
   const feedbackPressureIndex = await readFeedbackPressureIndex(prisma);
 
-  // 1. Find active Flashcards that haven't spawned actions recently.
+  // Find active Flashcards that haven't spawned actions recently.
   // Bootstrap mode may need to generate from CHECKED/DRAFT inventory as well.
   const knowledgeBase = await prisma.flashcard.findMany({
     where: { 
@@ -1720,7 +1720,7 @@ async function performCompanyActionGeneration(prisma, company, memoryPrompt, top
 async function processCandidateBacklog(prisma, company, memoryPrompt) {
   const cid = company.id;
 
-  // 1. Process REFINED candidates that need EVALUATION
+  // Process REFINED candidates that need EVALUATION
   const refined = await prisma.checklistTask.findMany({
     where: { 
       companyId: cid, 
@@ -1736,7 +1736,7 @@ async function processCandidateBacklog(prisma, company, memoryPrompt) {
     await evaluateNBAItemBatch(prisma, company, refined, memoryPrompt);
   }
 
-  // 2. Process GENERATED candidates that need REFINEMENT
+  // Process GENERATED candidates that need REFINEMENT
   const generated = await prisma.checklistTask.findMany({
     where: { 
       companyId: cid, 

@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const auth = await verifyMembership(request, task.companyId);
     if (auth.error) return auth.error;
 
-    // 1. Fetch triggering Flashcards
+    // Fetch triggering Flashcards
     const flashcards = await prisma.flashcard.findMany({
       where: { id: { in: task.generatedFromIds } },
       include: {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // 2. Fetch original Sources & Files
+    // Fetch original Sources & Files
     const sourceIds = flashcards.flatMap(f => f.sources.filter(s => s.sourceType === "SOURCE").map(s => s.sourceId));
     const fileIds = flashcards.flatMap(f => f.sources.filter(s => s.sourceType === "FILE").map(s => s.sourceId));
 
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       prisma.uploadedSourceFile.findMany({ where: { id: { in: fileIds } } })
     ]);
 
-    // 3. Assemble the Trace
+    // Assemble the Trace
     const trace = flashcards.map(fc => ({
       flashcard: {
         id: fc.id,

@@ -230,7 +230,7 @@ async function getGlobalQueueSnapshot() {
   };
 }
 
-// --- DATA FETCHERS ---
+// Data fetchers
 
 function readHeartbeat() {
   try { return JSON.parse(fs.readFileSync(HEARTBEAT_FILE, "utf8")); }
@@ -480,7 +480,7 @@ async function getStatusPayload({ force = false } = {}) {
   return payload;
 }
 
-// --- API ENDPOINTS ---
+// API endpoints
 
 async function handleApi(req, res) {
   const payload = await getStatusPayload();
@@ -521,7 +521,7 @@ async function handleReanimate(res) {
   }
 }
 
-// --- HTML VIEW (2026 CLEAN) ---
+// Html view (2026 clean)
 
 const HTML = `<!DOCTYPE html>
 <html lang="en" data-theme="dark">

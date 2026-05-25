@@ -36,7 +36,7 @@ async function main() {
       fingerprint,
       processingStatus: task.processingStatus || "CHECKED",
       activityState: task.activityState || "ACTIVE",
-      status: task.status || "PENDING", // Legacy Sync
+      status: task.status || "PENDING", // Legacy status bridge
       updatedAt: new Date()
     };
 

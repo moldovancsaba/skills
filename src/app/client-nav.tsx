@@ -223,7 +223,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
 
       <AppShellSection component={ScrollArea} grow mx="-md" px="md">
         <Stack gap="xs">
-          {/* Global Portfolio and Intelligence Unit divider removed per user request */}
+          {/* Global portfolio and intelligence unit divider removed per user request */}
 
           {((company || companyIdFromUrl) && pathname !== '/' && !pathname.startsWith('/faq') && !pathname.startsWith('/manual')) ? (
             <Stack gap={4}>

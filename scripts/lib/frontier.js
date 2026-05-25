@@ -19,9 +19,7 @@ const {
   getLaneRank,
 } = require("../../src/lib/planner-contract");
 
-// ---------------------------------------------------------------------------
-// 1. Configuration
-// ---------------------------------------------------------------------------
+// Configuration
 
 const FRONTIER_MAX_SIZE = 3;
 
@@ -35,9 +33,7 @@ const STATE_WEIGHTS = {
 // Rot threshold — candidates older than this are excluded from frontier (unless fallback)
 const ROT_DAYS = 14;
 
-// ---------------------------------------------------------------------------
-// 2. Frontier Score Computation
-// ---------------------------------------------------------------------------
+// Frontier score computation
 
 /**
  * Computes the multi-factor frontier score for a single candidate.
@@ -110,9 +106,7 @@ function isRotten(candidate) {
   return lastTouch < rotThreshold;
 }
 
-// ---------------------------------------------------------------------------
-// 3. Duplicate Cluster Collapse
-// ---------------------------------------------------------------------------
+// Duplicate-cluster collapse
 
 /**
  * Collapses duplicate clusters so that only one member per cluster can
@@ -138,9 +132,7 @@ function collapseDuplicateClusters(candidates) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// 4. Frontier Eligibility Query
-// ---------------------------------------------------------------------------
+// Frontier eligibility query
 
 /**
  * Loads all candidates eligible for frontier consideration for a company.
@@ -166,9 +158,7 @@ async function loadEligibleCandidates(prisma, companyId) {
   return candidates;
 }
 
-// ---------------------------------------------------------------------------
-// 5. Main Frontier & Kanban Orchestration
-// ---------------------------------------------------------------------------
+// Main frontier and planning-lane orchestration
 
 /**
  * Computes and persists the tactical distribution (Kanban) for a company.
@@ -182,7 +172,7 @@ async function loadEligibleCandidates(prisma, companyId) {
 async function recomputeFrontier(prisma, company, cycleRunId = null) {
   const companyId = company.id;
 
-  // 1. Load all eligible candidates
+  // Load all eligible candidates
   const all = await loadEligibleCandidates(prisma, companyId);
   const frontierMemoryEntries = await loadFrontierMemoryEntries(prisma, companyId);
 
@@ -191,7 +181,7 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
     return [];
   }
 
-  // 2. Attach scores
+  // Attach scores
   const scoredInputs = all.map((candidate) => ({
     ...candidate,
     _memoryMultiplier: computeFrontierMemoryMultiplier(candidate, frontierMemoryEntries),
@@ -211,14 +201,14 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
     };
   });
 
-  // 3. Remove rotten items (unless they are the last resort)
+  // Remove rotten items (unless they are the last resort)
   const fresh = scored.filter(c => !isRotten(c));
   const pool = fresh.length > 0 ? fresh : scored;
 
-  // 4. Collapse duplicate clusters
+  // Collapse duplicate clusters
   const deduplicated = collapseDuplicateClusters(pool);
 
-  // 5. Global Rank by frontier score descending
+  // Global Rank by frontier score descending
   deduplicated.sort((left, right) => {
     const leftProfile = left._priorityProfile || { components: {} };
     const rightProfile = right._priorityProfile || { components: {} };
@@ -375,7 +365,7 @@ async function recomputeFrontier(prisma, company, cycleRunId = null) {
     });
   }
 
-  // 7. Persist Column State
+  // Persist Column State
   for (const group of columnMap) {
     if (group.items.length === 0) continue;
 
@@ -437,9 +427,7 @@ async function refillChecklistFromBacklog(prisma, company) {
   return recomputeFrontier(prisma, company);
 }
 
-// ---------------------------------------------------------------------------
-// 6. Trigger: recompute frontier after each feedback event
-// ---------------------------------------------------------------------------
+// Trigger: recompute frontier after each feedback event
 
 /**
  * Should be called after any ACCEPT, DECLINE, or DELIVER feedback event.

@@ -16,7 +16,7 @@ const {
   queueAiInference 
 } = require("./core");
 
-// --- UTILITIES ---
+// Utilities
 
 /**
  * Normalizes text by removing HTML tags and special characters.
@@ -79,7 +79,7 @@ function extractJsonCandidate(content) {
   return match ? match[0] : null;
 }
 
-// --- CORE AI FETCHERS ---
+// Core AI fetchers
 
 /**
  * Performs a chat completion via the local Ollama instance.

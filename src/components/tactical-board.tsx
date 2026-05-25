@@ -156,9 +156,7 @@ function reorderColumnItems(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Card Detail Modal
-// ---------------------------------------------------------------------------
+// Card detail modal
 function CardDetailModal({
   item,
   opened,
@@ -226,7 +224,7 @@ function CardDetailModal({
         </Center>
       ) : (
         <Stack gap="xl" pt="xs">
-        {/* Title & Description */}
+        {/* Title and description */}
         <Stack gap="xs">
           <Text size="xl">
             {stripTechnicalMetadata(item.title)}
@@ -238,7 +236,7 @@ function CardDetailModal({
           )}
         </Stack>
 
-        {/* ICE Scores */}
+        {/* ICE scores */}
         <Box>
           <Text size="xs" c="dimmed" mb="md">Operational Scores</Text>
           <Group grow gap="md">
@@ -263,7 +261,7 @@ function CardDetailModal({
           </Group>
         </Box>
 
-        {/* AI Scores */}
+        {/* AI scores */}
         {(item.priorityProfile || item.qualityScore != null || item.urgencyScore != null || item.freshnessScore != null) && (
           <Box>
             <Group gap="xs" mb="md">
@@ -322,7 +320,7 @@ function CardDetailModal({
           </Box>
         )}
 
-        {/* Evaluation Reason */}
+        {/* Evaluation reason */}
         {item.evaluationReason && (
           <Box>
             <Text size="xs" c="dimmed" mb="md">AI Judge Reasoning</Text>
@@ -347,7 +345,7 @@ function CardDetailModal({
 
         <Divider variant="dashed" />
 
-        {/* Actions Section */}
+        {/* Actions section */}
         <Stack gap="lg">
           <Group justify="space-between" align="flex-end">
             <Select
@@ -426,9 +424,7 @@ function CardDetailModal({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main Board
-// ---------------------------------------------------------------------------
+// Main board
 export function TacticalBoard({ companyId }: { companyId: string }) {
   const [items, setItems] = useState<ChecklistTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -678,7 +674,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                   miw={320}
                   h="100%"
                 >
-                  {/* Column Header */}
+                  {/* Column header */}
                   <UnifiedCard
                     tone={col.tone}
                     accentBandTone={col.tone}

@@ -31,9 +31,7 @@ const { truncate } = require("./shared");
 const MEMORY_SETTING_PREFIX = "memory:";
 const MAX_PERSISTED_GUIDELINES = 50;
 
-// ---------------------------------------------------------------------------
-// 1. Legacy Helpers (kept for backward compat with existing callers)
-// ---------------------------------------------------------------------------
+// Legacy helpers kept for backward compatibility with existing callers
 
 async function loadPersistedMemory(prisma, companyId) {
   const key = `${MEMORY_SETTING_PREFIX}${companyId}`;
@@ -71,9 +69,7 @@ function buildLegacyMemoryPrompt(guidelines) {
   ].join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// 2. Lesson Distillation — converts feedback events into MemoryEntry records
-// ---------------------------------------------------------------------------
+// Lesson distillation converts feedback events into memory entries
 
 /**
  * Maps a feedback action + decline class → lesson type
@@ -130,9 +126,7 @@ function determineScope(item, declineClass) {
   return { scope: "GLOBAL" };
 }
 
-// ---------------------------------------------------------------------------
-// 3. process_memory_updates — M4.1 core function
-// ---------------------------------------------------------------------------
+// processMemoryUpdates: M4.1 core function
 
 /**
  * Processes all unprocessed feedback events and distills them into structured
@@ -260,9 +254,7 @@ async function distillContextSignals(prisma, company) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 4. Stage-Specific Memory Retrieval
-// ---------------------------------------------------------------------------
+// Stage-specific memory retrieval
 
 /**
  * Retrieves a structured memory prompt for a specific pipeline stage.
@@ -347,9 +339,7 @@ async function getStagedMemoryPrompt(prisma, company, stage, context = {}) {
   return sections.join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// 5. Legacy updateCompanyMemory (kept for backward compat)
-// ---------------------------------------------------------------------------
+// Legacy updateCompanyMemory kept for backward compatibility
 
 async function updateCompanyMemory(prisma, company) {
   const cid = company.id;
@@ -384,9 +374,7 @@ async function updateCompanyMemory(prisma, company) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 6. Legacy getHumanMemoryPrompt (backward compat — calls getStagedMemoryPrompt)
-// ---------------------------------------------------------------------------
+// Legacy getHumanMemoryPrompt calls getStagedMemoryPrompt for backward compatibility
 
 async function getHumanMemoryPrompt(prisma, company) {
   return getStagedMemoryPrompt(prisma, company, "GENERATOR");

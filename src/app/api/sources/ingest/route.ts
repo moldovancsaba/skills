@@ -9,7 +9,7 @@ import type { SourceProcessingStatus } from "@prisma/client";
 export const dynamic = "force-dynamic";
 
 /**
- * Programmatic Ingress API (NBA 1)
+ * Programmatic ingress API
  * Allows external systems to push raw intelligence sources.
  */
 export async function POST(request: NextRequest) {

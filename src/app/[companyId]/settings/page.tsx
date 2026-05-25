@@ -163,7 +163,7 @@ export default function SettingsPage() {
           </UnifiedCardBody>
         </UnifiedCard>
 
-        {/* Global Alerting Control */}
+        {/* Global alerting control */}
         <UnifiedCard tone="review">
           <UnifiedCardBody>
           <Group justify="space-between">
@@ -186,7 +186,7 @@ export default function SettingsPage() {
           </UnifiedCardBody>
         </UnifiedCard>
 
-        {/* Organization Settings */}
+        {/* Organization settings */}
         <UnifiedCard tone="synthesis">
           <UnifiedCardBody>
           <Stack gap="lg">
@@ -244,7 +244,7 @@ export default function SettingsPage() {
         </UnifiedCard>
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-          {/* Channel Configuration */}
+          {/* Channel configuration */}
           <UnifiedCard tone="ingress">
             <UnifiedCardBody>
             <Stack gap="md">
@@ -280,7 +280,7 @@ export default function SettingsPage() {
             </UnifiedCardBody>
           </UnifiedCard>
 
-          {/* Threshold Configuration */}
+          {/* Threshold configuration */}
           <UnifiedCard tone="review">
             <UnifiedCardBody>
             <Stack gap="md">
@@ -312,7 +312,7 @@ export default function SettingsPage() {
           </UnifiedCard>
         </SimpleGrid>
 
-        {/* Two-Way Bridge Security */}
+        {/* Two-Way bridge security */}
         <UnifiedCard tone="tactical">
           <UnifiedCardBody>
           <Stack gap="md">

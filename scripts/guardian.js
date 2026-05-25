@@ -27,7 +27,7 @@ const {
 } = require("./lib/runtime/memory-governor");
 const prisma = new PrismaClient();
 
-// --- CONFIGURATION ---
+// Configuration
 const WORKER_SCRIPT    = path.join(__dirname, "sync.js");
 const STATUS_SCRIPT    = path.join(__dirname, "status-server.js");
 const SNAPSHOT_SCRIPT  = path.join(__dirname, "snapshot-worker.js");
@@ -79,9 +79,7 @@ const log  = (msg) => writeLog("INFO ", msg);
 const warn = (msg) => writeLog("WARN ", msg);
 const err  = (msg) => writeLog("ERROR", msg);
 
-// ---------------------------------------------------------------------------
 // State
-// ---------------------------------------------------------------------------
 let workerProcess      = null;
 let snapshotProcess    = null;
 let restartCount       = 0;
@@ -111,7 +109,7 @@ let memoryGovernorPolicy = normalizeMemoryGovernorPolicy(DEFAULT_MEMORY_GOVERNOR
 let memoryGovernorObservedState = createMemoryGovernorObservedState();
 let latestMemoryGovernorEvaluation = null;
 
-// --- Command bridge supervision ---
+// Command bridge supervision
 
 /**
  * Polls the database for pending system commands issued from the web dashboard.
@@ -173,7 +171,7 @@ async function executeCommand(cmd) {
   }
 }
 
-// --- HEARTBEAT ---
+// Heartbeat
 
 /**
  * Writes the Guardian's internal state to a JSON file for external observability.
@@ -213,7 +211,7 @@ function writeHeartbeat(extra = {}) {
   } catch (_) {}
 }
 
-// --- HEALTH MONITORING ---
+// Health monitoring
 
 /**
  * Checks if the Ollama AI server is responsive without forcing model reload.
@@ -638,7 +636,7 @@ function checkStatusServerHealth() {
   });
 }
 
-// --- PROCESS MANAGEMENT ---
+// Process management
 
 /**
  * Forcefully terminates the active local AI worker.
@@ -825,9 +823,7 @@ function scheduleSnapshotRestart() {
   }, delay);
 }
 
-// ---------------------------------------------------------------------------
 // Boot
-// ---------------------------------------------------------------------------
 async function bootGuardian() {
   log("═══════════════════════════════════════════");
   log("  checklist GUARDIAN STARTING");

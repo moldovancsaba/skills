@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 1. Fetch tasks in this version family
+    // Fetch tasks in this version family
     const tasks = await prisma.checklistTask.findMany({
       where: { versionFamilyId: familyId },
       select: { id: true, title: true, createdAt: true, sourceFlashcardIds: true, generatedFromIds: true, companyId: true }
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     const nodes: TraceNode[] = [];
     tasks.forEach(t => nodes.push({ id: t.id, type: "TASK", title: t.title, timestamp: t.createdAt }));
 
-    // 2. Collect flashcard IDs referenced by these tasks
+    // Collect flashcard IDs referenced by these tasks
     const flashcardIds = Array.from(new Set([
       ...tasks.flatMap(t => t.sourceFlashcardIds),
       ...tasks.flatMap(t => t.generatedFromIds),
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
 
       flashcards.forEach(f => nodes.push({ id: f.id, type: "FLASHCARD", title: f.title, timestamp: f.createdAt }));
 
-      // 3. Collect source IDs from the FlashcardSource join table
+      // Collect source IDs from the FlashcardSource join table
       const sourceIds = Array.from(new Set(flashcards.flatMap(f => f.sources.map(s => s.sourceId)))).filter(Boolean);
 
       if (sourceIds.length > 0) {

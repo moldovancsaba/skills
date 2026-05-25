@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
 
     let sourceData: ConvertibleRecord | null = null;
 
-    // 1. Fetch Source Data
+    // Fetch Source Data
     if (sourceType === "FLASHCARD") {
       sourceData = await prisma.flashcard.findUnique({
         where: { id: sourceId },
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Source card not found" }, { status: 404 });
     }
 
-    // 2. Create Target Data
+    // Create Target Data
     let createdItem: { id: string } | null = null;
     const baseData = buildBaseData(sourceType, sourceData);
 
@@ -273,7 +273,7 @@ export async function POST(req: NextRequest) {
       teachingWeight: 50,
     });
 
-    // 3. Migrate Sources (Lineage)
+    // Migrate Sources (Lineage)
     if (Array.isArray(sourceData.sources) && sourceData.sources.length > 0 && targetType !== "TASKCARD") {
       for (const s of sourceData.sources) {
         if (targetType === "FLASHCARD") {
@@ -298,7 +298,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Archive/Delete Source
+    // Archive/Delete Source
     if (sourceType === "FLASHCARD") {
       await prisma.flashcard.update({
         where: { id: sourceId },

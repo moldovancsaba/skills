@@ -18,9 +18,7 @@
  *   EVALUATED → DELIVERED (by user DELIVER feedback)
  */
 
-// ---------------------------------------------------------------------------
-// 1. Valid States and Transitions
-// ---------------------------------------------------------------------------
+// Valid states and transitions
 
 const CandidateState = {
   GENERATED:  "GENERATED",
@@ -56,9 +54,7 @@ const POOL_EXCLUDED_STATES = [
   CandidateState.DELIVERED,
 ];
 
-// ---------------------------------------------------------------------------
-// 2. State Transition Helpers
-// ---------------------------------------------------------------------------
+// State transition helpers
 
 /**
  * Build the data payload for transitioning a candidate to GENERATED state.
@@ -158,9 +154,7 @@ function toDelivered() {
   };
 }
 
-// ---------------------------------------------------------------------------
-// 3. State Queries
-// ---------------------------------------------------------------------------
+// State queries
 
 function isEligibleForFrontier(item) {
   return FRONTIER_ELIGIBLE_STATES.includes(item.candidateState) &&
@@ -180,9 +174,7 @@ function isTerminal(item) {
          item.candidateState === CandidateState.DELIVERED;
 }
 
-// ---------------------------------------------------------------------------
-// 4. Legacy Bridge
-// ---------------------------------------------------------------------------
+// Legacy bridge
 // Maps the old annotation-string-based state inference to the new enum.
 // Used ONLY during the transition period. Remove after all items are migrated.
 
@@ -202,9 +194,7 @@ function inferLegacyState(item) {
   return CandidateState.GENERATED;
 }
 
-// ---------------------------------------------------------------------------
-// 5. Exports
-// ---------------------------------------------------------------------------
+// Exports
 
 module.exports = {
   CandidateState,

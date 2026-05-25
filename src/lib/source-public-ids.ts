@@ -248,7 +248,7 @@ async function readMissingChecklistTasks(
 }
 
 /**
- * Scans for TaskCards (NBAItems) without public IDs and assigns them in order of creation.
+ * Scans for TaskCards (taskcards) without public IDs and assigns them in order of creation.
  * 
  * @param {string} [companyId] - Optional company filter
  * @returns {Promise<number>} Count of assigned IDs

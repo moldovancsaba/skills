@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("--- Starting Database State Reconciliation ---");
 
-  // 1. Scrub Flashcards
+  // Scrub Flashcards
   console.log("Scrubbing Flashcards...");
   const flashcards = await prisma.flashcard.findMany();
   let fcUpdated = 0;
@@ -13,7 +13,7 @@ async function main() {
     if (!fc.processingStatus) update.processingStatus = "CHECKED";
     if (!fc.activityState) update.activityState = "ACTIVE";
     
-    // Legacy Sync for Production Web App
+    // Legacy status bridge for Production Web App
     // FlashcardReviewStatus: PENDING, ACCEPTED, DECLINED, MODIFIED_ACCEPTED
     if (!fc.reviewStatus) update.reviewStatus = "PENDING";
     // FlashcardStatus (legacy status field): DRAFT, CHECKED, VERIFIED, etc.
@@ -27,7 +27,7 @@ async function main() {
   }
   console.log(`Updated ${fcUpdated} Flashcards.`);
 
-  // 2. Scrub Tasks (ChecklistTask)
+  // Scrub Tasks (ChecklistTask)
   console.log("Scrubbing Tasks...");
   const tasks = await prisma.checklistTask.findMany();
   let tcUpdated = 0;
@@ -36,8 +36,8 @@ async function main() {
     if (!tc.processingStatus) update.processingStatus = "CHECKED";
     if (!tc.activityState) update.activityState = "ACTIVE";
     
-    // Legacy Sync for Production Web App
-    // NBAStatus: DRAFT, CHECKED, VERIFIED, EXPIRED, PENDING, ACCEPTED, DECLINED, COMPLETED, ARCHIVED
+    // Legacy status bridge for Production Web App
+    // Legacy task status: DRAFT, CHECKED, VERIFIED, EXPIRED, PENDING, ACCEPTED, DECLINED, COMPLETED, ARCHIVED
     if (!tc.status || tc.status === "PENDING" || tc.status === "DRAFT") update.status = "CHECKED";
 
     if (Object.keys(update).length > 0) {

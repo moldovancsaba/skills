@@ -30,10 +30,8 @@ const {
 } = require("../../src/lib/scoring-contract");
 const { computeHistoryAwareTaskSignals } = require("./history-scoring");
 
-// ---------------------------------------------------------------------------
-// 1. Neighborhood Detection
+// Neighborhood detection.
 // Groups candidates by semantic similarity for operation selection.
-// ---------------------------------------------------------------------------
 
 /**
  * Builds candidate neighborhoods — clusters of semantically similar candidates.
@@ -66,9 +64,7 @@ function buildCandidateNeighborhoods(candidates, titleThreshold = 0.75) {
   return neighborhoods;
 }
 
-// ---------------------------------------------------------------------------
-// 2. Operation Selection (per spec §11)
-// ---------------------------------------------------------------------------
+// Operation selection (spec §11)
 
 const EXACT_DUPLICATE_THRESHOLD = 0.96;
 const HIGH_SEMANTIC_OVERLAP_THRESHOLD = 0.82;
@@ -195,9 +191,7 @@ async function normalizeRefinedTaskScores(prisma, raw = {}, fallback = {}) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// 3. Operation Implementations
-// ---------------------------------------------------------------------------
+// Operation implementations
 
 /**
  * MERGE: Combine overlapping candidates into one stronger candidate.
@@ -453,12 +447,10 @@ function parseSafe(val, fallback) {
   try { return parseBoundedScore(val, 1, 10); } catch { return fallback; }
 }
 
-// ---------------------------------------------------------------------------
-// 4. Main Refiner Entry Points
-// ---------------------------------------------------------------------------
+// Main refiner entry points
 
 /**
- * Runs the Refiner over a batch of generated NBA (TaskCard) candidates.
+ * Runs the Refiner over a batch of generated taskcard candidates.
  * Detects neighborhoods, selects operations, and returns refined + suppressed sets.
  *
  * @param {PrismaClient} prisma

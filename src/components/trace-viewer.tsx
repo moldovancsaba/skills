@@ -81,7 +81,7 @@ export function TraceViewer({
         </Group>
 
         <Box style={{ flex: 1, position: 'relative' }}>
-          {/* Vertical Connecting line */}
+          {/* Vertical connecting line */}
           <Box 
             style={{ 
               position: 'absolute', 

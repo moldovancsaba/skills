@@ -30,14 +30,14 @@ export function proxy(req: NextRequest) {
     return new NextResponse("Not Found", { status: 404 });
   }
 
-  // 1. Allow these specific public paths
+  // Allow these specific public paths
   const publicPaths = ["/login", "/auth", "/auth/callback", "/api/auth", "/api/bridge", "/api/test-public", "/card", "/api/cards"];
   if (localOperatorHost) {
     publicPaths.push("/local-ai");
   }
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 
-  // 2. Allow static files regardless of auth
+  // Allow static files regardless of auth
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/webhook") ||
@@ -47,7 +47,7 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3. Handle Login page redirection
+  // Handle Login page redirection
   if (pathname === "/login") {
     if (session) {
       return redirect(new URL("/", req.url));
@@ -55,7 +55,7 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 4. Force Login for all other routes (including /)
+  // Force Login for all other routes (including /)
   if (!session && !isPublicPath) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("returnTo", `${pathname}${search}`);

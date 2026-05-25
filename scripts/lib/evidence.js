@@ -21,9 +21,7 @@ const { deriveDataCardScoreProfile } = require("../../src/lib/upstream-card-scor
 const { buildSourceLifecycleData } = require("../../src/lib/source-contract");
 const { ensureCitationSnapshotForSource } = require("./citations");
 
-// ---------------------------------------------------------------------------
-// 1. Canonicalization
-// ---------------------------------------------------------------------------
+// Canonicalization
 
 /**
  * Produces a stable, normalized text representation of raw evidence content.
@@ -55,9 +53,7 @@ function computeContentHash(canonical) {
   return crypto.createHash("sha256").update(canonical, "utf8").digest("hex");
 }
 
-// ---------------------------------------------------------------------------
-// 2. Evidence Ingestion — Exact Hash Deduplication
-// ---------------------------------------------------------------------------
+// Evidence ingestion and exact-hash deduplication
 
 /**
  * Ingests a single evidence unit into the database.
@@ -109,7 +105,7 @@ async function ingestEvidenceUnit(prisma, opts) {
     aiClusters: [],
   });
 
-  // --- Exact-hash deduplication ---
+  // Exact-hash deduplication.
   const existing = await prisma.source.findFirst({
     where: { companyId, canonicalContentHash },
   });
@@ -119,7 +115,7 @@ async function ingestEvidenceUnit(prisma, opts) {
     return { source: existing, isDuplicate: true };
   }
 
-  // --- Create new EvidenceUnit ---
+  // Create a new evidence unit.
   const source = await prisma.source.create({
     data: {
       companyId,
@@ -148,9 +144,7 @@ async function ingestEvidenceUnit(prisma, opts) {
   return { source, isDuplicate: false };
 }
 
-// ---------------------------------------------------------------------------
-// 3. Grouped Evidence — for multi-evidence generation cardinalities
-// ---------------------------------------------------------------------------
+// Grouped evidence for multi-evidence generation
 
 /**
  * Loads active evidence units for a company, optionally filtered by topic hints.
@@ -247,9 +241,7 @@ function buildEvidenceBatches(evidenceUnits, maxBatchSize = 5) {
   return batches;
 }
 
-// ---------------------------------------------------------------------------
-// 4. Evidence Freshness
-// ---------------------------------------------------------------------------
+// Evidence freshness
 
 /**
  * Returns true if the evidence unit is still within its freshness window.
@@ -277,9 +269,7 @@ function computeInitialFreshnessScore(source) {
   return Math.max(0, 1 - ageMs / windowMs);
 }
 
-// ---------------------------------------------------------------------------
-// 5. Exports
-// ---------------------------------------------------------------------------
+// Exports
 
 module.exports = {
   canonicalizeContent,

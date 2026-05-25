@@ -39,7 +39,7 @@ const {
   renewLinearWorkerLock,
 } = require("./lib/runtime/linear-worker-lock");
 
-// --- CONTINUOUS HEARTBEAT ---
+// Continuous heartbeat
 // Persist progress even while the worker is between queue batches so the
 // watchdog and dashboard can detect a live-but-idle worker accurately.
 setInterval(async () => {

@@ -49,14 +49,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing security headers (v2.0.0)" }, { status: 401 });
     }
 
-    // 1. Clock Consistency: Timestamp Window (15 minutes)
+    // Clock Consistency: Timestamp Window (15 minutes)
     const now = Date.now();
     const reqTime = parseInt(timestamp, 10);
     if (Math.abs(now - reqTime) > 15 * 60 * 1000) {
       return NextResponse.json({ error: "Request outside 15-minute window" }, { status: 403 });
     }
 
-    // 2. Identify and Validate Secret
+    // Identify and Validate Secret
     const settings = await prisma.communicationSettings.findUnique({
       where: { companyId },
       include: { company: true }
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Empty content ignored" }, { status: 400 });
     }
 
-    // 4. Atomic Ingestion
+    // Atomic Ingestion
     const created = await prisma.$transaction(async (tx) => {
       const publicId = await nextSourcePublicId(tx);
       const persistedContent = `[Bridge Inbound from ${sender}]: ${content}`;

@@ -37,7 +37,7 @@ const {
   computeHistoryAwareTaskSignals,
 } = require("./history-scoring");
 
-// --- UTILITIES ---
+// Utilities
 
 function joinBody(body) {
   if (typeof body === "string") return body;
@@ -54,10 +54,8 @@ function joinBody(body) {
   return String(body);
 }
 
-// ---------------------------------------------------------------------------
-// 1. Flashcard Generator (KnowledgeItem generation from EvidenceUnit batch)
-// Supports 1→many and many→1 cardinalities via evidence batch context.
-// ---------------------------------------------------------------------------
+// Flashcard generator.
+// Supports 1-to-many and many-to-1 cardinalities through shared evidence-batch context.
 
 /**
  * Generates one or more Flashcard DRAFTs from a batch of EvidenceUnits.
@@ -146,7 +144,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
   let currentDraftsRaw = null;
   let finalDraftsArray = [];
 
-  // --- RECURRENT SYNTHESIS LOOP (Mythos RDT Logic §315) ---
+  // Recurrent synthesis loop (Mythos RDT logic §315).
   // We simulate "Recurrent Depth" by iterating the model over its own latent 
   // draft. This allows for deeper reasoning while remaining grounded via 
   // continuous input injection.
@@ -333,11 +331,8 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
   return drafts;
 }
 
-// ---------------------------------------------------------------------------
-// 2. TaskCard Generator (ActionItem generation from KnowledgeItem)
-// Implements the Knowledge-to-Action path from Trinity §25.
-// Writes CandidateState.GENERATED and sourceFlashcardIds[] lineage.
-// ---------------------------------------------------------------------------
+// Taskcard generator.
+// Implements the knowledge-to-action path from Trinity §25 and writes generated lineage fields.
 
 /**
  * Generates actionable TaskCard DRAFTs from a verified Flashcard (KnowledgeItem).

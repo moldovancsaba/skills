@@ -49,7 +49,7 @@ import { calculateKnowledgeIceScore, clampMetric, groundKnowledgeScores } from "
 import { escalateCompanyPipelineJob } from "@/lib/pipeline-queue";
 import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
 
-// --- TYPES ---
+// Types
 
 type FlashcardSourceKind = "PRODUCT" | "CUSTOMER" | "COMPETITOR" | "SOURCE" | "FILE" | "AGENT_FOUND";
 
@@ -232,7 +232,7 @@ const SECTION_KIND_MAP: Record<string, FlashcardKind> = {
 const PRICE_PATTERN =
   /(?:\$|EUR|USD|GBP)\s?\d[\d,.]*(?:\s*\/\s*(?:mo|month|yr|year|user))?|free\b|trial\b|pricing\b/i;
 
-// --- UTILITIES ---
+// Utilities
 
 /**
  * Generates a stable composite key for source tracking.
@@ -616,7 +616,7 @@ function sharedSourceContext(left: UnifiedSource, right: UnifiedSource) {
   return dedupeStrings([...sharedTags, ...sharedClusters], 5);
 }
 
-// --- DRAFTING ENGINE ---
+// Drafting engine
 
 /**
  * Generates an array of FlashcardDraft objects from a UnifiedSource (DataCard).

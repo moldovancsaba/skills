@@ -95,7 +95,7 @@ export function IntelligencePulse() {
   const statusColor = isHealthy ? "knowmore" : isWarning ? "review" : "review";
   return (
     <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
-      {/* Real-time Status */}
+      {/* Real-time status */}
       <UnifiedCard tone="neutral">
         <UnifiedCardBody>
         <Stack gap="md">
@@ -147,7 +147,7 @@ export function IntelligencePulse() {
         </UnifiedCardBody>
       </UnifiedCard>
 
-      {/* Throughput Yield */}
+      {/* Throughput yield */}
       <UnifiedCard tone="neutral">
         <UnifiedCardBody>
         <Stack gap="md">
@@ -187,7 +187,7 @@ export function IntelligencePulse() {
         </UnifiedCardBody>
       </UnifiedCard>
 
-      {/* Recent Performance */}
+      {/* Recent performance */}
       <UnifiedCard tone="neutral">
         <UnifiedCardBody>
         <Stack gap="md" h="100%">

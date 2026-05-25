@@ -17,7 +17,7 @@ async function runHealthCheck() {
   const prisma = new PrismaClient();
 
   try {
-    // 1. Connectivity Check
+    // Connectivity Check
     console.log("\n[1/4] Checking Ollama connectivity...");
     const start = Date.now();
     const test = await callOllamaJson("You are a health check bot.", "Return {\"status\":\"ok\"}", { model: OLLAMA_MODEL, timeoutMs: 10000 });
@@ -27,7 +27,7 @@ async function runHealthCheck() {
       throw new Error("Unexpected response from Ollama");
     }
 
-    // 2. Extraction Robustness Check
+    // Extraction Robustness Check
     console.log("\n[2/4] Verifying JSON extraction robustness...");
     const noisyContent = "Certainly! Here is the JSON you requested:\n```json\n{\"test\":true}\n```\nHope this helps!";
     const extracted = extractJsonCandidate(noisyContent);
@@ -37,7 +37,7 @@ async function runHealthCheck() {
       console.error(`>> FAILURE: Extraction failed. Got: [${extracted}]`);
     }
 
-    // 3. Database & Pipeline Check
+    // Database & Pipeline Check
     console.log("\n[3/4] Auditing Database Pipeline Status...");
     const companies = await prisma.company.count();
     const drafts = await prisma.flashcard.count({ where: { processingStatus: "DRAFT" } });
@@ -51,7 +51,7 @@ async function runHealthCheck() {
       console.log(">> INFO: System has CHECKED cards waiting for Judge promotion.");
     }
 
-    // 4. Stage Readiness
+    // Stage Readiness
     console.log("\n[4/4] Local AI Stage Readiness...");
     const { STAGE_MODELS } = require("./lib/core");
     console.log(`>> DRAFT Models: ${STAGE_MODELS.DRAFT.join(", ")}`);

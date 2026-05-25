@@ -18,7 +18,7 @@ const {
 } = require("../../src/lib/scoring-contract");
 const { computeHistoryAwareTaskSignals } = require("./history-scoring");
 
-// --- UTILITIES ---
+// Utilities
 
 /**
  * Normalizes AI-returned body content into a professional string.
@@ -32,7 +32,7 @@ function joinBody(body) {
   return String(body);
 }
 
-// --- REFINEMENT ENGINE ---
+// Refinement engine
 
 /**
  * Refines a DRAFT Flashcard into a CHECKED state.
@@ -42,7 +42,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
   const strategicContext = await getCompanyStrategicContext(prisma, flashCard.companyId);
   const company = flashCard.company || null;
 
-  // 1. Internal Memory & De-duplication Check
+  // Internal Memory & De-duplication Check
   // Require BOTH title AND body to be similar to avoid false positives on
   // structured titles like "Summary: CompanyName" which share shape but not substance.
   const existing = await prisma.flashcard.findMany({
@@ -62,7 +62,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
     console.log(`[WRITER] Duplicate detected: fc:${flashCard.id} matches ${duplicate.publicId} (title sim: ${similarity(duplicate.title, flashCard.title).toFixed(2)}, body sim: ${similarity(duplicate.body, flashCard.body).toFixed(2)})`);
     return { 
       processingStatus: "DECLINED", 
-      reviewStatus: "DECLINED", // Legacy Sync
+      reviewStatus: "DECLINED", // Legacy status bridge
       activityState: "ARCHIVED", // Hide duplicates
       userAnnotation: `[WRITER]: Detected duplicate of #${duplicate.publicId}` 
     };
@@ -108,13 +108,13 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
     confidenceScore: confidence,
     confidence: confidence,
     processingStatus: procStatus,
-    status: "CHECKED", // Internal Sync
+    status: "CHECKED", // Legacy status bridge
     activityState: "ACTIVE"
   };
 };
 
 /**
- * Refines a DRAFT Taskcard (NBA) into a CHECKED state.
+ * Refines a DRAFT taskcard into a CHECKED state.
  */
 async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null, externalContext = null) {
   const descLimit = await getWorkerConfig(prisma, taskCard.company || {}, "write_desc_limit", 1200);
@@ -139,7 +139,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null,
     console.log(`[WRITER] Duplicate task detected: tc:${taskCard.id} matches ${tcDuplicate.publicId}`);
     return { 
       processingStatus: "DECLINED", 
-      status: "DECLINED", // Internal Sync
+      status: "DECLINED", // Legacy status bridge
       activityState: "ARCHIVED", // Hide duplicates
       userAnnotation: `[WRITER]: Duplicate task detected. Matches #${tcDuplicate.publicId}.` 
     };
@@ -250,7 +250,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null,
     iceScore,
     scoreProfile: raw._scoreProfile || null,
     processingStatus: procStatus,
-    status: "CHECKED", // Legacy Sync
+    status: "CHECKED", // Legacy status bridge
     activityState: "ACTIVE"
   };
 };

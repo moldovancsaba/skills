@@ -17,7 +17,7 @@ const { humanReadableAllowedLanguages, getLanguagePolicyPrompt } = require("./la
  * @returns {Promise<string>} Formatted strategic context prompt
  */
 async function getCompanyStrategicContext(prisma, companyId) {
-  // 0. Load Company Strategy (Languages)
+  // Load Company Strategy (Languages)
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: { allowedLanguages: true }
@@ -25,20 +25,20 @@ async function getCompanyStrategicContext(prisma, companyId) {
   const allowedLangs = company?.allowedLanguages || ["English"];
   const readableAllowedLangs = humanReadableAllowedLanguages(allowedLangs);
 
-  // 1. Load TopicCards (The Strategy)
+  // Load TopicCards (The Strategy)
   const topics = await prisma.topic.findMany({
     where: { companyId, active: true },
     orderBy: { sortOrder: "asc" }
   });
 
-  // 2. Load Verified Flashcards (The Intelligence)
+  // Load Verified Flashcards (The Intelligence)
   const recentInsights = await prisma.flashcard.findMany({
     where: { companyId, processingStatus: "VERIFIED" },
     take: 10,
     orderBy: { updatedAt: "desc" }
   });
 
-  // 3. Load Active Tasks & Manual Priorities (§24 - Strategic Learning)
+  // Load Active Tasks & Manual Priorities (§24 - Strategic Learning)
   const prioritizedTasks = await prisma.checklistTask.findMany({
     where: { 
       companyId, 
@@ -59,7 +59,7 @@ async function getCompanyStrategicContext(prisma, companyId) {
     orderBy: { updatedAt: "desc" }
   });
 
-  // 4. Format the Context Prompt
+  // Format the Context Prompt
   let prompt = "--- RELATED STRATEGIC CONTEXT ---\n";
   prompt += `[Allowed Languages Policy]: AI MUST ONLY generate output in: ${readableAllowedLangs.join(", ")}\n`;
   prompt += `[Output Language Mandate]: ${getLanguagePolicyPrompt(allowedLangs)}\n`;

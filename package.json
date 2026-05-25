@@ -11,6 +11,7 @@
     "lint": "eslint src eslint.config.js --ext .ts,.tsx,.js,.jsx",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
+    "audit:comments": "node scripts/audit-comments.mjs",
     "audit:docs": "node scripts/audit-docs.mjs",
     "audit:semantic": "node scripts/semantic-audit.mjs",
     "audit:score-health": "node scripts/audit-score-health.js",

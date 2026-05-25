@@ -80,7 +80,7 @@ const FLASHCARD_MIN_IMPACT = 40;
 const FLASHCARD_MIN_WEIGHT = 40;
 const TASK_MIN_ICE_SCORE = 50;
 
-// --- AI SERIAL LOCK (CONCURRENCY = 1) ---
+// AI serial lock (concurrency = 1)
 
 let aiInferenceQueue = [];
 let aiSystemBusy = false;

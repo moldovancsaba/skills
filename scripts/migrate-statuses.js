@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 async function migrate() {
   console.log("Starting Data Migration: Legacy Status -> Option B (Processing + Activity)");
 
-  // 1. Flashcards migration
+  // Flashcards migration
   const flashcards = await prisma.flashcard.findMany();
   console.log(`Processing ${flashcards.length} Flashcards...`);
 
@@ -55,7 +55,7 @@ async function migrate() {
     });
   }
 
-  // 2. NBAItems migration
+  // taskcards migration
   const checklistTasks = await prisma.checklistTask.findMany();
   console.log(`Processing  checklist tasks...`);
 

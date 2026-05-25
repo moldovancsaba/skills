@@ -5,7 +5,7 @@ import { readAppSession } from "@/lib/auth";
 import { verifyMembership, verifySuperAdmin } from "@/lib/permissions";
 import { normalizeIndustryHashtags } from "@/lib/hashtags";
 import { validateCompanyProfile } from "@/lib/profile-validation";
-import { getProjectionFreshness, normalizeWebappProjection } from "@/lib/webapp-projection";
+import { buildCompanyReadModel } from "@/lib/company-read-model";
 import { createRequestProfiler } from "@/lib/request-profile";
 
 export const dynamic = 'force-dynamic';
@@ -59,32 +59,25 @@ export async function GET(request: NextRequest) {
 
     const enrichedCompanies = companies.map((company) => {
       const snapshot = company.intelligenceSnapshot;
-      const projection = normalizeWebappProjection(snapshot?.webappProjection);
-      const counts = projection?.counts;
-      const navCounts = projection?.navCounts;
-      const checklistCount = Number(navCounts?.checklist ?? counts?.checklistCount ?? 0);
-      const tacticalCount = Math.max(
-        Number(navCounts?.tactical ?? counts?.tacticalCount ?? 0),
-        checklistCount,
-      );
+      const readModel = buildCompanyReadModel(snapshot);
       return {
         ...company,
         metrics: {
-          data: Number(navCounts?.data ?? counts?.sources ?? 0),
-          topics: Number(navCounts?.topics ?? counts?.topics ?? 0),
-          knowmore: Number(navCounts?.knowmore ?? counts?.flashcards ?? 0),
-          goals: Number(navCounts?.goals ?? counts?.goals ?? 0),
-          sales: Number(navCounts?.sales ?? counts?.sales ?? 0),
-          review: Number(navCounts?.review ?? counts?.reviewCount ?? 0),
-          checklist: checklistCount,
-          tactical: tacticalCount,
+          data: Number(readModel.navCounts.data ?? 0),
+          topics: Number(readModel.navCounts.topics ?? 0),
+          knowmore: Number(readModel.navCounts.knowmore ?? 0),
+          goals: Number(readModel.navCounts.goals ?? 0),
+          sales: Number(readModel.navCounts.sales ?? 0),
+          review: Number(readModel.navCounts.review ?? 0),
+          checklist: Number(readModel.navCounts.checklist ?? 0),
+          tactical: Number(readModel.navCounts.tactical ?? 0),
         },
         projection: {
-          available: Boolean(projection),
-          freshness: getProjectionFreshness(projection?.generatedAt ?? null),
-          generatedAt: projection?.generatedAt ?? null,
+          available: Boolean(readModel.projection),
+          freshness: readModel.projectionFreshness,
+          generatedAt: readModel.projection?.generatedAt ?? null,
         },
-        charts: projection?.homeCharts ?? {
+        charts: readModel.projection?.homeCharts ?? {
           data: [],
           topics: [],
           goals: [],

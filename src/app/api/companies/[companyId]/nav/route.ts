@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { createRequestProfiler } from "@/lib/request-profile";
-import { normalizeWebappProjection } from "@/lib/webapp-projection";
+import { buildCompanyReadModel } from "@/lib/company-read-model";
 
 export const dynamic = "force-dynamic";
 
@@ -40,54 +40,18 @@ export async function GET(
         },
       }),
     ]));
-    const salesCount = await profiler.measure("loadSalesCount", () =>
-      prisma.opportunitycard.count({
-        where: {
-          companyId,
-          activityState: { in: ["ACTIVE", "STALE"] },
-          departmentKey: "SALES",
-        },
-      }),
-    );
 
     if (!company) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const projection = normalizeWebappProjection(snapshot?.webappProjection);
-    const observabilitySummary =
-      snapshot?.observabilitySummary && typeof snapshot.observabilitySummary === "object"
-        ? snapshot.observabilitySummary as Record<string, unknown>
-        : {};
-    const queue =
-      observabilitySummary.queue && typeof observabilitySummary.queue === "object"
-        ? observabilitySummary.queue as Record<string, unknown>
-        : {};
-
-    const counts: Record<string, number> = projection?.navCounts
-      ? {
-          ...projection.navCounts,
-          sales: salesCount,
-        }
-      : {
-      data: Number(snapshot?.dataIngressCount ?? 0),
-      topics: Number(snapshot?.topicSynthesisCount ?? 0),
-      knowmore: Number(snapshot?.knowmoreCount ?? 0),
-      goals: Number(snapshot?.strategicGoalsCount ?? 0),
-      review: Number(snapshot?.reviewGatewayCount ?? 0),
-      checklist: Number(snapshot?.checklistCount ?? 0),
-      tactical: Math.max(Number(snapshot?.tacticalBoardCount ?? 0), Number(snapshot?.checklistCount ?? 0)),
-      pipeline: Number(queue.totalActiveJobs ?? 0),
-      sales: salesCount,
-    };
+    const readModel = buildCompanyReadModel(snapshot);
 
     const response = NextResponse.json({
       company,
       counts: {
-        ...counts,
-        tactical: Math.max(Number(counts.tactical || 0), Number(counts.checklist || 0)),
-        pipeline: Number(queue.totalActiveJobs ?? counts.pipeline ?? 0),
-        sales: Number(counts.sales || salesCount || 0),
+        ...readModel.navCounts,
+        tactical: Math.max(Number(readModel.navCounts.tactical || 0), Number(readModel.navCounts.checklist || 0)),
       },
       ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),
     });

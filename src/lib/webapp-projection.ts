@@ -12,6 +12,7 @@ type ProjectionCounts = {
 };
 
 export const WEBAPP_SUMMARY_REFRESH_MS = 60 * 60 * 1000;
+export const WEBAPP_SUMMARY_CLIENT_POLL_MS = 30 * 1000;
 
 type PlanningLaneCounts = {
   IDEABANK: number;

@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { APP_SESSION_COOKIE, readAppSessionToken } from "@/lib/auth";
 import { isSuperAdminEmail } from "@/lib/permissions";
-import { getProjectionFreshness, normalizeWebappProjection } from "@/lib/webapp-projection";
+import { type ProjectionFreshness } from "@/lib/webapp-projection";
+import { buildCompanyReadModel } from "@/lib/company-read-model";
 
 type HomeInitialCompany = {
   id: string;
@@ -22,7 +23,7 @@ type HomeInitialCompany = {
   };
   projection: {
     available: boolean;
-    freshness: ReturnType<typeof getProjectionFreshness>;
+    freshness: ProjectionFreshness;
     generatedAt: string | null;
   };
   charts: {
@@ -114,12 +115,7 @@ export async function getHomeInitialData(): Promise<HomeInitialData> {
   ]);
 
   const normalizedCompanies: HomeInitialCompany[] = companies.map((company) => {
-    const projection = normalizeWebappProjection(company.intelligenceSnapshot?.webappProjection);
-    const checklistCount = Number(projection?.navCounts.checklist ?? projection?.counts.checklistCount ?? 0);
-    const tacticalCount = Math.max(
-      Number(projection?.navCounts.tactical ?? projection?.counts.tacticalCount ?? 0),
-      checklistCount,
-    );
+    const readModel = buildCompanyReadModel(company.intelligenceSnapshot);
 
     for (const tag of company.industries || []) {
       if (tag) industrySuggestions.add(tag);
@@ -137,20 +133,20 @@ export async function getHomeInitialData(): Promise<HomeInitialData> {
           ? [legacyTag]
           : [],
       metrics: {
-        data: Number(projection?.navCounts.data ?? projection?.counts.sources ?? 0),
-        topics: Number(projection?.navCounts.topics ?? projection?.counts.topics ?? 0),
-        knowmore: Number(projection?.navCounts.knowmore ?? projection?.counts.flashcards ?? 0),
-        goals: Number(projection?.navCounts.goals ?? projection?.counts.goals ?? 0),
-        review: Number(projection?.navCounts.review ?? projection?.counts.reviewCount ?? 0),
-        checklist: checklistCount,
-        tactical: tacticalCount,
+        data: Number(readModel.navCounts.data ?? 0),
+        topics: Number(readModel.navCounts.topics ?? 0),
+        knowmore: Number(readModel.navCounts.knowmore ?? 0),
+        goals: Number(readModel.navCounts.goals ?? 0),
+        review: Number(readModel.navCounts.review ?? 0),
+        checklist: Number(readModel.navCounts.checklist ?? 0),
+        tactical: Number(readModel.navCounts.tactical ?? 0),
       },
       projection: {
-        available: Boolean(projection),
-        freshness: getProjectionFreshness(projection?.generatedAt ?? null),
-        generatedAt: projection?.generatedAt ?? null,
+        available: Boolean(readModel.projection),
+        freshness: readModel.projectionFreshness,
+        generatedAt: readModel.projection?.generatedAt ?? null,
       },
-      charts: projection?.homeCharts ?? {
+      charts: readModel.projection?.homeCharts ?? {
         data: [],
         topics: [],
         goals: [],

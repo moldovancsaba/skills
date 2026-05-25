@@ -29,7 +29,7 @@ import type { CompanyScoreHealth } from "@/lib/score-health";
 import { BodyText, SectionTitle } from "@/components/ui/typography";
 import { useI18n } from "@/lib/ui-i18n";
 import type { ProjectionFreshness } from "@/lib/webapp-projection";
-import { WEBAPP_SUMMARY_REFRESH_MS } from "@/lib/webapp-projection";
+import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
 import type { DashboardInitialData } from "@/lib/server-company-page-data";
 import { buildAcceptedTaskPatch, buildArchivedTaskPatch, buildDeliveredTaskPatch } from "@/lib/candidate-lifecycle";
 
@@ -165,7 +165,7 @@ export default function CompanyDashboard({
 
     const intervalId = window.setInterval(() => {
       void loadDashboard(companyId);
-    }, WEBAPP_SUMMARY_REFRESH_MS);
+    }, WEBAPP_SUMMARY_CLIENT_POLL_MS);
 
     return () => window.clearInterval(intervalId);
   }, [companyId, loadDashboard]);

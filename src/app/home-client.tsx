@@ -12,7 +12,7 @@ import { useStore } from "@/lib/store";
 import { useState, useEffect, useCallback } from "react";
 import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 import { useI18n } from "@/lib/ui-i18n";
-import { WEBAPP_SUMMARY_REFRESH_MS } from "@/lib/webapp-projection";
+import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
 
 type HomeCompany = {
   id: string;
@@ -137,7 +137,7 @@ export default function Home({
 
     const intervalId = window.setInterval(() => {
       void refreshCompanies();
-    }, WEBAPP_SUMMARY_REFRESH_MS);
+    }, WEBAPP_SUMMARY_CLIENT_POLL_MS);
 
     return () => window.clearInterval(intervalId);
   }, [initialDataReady, t]);

@@ -13,6 +13,7 @@ import { getSidebarActiveStyle, getSidebarButtonStyle, getSidebarHoverStyle, get
 import { LabelText, MetaText } from "@/components/ui/typography";
 import { UiLanguageSelect } from "@/components/ui-language-select";
 import { useI18n } from "@/lib/ui-i18n";
+import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
 
 const pipelineItems = [
   {
@@ -181,7 +182,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
 
     const interval = setInterval(() => {
       void fetchCounts();
-    }, 30000);
+    }, WEBAPP_SUMMARY_CLIENT_POLL_MS);
 
     return () => clearInterval(interval);
   }, [company, company?.id, company?.name, companyIdFromUrl, setCompany]);

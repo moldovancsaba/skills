@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { createRequestProfiler } from "@/lib/request-profile";
-import { getProjectionFreshness, normalizeWebappProjection } from "@/lib/webapp-projection";
+import { buildCompanyReadModel } from "@/lib/company-read-model";
 
 export const dynamic = "force-dynamic";
 
@@ -40,30 +40,21 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const projection = normalizeWebappProjection(snapshot?.webappProjection);
-    const freshness = getProjectionFreshness(projection?.generatedAt ?? null);
-    const summary = projection?.planningSummary ?? {
-      laneCounts: {
-        IDEABANK: 0,
-        ROADMAP: 0,
-        BACKLOG: 0,
-        TODO: 0,
-        CHECKLIST: Number(snapshot?.checklistCount ?? 0),
-      },
-      tacticalCount: Math.max(Number(snapshot?.tacticalBoardCount ?? 0), Number(snapshot?.checklistCount ?? 0)),
-      checklistCount: Number(snapshot?.checklistCount ?? 0),
-    };
+    const readModel = buildCompanyReadModel(snapshot);
 
     const response = NextResponse.json({
       company,
       planningSummary: {
-        ...summary,
-        tacticalCount: Math.max(Number(summary.tacticalCount || 0), Number(summary.checklistCount || 0)),
+        ...readModel.planningSummary,
+        tacticalCount: Math.max(
+          Number(readModel.planningSummary.tacticalCount || 0),
+          Number(readModel.planningSummary.checklistCount || 0),
+        ),
       },
       projection: {
-        available: Boolean(projection),
-        freshness,
-        generatedAt: projection?.generatedAt ?? null,
+        available: Boolean(readModel.projection),
+        freshness: readModel.projectionFreshness,
+        generatedAt: readModel.projection?.generatedAt ?? null,
         snapshotUpdatedAt: snapshot?.updatedAt?.toISOString() ?? null,
       },
       ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),

@@ -17,6 +17,8 @@ const forbiddenPatterns = [
   { label: "hard-coded dark glass surface", regex: /rgba\(0,\s*0,\s*0,\s*0\.(2|8)\)|rgba\(20,\s*20,\s*20,\s*0\.95\)/i },
   { label: "hard-coded translucent light panel", regex: /rgba\(255,\s*255,\s*255,\s*0\.(03|05|06)\)/i },
   { label: "decorative route-card filler copy", regex: />\s*Access Layer\s*</i },
+  { label: "ornamental uppercase text", regex: /\btt=\s*"uppercase"/i },
+  { label: "ornamental letter-spacing text", regex: /\blts=\s*\{?\s*-?\d/i },
   { label: "local transition declaration", regex: /transition:\s*['"]/i },
   { label: "mantine transition component", regex: /<Transition\b|\bTransition,\s*$/im },
   { label: "unified card visual override", regex: /<UnifiedCard\b[^\n>]*\sstyle=\{/i },

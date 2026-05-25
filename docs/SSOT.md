@@ -4,6 +4,14 @@ This is the product and system single source of truth.
 
 It is subordinate only to [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md).
 
+For design, UI, and UX governance, `/Users/Shared/Projects/general-design-system` is the current checked-out external SSOT, and the governed upstream repository is `sovereignsquad/general-design-system`. CHECKLIST-local design documents define implementation adapter details, migration state, validation commands, and approved product-specific exceptions only.
+
+Current GDS alignment:
+
+- consumed GDS version: `2.4.0`
+- GDS last updated: `2026-05-25`
+- shared package install path: not adopted yet in this repo; target end state is direct package consumption through `@gds/theme`, `@gds/core`, and `@gds/admin`
+
 Future-function delivery rules are further defined in [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md).
 
 ## 1. Product Purpose

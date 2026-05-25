@@ -18,15 +18,15 @@ const requiredFiles = [
 const requiredPhrases = [
   {
     file: "README.md",
-    phrases: ["docs/RULEBOOK.md", "UnifiedCard", "audit:semantic"],
+    phrases: ["docs/RULEBOOK.md", "UnifiedCard", "audit:semantic", "general-design-system", "consumed GDS version"],
   },
   {
     file: "HANDOVER.md",
-    phrases: ["docs/RULEBOOK.md", "UnifiedCard", "AI brain"],
+    phrases: ["docs/RULEBOOK.md", "UnifiedCard", "AI brain", "general-design-system", "consumed GDS version"],
   },
   {
     file: "DESIGN_SYSTEM.md",
-    phrases: ["Mantine `Card`", "UnifiedCard", "Typography is centrally defined only"],
+    phrases: ["Mantine `Card`", "UnifiedCard", "Typography is centrally defined only", "general-design-system", "Local Adapter Inventory"],
   },
   {
     file: "docs/RULEBOOK.md",
@@ -34,7 +34,7 @@ const requiredPhrases = [
   },
   {
     file: "docs/SSOT.md",
-    phrases: ["Mantine only", "UnifiedCard", "AI brain"],
+    phrases: ["Mantine only", "UnifiedCard", "general-design-system"],
   },
 ];
 

@@ -20,7 +20,7 @@ import { CardShareAction } from "@/components/ui/card-share-action";
 import { MetaText, Text, Title } from "@/components/ui/typography";
 import { getTaskCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
-import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck } from "@tabler/icons-react";
+import { IconTrash as Trash2, IconExternalLink as ExternalLink, IconTarget as Target, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconLayersIntersect as Layers, IconLayoutDashboard as LayoutDashboard, IconListCheck as ListCheck, IconDownload as Download } from "@tabler/icons-react";
 import { getModuleTheme, getSemanticDropzoneStyle } from "@/lib/semantic-theme";
 import type { ProjectionFreshness } from "@/lib/webapp-projection";
 
@@ -441,6 +441,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   } | null>(null);
   const [projectionFreshness, setProjectionFreshness] = useState<ProjectionFreshness | null>(null);
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
+  const planningExportHref = `/api/checklist/export?companyId=${companyId}&scope=planning`;
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -646,6 +647,16 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
             >
               {projectionFreshnessLabel}
             </Badge>
+            <Button
+              component="a"
+              href={planningExportHref}
+              variant="light"
+              color="gray"
+              size="xs"
+              leftSection={<Download size={14} />}
+            >
+              Export CSV
+            </Button>
           </Group>
           <Group 
             wrap="nowrap" 

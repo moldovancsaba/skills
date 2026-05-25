@@ -31,6 +31,7 @@ import { useI18n } from "@/lib/ui-i18n";
 import type { ProjectionFreshness } from "@/lib/webapp-projection";
 import { WEBAPP_SUMMARY_REFRESH_MS } from "@/lib/webapp-projection";
 import type { DashboardInitialData } from "@/lib/server-company-page-data";
+import { buildAcceptedTaskPatch, buildArchivedTaskPatch, buildDeliveredTaskPatch } from "@/lib/candidate-lifecycle";
 
 type ChecklistTask = {
   id: string;
@@ -202,14 +203,7 @@ export default function CompanyDashboard({
       await fetch(`/api/checklist?id=${itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          processingStatus: "ACCEPTED",
-          activityState: "ARCHIVED",
-          candidateState: "ARCHIVED",
-          status: "ARCHIVED",
-          evaluationReason: feedbackAnnotation?.trim() || "Accepted but not delivered",
-          acceptedNotDelivered: true,
-        }),
+        body: JSON.stringify(buildArchivedTaskPatch(feedbackAnnotation?.trim() || "Accepted but not delivered")),
       });
     } else {
       const payload = {
@@ -233,23 +227,13 @@ export default function CompanyDashboard({
         await fetch(`/api/checklist?id=${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            processingStatus: "ACCEPTED",
-            status: "ACCEPTED",
-            evaluationReason: feedbackAnnotation?.trim() || "Accepted for execution",
-          }),
+          body: JSON.stringify(buildAcceptedTaskPatch(feedbackAnnotation?.trim() || "Accepted for execution")),
         });
       } else if (action === "DELIVER") {
         await fetch(`/api/checklist?id=${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            processingStatus: "ACCEPTED",
-            activityState: "ARCHIVED",
-            candidateState: "DELIVERED",
-            status: "COMPLETED",
-            evaluationReason: feedbackAnnotation?.trim() || "Delivered in reality",
-          }),
+          body: JSON.stringify(buildDeliveredTaskPatch(feedbackAnnotation?.trim() || "Delivered in reality")),
         });
       }
     }

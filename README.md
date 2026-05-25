@@ -2,6 +2,20 @@
 
 CHECKLIST is a multi-tenant autonomous intelligence system built on a strict Mantine-only product UI and a recurrent AI pipeline.
 
+`/Users/Shared/Projects/general-design-system` is the current checked-out General Design System source of truth for design, UI, and UX, and the governed upstream repository is `sovereignsquad/general-design-system`. Project-local files describe only implementation adapter details, migration state, validation commands, and approved exceptions.
+
+GDS alignment:
+
+- consumed GDS version: `2.4.0`
+- GDS last updated: `2026-05-25`
+- local theme/provider path: `src/components/providers.tsx`
+- local wrapper contract paths:
+  - shell and page header: `src/components/ui/app-shell.tsx`
+  - product card and modal shell: `src/components/ui/unified-card.tsx`, `src/components/ui/unified-card-modal.tsx`
+  - typography bridge: `src/components/ui/typography.tsx`
+  - semantic surface/state adapters: `src/lib/semantic-theme.ts`, `src/lib/ui-state.ts`, `src/lib/ui-interactions.ts`
+- shared package install path: not adopted yet in this repo; target end state is direct package consumption through `@gds/theme`, `@gds/core`, and `@gds/admin`
+
 ## Product Boundary
 
 CHECKLIST is a general-purpose company decision-maker, task manager, and AI support system.

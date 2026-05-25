@@ -11,6 +11,14 @@ Professional operating rule:
 - do not mask uncertainty with polished but vague language
 - do not claim compliance when the implementation is only partial
 
+`/Users/Shared/Projects/general-design-system` is the current checked-out General Design System source of truth for design, UI, and UX, and the governed upstream repository is `sovereignsquad/general-design-system`. Project-local files describe only implementation adapter details, migration state, validation commands, and approved exceptions.
+
+Current GDS alignment:
+
+- consumed GDS version: `2.4.0`
+- GDS last updated: `2026-05-25`
+- shared package install path: not adopted yet in this repo; target end state is direct package consumption through `@gds/theme`, `@gds/core`, and `@gds/admin`
+
 Read first:
 
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
@@ -123,6 +131,15 @@ Frontend:
 - [src/components/ui/app-shell.tsx](/Users/Shared/Projects/checklist/src/components/ui/app-shell.tsx)
 - [src/app/[companyId]/pipeline/page.tsx](/Users/Shared/Projects/checklist/src/app/[companyId]/pipeline/page.tsx)
 - [scripts/semantic-audit.mjs](/Users/Shared/Projects/checklist/scripts/semantic-audit.mjs)
+
+Pattern-service adapter inventory:
+
+- app shell and page header: [src/components/ui/app-shell.tsx](/Users/Shared/Projects/checklist/src/components/ui/app-shell.tsx)
+- product card and modal shell: [src/components/ui/unified-card.tsx](/Users/Shared/Projects/checklist/src/components/ui/unified-card.tsx), [src/components/ui/unified-card-modal.tsx](/Users/Shared/Projects/checklist/src/components/ui/unified-card-modal.tsx)
+- metric/progress card and empty/state block surfaces: [src/components/ui/app-shell.tsx](/Users/Shared/Projects/checklist/src/components/ui/app-shell.tsx)
+- typography bridge: [src/components/ui/typography.tsx](/Users/Shared/Projects/checklist/src/components/ui/typography.tsx)
+- semantic tone, state, and interaction adapters: [src/lib/semantic-theme.ts](/Users/Shared/Projects/checklist/src/lib/semantic-theme.ts), [src/lib/ui-state.ts](/Users/Shared/Projects/checklist/src/lib/ui-state.ts), [src/lib/ui-interactions.ts](/Users/Shared/Projects/checklist/src/lib/ui-interactions.ts)
+- data toolbar/responsive data view, auth shell, and article/docs shell do not yet have one shared adapter file; that is known backlog, not alternate authority
 
 System:
 

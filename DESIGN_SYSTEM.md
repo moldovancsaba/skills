@@ -3,6 +3,14 @@
 This document defines the live product design system.
 It is subordinate to [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md) and must not conflict with it.
 
+`/Users/Shared/Projects/general-design-system` is the current checked-out General Design System source of truth for design, UI, and UX, and the governed upstream repository is `sovereignsquad/general-design-system`. This file defines only the CHECKLIST local adapter layer, migration state, validation commands, and approved project-specific constraints.
+
+GDS alignment:
+
+- consumed GDS version: `2.4.0`
+- GDS last updated: `2026-05-25`
+- shared package install path: not adopted yet in this repo; target end state is direct package consumption through `@gds/theme`, `@gds/core`, and `@gds/admin`
+
 ## System Summary
 
 The CHECKLIST UI is:
@@ -26,6 +34,25 @@ The CHECKLIST UI is:
 - card shell in [src/components/ui/unified-card.tsx](/Users/Shared/Projects/checklist/src/components/ui/unified-card.tsx)
 - modal shell in [src/components/ui/unified-card-modal.tsx](/Users/Shared/Projects/checklist/src/components/ui/unified-card-modal.tsx)
 - page/layout primitives in [src/components/ui/app-shell.tsx](/Users/Shared/Projects/checklist/src/components/ui/app-shell.tsx)
+
+## Local Adapter Inventory
+
+Required GDS contract families map to these local files:
+
+- app shell: `src/components/ui/app-shell.tsx`
+- page header: `src/components/ui/app-shell.tsx`
+- product card: `src/components/ui/unified-card.tsx`
+- metric/progress card: `src/components/ui/app-shell.tsx`
+- state block and empty-state surface: `src/components/ui/app-shell.tsx`
+- article/docs shell: not currently implemented as a first-class local contract
+- auth shell: not currently implemented as a first-class local contract
+- data toolbar/responsive data view: no single shared local contract yet; per-surface implementations remain a backlog item rather than an approved alternate authority
+
+Known exception / migration backlog:
+
+- CHECKLIST currently does not consume published shared `@gds/*` packages.
+- CHECKLIST still uses a project-specific semantic tone/card grammar on top of Mantine because the product card family is product-defining here.
+- Shared contract families not yet centralized into one local adapter file remain backlog, not parallel authority.
 
 ## Core Non-Negotiable Rules
 
@@ -98,12 +125,15 @@ Approved primitives:
 - `MetaText`
 - `LabelText`
 - `ActionLabel`
+- `Text`
+- `Title`
 
 Rules:
 
 - no feature-level `fontSize`
 - no feature-level `letterSpacing`
 - no ad hoc title hierarchy
+- no ornamental all-caps text treatment as hierarchy chrome
 - if a new text role is needed, add a DS primitive first
 - decorative filler labels are forbidden
 - sidebar labels, route-card labels, counts, and legal/meta text must collapse into the approved primitives instead of local `Text size=...` recipes

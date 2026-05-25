@@ -17,9 +17,10 @@ import { EmptyState, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } 
 import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
-import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowLeft as ArrowLeft, IconListCheck as ListCheck } from "@tabler/icons-react";
+import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowLeft as ArrowLeft, IconListCheck as ListCheck, IconDownload as Download } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { ProjectionFreshness } from "@/lib/webapp-projection";
+import { buildAcceptedTaskPatch, buildArchivedTaskPatch, buildDeliveredTaskPatch } from "@/lib/candidate-lifecycle";
 
 /**
  * Representational interface for a tactical intelligence unit (Task).
@@ -68,6 +69,8 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
   const [companyName, setCompanyName] = useState<string>("");
   const [planningSummary, setPlanningSummary] = useState<{ tacticalCount: number; checklistCount: number } | null>(null);
   const [projectionFreshness, setProjectionFreshness] = useState<ProjectionFreshness | null>(null);
+
+  const checklistExportHref = `/api/checklist/export?companyId=${companyId}&scope=checklist`;
 
   const loadChecklist = useCallback(async (cid: string) => {
     setLoading(true);
@@ -173,14 +176,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         const res = await fetch(`/api/checklist?id=${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            processingStatus: "ACCEPTED",
-            activityState: "ARCHIVED",
-            candidateState: "ARCHIVED",
-            status: "ARCHIVED",
-            evaluationReason: feedbackAnnotation?.trim() || "Accepted but not delivered",
-            acceptedNotDelivered: true,
-          }),
+          body: JSON.stringify(buildArchivedTaskPatch(feedbackAnnotation?.trim() || "Accepted but not delivered")),
         });
 
         if (res.ok) {
@@ -219,11 +215,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         const patchRes = await fetch(`/api/checklist?id=${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            processingStatus: "ACCEPTED",
-            status: "ACCEPTED",
-            evaluationReason: feedbackAnnotation?.trim() || "Accepted for execution",
-          }),
+          body: JSON.stringify(buildAcceptedTaskPatch(feedbackAnnotation?.trim() || "Accepted for execution")),
         });
 
         if (patchRes.ok) {
@@ -239,13 +231,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
         const patchRes = await fetch(`/api/checklist?id=${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            processingStatus: "ACCEPTED",
-            activityState: "ARCHIVED",
-            candidateState: "DELIVERED",
-            status: "COMPLETED",
-            evaluationReason: feedbackAnnotation?.trim() || "Delivered in reality",
-          }),
+          body: JSON.stringify(buildDeliveredTaskPatch(feedbackAnnotation?.trim() || "Delivered in reality")),
         });
 
         if (patchRes.ok) {
@@ -420,6 +406,15 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                     leftSection={<RefreshCw size={14} />}
                   >
                     Refresh
+                  </Button>
+                  <Button
+                    component="a"
+                    href={checklistExportHref}
+                    variant="light"
+                    color="gray"
+                    leftSection={<Download size={14} />}
+                  >
+                    Export CSV
                   </Button>
                   <Button 
                     variant="light" 

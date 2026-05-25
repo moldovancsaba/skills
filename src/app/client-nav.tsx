@@ -1,7 +1,7 @@
 'use client';
 
 import { AppShellNavbar, AppShellSection, NavLink, Stack, Group, Box, Avatar, Menu, rem, UnstyledButton, ScrollArea, ThemeIcon, Badge, Divider, Button, Anchor } from "@mantine/core";
-import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History } from "@tabler/icons-react";
+import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconChartBar as ChartBar } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
@@ -78,6 +78,14 @@ const pipelineItems = [
     icon: ListCheck,
     color: "checklist",
     tone: "checklist",
+  },
+  {
+    key: "analytics",
+    href: (companyId: string) => `/${companyId}/analytics`,
+    label: "Analytics",
+    icon: ChartBar,
+    color: "review",
+    tone: "review",
   },
   {
     key: "pipeline",
@@ -243,7 +251,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
                 const companyId = companyIdFromUrl || company?.id;
                 const itemHref = companyId ? item.href(companyId) : "";
                 const isActive = Boolean(pathname && itemHref && (pathname === itemHref || pathname.startsWith(`${itemHref}/`)));
-                const itemLabel = t(item.labelKey);
+                const itemLabel = "labelKey" in item && item.labelKey ? t(item.labelKey) : item.label;
 
                 return (
                   <NavLink

@@ -128,7 +128,7 @@ export function ActionLabel({
   c = "var(--text-primary)",
 }: Pick<TextCommonProps, "children" | "c">) {
   return (
-    <MantineText size="sm" fw={700} tt="uppercase" lts={0.6} c={c}>
+    <MantineText size="sm" fw={700} lh={1.35} c={c}>
       {children}
     </MantineText>
   );

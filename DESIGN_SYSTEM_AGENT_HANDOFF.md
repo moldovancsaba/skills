@@ -15,6 +15,7 @@ Read first:
 
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
 2. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
+3. `/Users/Shared/Projects/general-design-system` (current checked-out external SSOT; governed upstream repository `sovereignsquad/general-design-system`; version `2.4.0`, last updated `2026-05-25`)
 
 ## What We Use
 
@@ -85,6 +86,12 @@ Approved roles:
 - `MetaText`
 - `LabelText`
 - `ActionLabel`
+- `Text`
+- `Title`
+
+Rules:
+
+- do not use ornamental all-caps or decorative letter-spacing as hierarchy chrome
 
 ## Required Interaction Architecture
 

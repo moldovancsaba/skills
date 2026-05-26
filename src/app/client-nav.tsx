@@ -1,7 +1,7 @@
 'use client';
 
 import { AppShellNavbar, AppShellSection, NavLink, Stack, Group, Box, Avatar, Menu, rem, UnstyledButton, ScrollArea, ThemeIcon, Badge, Divider, Button, Anchor } from "@mantine/core";
-import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconChartBar as ChartBar } from "@tabler/icons-react";
+import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconChartBar as ChartBar, IconBuilding as Building } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
@@ -114,6 +114,22 @@ type ClientNavProps = {
   } | null;
 };
 
+type PortfolioUnit = {
+  id: string;
+  name: string;
+  industries?: string[];
+  metrics?: {
+    data?: number;
+    topics?: number;
+    knowmore?: number;
+    goals?: number;
+    sales?: number;
+    review?: number;
+    checklist?: number;
+    tactical?: number;
+  };
+};
+
 export function ClientNav({ initialSession = null }: ClientNavProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -124,6 +140,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
   const [session, setSession] = useState<any>(initialSession);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [resolvedCompany, setResolvedCompany] = useState<any>(null);
+  const [portfolioUnits, setPortfolioUnits] = useState<PortfolioUnit[]>([]);
 
   // Pure URL-driven company ID
   const companyIdFromUrl = params?.companyId as string;
@@ -134,6 +151,30 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setSession(data));
   }, [initialSession]);
+
+  useEffect(() => {
+    if (pathname !== "/") return;
+
+    const fetchPortfolioUnits = async () => {
+      try {
+        const res = await fetch("/api/companies");
+        if (!res.ok) return;
+        const data = await res.json();
+        const units = Array.isArray(data) ? data : Array.isArray(data?.companies) ? data.companies : [];
+        setPortfolioUnits(Array.isArray(units) ? units : []);
+      } catch (err) {
+        console.error("Failed to fetch portfolio units:", err);
+      }
+    };
+
+    void fetchPortfolioUnits();
+
+    const interval = window.setInterval(() => {
+      void fetchPortfolioUnits();
+    }, WEBAPP_SUMMARY_CLIENT_POLL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [pathname]);
 
   useEffect(() => {
     const activeId = companyIdFromUrl || company?.id;
@@ -316,6 +357,64 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
                   />
                 );
               })}
+            </Stack>
+          ) : pathname === "/" ? (
+            <Stack gap="sm">
+              <Box px="md" py="xs">
+                <MetaText ta="center">
+                  {t("nav.selectPortfolio")}
+                </MetaText>
+              </Box>
+
+              {portfolioUnits.map((unit) => {
+                const tacticalCount = Math.max(
+                  Number(unit.metrics?.tactical ?? 0),
+                  Number(unit.metrics?.checklist ?? 0),
+                );
+                const summaryCount = tacticalCount || Number(unit.metrics?.sales ?? 0) || Number(unit.metrics?.data ?? 0);
+
+                return (
+                  <NavLink
+                    key={unit.id}
+                    label={unit.name}
+                    description={unit.industries?.slice(0, 2).join(" · ") || t("nav.companyDescription")}
+                    leftSection={
+                      <ThemeIcon color="review">
+                        <Building size={14} />
+                      </ThemeIcon>
+                    }
+                    rightSection={summaryCount > 0 ? <Badge size="xs" color="review">{summaryCount}</Badge> : undefined}
+                    variant="light"
+                    onClick={() => {
+                      setCompany({
+                        id: unit.id,
+                        name: unit.name,
+                        industry: null,
+                        description: null,
+                        targetMarket: null,
+                        mainGoal: null,
+                      });
+                      router.push(`/${unit.id}`);
+                    }}
+                    styles={{
+                      root: {
+                        borderLeft: "2px solid transparent",
+                        ...getSidebarButtonStyle(),
+                      },
+                      label: { color: "var(--nav-link-inactive)", fontWeight: 500 },
+                      description: { color: "var(--nav-company-description)" },
+                    }}
+                  />
+                );
+              })}
+
+              {portfolioUnits.length === 0 ? (
+                <Box px="md" py="xl">
+                  <MetaText ta="center">
+                    {t("home.noUnitsDescription")}
+                  </MetaText>
+                </Box>
+              ) : null}
             </Stack>
           ) : (
             <Box px="md" py="xl">

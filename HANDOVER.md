@@ -27,6 +27,12 @@ Read first:
 4. [docs/CANONICAL_TERMINOLOGY.md](/Users/Shared/Projects/checklist/docs/CANONICAL_TERMINOLOGY.md)
 5. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
 
+Prisma hygiene:
+
+- after any branch switch, rebase, or detached checkout that changes `prisma/schema.prisma`, run `npm run db:generate` before trusting lint or typecheck
+- the generated Prisma client is an operational dependency, not optional local cache noise
+- if type errors claim Prisma models or enums are missing, verify generation drift before editing application code
+
 ## Current Contract
 
 - Mantine is the only approved product UI framework

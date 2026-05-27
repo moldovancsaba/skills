@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- destination workspace semantic-audit violations in the content-ops, review, and rulebook-runner surfaces
+
+### Changed
+
+- repo guards and repository operating docs now treat `npm run db:generate` as an explicit verification step before lint and typecheck when Prisma schema definitions may have changed
+
 ## v0.16.0 - 2026-05-15
 
 This release completes the local AI planner rollout and ships the first full Local AI Quality Engine.

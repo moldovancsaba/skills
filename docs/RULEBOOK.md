@@ -371,11 +371,17 @@ Work is not complete if any of the following are true:
 Required checks for UI and architecture work:
 
 ```bash
+npm run db:generate
 npm run audit:docs
 npm run lint
 npm run audit:semantic
 npx tsc --noEmit
 ```
+
+Prisma client synchronization rule:
+
+- if `prisma/schema.prisma` changed, or you switched to a commit/branch with different Prisma model definitions, run `npm run db:generate` before lint or typecheck
+- do not treat generated Prisma client drift as an application-code defect until regeneration is verified
 
 If a new category of drift is discovered:
 
@@ -396,6 +402,7 @@ Current workflow:
 
 The workflow must enforce:
 
+- `npm run db:generate`
 - `npm run audit:docs`
 - `npm run audit:semantic`
 - `npm run lint`

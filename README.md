@@ -232,6 +232,12 @@ npm install
 
 Prisma client generation runs automatically on install and prebuild.
 
+If you switch branches, pull schema changes, or check out an older commit that touches `prisma/schema.prisma`, regenerate the client before trusting lint or typecheck:
+
+```bash
+npm run db:generate
+```
+
 ### Configure
 
 Required environment:
@@ -391,11 +397,14 @@ These files define the live UI contract:
 Before closing UI or architecture work:
 
 ```bash
+npm run db:generate
 npm run audit:docs
 npm run lint
 npm run audit:semantic
 npx tsc --noEmit
 ```
+
+Use `npm run db:generate` as mandatory regeneration after any Prisma schema change or after moving between commits with different destination-model definitions. The generated Prisma client is part of the effective local contract.
 
 ## Mandatory Documentation Update Rule
 
@@ -427,6 +436,7 @@ Repository guards run in:
 
 That workflow enforces:
 
+- `npm run db:generate`
 - `npm run audit:docs`
 - `npm run audit:semantic`
 - `npm run lint`

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Button, Code, Group, Loader, SimpleGrid, Stack, Textarea } from "@mantine/core";
+import { Badge, Button, Code, Group, Loader, NativeSelect, SimpleGrid, Stack, Textarea } from "@mantine/core";
 import { IconPlayerPause, IconPlayerPlay, IconRefresh, IconRosetteDiscountCheck, IconSend } from "@tabler/icons-react";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
@@ -24,6 +24,12 @@ type MissionRun = {
   updatedAt: string;
   policySnapshot?: {
     version: string;
+    policyJson?: {
+      executionMode?: string;
+      maxCandidatesPerMission?: number;
+      maxDomainRetries?: number;
+      maxContinuousPasses?: number;
+    } | null;
   } | null;
   attempts?: MissionAttempt[];
 };
@@ -98,6 +104,27 @@ type DiscoverResponse = {
   error?: string;
 };
 
+type MissionCandidateSummary = {
+  id: string;
+  status: string;
+  canonicalSourceUrl: string;
+  proposedType: string | null;
+  metadata?: {
+    title?: string;
+    authorityGrade?: string;
+    boroughGuess?: string;
+    neighborhoodGuess?: string;
+    searchQuery?: string;
+    scoreResult?: { score?: number } | Record<string, unknown>;
+    discoveryArtifact?: { sourceHost?: string } | Record<string, unknown>;
+  } | null;
+  reviewPackets?: Array<{
+    packetState: string;
+    reviewDecisions?: Array<{ decision: string }>;
+    outcomeMemories?: Array<{ eventType: string }>;
+  }>;
+};
+
 type ExtractResponse = {
   ok: boolean;
   result?: {
@@ -144,7 +171,9 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
   const [cycleResponse, setCycleResponse] = useState<ExecuteNextAttemptResponse | null>(null);
   const [discoverResponse, setDiscoverResponse] = useState<DiscoverResponse | null>(null);
   const [extractResponse, setExtractResponse] = useState<ExtractResponse | null>(null);
+  const [missionCandidates, setMissionCandidates] = useState<MissionCandidateSummary[]>([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+  const [executionMode, setExecutionMode] = useState<"manual" | "guarded" | "autopilot">("manual");
   const [starting, setStarting] = useState(false);
   const [discovering, setDiscovering] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -152,6 +181,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
   const [preparing, setPreparing] = useState(false);
   const [autoRunning, setAutoRunning] = useState(false);
   const [cycleRunning, setCycleRunning] = useState(false);
+  const [daemonRunning, setDaemonRunning] = useState(false);
   const [toggling, setToggling] = useState(false);
 
   const selectedRun = useMemo(
@@ -174,6 +204,10 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
       ) ?? [],
     [cycleResponse],
   );
+  const selectedCandidateSummary = useMemo(
+    () => missionCandidates.find((candidate) => candidate.id === selectedCandidateId) ?? null,
+    [missionCandidates, selectedCandidateId],
+  );
 
   const loadRuns = useCallback(async () => {
     setLoading(true);
@@ -188,15 +222,43 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
       const nextRuns = Array.isArray(payload?.runs) ? (payload.runs as MissionRun[]) : [];
       setRuns(nextRuns);
       setSelectedRunId((current) => current ?? nextRuns[0]?.id ?? null);
+      const activeRun = nextRuns.find((run) => run.id === (selectedRunId ?? nextRuns[0]?.id)) ?? nextRuns[0];
+      const mode = activeRun?.policySnapshot?.policyJson?.executionMode;
+      if (mode === "manual" || mode === "guarded" || mode === "autopilot") {
+        setExecutionMode(mode);
+      }
     } finally {
       setLoading(false);
     }
-  }, [companyId]);
+  }, [companyId, selectedRunId]);
+
+  const loadMissionCandidates = useCallback(async (runId: string | null) => {
+    if (!runId) {
+      setMissionCandidates([]);
+      return;
+    }
+
+    const params = new URLSearchParams({ companyId });
+    const response = await fetch(`/api/destination-missions/runs/${runId}/candidates?${params.toString()}`);
+    const payload = response.ok ? await response.json() : null;
+    const candidates = Array.isArray(payload?.candidates) ? (payload.candidates as MissionCandidateSummary[]) : [];
+    setMissionCandidates(candidates);
+    if (candidates.length && !selectedCandidateId) {
+      setSelectedCandidateId(candidates[0]?.id ?? null);
+    }
+  }, [companyId, selectedCandidateId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadRuns(), 0);
     return () => window.clearTimeout(timer);
   }, [loadRuns]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadMissionCandidates(selectedRunId ?? runs[0]?.id ?? null);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadMissionCandidates, runs, selectedRunId]);
 
   const startMission = useCallback(async () => {
     setStarting(true);
@@ -209,6 +271,9 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
           destinationKey: "classscout",
           missionKind: "rulebook_new_listing",
           metadata: { startedFrom: "destination-rulebook-runner" },
+          policySnapshot: {
+            executionMode,
+          },
         }),
       });
       const payload = response.ok ? await response.json() : null;
@@ -220,7 +285,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setStarting(false);
     }
-  }, [companyId, loadRuns]);
+  }, [companyId, executionMode, loadRuns]);
 
   const toggleMission = useCallback(async () => {
     if (!selectedRun) return;
@@ -263,10 +328,11 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
       const firstCandidateId = payload.persisted?.[0]?.candidate.id ?? null;
       setSelectedCandidateId(firstCandidateId);
       await loadRuns();
+      await loadMissionCandidates(selectedRun.id);
     } finally {
       setDiscovering(false);
     }
-  }, [companyId, loadRuns, selectedRun]);
+  }, [companyId, loadMissionCandidates, loadRuns, selectedRun]);
 
   const extractCandidate = useCallback(async () => {
     if (!selectedRun || !selectedDiscoveredCandidate) return;
@@ -300,10 +366,11 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         setMediaRequestJson(pretty(result.mediaRequest));
       }
       await loadRuns();
+      await loadMissionCandidates(selectedRun.id);
     } finally {
       setExtracting(false);
     }
-  }, [companyId, loadRuns, selectedDiscoveredCandidate, selectedRun]);
+  }, [companyId, loadMissionCandidates, loadRuns, selectedDiscoveredCandidate, selectedRun]);
 
   const scoreCandidate = useCallback(async () => {
     if (!selectedRun) return;
@@ -321,10 +388,11 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
       const payload = (await response.json().catch(() => ({ ok: false, error: "Invalid response" }))) as ScoreResponse;
       setScoreResponse(payload);
       await loadRuns();
+      await loadMissionCandidates(selectedRun.id);
     } finally {
       setScoring(false);
     }
-  }, [companyId, loadRuns, parseEditors, selectedRun]);
+  }, [companyId, loadMissionCandidates, loadRuns, parseEditors, selectedRun]);
 
   const prepareCandidate = useCallback(async () => {
     if (!selectedRun) return;
@@ -346,10 +414,11 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
       const payload = (await response.json().catch(() => ({ ok: false, error: "Invalid response" }))) as PrepareResponse;
       setPrepareResponse(payload);
       await loadRuns();
+      await loadMissionCandidates(selectedRun.id);
     } finally {
       setPreparing(false);
     }
-  }, [companyId, loadRuns, parseEditors, selectedCandidateId, selectedRun]);
+  }, [companyId, loadMissionCandidates, loadRuns, parseEditors, selectedCandidateId, selectedRun]);
 
   const executeNextAttempt = useCallback(async () => {
     if (!selectedRun) return;
@@ -369,10 +438,11 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         setSelectedCandidateId(payload.candidateId);
       }
       await loadRuns();
+      await loadMissionCandidates(selectedRun.id);
     } finally {
       setAutoRunning(false);
     }
-  }, [companyId, loadRuns, selectedRun]);
+  }, [companyId, loadMissionCandidates, loadRuns, selectedRun]);
 
   const executeUntilBlocked = useCallback(async () => {
     if (!selectedRun) return;
@@ -393,10 +463,33 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         setSelectedCandidateId(payload.candidateId);
       }
       await loadRuns();
+      await loadMissionCandidates(selectedRun.id);
     } finally {
       setCycleRunning(false);
     }
-  }, [companyId, loadRuns, selectedRun]);
+  }, [companyId, loadMissionCandidates, loadRuns, selectedRun]);
+
+  const runDaemonTick = useCallback(async () => {
+    setDaemonRunning(true);
+    try {
+      const response = await fetch("/api/destination-missions/daemon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId,
+          maxRuns: 5,
+          maxPasses: 3,
+          maxAutoRejections: 5,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({ ok: false, error: "Invalid response" }))) as ExecuteNextAttemptResponse;
+      setCycleResponse(payload);
+      await loadRuns();
+      await loadMissionCandidates(selectedRun?.id ?? selectedRunId ?? null);
+    } finally {
+      setDaemonRunning(false);
+    }
+  }, [companyId, loadMissionCandidates, loadRuns, selectedRun?.id, selectedRunId]);
 
   if (loading) {
     return (
@@ -431,6 +524,15 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
               </BodyText>
             </Stack>
             <Group gap="sm">
+              <NativeSelect
+                value={executionMode}
+                onChange={(event) => setExecutionMode(event.currentTarget.value as "manual" | "guarded" | "autopilot")}
+                data={[
+                  { value: "manual", label: "Manual" },
+                  { value: "guarded", label: "Guarded" },
+                  { value: "autopilot", label: "Autopilot" },
+                ]}
+              />
               <Button leftSection={<IconPlayerPlay size={16} />} color="review" loading={starting} onClick={() => void startMission()}>
                 Start mission
               </Button>
@@ -579,10 +681,19 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
             >
               Run until blocked
             </Button>
-            <Button
-              color="review"
-              leftSection={<IconSend size={16} />}
-              loading={preparing}
+              <Button
+                color="strategy"
+                variant="light"
+                leftSection={<IconRefresh size={16} />}
+                loading={daemonRunning}
+                onClick={() => void runDaemonTick()}
+              >
+                Run background tick
+              </Button>
+              <Button
+                color="review"
+                leftSection={<IconSend size={16} />}
+                loading={preparing}
               disabled={!selectedRun}
               onClick={() => void prepareCandidate()}
             >
@@ -650,6 +761,56 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
           </SimpleGrid>
 
           <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="md">
+            <UnifiedCardSection tone="checklist">
+              <Stack gap="xs">
+                <SectionTitle>Mission Candidate Queue</SectionTitle>
+                {missionCandidates.length ? (
+                  missionCandidates.map((candidate) => {
+                    const score =
+                      typeof candidate.metadata?.scoreResult === "object" && candidate.metadata?.scoreResult && "score" in candidate.metadata.scoreResult
+                        ? Number((candidate.metadata.scoreResult as { score?: number }).score ?? 0)
+                        : null;
+                    const sourceHost =
+                      typeof candidate.metadata?.discoveryArtifact === "object" &&
+                      candidate.metadata?.discoveryArtifact &&
+                      "sourceHost" in candidate.metadata.discoveryArtifact
+                        ? String((candidate.metadata.discoveryArtifact as { sourceHost?: string }).sourceHost ?? "")
+                        : "";
+                    return (
+                      <UnifiedCardSection key={candidate.id} tone={candidate.id === selectedCandidateSummary?.id ? "review" : "neutral"}>
+                        <Stack gap="xs">
+                          <Group justify="space-between" align="flex-start">
+                            <Stack gap={2}>
+                              <Text fw={600}>{candidate.metadata?.title ?? candidate.id}</Text>
+                              <MetaText>{candidate.proposedType ?? "unknown"} · {candidate.status}</MetaText>
+                            </Stack>
+                            {score !== null ? (
+                              <Badge variant="light" color="strategy">Score {score}</Badge>
+                            ) : null}
+                          </Group>
+                          <MetaText>{candidate.metadata?.boroughGuess ?? ""} {candidate.metadata?.neighborhoodGuess ? `· ${candidate.metadata.neighborhoodGuess}` : ""}</MetaText>
+                          <MetaText>{sourceHost || candidate.canonicalSourceUrl}</MetaText>
+                          <MetaText>
+                            Review: {candidate.reviewPackets?.[0]?.packetState ?? "none"} · Decision: {candidate.reviewPackets?.[0]?.reviewDecisions?.[0]?.decision ?? "none"} · Outcome: {candidate.reviewPackets?.[0]?.outcomeMemories?.[0]?.eventType ?? "none"}
+                          </MetaText>
+                          <Button
+                            size="xs"
+                            variant={candidate.id === selectedCandidateSummary?.id ? "light" : "subtle"}
+                            color="review"
+                            onClick={() => setSelectedCandidateId(candidate.id)}
+                          >
+                            {candidate.id === selectedCandidateSummary?.id ? "Selected" : "Select"}
+                          </Button>
+                        </Stack>
+                      </UnifiedCardSection>
+                    );
+                  })
+                ) : (
+                  <BodyText>No mission candidate queue yet.</BodyText>
+                )}
+              </Stack>
+            </UnifiedCardSection>
+
             <UnifiedCardSection tone="strategy">
               <Stack gap="xs">
                 <SectionTitle>Score Result</SectionTitle>

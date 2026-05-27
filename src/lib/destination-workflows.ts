@@ -293,3 +293,22 @@ export async function getDestinationCandidateGraph(companyId: string, candidateI
     artifactLinks,
   };
 }
+
+export async function listDestinationCandidatesForWorkflow(companyId: string, workflowRunId: string) {
+  return prisma.destinationCandidate.findMany({
+    where: { companyId, workflowRunId },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "asc" }],
+    include: {
+      factSnapshots: { orderBy: { version: "desc" }, take: 1 },
+      drafts: { orderBy: { version: "desc" }, take: 1 },
+      reviewPackets: {
+        orderBy: { submittedAt: "desc" },
+        take: 1,
+        include: {
+          reviewDecisions: { orderBy: { reviewedAt: "desc" }, take: 1 },
+          outcomeMemories: { orderBy: { createdAt: "desc" }, take: 1 },
+        },
+      },
+    },
+  });
+}

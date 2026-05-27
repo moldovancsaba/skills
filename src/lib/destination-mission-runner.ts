@@ -651,3 +651,75 @@ export async function executeClassScoutMissionNextAttempt(input: {
 
   return { ok: true, mission, trail, reviewReady: false, terminal: false };
 }
+
+export async function executeClassScoutMissionUntilBlocked(input: {
+  companyId: string;
+  missionId: string;
+  actorId: string;
+  maxPasses?: number;
+  maxAutoRejections?: number;
+}) {
+  const maxPasses = Math.max(1, Math.min(input.maxPasses ?? 3, 8));
+  const maxAutoRejections = Math.max(1, Math.min(input.maxAutoRejections ?? 5, 10));
+  const passes: Array<Record<string, unknown>> = [];
+  let lastResult: Awaited<ReturnType<typeof executeClassScoutMissionNextAttempt>> | null = null;
+
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    const result = await executeClassScoutMissionNextAttempt({
+      companyId: input.companyId,
+      missionId: input.missionId,
+      actorId: input.actorId,
+      maxAutoRejections,
+    });
+    lastResult = result;
+    passes.push({
+      pass: pass + 1,
+      ok: result.ok,
+      reviewReady: result.ok ? Boolean(result.reviewReady) : false,
+      terminal: result.ok ? Boolean(result.terminal) : false,
+      candidateId: result.ok ? result.candidateId ?? null : null,
+      draftId: result.ok ? result.draftId ?? null : null,
+      trail: result.trail ?? [],
+      error: result.ok ? null : result.error ?? "Mission execution failed",
+    });
+
+    if (!result.ok || result.reviewReady || result.terminal) {
+      break;
+    }
+
+    const mission = await getDestinationMissionRun(input.companyId, input.missionId);
+    if (!mission) break;
+    if (
+      mission.state === DestinationMissionState.PAUSED ||
+      mission.state === DestinationMissionState.PUBLISHED_VERIFIED ||
+      mission.state === DestinationMissionState.EXHAUSTED ||
+      mission.state === DestinationMissionState.FAILED_TERMINAL
+    ) {
+      break;
+    }
+  }
+
+  if (!lastResult) {
+    return { ok: false, error: "Mission execution did not start", status: 500, passes };
+  }
+
+  if (!lastResult.ok) {
+    return {
+      ok: false,
+      error: lastResult.error ?? "Mission execution failed",
+      status: lastResult.status ?? 500,
+      passes,
+    };
+  }
+
+  return {
+    ok: true,
+    reviewReady: lastResult.reviewReady ?? false,
+    terminal: lastResult.terminal ?? false,
+    mission: lastResult.mission ?? null,
+    candidateId: lastResult.candidateId ?? null,
+    draftId: lastResult.draftId ?? null,
+    trail: lastResult.trail ?? [],
+    passes,
+  };
+}

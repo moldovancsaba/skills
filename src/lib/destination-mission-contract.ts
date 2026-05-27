@@ -19,6 +19,7 @@ export type DestinationMissionState = (typeof DESTINATION_MISSION_STATES)[number
 
 export type DestinationRulebookPolicySnapshot = {
   version: string;
+  executionMode: "manual" | "guarded" | "autopilot";
   minimumScarcityScore: number;
   allowedListingTypes: string[];
   requireOfficialSource: boolean;
@@ -26,6 +27,7 @@ export type DestinationRulebookPolicySnapshot = {
   requireRecurringProgramsWhenAvailable: boolean;
   maxCandidatesPerMission: number;
   maxDomainRetries: number;
+  maxContinuousPasses: number;
   stopCondition: "one_live_verified_listing";
 };
 
@@ -41,6 +43,7 @@ export type DestinationMissionAttemptOutcome = {
 
 export const DEFAULT_CLASSSCOUT_RULEBOOK_POLICY: DestinationRulebookPolicySnapshot = {
   version: "classscout-rulebook@v1",
+  executionMode: "manual",
   minimumScarcityScore: 70,
   allowedListingTypes: [
     "Classes",
@@ -54,5 +57,6 @@ export const DEFAULT_CLASSSCOUT_RULEBOOK_POLICY: DestinationRulebookPolicySnapsh
   requireRecurringProgramsWhenAvailable: true,
   maxCandidatesPerMission: 12,
   maxDomainRetries: 2,
+  maxContinuousPasses: 3,
   stopCondition: "one_live_verified_listing",
 };

@@ -8,6 +8,8 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
+import { DestinationLearningPanel } from "@/components/destination-learning-panel";
+import { DestinationMissionControl } from "@/components/destination-mission-control";
 
 const QUEUE_COLUMN_RANK: Record<string, number> = {
   NOW: 0,
@@ -142,6 +144,9 @@ export default function ObservabilityPage() {
           </Button>
         }
       />
+
+      <DestinationMissionControl companyId={companyId} />
+      <DestinationLearningPanel companyId={companyId} />
 
       <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
         <MetricCard icon={Heartbeat} color="review" label="Guardian State" value={String(heartbeat.healthState || "unknown")} detail={String(heartbeat.healthStage || "—")} />

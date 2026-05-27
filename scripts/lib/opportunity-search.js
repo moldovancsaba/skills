@@ -40,10 +40,46 @@ const SOURCE_HOST_DENYLIST = new Set([
   "x.com",
   "youtube.com",
 ]);
+const GENERIC_HOST_DENYLIST = new Set([
+  "wikipedia.org",
+  "en.wikipedia.org",
+  "investopedia.com",
+  "forbes.com",
+  "coursera.org",
+  "bbc.co.uk",
+  "bbc.com",
+  "index.hr",
+  "jutarnji.hr",
+  "24sata.hr",
+  "net.hr",
+  "digitalcommerce360.com",
+]);
 const FILE_EXTENSION_RE = /\.(?:pdf|docx?|xlsx?|pptx?)(?:$|[?#])/i;
 const NON_COMPANY_RESULT_RE = /\b(?:job|jobs|career|careers|salary|resume|curriculum vitae|cv|profile|people|person)\b/i;
-const GENERIC_RESULT_RE = /\b(?:top\s+\d+|best\s+\d+|list of|directory|roundup|comparison|compare|alternatives|competitors?|market map|template|guide|playbook|blog)\b/i;
-const COMPANY_HINT_RE = /\b(?:company|platform|software|vendor|provider|agency|studio|labs|systems|technologies|solutions|partners?|services)\b/i;
+const GENERIC_RESULT_RE = /\b(?:top\s+\d+|best\s+\d+|list of|directory|roundup|comparison|compare|alternatives|competitors?|market map|template|guide|playbook|blog|what is|definition|examples?|wikipedia)\b/i;
+const COMPANY_HINT_RE = /\b(?:company|platform|software|vendor|provider|agency|studio|labs|systems|technologies|solutions|partners?|services|academy|school|consulting|automation|compliance)\b/i;
+const MEDIA_OR_DIRECTORY_RE = /\b(?:news|newsroom|magazine|press|pressroom|press release|journal|editorial|article|articles|media|publisher|directory|listing|rankings?|reviews?|stiri|revista|presei|vijesti|najnovije|naslovnica)\b/i;
+const POISONED_SEARCH_VALUE_RE = /\b(?:wikipedia|investopedia|sportske|novosti|jutarnji|index\.hr|openai|chatgpt|education\.com|business24|stiri|revista|presei|vijesti|najnovije|naslovnica)\b/i;
+const INDUSTRY_QUERY_HINTS = Object.freeze({
+  ai: ["ai software company", "ai automation agency", "ai solutions company"],
+  ecommerce: ["ecommerce software company", "ecommerce platform vendor", "ecommerce agency"],
+  sport: ["sports training academy", "sports performance company", "soccer academy"],
+  education: ["education platform company", "language school", "training academy"],
+  taxation: ["tax compliance software company", "vat automation company", "tax technology company"],
+  businessdevelopment: ["business development agency", "sales consulting company", "lead generation company"],
+});
+const INDUSTRY_TOPIC_QUERY_HINTS = Object.freeze({
+  ai: ["software company", "automation agency", "ai solutions"],
+  ecommerce: ["ecommerce company", "platform vendor", "online retail agency"],
+  sport: ["training academy", "sports performance company", "soccer academy"],
+  education: ["language school", "training academy", "education provider"],
+  taxation: ["tax compliance company", "vat automation provider", "tax technology company"],
+  businessdevelopment: ["consulting agency", "lead generation company", "sales consulting company"],
+});
+const TRANSACTION_SETTINGS = Object.freeze({
+  maxWait: 10_000,
+  timeout: 120_000,
+});
 
 function normalizeText(value) {
   if (typeof value !== "string") return "";
@@ -52,6 +88,10 @@ function normalizeText(value) {
 
 function normalizeQueryTerm(value) {
   return normalizeText(String(value || "").replace(/^#/, "").replace(/\s+#/g, " "));
+}
+
+function normalizeIndustryToken(value) {
+  return normalizeText(String(value || "").replace(/^#/, "").replace(/[^a-z0-9]+/gi, "")).toLowerCase();
 }
 
 function normalizeDomain(value) {
@@ -91,6 +131,31 @@ function opportunitySearchStateKey(companyId) {
   return `${SEARCH_STATE_PREFIX}${companyId}`;
 }
 
+function isBlockedSearchDomain(domain) {
+  const normalized = normalizeDomain(domain || "");
+  return Boolean(normalized) && (
+    SOURCE_HOST_DENYLIST.has(normalized)
+    || GENERIC_HOST_DENYLIST.has(normalized)
+    || POISONED_SEARCH_VALUE_RE.test(normalized)
+  );
+}
+
+function isPoisonedSearchTerm(term) {
+  const normalized = normalizeText(term).toLowerCase();
+  if (!normalized) return true;
+  if (FEEDBACK_TERM_STOPWORDS.has(normalized)) return true;
+  if (GENERIC_RESULT_RE.test(normalized)) return true;
+  if (POISONED_SEARCH_VALUE_RE.test(normalized)) return true;
+  if (/^(?:site|research|deployment|educational|pre-k|grade)$/i.test(normalized)) return true;
+  return false;
+}
+
+function isPoisonedSearchQuery(query) {
+  const normalized = normalizeText(query);
+  if (!normalized) return true;
+  return /\b(?:what is|definition)\b/i.test(normalized) || POISONED_SEARCH_VALUE_RE.test(normalized);
+}
+
 function normalizeSearchState(value) {
   const rawVersion = Number(value?.version || 1);
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -106,7 +171,9 @@ function normalizeSearchState(value) {
   }
   const rawQueryStats = value.queryStats && typeof value.queryStats === "object" && !Array.isArray(value.queryStats) ? value.queryStats : {};
   const queryStats = Object.fromEntries(
-    Object.entries(rawQueryStats).map(([query, stats]) => {
+    Object.entries(rawQueryStats)
+      .filter(([query]) => !isPoisonedSearchQuery(query))
+      .map(([query, stats]) => {
       const existing = stats && typeof stats === "object" && !Array.isArray(stats) ? stats : {};
       const migratedCandidateCount = Number(existing.candidateCount || 0) + (rawVersion < 2 ? Number(existing.accepted || 0) : 0);
       return [query, {
@@ -115,15 +182,30 @@ function normalizeSearchState(value) {
         declined: Number(existing.declined || 0),
         candidateCount: migratedCandidateCount,
       }];
-    }),
+      }),
   );
   return {
     version: 2,
     totalRuns: Number(value.totalRuns || 0),
-    lastQueries: Array.isArray(value.lastQueries) ? value.lastQueries.filter((entry) => typeof entry === "string") : [],
+    lastQueries: Array.isArray(value.lastQueries)
+      ? value.lastQueries.filter((entry) => typeof entry === "string" && !isPoisonedSearchQuery(entry))
+      : [],
     queryStats,
-    termScores: value.termScores && typeof value.termScores === "object" && !Array.isArray(value.termScores) ? value.termScores : {},
-    domainScores: value.domainScores && typeof value.domainScores === "object" && !Array.isArray(value.domainScores) ? value.domainScores : {},
+    termScores: value.termScores && typeof value.termScores === "object" && !Array.isArray(value.termScores)
+      ? Object.fromEntries(
+          Object.entries(value.termScores)
+            .filter(([term]) => !isPoisonedSearchTerm(term))
+            .map(([term, score]) => [term, Number(score) || 0]),
+        )
+      : {},
+    domainScores: value.domainScores && typeof value.domainScores === "object" && !Array.isArray(value.domainScores)
+      ? Object.fromEntries(
+          Object.entries(value.domainScores)
+            .filter(([domain]) => !isBlockedSearchDomain(domain))
+            .map(([domain, score]) => [normalizeDomain(domain), Number(score) || 0])
+            .filter(([domain]) => Boolean(domain)),
+        )
+      : {},
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : null,
   };
 }
@@ -137,10 +219,10 @@ async function readOpportunitySearchState(prisma, companyId) {
 }
 
 async function writeOpportunitySearchState(prisma, companyId, state) {
-  const nextValue = {
+  const nextValue = normalizeSearchState({
     ...state,
     updatedAt: new Date().toISOString(),
-  };
+  });
   await prisma.globalSetting.upsert({
     where: { key: opportunitySearchStateKey(companyId) },
     create: {
@@ -196,6 +278,7 @@ function extractTitleTerms(results = []) {
 function buildSearchQueries(company, flashcards = [], searchState = null) {
   const industry = normalizeText(company?.industry || "");
   const normalizedIndustry = normalizeQueryTerm(company?.industry || "");
+  const normalizedIndustryToken = normalizeIndustryToken(company?.industry || "");
   const targetMarket = normalizeQueryTerm(company?.targetMarket || "");
   const companyName = normalizeText(company?.name || "company");
   const productCategories = Array.isArray(company?.productCategories)
@@ -204,6 +287,18 @@ function buildSearchQueries(company, flashcards = [], searchState = null) {
   const geography = normalizeLocation(company?.demographics);
   const flashcardTerms = collectFlashcardTerms(flashcards);
   const learnedTerms = topScoredKeys(searchState?.termScores || {}, 4);
+  const companyNameTerms = companyName
+    .split(/\s+/)
+    .map((term) => normalizeQueryTerm(term))
+    .filter(Boolean);
+  const sparseContext = !targetMarket
+    && productCategories.length === 0
+    && flashcardTerms.length === 0
+    && learnedTerms.length === 0
+    && !geography;
+  const topicalName = sparseContext && companyNameTerms.length >= 2
+    ? companyNameTerms.join(" ")
+    : "";
   const bestHistoricalQueries = Object.entries(searchState?.queryStats || {})
     .filter(([query, stats]) => typeof query === "string" && query && stats && typeof stats === "object")
     .sort((left, right) => {
@@ -222,7 +317,8 @@ function buildSearchQueries(company, flashcards = [], searchState = null) {
       return rightScore - leftScore;
     })
     .slice(0, 2)
-    .map(([query]) => query);
+    .map(([query]) => query)
+    .filter((query) => !topicalName || query.toLowerCase().includes(topicalName.toLowerCase()));
 
   const primary = targetMarket || learnedTerms[0] || flashcardTerms[0] || normalizedIndustry || "business software";
   const productTerm = productCategories[0] || learnedTerms[1] || flashcardTerms[1] || "platform";
@@ -231,13 +327,26 @@ function buildSearchQueries(company, flashcards = [], searchState = null) {
   const learnedVariant = learnedTerms[0]
     ? [learnedTerms[0], "companies", targetMarket || productTerm, geographyTerm].filter(Boolean).join(" ")
     : null;
+  const industryHints = INDUSTRY_QUERY_HINTS[normalizedIndustryToken] || [];
+  const topicalHints = INDUSTRY_TOPIC_QUERY_HINTS[normalizedIndustryToken] || [];
+  const topicalQueries = topicalName
+    ? [
+        [topicalName, topicalHints[0] || "company", geographyTerm].filter(Boolean).join(" "),
+        [topicalName, topicalHints[1] || "services", geographyTerm].filter(Boolean).join(" "),
+        [topicalName, topicalHints[2] || productTerm || "provider", geographyTerm].filter(Boolean).join(" "),
+      ]
+    : [];
 
   return Array.from(
     new Set(
       [
-        [primary, productTerm, "companies", geographyTerm].filter(Boolean).join(" "),
-        [secondary, "providers", targetMarket || productTerm, geographyTerm].filter(Boolean).join(" "),
-        [companyName, "partner ecosystem", productTerm || primary, geographyTerm].filter(Boolean).join(" "),
+        ...topicalQueries,
+        !topicalName && industryHints[0] ? [industryHints[0], geographyTerm].filter(Boolean).join(" ") : null,
+        !topicalName ? [primary, productTerm, "company", geographyTerm].filter(Boolean).join(" ") : null,
+        !topicalName ? [secondary, "software company", targetMarket || productTerm, geographyTerm].filter(Boolean).join(" ") : null,
+        industryHints[1] ? [industryHints[1], targetMarket || geographyTerm].filter(Boolean).join(" ") : null,
+        [companyName, "partner ecosystem company", productTerm || primary, geographyTerm].filter(Boolean).join(" "),
+        industryHints[2] ? [industryHints[2], geographyTerm].filter(Boolean).join(" ") : null,
         ...bestHistoricalQueries,
         learnedVariant,
       ].filter(Boolean),
@@ -247,6 +356,53 @@ function buildSearchQueries(company, flashcards = [], searchState = null) {
 
 function buildCanonicalContentHash(content) {
   return crypto.createHash("sha1").update(String(content || "")).digest("hex");
+}
+
+async function reservePublicIds(tx, scope, count) {
+  if (count <= 0) return [];
+
+  await tx.publicIdCounter.upsert({
+    where: { scope },
+    update: {},
+    create: {
+      scope,
+      value: 0,
+      updatedAt: new Date(),
+    },
+  });
+
+  const counter = await tx.publicIdCounter.update({
+    where: { scope },
+    data: {
+      value: {
+        increment: count,
+      },
+      updatedAt: new Date(),
+    },
+  });
+
+  const firstPublicId = counter.value - count + 1;
+  return Array.from({ length: count }, (_, index) => firstPublicId + index);
+}
+
+async function nextSourcePublicId(tx) {
+  const [publicId] = await reservePublicIds(tx, "source", 1);
+  return publicId;
+}
+
+function unwrapYahooRedirect(url) {
+  const normalized = normalizeText(url);
+  if (!normalized) return normalized;
+  if (!/^https:\/\/r\.search\.yahoo\.com\//i.test(normalized)) {
+    return normalized;
+  }
+  try {
+    const parsed = new URL(normalized);
+    const target = parsed.pathname.match(/\/RU=([^/]+)\//)?.[1];
+    return target ? decodeURIComponent(target) : normalized;
+  } catch {
+    return normalized;
+  }
 }
 
 function isAllowedCompanyCandidate(result, company) {
@@ -260,14 +416,25 @@ function isAllowedCompanyCandidate(result, company) {
   const ownDomain = normalizeDomain(company?.website || "");
   if (ownDomain && domain === ownDomain) return false;
   if (SOURCE_HOST_DENYLIST.has(domain)) return false;
+  if (GENERIC_HOST_DENYLIST.has(domain)) return false;
 
   const combinedText = normalizeText([result?.title, result?.snippet].filter(Boolean).join(" "));
   if (NON_COMPANY_RESULT_RE.test(combinedText)) return false;
-  if (GENERIC_RESULT_RE.test(combinedText) && !COMPANY_HINT_RE.test(combinedText)) return false;
+  if (GENERIC_RESULT_RE.test(combinedText)) return false;
+  if (MEDIA_OR_DIRECTORY_RE.test(combinedText)) return false;
 
   const title = normalizeText(result?.title || "");
   const titleWords = title.split(/\s+/).filter(Boolean);
   if (titleWords.length > 10 && !COMPANY_HINT_RE.test(title)) return false;
+  if (/^(?:what is|what are|learn|guide|news|sport|sports|e-commerce|artificial intelligence)\b/i.test(title)) return false;
+
+  try {
+    const parsed = new URL(url);
+    const pathname = normalizeText(parsed.pathname || "");
+    if (/^\/(?:wiki|blog|news|sport|sports|articles?|learn|guide|category|search)(?:\/|$)/i.test(pathname)) return false;
+  } catch {
+    return false;
+  }
 
   return true;
 }
@@ -285,6 +452,43 @@ function filterCandidateResults(results, company) {
   return accepted;
 }
 
+function isAllowedFetchedCompanyCandidate(result, company) {
+  const url = normalizeText(result?.url || "");
+  const fetched = result?.fetched || null;
+  const domain = normalizeDomain(url);
+  if (!domain) return false;
+  if (/\.(?:gov|edu)(?:\.[a-z]{2})?$/i.test(domain)) return false;
+
+  const combinedText = normalizeText([
+    result?.title,
+    result?.snippet,
+    fetched?.title,
+    typeof fetched?.content === "string" ? fetched.content.slice(0, 1200) : "",
+  ].filter(Boolean).join(" "));
+
+  if (!combinedText) return false;
+  if (NON_COMPANY_RESULT_RE.test(combinedText)) return false;
+  if (GENERIC_RESULT_RE.test(combinedText)) return false;
+  if (MEDIA_OR_DIRECTORY_RE.test(combinedText)) return false;
+  if (/\b(?:ministry|government|university|wikipedia|news|scores|fixtures|live sport)\b/i.test(combinedText)) return false;
+
+  try {
+    const parsed = new URL(url);
+    const pathname = normalizeText(parsed.pathname || "");
+    if (/^\/(?:wiki|blog|news|sport|sports|articles?|learn|guide|category|search)(?:\/|$)/i.test(pathname)) return false;
+  } catch {
+    return false;
+  }
+
+  if (COMPANY_HINT_RE.test(combinedText)) return true;
+
+  const bareTitle = normalizeText((fetched?.title || result?.title || "").replace(/\s*[|\-–].*$/, ""));
+  if (!bareTitle) return false;
+  if (bareTitle.split(/\s+/).length > 4) return false;
+
+  return Boolean(company?.industry) && /^[A-Z0-9][A-Za-z0-9&+.' -]{1,40}$/.test(bareTitle);
+}
+
 async function persistHarvestedSources(prisma, company, results) {
   let created = 0;
   let updated = 0;
@@ -300,11 +504,12 @@ async function persistHarvestedSources(prisma, company, results) {
       .filter(Boolean)
       .join("\n\n");
     const canonicalContentHash = buildCanonicalContentHash(content);
+    const resolvedUrl = unwrapYahooRedirect(result.url);
     const existing = await prisma.source.findFirst({
       where: {
         companyId: company.id,
         OR: [
-          { provenance: result.url },
+          { provenance: resolvedUrl },
           { canonicalContentHash },
         ],
       },
@@ -316,11 +521,11 @@ async function persistHarvestedSources(prisma, company, results) {
       origin: "worker-opportunity-search",
       query: result.query,
       harvestedAt: new Date().toISOString(),
-      url: result.url,
+      url: resolvedUrl,
       title,
       searchSnippet: snippet,
       fetchStatus: fetched?.status ?? null,
-      searchDomain: result.searchDomain || normalizeDomain(result.url),
+      searchDomain: result.searchDomain || normalizeDomain(resolvedUrl),
     };
 
     if (existing) {
@@ -330,7 +535,7 @@ async function persistHarvestedSources(prisma, company, results) {
           content,
           canonicalContent: content,
           canonicalContentHash,
-          provenance: result.url,
+          provenance: resolvedUrl,
           entityTag: title,
           metadata,
           sourceType: "WEB",
@@ -344,27 +549,31 @@ async function persistHarvestedSources(prisma, company, results) {
       continue;
     }
 
-    await prisma.source.create({
-      data: {
-        companyId: company.id,
-        content,
-        canonicalContent: content,
-        canonicalContentHash,
-        provenance: result.url,
-        entityTag: title,
-        metadata,
-        sourceType: "WEB",
-        intelligenceType: "COMPETITOR",
-        departmentKey: SALES_DEPARTMENT_KEY,
-        processingStatus: "DRAFT",
-        confidence: 6,
-        confidenceScore: 6,
-        impact: 6,
-        weight: 5,
-        freshnessWindowDays: 21,
-        hashtags: ["sales", "opportunity-search"],
-      },
-    });
+    await prisma.$transaction(async (tx) => {
+      const publicId = await nextSourcePublicId(tx);
+      await tx.source.create({
+        data: {
+          companyId: company.id,
+          publicId,
+          content,
+          canonicalContent: content,
+          canonicalContentHash,
+          provenance: resolvedUrl,
+          entityTag: title,
+          metadata,
+          sourceType: "WEB",
+          intelligenceType: "COMPETITOR",
+          departmentKey: SALES_DEPARTMENT_KEY,
+          processingStatus: "DRAFT",
+          confidence: 6,
+          confidenceScore: 6,
+          impact: 6,
+          weight: 5,
+          freshnessWindowDays: 21,
+          hashtags: ["sales", "opportunity-search"],
+        },
+      });
+    }, TRANSACTION_SETTINGS);
     created += 1;
     incrementCounter(createdByQuery, normalizeText(result.query || ""), 1);
   }
@@ -506,12 +715,13 @@ async function searchInternetOpportunitycards(prisma, company, executionOptions 
     const fetched = await fetchUrlContent(result.url);
     fetchedResults.push({ ...result, fetched });
   }
+  const acceptedFetchedResults = fetchedResults.filter((result) => isAllowedFetchedCompanyCandidate(result, company));
 
-  const persisted = await persistHarvestedSources(prisma, company, fetchedResults);
+  const persisted = await persistHarvestedSources(prisma, company, acceptedFetchedResults);
   const mined = await mineOpportunitycards(prisma, company.id);
   await recordOpportunitySearchOutcome(prisma, company, {
     queries,
-    candidates: fetchedResults,
+    candidates: acceptedFetchedResults,
     createdSourcesByQuery: persisted.createdByQuery,
     createdOpportunitycardsByQuery: mined.createdByQuery || {},
   });
@@ -519,11 +729,43 @@ async function searchInternetOpportunitycards(prisma, company, executionOptions 
   return {
     queries: queries.length,
     candidates: candidates.length,
-    harvested: fetchedResults.length,
+    harvested: acceptedFetchedResults.length,
     createdSources: persisted.created,
     updatedSources: persisted.updated,
     createdOpportunitycards: mined.created || 0,
     updatedOpportunitycards: mined.updated || 0,
+  };
+}
+
+async function sanitizeAllOpportunitySearchState(prisma) {
+  const records = await prisma.globalSetting.findMany({
+    where: {
+      key: {
+        startsWith: SEARCH_STATE_PREFIX,
+      },
+    },
+    select: {
+      key: true,
+      value: true,
+    },
+  });
+
+  let updated = 0;
+  for (const record of records) {
+    const sanitized = normalizeSearchState(record.value);
+    const before = JSON.stringify(record.value ?? null);
+    const after = JSON.stringify(sanitized);
+    if (before === after) continue;
+    await prisma.globalSetting.update({
+      where: { key: record.key },
+      data: { value: sanitized },
+    });
+    updated += 1;
+  }
+
+  return {
+    total: records.length,
+    updated,
   };
 }
 
@@ -537,5 +779,6 @@ module.exports = {
   recordOpportunitySearchFeedback,
   recordOpportunitySearchOutcome,
   readOpportunitySearchState,
+  sanitizeAllOpportunitySearchState,
   searchInternetOpportunitycards,
 };

@@ -1,0 +1,141 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Badge, Button, Group, Loader, SimpleGrid, Stack } from "@mantine/core";
+import { IconActivity, IconArrowRight, IconChecklist, IconRefresh, IconSparkles } from "@tabler/icons-react";
+import { useRouter } from "next/navigation";
+import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
+import { BodyText, MetaText, SectionTitle } from "@/components/ui/typography";
+
+type LiveListingSummary = {
+  id: string;
+  type: "provider" | "meetupGroup";
+  revisionStatus: {
+    packetId: string | null;
+    packetState: string | null;
+    latestOutcomeEvent: string | null;
+  };
+};
+
+type LearningSummary = {
+  totals?: {
+    packets?: number;
+    approved?: number;
+    rejected?: number;
+    rework?: number;
+    published?: number;
+    failed?: number;
+  };
+};
+
+export function DestinationClassScoutUnitPanel({ companyId }: { companyId: string }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [listingCount, setListingCount] = useState(0);
+  const [packetCount, setPacketCount] = useState(0);
+  const [publishedCount, setPublishedCount] = useState(0);
+  const [reviewRequiredCount, setReviewRequiredCount] = useState(0);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [liveRes, learningRes] = await Promise.all([
+        fetch(`/api/destination-review/live-listings?companyId=${encodeURIComponent(companyId)}`),
+        fetch(`/api/destination-learning/summary?companyId=${encodeURIComponent(companyId)}&destinationKey=classscout`),
+      ]);
+
+      const livePayload = liveRes.ok ? await liveRes.json() : null;
+      const learningPayload = learningRes.ok ? (await learningRes.json()) as LearningSummary : null;
+      const liveItems: LiveListingSummary[] = Array.isArray(livePayload?.items) ? livePayload.items : [];
+
+      setListingCount(liveItems.length);
+      setReviewRequiredCount(
+        liveItems.filter((item) =>
+          item.revisionStatus.packetState === "REVIEW_REQUIRED" ||
+          item.revisionStatus.packetState === "DRAFTED" ||
+          item.revisionStatus.packetState === "VALIDATED"
+        ).length,
+      );
+      setPacketCount(Number(learningPayload?.totals?.packets ?? 0));
+      setPublishedCount(Number(learningPayload?.totals?.published ?? 0));
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  return (
+    <UnifiedCard tone="review">
+      <UnifiedCardHeader
+        title="ClassScout Intelligence Unit"
+        supporting={
+          <Group gap="xs">
+            <Badge variant="light" color="review">Destination: ClassScout</Badge>
+            <Button variant="subtle" size="compact-sm" color="review" leftSection={<IconRefresh size={14} />} onClick={() => void load()}>
+              Refresh
+            </Button>
+          </Group>
+        }
+      />
+      <UnifiedCardBody>
+        {loading ? (
+          <Stack align="center" py="xl">
+            <Loader />
+          </Stack>
+        ) : (
+          <Stack gap="md">
+            <BodyText>
+              Manage the full ClassScout content workflow for this unit: live catalog revisions, review packets,
+              human corrections, publication, replay, and learning feedback.
+            </BodyText>
+
+            <SimpleGrid cols={{ base: 1, md: 4 }} spacing="md">
+              <UnifiedCardSection tone="review">
+                <Stack gap={4}>
+                  <MetaText>Live listings</MetaText>
+                  <SectionTitle>{listingCount}</SectionTitle>
+                </Stack>
+              </UnifiedCardSection>
+              <UnifiedCardSection tone="review">
+                <Stack gap={4}>
+                  <MetaText>Workflow packets</MetaText>
+                  <SectionTitle>{packetCount}</SectionTitle>
+                </Stack>
+              </UnifiedCardSection>
+              <UnifiedCardSection tone="review">
+                <Stack gap={4}>
+                  <MetaText>Needs review</MetaText>
+                  <SectionTitle>{reviewRequiredCount}</SectionTitle>
+                </Stack>
+              </UnifiedCardSection>
+              <UnifiedCardSection tone="review">
+                <Stack gap={4}>
+                  <MetaText>Published outcomes</MetaText>
+                  <SectionTitle>{publishedCount}</SectionTitle>
+                </Stack>
+              </UnifiedCardSection>
+            </SimpleGrid>
+
+            <Group gap="sm">
+              <Button color="review" leftSection={<IconChecklist size={16} />} rightSection={<IconArrowRight size={16} />} onClick={() => router.push(`/${companyId}/review`)}>
+                Open ClassScout Content Ops
+              </Button>
+              <Button variant="light" color="strategy" leftSection={<IconActivity size={16} />} onClick={() => router.push(`/${companyId}/observability`)}>
+                Open Mission Control
+              </Button>
+              <Button variant="light" color="knowmore" leftSection={<IconSparkles size={16} />} onClick={() => router.push(`/${companyId}/review?tab=ops`)}>
+                Open Live Catalog Queue
+              </Button>
+            </Group>
+          </Stack>
+        )}
+      </UnifiedCardBody>
+    </UnifiedCard>
+  );
+}

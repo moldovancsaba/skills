@@ -1,0 +1,26 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getDestinationCandidateGraph } from "@/lib/destination-workflows";
+import { verifyMembership } from "@/lib/permissions";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ candidateId: string }> },
+) {
+  const companyId = request.nextUrl.searchParams.get("companyId");
+  const auth = await verifyMembership(request, companyId);
+  if (auth.error) return auth.error;
+
+  const { candidateId } = await params;
+  if (!candidateId) {
+    return NextResponse.json({ error: "candidateId required" }, { status: 400 });
+  }
+
+  const graph = await getDestinationCandidateGraph(companyId as string, candidateId);
+  if (!graph) {
+    return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(graph);
+}

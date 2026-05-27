@@ -197,7 +197,7 @@ async function normalizeRefinedTaskScores(prisma, raw = {}, fallback = {}) {
  * MERGE: Combine overlapping candidates into one stronger candidate.
  * Preserves lineage from all merged siblings.
  */
-async function mergeNeighborhood(prisma, neighborhood, context, memoryPrompt) {
+async function mergeNeighborhood(prisma, company, neighborhood, context, memoryPrompt) {
   const champion = selectChampion(neighborhood);
   if (neighborhood.length === 1) return { refined: champion, suppressed: [] };
   const duplicateClusterId = buildDuplicateClusterId(neighborhood);
@@ -245,7 +245,7 @@ async function mergeNeighborhood(prisma, neighborhood, context, memoryPrompt) {
     iceScore: mergedScores.iceScore,
     scoreProfile: mergedScores.scoreProfile,
     hashtags: Array.isArray(raw.semanticTags) ? raw.semanticTags.slice(0, 5) : (champion.hashtags || []),
-    // Trinity lineage: merge all sources
+    // Preserve merged lineage across sibling candidates.
     generatedFromIds: mergedGeneratedFromIds,
     refinedFromId: champion.id,
     versionFamilyId: champion.versionFamilyId,
@@ -473,7 +473,7 @@ async function refineNBAItemBatch(prisma, company, candidates, memoryPrompt) {
     let result;
 
     if (operation === "MERGE") {
-      result = await mergeNeighborhood(prisma, neighborhood, strategicContext, memoryPrompt);
+      result = await mergeNeighborhood(prisma, company, neighborhood, strategicContext, memoryPrompt);
     } else if (operation === "SPLIT") {
       result = await splitTaskCandidate(prisma, neighborhood[0], strategicContext, memoryPrompt);
     } else if (operation === "SUPPRESS_WEAK") {
@@ -510,7 +510,7 @@ async function refineFlashcardBatch(prisma, company, candidates, memoryPrompt) {
     let result;
 
     if (operation === "MERGE") {
-      result = await mergeNeighborhood(prisma, neighborhood, strategicContext, memoryPrompt);
+      result = await mergeNeighborhood(prisma, company, neighborhood, strategicContext, memoryPrompt);
     } else if (operation === "SUPPRESS_WEAK") {
       result = await suppressWeak(neighborhood, strategicContext, memoryPrompt);
     } else if (operation === "ENRICH") {
@@ -538,7 +538,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null)
   const result = await writerRefine(prisma, taskCard, memoryPrompt, topic);
   if (!result) return null;
 
-  // Annotate with Trinity lifecycle state
+  // Preserve lifecycle/state fields for the refined result.
   return {
     ...result,
     candidateState: result.processingStatus === "DECLINED" ? CandidateState.SUPPRESSED : CandidateState.REFINED,

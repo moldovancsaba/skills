@@ -30,8 +30,22 @@ export function proxy(req: NextRequest) {
     return new NextResponse("Not Found", { status: 404 });
   }
 
-  // Allow these specific public paths
-  const publicPaths = ["/login", "/auth", "/auth/callback", "/api/auth", "/api/bridge", "/api/test-public", "/card", "/api/cards"];
+  // 1. Allow these specific public paths
+  const publicPaths = [
+    "/login",
+    "/auth",
+    "/auth/callback",
+    "/api/auth",
+    "/api/bridge",
+    "/api/test-public",
+    "/card",
+    "/api/cards",
+    "/api/destination-review/packets",
+    "/api/destination-review/outcomes",
+    "/api/destination-review/live-listing-status",
+    "/api/destination-workflows/intake",
+    "/api/destination-workflows/live-revisions",
+  ];
   if (localOperatorHost) {
     publicPaths.push("/local-ai");
   }

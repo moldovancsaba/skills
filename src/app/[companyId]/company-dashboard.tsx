@@ -23,6 +23,7 @@ import { TaskReviewCard } from "@/components/task-review-card";
 import { MemberList } from "@/components/member-list";
 import { getDashboardExpertTip } from "@/content/help";
 import { ExpertTipCard } from "@/components/expert-tip-card";
+import { DestinationClassScoutUnitPanel } from "@/components/destination-classscout-unit-panel";
 import { IconPlus as Plus, IconListNumbers as ListOrdered, IconSparkles as Sparkles, IconBolt as Zap, IconArrowRight as ArrowRight, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconLayersIntersect as Layers, IconListCheck as ListCheck, IconHistory as History, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCirclesRelation as CirclesRelation, IconHelmet as HardHat, IconSearch as Search, IconGitBranch as GitBranch, IconRadar2 as Radar, IconBriefcase as Briefcase } from "@tabler/icons-react";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { CompanyScoreHealth } from "@/lib/score-health";
@@ -318,6 +319,9 @@ export default function CompanyDashboard({
           {projectionFreshnessLabel}
         </Badge>
       </Group>
+      <Box mb="xl">
+        <DestinationClassScoutUnitPanel companyId={companyId} />
+      </Box>
       <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }} mb="xl">
         <LinkCard
           href={`/${companyId}/data`}

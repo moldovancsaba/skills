@@ -260,6 +260,20 @@ const SOCIAL_PLATFORM_HOSTS = new Set([
   "tiktok.com",
   "youtube.com",
 ]);
+const GENERIC_SOURCE_HOSTS = new Set([
+  "wikipedia.org",
+  "en.wikipedia.org",
+  "investopedia.com",
+  "forbes.com",
+  "coursera.org",
+  "bbc.co.uk",
+  "bbc.com",
+  "index.hr",
+  "jutarnji.hr",
+  "24sata.hr",
+  "net.hr",
+  "educationnews.co.ke",
+]);
 const SERVICE_BRAND_NAMES = new Set([
   "instagram",
   "linkedin",
@@ -268,6 +282,12 @@ const SERVICE_BRAND_NAMES = new Set([
   "twitter",
   "tiktok",
   "youtube",
+]);
+const PRODUCT_BRAND_NAMES = new Set([
+  "chatgpt",
+  "copilot",
+  "gemini",
+  "grok",
 ]);
 
 function looksCompanyLikeName(value) {
@@ -549,10 +569,30 @@ function buildOpportunitySeedFromRecord(record, company) {
   if (host && ownDomain && host === ownDomain) {
     return null;
   }
+  if (host && (GENERIC_SOURCE_HOSTS.has(host) || /\.(?:gov|edu)(?:\.[a-z]{2})?$/i.test(host))) {
+    return null;
+  }
 
   const sourceText = [record?.title, record?.body, record?.sourceName, record?.provenance].filter(Boolean).join("\n");
+  const normalizedTitle = normalizeText(record?.title || "");
+  if (/^(?:what is|what are|learn|guide|news|sport|sports|e-commerce|artificial intelligence)\b/i.test(normalizedTitle)) {
+    return null;
+  }
+  if (GENERIC_COMPANY_NAME_RE.test(normalizedTitle)) {
+    return null;
+  }
+  if (website) {
+    const url = parseUrl(website);
+    const pathname = normalizeText(url?.pathname || "");
+    if (/^\/(?:wiki|blog|news|sport|sports|articles?|learn|guide|category|search)(?:\/|$)/i.test(pathname)) {
+      return null;
+    }
+  }
   const companyName = resolveCandidateCompanyName(record, host, website);
   if (!companyName || normalizeText(companyName)?.toLowerCase() === normalizeText(company?.name)?.toLowerCase()) {
+    return null;
+  }
+  if (PRODUCT_BRAND_NAMES.has(companyName.toLowerCase())) {
     return null;
   }
 

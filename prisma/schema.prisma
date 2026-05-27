@@ -45,6 +45,21 @@ model Company {
   budgetEvents         BudgetEvent[]
   opportunitycards     Opportunitycard[]
   opportunityFeedback  OpportunitycardFeedback[]
+  destinationInstances       DestinationInstance[]
+  destinationWorkflowRuns    DestinationWorkflowRun[]
+  destinationSourceDocuments DestinationSourceDocument[]
+  destinationSourceAssets    DestinationSourceAsset[]
+  destinationCandidates      DestinationCandidate[]
+  destinationFactSnapshots   DestinationFactSnapshot[]
+  destinationDrafts          DestinationDraft[]
+  destinationArtifactLinks   DestinationArtifactLink[]
+  destinationReviewPackets   DestinationReviewPacket[]
+  destinationOutcomeMemories DestinationOutcomeMemory[]
+  destinationReviewDecisions DestinationReviewDecision[]
+  destinationWorkflowStageEvents DestinationWorkflowStageEvent[]
+  destinationMissionPolicySnapshots DestinationMissionPolicySnapshot[]
+  destinationMissionRuns            DestinationMissionRun[]
+  destinationMissionAttempts        DestinationMissionAttempt[]
   
   // Profile Validation Fields
   website             String?
@@ -963,6 +978,400 @@ model CommunicationSettings {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @default(now()) @updatedAt
   company          Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+enum DestinationWorkflowState {
+  DISCOVERED
+  INGESTED
+  DRAFTED
+  VALIDATED
+  REVIEW_REQUIRED
+  APPROVED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  REJECTED
+}
+
+model DestinationInstance {
+  id             String   @id @default(uuid()) @map("_id")
+  companyId       String
+  destinationKey String
+  name           String
+  isActive       Boolean  @default(true)
+  authRef        String
+  config         Json?    @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  workflowRuns    DestinationWorkflowRun[]
+  sourceDocuments DestinationSourceDocument[]
+  sourceAssets    DestinationSourceAsset[]
+  candidates      DestinationCandidate[]
+  factSnapshots   DestinationFactSnapshot[]
+  drafts          DestinationDraft[]
+  reviewPackets   DestinationReviewPacket[]
+  outcomeMemories DestinationOutcomeMemory[]
+  missionPolicySnapshots DestinationMissionPolicySnapshot[]
+  missionRuns            DestinationMissionRun[]
+  missionAttempts        DestinationMissionAttempt[]
+
+  @@unique([companyId, destinationKey, name])
+  @@index([companyId, destinationKey, isActive])
+}
+
+model DestinationWorkflowRun {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  workflowKind          String
+  state                 DestinationWorkflowState @default(DISCOVERED)
+  currentStage          String
+  attemptCount          Int      @default(0)
+  lastError             String?
+  metadata              Json?    @default("{}")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+
+  sourceDocuments DestinationSourceDocument[]
+  candidates      DestinationCandidate[]
+  reviewPackets   DestinationReviewPacket[]
+  outcomeMemories DestinationOutcomeMemory[]
+  stageEvents     DestinationWorkflowStageEvent[]
+
+  @@index([companyId, destinationInstanceId, state, updatedAt])
+}
+
+model DestinationSourceDocument {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  workflowRunId         String?
+  sourceUrl             String?
+  sourceType            String
+  officialnessScore     Float?
+  contentHash           String?
+  httpStatus            Int?
+  rawText               String
+  metadata              Json?    @default("{}")
+  fetchedAt             DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+  workflowRun           DestinationWorkflowRun? @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
+
+  sourceAssets  DestinationSourceAsset[]
+
+  @@index([companyId, destinationInstanceId, sourceType, fetchedAt])
+  @@index([companyId, destinationInstanceId, sourceUrl])
+  @@index([companyId, destinationInstanceId, contentHash])
+}
+
+model DestinationSourceAsset {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  sourceDocumentId      String?
+  originalUrl           String
+  mimeType              String?
+  contentHash           String?
+  status                String   @default("DISCOVERED")
+  metadata              Json?    @default("{}")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+  sourceDocument        DestinationSourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, destinationInstanceId, originalUrl])
+  @@index([companyId, destinationInstanceId, contentHash])
+}
+
+model DestinationCandidate {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  workflowRunId         String?
+  candidateFingerprint  String
+  canonicalSourceUrl    String
+  proposedType          String?
+  status                DestinationWorkflowState @default(DISCOVERED)
+  dedupeStatus          String   @default("UNKNOWN")
+  metadata              Json?    @default("{}")
+  latestFactSnapshotId  String?
+  latestDraftId         String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+  workflowRun           DestinationWorkflowRun? @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
+
+  factSnapshots DestinationFactSnapshot[]
+  drafts        DestinationDraft[]
+  reviewPackets DestinationReviewPacket[]
+  outcomeMemories DestinationOutcomeMemory[]
+
+  @@unique([companyId, destinationInstanceId, candidateFingerprint])
+  @@index([companyId, destinationInstanceId, status, updatedAt])
+  @@index([companyId, destinationInstanceId, canonicalSourceUrl])
+}
+
+model DestinationFactSnapshot {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  candidateId           String
+  version               Int
+  factsJson             Json
+  provenanceJson        Json
+  extractorVersion      String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+  candidate             DestinationCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, version])
+  @@index([companyId, destinationInstanceId, candidateId, createdAt])
+}
+
+model DestinationDraft {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  candidateId           String
+  version               Int
+  destinationKey        String
+  adapterVersion        String
+  draftJson             Json
+  provenanceJson        Json
+  reviewState           String   @default("DRAFTED")
+  basedOnFactSnapshotId String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+  candidate             DestinationCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  reviewPackets  DestinationReviewPacket[]
+  outcomeMemories DestinationOutcomeMemory[]
+
+  @@unique([candidateId, version])
+  @@index([companyId, destinationInstanceId, destinationKey, reviewState, createdAt])
+}
+
+model DestinationArtifactLink {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  parentType            String
+  parentId              String
+  childType             String
+  childId               String
+  relationshipType      String
+  metadata              Json?    @default("{}")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, destinationInstanceId, parentType, parentId])
+  @@index([companyId, destinationInstanceId, childType, childId])
+  @@unique([companyId, destinationInstanceId, parentType, parentId, childType, childId, relationshipType])
+}
+
+model DestinationReviewPacket {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  workflowRunId         String
+  candidateId           String
+  draftId               String
+  bridgeVersion         String
+  packetFingerprint     String
+  packetState           String   @default("AWAITING_REVIEW")
+  evidenceSummary       Json
+  diagnostics           Json
+  mediaSummary          Json?
+  draftPayload          Json
+  metadata              Json?    @default("{}")
+  submittedAt           DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+  workflowRun           DestinationWorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  candidate             DestinationCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  draft                 DestinationDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  reviewDecisions DestinationReviewDecision[]
+  outcomeMemories DestinationOutcomeMemory[]
+
+  @@unique([companyId, destinationInstanceId, packetFingerprint])
+  @@index([companyId, destinationInstanceId, packetState, submittedAt])
+  @@index([workflowRunId, candidateId, draftId])
+}
+
+model DestinationReviewDecision {
+  id               String   @id @default(uuid()) @map("_id")
+  companyId        String
+  reviewPacketId   String
+  bridgeVersion    String
+  decision         String
+  decisionReasonCode String
+  decisionNotes    String?
+  requestedAction  String?
+  correctedDraftPayload Json?
+  correctionSummary Json?
+  correctedFactsJson Json?
+  factCorrectionSummary Json?
+  promotedFactSnapshotId String?
+  promotedDraftId String?
+  reviewedBy       String
+  reviewedAt       DateTime
+  metadata         Json?    @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reviewPacket     DestinationReviewPacket @relation(fields: [reviewPacketId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, reviewPacketId, reviewedAt])
+}
+
+model DestinationWorkflowStageEvent {
+  id               String   @id @default(uuid()) @map("_id")
+  companyId        String
+  workflowRunId    String
+  stage            String
+  status           String
+  attempt          Int      @default(1)
+  durationMs       Int?
+  outputRefs       Json?
+  retryable        Boolean  @default(false)
+  errorCode        String?
+  errorMessage     String?
+  metadata         Json?    @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workflowRun      DestinationWorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, workflowRunId, createdAt])
+  @@index([companyId, stage, status, createdAt])
+}
+
+model DestinationOutcomeMemory {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  workflowRunId         String?
+  candidateId           String?
+  draftId               String?
+  reviewPacketId        String?
+  bridgeVersion         String
+  eventType             String
+  reasonCode            String?
+  notes                 String?
+  actorType             String
+  actorId               String?
+  payload               Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+  workflowRun           DestinationWorkflowRun? @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
+  candidate             DestinationCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  draft                 DestinationDraft? @relation(fields: [draftId], references: [id], onDelete: SetNull)
+  reviewPacket          DestinationReviewPacket? @relation(fields: [reviewPacketId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, destinationInstanceId, eventType, createdAt])
+  @@index([workflowRunId, candidateId, draftId, reviewPacketId])
+}
+
+enum DestinationMissionState {
+  QUEUED
+  CATALOG_INSPECTED
+  DISCOVERING
+  CANDIDATE_IN_REVIEW
+  PUBLISHING
+  PUBLISHED_VERIFIED
+  FAILED_RECOVERABLE
+  FAILED_TERMINAL
+  EXHAUSTED
+  PAUSED
+}
+
+model DestinationMissionPolicySnapshot {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  destinationKey        String
+  missionKind           String
+  version               String
+  policyJson            Json
+  metadata              Json?    @default("{}")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+
+  missionRuns DestinationMissionRun[]
+
+  @@index([companyId, destinationInstanceId, destinationKey, missionKind, createdAt])
+}
+
+model DestinationMissionRun {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  policySnapshotId      String
+  destinationKey        String
+  missionKind           String
+  state                 DestinationMissionState @default(QUEUED)
+  activeAttemptId       String?
+  successCandidateId    String?
+  failureCode           String?
+  failureDetail         String?
+  attemptCount          Int      @default(0)
+  metadata              Json?    @default("{}")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+  policySnapshot        DestinationMissionPolicySnapshot @relation(fields: [policySnapshotId], references: [id], onDelete: Cascade)
+
+  attempts DestinationMissionAttempt[]
+
+  @@index([companyId, destinationInstanceId, destinationKey, state, updatedAt])
+}
+
+model DestinationMissionAttempt {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  missionRunId          String
+  ordinal               Int
+  workflowRunId         String?
+  candidateId           String?
+  candidateFingerprint  String?
+  state                 String   @default("queued")
+  terminalKind          String?
+  rejectionCode         String?
+  rejectionDetail       String?
+  metadata              Json?    @default("{}")
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+  missionRun            DestinationMissionRun @relation(fields: [missionRunId], references: [id], onDelete: Cascade)
+
+  @@unique([missionRunId, ordinal])
+  @@index([companyId, destinationInstanceId, state, updatedAt])
+  @@index([companyId, missionRunId, workflowRunId, candidateId])
 }
 
 enum ChannelType {

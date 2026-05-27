@@ -182,6 +182,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
   const [autoRunning, setAutoRunning] = useState(false);
   const [cycleRunning, setCycleRunning] = useState(false);
   const [daemonRunning, setDaemonRunning] = useState(false);
+  const [savingPolicy, setSavingPolicy] = useState(false);
   const [toggling, setToggling] = useState(false);
 
   const selectedRun = useMemo(
@@ -491,6 +492,31 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     }
   }, [companyId, loadMissionCandidates, loadRuns, selectedRun?.id, selectedRunId]);
 
+  const saveExecutionMode = useCallback(async () => {
+    if (!selectedRun) return;
+    setSavingPolicy(true);
+    try {
+      const response = await fetch(`/api/destination-missions/runs/${selectedRun.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId,
+          policySnapshot: {
+            executionMode,
+          },
+        }),
+      });
+      const payload = response.ok ? await response.json() : null;
+      const updatedMode = payload?.run?.policySnapshot?.policyJson?.executionMode;
+      if (updatedMode === "manual" || updatedMode === "guarded" || updatedMode === "autopilot") {
+        setExecutionMode(updatedMode);
+      }
+      await loadRuns();
+    } finally {
+      setSavingPolicy(false);
+    }
+  }, [companyId, executionMode, loadRuns, selectedRun]);
+
   if (loading) {
     return (
       <Stack align="center" py="xl">
@@ -533,6 +559,15 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
                   { value: "autopilot", label: "Autopilot" },
                 ]}
               />
+              <Button
+                variant="light"
+                color="dark"
+                loading={savingPolicy}
+                disabled={!selectedRun}
+                onClick={() => void saveExecutionMode()}
+              >
+                Save mode
+              </Button>
               <Button leftSection={<IconPlayerPlay size={16} />} color="review" loading={starting} onClick={() => void startMission()}>
                 Start mission
               </Button>
@@ -559,6 +594,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
                     <Badge variant="light" color="review">{selectedRun.state}</Badge>
                     <MetaText>Attempts: {selectedRun.attemptCount}</MetaText>
                     <MetaText>Policy: {selectedRun.policySnapshot?.version ?? "unknown"}</MetaText>
+                    <MetaText>Mode: {selectedRun.policySnapshot?.policyJson?.executionMode ?? "manual"}</MetaText>
                     {selectedRun.failureCode ? (
                       <MetaText>Failure: {selectedRun.failureCode}</MetaText>
                     ) : null}

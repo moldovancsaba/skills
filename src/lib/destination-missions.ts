@@ -382,3 +382,61 @@ export async function markDestinationMissionTerminal(input: {
     },
   });
 }
+
+export async function updateDestinationMissionPolicy(input: {
+  companyId: string;
+  missionId: string;
+  policyPatch: Partial<DestinationRulebookPolicySnapshot>;
+  metadata?: Record<string, unknown> | null;
+}) {
+  const mission = await prisma.destinationMissionRun.findFirst({
+    where: { id: input.missionId, companyId: input.companyId },
+    include: {
+      policySnapshot: true,
+    },
+  });
+  if (!mission) return null;
+
+  const currentPolicy = normalizePolicySnapshot(
+    mission.destinationKey as DestinationKey,
+    mission.policySnapshot.policyJson as Partial<DestinationRulebookPolicySnapshot>,
+  );
+  const nextPolicy = normalizePolicySnapshot(mission.destinationKey as DestinationKey, {
+    ...currentPolicy,
+    ...input.policyPatch,
+  });
+
+  return prisma.$transaction(async (tx) => {
+    const nextSnapshot = await tx.destinationMissionPolicySnapshot.create({
+      data: {
+        companyId: mission.companyId,
+        destinationInstanceId: mission.destinationInstanceId,
+        destinationKey: mission.destinationKey,
+        missionKind: mission.missionKind,
+        version: nextPolicy.version,
+        policyJson: nextPolicy as unknown as Prisma.InputJsonValue,
+        metadata: asJson({
+          ...((mission.policySnapshot.metadata as Record<string, unknown> | null) ?? {}),
+          ...((input.metadata as Record<string, unknown> | null) ?? {}),
+          source: "updateDestinationMissionPolicy",
+        }),
+      },
+    });
+
+    return tx.destinationMissionRun.update({
+      where: { id: mission.id },
+      data: {
+        policySnapshotId: nextSnapshot.id,
+        metadata: asJson({
+          ...((mission.metadata as Record<string, unknown> | null) ?? {}),
+          ...((input.metadata as Record<string, unknown> | null) ?? {}),
+          policyUpdatedAt: new Date().toISOString(),
+        }),
+      },
+      include: {
+        policySnapshot: true,
+        attempts: { orderBy: { ordinal: "asc" } },
+      },
+    });
+  });
+}

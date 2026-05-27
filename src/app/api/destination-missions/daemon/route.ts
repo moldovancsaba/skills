@@ -3,6 +3,8 @@ import { DestinationMissionState } from "@prisma/client";
 import { executeClassScoutMissionUntilBlocked } from "@/lib/destination-mission-runner";
 import { listDestinationMissionRuns } from "@/lib/destination-missions";
 import { verifyIngestSecret } from "@/lib/ingest-auth";
+import { publishDestinationReviewPacket } from "@/lib/destination-publish-bridge";
+import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +49,8 @@ export async function POST(request: NextRequest) {
     DestinationMissionState.CATALOG_INSPECTED,
     DestinationMissionState.DISCOVERING,
     DestinationMissionState.FAILED_RECOVERABLE,
+    DestinationMissionState.CANDIDATE_IN_REVIEW,
+    DestinationMissionState.PUBLISHING,
   ]);
 
   const selectedRuns = runs
@@ -59,17 +63,56 @@ export async function POST(request: NextRequest) {
 
   const results = [];
   for (const run of selectedRuns) {
-    const result = await executeClassScoutMissionUntilBlocked({
-      companyId,
-      missionId: run.id,
-      actorId: "destination-mission-daemon",
-      maxPasses,
-      maxAutoRejections,
-    });
+    const executionMode = readExecutionMode(run);
+    const approvedPacket =
+      executionMode === "autopilot"
+        ? await prisma.destinationReviewPacket.findFirst({
+            where: {
+              companyId,
+              workflowRunId: run.id,
+              packetState: "APPROVED",
+            },
+            include: {
+              outcomeMemories: {
+                orderBy: { createdAt: "desc" },
+                take: 5,
+              },
+            },
+            orderBy: { updatedAt: "desc" },
+          })
+        : null;
+
+    const canAutoPublish =
+      executionMode === "autopilot" &&
+      approvedPacket &&
+      !approvedPacket.outcomeMemories.some((item) => item.eventType === "publish_completed") &&
+      (run.state === DestinationMissionState.PUBLISHING || run.state === DestinationMissionState.CANDIDATE_IN_REVIEW);
+
+    let result;
+    if (canAutoPublish && approvedPacket) {
+      result = {
+        ok: true,
+        autopublish: true,
+        publish: await publishDestinationReviewPacket({
+          companyId,
+          reviewPacketId: approvedPacket.id,
+          reviewedBy: "destination-mission-daemon",
+        }),
+      };
+    } else {
+      result = await executeClassScoutMissionUntilBlocked({
+        companyId,
+        missionId: run.id,
+        actorId: "destination-mission-daemon",
+        maxPasses,
+        maxAutoRejections,
+      });
+    }
+
     results.push({
       missionId: run.id,
       state: run.state,
-      executionMode: readExecutionMode(run),
+      executionMode,
       result,
     });
   }

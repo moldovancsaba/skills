@@ -150,7 +150,42 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-    return NextResponse.json(items);
+    const linkedFlashcardIds = Array.from(
+      new Set(
+        items.flatMap((item) => [
+          ...(Array.isArray(item.sourceFlashcardIds) ? item.sourceFlashcardIds : []),
+          ...(Array.isArray(item.generatedFromIds) ? item.generatedFromIds : []),
+        ]),
+      ),
+    );
+    const linkedFlashcards = linkedFlashcardIds.length > 0
+      ? await prisma.flashcard.findMany({
+          where: {
+            companyId: companyId as string,
+            id: { in: linkedFlashcardIds },
+          },
+          select: {
+            id: true,
+            publicId: true,
+            title: true,
+            departmentKey: true,
+            intelligenceType: true,
+          },
+        })
+      : [];
+    const linkedFlashcardMap = new Map(linkedFlashcards.map((flashcard) => [flashcard.id, flashcard]));
+
+    return NextResponse.json(
+      items.map((item) => ({
+        ...item,
+        linkedFlashcards: [
+          ...(Array.isArray(item.sourceFlashcardIds) ? item.sourceFlashcardIds : []),
+          ...(Array.isArray(item.generatedFromIds) ? item.generatedFromIds : []),
+        ]
+          .map((id) => linkedFlashcardMap.get(id))
+          .filter(Boolean),
+      })),
+    );
   } catch (error) {
     console.error("[API:OPPORTUNITYCARDS] GET failure:", error);
     return NextResponse.json([]);

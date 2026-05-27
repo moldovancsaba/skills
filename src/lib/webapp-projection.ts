@@ -48,6 +48,40 @@ export type WebappProjectionTask = {
   generatedAt: string | null;
 };
 
+export type ProjectionRankedEntry = {
+  key: string;
+  score: number;
+};
+
+export type ProjectionSalesQuerySummary = {
+  query: string;
+  accepted: number;
+  declined: number;
+  candidateCount: number;
+  createdOpportunitycards: number;
+  createdSources: number;
+  score: number;
+};
+
+export type ProjectionSalesSummary = {
+  salesKnowledgeCount: number;
+  opportunitycards: number;
+  acceptedOpportunitycards: number;
+  readyOpportunitycards: number;
+  searchQueued: number;
+  searchRunning: number;
+  searchFailed: number;
+  mineQueued: number;
+  mineRunning: number;
+  mineFailed: number;
+  searchRuns: number;
+  searchStateUpdatedAt: string | null;
+  lastQueries: string[];
+  topQueries: ProjectionSalesQuerySummary[];
+  topTerms: ProjectionRankedEntry[];
+  topDomains: ProjectionRankedEntry[];
+};
+
 export type WebappProjection = {
   version: number;
   generatedAt: string;
@@ -78,6 +112,7 @@ export type WebappProjection = {
     pipeline: number;
   };
   topTasks: WebappProjectionTask[];
+  salesSummary: ProjectionSalesSummary;
 };
 
 const EMPTY_COUNTS: ProjectionCounts = {
@@ -109,6 +144,25 @@ const EMPTY_HOME_CHARTS: WebappProjection["homeCharts"] = {
   knowmore: [],
   tactical: [],
   checklist: [],
+};
+
+const EMPTY_SALES_SUMMARY: ProjectionSalesSummary = {
+  salesKnowledgeCount: 0,
+  opportunitycards: 0,
+  acceptedOpportunitycards: 0,
+  readyOpportunitycards: 0,
+  searchQueued: 0,
+  searchRunning: 0,
+  searchFailed: 0,
+  mineQueued: 0,
+  mineRunning: 0,
+  mineFailed: 0,
+  searchRuns: 0,
+  searchStateUpdatedAt: null,
+  lastQueries: [],
+  topQueries: [],
+  topTerms: [],
+  topDomains: [],
 };
 
 export function getProjectionFreshness(generatedAt: string | null | undefined, now = new Date()): ProjectionFreshness {
@@ -204,6 +258,61 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
         })
         .filter((task) => task.id && task.title)
     : [];
+  const salesSummaryValue = candidate.salesSummary && typeof candidate.salesSummary === "object"
+    ? candidate.salesSummary as Record<string, unknown>
+    : {};
+  const normalizeRankedEntries = (input: unknown): ProjectionRankedEntry[] =>
+    Array.isArray(input)
+      ? input
+          .filter((entry) => entry && typeof entry === "object")
+          .map((entry) => {
+            const value = entry as Record<string, unknown>;
+            return {
+              key: String(value.key || ""),
+              score: Number(value.score || 0),
+            };
+          })
+          .filter((entry) => entry.key)
+      : [];
+  const normalizeQuerySummaries = (input: unknown): ProjectionSalesQuerySummary[] =>
+    Array.isArray(input)
+      ? input
+          .filter((entry) => entry && typeof entry === "object")
+          .map((entry) => {
+            const value = entry as Record<string, unknown>;
+            return {
+              query: String(value.query || ""),
+              accepted: Number(value.accepted || 0),
+              declined: Number(value.declined || 0),
+              candidateCount: Number(value.candidateCount || 0),
+              createdOpportunitycards: Number(value.createdOpportunitycards || 0),
+              createdSources: Number(value.createdSources || 0),
+              score: Number(value.score || 0),
+            };
+          })
+          .filter((entry) => entry.query)
+      : [];
+  const salesSummary: ProjectionSalesSummary = {
+    ...EMPTY_SALES_SUMMARY,
+    salesKnowledgeCount: Number(salesSummaryValue.salesKnowledgeCount || 0),
+    opportunitycards: Number(salesSummaryValue.opportunitycards || counts.sales || 0),
+    acceptedOpportunitycards: Number(salesSummaryValue.acceptedOpportunitycards || 0),
+    readyOpportunitycards: Number(salesSummaryValue.readyOpportunitycards || 0),
+    searchQueued: Number(salesSummaryValue.searchQueued || 0),
+    searchRunning: Number(salesSummaryValue.searchRunning || 0),
+    searchFailed: Number(salesSummaryValue.searchFailed || 0),
+    mineQueued: Number(salesSummaryValue.mineQueued || 0),
+    mineRunning: Number(salesSummaryValue.mineRunning || 0),
+    mineFailed: Number(salesSummaryValue.mineFailed || 0),
+    searchRuns: Number(salesSummaryValue.searchRuns || 0),
+    searchStateUpdatedAt: salesSummaryValue.searchStateUpdatedAt ? String(salesSummaryValue.searchStateUpdatedAt) : null,
+    lastQueries: Array.isArray(salesSummaryValue.lastQueries)
+      ? salesSummaryValue.lastQueries.map((query) => String(query || "")).filter(Boolean)
+      : [],
+    topQueries: normalizeQuerySummaries(salesSummaryValue.topQueries),
+    topTerms: normalizeRankedEntries(salesSummaryValue.topTerms),
+    topDomains: normalizeRankedEntries(salesSummaryValue.topDomains),
+  };
   const resolvedCounts = {
     ...EMPTY_COUNTS,
     ...counts,
@@ -250,5 +359,9 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
       pipeline: resolvedCounts.pipelineJobs,
     },
     topTasks,
+    salesSummary: {
+      ...salesSummary,
+      opportunitycards: Math.max(Number(salesSummary.opportunitycards || 0), Number(resolvedCounts.sales || 0)),
+    },
   };
 }

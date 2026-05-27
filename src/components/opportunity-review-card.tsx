@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Badge, Button, Group, Select, Stack, TextInput, Textarea, ThemeIcon } from "@mantine/core";
 import { IconArchive as Archive, IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconRefresh as RefreshCw, IconX as X, IconPin as Pin } from "@tabler/icons-react";
 import { CardShareAction } from "@/components/ui/card-share-action";
@@ -68,6 +69,13 @@ export type Opportunitycard = {
     annotation?: string | null;
     actedBy?: string | null;
     createdAt: string;
+  }>;
+  linkedFlashcards?: Array<{
+    id: string;
+    publicId: number | null;
+    title: string;
+    departmentKey?: string | null;
+    intelligenceType?: string | null;
   }>;
 };
 
@@ -429,6 +437,28 @@ export function OpportunityReviewCard({
                   <BodyText>{item.generatedFromIds.join(", ")}</BodyText>
                 </Stack>
               ) : null}
+            </Stack>
+          </UnifiedCardSection>
+        ) : null}
+
+        {detailMode && Array.isArray(item.linkedFlashcards) && item.linkedFlashcards.length > 0 ? (
+          <UnifiedCardSection tone="knowmore">
+            <Stack gap="sm">
+              <MetaText>Supporting Knowledge</MetaText>
+              <Group gap="xs" wrap="wrap">
+                {item.linkedFlashcards.map((flashcard) => (
+                  <Badge
+                    key={flashcard.id}
+                    component={Link}
+                    href={`/card/${flashcard.id}`}
+                    variant="light"
+                    color="knowmore"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {flashcard.publicId != null ? `#${flashcard.publicId} ` : ""}{flashcard.title}
+                  </Badge>
+                ))}
+              </Group>
             </Stack>
           </UnifiedCardSection>
         ) : null}

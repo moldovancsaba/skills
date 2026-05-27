@@ -9,6 +9,7 @@ const {
   buildPlannerStateSnapshot,
   buildPlannerEventSummary,
 } = require("./planner/telemetry");
+const { readOpportunitySearchState } = require("./opportunity-search");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_KNOWLEDGE_SAMPLE_FOR_SCORE_HEALTH = 8;
@@ -49,6 +50,40 @@ function normalizeAlerts(alerts = []) {
     ...alert,
     message: alert?.message || alert?.detail || "",
   }));
+}
+
+function toRankedEntries(input, limit = 6) {
+  if (!isPlainObject(input)) return [];
+  return Object.entries(input)
+    .map(([key, value]) => ({ key, score: Number(value || 0) }))
+    .filter((entry) => entry.key && Number.isFinite(entry.score) && entry.score !== 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, limit);
+}
+
+function toQuerySummaries(input, limit = 5) {
+  if (!isPlainObject(input)) return [];
+  return Object.entries(input)
+    .map(([query, stats]) => {
+      const record = isPlainObject(stats) ? stats : {};
+      const accepted = Number(record.accepted || 0);
+      const declined = Number(record.declined || 0);
+      const candidateCount = Number(record.candidateCount || 0);
+      const createdOpportunitycards = Number(record.createdOpportunitycards || 0);
+      const createdSources = Number(record.createdSources || 0);
+      return {
+        query,
+        accepted,
+        declined,
+        candidateCount,
+        createdOpportunitycards,
+        createdSources,
+        score: accepted * 6 + createdOpportunitycards * 3 + createdSources + candidateCount - declined * 7,
+      };
+    })
+    .filter((entry) => entry.query)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, limit);
 }
 
 function buildProjectionHomeCharts(analyticsHistory = []) {
@@ -998,7 +1033,28 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
     ? progressSetting.value
     : {};
 
-  const [dataSources, uploadedFiles, topics, flashcards, goals, opportunitycards, checklistTasks, checklistCount, reviewCount, laneCountRows, flashcardAverages, reviewedFlashcards, scoreHealth, analyticsHistory, feedbackAnalytics, hashtagAnalytics] = await Promise.all([
+  const [
+    dataSources,
+    uploadedFiles,
+    topics,
+    flashcards,
+    goals,
+    opportunitycards,
+    salesKnowledgeCount,
+    acceptedOpportunitycards,
+    readyOpportunitycards,
+    searchState,
+    checklistTasks,
+    checklistCount,
+    reviewCount,
+    laneCountRows,
+    flashcardAverages,
+    reviewedFlashcards,
+    scoreHealth,
+    analyticsHistory,
+    feedbackAnalytics,
+    hashtagAnalytics,
+  ] = await Promise.all([
     prisma.source.count({ where: { companyId } }),
     prisma.uploadedSourceFile.count({ where: { companyId } }),
     prisma.topic.count({ where: { companyId } }),
@@ -1011,6 +1067,33 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
         activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
       },
     }),
+    prisma.flashcard.count({
+      where: {
+        companyId,
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        OR: [
+          { departmentKey: "SALES" },
+          { intelligenceType: "COMPETITOR" },
+        ],
+      },
+    }),
+    prisma.opportunitycard.count({
+      where: {
+        companyId,
+        departmentKey: "SALES",
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        processingStatus: "ACCEPTED",
+      },
+    }),
+    prisma.opportunitycard.count({
+      where: {
+        companyId,
+        departmentKey: "SALES",
+        activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] },
+        iceScore: { gte: 80 },
+      },
+    }),
+    readOpportunitySearchState(prisma, companyId),
     prisma.checklistTask.count({ where: { companyId, activityState: { in: ["ACTIVE", "STALE", "EXPIRED"] } } }),
     prisma.checklistTask.count({
       where: {
@@ -1156,6 +1239,24 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       updatedAt: task.updatedAt ? task.updatedAt.toISOString() : null,
       generatedAt: task.generatedAt ? task.generatedAt.toISOString() : null,
     })),
+    salesSummary: {
+      salesKnowledgeCount,
+      opportunitycards,
+      acceptedOpportunitycards,
+      readyOpportunitycards,
+      searchQueued: Number(observabilitySummary?.sales?.searchQueued || 0),
+      searchRunning: Number(observabilitySummary?.sales?.searchRunning || 0),
+      searchFailed: Number(observabilitySummary?.sales?.searchFailed || 0),
+      mineQueued: Number(observabilitySummary?.sales?.mineQueued || 0),
+      mineRunning: Number(observabilitySummary?.sales?.mineRunning || 0),
+      mineFailed: Number(observabilitySummary?.sales?.mineFailed || 0),
+      searchRuns: Number(searchState?.totalRuns || 0),
+      searchStateUpdatedAt: typeof searchState?.updatedAt === "string" ? searchState.updatedAt : null,
+      lastQueries: Array.isArray(searchState?.lastQueries) ? searchState.lastQueries : [],
+      topQueries: toQuerySummaries(searchState?.queryStats, 5),
+      topTerms: toRankedEntries(searchState?.termScores, 6),
+      topDomains: toRankedEntries(searchState?.domainScores, 6),
+    },
   };
 
   const metrics = {

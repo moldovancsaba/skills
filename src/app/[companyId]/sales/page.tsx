@@ -10,6 +10,7 @@ import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
 import { Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
 import type { SalesOpportunitycard } from "@/components/sales-board";
+import type { ProjectionSalesSummary } from "@/lib/webapp-projection";
 
 type Opportunitycard = SalesOpportunitycard;
 
@@ -61,35 +62,6 @@ type Flashcard = {
   iceScore: number;
 };
 
-type SalesObservability = {
-  sales?: {
-    opportunitycards?: number;
-    searchQueued?: number;
-    searchRunning?: number;
-    searchFailed?: number;
-    mineQueued?: number;
-    mineRunning?: number;
-    mineFailed?: number;
-  };
-};
-
-type SearchStateSummary = {
-  totalRuns: number;
-  lastQueries: string[];
-  updatedAt: string | null;
-  topQueries: Array<{
-    query: string;
-    accepted: number;
-    declined: number;
-    candidateCount: number;
-    createdOpportunitycards: number;
-    createdSources: number;
-    score: number;
-  }>;
-  topTerms: Array<{ key: string; score: number }>;
-  topDomains: Array<{ key: string; score: number }>;
-};
-
 const SalesBoard = dynamic(
   () => import("@/components/sales-board").then((module) => ({ default: module.SalesBoard })),
   {
@@ -111,34 +83,29 @@ export default function SalesPage() {
   const [searching, setSearching] = useState(false);
   const [opportunitycards, setOpportunitycards] = useState<Opportunitycard[]>([]);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-  const [observability, setObservability] = useState<SalesObservability | null>(null);
-  const [searchState, setSearchState] = useState<SearchStateSummary | null>(null);
+  const [salesSummary, setSalesSummary] = useState<ProjectionSalesSummary | null>(null);
 
   const load = useCallback(async () => {
-    const [opportunityRes, knowmoreRes, observabilityRes, searchStateRes] = await Promise.all([
+    const [opportunityRes, knowmoreRes, salesSummaryRes] = await Promise.all([
       fetch(`/api/opportunitycards?companyId=${encodeURIComponent(companyId)}&departmentKey=SALES`),
       fetch(`/api/knowmore?companyId=${encodeURIComponent(companyId)}&departmentKey=SALES&includeCompetitor=true&limit=24&offset=0`),
-      fetch(`/api/observability?companyId=${encodeURIComponent(companyId)}`),
-      fetch(`/api/opportunitycards/search-state?companyId=${encodeURIComponent(companyId)}`),
+      fetch(`/api/companies/${encodeURIComponent(companyId)}/sales-summary`),
     ]);
     if (
       opportunityRes.status === 404 || opportunityRes.status === 403
       || knowmoreRes.status === 404 || knowmoreRes.status === 403
-      || observabilityRes.status === 404 || observabilityRes.status === 403
-      || searchStateRes.status === 404 || searchStateRes.status === 403
+      || salesSummaryRes.status === 404 || salesSummaryRes.status === 403
     ) {
       router.push("/");
       return null;
     }
     const opportunityData = await opportunityRes.json();
     const knowmoreData = await knowmoreRes.json();
-    const observabilityData = await observabilityRes.json();
-    const searchStateData = await searchStateRes.json();
+    const salesSummaryData = await salesSummaryRes.json();
     return {
       opportunitycards: Array.isArray(opportunityData) ? opportunityData : opportunityData.items || [],
       flashcards: Array.isArray(knowmoreData) ? knowmoreData : knowmoreData.items || [],
-      observability: observabilityData,
-      searchState: searchStateData,
+      salesSummary: salesSummaryData?.summary ?? null,
     };
   }, [companyId, router]);
 
@@ -151,8 +118,7 @@ export default function SalesPage() {
         if (cancelled || !data) return;
         setOpportunitycards(data.opportunitycards);
         setFlashcards(data.flashcards);
-        setObservability(data.observability);
-        setSearchState(data.searchState);
+        setSalesSummary(data.salesSummary);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -176,8 +142,7 @@ export default function SalesPage() {
       if (data) {
         setOpportunitycards(data.opportunitycards);
         setFlashcards(data.flashcards);
-        setObservability(data.observability);
-        setSearchState(data.searchState);
+        setSalesSummary(data.salesSummary);
       }
     } finally {
       setMining(false);
@@ -196,8 +161,7 @@ export default function SalesPage() {
       if (data) {
         setOpportunitycards(data.opportunitycards);
         setFlashcards(data.flashcards);
-        setObservability(data.observability);
-        setSearchState(data.searchState);
+        setSalesSummary(data.salesSummary);
       }
     } finally {
       setSearching(false);
@@ -214,8 +178,7 @@ export default function SalesPage() {
     if (data) {
       setOpportunitycards(data.opportunitycards);
       setFlashcards(data.flashcards);
-      setObservability(data.observability);
-      setSearchState(data.searchState);
+      setSalesSummary(data.salesSummary);
     }
   }, [load]);
 
@@ -252,23 +215,22 @@ export default function SalesPage() {
       if (data) {
         setOpportunitycards(data.opportunitycards);
         setFlashcards(data.flashcards);
-        setObservability(data.observability);
-        setSearchState(data.searchState);
+        setSalesSummary(data.salesSummary);
       }
     }
   }, [load]);
 
   const counts = useMemo(() => ({
-    total: opportunitycards.filter((item) => item.activityState !== "ARCHIVED").length,
-    accepted: opportunitycards.filter((item) => item.processingStatus === "ACCEPTED").length,
-    ready: opportunitycards.filter((item) => item.iceScore >= 80).length,
-    salesKnowledge: flashcards.length,
-    searchQueued: Number(observability?.sales?.searchQueued || 0),
-    searchRunning: Number(observability?.sales?.searchRunning || 0),
-    mineQueued: Number(observability?.sales?.mineQueued || 0),
-    mineRunning: Number(observability?.sales?.mineRunning || 0),
-    searchRuns: Number(searchState?.totalRuns || 0),
-  }), [flashcards.length, observability, opportunitycards, searchState]);
+    total: Number(salesSummary?.opportunitycards || opportunitycards.filter((item) => item.activityState !== "ARCHIVED").length),
+    accepted: Number(salesSummary?.acceptedOpportunitycards || opportunitycards.filter((item) => item.processingStatus === "ACCEPTED").length),
+    ready: Number(salesSummary?.readyOpportunitycards || opportunitycards.filter((item) => item.iceScore >= 80).length),
+    salesKnowledge: Number(salesSummary?.salesKnowledgeCount || flashcards.length),
+    searchQueued: Number(salesSummary?.searchQueued || 0),
+    searchRunning: Number(salesSummary?.searchRunning || 0),
+    mineQueued: Number(salesSummary?.mineQueued || 0),
+    mineRunning: Number(salesSummary?.mineRunning || 0),
+    searchRuns: Number(salesSummary?.searchRuns || 0),
+  }), [flashcards.length, opportunitycards, salesSummary]);
 
   if (loading) {
     return (
@@ -319,18 +281,18 @@ export default function SalesPage() {
         <UnifiedCard tone="strategy">
           <UnifiedCardHeader
             title="Search Learning State"
-            supporting={<Text size="sm">{searchState?.updatedAt ? `Updated ${new Date(searchState.updatedAt).toLocaleString()}` : "No worker search state yet"}</Text>}
+            supporting={<Text size="sm">{salesSummary?.searchStateUpdatedAt ? `Updated ${new Date(salesSummary.searchStateUpdatedAt).toLocaleString()}` : "No worker search state yet"}</Text>}
           />
           <UnifiedCardBody>
             <Stack gap="md">
               <Text size="sm">This is the worker-owned memory for internet lead search. The webapp reads it, but does not score or mutate it directly.</Text>
 
-              {searchState && (searchState.lastQueries.length > 0 || searchState.topQueries.length > 0 || searchState.topTerms.length > 0 || searchState.topDomains.length > 0) ? (
+              {salesSummary && (salesSummary.lastQueries.length > 0 || salesSummary.topQueries.length > 0 || salesSummary.topTerms.length > 0 || salesSummary.topDomains.length > 0) ? (
                 <UnifiedGrid cols={{ base: 1, lg: 3 }}>
                   <Stack gap="xs">
                     <Text size="sm">Recent Queries</Text>
                     <Group gap="xs">
-                      {searchState.lastQueries.length > 0 ? searchState.lastQueries.map((query) => (
+                      {salesSummary.lastQueries.length > 0 ? salesSummary.lastQueries.map((query) => (
                         <Badge key={query} color="strategy" variant="light">{query}</Badge>
                       )) : <Text size="sm">No recent queries recorded.</Text>}
                     </Group>
@@ -339,7 +301,7 @@ export default function SalesPage() {
                   <Stack gap="xs">
                     <Text size="sm">Top Terms</Text>
                     <Group gap="xs">
-                      {searchState.topTerms.length > 0 ? searchState.topTerms.map((term) => (
+                      {salesSummary.topTerms.length > 0 ? salesSummary.topTerms.map((term) => (
                         <Badge key={term.key} color="review" variant="light">{term.key} ({term.score})</Badge>
                       )) : <Text size="sm">No learned terms yet.</Text>}
                     </Group>
@@ -348,7 +310,7 @@ export default function SalesPage() {
                   <Stack gap="xs">
                     <Text size="sm">Top Domains</Text>
                     <Group gap="xs">
-                      {searchState.topDomains.length > 0 ? searchState.topDomains.map((domain) => (
+                      {salesSummary.topDomains.length > 0 ? salesSummary.topDomains.map((domain) => (
                         <Badge key={domain.key} color="knowmore" variant="light">{domain.key} ({domain.score})</Badge>
                       )) : <Text size="sm">No domain learning yet.</Text>}
                     </Group>
@@ -363,10 +325,10 @@ export default function SalesPage() {
                 />
               )}
 
-              {searchState?.topQueries?.length ? (
+              {salesSummary?.topQueries?.length ? (
                 <Stack gap="xs">
                   <Text size="sm">Best Learned Queries</Text>
-                  {searchState.topQueries.map((query) => (
+                  {salesSummary.topQueries.map((query) => (
                     <Text key={query.query} size="sm">
                       {query.query} · {query.accepted} accepted · {query.declined} declined · {query.createdOpportunitycards} leads created
                     </Text>

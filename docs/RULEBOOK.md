@@ -65,6 +65,8 @@ Approved product UI system:
 - opportunity discovery is worker-owned by default: internet search, company-candidate filtering, draft lead creation, enrichment, dedupe, and follow-up refresh must execute in the local AI worker, not as ad hoc hosted-webapp logic
 - opportunity search must be self-improving by default: successful queries, accepted leads, and declined leads must persist into per-company search memory so future internet-search query selection is shaped by real operator outcomes rather than static heuristics
 - mined internet leads must start as `DRAFT` opportunitycards with preserved search provenance; operator `ACCEPT` and `DECLINE` are authoritative signals that must reward or penalize the originating search query/domain/terms
+- the `sales` workflow summary contract is projection-first: counts and worker search-memory state must be read from one prepared sales summary contract, not reconstructed by stitching together multiple client-side summary endpoints
+- opportunitycard detail mode must expose supporting knowledge as linked cards, not only raw lineage IDs
 - score generation must persist provenance between agent proposal, calibrated heuristic score, and final blended score profile
 - tactical placement must use the shared blended priority contract, which keeps ICE visible but ranks work through explainable ICE, quality, urgency, freshness, human-signal, risk, lifecycle-state, and memory inputs
 - tactical placement must use relative ranking within the active peer pool; fixed scalar thresholds are not sufficient on their own

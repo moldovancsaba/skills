@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { DestinationMissionState, DestinationWorkflowState, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { extractClassScoutCandidate, prepareClassScoutCandidateReview, scoreClassScoutCandidate, type ClassScoutDiscoveryArtifact } from "@/lib/destination-classscout";
+import {
+  discoverClassScoutCandidates,
+  extractClassScoutCandidate,
+  prepareClassScoutCandidateReview,
+  scoreClassScoutCandidate,
+  type ClassScoutDiscoveryArtifact,
+} from "@/lib/destination-classscout";
 import {
   advanceDestinationMissionAttempt,
   claimDestinationMissionAttempt,
@@ -9,7 +15,7 @@ import {
   markDestinationMissionTerminal,
   transitionDestinationMissionState,
 } from "@/lib/destination-missions";
-import { createDestinationFactSnapshot } from "@/lib/destination-workflows";
+import { createDestinationFactSnapshot, upsertDestinationCandidate, upsertDestinationSourceDocument } from "@/lib/destination-workflows";
 
 type CandidateRecord = Awaited<ReturnType<typeof listMissionCandidates>>[number];
 
@@ -79,6 +85,80 @@ async function listMissionCandidates(companyId: string, missionId: string) {
   });
 }
 
+function asArray<T>(value: unknown) {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+async function discoverMissionCandidates(input: {
+  companyId: string;
+  missionId: string;
+  actorId: string;
+  maxTargets?: number;
+  maxCandidates?: number;
+}) {
+  const discovery = await discoverClassScoutCandidates({
+    maxTargets: input.maxTargets,
+    maxCandidates: input.maxCandidates,
+  });
+  if (!discovery.ok) {
+    return {
+      ok: false as const,
+      error: typeof discovery.error === "string" ? discovery.error : "ClassScout discovery failed.",
+      status: discovery.status ?? 502,
+    };
+  }
+
+  const artifacts = asArray<ClassScoutDiscoveryArtifact>(discovery.data?.artifacts);
+  const persisted = [];
+
+  for (const artifact of artifacts) {
+    const sourceDocument = await upsertDestinationSourceDocument({
+      companyId: input.companyId,
+      destinationKey: "classscout",
+      workflowRunId: input.missionId,
+      sourceUrl: artifact.sourceUrl,
+      sourceType: "officialDiscovery",
+      officialnessScore: artifact.officialnessScore,
+      rawText: artifact.rawText,
+      metadata: {
+        artifactId: artifact.artifactId,
+        authorityGrade: artifact.authorityGrade,
+        searchQuery: artifact.searchQuery,
+        sourceHost: artifact.sourceHost,
+        title: artifact.title,
+        discoveredBy: input.actorId,
+      },
+      fetchedAt: new Date().toISOString(),
+    });
+
+    const candidate = await upsertDestinationCandidate({
+      companyId: input.companyId,
+      destinationKey: "classscout",
+      workflowRunId: input.missionId,
+      candidateFingerprint: artifact.artifactId,
+      canonicalSourceUrl: artifact.sourceUrl,
+      proposedType: artifact.listingKindHint,
+      metadata: {
+        title: artifact.title,
+        categoryHint: artifact.categoryHint,
+        boroughGuess: artifact.boroughGuess,
+        neighborhoodGuess: artifact.neighborhoodGuess,
+        authorityGrade: artifact.authorityGrade,
+        prefilterReasons: artifact.prefilterReasons,
+        searchQuery: artifact.searchQuery,
+        scarcityTargets: artifact.scarcityTargets,
+        scoreResult: artifact.scoreResult,
+        sourceDocumentId: sourceDocument.id,
+        discoveryArtifact: artifact,
+      },
+    });
+
+    persisted.push({ artifact, candidate, sourceDocument });
+  }
+
+  return { ok: true as const, persisted };
+}
+
 function selectNextCandidate(
   mission: NonNullable<Awaited<ReturnType<typeof getDestinationMissionRun>>>,
   candidates: CandidateRecord[],
@@ -141,6 +221,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
 }) {
   const maxAutoRejections = Math.max(1, Math.min(input.maxAutoRejections ?? 5, 10));
   const trail: Array<Record<string, unknown>> = [];
+  let discoveryRefreshed = false;
 
   for (let index = 0; index < maxAutoRejections; index += 1) {
     const mission = await getDestinationMissionRun(input.companyId, input.missionId);
@@ -173,6 +254,42 @@ export async function executeClassScoutMissionNextAttempt(input: {
     });
     const candidate = selection.candidate;
     if (!candidate) {
+      if (!discoveryRefreshed) {
+        const discoveryResult = await discoverMissionCandidates({
+          companyId: input.companyId,
+          missionId: mission.id,
+          actorId: input.actorId,
+          maxTargets: 4,
+          maxCandidates: 6,
+        });
+
+        if (discoveryResult.ok) {
+          discoveryRefreshed = true;
+          trail.push({
+            step: "discover_refresh",
+            discoveredCount: discoveryResult.persisted.length,
+          });
+          if (mission.state === DestinationMissionState.QUEUED) {
+            await transitionDestinationMissionState({
+              companyId: input.companyId,
+              missionId: mission.id,
+              nextState: "CATALOG_INSPECTED",
+              metadata: {
+                discoveredBy: input.actorId,
+                discoveredCount: discoveryResult.persisted.length,
+                source: "executeClassScoutMissionNextAttempt",
+              },
+            }).catch(() => null);
+          }
+          continue;
+        }
+
+        trail.push({
+          step: "discover_refresh_failed",
+          error: discoveryResult.error,
+        });
+      }
+
       const exhausted = await markDestinationMissionTerminal({
         companyId: input.companyId,
         missionId: mission.id,

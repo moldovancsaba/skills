@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       companyId: String(body.companyId),
       destinationKey: String(body.destinationKey) as DestinationKey,
       missionKind: String(body.missionKind) as "rulebook_new_listing",
+      missionDefinitionId: typeof body.missionDefinitionId === "string" ? body.missionDefinitionId : undefined,
       policySnapshot:
         body.policySnapshot && typeof body.policySnapshot === "object" && !Array.isArray(body.policySnapshot)
           ? body.policySnapshot

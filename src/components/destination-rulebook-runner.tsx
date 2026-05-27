@@ -22,6 +22,11 @@ type MissionRun = {
   failureCode: string | null;
   failureDetail?: string | null;
   updatedAt: string;
+  missionDefinition?: {
+    id: string;
+    name: string;
+    status: string;
+  } | null;
   policySnapshot?: {
     version: string;
     policyJson?: {
@@ -272,9 +277,6 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
           destinationKey: "classscout",
           missionKind: "rulebook_new_listing",
           metadata: { startedFrom: "destination-rulebook-runner" },
-          policySnapshot: {
-            executionMode,
-          },
         }),
       });
       const payload = response.ok ? await response.json() : null;
@@ -286,7 +288,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setStarting(false);
     }
-  }, [companyId, executionMode, loadRuns]);
+  }, [companyId, loadRuns]);
 
   const toggleMission = useCallback(async () => {
     if (!selectedRun) return;
@@ -546,7 +548,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
             <Stack gap={2}>
               <SectionTitle>Run a new-listing mission from this unit</SectionTitle>
               <BodyText>
-                Score a candidate against the ClassScout scarcity rulebook, then prepare it directly into the review queue.
+                Run the active ClassScout mission definition from this unit, then move candidates into the review queue.
               </BodyText>
             </Stack>
             <Group gap="sm">
@@ -593,6 +595,9 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
                     <Text fw={600}>{selectedRun.id}</Text>
                     <Badge variant="light" color="review">{selectedRun.state}</Badge>
                     <MetaText>Attempts: {selectedRun.attemptCount}</MetaText>
+                    {selectedRun.missionDefinition ? (
+                      <MetaText>Definition: {selectedRun.missionDefinition.name}</MetaText>
+                    ) : null}
                     <MetaText>Policy: {selectedRun.policySnapshot?.version ?? "unknown"}</MetaText>
                     <MetaText>Mode: {selectedRun.policySnapshot?.policyJson?.executionMode ?? "manual"}</MetaText>
                     {selectedRun.failureCode ? (

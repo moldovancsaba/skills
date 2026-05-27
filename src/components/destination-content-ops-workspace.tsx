@@ -1,13 +1,14 @@
 'use client';
 
 import { Stack, Tabs } from "@mantine/core";
-import { IconActivity, IconChecklist, IconStack2 } from "@tabler/icons-react";
+import { IconActivity, IconChecklist, IconSettings, IconStack2 } from "@tabler/icons-react";
 import { useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/ui/app-shell";
 import { PipelineAccentHeader } from "@/components/ui/app-shell";
 import { DestinationLearningPanel } from "@/components/destination-learning-panel";
 import { DestinationLiveListingOps } from "@/components/destination-live-listing-ops";
 import { DestinationMissionControl } from "@/components/destination-mission-control";
+import { DestinationMissionSetup } from "@/components/destination-mission-setup";
 import { DestinationReviewWorkspace } from "@/components/destination-review-workspace";
 import { DestinationRulebookRunner } from "@/components/destination-rulebook-runner";
 
@@ -18,9 +19,9 @@ const TabsTab = Tabs.Tab;
 export function DestinationContentOpsWorkspace({ companyId }: { companyId: string }) {
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
-  const defaultValue = requestedTab === "review" || requestedTab === "mission" || requestedTab === "ops"
+  const defaultValue = requestedTab === "setup" || requestedTab === "review" || requestedTab === "mission" || requestedTab === "ops"
     ? requestedTab
-    : "ops";
+    : "setup";
 
   return (
     <PageShell width="full">
@@ -32,6 +33,9 @@ export function DestinationContentOpsWorkspace({ companyId }: { companyId: strin
 
       <Tabs defaultValue={defaultValue}>
         <TabsList>
+          <TabsTab value="setup" leftSection={<IconSettings size={14} />}>
+            Mission setup
+          </TabsTab>
           <TabsTab value="ops" leftSection={<IconStack2 size={14} />}>
             Ops queue
           </TabsTab>
@@ -42,6 +46,10 @@ export function DestinationContentOpsWorkspace({ companyId }: { companyId: strin
             Mission control
           </TabsTab>
         </TabsList>
+
+        <TabsContent value="setup" pt="md">
+          <DestinationMissionSetup companyId={companyId} />
+        </TabsContent>
 
         <TabsContent value="ops" pt="md">
           <DestinationLiveListingOps companyId={companyId} />

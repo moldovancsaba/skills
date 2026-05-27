@@ -31,6 +31,24 @@ export type DestinationRulebookPolicySnapshot = {
   stopCondition: "one_live_verified_listing";
 };
 
+export type DestinationMissionCadence = "manual-only" | "scheduled";
+
+export type DestinationMissionDefinitionConfig = {
+  version: string;
+  geographyScope: {
+    boroughs: string[];
+    neighborhoods: string[];
+  };
+  listingTypeScope: string[];
+  executionPolicy: {
+    mode: "manual" | "guarded" | "autopilot";
+    cadence: DestinationMissionCadence;
+    cronEnabled: boolean;
+    requireHumanPublishApproval: boolean;
+  };
+  rulebookPolicy: DestinationRulebookPolicySnapshot;
+};
+
 export type DestinationMissionAttemptOutcome = {
   terminalKind: "rejected" | "retryable_failure" | "review_ready" | "published_verified" | "publish_failed";
   rejectionCode?: string;
@@ -60,3 +78,111 @@ export const DEFAULT_CLASSSCOUT_RULEBOOK_POLICY: DestinationRulebookPolicySnapsh
   maxContinuousPasses: 3,
   stopCondition: "one_live_verified_listing",
 };
+
+export const DEFAULT_CLASSSCOUT_MISSION_DEFINITION: DestinationMissionDefinitionConfig = {
+  version: "classscout-mission-definition@v1",
+  geographyScope: {
+    boroughs: [],
+    neighborhoods: [],
+  },
+  listingTypeScope: [...DEFAULT_CLASSSCOUT_RULEBOOK_POLICY.allowedListingTypes],
+  executionPolicy: {
+    mode: DEFAULT_CLASSSCOUT_RULEBOOK_POLICY.executionMode,
+    cadence: "manual-only",
+    cronEnabled: false,
+    requireHumanPublishApproval: true,
+  },
+  rulebookPolicy: { ...DEFAULT_CLASSSCOUT_RULEBOOK_POLICY },
+};
+
+function cleanStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [] as string[];
+  return value
+    .map((entry) => String(entry ?? "").trim())
+    .filter(Boolean);
+}
+
+export function normalizeRulebookPolicySnapshot(
+  value?: Partial<DestinationRulebookPolicySnapshot> | null,
+): DestinationRulebookPolicySnapshot {
+  const nextValue = value ?? {};
+  return {
+    ...DEFAULT_CLASSSCOUT_RULEBOOK_POLICY,
+    ...nextValue,
+    executionMode:
+      nextValue.executionMode === "guarded" || nextValue.executionMode === "autopilot"
+        ? nextValue.executionMode
+        : DEFAULT_CLASSSCOUT_RULEBOOK_POLICY.executionMode,
+    allowedListingTypes:
+      cleanStringArray(nextValue.allowedListingTypes).length > 0
+        ? cleanStringArray(nextValue.allowedListingTypes)
+        : [...DEFAULT_CLASSSCOUT_RULEBOOK_POLICY.allowedListingTypes],
+    stopCondition: "one_live_verified_listing",
+  };
+}
+
+export function normalizeMissionDefinitionConfig(
+  value?: Partial<DestinationMissionDefinitionConfig> | null,
+): DestinationMissionDefinitionConfig {
+  const nextValue = value ?? {};
+  const geographyScope =
+    nextValue.geographyScope && typeof nextValue.geographyScope === "object" && !Array.isArray(nextValue.geographyScope)
+      ? nextValue.geographyScope
+      : null;
+  const executionPolicy =
+    nextValue.executionPolicy && typeof nextValue.executionPolicy === "object" && !Array.isArray(nextValue.executionPolicy)
+      ? nextValue.executionPolicy
+      : null;
+  const rulebookPolicy =
+    nextValue.rulebookPolicy && typeof nextValue.rulebookPolicy === "object" && !Array.isArray(nextValue.rulebookPolicy)
+      ? nextValue.rulebookPolicy
+      : null;
+
+  const normalizedRulebookPolicy = normalizeRulebookPolicySnapshot({
+    ...rulebookPolicy,
+    allowedListingTypes:
+      cleanStringArray(nextValue.listingTypeScope).length > 0
+        ? cleanStringArray(nextValue.listingTypeScope)
+        : rulebookPolicy?.allowedListingTypes,
+    executionMode:
+      executionPolicy?.mode === "guarded" || executionPolicy?.mode === "autopilot"
+        ? executionPolicy.mode
+        : executionPolicy?.mode === "manual"
+          ? "manual"
+          : rulebookPolicy?.executionMode,
+  });
+
+  const listingTypeScope =
+    cleanStringArray(nextValue.listingTypeScope).length > 0
+      ? cleanStringArray(nextValue.listingTypeScope)
+      : [...normalizedRulebookPolicy.allowedListingTypes];
+
+  return {
+    version:
+      typeof nextValue.version === "string" && nextValue.version.trim()
+        ? nextValue.version.trim()
+        : DEFAULT_CLASSSCOUT_MISSION_DEFINITION.version,
+    geographyScope: {
+      boroughs: cleanStringArray(geographyScope?.boroughs),
+      neighborhoods: cleanStringArray(geographyScope?.neighborhoods),
+    },
+    listingTypeScope,
+    executionPolicy: {
+      mode:
+        executionPolicy?.mode === "guarded" || executionPolicy?.mode === "autopilot"
+          ? executionPolicy.mode
+          : "manual",
+      cadence: executionPolicy?.cadence === "scheduled" ? "scheduled" : "manual-only",
+      cronEnabled: executionPolicy?.cadence === "scheduled" ? executionPolicy?.cronEnabled !== false : false,
+      requireHumanPublishApproval: executionPolicy?.requireHumanPublishApproval !== false,
+    },
+    rulebookPolicy: {
+      ...normalizedRulebookPolicy,
+      allowedListingTypes: [...listingTypeScope],
+      executionMode:
+        executionPolicy?.mode === "guarded" || executionPolicy?.mode === "autopilot"
+          ? executionPolicy.mode
+          : "manual",
+    },
+  };
+}

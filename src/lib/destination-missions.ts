@@ -3,11 +3,17 @@ import { prisma } from "@/lib/db";
 import { ensureDestinationInstance } from "@/lib/destination-workflows";
 import type { DestinationKey } from "@/lib/destination-workflow-contract";
 import {
-  DEFAULT_CLASSSCOUT_RULEBOOK_POLICY,
   type DestinationMissionAttemptOutcome,
+  type DestinationMissionDefinitionConfig,
   type DestinationMissionKind,
   type DestinationRulebookPolicySnapshot,
+  normalizeMissionDefinitionConfig,
+  normalizeRulebookPolicySnapshot,
 } from "@/lib/destination-mission-contract";
+import {
+  getDestinationMissionDefinition,
+  resolveActiveDestinationMissionDefinition,
+} from "@/lib/destination-mission-definitions";
 
 function asJson(value: Record<string, unknown> | null | undefined): Prisma.InputJsonValue {
   return ((value && Object.keys(value).length > 0 ? value : {}) as Prisma.InputJsonValue);
@@ -23,17 +29,24 @@ function toMissionState(
 }
 
 function normalizePolicySnapshot(
-  destinationKey: DestinationKey,
+  _destinationKey: DestinationKey,
   value?: Partial<DestinationRulebookPolicySnapshot> | null,
 ): DestinationRulebookPolicySnapshot {
-  const base = destinationKey === "classscout" ? DEFAULT_CLASSSCOUT_RULEBOOK_POLICY : DEFAULT_CLASSSCOUT_RULEBOOK_POLICY;
+  return normalizeRulebookPolicySnapshot(value);
+}
+
+function derivePolicyFromMissionDefinition(
+  _destinationKey: DestinationKey,
+  config?: Partial<DestinationMissionDefinitionConfig> | null,
+) {
+  const normalizedConfig = normalizeMissionDefinitionConfig(config);
+  const policy = normalizeRulebookPolicySnapshot(normalizedConfig.rulebookPolicy);
   return {
-    ...base,
-    ...(value ?? {}),
-    allowedListingTypes: Array.isArray(value?.allowedListingTypes) && value?.allowedListingTypes.length > 0
-      ? value.allowedListingTypes
-      : base.allowedListingTypes,
-    stopCondition: "one_live_verified_listing",
+    config: normalizedConfig,
+    policy: normalizeRulebookPolicySnapshot({
+      ...policy,
+      executionMode: normalizedConfig.executionPolicy.mode,
+    }),
   };
 }
 
@@ -58,11 +71,47 @@ export async function startDestinationMissionRun(input: {
   companyId: string;
   destinationKey: DestinationKey;
   missionKind: DestinationMissionKind;
+  missionDefinitionId?: string | null;
   policySnapshot?: Partial<DestinationRulebookPolicySnapshot> | null;
   metadata?: Record<string, unknown> | null;
 }) {
   const destinationInstance = await ensureDestinationInstance(input.companyId, input.destinationKey);
-  const policy = normalizePolicySnapshot(input.destinationKey, input.policySnapshot);
+  const requestedDefinition = input.missionDefinitionId
+    ? await getDestinationMissionDefinition({
+      companyId: input.companyId,
+      definitionId: input.missionDefinitionId,
+    })
+    : null;
+  const activeDefinition = requestedDefinition
+    ? null
+    : await resolveActiveDestinationMissionDefinition({
+      companyId: input.companyId,
+      destinationKey: input.destinationKey as "classscout",
+      missionKind: input.missionKind,
+    });
+  const resolvedDefinition = requestedDefinition ?? activeDefinition;
+  const derivedDefinitionPolicy = resolvedDefinition
+    ? derivePolicyFromMissionDefinition(
+      input.destinationKey,
+      resolvedDefinition.configJson as Partial<DestinationMissionDefinitionConfig>,
+    )
+    : null;
+  const policy = input.policySnapshot
+    ? normalizePolicySnapshot(input.destinationKey, input.policySnapshot)
+    : derivedDefinitionPolicy?.policy ?? normalizePolicySnapshot(input.destinationKey);
+  const definitionLineageMetadata = resolvedDefinition
+    ? {
+      missionDefinitionId: resolvedDefinition.id,
+      missionDefinitionStatus: resolvedDefinition.status,
+      missionDefinitionName: resolvedDefinition.name,
+      missionDefinitionRevisionId:
+        resolvedDefinition.activeRevisionId ?? resolvedDefinition.revisions[0]?.id ?? null,
+      missionDefinitionRevisionVersion:
+        resolvedDefinition.revisions[0]?.version ?? null,
+      missionDefinitionConfigVersion:
+        derivedDefinitionPolicy?.config.version ?? null,
+    }
+    : {};
 
   return prisma.$transaction(async (tx) => {
     const policySnapshot = await tx.destinationMissionPolicySnapshot.create({
@@ -73,7 +122,10 @@ export async function startDestinationMissionRun(input: {
         missionKind: input.missionKind,
         version: policy.version,
         policyJson: policy as unknown as Prisma.InputJsonValue,
-        metadata: asJson(input.metadata),
+        metadata: asJson({
+          ...((input.metadata as Record<string, unknown> | null) ?? {}),
+          ...definitionLineageMetadata,
+        }),
       },
     });
 
@@ -81,11 +133,17 @@ export async function startDestinationMissionRun(input: {
       data: {
         companyId: input.companyId,
         destinationInstanceId: destinationInstance.id,
+        missionDefinitionId: resolvedDefinition?.id ?? null,
+        missionDefinitionRevisionId:
+          resolvedDefinition?.activeRevisionId ?? resolvedDefinition?.revisions[0]?.id ?? null,
         policySnapshotId: policySnapshot.id,
         destinationKey: input.destinationKey,
         missionKind: input.missionKind,
         state: DestinationMissionState.QUEUED,
-        metadata: asJson(input.metadata),
+        metadata: asJson({
+          ...((input.metadata as Record<string, unknown> | null) ?? {}),
+          ...definitionLineageMetadata,
+        }),
       },
     });
 
@@ -108,6 +166,8 @@ export async function startDestinationMissionRun(input: {
       },
       include: {
         policySnapshot: true,
+        missionDefinition: true,
+        missionDefinitionRevision: true,
         attempts: { orderBy: { ordinal: "asc" } },
       },
     });
@@ -128,6 +188,8 @@ export async function listDestinationMissionRuns(input: {
     orderBy: { updatedAt: "desc" },
     include: {
       policySnapshot: true,
+      missionDefinition: true,
+      missionDefinitionRevision: true,
       attempts: { orderBy: { ordinal: "asc" }, take: 10 },
     },
   });
@@ -138,6 +200,8 @@ export async function getDestinationMissionRun(companyId: string, missionId: str
     where: { id: missionId, companyId },
     include: {
       policySnapshot: true,
+      missionDefinition: true,
+      missionDefinitionRevision: true,
       attempts: { orderBy: { ordinal: "asc" } },
     },
   });
@@ -175,6 +239,8 @@ export async function transitionDestinationMissionState(input: {
     },
     include: {
       policySnapshot: true,
+      missionDefinition: true,
+      missionDefinitionRevision: true,
       attempts: { orderBy: { ordinal: "asc" } },
     },
   });
@@ -237,6 +303,8 @@ export async function claimDestinationMissionAttempt(input: {
       },
       include: {
         policySnapshot: true,
+        missionDefinition: true,
+        missionDefinitionRevision: true,
         attempts: { orderBy: { ordinal: "asc" } },
       },
     });
@@ -301,6 +369,8 @@ export async function advanceDestinationMissionAttempt(input: {
         },
         include: {
           policySnapshot: true,
+          missionDefinition: true,
+          missionDefinitionRevision: true,
           attempts: { orderBy: { ordinal: "asc" } },
         },
       });
@@ -321,6 +391,8 @@ export async function advanceDestinationMissionAttempt(input: {
         },
         include: {
           policySnapshot: true,
+          missionDefinition: true,
+          missionDefinitionRevision: true,
           attempts: { orderBy: { ordinal: "asc" } },
         },
       });
@@ -355,6 +427,8 @@ export async function advanceDestinationMissionAttempt(input: {
       },
       include: {
         policySnapshot: true,
+        missionDefinition: true,
+        missionDefinitionRevision: true,
         attempts: { orderBy: { ordinal: "asc" } },
       },
     });
@@ -435,6 +509,8 @@ export async function updateDestinationMissionPolicy(input: {
       },
       include: {
         policySnapshot: true,
+        missionDefinition: true,
+        missionDefinitionRevision: true,
         attempts: { orderBy: { ordinal: "asc" } },
       },
     });

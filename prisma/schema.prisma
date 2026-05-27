@@ -58,6 +58,8 @@ model Company {
   destinationReviewDecisions DestinationReviewDecision[]
   destinationWorkflowStageEvents DestinationWorkflowStageEvent[]
   destinationMissionPolicySnapshots DestinationMissionPolicySnapshot[]
+  destinationMissionDefinitions     DestinationMissionDefinition[]
+  destinationMissionDefinitionRevisions DestinationMissionDefinitionRevision[]
   destinationMissionRuns            DestinationMissionRun[]
   destinationMissionAttempts        DestinationMissionAttempt[]
   
@@ -1013,6 +1015,8 @@ model DestinationInstance {
   drafts          DestinationDraft[]
   reviewPackets   DestinationReviewPacket[]
   outcomeMemories DestinationOutcomeMemory[]
+  missionDefinitions DestinationMissionDefinition[]
+  missionDefinitionRevisions DestinationMissionDefinitionRevision[]
   missionPolicySnapshots DestinationMissionPolicySnapshot[]
   missionRuns            DestinationMissionRun[]
   missionAttempts        DestinationMissionAttempt[]
@@ -1322,11 +1326,58 @@ model DestinationMissionPolicySnapshot {
   @@index([companyId, destinationInstanceId, destinationKey, missionKind, createdAt])
 }
 
+model DestinationMissionDefinition {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  destinationKey        String
+  missionKind           String
+  name                  String
+  status                String   @default("draft")
+  activeRevisionId      String?
+  configJson            Json
+  metadata              Json?    @default("{}")
+  createdBy             String
+  updatedBy             String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+
+  revisions DestinationMissionDefinitionRevision[]
+  missionRuns DestinationMissionRun[]
+
+  @@index([companyId, destinationInstanceId, destinationKey, missionKind, status, updatedAt])
+}
+
+model DestinationMissionDefinitionRevision {
+  id                    String   @id @default(uuid()) @map("_id")
+  companyId             String
+  destinationInstanceId String
+  missionDefinitionId   String
+  version               Int
+  configJson            Json
+  metadata              Json?    @default("{}")
+  createdBy             String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @default(now()) @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
+  missionDefinition     DestinationMissionDefinition @relation(fields: [missionDefinitionId], references: [id], onDelete: Cascade)
+
+  missionRuns DestinationMissionRun[]
+
+  @@unique([missionDefinitionId, version])
+  @@index([companyId, destinationInstanceId, missionDefinitionId, createdAt])
+}
+
 model DestinationMissionRun {
   id                    String   @id @default(uuid()) @map("_id")
   companyId             String
   destinationInstanceId String
   policySnapshotId      String
+  missionDefinitionId   String?
+  missionDefinitionRevisionId String?
   destinationKey        String
   missionKind           String
   state                 DestinationMissionState @default(QUEUED)
@@ -1341,10 +1392,13 @@ model DestinationMissionRun {
   company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   destinationInstance   DestinationInstance @relation(fields: [destinationInstanceId], references: [id], onDelete: Cascade)
   policySnapshot        DestinationMissionPolicySnapshot @relation(fields: [policySnapshotId], references: [id], onDelete: Cascade)
+  missionDefinition     DestinationMissionDefinition? @relation(fields: [missionDefinitionId], references: [id], onDelete: SetNull)
+  missionDefinitionRevision DestinationMissionDefinitionRevision? @relation(fields: [missionDefinitionRevisionId], references: [id], onDelete: SetNull)
 
   attempts DestinationMissionAttempt[]
 
   @@index([companyId, destinationInstanceId, destinationKey, state, updatedAt])
+  @@index([companyId, missionDefinitionId, missionKind, updatedAt])
 }
 
 model DestinationMissionAttempt {

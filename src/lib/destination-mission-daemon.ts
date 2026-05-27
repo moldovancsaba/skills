@@ -1,12 +1,14 @@
 import { DestinationMissionState } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { listSchedulableDestinationMissionDefinitions } from "@/lib/destination-mission-definitions";
 import { executeClassScoutMissionUntilBlocked } from "@/lib/destination-mission-runner";
-import { listDestinationMissionRuns } from "@/lib/destination-missions";
+import { listDestinationMissionRuns, startDestinationMissionRun } from "@/lib/destination-missions";
 import { publishDestinationReviewPacket } from "@/lib/destination-publish-bridge";
 
 type MissionRunWithPolicy = {
   id: string;
   state: DestinationMissionState;
+  missionDefinitionRevision?: { configJson?: unknown } | null;
   policySnapshot?: { policyJson?: unknown } | null;
 };
 
@@ -24,6 +26,27 @@ function readExecutionMode(run: MissionRunWithPolicy) {
     return String((policy as Record<string, unknown>).executionMode);
   }
   return "manual";
+}
+
+function requiresHumanPublishApproval(run: MissionRunWithPolicy) {
+  const config =
+    run.missionDefinitionRevision &&
+    typeof run.missionDefinitionRevision === "object" &&
+    "configJson" in run.missionDefinitionRevision
+      ? run.missionDefinitionRevision.configJson
+      : null;
+
+  if (config && typeof config === "object" && !Array.isArray(config)) {
+    const executionPolicy = (config as Record<string, unknown>).executionPolicy;
+    if (executionPolicy && typeof executionPolicy === "object" && !Array.isArray(executionPolicy)) {
+      const approvalFlag = (executionPolicy as Record<string, unknown>).requireHumanPublishApproval;
+      if (typeof approvalFlag === "boolean") {
+        return approvalFlag;
+      }
+    }
+  }
+
+  return true;
 }
 
 function uniqueValues(values: string[]) {
@@ -57,12 +80,6 @@ export async function executeDestinationMissionDaemonForCompany(input: {
   const maxPasses = input.maxPasses ?? defaults.maxPasses;
   const maxAutoRejections = input.maxAutoRejections ?? defaults.maxAutoRejections;
 
-  const runs = await listDestinationMissionRuns({
-    companyId: input.companyId,
-    destinationKey: "classscout",
-    missionKind: "rulebook_new_listing",
-  });
-
   const eligibleStates = new Set<DestinationMissionState>([
     DestinationMissionState.QUEUED,
     DestinationMissionState.CATALOG_INSPECTED,
@@ -71,6 +88,56 @@ export async function executeDestinationMissionDaemonForCompany(input: {
     DestinationMissionState.CANDIDATE_IN_REVIEW,
     DestinationMissionState.PUBLISHING,
   ]);
+  const materializationBlockingStates = new Set<DestinationMissionState>([
+    ...eligibleStates,
+    DestinationMissionState.PAUSED,
+  ]);
+
+  const existingRuns = await listDestinationMissionRuns({
+    companyId: input.companyId,
+    destinationKey: "classscout",
+    missionKind: "rulebook_new_listing",
+  });
+
+  const schedulableDefinitions = await listSchedulableDestinationMissionDefinitions({
+    companyId: input.companyId,
+    destinationKey: "classscout",
+    missionKind: "rulebook_new_listing",
+  });
+
+  const activeDefinitionRunIds = new Set(
+    existingRuns
+      .filter((run) => materializationBlockingStates.has(run.state))
+      .map((run) => run.missionDefinitionId)
+      .filter((value): value is string => Boolean(value)),
+  );
+
+  const definitionsToMaterialize = schedulableDefinitions
+    .filter((definition) => !activeDefinitionRunIds.has(definition.id))
+    .slice(0, maxRuns);
+
+  const materializedRuns = [];
+  for (const definition of definitionsToMaterialize) {
+    materializedRuns.push(
+      await startDestinationMissionRun({
+        companyId: input.companyId,
+        destinationKey: "classscout",
+        missionKind: "rulebook_new_listing",
+        missionDefinitionId: definition.id,
+        metadata: {
+          startedFrom: "destination-mission-daemon",
+          materializedFromDefinitionId: definition.id,
+          materializedFromDefinitionName: definition.name,
+        },
+      }),
+    );
+  }
+
+  const runs = await listDestinationMissionRuns({
+    companyId: input.companyId,
+    destinationKey: "classscout",
+    missionKind: "rulebook_new_listing",
+  });
 
   const selectedRuns = runs
     .filter((run) => eligibleStates.has(run.state))
@@ -103,6 +170,7 @@ export async function executeDestinationMissionDaemonForCompany(input: {
 
     const canAutoPublish =
       executionMode === "autopilot" &&
+      !requiresHumanPublishApproval(run) &&
       approvedPacket &&
       !approvedPacket.outcomeMemories.some((item) => item.eventType === "publish_completed") &&
       (run.state === DestinationMissionState.PUBLISHING || run.state === DestinationMissionState.CANDIDATE_IN_REVIEW);
@@ -132,6 +200,7 @@ export async function executeDestinationMissionDaemonForCompany(input: {
       missionId: run.id,
       state: run.state,
       executionMode,
+      requireHumanPublishApproval: requiresHumanPublishApproval(run),
       result,
     });
   }
@@ -139,6 +208,7 @@ export async function executeDestinationMissionDaemonForCompany(input: {
   return {
     ok: true,
     companyId: input.companyId,
+    materialized: materializedRuns.length,
     processed: results.length,
     skipped: runs.length - results.length,
     results,

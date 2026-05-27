@@ -45,6 +45,18 @@ type PrepareResponse = {
   error?: string;
 };
 
+type ExecuteNextAttemptResponse = {
+  ok: boolean;
+  reviewReady?: boolean;
+  terminal?: boolean;
+  candidateId?: string;
+  draftId?: string;
+  mission?: MissionRun | null;
+  trail?: Record<string, unknown>[];
+  result?: Record<string, unknown>;
+  error?: string;
+};
+
 type DiscoveryArtifact = {
   artifactId: string;
   title: string;
@@ -115,6 +127,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
   const [mediaRequestJson, setMediaRequestJson] = useState(pretty({ imageUrl: "", sourcePageUrl: "" }));
   const [scoreResponse, setScoreResponse] = useState<ScoreResponse | null>(null);
   const [prepareResponse, setPrepareResponse] = useState<PrepareResponse | null>(null);
+  const [executionResponse, setExecutionResponse] = useState<ExecuteNextAttemptResponse | null>(null);
   const [discoverResponse, setDiscoverResponse] = useState<DiscoverResponse | null>(null);
   const [extractResponse, setExtractResponse] = useState<ExtractResponse | null>(null);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
@@ -123,6 +136,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
   const [extracting, setExtracting] = useState(false);
   const [scoring, setScoring] = useState(false);
   const [preparing, setPreparing] = useState(false);
+  const [autoRunning, setAutoRunning] = useState(false);
   const [toggling, setToggling] = useState(false);
 
   const selectedRun = useMemo(
@@ -311,6 +325,29 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     }
   }, [companyId, loadRuns, parseEditors, selectedCandidateId, selectedRun]);
 
+  const executeNextAttempt = useCallback(async () => {
+    if (!selectedRun) return;
+    setAutoRunning(true);
+    try {
+      const response = await fetch(`/api/destination-missions/runs/${selectedRun.id}/execute-next-attempt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId,
+          maxAutoRejections: 5,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({ ok: false, error: "Invalid response" }))) as ExecuteNextAttemptResponse;
+      setExecutionResponse(payload);
+      if (payload.candidateId) {
+        setSelectedCandidateId(payload.candidateId);
+      }
+      await loadRuns();
+    } finally {
+      setAutoRunning(false);
+    }
+  }, [companyId, loadRuns, selectedRun]);
+
   if (loading) {
     return (
       <Stack align="center" py="xl">
@@ -466,6 +503,16 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
             </Button>
             <Button
               color="review"
+              variant="light"
+              leftSection={<IconPlayerPlay size={16} />}
+              loading={autoRunning}
+              disabled={!selectedRun}
+              onClick={() => void executeNextAttempt()}
+            >
+              Auto-run next candidate
+            </Button>
+            <Button
+              color="review"
               leftSection={<IconSend size={16} />}
               loading={preparing}
               disabled={!selectedRun}
@@ -548,6 +595,13 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
               </Stack>
             </UnifiedCardSection>
           </SimpleGrid>
+
+          <UnifiedCardSection tone="review">
+            <Stack gap="xs">
+              <SectionTitle>Auto-run Result</SectionTitle>
+              {executionResponse ? <Code block>{pretty(executionResponse)}</Code> : <BodyText>No auto-run result yet.</BodyText>}
+            </Stack>
+          </UnifiedCardSection>
         </Stack>
       </UnifiedCardBody>
     </UnifiedCard>

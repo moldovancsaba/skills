@@ -180,6 +180,69 @@ export async function transitionDestinationMissionState(input: {
   });
 }
 
+export async function claimDestinationMissionAttempt(input: {
+  companyId: string;
+  missionId: string;
+  candidateId?: string | null;
+  workflowRunId?: string | null;
+  candidateFingerprint?: string | null;
+  metadata?: Record<string, unknown> | null;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const mission = await tx.destinationMissionRun.findFirst({
+      where: { id: input.missionId, companyId: input.companyId },
+      include: {
+        attempts: { orderBy: { ordinal: "desc" }, take: 1 },
+      },
+    });
+    if (!mission) return null;
+
+    const currentAttempt = mission.attempts[0] ?? null;
+    if (!currentAttempt) return null;
+
+    const mergedAttemptMetadata = {
+      ...((currentAttempt.metadata as Record<string, unknown> | null) ?? {}),
+      ...((input.metadata as Record<string, unknown> | null) ?? {}),
+    };
+
+    await tx.destinationMissionAttempt.update({
+      where: { id: currentAttempt.id },
+      data: {
+        state: "in_progress",
+        startedAt: currentAttempt.startedAt ?? new Date(),
+        candidateId: input.candidateId ?? currentAttempt.candidateId,
+        workflowRunId: input.workflowRunId ?? currentAttempt.workflowRunId,
+        candidateFingerprint: input.candidateFingerprint ?? currentAttempt.candidateFingerprint,
+        metadata: asJson(mergedAttemptMetadata),
+      },
+    });
+
+    const nextState =
+      mission.state === DestinationMissionState.QUEUED ||
+      mission.state === DestinationMissionState.CATALOG_INSPECTED ||
+      mission.state === DestinationMissionState.FAILED_RECOVERABLE
+        ? DestinationMissionState.DISCOVERING
+        : mission.state;
+
+    return tx.destinationMissionRun.update({
+      where: { id: mission.id },
+      data: {
+        state: nextState,
+        activeAttemptId: currentAttempt.id,
+        metadata: asJson({
+          ...((mission.metadata as Record<string, unknown> | null) ?? {}),
+          ...((input.metadata as Record<string, unknown> | null) ?? {}),
+          activeCandidateId: input.candidateId ?? currentAttempt.candidateId ?? null,
+        }),
+      },
+      include: {
+        policySnapshot: true,
+        attempts: { orderBy: { ordinal: "asc" } },
+      },
+    });
+  });
+}
+
 export async function advanceDestinationMissionAttempt(input: {
   companyId: string;
   missionId: string;

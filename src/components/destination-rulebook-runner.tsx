@@ -620,8 +620,10 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
                     justify="space-between"
                     onClick={() => setSelectedRunId(run.id)}
                   >
-                    <span>{run.id.slice(0, 12)}</span>
-                    <span>{run.state}</span>
+                    <Group justify="space-between" w="100%">
+                      <MetaText>{run.id.slice(0, 12)}</MetaText>
+                      <MetaText>{run.state}</MetaText>
+                    </Group>
                   </Button>
                 ))}
               </Stack>

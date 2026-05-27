@@ -384,7 +384,7 @@ export function DestinationReviewWorkspace({
                               onChange={(event) => setDraftEditorJson(event.currentTarget.value)}
                               minRows={18}
                               autosize
-                              styles={{ input: { fontFamily: "monospace", fontSize: 12 } }}
+                              styles={{ input: { fontFamily: "monospace" } }}
                               description="Edit the destination draft JSON before approving or reworking. The system records a correction summary for training."
                             />
                           </UnifiedCardSection>
@@ -418,7 +418,7 @@ export function DestinationReviewWorkspace({
                               onChange={(event) => setFactsEditorJson(event.currentTarget.value)}
                               minRows={14}
                               autosize
-                              styles={{ input: { fontFamily: "monospace", fontSize: 12 } }}
+                              styles={{ input: { fontFamily: "monospace" } }}
                               description="Correct extracted facts here when the source interpretation was wrong or incomplete."
                             />
                           </UnifiedCardSection>

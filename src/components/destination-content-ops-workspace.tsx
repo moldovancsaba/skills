@@ -1,6 +1,6 @@
 'use client';
 
-import { Tabs } from "@mantine/core";
+import { Stack, Tabs } from "@mantine/core";
 import { IconActivity, IconChecklist, IconStack2 } from "@tabler/icons-react";
 import { useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/ui/app-shell";
@@ -52,11 +52,11 @@ export function DestinationContentOpsWorkspace({ companyId }: { companyId: strin
         </TabsContent>
 
         <TabsContent value="mission" pt="md">
-          <DestinationRulebookRunner companyId={companyId} />
-          <div style={{ height: 24 }} />
-          <DestinationMissionControl companyId={companyId} />
-          <div style={{ height: 24 }} />
-          <DestinationLearningPanel companyId={companyId} />
+          <Stack gap="xl">
+            <DestinationRulebookRunner companyId={companyId} />
+            <DestinationMissionControl companyId={companyId} />
+            <DestinationLearningPanel companyId={companyId} />
+          </Stack>
         </TabsContent>
       </Tabs>
     </PageShell>

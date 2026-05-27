@@ -59,6 +59,17 @@ type ExecuteNextAttemptResponse = {
   error?: string;
 };
 
+type MissionPass = {
+  pass: number;
+  ok: boolean;
+  reviewReady: boolean;
+  terminal: boolean;
+  candidateId: string | null;
+  draftId: string | null;
+  trail: Record<string, unknown>[];
+  error: string | null;
+};
+
 type DiscoveryArtifact = {
   artifactId: string;
   title: string;
@@ -130,6 +141,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
   const [scoreResponse, setScoreResponse] = useState<ScoreResponse | null>(null);
   const [prepareResponse, setPrepareResponse] = useState<PrepareResponse | null>(null);
   const [executionResponse, setExecutionResponse] = useState<ExecuteNextAttemptResponse | null>(null);
+  const [cycleResponse, setCycleResponse] = useState<ExecuteNextAttemptResponse | null>(null);
   const [discoverResponse, setDiscoverResponse] = useState<DiscoverResponse | null>(null);
   const [extractResponse, setExtractResponse] = useState<ExtractResponse | null>(null);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
@@ -139,6 +151,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
   const [scoring, setScoring] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [autoRunning, setAutoRunning] = useState(false);
+  const [cycleRunning, setCycleRunning] = useState(false);
   const [toggling, setToggling] = useState(false);
 
   const selectedRun = useMemo(
@@ -149,6 +162,17 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
   const selectedDiscoveredCandidate = useMemo(
     () => discoveredCandidates.find((item) => item.candidate.id === selectedCandidateId) ?? discoveredCandidates[0] ?? null,
     [discoveredCandidates, selectedCandidateId],
+  );
+  const executionSelectionStep = useMemo(
+    () => executionResponse?.trail?.find((step) => step.step === "selection") ?? null,
+    [executionResponse],
+  );
+  const cycleSelectionSteps = useMemo(
+    () =>
+      ((cycleResponse as Record<string, unknown> | null)?.passes as MissionPass[] | undefined)?.flatMap((pass) =>
+        pass.trail.filter((step) => step.step === "selection").map((step) => ({ pass: pass.pass, step })),
+      ) ?? [],
+    [cycleResponse],
   );
 
   const loadRuns = useCallback(async () => {
@@ -350,6 +374,30 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     }
   }, [companyId, loadRuns, selectedRun]);
 
+  const executeUntilBlocked = useCallback(async () => {
+    if (!selectedRun) return;
+    setCycleRunning(true);
+    try {
+      const response = await fetch(`/api/destination-missions/runs/${selectedRun.id}/execute-until-blocked`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId,
+          maxPasses: 3,
+          maxAutoRejections: 5,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({ ok: false, error: "Invalid response" }))) as ExecuteNextAttemptResponse;
+      setCycleResponse(payload);
+      if (payload.candidateId) {
+        setSelectedCandidateId(payload.candidateId);
+      }
+      await loadRuns();
+    } finally {
+      setCycleRunning(false);
+    }
+  }, [companyId, loadRuns, selectedRun]);
+
   if (loading) {
     return (
       <Stack align="center" py="xl">
@@ -525,6 +573,15 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
             <Button
               color="review"
               leftSection={<IconSend size={16} />}
+              loading={cycleRunning}
+              disabled={!selectedRun}
+              onClick={() => void executeUntilBlocked()}
+            >
+              Run until blocked
+            </Button>
+            <Button
+              color="review"
+              leftSection={<IconSend size={16} />}
               loading={preparing}
               disabled={!selectedRun}
               onClick={() => void prepareCandidate()}
@@ -628,6 +685,74 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
                 </>
               ) : (
                 <BodyText>No auto-run result yet.</BodyText>
+              )}
+            </Stack>
+          </UnifiedCardSection>
+
+          <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="md">
+            <UnifiedCardSection tone="strategy">
+              <Stack gap="xs">
+                <SectionTitle>Auto-run Telemetry</SectionTitle>
+                {executionSelectionStep ? (
+                  <>
+                    <MetaText>
+                      Available candidates: {String(executionSelectionStep.availableCandidates ?? 0)}
+                    </MetaText>
+                    <MetaText>
+                      Domain attempts: {pretty(executionSelectionStep.domainAttempts ?? {})}
+                    </MetaText>
+                    <Code block>{pretty(executionSelectionStep.skipped ?? [])}</Code>
+                  </>
+                ) : (
+                  <BodyText>No selection telemetry yet.</BodyText>
+                )}
+              </Stack>
+            </UnifiedCardSection>
+
+            <UnifiedCardSection tone="review">
+              <Stack gap="xs">
+                <SectionTitle>Continuous Run Result</SectionTitle>
+                {cycleResponse ? (
+                  <>
+                    <Group gap="xs">
+                      <Badge variant="light" color={cycleResponse.reviewReady ? "teal" : cycleResponse.terminal ? "gray" : "yellow"}>
+                        {cycleResponse.reviewReady
+                          ? "Review ready"
+                          : cycleResponse.terminal
+                            ? "Terminal"
+                            : "Paused by control budget"}
+                      </Badge>
+                      {Array.isArray((cycleResponse as Record<string, unknown>).passes) ? (
+                        <MetaText>{((cycleResponse as Record<string, unknown>).passes as MissionPass[]).length} pass(es)</MetaText>
+                      ) : null}
+                    </Group>
+                    <Code block>{pretty(cycleResponse)}</Code>
+                  </>
+                ) : (
+                  <BodyText>No continuous run result yet.</BodyText>
+                )}
+              </Stack>
+            </UnifiedCardSection>
+          </SimpleGrid>
+
+          <UnifiedCardSection tone="checklist">
+            <Stack gap="xs">
+              <SectionTitle>Continuous Run Telemetry</SectionTitle>
+              {cycleSelectionSteps.length ? (
+                cycleSelectionSteps.map((entry) => (
+                  <UnifiedCardSection key={`pass-${entry.pass}`} tone="neutral">
+                    <Stack gap="xs">
+                      <Text fw={600}>Pass {entry.pass}</Text>
+                      <MetaText>
+                        Available candidates: {String((entry.step as Record<string, unknown>).availableCandidates ?? 0)}
+                      </MetaText>
+                      <Code block>{pretty((entry.step as Record<string, unknown>).domainAttempts ?? {})}</Code>
+                      <Code block>{pretty((entry.step as Record<string, unknown>).skipped ?? [])}</Code>
+                    </Stack>
+                  </UnifiedCardSection>
+                ))
+              ) : (
+                <BodyText>No continuous run telemetry yet.</BodyText>
               )}
             </Stack>
           </UnifiedCardSection>

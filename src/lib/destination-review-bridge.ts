@@ -172,6 +172,40 @@ async function syncMissionRunFromOutcome(input: DestinationOutcomeInput) {
       "publish_rollback",
     ].includes(input.eventType)
   ) {
+    const existingAttempt = mission.attempts[mission.attempts.length - 1] ?? null;
+    const payload = input.payload && typeof input.payload === "object" && !Array.isArray(input.payload)
+      ? (input.payload as Record<string, unknown>)
+      : {};
+    const candidateDomain =
+      typeof payload.publicVerification === "object" &&
+      payload.publicVerification &&
+      !Array.isArray(payload.publicVerification) &&
+      typeof (payload.publicVerification as Record<string, unknown>).candidateDomain === "string"
+        ? String((payload.publicVerification as Record<string, unknown>).candidateDomain)
+        : null;
+
+    const nextRun = await advanceDestinationMissionAttempt({
+      companyId: input.companyId,
+      missionId: mission.id,
+      candidateId: input.candidateId ?? existingAttempt?.candidateId ?? null,
+      workflowRunId: mission.id,
+      candidateFingerprint: existingAttempt?.candidateFingerprint ?? null,
+      outcome: {
+        terminalKind: "retryable_failure",
+        rejectionCode: input.reasonCode ?? input.eventType,
+        rejectionDetail: input.notes ?? input.eventType,
+        candidateDomain: candidateDomain ?? undefined,
+      },
+      metadata: {
+        source: input.eventType,
+        actorId: input.actorId ?? null,
+        recoveryReason: input.reasonCode ?? input.eventType,
+        recoveryNotes: input.notes ?? null,
+      },
+    }).catch(() => null);
+
+    if (nextRun) return;
+
     await transitionDestinationMissionState({
       companyId: input.companyId,
       missionId: mission.id,

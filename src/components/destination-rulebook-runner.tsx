@@ -11,6 +11,7 @@ type MissionAttempt = {
   ordinal: number;
   state: string;
   rejectionCode: string | null;
+  rejectionDetail?: string | null;
   completedAt: string | null;
 };
 
@@ -19,6 +20,7 @@ type MissionRun = {
   state: string;
   attemptCount: number;
   failureCode: string | null;
+  failureDetail?: string | null;
   updatedAt: string;
   policySnapshot?: {
     version: string;
@@ -407,6 +409,12 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
                     <Badge variant="light" color="review">{selectedRun.state}</Badge>
                     <MetaText>Attempts: {selectedRun.attemptCount}</MetaText>
                     <MetaText>Policy: {selectedRun.policySnapshot?.version ?? "unknown"}</MetaText>
+                    {selectedRun.failureCode ? (
+                      <MetaText>Failure: {selectedRun.failureCode}</MetaText>
+                    ) : null}
+                    {selectedRun.failureDetail ? (
+                      <BodyText>{selectedRun.failureDetail}</BodyText>
+                    ) : null}
                     <MetaText>Updated: {new Date(selectedRun.updatedAt).toLocaleString()}</MetaText>
                   </>
                 ) : (
@@ -441,6 +449,9 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
                     <Text fw={600}>Attempt {selectedRun.attempts[selectedRun.attempts.length - 1]?.ordinal}</Text>
                     <MetaText>{selectedRun.attempts[selectedRun.attempts.length - 1]?.state}</MetaText>
                     <MetaText>{selectedRun.attempts[selectedRun.attempts.length - 1]?.rejectionCode ?? "No rejection code"}</MetaText>
+                    {selectedRun.attempts[selectedRun.attempts.length - 1]?.rejectionDetail ? (
+                      <BodyText>{selectedRun.attempts[selectedRun.attempts.length - 1]?.rejectionDetail}</BodyText>
+                    ) : null}
                   </>
                 ) : (
                   <BodyText>No attempt history recorded yet.</BodyText>
@@ -599,7 +610,25 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
           <UnifiedCardSection tone="review">
             <Stack gap="xs">
               <SectionTitle>Auto-run Result</SectionTitle>
-              {executionResponse ? <Code block>{pretty(executionResponse)}</Code> : <BodyText>No auto-run result yet.</BodyText>}
+              {executionResponse ? (
+                <>
+                  <Group gap="xs">
+                    <Badge variant="light" color={executionResponse.reviewReady ? "teal" : executionResponse.terminal ? "gray" : "yellow"}>
+                      {executionResponse.reviewReady
+                        ? "Review ready"
+                        : executionResponse.terminal
+                          ? "Terminal"
+                          : "Needs another attempt"}
+                    </Badge>
+                    {executionResponse.candidateId ? (
+                      <MetaText>Candidate {executionResponse.candidateId}</MetaText>
+                    ) : null}
+                  </Group>
+                  <Code block>{pretty(executionResponse)}</Code>
+                </>
+              ) : (
+                <BodyText>No auto-run result yet.</BodyText>
+              )}
             </Stack>
           </UnifiedCardSection>
         </Stack>

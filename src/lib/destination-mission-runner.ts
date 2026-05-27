@@ -37,6 +37,38 @@ function readCandidateScore(candidate: CandidateRecord) {
   return -1;
 }
 
+function inferCandidateDomain(candidate: CandidateRecord) {
+  const metadata = asRecord(candidate.metadata);
+  const discoveryArtifact = asRecord(metadata?.discoveryArtifact);
+  const sourceHost = typeof discoveryArtifact?.sourceHost === "string" ? discoveryArtifact.sourceHost.trim().toLowerCase() : "";
+  if (sourceHost) return sourceHost;
+
+  try {
+    return new URL(candidate.canonicalSourceUrl).hostname.trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function buildDomainAttemptMap(mission: NonNullable<Awaited<ReturnType<typeof getDestinationMissionRun>>>) {
+  const counts = new Map<string, number>();
+
+  for (const attempt of mission.attempts) {
+    const metadata = asRecord(attempt.metadata);
+    const outcome = asRecord(metadata?.outcome);
+    const candidateDomain =
+      typeof outcome?.candidateDomain === "string"
+        ? outcome.candidateDomain.trim().toLowerCase()
+        : typeof metadata?.candidateDomain === "string"
+          ? metadata.candidateDomain.trim().toLowerCase()
+          : "";
+    if (!candidateDomain) continue;
+    counts.set(candidateDomain, (counts.get(candidateDomain) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
 async function listMissionCandidates(companyId: string, missionId: string) {
   return prisma.destinationCandidate.findMany({
     where: { companyId, workflowRunId: missionId },
@@ -47,22 +79,46 @@ async function listMissionCandidates(companyId: string, missionId: string) {
   });
 }
 
-function selectNextCandidate(mission: NonNullable<Awaited<ReturnType<typeof getDestinationMissionRun>>>, candidates: CandidateRecord[]) {
+function selectNextCandidate(
+  mission: NonNullable<Awaited<ReturnType<typeof getDestinationMissionRun>>>,
+  candidates: CandidateRecord[],
+  maxDomainRetries: number,
+) {
   const attemptedIds = new Set(mission.attempts.map((attempt) => attempt.candidateId).filter((value): value is string => Boolean(value)));
   const attemptedFingerprints = new Set(
     mission.attempts.map((attempt) => attempt.candidateFingerprint).filter((value): value is string => Boolean(value)),
   );
+  const domainAttempts = buildDomainAttemptMap(mission);
+  const skipped: Array<{ candidateId: string; domain: string | null; reason: string }> = [];
 
   const eligible = candidates
     .filter((candidate) => {
-      if (attemptedIds.has(candidate.id)) return false;
-      if (attemptedFingerprints.has(candidate.candidateFingerprint)) return false;
-      if (candidate.status === DestinationWorkflowState.REJECTED) return false;
+      if (attemptedIds.has(candidate.id)) {
+        skipped.push({ candidateId: candidate.id, domain: inferCandidateDomain(candidate) || null, reason: "already_attempted_candidate" });
+        return false;
+      }
+      if (attemptedFingerprints.has(candidate.candidateFingerprint)) {
+        skipped.push({ candidateId: candidate.id, domain: inferCandidateDomain(candidate) || null, reason: "already_attempted_fingerprint" });
+        return false;
+      }
+      if (candidate.status === DestinationWorkflowState.REJECTED) {
+        skipped.push({ candidateId: candidate.id, domain: inferCandidateDomain(candidate) || null, reason: "candidate_rejected" });
+        return false;
+      }
+      const candidateDomain = inferCandidateDomain(candidate);
+      if (candidateDomain && (domainAttempts.get(candidateDomain) ?? 0) >= maxDomainRetries) {
+        skipped.push({ candidateId: candidate.id, domain: candidateDomain, reason: "domain_retry_budget_exhausted" });
+        return false;
+      }
       return true;
     })
     .sort((left, right) => readCandidateScore(right) - readCandidateScore(left) || left.createdAt.getTime() - right.createdAt.getTime());
 
-  return eligible[0] ?? null;
+  return {
+    candidate: eligible[0] ?? null,
+    skipped,
+    domainAttempts: Object.fromEntries([...domainAttempts.entries()].sort((left, right) => left[0].localeCompare(right[0]))),
+  };
 }
 
 function buildEvidenceSummary(candidate: CandidateRecord, evidenceMap: Record<string, unknown>) {
@@ -106,8 +162,16 @@ export async function executeClassScoutMissionNextAttempt(input: {
       return { ok: true, mission, trail, terminal: true };
     }
 
+    const policy = mission.policySnapshot.policyJson as unknown as { maxDomainRetries?: number };
     const candidates = await listMissionCandidates(input.companyId, input.missionId);
-    const candidate = selectNextCandidate(mission, candidates);
+    const selection = selectNextCandidate(mission, candidates, Math.max(1, policy.maxDomainRetries ?? 2));
+    trail.push({
+      step: "selection",
+      availableCandidates: candidates.length,
+      skipped: selection.skipped,
+      domainAttempts: selection.domainAttempts,
+    });
+    const candidate = selection.candidate;
     if (!candidate) {
       const exhausted = await markDestinationMissionTerminal({
         companyId: input.companyId,
@@ -116,14 +180,17 @@ export async function executeClassScoutMissionNextAttempt(input: {
         metadata: {
           source: "executeClassScoutMissionNextAttempt",
           actorId: input.actorId,
+          lastSelectionSkipped: selection.skipped,
+          domainAttempts: selection.domainAttempts,
         },
       });
-      trail.push({ step: "exhausted", reason: "no_remaining_candidates" });
+      trail.push({ step: "exhausted", reason: "no_remaining_candidates", skipped: selection.skipped });
       return { ok: true, mission: exhausted, trail, terminal: true };
     }
 
     const metadata = asRecord(candidate.metadata);
     const discoveryArtifact = asRecord(metadata?.discoveryArtifact) as ClassScoutDiscoveryArtifact | null;
+    const candidateDomain = inferCandidateDomain(candidate);
     if (!discoveryArtifact) {
       const nextRun = await advanceDestinationMissionAttempt({
         companyId: input.companyId,
@@ -135,10 +202,12 @@ export async function executeClassScoutMissionNextAttempt(input: {
           terminalKind: "rejected",
           rejectionCode: "missing_discovery_artifact",
           rejectionDetail: "The mission candidate is missing its discovery artifact metadata.",
+          candidateDomain: candidateDomain || undefined,
         },
         metadata: {
           source: "executeClassScoutMissionNextAttempt",
           actorId: input.actorId,
+          candidateDomain: candidateDomain || null,
         },
       });
       await prisma.destinationCandidate.update({
@@ -157,13 +226,14 @@ export async function executeClassScoutMissionNextAttempt(input: {
       missionId: mission.id,
       candidateId: candidate.id,
       workflowRunId: mission.id,
-      candidateFingerprint: candidate.candidateFingerprint,
-      metadata: {
-        source: "executeClassScoutMissionNextAttempt",
-        actorId: input.actorId,
-        selectedCandidateId: candidate.id,
-      },
-    });
+        candidateFingerprint: candidate.candidateFingerprint,
+        metadata: {
+          source: "executeClassScoutMissionNextAttempt",
+          actorId: input.actorId,
+          selectedCandidateId: candidate.id,
+          candidateDomain: candidateDomain || null,
+        },
+      });
 
     let normalizedListing = asRecord(candidate.factSnapshots[0]?.factsJson);
     let evidenceMap = asRecord(asRecord(candidate.factSnapshots[0]?.provenanceJson)?.evidenceMap);
@@ -182,10 +252,12 @@ export async function executeClassScoutMissionNextAttempt(input: {
             terminalKind: "retryable_failure",
             rejectionCode: "extraction_failed",
             rejectionDetail: typeof extraction.error === "string" ? extraction.error : "Candidate extraction failed.",
+            candidateDomain: candidateDomain || undefined,
           },
           metadata: {
             source: "executeClassScoutMissionNextAttempt",
             actorId: input.actorId,
+            candidateDomain: candidateDomain || null,
           },
         });
         await prisma.destinationCandidate.update({
@@ -216,10 +288,12 @@ export async function executeClassScoutMissionNextAttempt(input: {
             terminalKind: "rejected",
             rejectionCode: "extraction_missing_facts",
             rejectionDetail: "Extraction did not return normalized listing facts.",
+            candidateDomain: candidateDomain || undefined,
           },
           metadata: {
             source: "executeClassScoutMissionNextAttempt",
             actorId: input.actorId,
+            candidateDomain: candidateDomain || null,
           },
         });
         await prisma.destinationCandidate.update({
@@ -261,15 +335,17 @@ export async function executeClassScoutMissionNextAttempt(input: {
         workflowRunId: mission.id,
         candidateFingerprint: candidate.candidateFingerprint,
         outcome: {
-          terminalKind: "retryable_failure",
-          rejectionCode: "scoring_failed",
-          rejectionDetail: typeof scoreResult.error === "string" ? scoreResult.error : "Candidate scoring failed.",
-        },
-        metadata: {
-          source: "executeClassScoutMissionNextAttempt",
-          actorId: input.actorId,
-        },
-      });
+            terminalKind: "retryable_failure",
+            rejectionCode: "scoring_failed",
+            rejectionDetail: typeof scoreResult.error === "string" ? scoreResult.error : "Candidate scoring failed.",
+            candidateDomain: candidateDomain || undefined,
+          },
+          metadata: {
+            source: "executeClassScoutMissionNextAttempt",
+            actorId: input.actorId,
+            candidateDomain: candidateDomain || null,
+          },
+        });
       await prisma.destinationCandidate.update({
         where: { id: candidate.id },
         data: { status: DestinationWorkflowState.FAILED },
@@ -310,12 +386,14 @@ export async function executeClassScoutMissionNextAttempt(input: {
             score === null
               ? "Candidate scoring did not return an eligible score."
               : `Candidate scored ${score} and did not pass the rulebook threshold.`,
+          candidateDomain: candidateDomain || undefined,
         },
         metadata: {
           source: "executeClassScoutMissionNextAttempt",
           actorId: input.actorId,
           score,
           blockingReasons,
+          candidateDomain: candidateDomain || null,
         },
       });
       await prisma.destinationCandidate.update({
@@ -355,16 +433,18 @@ export async function executeClassScoutMissionNextAttempt(input: {
         workflowRunId: mission.id,
         candidateFingerprint: candidate.candidateFingerprint,
         outcome: {
-          terminalKind: "retryable_failure",
-          rejectionCode: "prepare_failed",
-          rejectionDetail: typeof prepare.error === "string" ? prepare.error : "Candidate preparation failed.",
-        },
-        metadata: {
-          source: "executeClassScoutMissionNextAttempt",
-          actorId: input.actorId,
-          draftId,
-        },
-      });
+            terminalKind: "retryable_failure",
+            rejectionCode: "prepare_failed",
+            rejectionDetail: typeof prepare.error === "string" ? prepare.error : "Candidate preparation failed.",
+            candidateDomain: candidateDomain || undefined,
+          },
+          metadata: {
+            source: "executeClassScoutMissionNextAttempt",
+            actorId: input.actorId,
+            draftId,
+            candidateDomain: candidateDomain || null,
+          },
+        });
       await prisma.destinationCandidate.update({
         where: { id: candidate.id },
         data: { status: DestinationWorkflowState.FAILED },
@@ -391,11 +471,13 @@ export async function executeClassScoutMissionNextAttempt(input: {
           terminalKind: "rejected",
           rejectionCode: diagnostics[0] ?? "publish_gate_blocked",
           rejectionDetail: diagnostics.join(" | ") || "Candidate was blocked during preparation.",
+          candidateDomain: candidateDomain || undefined,
         },
         metadata: {
           source: "executeClassScoutMissionNextAttempt",
           actorId: input.actorId,
           draftId,
+          candidateDomain: candidateDomain || null,
         },
       });
       await prisma.destinationCandidate.update({

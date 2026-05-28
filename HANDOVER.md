@@ -81,6 +81,7 @@ Prisma hygiene:
 - the immediate sibling audit also hardened Datacards and Topics: Datacards now uses the existing server loader for first paint, and Topics no longer loads the full company list just to resolve one company page shell
 - the next follow-up slice also hardened Goals and reduced Datacard file-load cost: Goals now server-bootstrap instead of waiting on the old client waterfall, and Datacards now page uploaded files instead of loading the full file corpus on first paint
 - the dashboard first response is now intentionally narrower: non-critical member and identity details are not supposed to sit on the critical product-summary path
+- delegated destination-unit workflow state must not be mounted on the shared company dashboard; keep ClassScout and other destination telemetry confined to their dedicated review, destination, or observability surfaces
 - the shipped follow-up slice now also includes bounded cold-start projection backfill in `snapshot-worker`, so fresh or repaired environments do not sit indefinitely on missing product read models
 - startup integrity scrub cooldown now persists across restarts instead of firing again on every guardian bounce
 - planner telemetry now retries and degrades to best-effort on retryable Prisma write conflicts instead of failing the owning job

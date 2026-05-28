@@ -73,6 +73,7 @@ Approved product UI system:
 - source-backed knowledge must persist durable citation snapshots and explicit conflict state; URL-only provenance is not accepted
 - the active self-learning path must stay Apple-Silicon-native: dataset export plus MLX / MLX-LM training plus Ollama deployment
 - Unsloth, LLaMA-Factory, and Axolotl are not part of the active delivery plan today and must not be represented as current rollout dependencies
+- delegated destination-unit workflow state is forbidden on the shared company dashboard: ClassScout or other destination mission-control, live-listing, review-packet, or publish telemetry must stay inside dedicated destination/review/observability surfaces, not the main company dashboard
 
 ## 3. What We Do Not Use
 

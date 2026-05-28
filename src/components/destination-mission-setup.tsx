@@ -324,7 +324,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
                         applyDefinitionToEditor(definition);
                       }}
                     >
-                      <span>{definition.name}</span>
+                      <MetaText>{definition.name}</MetaText>
                       <Badge variant="light" color={definition.status === "active" ? "green" : "gray"}>
                         {definition.status}
                       </Badge>
@@ -379,7 +379,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
                     </Group>
                     <Button
                       variant="subtle"
-                      color="red"
+                      color="review"
                       loading={actioning}
                       onClick={() => void triggerAction("archive")}
                     >

@@ -12,6 +12,7 @@ const CORE_PIPELINE_JOB_TYPES = Object.freeze([
   "FEEDBACK_RECONCILIATION",
   "CARD_RESCORING",
   "FRONTIER_RECOMPUTE",
+  "DESTINATION_MISSION_DAEMON",
   "SCORE_ALERT_REPAIR",
 ]);
 
@@ -70,6 +71,7 @@ const PIPELINE_JOB_RETRY_LIMITS = Object.freeze({
   SCORE_ALERT_REPAIR: 6,
   CARD_RESCORING: 6,
   FRONTIER_RECOMPUTE: 4,
+  DESTINATION_MISSION_DAEMON: 4,
   FEEDBACK_RECONCILIATION: 5,
   ENSURE_FLASHCARD_MINIMUM: 4,
   RESEARCH_BACKFILL: 4,
@@ -117,6 +119,7 @@ const JOB_LABELS = Object.freeze({
   FEEDBACK_RECONCILIATION: "Feedback Reconciliation",
   CARD_RESCORING: "Card Rescoring",
   FRONTIER_RECOMPUTE: "Frontier Recompute",
+  DESTINATION_MISSION_DAEMON: "Destination Service Lane",
   ENSURE_FLASHCARD_MINIMUM: "Ensure Flashcard Minimum",
   RESEARCH_BACKFILL: "Research Backfill",
   ENSURE_IDEABANK_MINIMUM: "Ensure Ideabank Minimum",
@@ -412,6 +415,195 @@ function lanePriorityBoost(lane) {
     default:
       return 0;
   }
+}
+
+function readClassScoutMissionExecutionPolicy(configJson) {
+  if (!isPlainObject(configJson) || !isPlainObject(configJson.executionPolicy)) return null;
+  const executionPolicy = configJson.executionPolicy;
+  const mode = typeof executionPolicy.mode === "string" ? executionPolicy.mode : "manual";
+  const cadence = typeof executionPolicy.cadence === "string" ? executionPolicy.cadence : "manual-only";
+  const cronEnabled = executionPolicy.cronEnabled !== false;
+  const requireHumanPublishApproval = executionPolicy.requireHumanPublishApproval !== false;
+  return { mode, cadence, cronEnabled, requireHumanPublishApproval };
+}
+
+function readClassScoutMissionExecutionMode(policyJson) {
+  if (!isPlainObject(policyJson)) return "manual";
+  const mode = typeof policyJson.executionMode === "string" ? policyJson.executionMode : "manual";
+  return mode === "guarded" || mode === "autopilot" ? mode : "manual";
+}
+
+function buildClassScoutDestinationLaneProfile(definitions, runs) {
+  const activeDefinitions = Array.isArray(definitions) ? definitions : [];
+  const activeRuns = Array.isArray(runs) ? runs : [];
+  const runStates = new Set(activeRuns.map((run) => String(run.state || "")));
+  const autopilotRuns = activeRuns.filter((run) => readClassScoutMissionExecutionMode(run.policySnapshot?.policyJson) === "autopilot");
+
+  if (runStates.has("FAILED_RECOVERABLE")) {
+    return {
+      queueColumn: "NOW",
+      priorityScore: 146,
+      reason: "Recoverable ClassScout destination work is waiting for immediate queue-owned retry.",
+      sourceSignal: "destination:classscout:recoverable",
+    };
+  }
+
+  if (runStates.has("PUBLISHING")) {
+    return {
+      queueColumn: "NOW",
+      priorityScore: 142,
+      reason: "ClassScout destination work is in the publishing phase and should stay at the front of the lane.",
+      sourceSignal: "destination:classscout:publishing",
+    };
+  }
+
+  if (runStates.has("CANDIDATE_IN_REVIEW")) {
+    return {
+      queueColumn: "SOON",
+      priorityScore: autopilotRuns.length > 0 ? 132 : 108,
+      reason:
+        autopilotRuns.length > 0
+          ? "ClassScout autopilot review work is ready for continued queue-owned processing."
+          : "ClassScout destination work is waiting in review and should remain visible in the service lane.",
+      sourceSignal: autopilotRuns.length > 0 ? "destination:classscout:autopilot-review" : "destination:classscout:review",
+    };
+  }
+
+  if (activeRuns.length > 0) {
+    return {
+      queueColumn: "SOON",
+      priorityScore: 104,
+      reason: `${activeRuns.length} ClassScout destination run(s) are active under guarded or autopilot execution.`,
+      sourceSignal: "destination:classscout:active-runs",
+    };
+  }
+
+  return {
+    queueColumn: "LATER",
+    priorityScore: 88,
+    reason: `${activeDefinitions.length} active scheduled ClassScout mission definition(s) keep the destination lane armed for the next queue turn.`,
+    sourceSignal: "destination:classscout:scheduled",
+  };
+}
+
+async function syncClassScoutDestinationMissionJob(prisma, companyId) {
+  const jobKey = {
+    companyId,
+    jobType: "DESTINATION_MISSION_DAEMON",
+    entityType: "DESTINATION_SERVICE",
+    entityId: "classscout",
+  };
+
+  const [definitions, runs, existing] = await Promise.all([
+    prisma.destinationMissionDefinition.findMany({
+      where: {
+        companyId,
+        destinationKey: "classscout",
+        missionKind: "rulebook_new_listing",
+        status: "active",
+      },
+      select: {
+        id: true,
+        name: true,
+        configJson: true,
+        updatedAt: true,
+      },
+      orderBy: [{ updatedAt: "desc" }],
+    }),
+    prisma.destinationMissionRun.findMany({
+      where: {
+        companyId,
+        destinationKey: "classscout",
+        missionKind: "rulebook_new_listing",
+        state: {
+          in: ["QUEUED", "CATALOG_INSPECTED", "DISCOVERING", "FAILED_RECOVERABLE", "CANDIDATE_IN_REVIEW", "PUBLISHING"],
+        },
+      },
+      select: {
+        id: true,
+        state: true,
+        updatedAt: true,
+        policySnapshot: {
+          select: {
+            policyJson: true,
+          },
+        },
+      },
+      orderBy: [{ updatedAt: "desc" }],
+    }),
+    prisma.pipelineJob.findUnique({
+      where: {
+        companyId_jobType_entityType_entityId: jobKey,
+      },
+    }),
+  ]);
+
+  const schedulableDefinitions = definitions.filter((definition) => {
+    const policy = readClassScoutMissionExecutionPolicy(definition.configJson);
+    return Boolean(
+      policy
+      && policy.cadence === "scheduled"
+      && policy.cronEnabled
+      && (policy.mode === "guarded" || policy.mode === "autopilot"),
+    );
+  });
+
+  const runnableRuns = runs.filter((run) => readClassScoutMissionExecutionMode(run.policySnapshot?.policyJson) !== "manual");
+
+  if (schedulableDefinitions.length === 0 && runnableRuns.length === 0) {
+    if (existing && existing.status !== "RUNNING") {
+      await prisma.pipelineJob.delete({ where: { id: existing.id } });
+    }
+    return null;
+  }
+
+  const profile = buildClassScoutDestinationLaneProfile(schedulableDefinitions, runnableRuns);
+  const metadata = {
+    destinationKey: "classscout",
+    missionKind: "rulebook_new_listing",
+    activeDefinitionIds: schedulableDefinitions.map((definition) => definition.id),
+    activeDefinitionNames: schedulableDefinitions.map((definition) => definition.name),
+    activeRunIds: runnableRuns.map((run) => run.id),
+    activeRunStates: runnableRuns.map((run) => run.state),
+    serviceLane: "classscout",
+  };
+
+  if (!existing) {
+    return prisma.pipelineJob.create({
+      data: {
+        companyId,
+        jobType: "DESTINATION_MISSION_DAEMON",
+        entityType: "DESTINATION_SERVICE",
+        entityId: "classscout",
+        status: "ACTIVE",
+        controlMode: "AI_ONLY",
+        queueColumn: profile.queueColumn,
+        manualSortOrder: 0,
+        priorityScore: roundPriority(profile.priorityScore),
+        reason: profile.reason,
+        sourceSignal: profile.sourceSignal,
+        metadata,
+      },
+    });
+  }
+
+  return prisma.pipelineJob.update({
+    where: { id: existing.id },
+    data: {
+      controlMode: "AI_ONLY",
+      queueColumn: existing.controlMode === "AI_ONLY" ? profile.queueColumn : existing.queueColumn,
+      status:
+        existing.status === "RUNNING"
+          ? existing.status
+          : existing.status === "PAUSED"
+            ? existing.status
+            : "ACTIVE",
+      priorityScore: roundPriority(profile.priorityScore),
+      reason: profile.reason,
+      sourceSignal: profile.sourceSignal,
+      metadata,
+    },
+  });
 }
 
 function buildPlannerLaneProfile(lane, signals) {
@@ -1222,6 +1414,11 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
       .map((job) => job.id);
     if (removableIds.length > 0) {
       await prisma.pipelineJob.deleteMany({ where: { id: { in: removableIds } } });
+    }
+
+    const destinationLaneJob = await syncClassScoutDestinationMissionJob(prisma, companyId);
+    if (destinationLaneJob) {
+      jobs.push(destinationLaneJob);
     }
 
     return jobs;

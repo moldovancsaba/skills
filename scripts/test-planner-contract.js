@@ -138,6 +138,7 @@ async function main() {
   assert.equal(storedEvents[0].eventType, "TIMEOUT", "timeout telemetry must be recorded");
 
   assert.equal(PIPELINE_JOB_TYPES.includes("ENSURE_CHECKLIST_MINIMUM"), true, "explicit checklist planner job must be managed");
+  assert.equal(PIPELINE_JOB_TYPES.includes("DESTINATION_MISSION_DAEMON"), true, "destination service execution must be a managed queue job");
   assert.equal(PIPELINE_JOB_TYPES.includes("REFRESH_GOALS"), true, "explicit goal refresh job must be managed");
   assert.equal(PIPELINE_JOB_TYPES.includes("MINE_FLASHCARD_OPPORTUNITIES"), true, "flashcard opportunity mining must be a managed queue job");
   assert.equal(PIPELINE_JOB_TYPES.includes("MINE_TASK_OPPORTUNITIES"), true, "task opportunity mining must be a managed queue job");

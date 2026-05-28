@@ -217,6 +217,7 @@ Current managed job families:
 - `FEEDBACK_RECONCILIATION`
 - `CARD_RESCORING`
 - `FRONTIER_RECOMPUTE`
+- `DESTINATION_MISSION_DAEMON`
 - `ENSURE_FLASHCARD_MINIMUM`
 - `RESEARCH_BACKFILL`
 - `ENSURE_IDEABANK_MINIMUM`
@@ -233,6 +234,14 @@ Current managed job families:
 - `REFRESH_GOALS`
 - `SCORE_ALERT_REPAIR`
 - `WORKFLOW_BLUEPRINT`
+
+Destination service lane contract:
+
+- destination execution must join the same queue-owned worker model as the rest of checklist
+- ClassScout is currently the first destination service lane
+- active scheduled ClassScout mission definitions and active guarded/autopilot ClassScout mission runs materialize into the claimable `DESTINATION_MISSION_DAEMON` queue job
+- the queue job dispatches into the internal daemon endpoint so the existing mission runtime can be reused without reintroducing a second independent scheduler
+- this keeps ClassScout under the same one-task-at-a-time, retry, timeout, and queue-visibility rules as the rest of the local AI system
 
 Legacy compatibility jobs may still appear:
 

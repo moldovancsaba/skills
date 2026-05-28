@@ -104,6 +104,7 @@ async function main() {
   assert.equal(lowMemory.retryAfterMs, 180000, "explicit retry windows must survive classification");
 
   assert.equal(getPipelineJobRetryLimit("ENSURE_FLASHCARD_MINIMUM"), 4, "bootstrap jobs must use bounded retry limits");
+  assert.equal(getPipelineJobRetryLimit("DESTINATION_MISSION_DAEMON"), 4, "destination service jobs must use bounded retry limits");
   assert.equal(getPipelineJobRetryLimit("WORKFLOW_BLUEPRINT"), 3, "workflow jobs must use tighter retry limits");
   assert.equal(getPipelineJobRetryLimit("UNKNOWN_JOB"), 3, "unknown jobs must fall back to the safe default retry limit");
 

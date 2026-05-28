@@ -44,6 +44,13 @@ const {
 const { getHumanMemoryPrompt, processMemoryUpdates } = require("./memory");
 const { markCompanyProjectionDirty } = require("./intelligence-snapshot");
 
+function createPipelineContractError(message) {
+  const error = new Error(message);
+  error.pipelineClass = "INPUT_CONTRACT";
+  error.retryable = false;
+  return error;
+}
+
 function isPlannerBootstrapJob(jobType) {
   return PLANNER_BOOTSTRAP_JOB_TYPES.includes(jobType);
 }
@@ -108,6 +115,10 @@ async function resolvePipelineEntityLabel(prisma, job) {
     return file?.name || (file?.publicId ? `File #${file.publicId}` : "File");
   }
 
+  if (entityType === "DESTINATION_SERVICE") {
+    return job.entityId === "classscout" ? "ClassScout" : "Destination Service";
+  }
+
   return null;
 }
 
@@ -120,7 +131,88 @@ function buildActiveTaskString(job, companyName, entityLabel) {
   return companyName ? `${jobLabel} for ${companyName}: ${entityLabel}` : `${jobLabel}: ${entityLabel}`;
 }
 
+function getChecklistLocalRuntimeBridgeConfig() {
+  const bearerToken = (process.env.CRON_SECRET || process.env.INGEST_SECRET || "").trim();
+  if (!bearerToken) {
+    throw createPipelineContractError(
+      "ClassScout destination lane requires CRON_SECRET or INGEST_SECRET so the queue can call the internal daemon endpoint.",
+    );
+  }
+
+  const candidateBaseUrls = [
+    process.env.CHECKLIST_LOCAL_BASE_URL,
+    process.env.NEXT_PUBLIC_BASE_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    "http://127.0.0.1:3415",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3000",
+  ]
+    .map((value) => String(value || "").trim().replace(/\/$/, ""))
+    .filter(Boolean);
+
+  return {
+    bearerToken,
+    candidateBaseUrls: Array.from(new Set(candidateBaseUrls)),
+    timeoutMs: Math.max(15_000, Math.min(Number(process.env.DESTINATION_MISSION_DAEMON_TIMEOUT_MS || 120_000), 300_000)),
+  };
+}
+
+async function runClassScoutDestinationMissionDaemonJob(job) {
+  const config = getChecklistLocalRuntimeBridgeConfig();
+  const payload = {
+    companyId: job.companyId,
+    maxRuns: 3,
+    maxPasses: 3,
+    maxAutoRejections: 5,
+  };
+  const failures = [];
+
+  for (const baseUrl of config.candidateBaseUrls) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+
+    try {
+      const response = await fetch(`${baseUrl}/api/destination-missions/daemon`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.bearerToken}`,
+          "Content-Type": "application/json",
+          "User-Agent": "checklist-local-ai-queue",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      const data = await response.json().catch(() => ({}));
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        failures.push({ baseUrl, status: response.status, error: data?.error || `HTTP_${response.status}` });
+        continue;
+      }
+
+      const processedCompanies = Number(data?.processedCompanies || 0);
+      const missionRuns = Array.isArray(data?.results)
+        ? data.results.reduce((count, item) => count + Number(item?.processed || 0), 0)
+        : 0;
+      return Math.max(1, processedCompanies, missionRuns);
+    } catch (error) {
+      clearTimeout(timeout);
+      failures.push({
+        baseUrl,
+        error: error?.name === "AbortError" ? `Timed out after ${config.timeoutMs}ms` : error?.message || String(error),
+      });
+    }
+  }
+
+  const summary = failures
+    .map((failure) => `${failure.baseUrl} (${failure.status || "ERR"}: ${failure.error})`)
+    .join("; ");
+  throw new Error(`ClassScout destination lane could not reach the internal daemon endpoint. ${summary}`);
+}
+
 const MEMORY_INTENSIVE_PIPELINE_JOB_TYPES = new Set([
+  "DESTINATION_MISSION_DAEMON",
   "ENSURE_FLASHCARD_MINIMUM",
   "RESEARCH_BACKFILL",
   "MINE_FLASHCARD_OPPORTUNITIES",
@@ -163,6 +255,7 @@ const PIPELINE_JOB_WEIGHT_CLASS = Object.freeze({
   FEEDBACK_RECONCILIATION: JOB_WEIGHT_CLASSES.LIGHT,
   CARD_RESCORING: JOB_WEIGHT_CLASSES.MEDIUM,
   FRONTIER_RECOMPUTE: JOB_WEIGHT_CLASSES.LIGHT,
+  DESTINATION_MISSION_DAEMON: JOB_WEIGHT_CLASSES.BURST,
   SCORE_ALERT_REPAIR: JOB_WEIGHT_CLASSES.MEDIUM,
   ENSURE_FLASHCARD_MINIMUM: JOB_WEIGHT_CLASSES.HEAVY,
   RESEARCH_BACKFILL: JOB_WEIGHT_CLASSES.BURST,
@@ -414,6 +507,8 @@ async function executePipelineJob(prisma, job, executionOptions = {}) {
     case "FRONTIER_RECOMPUTE":
       await recomputeFrontier(prisma, company);
       return 1;
+    case "DESTINATION_MISSION_DAEMON":
+      return runClassScoutDestinationMissionDaemonJob(job);
     case "FULL_MAINTENANCE":
       await runMaintenance(prisma, company);
       return 1;

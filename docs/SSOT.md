@@ -151,6 +151,13 @@ Foreground execution contract:
    - complete or fail that job
 5. rest briefly
 
+Destination-service execution contract:
+
+- destination services are not allowed to run as a parallel shadow scheduler beside the general playlist
+- ClassScout destination work must be materialized into the same queue-owned worker lane as other checklist jobs
+- the current shipped bridge uses the claimable `DESTINATION_MISSION_DAEMON` queue job to dispatch into the internal mission daemon runtime for ClassScout
+- this bridge is a transitional implementation detail; the architectural rule is that destination work is queue-owned, single-lane, and visible in mission control
+
 The older broad per-company “load companies and run a full synthesis cycle” description is no longer the runtime contract.
 
 ## 5.1 Product read-model contract

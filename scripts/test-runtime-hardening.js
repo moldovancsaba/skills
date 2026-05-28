@@ -94,6 +94,16 @@ async function main() {
   assert.equal(timeout.class, "MODEL_TIMEOUT", "planner timeouts must classify as model timeouts");
   assert.equal(timeout.retryable, true, "planner timeouts must stay retryable");
 
+  const storageQuotaBlocked = classifyPipelineJobError({
+    code: "P2010",
+    meta: {
+      message: "AtlasError: you are over your space quota, using 512 MB of 512 MB. Writes are blocked on your cluster.",
+    },
+  });
+  assert.equal(storageQuotaBlocked.class, "STORAGE_QUOTA_BLOCKED", "Atlas storage quota failures must classify explicitly");
+  assert.equal(storageQuotaBlocked.retryable, true, "Atlas storage quota failures must stay retryable");
+  assert.equal(storageQuotaBlocked.retryAfterMs, 30 * 60 * 1000, "Atlas quota failures must back off for a longer window");
+
   const lowMemory = classifyPipelineJobError({
     message: "ENSURE_FLASHCARD_MINIMUM deferred because memory pressure is CONSTRAINED (900MB free).",
     pipelineClass: "LOW_MEMORY_SKIP",

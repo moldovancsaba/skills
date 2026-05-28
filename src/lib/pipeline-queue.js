@@ -97,6 +97,7 @@ const PIPELINE_JOB_RETRY_LIMITS = Object.freeze({
 const PIPELINE_FAILURE_CLASSES = Object.freeze({
   MODEL_TIMEOUT: "MODEL_TIMEOUT",
   LOW_MEMORY_SKIP: "LOW_MEMORY_SKIP",
+  STORAGE_QUOTA_BLOCKED: "STORAGE_QUOTA_BLOCKED",
   PRISMA_VALIDATION: "PRISMA_VALIDATION",
   PRISMA_WRITE_CONFLICT: "PRISMA_WRITE_CONFLICT",
   NOT_FOUND: "NOT_FOUND",
@@ -175,7 +176,11 @@ function getPipelineJobRetryLimit(jobType) {
 
 function classifyPipelineJobError(error) {
   const code = typeof error?.code === "string" ? error.code : null;
-  const message = String(error?.message || error || "unknown pipeline failure");
+  const metaMessage =
+    error?.meta && typeof error.meta === "object" && !Array.isArray(error.meta) && typeof error.meta.message === "string"
+      ? error.meta.message
+      : null;
+  const message = String(error?.message || metaMessage || error || "unknown pipeline failure");
   const retryAfterMs = Number.isFinite(error?.retryAfterMs) ? Number(error.retryAfterMs) : null;
   const explicitRetryable = typeof error?.retryable === "boolean" ? error.retryable : null;
   const explicitClass = typeof error?.pipelineClass === "string" ? error.pipelineClass : null;
@@ -203,6 +208,15 @@ function classifyPipelineJobError(error) {
       class: PIPELINE_FAILURE_CLASSES.MODEL_TIMEOUT,
       retryable: true,
       retryAfterMs: retryAfterMs ?? 5 * 60 * 1000,
+      message,
+    };
+  }
+
+  if (/over your space quota|writes are blocked on your cluster|atlaserror/i.test(message)) {
+    return {
+      class: PIPELINE_FAILURE_CLASSES.STORAGE_QUOTA_BLOCKED,
+      retryable: true,
+      retryAfterMs: retryAfterMs ?? 30 * 60 * 1000,
       message,
     };
   }

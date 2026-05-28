@@ -51,6 +51,14 @@ function createPipelineContractError(message) {
   return error;
 }
 
+function createStorageQuotaBlockedError(message, retryAfterMs) {
+  const error = new Error(message);
+  error.pipelineClass = "STORAGE_QUOTA_BLOCKED";
+  error.retryable = true;
+  error.retryAfterMs = retryAfterMs;
+  return error;
+}
+
 function isPlannerBootstrapJob(jobType) {
   return PLANNER_BOOTSTRAP_JOB_TYPES.includes(jobType);
 }
@@ -185,6 +193,17 @@ async function runClassScoutDestinationMissionDaemonJob(job) {
 
       const data = await response.json().catch(() => ({}));
       clearTimeout(timeout);
+
+      if (
+        data &&
+        typeof data === "object" &&
+        data.reasonCode === "atlas_storage_quota_blocked"
+      ) {
+        throw createStorageQuotaBlockedError(
+          typeof data.summary === "string" ? data.summary : "MongoDB Atlas is blocking destination-service writes because the cluster is over quota.",
+          Number.isFinite(data.retryAfterMs) ? Number(data.retryAfterMs) : 30 * 60 * 1000,
+        );
+      }
 
       if (!response.ok) {
         failures.push({ baseUrl, status: response.status, error: data?.error || `HTTP_${response.status}` });

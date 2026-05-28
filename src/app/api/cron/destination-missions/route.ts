@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeDestinationMissionDaemonForCompany, readConfiguredDaemonCompanyIds, readDaemonDefaults } from "@/lib/destination-mission-daemon";
 import { verifyBackgroundJobSecret } from "@/lib/ingest-auth";
+import { classifyPersistenceFailure } from "@/lib/persistence-failures";
 
 export const dynamic = "force-dynamic";
 
@@ -31,15 +32,41 @@ export async function GET(request: NextRequest) {
 
   const defaults = readDaemonDefaults();
   const results = [];
+  const failures = [];
   for (const companyId of companyIds) {
-    results.push(
-      await executeDestinationMissionDaemonForCompany({
+    try {
+      results.push(
+        await executeDestinationMissionDaemonForCompany({
+          companyId,
+          maxRuns: defaults.maxRuns,
+          maxPasses: defaults.maxPasses,
+          maxAutoRejections: defaults.maxAutoRejections,
+        }),
+      );
+    } catch (error) {
+      const classified = classifyPersistenceFailure(error);
+      if (!classified) throw error;
+      failures.push({
         companyId,
-        maxRuns: defaults.maxRuns,
-        maxPasses: defaults.maxPasses,
-        maxAutoRejections: defaults.maxAutoRejections,
-      }),
-    );
+        ...classified,
+      });
+    }
+  }
+
+  if (failures.length > 0) {
+    const status = failures.some((failure) => failure.status !== 503) ? 500 : 503;
+    return NextResponse.json({
+      ok: false,
+      cron: true,
+      companyIds,
+      processedCompanies: results.length,
+      results,
+      failures,
+      retryable: failures.every((failure) => failure.retryable),
+      retryAfterMs: Math.max(...failures.map((failure) => failure.retryAfterMs)),
+      reasonCode: failures[0]?.reasonCode ?? "destination_mission_daemon_failed",
+      summary: failures[0]?.summary ?? "Destination mission daemon failed.",
+    }, { status });
   }
 
   return NextResponse.json({

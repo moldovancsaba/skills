@@ -27,6 +27,13 @@ type UnitBoardItem = {
 
 const RECENT_CREATE_TTL_MS = 45_000;
 
+function makeBoardTraceId(): string {
+  if (typeof window !== "undefined" && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<UnitBoardItem[]>([]);
@@ -37,6 +44,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [boardError, setBoardError] = useState<string | null>(null);
   const recentlyCreatedCards = useRef<Map<string, { createdAt: number; item: UnitBoardItem }>>(new Map());
+  const loadRequestIdRef = useRef(0);
 
   const selected = useMemo(
     () => items.find((item) => item.id === selectedId) ?? null,
@@ -54,6 +62,35 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       color: "review",
     });
   }, []);
+
+  const traceEnabled = useMemo(() => process.env.NODE_ENV !== "production", []);
+
+  const requestBoardItems = useCallback(async (
+    url: string,
+    init: RequestInit & { headers?: HeadersInit } = {},
+    traceId?: string,
+  ) => {
+    const requestTraceId = traceId || makeBoardTraceId();
+    const headers = new Headers(init.headers ?? {});
+    headers.set("x-board-items-trace-id", requestTraceId);
+    if (traceEnabled) {
+      headers.set("x-board-items-debug", "1");
+    }
+
+    const normalizedUrl = `${url}${url.includes("?") ? "&" : "?"}traceId=${encodeURIComponent(requestTraceId)}${
+      traceEnabled ? "&debug=1" : ""
+    }`;
+
+    const response = await fetch(normalizedUrl, {
+      ...init,
+      headers,
+    });
+
+    return {
+      response,
+      traceId: response.headers.get("X-Board-Trace-Id") ?? requestTraceId,
+    };
+  }, [traceEnabled]);
 
   const reconcileLoadedItems = useCallback((loadedItems: UnitBoardItem[]) => {
     const now = Date.now();
@@ -78,13 +115,19 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     return sortBoardRecords(nextItems);
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (traceId?: string, options: { suppressLoading?: boolean } = {}) => {
+    const requestId = ++loadRequestIdRef.current;
+    const traceEnabledLoading = !options.suppressLoading;
+    if (traceEnabledLoading) {
+      setLoading(true);
+    }
     try {
-      const response = await fetch(
+      const { response } = await requestBoardItems(
         `/api/board-items?companyId=${encodeURIComponent(companyId)}&boardKey=UNIT_PROJECT&_=${Date.now()}`,
         { cache: "no-store" },
+        traceId,
       );
+      if (requestId !== loadRequestIdRef.current) return;
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         presentBoardError(payload, "Unable to load the project board.");
@@ -110,9 +153,11 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
         recentlyCreatedCards.current = nextRecent;
       }
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current && traceEnabledLoading) {
+        setLoading(false);
+      }
     }
-  }, [companyId, presentBoardError, reconcileLoadedItems]);
+  }, [companyId, presentBoardError, reconcileLoadedItems, requestBoardItems]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -144,7 +189,8 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const createCard = useCallback(async () => {
     const title = draftTitle.trim();
     if (!title) return;
-    const response = await fetch("/api/board-items", {
+    const traceId = makeBoardTraceId();
+    const { response } = await requestBoardItems("/api/board-items", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -154,10 +200,11 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
         description: draftDescription,
         columnKey: draftColumnKey,
       }),
-    });
+    }, traceId);
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
       presentBoardError(payload, "Unable to create the project card.");
+      setBoardError(`Unable to create the project card. TraceId: ${traceId}`);
       return;
     }
     const payload = await response.json().catch(() => null);
@@ -172,12 +219,13 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     setModalOpen(false);
     resetDraft();
     setBoardError(null);
-    await load();
-  }, [companyId, draftColumnKey, draftDescription, draftTitle, load, presentBoardError, resetDraft]);
+    await load(traceId);
+  }, [companyId, draftColumnKey, draftDescription, draftTitle, load, presentBoardError, requestBoardItems, resetDraft]);
 
   const updateCard = useCallback(async () => {
     if (!selected) return;
-    const updateResponse = await fetch("/api/board-items", {
+    const traceId = makeBoardTraceId();
+    const { response: updateResponse } = await requestBoardItems("/api/board-items", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -188,14 +236,15 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
         description: draftDescription,
         columnKey: draftColumnKey,
       }),
-    });
+    }, traceId);
     if (!updateResponse.ok) {
       const payload = await updateResponse.json().catch(() => null);
       presentBoardError(payload, "Unable to update the project card.");
+      setBoardError(`Unable to update the project card. TraceId: ${traceId}`);
       return;
     }
     if (draftColumnKey !== selected.columnKey) {
-      const moveResponse = await fetch("/api/board-items", {
+      const { response: moveResponse } = await requestBoardItems("/api/board-items", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -206,26 +255,31 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
           beforeId: null,
           afterId: null,
         }),
-      });
+      }, traceId);
       if (!moveResponse.ok) {
         const payload = await moveResponse.json().catch(() => null);
         presentBoardError(payload, "Unable to move the project card.");
+        setBoardError(`Unable to move the project card. TraceId: ${traceId}`);
         return;
       }
     }
     setModalOpen(false);
     resetDraft();
     setBoardError(null);
-    await load();
-  }, [companyId, draftColumnKey, draftDescription, draftTitle, load, presentBoardError, resetDraft, selected]);
+    await load(traceId);
+  }, [companyId, draftColumnKey, draftDescription, draftTitle, load, presentBoardError, requestBoardItems, resetDraft, selected]);
 
   const archiveCard = useCallback(async (id: string) => {
-    const response = await fetch(`/api/board-items?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
+    const traceId = makeBoardTraceId();
+    const { response } = await requestBoardItems(
+      `/api/board-items?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+      traceId,
+    );
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
       presentBoardError(payload, "Unable to archive the project card.");
+      setBoardError(`Unable to archive the project card. TraceId: ${traceId}`);
       return;
     }
     if (selectedId === id) {
@@ -233,8 +287,8 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       resetDraft();
     }
     setBoardError(null);
-    await load();
-  }, [companyId, load, presentBoardError, resetDraft, selectedId]);
+    await load(traceId);
+  }, [companyId, load, presentBoardError, requestBoardItems, resetDraft, selectedId]);
 
   const submitCard = useCallback(async () => {
     if (selected) {
@@ -243,6 +297,49 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     }
     await createCard();
   }, [createCard, selected, updateCard]);
+
+  const handleMove = useCallback(async (
+    request: {
+      itemId: string;
+      sourceColumn: string;
+      destinationColumn: string;
+      beforeId: string | null;
+      afterId: string | null;
+    },
+    nextItems: UnitBoardItem[],
+  ) => {
+    const traceId = makeBoardTraceId();
+    setItems(nextItems);
+    try {
+      const { response } = await requestBoardItems(
+        "/api/board-items",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companyId,
+            boardKey: "UNIT_PROJECT",
+            id: request.itemId,
+            sourceColumn: request.sourceColumn,
+            destinationColumn: request.destinationColumn,
+            beforeId: request.beforeId,
+            afterId: request.afterId,
+          }),
+        },
+        traceId,
+      );
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        presentBoardError(payload, "Unable to move the project card.");
+        await load(traceId);
+        return;
+      }
+
+      setBoardError(null);
+    } catch {
+      await load(traceId);
+    }
+  }, [companyId, load, presentBoardError, requestBoardItems]);
 
   if (loading && items.length === 0) {
     return (
@@ -295,33 +392,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
               </Button>
             ) : null
           )}
-          onMove={async (request, nextItems) => {
-            setItems(nextItems);
-            try {
-              const response = await fetch("/api/board-items", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  companyId,
-                  boardKey: "UNIT_PROJECT",
-                  id: request.itemId,
-                  sourceColumn: request.sourceColumn,
-                  destinationColumn: request.destinationColumn,
-                  beforeId: request.beforeId,
-                  afterId: request.afterId,
-                }),
-              });
-              if (!response.ok) {
-                const payload = await response.json().catch(() => null);
-                presentBoardError(payload, "Unable to move the project card.");
-                await load();
-                return;
-              }
-              setBoardError(null);
-            } catch {
-              await load();
-            }
-          }}
+          onMove={handleMove}
           renderCard={(item) => (
             <UnifiedCardBody>
               <Stack gap="xs" onClick={() => openEditModal(item)}>

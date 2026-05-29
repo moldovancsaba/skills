@@ -256,6 +256,9 @@ export function getSidebarShellStyle(): CSSProperties {
   return {
     borderRight: "1px solid var(--border-primary)",
     backgroundColor: "var(--sidebar-bg)",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: 0,
   };
 }
 

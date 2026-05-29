@@ -281,7 +281,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
         </Box>
       </AppShellSection>
 
-      <AppShellSection component={ScrollArea} grow mx="-md" px="md">
+      <AppShellSection component={ScrollArea} grow mx="-md" px="md" scrollbars="y" type="scroll">
         <Stack gap="xs">
           {/* Global portfolio and intelligence unit divider removed per user request */}
 
@@ -444,49 +444,46 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
               </MetaText>
             </Box>
           )}
-        </Stack>
-      </AppShellSection>
 
-      <AppShellSection pt="md">
-        <Divider mb="md" />
-        <Stack gap="xs">
-          <UiLanguageSelect withDescription={false} size="xs" />
+          <Divider my="md" />
+          <Stack gap="xs">
+            <UiLanguageSelect withDescription={false} size="xs" />
 
-          <UnstyledButton
-            onClick={() => {
-              if (activeCompanyId) {
-                void logClientInteraction({
-                  companyId: activeCompanyId,
-                  surface: "global-navigation",
-                  interactionType: "THEME_TOGGLE",
-                  entityType: "PREFERENCE",
-                  entityId: "color-scheme",
-                  payload: { nextMode: isDark ? "light" : "dark" },
-                  teachingWeight: 30,
-                });
-              }
-              toggle();
-            }}
-            p="xs"
-            style={getSidebarButtonStyle()}
-          >
+            <UnstyledButton
+              onClick={() => {
+                if (activeCompanyId) {
+                  void logClientInteraction({
+                    companyId: activeCompanyId,
+                    surface: "global-navigation",
+                    interactionType: "THEME_TOGGLE",
+                    entityType: "PREFERENCE",
+                    entityId: "color-scheme",
+                    payload: { nextMode: isDark ? "light" : "dark" },
+                    teachingWeight: 30,
+                  });
+                }
+                toggle();
+              }}
+              p="xs"
+              style={getSidebarButtonStyle()}
+            >
               <Group justify="space-between">
                 <Group gap="sm">
                   <ThemeIcon color={isDark ? "review" : "synthesis"} size="sm">
                     {isDark ? <Sun size={14} /> : <Moon size={14} />}
                   </ThemeIcon>
-                <MetaText c="var(--text-secondary)">{isDark ? t("nav.themeLight") : t("nav.themeDark")}</MetaText>
+                  <MetaText c="var(--text-secondary)">{isDark ? t("nav.themeLight") : t("nav.themeDark")}</MetaText>
+                </Group>
               </Group>
-            </Group>
-          </UnstyledButton>
+            </UnstyledButton>
 
-          {session ? (
-            <Menu position="right-end" shadow="md" width={220} withArrow>
-              <Menu.Target>
-                <UnstyledButton
-                  p="xs"
-                  style={getSidebarButtonStyle()}
-                >
+            {session ? (
+              <Menu position="right-end" shadow="md" width={220} withArrow>
+                <Menu.Target>
+                  <UnstyledButton
+                    p="xs"
+                    style={getSidebarButtonStyle()}
+                  >
                     <Group justify="space-between">
                       <Group gap="sm">
                         <Avatar src={session.picture} size="sm" color="ingress">
@@ -497,57 +494,58 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
                         </Box>
                       </Group>
                       <ChevronDown size={14} />
-                  </Group>
-                </UnstyledButton>
-              </Menu.Target>
+                    </Group>
+                  </UnstyledButton>
+                </Menu.Target>
 
-              <Menu.Dropdown>
-                <Menu.Label>{t("nav.identity")}</Menu.Label>
-                {company && (
+                <Menu.Dropdown>
+                  <Menu.Label>{t("nav.identity")}</Menu.Label>
+                  {company && (
+                    <Menu.Item
+                      leftSection={<SettingsIcon size={14} />}
+                      onClick={() => router.push(`/${company.id}/settings`)}
+                    >
+                      {t("nav.organizationSettings")}
+                    </Menu.Item>
+                  )}
+                  <Menu.Divider />
                   <Menu.Item
-                    leftSection={<SettingsIcon size={14} />}
-                    onClick={() => router.push(`/${company.id}/settings`)}
+                    color="review"
+                    leftSection={<LogOut size={14} />}
+                    onClick={handleLogout}
                   >
-                    {t("nav.organizationSettings")}
+                    {t("nav.terminateSession")}
                   </Menu.Item>
-                )}
-                <Menu.Divider />
-                <Menu.Item
-                  color="review"
-                  leftSection={<LogOut size={14} />}
-                  onClick={handleLogout}
-                >
-                  {t("nav.terminateSession")}
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          ) : (
-            <Button
-              variant="light"
-              color="synthesis"
-              size="xs"
-              fullWidth
-              onClick={() => router.push("/auth")}
-              leftSection={<UserIcon size={14} />}
-            >
-              {t("nav.systemAccess")}
-            </Button>
-          )}
+                </Menu.Dropdown>
+              </Menu>
+            ) : (
+              <Button
+                variant="light"
+                color="synthesis"
+                size="xs"
+                fullWidth
+                onClick={() => router.push("/auth")}
+                leftSection={<UserIcon size={14} />}
+              >
+                {t("nav.systemAccess")}
+              </Button>
+            )}
+          </Stack>
+
+          <Divider my="md" variant="dotted" />
+
+          <Group gap="md" px="xs" pb="xs" justify="center">
+            <Anchor href="/privacy" size="xs" c="dimmed" underline="never">
+              {t("common.privacy")}
+            </Anchor>
+            <Anchor href="/terms" size="xs" c="dimmed" underline="never">
+              {t("common.terms")}
+            </Anchor>
+            <MetaText>
+              v{APP_VERSION}
+            </MetaText>
+          </Group>
         </Stack>
-
-        <Divider my="md" variant="dotted" />
-
-        <Group gap="md" px="xs" justify="center">
-          <Anchor href="/privacy" size="xs" c="dimmed" underline="never">
-            {t("common.privacy")}
-          </Anchor>
-          <Anchor href="/terms" size="xs" c="dimmed" underline="never">
-            {t("common.terms")}
-          </Anchor>
-          <MetaText>
-            v{APP_VERSION}
-          </MetaText>
-        </Group>
       </AppShellSection>
     </AppShellNavbar>
   );

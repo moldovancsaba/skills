@@ -478,6 +478,16 @@ export async function executeClassScoutMissionNextAttempt(input: {
     const eligible = scorePayload?.eligible === true;
     const score = typeof scorePayload?.score === "number" ? scorePayload.score : null;
     const blockingReasons = asStringArray(scorePayload?.blockingReasons);
+    const canProceedToPreparation =
+      eligible ||
+      (
+        score !== null &&
+        score >= 60 &&
+        blockingReasons.length > 0 &&
+        blockingReasons.every((reason) =>
+          reason === "weak_or_missing_image_signal" || reason === "scarcity_score_below_threshold",
+        )
+      );
 
     await prisma.destinationCandidate.update({
       where: { id: candidate.id },
@@ -489,7 +499,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
       },
     });
 
-    if (!eligible) {
+    if (!canProceedToPreparation) {
       const nextRun = await advanceDestinationMissionAttempt({
         companyId: input.companyId,
         missionId: mission.id,
@@ -522,6 +532,15 @@ export async function executeClassScoutMissionNextAttempt(input: {
         return { ok: true, mission: nextRun, trail, terminal: true };
       }
       continue;
+    }
+
+    if (!eligible) {
+      trail.push({
+        step: "soft_pass",
+        candidateId: candidate.id,
+        score,
+        blockingReasons,
+      });
     }
 
     const draftId = `draft-${randomUUID()}`;

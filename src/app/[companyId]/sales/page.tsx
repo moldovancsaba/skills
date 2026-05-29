@@ -187,15 +187,15 @@ export default function SalesPage() {
     nextItems,
     sourceColumn,
     destinationColumn,
-    sourceColumnOrderIds,
-    destinationColumnOrderIds,
+    beforeId,
+    afterId,
   }: {
     itemId: string;
     nextItems: SalesOpportunitycard[];
     sourceColumn: Opportunitycard["kanbanColumn"];
     destinationColumn: Opportunitycard["kanbanColumn"];
-    sourceColumnOrderIds?: string[];
-    destinationColumnOrderIds: string[];
+    beforeId: string | null;
+    afterId: string | null;
   }) => {
     setOpportunitycards(nextItems as Opportunitycard[]);
     try {
@@ -203,11 +203,10 @@ export default function SalesPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          kanbanColumn: destinationColumn,
           destinationColumn,
           sourceColumn,
-          destinationColumnOrderIds,
-          sourceColumnOrderIds,
+          beforeId,
+          afterId,
         }),
       });
     } catch {

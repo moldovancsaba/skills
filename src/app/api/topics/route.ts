@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
+import { decorateWithBoardState, SURFACE_BOARD_CONFIG, updateBoardEntityState } from "@/lib/board-state";
 import { verifyMembership } from "@/lib/permissions";
 
 function normalizeTopicLabel(value: unknown) {
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
       where: { companyId },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     });
-    return NextResponse.json(topics);
+    return NextResponse.json(await decorateWithBoardState(companyId, SURFACE_BOARD_CONFIG.topics, topics));
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -93,6 +94,27 @@ export async function PATCH(request: NextRequest) {
 
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
+
+    if (typeof data.destinationColumn === "string") {
+      const updatedBoardState = await updateBoardEntityState({
+        companyId: existing.companyId,
+        config: SURFACE_BOARD_CONFIG.topics,
+        entityId: existing.id,
+        destinationColumn: data.destinationColumn,
+        beforeId: typeof data.beforeId === "string" ? data.beforeId : null,
+        afterId: typeof data.afterId === "string" ? data.afterId : null,
+      });
+      return NextResponse.json({
+        ...existing,
+        boardState: {
+          boardKey: updatedBoardState.boardKey,
+          entityType: updatedBoardState.entityType,
+          columnKey: updatedBoardState.columnKey,
+          orderRank: Number(updatedBoardState.orderRank ?? 0),
+          priority: Number(updatedBoardState.priority ?? 0),
+        },
+      });
+    }
 
     const nextData = {
       label: data.label !== undefined ? normalizeTopicLabel(data.label) : existing.label,

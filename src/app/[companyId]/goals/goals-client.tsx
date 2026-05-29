@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { 
-  Stack, Group, Button, Badge, TextInput, rem, ActionIcon, Tooltip, SimpleGrid, Loader, Center } from "@mantine/core";
+  Stack, Group, Button, Badge, TextInput, rem, ActionIcon, Tooltip, SimpleGrid, Loader, Center, Select } from "@mantine/core";
 import { 
   IconDatabase as Database, 
   IconSearch as Search, 
@@ -49,6 +49,13 @@ type Goal = {
   updatedAt?: string | null;
   refreshedAt?: string | null;
   lastActionAt?: string | null;
+  boardState?: {
+    boardKey: string;
+    entityType: string;
+    columnKey: "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
+    orderRank: number;
+    priority: number;
+  };
 };
 
 type ActionMode = "ACCEPT" | "DECLINE" | "MODIFY_ACCEPT" | "DELIVER" | "DELETE";
@@ -75,6 +82,7 @@ export default function GoalsClient({
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
   const [declineClass, setDeclineClass] = useState("WRONG");
+  const [boardMoveLoadingId, setBoardMoveLoadingId] = useState<string | null>(null);
 
   const loadGoals = useCallback(async (cid: string) => {
     setLoading(true);
@@ -95,13 +103,20 @@ export default function GoalsClient({
             iceScore: goal.iceScore ?? 0,
             processingStatus: goal.processingStatus,
             activityState: goal.activityState,
-            kanbanColumn: "ROADMAP" as const,
+            kanbanColumn: (goal.boardState?.columnKey ?? "ROADMAP") as Goal["kanbanColumn"],
             userAnnotation: goal.userAnnotation ?? undefined,
             hashtags: Array.isArray(goal.hashtags) ? goal.hashtags : [],
             createdAt: goal.createdAt ?? null,
             updatedAt: goal.updatedAt ?? null,
             refreshedAt: goal.refreshedAt ?? null,
             lastActionAt: goal.lastActionAt ?? null,
+            boardState: goal.boardState ?? {
+              boardKey: "GOALS_STATUS",
+              entityType: "GOALCARD",
+              columnKey: "ROADMAP",
+              orderRank: 0,
+              priority: 0,
+            },
           }))
         ;
       setGoals(mappedGoals);
@@ -176,6 +191,20 @@ export default function GoalsClient({
     setSelectedGoalId(null);
     resetActionForm();
   };
+
+  const handleBoardMove = useCallback(async (itemId: string, columnKey: Goal["kanbanColumn"]) => {
+    setBoardMoveLoadingId(itemId);
+    try {
+      await fetch(`/api/goalcards?id=${encodeURIComponent(itemId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destinationColumn: columnKey }),
+      });
+      await loadGoals(companyId);
+    } finally {
+      setBoardMoveLoadingId(null);
+    }
+  }, [companyId, loadGoals]);
 
   const handleSubmitFeedback = async (
     itemId: string,
@@ -335,29 +364,54 @@ export default function GoalsClient({
         badge="Goals"
       >
         {selectedGoal ? (
-          <TaskReviewCard
-            item={selectedGoal as any}
-            twoPhaseWorkflow={false}
-            detailMode
-            hideTitle
-            isActionOpen={actionItemId === selectedGoal.id && actionMode !== null}
-            actionMode={actionMode}
-            isBusy={loading}
-            annotation={annotation}
-            draftTitle={draftTitle}
-            draftDescription={draftDescription}
-            onOpenAction={openActionForm as any}
-            onCloseAction={resetActionForm}
-            onAnnotationChange={setAnnotation}
-            onDraftTitleChange={setDraftTitle}
-            onDraftDescriptionChange={setDraftDescription}
-            declineClass={declineClass}
-            onDeclineClassChange={setDeclineClass}
-            activeHashtags={[]}
-            onToggleHashtag={() => {}}
-            onRemoveHashtag={() => {}}
-            onSubmit={handleSubmitFeedback}
-          />
+          <Stack gap="md">
+            <Group justify="space-between" align="flex-end">
+              <Text size="xs" c="dimmed">Shared board status</Text>
+              <Badge variant="light" color="strategy">
+                {selectedGoal.boardState?.columnKey ?? selectedGoal.kanbanColumn}
+              </Badge>
+            </Group>
+            <Select
+              label="Strategic execution status"
+              data={[
+                { value: "IDEABANK", label: "Idea Bank" },
+                { value: "ROADMAP", label: "Roadmap" },
+                { value: "BACKLOG", label: "Backlog" },
+                { value: "TODO", label: "Todo" },
+                { value: "CHECKLIST", label: "Now" },
+              ]}
+              value={selectedGoal.boardState?.columnKey ?? selectedGoal.kanbanColumn}
+              onChange={(value) => {
+                if (value) {
+                  void handleBoardMove(selectedGoal.id, value as Goal["kanbanColumn"]);
+                }
+              }}
+              disabled={boardMoveLoadingId === selectedGoal.id}
+            />
+            <TaskReviewCard
+              item={selectedGoal as any}
+              twoPhaseWorkflow={false}
+              detailMode
+              hideTitle
+              isActionOpen={actionItemId === selectedGoal.id && actionMode !== null}
+              actionMode={actionMode}
+              isBusy={loading}
+              annotation={annotation}
+              draftTitle={draftTitle}
+              draftDescription={draftDescription}
+              onOpenAction={openActionForm as any}
+              onCloseAction={resetActionForm}
+              onAnnotationChange={setAnnotation}
+              onDraftTitleChange={setDraftTitle}
+              onDraftDescriptionChange={setDraftDescription}
+              declineClass={declineClass}
+              onDeclineClassChange={setDeclineClass}
+              activeHashtags={[]}
+              onToggleHashtag={() => {}}
+              onRemoveHashtag={() => {}}
+              onSubmit={handleSubmitFeedback}
+            />
+          </Stack>
         ) : null}
       </UnifiedCardModal>
     </PageShell>

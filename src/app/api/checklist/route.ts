@@ -7,6 +7,8 @@ import { getManualLaneCooldownUntil } from "@/lib/planner-contract";
 import { TRANSACTION_SETTINGS } from "@/lib/source-public-ids";
 import { APP_VERSION, BRAIN_VERSION, CHECKLIST_PROMPT_VERSION } from "@/lib/release";
 import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
+import { BOARD_RANK_STEP } from "@/lib/board-system";
+import { buildNormalizedRanks, computeServerBoardRank, needsBoardRebalance } from "@/lib/board-rank";
 export const dynamic = "force-dynamic";
 
 function buildManualLaneOverrideData(column: ChecklistKanbanColumn, actorId: string, now = new Date()) {
@@ -16,6 +18,27 @@ function buildManualLaneOverrideData(column: ChecklistKanbanColumn, actorId: str
     manualLaneFloorColumn: column,
     manualLaneOverrideBy: actorId,
   };
+}
+
+async function ensureChecklistColumnRanks(companyId: string, column: ChecklistKanbanColumn) {
+  const items = await prisma.checklistTask.findMany({
+    where: { companyId, kanbanColumn: column },
+    select: { id: true, sortOrder: true },
+    orderBy: { sortOrder: "asc" },
+  });
+  if (items.length <= 1) return;
+  for (let index = 1; index < items.length; index += 1) {
+    if (needsBoardRebalance(items[index - 1]?.sortOrder, items[index]?.sortOrder)) {
+      const normalized = buildNormalizedRanks(items);
+      await prisma.$transaction(normalized.map((entry) =>
+        prisma.checklistTask.update({
+          where: { id: entry.id },
+          data: { sortOrder: entry.rank },
+        }),
+      ));
+      return;
+    }
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -224,6 +247,66 @@ export async function PATCH(request: NextRequest) {
         payload: {
           destinationColumnOrderIds,
           sourceColumnOrderIds,
+        },
+        teachingWeight: 95,
+      });
+
+      return NextResponse.json(updated);
+    }
+
+    if (typeof data.destinationColumn === "string") {
+      const destinationColumn = String(data.destinationColumn) as ChecklistKanbanColumn;
+      const sourceColumn = (data.sourceColumn ? String(data.sourceColumn) : existing.kanbanColumn) as ChecklistKanbanColumn;
+      const actorId = auth.membership.id || auth.session.email || "webapp-user";
+      const beforeId = typeof data.beforeId === "string" ? data.beforeId : null;
+      const afterId = typeof data.afterId === "string" ? data.afterId : null;
+
+      await ensureChecklistColumnRanks(existing.companyId, destinationColumn);
+
+      const neighbors = await prisma.checklistTask.findMany({
+        where: {
+          companyId: existing.companyId,
+          id: {
+            in: [beforeId, afterId].filter((value): value is string => Boolean(value)),
+          },
+        },
+        select: { id: true, sortOrder: true },
+      });
+
+      const previousRank = neighbors.find((item) => item.id === beforeId)?.sortOrder ?? null;
+      const nextRank = neighbors.find((item) => item.id === afterId)?.sortOrder ?? null;
+      const nextSortOrder = computeServerBoardRank(previousRank, nextRank)
+        ?? (Number(previousRank ?? 0) + BOARD_RANK_STEP);
+
+      const updated = await prisma.checklistTask.update({
+        where: { id },
+        data: {
+          kanbanColumn: destinationColumn,
+          sortOrder: nextSortOrder,
+          updatedAt: new Date(),
+          ...buildManualLaneOverrideData(destinationColumn, actorId),
+        },
+      });
+
+      await recordInteractionEventFromRequest(request, {
+        companyId: existing.companyId,
+        surface: "tactical-board",
+        interactionType: "TASK_MANUAL_REORDER",
+        entityType: "TASK",
+        entityId: existing.id,
+        beforeState: {
+          kanbanColumn: existing.kanbanColumn,
+          sortOrder: existing.sortOrder,
+        },
+        afterState: {
+          kanbanColumn: updated.kanbanColumn,
+          sortOrder: updated.sortOrder,
+        },
+        payload: {
+          destinationColumn,
+          sourceColumn,
+          beforeId,
+          afterId,
         },
         teachingWeight: 95,
       });

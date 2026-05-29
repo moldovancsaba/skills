@@ -8,6 +8,8 @@ import { nextOpportunityPublicId, TRANSACTION_SETTINGS } from "@/lib/source-publ
 import { getManualLaneCooldownUntil } from "@/lib/planner-contract";
 import { sanitizeOptionalUserFacingText } from "@/lib/ui-utils";
 import { escalateCompanyPipelineJob, markCompanyPipelineTopologyDirty } from "@/lib/pipeline-queue";
+import { BOARD_RANK_STEP } from "@/lib/board-system";
+import { buildNormalizedRanks, computeServerBoardRank, needsBoardRebalance } from "@/lib/board-rank";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +107,27 @@ function sanitizeStringArray(input: unknown) {
   return input
     .map((value) => sanitizeOptionalUserFacingText(value))
     .filter((value): value is string => Boolean(value));
+}
+
+async function ensureOpportunityColumnRanks(companyId: string, departmentKey: DepartmentKey, column: ChecklistKanbanColumn) {
+  const items = await prisma.opportunitycard.findMany({
+    where: { companyId, departmentKey, kanbanColumn: column },
+    select: { id: true, sortOrder: true },
+    orderBy: { sortOrder: "asc" },
+  });
+  if (items.length <= 1) return;
+  for (let index = 1; index < items.length; index += 1) {
+    if (needsBoardRebalance(items[index - 1]?.sortOrder, items[index]?.sortOrder)) {
+      const normalized = buildNormalizedRanks(items);
+      await prisma.$transaction(normalized.map((entry) =>
+        prisma.opportunitycard.update({
+          where: { id: entry.id },
+          data: { sortOrder: entry.rank },
+        }),
+      ));
+      return;
+    }
+  }
 }
 
 
@@ -380,6 +403,45 @@ export async function PATCH(request: NextRequest) {
       }, TRANSACTION_SETTINGS);
 
       const updated = await prisma.opportunitycard.findUnique({ where: { id } });
+      await rebalanceOpportunitycardsForCompany(existing.companyId);
+      await markCompanyPipelineTopologyDirty(prisma, existing.companyId, "opportunitycard-reorder");
+      return NextResponse.json(updated);
+    }
+
+    if (typeof data.destinationColumn === "string") {
+      const destinationColumn = String(data.destinationColumn) as ChecklistKanbanColumn;
+      const sourceColumn = (data.sourceColumn ? String(data.sourceColumn) : existing.kanbanColumn) as ChecklistKanbanColumn;
+      const actorId = auth.membership.id || auth.session.email || "webapp-user";
+      const beforeId = typeof data.beforeId === "string" ? data.beforeId : null;
+      const afterId = typeof data.afterId === "string" ? data.afterId : null;
+
+      await ensureOpportunityColumnRanks(existing.companyId, existing.departmentKey, destinationColumn);
+
+      const neighbors = await prisma.opportunitycard.findMany({
+        where: {
+          companyId: existing.companyId,
+          departmentKey: existing.departmentKey,
+          id: {
+            in: [beforeId, afterId].filter((value): value is string => Boolean(value)),
+          },
+        },
+        select: { id: true, sortOrder: true },
+      });
+
+      const previousRank = neighbors.find((item) => item.id === beforeId)?.sortOrder ?? null;
+      const nextRank = neighbors.find((item) => item.id === afterId)?.sortOrder ?? null;
+      const nextSortOrder = computeServerBoardRank(previousRank, nextRank)
+        ?? (Number(previousRank ?? 0) + BOARD_RANK_STEP);
+
+      const updated = await prisma.opportunitycard.update({
+        where: { id },
+        data: {
+          kanbanColumn: destinationColumn,
+          sortOrder: nextSortOrder,
+          updatedAt: new Date(),
+          ...buildManualLaneOverrideData(destinationColumn, actorId),
+        },
+      });
       await rebalanceOpportunitycardsForCompany(existing.companyId);
       await markCompanyPipelineTopologyDirty(prisma, existing.companyId, "opportunitycard-reorder");
       return NextResponse.json(updated);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { applyBudgetControl, recordAiWorkloadUsage } from "@/lib/budget-governor";
+import { getBoardHealthSummary } from "@/lib/board-state";
 import { getCompanyObservabilitySnapshot } from "@/lib/observability";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { issueSystemCommand } from "@/lib/system-commands";
@@ -18,8 +19,14 @@ export async function GET(request: NextRequest) {
   if (auth.error) return auth.error;
 
   try {
-    const snapshot = await getCompanyObservabilitySnapshot(companyId);
-    return NextResponse.json(snapshot);
+    const [snapshot, boardHealth] = await Promise.all([
+      getCompanyObservabilitySnapshot(companyId),
+      getBoardHealthSummary(companyId),
+    ]);
+    return NextResponse.json({
+      ...snapshot,
+      boardHealth,
+    });
   } catch (error) {
     console.error("[API:Observability] failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -104,7 +111,14 @@ export async function PATCH(request: NextRequest) {
       teachingWeight: 75,
     });
 
-    return NextResponse.json(await getCompanyObservabilitySnapshot(companyId));
+    const [snapshot, boardHealth] = await Promise.all([
+      getCompanyObservabilitySnapshot(companyId),
+      getBoardHealthSummary(companyId),
+    ]);
+    return NextResponse.json({
+      ...snapshot,
+      boardHealth,
+    });
   } catch (error) {
     console.error("[API:Observability] PATCH failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });

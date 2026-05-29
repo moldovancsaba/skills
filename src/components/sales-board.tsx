@@ -1,14 +1,13 @@
 'use client';
 
 import { useCallback, useMemo, useState } from "react";
-import { DragDropContext, Draggable, Droppable, type DragStart, type DropResult } from "@hello-pangea/dnd";
-import { Box, ScrollArea, Stack, Group, Badge } from "@mantine/core";
+import { Badge, Group, Stack } from "@mantine/core";
+import { SharedBoard } from "@/components/board/shared-board";
 import { OpportunityReviewCard, type Opportunitycard, type OpportunitycardActionMode } from "@/components/opportunity-review-card";
-import { UnifiedCard } from "@/components/ui/unified-card";
+import { UnifiedCardBody } from "@/components/ui/unified-card";
 import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { Text } from "@/components/ui/typography";
-import { getSemanticDropzoneStyle } from "@/lib/semantic-theme";
-import { getOpportunityLaneMeta, getOpportunityToneColor, OPPORTUNITY_BOARD_COLUMN_ORDER, type OpportunityKanbanColumn } from "@/lib/opportunity-ui";
+import { getOpportunityLaneMeta, OPPORTUNITY_BOARD_COLUMN_ORDER, type OpportunityKanbanColumn } from "@/lib/opportunity-ui";
 
 export type SalesOpportunitycard = Opportunitycard & {
   sortOrder?: number | null;
@@ -19,8 +18,8 @@ type SalesBoardReorderPayload = {
   nextItems: SalesOpportunitycard[];
   sourceColumn: OpportunityKanbanColumn;
   destinationColumn: OpportunityKanbanColumn;
-  sourceColumnOrderIds?: string[];
-  destinationColumnOrderIds: string[];
+  beforeId: string | null;
+  afterId: string | null;
 };
 
 type Props = {
@@ -39,67 +38,6 @@ type DraftState = {
   fitRationale: string;
 };
 
-function reorderColumnItems(
-  items: SalesOpportunitycard[],
-  draggableId: string,
-  source: { droppableId: string; index: number },
-  destination: { droppableId: string; index: number },
-) {
-  const sourceColumn = source.droppableId as OpportunityKanbanColumn;
-  const destinationColumn = destination.droppableId as OpportunityKanbanColumn;
-  const sourceItems = items
-    .filter((item) => item.kanbanColumn === sourceColumn && item.activityState !== "ARCHIVED")
-    .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0));
-  const destinationItems =
-    sourceColumn === destinationColumn
-      ? sourceItems
-      : items
-          .filter((item) => item.kanbanColumn === destinationColumn && item.activityState !== "ARCHIVED")
-          .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0));
-
-  const movingItem = sourceItems[source.index];
-  if (!movingItem || movingItem.id !== draggableId) {
-    return null;
-  }
-
-  const nextSourceItems = [...sourceItems];
-  nextSourceItems.splice(source.index, 1);
-
-  const nextDestinationItems = sourceColumn === destinationColumn ? nextSourceItems : [...destinationItems];
-  nextDestinationItems.splice(destination.index, 0, {
-    ...movingItem,
-    kanbanColumn: destinationColumn,
-  });
-
-  const updatedItems = items.map((item) => {
-    if (item.id === movingItem.id) {
-      return { ...item, kanbanColumn: destinationColumn };
-    }
-    return item;
-  });
-
-  const manualizeColumn = (columnItems: SalesOpportunitycard[]) =>
-    columnItems.map((item, index) => ({
-      ...item,
-      sortOrder: index - columnItems.length,
-    }));
-
-  const sourceManualized = sourceColumn === destinationColumn ? [] : manualizeColumn(nextSourceItems);
-  const destinationManualized = manualizeColumn(nextDestinationItems);
-  const patchedById = new Map<string, SalesOpportunitycard>();
-
-  for (const item of sourceManualized) patchedById.set(item.id, item);
-  for (const item of destinationManualized) patchedById.set(item.id, item);
-
-  return {
-    nextItems: updatedItems.map((item) => patchedById.get(item.id) ?? item),
-    sourceColumn,
-    destinationColumn,
-    sourceColumnOrderIds: sourceColumn === destinationColumn ? undefined : sourceManualized.map((item) => item.id),
-    destinationColumnOrderIds: destinationManualized.map((item) => item.id),
-  };
-}
-
 function createDraft(item: SalesOpportunitycard): DraftState {
   return {
     companyName: item.companyName,
@@ -113,7 +51,6 @@ function createDraft(item: SalesOpportunitycard): DraftState {
 }
 
 export function SalesBoard({ items, onAction, onReorder }: Props) {
-  const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [actionCardId, setActionCardId] = useState<string | null>(null);
   const [actionMode, setActionMode] = useState<OpportunitycardActionMode | null>(null);
@@ -130,6 +67,17 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
   });
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
 
+  const boardItems = useMemo(
+    () => items
+      .filter((item) => item.activityState !== "ARCHIVED")
+      .map((item) => ({
+        ...item,
+        columnKey: item.kanbanColumn,
+        orderRank: Number(item.sortOrder ?? 0),
+      })),
+    [items],
+  );
+
   const detailItem = useMemo(
     () => (detailId ? items.find((item) => item.id === detailId) || null : null),
     [detailId, items],
@@ -141,11 +89,6 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
     setAnnotation("");
     setDeclineReason("BAD_FIT");
   }, []);
-
-  const closeDetail = useCallback(() => {
-    setDetailId(null);
-    resetActionState();
-  }, [resetActionState]);
 
   const openAction = useCallback((item: SalesOpportunitycard, mode: OpportunitycardActionMode) => {
     setActionCardId(item.id);
@@ -167,7 +110,6 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
       } else {
         await onAction(itemId, "ACCEPT", { annotation });
       }
-
       resetActionState();
       if ((mode === "DECLINE" || mode === "ARCHIVE") && detailId === itemId) {
         setDetailId(null);
@@ -177,34 +119,14 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
     }
   }, [annotation, declineReason, detailId, draft, onAction, resetActionState]);
 
-  const onDragStart = useCallback((result: DragStart) => {
-    setDraggingItemId(result.draggableId);
-  }, []);
-
-  const onDragEnd = useCallback(async (result: DropResult) => {
-    const { destination, source, draggableId } = result;
-    setDraggingItemId(null);
-    if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
-
-    const reordered = reorderColumnItems(items, draggableId, source, destination);
-    if (!reordered) return;
-
-    await onReorder({
-      itemId: draggableId,
-      nextItems: reordered.nextItems,
-      sourceColumn: reordered.sourceColumn,
-      destinationColumn: reordered.destinationColumn,
-      sourceColumnOrderIds: reordered.sourceColumnOrderIds,
-      destinationColumnOrderIds: reordered.destinationColumnOrderIds,
-    });
-  }, [items, onReorder]);
-
   return (
     <>
       <UnifiedCardModal
         opened={Boolean(detailItem)}
-        onClose={closeDetail}
+        onClose={() => {
+          setDetailId(null);
+          resetActionState();
+        }}
         tone={detailItem ? getOpportunityLaneMeta(detailItem.kanbanColumn).tone : "neutral"}
         title={detailItem?.companyName || "Opportunitycard"}
         subtitle={detailItem ? `#${detailItem.opportunityType} · ${detailItem.kanbanColumn}` : undefined}
@@ -231,101 +153,37 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
         ) : null}
       </UnifiedCardModal>
 
-      <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <Box style={{ overflowX: "auto", overflowY: "hidden" }}>
-          <Group wrap="nowrap" align="flex-start" gap="lg" h="100%" pt="md">
-            {OPPORTUNITY_BOARD_COLUMN_ORDER.map((columnKey) => {
-              const column = getOpportunityLaneMeta(columnKey);
-              const columnItems = items
-                .filter((item) => item.kanbanColumn === columnKey && item.activityState !== "ARCHIVED")
-                .sort((left, right) => (left.sortOrder || 0) - (right.sortOrder || 0));
-
-              return (
-                <Stack key={column.key} gap="md" w={320} miw={320} h="100%">
-                  <UnifiedCard tone={column.tone} accentBandTone={column.tone} flexShrink={0}>
-                    <Group justify="space-between" wrap="nowrap">
-                      <Stack gap={2} style={{ overflow: "hidden" }}>
-                        <Text size="sm" c={column.tone === "neutral" ? "dimmed" : column.tone} fw={650} truncate>
-                          {column.label}
-                        </Text>
-                        <Text size="xs" c="dimmed" truncate>
-                          {column.description}
-                        </Text>
-                      </Stack>
-                      <Badge size="sm" variant="light" color={getOpportunityToneColor(column.tone)}>
-                        {columnItems.length}
-                      </Badge>
-                    </Group>
-                  </UnifiedCard>
-
-                  <Droppable droppableId={column.key}>
-                    {(provided, snapshot) => (
-                      <Box
-                        component="div"
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        style={getSemanticDropzoneStyle(column.tone, snapshot.isDraggingOver)}
-                        display="flex"
-                        flex={1}
-                        mih={0}
-                      >
-                        <ScrollArea
-                          offsetScrollbars
-                          flex={1}
-                          viewportProps={{ style: { display: "flex", flexDirection: "column" } }}
-                        >
-                          <Stack gap="sm" p={4} flex={1}>
-                            {columnItems.map((item, index) => {
-                              const isActivelyDragging = draggingItemId === item.id;
-                              return (
-                                <Draggable key={item.id} draggableId={item.id} index={index}>
-                                  {(dragProvided, dragSnapshot) => (
-                                    <Box
-                                      component="div"
-                                      ref={dragProvided.innerRef}
-                                      {...dragProvided.draggableProps}
-                                      {...dragProvided.dragHandleProps}
-                                      style={{
-                                        ...dragProvided.draggableProps.style,
-                                        transform: isActivelyDragging && dragSnapshot.isDragging
-                                          ? `${dragProvided.draggableProps.style?.transform ?? ""} rotate(1deg) scale(1.02)`.trim()
-                                          : dragProvided.draggableProps.style?.transform,
-                                      }}
-                                    >
-                                      <OpportunityReviewCard
-                                        item={item}
-                                        tone={column.tone}
-                                        onOpenDetail={(selected) => setDetailId(selected.id)}
-                                        isActionOpen={actionCardId === item.id}
-                                        actionMode={actionCardId === item.id ? actionMode : null}
-                                        isBusy={busyActionId === item.id}
-                                        annotation={annotation}
-                                        declineReason={declineReason}
-                                        draft={draft}
-                                        onOpenAction={openAction}
-                                        onCloseAction={resetActionState}
-                                        onAnnotationChange={setAnnotation}
-                                        onDeclineReasonChange={setDeclineReason}
-                                        onDraftChange={(field, value) => setDraft((current) => ({ ...current, [field]: value }))}
-                                        onSubmit={handleSubmit}
-                                      />
-                                    </Box>
-                                  )}
-                                </Draggable>
-                              );
-                            })}
-                            {provided.placeholder}
-                          </Stack>
-                        </ScrollArea>
-                      </Box>
-                    )}
-                  </Droppable>
-                </Stack>
-              );
-            })}
-          </Group>
-        </Box>
-      </DragDropContext>
+      <SharedBoard
+        columns={OPPORTUNITY_BOARD_COLUMN_ORDER.map((key) => getOpportunityLaneMeta(key))}
+        items={boardItems}
+        onMove={async (request, nextItems) => {
+          await onReorder({
+            itemId: request.itemId,
+            nextItems: nextItems as SalesOpportunitycard[],
+            sourceColumn: request.sourceColumn as OpportunityKanbanColumn,
+            destinationColumn: request.destinationColumn as OpportunityKanbanColumn,
+            beforeId: request.beforeId,
+            afterId: request.afterId,
+          });
+        }}
+        getCardTone={(item) => getOpportunityLaneMeta(item.kanbanColumn).tone}
+        renderCard={(item) => (
+          <UnifiedCardBody>
+            <Stack gap="xs" onClick={() => setDetailId(item.id)}>
+              <Text size="xs" lineClamp={2}>{item.companyName}</Text>
+              <Text size="xs" c="dimmed" lineClamp={2}>{item.title}</Text>
+              <Group justify="space-between" wrap="nowrap">
+                <Badge size="xs" variant="light" color={item.processingStatus === "ACCEPTED" ? "checklist" : "strategy"}>
+                  {item.opportunityType}
+                </Badge>
+                <Text size="xs" c="strategy" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  ICE {Math.round(item.iceScore)}
+                </Text>
+              </Group>
+            </Stack>
+          </UnifiedCardBody>
+        )}
+      />
     </>
   );
 }

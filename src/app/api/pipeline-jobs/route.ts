@@ -9,6 +9,7 @@ import {
 } from "@/lib/pipeline-queue";
 import type { PipelineQueueColumn } from "@/lib/pipeline-queue";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
+import { SURFACE_BOARD_CONFIG } from "@/lib/board-state";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const jobs = await listPersistedCompanyPipelineJobs(prisma, companyId);
-    return NextResponse.json(jobs);
+    return NextResponse.json(
+      jobs.map((job) => ({
+        ...job,
+        boardState: {
+          boardKey: SURFACE_BOARD_CONFIG.pipeline.boardKey,
+          entityType: SURFACE_BOARD_CONFIG.pipeline.entityType,
+          columnKey: job.queueColumn,
+          orderRank: Number(job.manualSortOrder ?? 0),
+          priority: Number(job.priorityScore ?? 0),
+        },
+      })),
+    );
   } catch (error) {
     console.error("[API:PipelineJobs] GET failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });

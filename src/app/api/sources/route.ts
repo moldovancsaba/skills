@@ -4,6 +4,7 @@ import type { SourceProcessingStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
+import { decorateWithBoardState, SURFACE_BOARD_CONFIG, updateBoardEntityState } from "@/lib/board-state";
 import { normalizeHashtagList } from "@/lib/hashtags";
 import { verifyMembership } from "@/lib/permissions";
 import {
@@ -52,16 +53,18 @@ export async function GET(request: NextRequest) {
         aiClusters: normalizeHashtagList(source.aiClusters),
       }));
 
+    const decorated = await decorateWithBoardState(companyId, SURFACE_BOARD_CONFIG.data, normalized);
+
     if (safeLimit) {
       const total = await prisma.source.count({ where: { companyId } });
       return NextResponse.json({
-        items: normalized,
+        items: decorated,
         total,
-        hasMore: safeOffset + normalized.length < total,
+        hasMore: safeOffset + decorated.length < total,
       });
     }
 
-    return NextResponse.json(normalized);
+    return NextResponse.json(decorated);
   } catch (error) {
     console.error("[API:SOURCES] Get failure:", error);
     // Iron-Clad: Never return a non-array crash object to the dashboard
@@ -142,6 +145,27 @@ export async function PATCH(request: NextRequest) {
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
+
+    if (typeof data.destinationColumn === "string") {
+      const updatedBoardState = await updateBoardEntityState({
+        companyId: existing.companyId,
+        config: SURFACE_BOARD_CONFIG.data,
+        entityId: existing.id,
+        destinationColumn: data.destinationColumn,
+        beforeId: typeof data.beforeId === "string" ? data.beforeId : null,
+        afterId: typeof data.afterId === "string" ? data.afterId : null,
+      });
+      return NextResponse.json({
+        ...existing,
+        boardState: {
+          boardKey: updatedBoardState.boardKey,
+          entityType: updatedBoardState.entityType,
+          columnKey: updatedBoardState.columnKey,
+          orderRank: Number(updatedBoardState.orderRank ?? 0),
+          priority: Number(updatedBoardState.priority ?? 0),
+        },
+      });
+    }
 
     const nextData = {
       content: typeof data.content === "string" ? data.content.trim() || existing.content : existing.content,

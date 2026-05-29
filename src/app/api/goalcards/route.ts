@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { prisma } from "@/lib/db";
+import { decorateWithBoardState, SURFACE_BOARD_CONFIG, updateBoardEntityState } from "@/lib/board-state";
 import { verifyMembership } from "@/lib/permissions";
 import { normalizeGoalScores } from "@/lib/scoring-contract";
 
@@ -59,16 +60,18 @@ export async function GET(req: NextRequest) {
     ...(safeLimit ? { skip: safeOffset, take: safeLimit } : {}),
   });
 
+  const decorated = await decorateWithBoardState(companyId, SURFACE_BOARD_CONFIG.goals, goalcards);
+
   if (safeLimit) {
     const total = await prisma.goalcard.count({ where: baseWhere });
     return NextResponse.json({
-      items: goalcards,
+      items: decorated,
       total,
-      hasMore: safeOffset + goalcards.length < total,
+      hasMore: safeOffset + decorated.length < total,
     });
   }
 
-  return NextResponse.json(goalcards);
+  return NextResponse.json(decorated);
 }
 
 export async function POST(req: NextRequest) {
@@ -144,6 +147,27 @@ export async function PATCH(req: NextRequest) {
 
     const auth = await verifyMembership(req, existing.companyId);
     if (auth.error) return auth.error;
+
+    if (typeof body.destinationColumn === "string") {
+      const updatedBoardState = await updateBoardEntityState({
+        companyId: existing.companyId,
+        config: SURFACE_BOARD_CONFIG.goals,
+        entityId: existing.id,
+        destinationColumn: body.destinationColumn,
+        beforeId: typeof body.beforeId === "string" ? body.beforeId : null,
+        afterId: typeof body.afterId === "string" ? body.afterId : null,
+      });
+      return NextResponse.json({
+        ...existing,
+        boardState: {
+          boardKey: updatedBoardState.boardKey,
+          entityType: updatedBoardState.entityType,
+          columnKey: updatedBoardState.columnKey,
+          orderRank: Number(updatedBoardState.orderRank ?? 0),
+          priority: Number(updatedBoardState.priority ?? 0),
+        },
+      });
+    }
 
     const normalizedScores = normalizeGoalScores({
       impact: body.impact ?? existing.impact,

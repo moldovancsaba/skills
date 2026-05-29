@@ -62,6 +62,8 @@ model Company {
   destinationMissionDefinitionRevisions DestinationMissionDefinitionRevision[]
   destinationMissionRuns            DestinationMissionRun[]
   destinationMissionAttempts        DestinationMissionAttempt[]
+  boardCards            BoardCard[]
+  boardItemStates       BoardItemState[]
   
   // Profile Validation Fields
   website             String?
@@ -687,6 +689,39 @@ model Topic {
 
   @@index([companyId, active, sortOrder])
   @@unique([companyId, label])
+}
+
+model BoardCard {
+  id          String   @id @default(uuid()) @map("_id")
+  companyId    String
+  boardKey     String
+  title        String
+  description  String?
+  createdBy    String?  @default("webapp-user")
+  archivedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, boardKey, archivedAt, updatedAt])
+}
+
+model BoardItemState {
+  id          String   @id @default(uuid()) @map("_id")
+  companyId    String
+  boardKey     String
+  entityType   String
+  entityId     String
+  columnKey    String
+  orderRank    Float    @default(1024)
+  priority     Int      @default(0)
+  metadata     Json?    @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, boardKey, entityType, entityId])
+  @@index([companyId, boardKey, columnKey, orderRank])
 }
 
 model PublicIdCounter {

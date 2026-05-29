@@ -65,6 +65,14 @@ const pipelineItems = [
     tone: "strategy",
   },
   {
+    key: "unit-board",
+    href: (companyId: string) => `/${companyId}/unit-board`,
+    label: "Project Board",
+    icon: Building,
+    color: "review",
+    tone: "review",
+  },
+  {
     key: "tactical",
     href: (companyId: string) => `/${companyId}/tactical`,
     labelKey: "nav.tactical",

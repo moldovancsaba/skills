@@ -112,6 +112,7 @@ export default function ObservabilityPage() {
   const opportunitycardRepair = data?.opportunitycardRepair || { status: "PENDING", updated: 0, processed: 0, lastError: null };
   const workerBuild = data?.workerBuild || {};
   const quality = data?.quality || {};
+  const boardHealth = data?.boardHealth || { totalStates: 0, boardCounts: {}, tightGapCount: 0, duplicatedRankCount: 0 };
   const sortedQueueJobs = sortQueueJobs(queue.jobs || []);
   const currentJob = sortedQueueJobs[0] || null;
   const upcomingJobs = currentJob ? sortedQueueJobs.slice(1, 21) : sortedQueueJobs.slice(0, 20);
@@ -164,6 +165,7 @@ export default function ObservabilityPage() {
         <MetricCard icon={Activity} color="review" label="Editorial Gate" value={planner.editorialDowngradeCount ?? 0} detail="downgrades to review" />
         <MetricCard icon={Heartbeat} color="review" label="Worker Build" value={String(workerBuild.appVersion || "unknown")} detail={String(workerBuild.gitSha || "—").slice(0, 12)} />
         <MetricCard icon={Gauge} color="knowmore" label="Task Quality" value={quality.tasks?.averages?.aggregate ?? 0} detail={String(quality.tasks?.weakestDimension || "—")} />
+        <MetricCard icon={ListCheck} color="review" label="Board States" value={boardHealth.totalStates ?? 0} detail={`${boardHealth.tightGapCount ?? 0} tight rank gaps`} />
       </SimpleGrid>
 
       {scoreHealth?.alerts?.length ? (
@@ -181,6 +183,16 @@ export default function ObservabilityPage() {
           {opportunitycardRepair.status === "FAILED"
             ? opportunitycardRepair.lastError || "Historical opportunitycard repair failed and will retry through the worker integrity loop."
             : `Historical opportunitycard repair is running in bounded worker slices. Updated ${opportunitycardRepair.updated ?? 0} after inspecting ${opportunitycardRepair.processed ?? 0} card(s).`}
+        </Notice>
+      ) : null}
+
+      {(boardHealth.tightGapCount > 0 || boardHealth.duplicatedRankCount > 0) ? (
+        <Notice
+          title="Board rank repair recommended"
+          icon={AlertTriangle}
+          variant="destructive"
+        >
+          {`${boardHealth.tightGapCount ?? 0} tight gaps and ${boardHealth.duplicatedRankCount ?? 0} duplicate rank collisions were detected across shared board-state columns.`}
         </Notice>
       ) : null}
 

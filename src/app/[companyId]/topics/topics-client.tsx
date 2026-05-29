@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { 
-  Stack, Group, Card, Badge as MantineBadge, ActionIcon, Tooltip, Button, Checkbox, TextInput, rem, Center, Loader, Box, Divider, ThemeIcon } from "@mantine/core";
+  Stack, Group, Card, Badge as MantineBadge, ActionIcon, Tooltip, Button, Checkbox, TextInput, rem, Center, Loader, Box, Divider, ThemeIcon, Select } from "@mantine/core";
 import { IconGripVertical as GripVertical, IconPlus as Plus, IconTrash as Trash2, IconArrowUp as ArrowUp, IconArrowDown as ArrowDown, IconInfoCircle as Info, IconLayoutList as LayoutList, IconLayersIntersect as Layers } from "@tabler/icons-react";
 import { EmptyState, Notice, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { 
@@ -40,7 +40,16 @@ type Topic = {
   weight: number;
   createdAt: string;
   updatedAt: string;
+  boardState?: {
+    boardKey: string;
+    entityType: string;
+    columnKey: "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
+    orderRank: number;
+    priority: number;
+  };
 };
+
+type TopicBoardColumn = "IDEABANK" | "ROADMAP" | "BACKLOG" | "TODO" | "CHECKLIST";
 
 type Company = {
   id: string;
@@ -164,6 +173,15 @@ export default function CompanyTopicsClient({
     [topics],
   );
 
+  const updateBoardState = useCallback(async (topicId: string, destinationColumn: TopicBoardColumn) => {
+    await fetch(`/api/topics?id=${encodeURIComponent(topicId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ destinationColumn }),
+    });
+    await loadPage();
+  }, [loadPage]);
+
   if (loading) {
     return (
       <Center h="100vh">
@@ -235,6 +253,9 @@ export default function CompanyTopicsClient({
                   >
                     {topic.active ? "ACTIVE" : "PAUSED"}
                   </MantineBadge>
+                  <MantineBadge variant="light" color="strategy" size="xs">
+                    {topic.boardState?.columnKey ?? "BACKLOG"}
+                  </MantineBadge>
                   <UnifiedCardFreshnessBadge
                     freshness={getTopicCardFreshness({
                       createdAt: topic.createdAt,
@@ -292,6 +313,24 @@ export default function CompanyTopicsClient({
                       </Group>
 
                       <Divider variant="dotted" />
+
+                      <Select
+                        label="Board status"
+                        size="xs"
+                        data={[
+                          { value: "IDEABANK", label: "Idea Bank" },
+                          { value: "ROADMAP", label: "Roadmap" },
+                          { value: "BACKLOG", label: "Backlog" },
+                          { value: "TODO", label: "Todo" },
+                          { value: "CHECKLIST", label: "Now" },
+                        ]}
+                        value={topic.boardState?.columnKey ?? "BACKLOG"}
+                        onChange={(value) => {
+                          if (value) {
+                            void updateBoardState(topic.id, value as TopicBoardColumn);
+                          }
+                        }}
+                      />
 
                       <UnifiedCardActions>
                         <Group justify="space-between" w="100%">

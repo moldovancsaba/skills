@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
@@ -10,15 +9,29 @@ export const dynamic = "force-dynamic";
 
 const UNIT_PROJECT_BOARD_KEY = "UNIT_PROJECT";
 
-function activeBoardCardWhere(companyId: string, boardKey: string): Prisma.BoardCardWhereInput {
-  return {
-    companyId,
-    boardKey,
-    OR: [
-      { archivedAt: null },
-      { archivedAt: { isSet: false } },
-    ],
-  };
+function getBoardTraceId(request: NextRequest) {
+  const headerTraceId = request.headers.get("x-board-items-trace-id");
+  if (headerTraceId) return headerTraceId;
+  const queryTraceId = request.nextUrl.searchParams.get("traceId");
+  if (queryTraceId) return queryTraceId;
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function shouldTraceBoardItems(request: NextRequest) {
+  return process.env.BOARD_ITEMS_TRACE === "1"
+    || request.headers.get("x-board-items-debug") === "1"
+    || request.nextUrl.searchParams.get("debug") === "1";
+}
+
+function withBoardTrace(response: NextResponse, traceId: string, debugEnabled: boolean) {
+  response.headers.set("X-Board-Trace-Id", traceId);
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  if (debugEnabled) {
+    response.headers.set("X-Board-Items-Debug", "1");
+  }
 }
 
 function serializeBoardItem(card: {
@@ -48,7 +61,7 @@ function serializeBoardItem(card: {
   };
 }
 
-function handleBoardItemsError(error: unknown, operation: string) {
+function handleBoardItemsError(error: unknown, operation: string, traceId: string, debugEnabled: boolean) {
   const persistenceFailure = classifyPersistenceFailure(error);
   if (persistenceFailure) {
     const response = NextResponse.json({
@@ -57,13 +70,21 @@ function handleBoardItemsError(error: unknown, operation: string) {
       reasonCode: persistenceFailure.reasonCode,
       retryable: persistenceFailure.retryable,
       retryAfterMs: persistenceFailure.retryAfterMs,
+      traceId,
     }, { status: persistenceFailure.status });
     response.headers.set("Retry-After", String(Math.ceil(persistenceFailure.retryAfterMs / 1000)));
+    withBoardTrace(response, traceId, debugEnabled);
     return response;
   }
 
-  console.error(`[API:BOARD_ITEMS] ${operation} failure:`, error);
-  return NextResponse.json({ error: "Board operation failed" }, { status: 500 });
+  if (process.env.BOARD_ITEMS_TRACE === "1") {
+    console.error(`[API:BOARD_ITEMS][${traceId}] ${operation} failure:`, error);
+  } else {
+    console.error(`[API:BOARD_ITEMS] ${operation} failure`);
+  }
+  const response = NextResponse.json({ error: "Board operation failed", traceId }, { status: 500 });
+  withBoardTrace(response, traceId, debugEnabled);
+  return response;
 }
 
 async function ensureBoardRanks(companyId: string, boardKey: string, columnKey: string) {
@@ -97,6 +118,9 @@ export async function GET(request: NextRequest) {
   try {
     const companyId = request.nextUrl.searchParams.get("companyId");
     const boardKey = request.nextUrl.searchParams.get("boardKey") || UNIT_PROJECT_BOARD_KEY;
+    const traceId = getBoardTraceId(request);
+    const debugTrace = shouldTraceBoardItems(request);
+    const startedAt = Date.now();
 
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
@@ -106,9 +130,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unsupported boardKey" }, { status: 400 });
     }
 
-    const [cards, states] = await Promise.all([
+    const [allCards, states] = await Promise.all([
       prisma.boardCard.findMany({
-        where: activeBoardCardWhere(companyId, boardKey),
+        where: { companyId, boardKey },
         orderBy: { updatedAt: "desc" },
       }),
       prisma.boardItemState.findMany({
@@ -117,7 +141,13 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const stateMap = new Map(states.map((state) => [state.entityId, state]));
+    const cards = allCards.filter((card) => card.archivedAt == null);
+    const cardIdSet = new Set(cards.map((card) => card.id));
+    const stateMap = new Map(
+      states
+        .filter((state) => cardIdSet.has(state.entityId))
+        .map((state) => [state.entityId, state]),
+    );
 
     const items = sortBoardRecords(cards.map((card, index) => {
       const state = stateMap.get(card.id);
@@ -136,11 +166,32 @@ export async function GET(request: NextRequest) {
       };
     }));
 
-    const response = NextResponse.json({ items, columns: PROJECT_BOARD_COLUMNS });
-    response.headers.set("Cache-Control", "no-store, max-age=0");
+    if (debugTrace) {
+      const activeCardCount = cards.length;
+      const mismatchCount = allCards.length - activeCardCount;
+      const withStateCount = items.length;
+      console.info(`[API:BOARD_ITEMS][${traceId}] GET`, {
+        companyId,
+        boardKey,
+        durationMs: Date.now() - startedAt,
+        requested: allCards.length,
+        active: activeCardCount,
+        withState: withStateCount,
+        mismatchedArchived: mismatchCount,
+        stateRows: states.length,
+      });
+    }
+
+    const response = NextResponse.json({
+      items,
+      columns: PROJECT_BOARD_COLUMNS,
+      traceId,
+    });
+    withBoardTrace(response, traceId, debugTrace);
     return response;
   } catch (error) {
-    return handleBoardItemsError(error, "GET");
+    const traceId = getBoardTraceId(request);
+    return handleBoardItemsError(error, "GET", traceId, shouldTraceBoardItems(request));
   }
 }
 
@@ -149,6 +200,9 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     const companyId = typeof data.companyId === "string" ? data.companyId : "";
     const boardKey = typeof data.boardKey === "string" ? data.boardKey : UNIT_PROJECT_BOARD_KEY;
+    const traceId = getBoardTraceId(request);
+    const debugTrace = shouldTraceBoardItems(request);
+    const startedAt = Date.now();
 
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
@@ -158,43 +212,61 @@ export async function POST(request: NextRequest) {
 
     const actor = auth.membership.id || auth.session.email || "webapp-user";
     const columnKey = typeof data.columnKey === "string" ? data.columnKey : PROJECT_BOARD_COLUMNS[3].key;
-    const latestState = await prisma.boardItemState.findFirst({
-      where: { companyId, boardKey, columnKey },
-      orderBy: { orderRank: "desc" },
+    const [card, state] = await prisma.$transaction(async (transaction) => {
+      const latestState = await transaction.boardItemState.findFirst({
+        where: { companyId, boardKey, columnKey },
+        orderBy: { orderRank: "desc" },
+      });
+
+      const card = await transaction.boardCard.create({
+        data: {
+          companyId,
+          boardKey,
+          title: String(data.title).trim(),
+          description: typeof data.description === "string" ? data.description.trim() || null : null,
+          createdBy: actor,
+          archivedAt: null,
+        },
+      });
+
+      const state = await transaction.boardItemState.create({
+        data: {
+          companyId,
+          boardKey,
+          entityType: "BOARD_CARD",
+          entityId: card.id,
+          columnKey,
+          orderRank: Number(latestState?.orderRank ?? 0) + BOARD_RANK_STEP,
+          priority: Number(data.priority ?? 0),
+        },
+      });
+
+      return [card, state] as const;
     });
 
-    const card = await prisma.boardCard.create({
-      data: {
+    if (debugTrace) {
+      console.info(`[API:BOARD_ITEMS][${traceId}] POST`, {
         companyId,
         boardKey,
-        title: String(data.title).trim(),
-        description: typeof data.description === "string" ? data.description.trim() || null : null,
-        createdBy: actor,
-        archivedAt: null,
-      },
-    });
-
-    const state = await prisma.boardItemState.create({
-      data: {
-        companyId,
-        boardKey,
-        entityType: "BOARD_CARD",
-        entityId: card.id,
-        columnKey,
-        orderRank: Number(latestState?.orderRank ?? 0) + BOARD_RANK_STEP,
-        priority: Number(data.priority ?? 0),
-      },
-    });
+        cardId: card.id,
+        stateId: state.id,
+        columnKey: state.columnKey,
+        orderRank: state.orderRank,
+        durationMs: Date.now() - startedAt,
+      });
+    }
 
     const response = NextResponse.json({
       success: true,
       cardId: card.id,
       item: serializeBoardItem(card, state, boardKey),
+      traceId,
     });
-    response.headers.set("Cache-Control", "no-store, max-age=0");
+    withBoardTrace(response, traceId, debugTrace);
     return response;
   } catch (error) {
-    return handleBoardItemsError(error, "POST");
+    const traceId = getBoardTraceId(request);
+    return handleBoardItemsError(error, "POST", traceId, shouldTraceBoardItems(request));
   }
 }
 
@@ -204,6 +276,8 @@ export async function PATCH(request: NextRequest) {
     const companyId = typeof data.companyId === "string" ? data.companyId : "";
     const boardKey = typeof data.boardKey === "string" ? data.boardKey : UNIT_PROJECT_BOARD_KEY;
     const cardId = typeof data.id === "string" ? data.id : "";
+    const traceId = getBoardTraceId(request);
+    const debugTrace = shouldTraceBoardItems(request);
 
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
@@ -275,7 +349,7 @@ export async function PATCH(request: NextRequest) {
         },
       });
       const response = NextResponse.json(updated);
-      response.headers.set("Cache-Control", "no-store, max-age=0");
+      withBoardTrace(response, traceId, debugTrace);
       return response;
     }
 
@@ -290,10 +364,11 @@ export async function PATCH(request: NextRequest) {
     });
 
     const response = NextResponse.json(updated);
-    response.headers.set("Cache-Control", "no-store, max-age=0");
+    withBoardTrace(response, traceId, debugTrace);
     return response;
   } catch (error) {
-    return handleBoardItemsError(error, "PATCH");
+    const traceId = getBoardTraceId(request);
+    return handleBoardItemsError(error, "PATCH", traceId, shouldTraceBoardItems(request));
   }
 }
 
@@ -301,6 +376,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const id = request.nextUrl.searchParams.get("id");
     const companyId = request.nextUrl.searchParams.get("companyId");
+    const traceId = getBoardTraceId(request);
+    const debugTrace = shouldTraceBoardItems(request);
 
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
@@ -318,10 +395,11 @@ export async function DELETE(request: NextRequest) {
       data: { archivedAt: new Date() },
     });
 
-    const response = NextResponse.json({ success: true });
-    response.headers.set("Cache-Control", "no-store, max-age=0");
+    const response = NextResponse.json({ success: true, traceId });
+    withBoardTrace(response, traceId, debugTrace);
     return response;
   } catch (error) {
-    return handleBoardItemsError(error, "DELETE");
+    const traceId = getBoardTraceId(request);
+    return handleBoardItemsError(error, "DELETE", traceId, shouldTraceBoardItems(request));
   }
 }

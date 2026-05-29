@@ -85,7 +85,7 @@ function SortableBoardCard<T extends BoardCardRecord>({
   children: React.ReactNode;
   tone: BoardColumn["tone"];
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition: dragMotion, isDragging } = useSortable({
     id: item.id,
   });
 
@@ -94,7 +94,7 @@ function SortableBoardCard<T extends BoardCardRecord>({
       ref={setNodeRef}
       style={{
         transform: CSS.Transform.toString(transform),
-        transition,
+        transition: dragMotion,
         opacity: isDragging ? 0.55 : 1,
       }}
       {...attributes}

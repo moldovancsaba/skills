@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 
-import { prisma } from "@/lib/db";
 import { readAppSession } from "@/lib/auth";
+import { getLocalAuditPrisma } from "@/lib/local-audit-db";
 
 type ActorContext = {
   userId?: string | null;
@@ -104,6 +104,11 @@ async function getActorContext(request?: Request | NextRequest | null): Promise<
 
 export async function recordInteractionEvent(input: InteractionEventInput) {
   try {
+    const prisma = getLocalAuditPrisma();
+    if (!prisma) {
+      return;
+    }
+
     await prisma.interactionEvent.create({
       data: {
         companyId: input.companyId,
@@ -141,6 +146,11 @@ export async function recordInteractionEventFromRequest(
 
 export async function recordDecisionEvent(input: DecisionEventInput) {
   try {
+    const prisma = getLocalAuditPrisma();
+    if (!prisma) {
+      return;
+    }
+
     await prisma.decisionEvent.create({
       data: {
         companyId: input.companyId,
@@ -165,6 +175,11 @@ export async function recordDecisionEvent(input: DecisionEventInput) {
 
 export async function recordGenerationEvent(input: GenerationEventInput) {
   try {
+    const prisma = getLocalAuditPrisma();
+    if (!prisma) {
+      return;
+    }
+
     await prisma.generationEvent.create({
       data: {
         companyId: input.companyId,
@@ -194,6 +209,11 @@ export async function recordGenerationEvent(input: GenerationEventInput) {
 
 export async function recordOutcomeEvent(input: OutcomeEventInput) {
   try {
+    const prisma = getLocalAuditPrisma();
+    if (!prisma) {
+      return;
+    }
+
     await prisma.outcomeEvent.create({
       data: {
         companyId: input.companyId,

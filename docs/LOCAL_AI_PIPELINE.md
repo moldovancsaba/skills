@@ -20,7 +20,8 @@ checklist has two cooperating parts:
    - runs on Vercel
    - captures raw data, topics, hashtags, and feedback
    - reads persisted results from MongoDB Atlas
-   - writes user interaction records back to MongoDB Atlas
+   - writes product-state mutations and bounded operator intents back to MongoDB Atlas
+   - must not retain the heavy audit/event ledger in Atlas
    - should read prepared product projections first on hot routes
    - must not become an authoritative calculation layer for score health, observability interpretation, analytics history, or queue recommendations
 
@@ -33,16 +34,24 @@ checklist has two cooperating parts:
    - maintains scoring, freshness, and tactical placement
    - calculates operational health, score health, analytics snapshots, and repair recommendations
    - prepares webapp-ready company read models for fast product pages
-   - pushes those results back into MongoDB Atlas or runtime artifacts consumed by the app
+   - writes heavy audit/event history into a local MongoDB database through `LOCAL_DATABASE_URL`
+   - pushes only webapp-required results back into MongoDB Atlas or runtime artifacts consumed by the app
 
 The database is the shared persistence layer between them.
+
+Persistence split:
+
+- `DATABASE_URL` points at MongoDB Atlas and stores webapp-required product state
+- `LOCAL_DATABASE_URL` points at the local MongoDB audit/runtime store and should use the single-node replica-set URL, for example `mongodb://127.0.0.1:27017/checklist_local?replicaSet=rs0`
+- `DecisionEvent`, `InteractionEvent`, `GenerationEvent`, and `OutcomeEvent` belong in the local audit store, not Atlas
 
 Authoritative boundary:
 
 - everything that materially calculates intelligence state belongs to the local AI layer
-- the online app shows persisted results from the database
-- the online app records user interactions to the database
-- the local AI layer pulls those records, calculates, and pushes updated state back
+- the online app shows persisted Atlas product state
+- the online app may write bounded product or operator-intent records to Atlas
+- the local AI layer owns the heavy event ledger in local MongoDB
+- the local AI layer pulls the needed records, calculates, and pushes updated product state back
 - the online app should not rebuild company-level product summaries from many live hot-path queries when prepared projections already exist
 - the local AI layer now also prepares planning-summary and projection-freshness data for tactical/checklist product surfaces
 
@@ -325,6 +334,7 @@ UI/runtime contract:
 - active workflow blueprints are synchronized into claimable `WORKFLOW_BLUEPRINT` pipeline jobs, so workflow configuration can directly steer local-AI execution
 - enrichment waterfall policies now influence runtime product/competitor URL research provider selection instead of remaining passive config
 - observability is no longer read-only; operators can write bounded queue/repair intents through the shared webapp surface, and the local AI system pulls and executes queue sync, score-repair escalation, and failed-job recovery from MongoDB Atlas
+- heavy runtime audit history must not accumulate in Atlas; it belongs in the local audit database
 - workflow edits and repair actions are bridged through persisted worker commands; the webapp does not execute queue authority directly
 
 Some flashcards are sourced from AI-harvested public research rather than direct user-entered rows. Those are still normal flashcards in storage, but their source lineage points at `Source` rows tagged with:
@@ -601,7 +611,8 @@ The first AI workload budget-governor slice is an observability-first control lo
 There is one supported hosted execution mode:
 
 1. `indirect catch-up`
-   - the online app only writes to and reads from MongoDB Atlas
+   - the online app only writes to and reads from MongoDB Atlas for webapp-required product state
+   - local runtime audit/event history is stored in the local MongoDB audit database instead
    - the local AI worker polls the shared database
    - the worker writes flashcards and downstream updates back into the same database
 

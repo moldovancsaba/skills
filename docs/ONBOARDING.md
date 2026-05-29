@@ -23,9 +23,10 @@ CHECKLIST is a multi-tenant autonomous intelligence system with:
 This rule is not optional:
 
 - the online webapp reads persisted results from MongoDB Atlas
-- the online webapp writes user interactions, repair intents, and operator commands back to MongoDB Atlas
+- the online webapp writes only webapp-required product mutations, repair intents, and operator commands back to MongoDB Atlas
 - the online webapp must not calculate authoritative queue state, score health, observability health, ranking, or repair outcomes
-- the local AI system pulls those persisted records, performs the calculations, and pushes the updated results back into MongoDB Atlas
+- the local AI system owns the heavy audit/event ledger in a local MongoDB database through `LOCAL_DATABASE_URL`
+- the local AI system pulls the needed records, performs the calculations, and pushes the updated product state back into MongoDB Atlas
 
 If you see authoritative calculation logic in the webapp layer, treat it as architecture debt and remove it.
 
@@ -77,6 +78,7 @@ npx tsc --noEmit
 - Node.js `20+`
 - npm
 - MongoDB Atlas connection string in `DATABASE_URL`
+- local MongoDB connection string in `LOCAL_DATABASE_URL`
 - local or reachable Ollama runtime
 
 ### Install dependencies
@@ -85,9 +87,16 @@ npx tsc --noEmit
 npm install
 ```
 
+Start the local audit database:
+
+```bash
+npm run local-audit-db:start
+```
+
 ### Required environment
 
 - `DATABASE_URL`
+- `LOCAL_DATABASE_URL`
 
 Common optional runtime variables:
 

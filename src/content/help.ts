@@ -41,8 +41,8 @@ export const manualSections: HelpSection[] = [
       "Data is raw source input: notes, URLs, research snippets, and uploaded files.",
       "Knowmore is the knowledge layer: flashcards generated from evidence and enrichment.",
       "checklist is the action layer: next-best tasks generated from company context and flashcards.",
-      "The webapp reads persisted results from MongoDB Atlas and writes user interactions or repair intents back.",
-      "The local AI system pulls those records, calculates authoritative state, and pushes the updated results back into MongoDB Atlas.",
+      "The webapp reads persisted product state from MongoDB Atlas and writes only bounded product or repair-intent records back.",
+      "The local AI system owns the heavy audit/event ledger in local MongoDB and pushes only webapp-required results back into Atlas.",
       "If the source data is weak, the flashcards and tasks will drift.",
     ],
   },
@@ -110,7 +110,7 @@ export const manualSections: HelpSection[] = [
     title: "Understand repair actions correctly",
     summary: "Repair buttons do not make the webapp do AI work directly.",
     bullets: [
-      "Knowmore health and Observability actions write repair intents or worker commands into MongoDB Atlas.",
+      "Knowmore health and Observability actions write bounded repair intents or worker commands into MongoDB Atlas.",
       "The local AI runtime picks those commands up through its supervised worker processes and performs queue repair, recovery, queue-refresh wakeups, or snapshot refresh work.",
       "If a repair button was pressed but nothing changes, check the local worker health and the shared database connection before blaming the webapp.",
       "Queue pages should show persisted queue state; simply opening a page should not recalculate or repair anything.",
@@ -199,7 +199,7 @@ export const faqItems: FaqItem[] = [
     id: "why-webapp-does-not-calculate",
     question: "Why does the webapp not calculate the AI state directly?",
     answer:
-      "Because the architecture contract is strict: the webapp shows persisted results from MongoDB Atlas and writes interaction or repair-intent records back. The local AI system is the only authority that calculates queue state, score health, observability summaries, lead mining, enrichment, dedupe, ICE movement, and other intelligence outputs.",
+      "Because the architecture contract is strict: the webapp shows persisted Atlas product state and writes only bounded product or repair-intent records back. The local AI system owns the heavy runtime ledger locally and is the only authority that calculates queue state, score health, observability summaries, lead mining, enrichment, dedupe, ICE movement, and other intelligence outputs.",
   },
   {
     id: "how-local-ai-stays-stable",

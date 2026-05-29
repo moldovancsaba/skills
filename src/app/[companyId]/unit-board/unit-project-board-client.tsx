@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Center, Group, Loader, Modal, Select, Stack, TextInput, Textarea } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { IconChecklist as Checklist, IconPlus as Plus, IconRefresh as Refresh } from "@tabler/icons-react";
 import { SharedBoard } from "@/components/board/shared-board";
-import { PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
+import { Notice, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCardBody } from "@/components/ui/unified-card";
 import { Text } from "@/components/ui/typography";
 import type { BoardColumn } from "@/lib/board-system";
@@ -32,23 +33,41 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const [draftColumnKey, setDraftColumnKey] = useState<string>("IDEABANK");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [boardError, setBoardError] = useState<string | null>(null);
 
   const selected = useMemo(
     () => items.find((item) => item.id === selectedId) ?? null,
     [items, selectedId],
   );
 
+  const presentBoardError = useCallback((payload: { error?: string; detail?: string } | null, fallback: string) => {
+    const message = payload?.error || fallback;
+    const detail = payload?.detail || null;
+    const combined = detail ? `${message} ${detail}` : message;
+    setBoardError(combined);
+    notifications.show({
+      title: "Project board unavailable",
+      message: combined,
+      color: "review",
+    });
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`/api/board-items?companyId=${encodeURIComponent(companyId)}&boardKey=UNIT_PROJECT`);
-      if (!response.ok) return;
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        presentBoardError(payload, "Unable to load the project board.");
+        return;
+      }
       const data = await response.json();
+      setBoardError(null);
       setItems(Array.isArray(data.items) ? data.items : []);
     } finally {
       setLoading(false);
     }
-  }, [companyId]);
+  }, [companyId, presentBoardError]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -80,7 +99,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const createCard = useCallback(async () => {
     const title = draftTitle.trim();
     if (!title) return;
-    await fetch("/api/board-items", {
+    const response = await fetch("/api/board-items", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -91,14 +110,20 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
         columnKey: draftColumnKey,
       }),
     });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      presentBoardError(payload, "Unable to create the project card.");
+      return;
+    }
     setModalOpen(false);
     resetDraft();
+    setBoardError(null);
     await load();
-  }, [companyId, draftColumnKey, draftDescription, draftTitle, load, resetDraft]);
+  }, [companyId, draftColumnKey, draftDescription, draftTitle, load, presentBoardError, resetDraft]);
 
   const updateCard = useCallback(async () => {
     if (!selected) return;
-    await fetch("/api/board-items", {
+    const updateResponse = await fetch("/api/board-items", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -110,8 +135,13 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
         columnKey: draftColumnKey,
       }),
     });
+    if (!updateResponse.ok) {
+      const payload = await updateResponse.json().catch(() => null);
+      presentBoardError(payload, "Unable to update the project card.");
+      return;
+    }
     if (draftColumnKey !== selected.columnKey) {
-      await fetch("/api/board-items", {
+      const moveResponse = await fetch("/api/board-items", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -123,22 +153,34 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
           afterId: null,
         }),
       });
+      if (!moveResponse.ok) {
+        const payload = await moveResponse.json().catch(() => null);
+        presentBoardError(payload, "Unable to move the project card.");
+        return;
+      }
     }
     setModalOpen(false);
     resetDraft();
+    setBoardError(null);
     await load();
-  }, [companyId, draftColumnKey, draftDescription, draftTitle, load, resetDraft, selected]);
+  }, [companyId, draftColumnKey, draftDescription, draftTitle, load, presentBoardError, resetDraft, selected]);
 
   const archiveCard = useCallback(async (id: string) => {
-    await fetch(`/api/board-items?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(id)}`, {
+    const response = await fetch(`/api/board-items?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      presentBoardError(payload, "Unable to archive the project card.");
+      return;
+    }
     if (selectedId === id) {
       setModalOpen(false);
       resetDraft();
     }
+    setBoardError(null);
     await load();
-  }, [companyId, load, resetDraft, selectedId]);
+  }, [companyId, load, presentBoardError, resetDraft, selectedId]);
 
   const submitCard = useCallback(async () => {
     if (selected) {
@@ -164,6 +206,12 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   return (
     <PageShell width="full">
       <Stack gap="xl">
+        {boardError ? (
+          <Notice title="Project board writes are currently unavailable" variant="destructive">
+            {boardError}
+          </Notice>
+        ) : null}
+
         <PageHeader
           title="Unit Project Board"
           description="Independent project execution board for this intelligence unit. This surface runs in the webapp and persists directly in MongoDB Atlas through the app API."
@@ -196,7 +244,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
           onMove={async (request, nextItems) => {
             setItems(nextItems);
             try {
-              await fetch("/api/board-items", {
+              const response = await fetch("/api/board-items", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -209,6 +257,13 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
                   afterId: request.afterId,
                 }),
               });
+              if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                presentBoardError(payload, "Unable to move the project card.");
+                await load();
+                return;
+              }
+              setBoardError(null);
             } catch {
               await load();
             }

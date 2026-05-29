@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
+import { classifyPersistenceFailure } from "@/lib/persistence-failures";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const persistenceFailure = classifyPersistenceFailure(error);
+    if (persistenceFailure) {
+      console.warn("[API:EVENTS] Ignoring interaction-event write because Atlas storage is quota-blocked.");
+      return NextResponse.json({
+        success: false,
+        ignored: true,
+        reasonCode: persistenceFailure.reasonCode,
+      }, { status: 202 });
+    }
     console.error("[API:EVENTS] Post failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

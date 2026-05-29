@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { countLocalOutcomeEvents } from "@/lib/local-audit-db";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -253,7 +254,7 @@ export async function getCompanyBudgetSnapshot(companyId: string) {
       orderBy: [{ updatedAt: "desc" }],
       take: 100,
     }),
-    prisma.outcomeEvent.count({
+    countLocalOutcomeEvents({
       where: { companyId, outcomeType: "EVAL_GATE_FAILED", createdAt: { gte: since } },
     }),
   ]);

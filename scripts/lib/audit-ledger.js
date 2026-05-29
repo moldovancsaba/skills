@@ -1,10 +1,17 @@
+const { getLocalAuditPrisma } = require("./local-audit-db");
+
 function normalizeTeachingWeight(weight) {
   const numeric = Number.isFinite(weight) ? Number(weight) : 30;
   return Math.max(30, Math.min(100, Math.round(numeric)));
 }
 
-async function recordDecisionEvent(prisma, input) {
+async function recordDecisionEvent(_prisma, input) {
   try {
+    const prisma = getLocalAuditPrisma();
+    if (!prisma) {
+      return;
+    }
+
     await prisma.decisionEvent.create({
       data: {
         companyId: input.companyId,
@@ -27,8 +34,13 @@ async function recordDecisionEvent(prisma, input) {
   }
 }
 
-async function recordGenerationEvent(prisma, input) {
+async function recordGenerationEvent(_prisma, input) {
   try {
+    const prisma = getLocalAuditPrisma();
+    if (!prisma) {
+      return;
+    }
+
     await prisma.generationEvent.create({
       data: {
         companyId: input.companyId,
@@ -56,8 +68,13 @@ async function recordGenerationEvent(prisma, input) {
   }
 }
 
-async function recordOutcomeEvent(prisma, input) {
+async function recordOutcomeEvent(_prisma, input) {
   try {
+    const prisma = getLocalAuditPrisma();
+    if (!prisma) {
+      return;
+    }
+
     await prisma.outcomeEvent.create({
       data: {
         companyId: input.companyId,

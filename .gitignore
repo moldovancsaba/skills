@@ -14,3 +14,4 @@ logs/guardian-heartbeat.json
 scripts/logs/
 training/exports/
 training/runs/
+.local-mongo/

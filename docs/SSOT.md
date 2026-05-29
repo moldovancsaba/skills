@@ -66,6 +66,7 @@ Backend and orchestration:
 - Next.js
 - Prisma
 - MongoDB Atlas
+- local MongoDB audit store
 - Ollama
 
 Frontend:
@@ -262,6 +263,7 @@ The current intelligence-operations contract also includes:
 - Search & Answers must clear stale result and answer state when the allowed layer selection changes so the visible output always reflects the current scope
 - one observability surface for worker health, queue pressure, score-health, AI workload budget pressure, and recent outcomes
 - observability captures bounded repair intents and budget-control records for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls; the local AI system executes those actions after pulling them from MongoDB Atlas
+- heavy runtime audit/event history belongs in the local MongoDB audit store, not in Atlas
 - Knowmore owns its own operator-visible health and bounded repair surface on top of the shared queue and score-health model
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active
 - persisted enrichment waterfall policies for provider ordering and fallback governance, applied at runtime during URL intelligence enrichment

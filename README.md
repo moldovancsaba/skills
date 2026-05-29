@@ -125,6 +125,7 @@ Application stack:
 - Tabler Icons
 - Prisma
 - MongoDB Atlas
+- local MongoDB audit store
 - Ollama for local model execution
   - the live runtime may evict loaded Ollama runner processes under low-memory pressure to keep checklist healthy
 
@@ -160,6 +161,7 @@ Frontend system:
 - the local AI runtime now uses a dedicated `snapshot-worker` background process so intelligence snapshot refresh no longer shares the foreground planner queue lane
 - the online webapp must stay projection-first on hot product routes; the local AI side prepares fast company read models ahead of time so product page loads do not behave like a second analytics engine
 - the online webapp must not perform authoritative business logic, lead mining, scoring, ICE calculation, dedupe, enrichment, or external-search workload; it should only persist user input, feedback, and lightweight worker intents
+- heavy audit/event history such as `DecisionEvent`, `InteractionEvent`, `GenerationEvent`, and `OutcomeEvent` must be stored in the local MongoDB audit database through `LOCAL_DATABASE_URL`, not in Atlas
 - the foreground local AI runtime is strict linear mode: one foreground worker process lease, one claimed queue job, one company context, and no parallel AI task execution in that lane
 - support processes such as guardian, status-server, and snapshot-worker must stay isolated from the foreground mutation lane and must not execute competing queue-owned AI work
 
@@ -226,6 +228,7 @@ This is the shortest correct path for running the repository locally.
 - Node.js `20+`
 - npm
 - MongoDB Atlas connection string in `DATABASE_URL`
+- local MongoDB connection string in `LOCAL_DATABASE_URL`
 - Ollama running locally or on a reachable host
 
 Recommended local model baseline:
@@ -252,12 +255,16 @@ npm run db:generate
 Required environment:
 
 - `DATABASE_URL`
+- `LOCAL_DATABASE_URL`
 
 Repository-local runtime note:
 
 - this checkout now uses an ignored local [`.env`](/Users/chappie/.codex/worktrees/4aa5/checklist/.env) for `DATABASE_URL`
 - the shared local source of truth for that value is [`/Users/Shared/Projects/checklist/.env.prod-db-url.tmp`](/Users/Shared/Projects/checklist/.env.prod-db-url.tmp)
 - that shared file contains a raw MongoDB URI, not a `KEY=value` shell export, so if the local `.env` is missing it must be injected into `DATABASE_URL` explicitly
+- start the local audit database with `npm run local-audit-db:start`
+- configure `LOCAL_DATABASE_URL` to point at the local MongoDB runtime database, for example `mongodb://127.0.0.1:27017/checklist_local?replicaSet=rs0`
+- run `npm run migrate:audit-ledger-local` to move runtime event history off Atlas and into the local audit store
 
 Optional but commonly used local AI environment:
 

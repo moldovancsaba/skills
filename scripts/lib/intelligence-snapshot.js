@@ -9,6 +9,7 @@ const {
   buildPlannerStateSnapshot,
   buildPlannerEventSummary,
 } = require("./planner/telemetry");
+const { countOutcomeEvents, findOutcomeEvents } = require("./local-audit-db");
 const { readOpportunitySearchState } = require("./opportunity-search");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -818,7 +819,7 @@ async function buildBudgetSummary(prisma, companyId) {
       orderBy: [{ updatedAt: "desc" }],
       take: 100,
     }),
-    prisma.outcomeEvent.count({
+    countOutcomeEvents({
       where: { companyId, outcomeType: "EVAL_GATE_FAILED", createdAt: { gte: since } },
     }),
   ]);
@@ -864,7 +865,7 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
       orderBy: [{ createdAt: "desc" }],
       take: 10,
     }),
-    prisma.outcomeEvent.findMany({
+    findOutcomeEvents({
       where: { companyId },
       orderBy: [{ createdAt: "desc" }],
       take: 10,

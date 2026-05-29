@@ -379,12 +379,14 @@ npm run audit:docs
 npm run lint
 npm run audit:semantic
 npx tsc --noEmit
+npm run build
 ```
 
 Prisma client synchronization rule:
 
 - if `prisma/schema.prisma` changed, or you switched to a commit/branch with different Prisma model definitions, run `npm run db:generate` before lint or typecheck
 - do not treat generated Prisma client drift as an application-code defect until regeneration is verified
+- `npm run build` is mandatory before publish because production dependency-resolution failures can bypass audit, lint, and typecheck until Next.js bundles the app
 
 If a new category of drift is discovered:
 
@@ -410,6 +412,7 @@ The workflow must enforce:
 - `npm run audit:semantic`
 - `npm run lint`
 - `npx tsc --noEmit`
+- `npm run build`
 
 ## 13. Pipeline Queue Rules
 

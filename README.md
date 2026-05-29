@@ -367,6 +367,7 @@ npm run audit:docs
 npm run audit:semantic
 npm run lint
 npx tsc --noEmit
+npm run build
 ```
 
 Release artifacts:
@@ -418,9 +419,12 @@ npm run audit:docs
 npm run lint
 npm run audit:semantic
 npx tsc --noEmit
+npm run build
 ```
 
 Use `npm run db:generate` as mandatory regeneration after any Prisma schema change or after moving between commits with different destination-model definitions. The generated Prisma client is part of the effective local contract.
+
+Use `npm run build` as the final pre-publish gate. Audit, lint, and typecheck do not prove that the production Next.js bundle can resolve every runtime import.
 
 ## Mandatory Documentation Update Rule
 
@@ -457,6 +461,7 @@ That workflow enforces:
 - `npm run audit:semantic`
 - `npm run lint`
 - `npx tsc --noEmit`
+- `npm run build`
 
 ## Local Self-Learning
 

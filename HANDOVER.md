@@ -32,6 +32,7 @@ Prisma hygiene:
 - after any branch switch, rebase, or detached checkout that changes `prisma/schema.prisma`, run `npm run db:generate` before trusting lint or typecheck
 - the generated Prisma client is an operational dependency, not optional local cache noise
 - if type errors claim Prisma models or enums are missing, verify generation drift before editing application code
+- before commit or push, run `npm run build`; it is the only local guard here that proves the production import graph resolves
 
 ## Current Contract
 
@@ -210,6 +211,7 @@ The work is not done until:
 - `npm run audit:docs` passes
 - `npm run audit:semantic` passes
 - `npx tsc --noEmit` passes
+- `npm run build` passes
 
 ## Pipeline Queue Notes
 

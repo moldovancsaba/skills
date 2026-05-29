@@ -9,6 +9,7 @@
 ### Changed
 
 - repo guards and repository operating docs now treat `npm run db:generate` as an explicit verification step before lint and typecheck when Prisma schema definitions may have changed
+- repo guards and repository operating docs now require `npm run build` before publish so missing production bundle dependencies are caught before merge
 - sales opportunitycards now expose linked supporting Knowmore cards in the review surface instead of raw lineage IDs alone
 - the `sales` workflow now reads prepared summary/search state through a dedicated sales summary read model instead of splitting those counts across separate client-side summary fetches
 

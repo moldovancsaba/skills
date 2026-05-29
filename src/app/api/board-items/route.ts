@@ -8,6 +8,80 @@ import { classifyPersistenceFailure } from "@/lib/persistence-failures";
 export const dynamic = "force-dynamic";
 
 const UNIT_PROJECT_BOARD_KEY = "UNIT_PROJECT";
+const UNIT_PROJECT_BOARD_COLUMN_KEYS = new Set(PROJECT_BOARD_COLUMNS.map((column) => column.key));
+
+type BoardCardMetadata = {
+  assignee: string | null;
+  dueDate: string | null;
+  estimatedEffort: number | null;
+  sourceType: string | null;
+  sourceId: string | null;
+  notes: string | null;
+};
+
+function normalizeBoardColumnKey(raw: unknown): string {
+  if (typeof raw === "string" && UNIT_PROJECT_BOARD_COLUMN_KEYS.has(raw)) {
+    return raw;
+  }
+  return PROJECT_BOARD_COLUMNS[3].key;
+}
+
+function normalizeTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeBoardDueDate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
+function normalizeBoardEffort(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.round(value));
+  if (typeof value === "string") {
+    const parsed = Number(value.trim());
+    if (!Number.isFinite(parsed)) return null;
+    return Math.max(0, Math.round(parsed));
+  }
+  return null;
+}
+
+function normalizeBoardPriority(value: unknown): number | null {
+  if (value == null) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, Math.min(3, Math.round(parsed)));
+}
+
+function extractMetadata(input: Record<string, unknown>): BoardCardMetadata {
+  return {
+    assignee: normalizeTrimmedString(input.assignee),
+    dueDate: input.dueDate ? normalizeBoardDueDate(input.dueDate) : null,
+    estimatedEffort: normalizeBoardEffort(input.estimatedEffort),
+    sourceType: normalizeTrimmedString(input.sourceType),
+    sourceId: normalizeTrimmedString(input.sourceId),
+    notes: normalizeTrimmedString(input.notes),
+  };
+}
+
+function normalizeMetadata(value: unknown): BoardCardMetadata {
+  if (typeof value === "object" && value !== null) {
+    return extractMetadata(value as Record<string, unknown>);
+  }
+  return {
+    assignee: null,
+    dueDate: null,
+    estimatedEffort: null,
+    sourceType: null,
+    sourceId: null,
+    notes: null,
+  };
+}
 
 function getBoardTraceId(request: NextRequest) {
   const headerTraceId = request.headers.get("x-board-items-trace-id");
@@ -45,7 +119,9 @@ function serializeBoardItem(card: {
   columnKey: string;
   orderRank: number;
   priority: number;
+  metadata?: unknown;
 } | null, boardKey: string, fallbackIndex = 0) {
+  const metadata = normalizeMetadata(state?.metadata ?? null);
   return {
     id: card.id,
     entityType: "BOARD_CARD" as const,
@@ -58,6 +134,12 @@ function serializeBoardItem(card: {
     columnKey: state?.columnKey ?? PROJECT_BOARD_COLUMNS[0].key,
     orderRank: Number(state?.orderRank ?? (fallbackIndex + 1) * BOARD_RANK_STEP),
     priority: Number(state?.priority ?? 0),
+    assignee: metadata.assignee,
+    dueDate: metadata.dueDate,
+    estimatedEffort: metadata.estimatedEffort,
+    sourceType: metadata.sourceType,
+    sourceId: metadata.sourceId,
+    notes: metadata.notes,
   };
 }
 
@@ -151,19 +233,7 @@ export async function GET(request: NextRequest) {
 
     const items = sortBoardRecords(cards.map((card, index) => {
       const state = stateMap.get(card.id);
-      return {
-        id: card.id,
-        entityType: "BOARD_CARD",
-        boardKey,
-        title: card.title,
-        description: card.description,
-        createdBy: card.createdBy,
-        createdAt: card.createdAt,
-        updatedAt: card.updatedAt,
-        columnKey: state?.columnKey ?? PROJECT_BOARD_COLUMNS[3].key,
-        orderRank: Number(state?.orderRank ?? (index + 1) * BOARD_RANK_STEP),
-        priority: Number(state?.priority ?? 0),
-      };
+      return serializeBoardItem(card, state ?? null, boardKey, index);
     }));
 
     if (debugTrace) {
@@ -200,6 +270,8 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     const companyId = typeof data.companyId === "string" ? data.companyId : "";
     const boardKey = typeof data.boardKey === "string" ? data.boardKey : UNIT_PROJECT_BOARD_KEY;
+    const columnKey = normalizeBoardColumnKey(data.columnKey);
+    const metadata = extractMetadata(data);
     const traceId = getBoardTraceId(request);
     const debugTrace = shouldTraceBoardItems(request);
     const startedAt = Date.now();
@@ -211,7 +283,6 @@ export async function POST(request: NextRequest) {
     }
 
     const actor = auth.membership.id || auth.session.email || "webapp-user";
-    const columnKey = typeof data.columnKey === "string" ? data.columnKey : PROJECT_BOARD_COLUMNS[3].key;
     const [card, state] = await prisma.$transaction(async (transaction) => {
       const latestState = await transaction.boardItemState.findFirst({
         where: { companyId, boardKey, columnKey },
@@ -237,7 +308,8 @@ export async function POST(request: NextRequest) {
           entityId: card.id,
           columnKey,
           orderRank: Number(latestState?.orderRank ?? 0) + BOARD_RANK_STEP,
-          priority: Number(data.priority ?? 0),
+          priority: normalizeBoardPriority(data.priority) ?? 1,
+          metadata,
         },
       });
 
@@ -278,6 +350,11 @@ export async function PATCH(request: NextRequest) {
     const cardId = typeof data.id === "string" ? data.id : "";
     const traceId = getBoardTraceId(request);
     const debugTrace = shouldTraceBoardItems(request);
+    const requestedPriority = normalizeBoardPriority(data.priority);
+    const requestedMetadata = extractMetadata(data);
+    const metadataProvided = ["assignee", "dueDate", "estimatedEffort", "sourceType", "sourceId", "notes"].some(
+      (key) => Object.prototype.hasOwnProperty.call(data, key),
+    );
 
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
@@ -292,7 +369,7 @@ export async function PATCH(request: NextRequest) {
 
     const isMove = typeof data.destinationColumn === "string";
     if (isMove) {
-      const destinationColumn = String(data.destinationColumn);
+      const destinationColumn = normalizeBoardColumnKey(data.destinationColumn);
       const beforeId = typeof data.beforeId === "string" ? data.beforeId : null;
       const afterId = typeof data.afterId === "string" ? data.afterId : null;
 
@@ -327,6 +404,8 @@ export async function PATCH(request: NextRequest) {
         update: {
           columnKey: destinationColumn,
           orderRank: nextOrderRank,
+          ...(requestedPriority !== null ? { priority: requestedPriority } : {}),
+          ...(metadataProvided ? { metadata: requestedMetadata } : {}),
         },
         create: {
           companyId,
@@ -335,6 +414,8 @@ export async function PATCH(request: NextRequest) {
           entityId: cardId,
           columnKey: destinationColumn,
           orderRank: nextOrderRank,
+          priority: requestedPriority ?? 1,
+          metadata: requestedMetadata,
         },
       });
 
@@ -362,6 +443,70 @@ export async function PATCH(request: NextRequest) {
           : existing.description,
       },
     });
+
+    if (metadataProvided || requestedPriority !== null) {
+      const currentState = await prisma.boardItemState.findUnique({
+        where: {
+          companyId_boardKey_entityType_entityId: {
+            companyId,
+            boardKey,
+            entityType: "BOARD_CARD",
+            entityId: cardId,
+          },
+        },
+      });
+      const currentMetadata = normalizeMetadata(currentState?.metadata ?? null);
+      const mergedMetadata = {
+        assignee: Object.prototype.hasOwnProperty.call(data, "assignee")
+          ? requestedMetadata.assignee
+          : currentMetadata.assignee,
+        dueDate: Object.prototype.hasOwnProperty.call(data, "dueDate")
+          ? requestedMetadata.dueDate
+          : currentMetadata.dueDate,
+        estimatedEffort: Object.prototype.hasOwnProperty.call(data, "estimatedEffort")
+          ? requestedMetadata.estimatedEffort
+          : currentMetadata.estimatedEffort,
+        sourceType: Object.prototype.hasOwnProperty.call(data, "sourceType")
+          ? requestedMetadata.sourceType
+          : currentMetadata.sourceType,
+        sourceId: Object.prototype.hasOwnProperty.call(data, "sourceId")
+          ? requestedMetadata.sourceId
+          : currentMetadata.sourceId,
+        notes: Object.prototype.hasOwnProperty.call(data, "notes")
+          ? requestedMetadata.notes
+          : currentMetadata.notes,
+      };
+
+      if (currentState) {
+        await prisma.boardItemState.update({
+          where: {
+            companyId_boardKey_entityType_entityId: {
+              companyId,
+              boardKey,
+              entityType: "BOARD_CARD",
+              entityId: cardId,
+            },
+          },
+          data: {
+            ...(requestedPriority !== null ? { priority: requestedPriority } : {}),
+            metadata: mergedMetadata,
+          },
+        });
+      } else {
+        await prisma.boardItemState.create({
+          data: {
+            companyId,
+            boardKey,
+            entityType: "BOARD_CARD",
+            entityId: cardId,
+            columnKey: PROJECT_BOARD_COLUMNS[3].key,
+            orderRank: BOARD_RANK_STEP,
+            priority: requestedPriority ?? 1,
+            metadata: mergedMetadata,
+          },
+        });
+      }
+    }
 
     const response = NextResponse.json(updated);
     withBoardTrace(response, traceId, debugTrace);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Box, Button, Center, Group, Loader, Modal, Select, Stack, TextInput, Textarea } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconChecklist as Checklist, IconPlus as Plus, IconRefresh as Refresh } from "@tabler/icons-react";
@@ -25,6 +25,8 @@ type UnitBoardItem = {
   priority: number;
 };
 
+const RECENT_CREATE_TTL_MS = 45_000;
+
 export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<UnitBoardItem[]>([]);
@@ -34,6 +36,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [boardError, setBoardError] = useState<string | null>(null);
+  const recentlyCreatedCards = useRef<Map<string, { createdAt: number; item: UnitBoardItem }>>(new Map());
 
   const selected = useMemo(
     () => items.find((item) => item.id === selectedId) ?? null,
@@ -52,6 +55,29 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     });
   }, []);
 
+  const reconcileLoadedItems = useCallback((loadedItems: UnitBoardItem[]) => {
+    const now = Date.now();
+    const nextItems = [...loadedItems];
+    const seen = new Set(nextItems.map((item) => item.id));
+    const nextRecent = new Map<string, { createdAt: number; item: UnitBoardItem }>();
+
+    recentlyCreatedCards.current.forEach((value, id) => {
+      if (now - value.createdAt > RECENT_CREATE_TTL_MS) {
+        return;
+      }
+      if (!seen.has(id)) {
+        nextItems.push(value.item);
+      }
+      nextRecent.set(id, value);
+    });
+
+    if (nextRecent.size !== recentlyCreatedCards.current.size) {
+      recentlyCreatedCards.current = nextRecent;
+    }
+
+    return sortBoardRecords(nextItems);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -66,11 +92,27 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       }
       const data = await response.json();
       setBoardError(null);
-      setItems(Array.isArray(data.items) ? data.items : []);
+      const loadedItems: UnitBoardItem[] = Array.isArray(data.items) ? (data.items as UnitBoardItem[]) : [];
+      setItems(reconcileLoadedItems(loadedItems));
+
+      const now = Date.now();
+      const loadedIds = new Set(loadedItems.map((item) => item.id));
+      if (recentlyCreatedCards.current.size > 0) {
+        const nextRecent = new Map<string, { createdAt: number; item: UnitBoardItem }>();
+        recentlyCreatedCards.current.forEach((value, id) => {
+          if (loadedIds.has(id)) {
+            return;
+          }
+          if (now - value.createdAt <= RECENT_CREATE_TTL_MS) {
+            nextRecent.set(id, value);
+          }
+        });
+        recentlyCreatedCards.current = nextRecent;
+      }
     } finally {
       setLoading(false);
     }
-  }, [companyId, presentBoardError]);
+  }, [companyId, presentBoardError, reconcileLoadedItems]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -121,6 +163,10 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     const payload = await response.json().catch(() => null);
     const createdItem = payload?.item as UnitBoardItem | undefined;
     if (createdItem) {
+      recentlyCreatedCards.current.set(createdItem.id, {
+        createdAt: Date.now(),
+        item: createdItem,
+      });
       setItems((current) => sortBoardRecords([...current, createdItem]));
     }
     setModalOpen(false);

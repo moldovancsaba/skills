@@ -96,7 +96,10 @@ export async function getClassScoutLandingSummary(companyId: string): Promise<Cl
       where: {
         companyId,
         boardKey: UNIT_PROJECT_BOARD_KEY,
-        archivedAt: null,
+        OR: [
+          { archivedAt: null },
+          { archivedAt: { isSet: false } },
+        ],
       },
     }),
     prisma.boardItemState.findMany({

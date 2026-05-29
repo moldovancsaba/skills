@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
@@ -8,6 +9,17 @@ import { classifyPersistenceFailure } from "@/lib/persistence-failures";
 export const dynamic = "force-dynamic";
 
 const UNIT_PROJECT_BOARD_KEY = "UNIT_PROJECT";
+
+function activeBoardCardWhere(companyId: string, boardKey: string): Prisma.BoardCardWhereInput {
+  return {
+    companyId,
+    boardKey,
+    OR: [
+      { archivedAt: null },
+      { archivedAt: { isSet: false } },
+    ],
+  };
+}
 
 function serializeBoardItem(card: {
   id: string;
@@ -96,7 +108,7 @@ export async function GET(request: NextRequest) {
 
     const [cards, states] = await Promise.all([
       prisma.boardCard.findMany({
-        where: { companyId, boardKey, archivedAt: null },
+        where: activeBoardCardWhere(companyId, boardKey),
         orderBy: { updatedAt: "desc" },
       }),
       prisma.boardItemState.findMany({
@@ -158,6 +170,7 @@ export async function POST(request: NextRequest) {
         title: String(data.title).trim(),
         description: typeof data.description === "string" ? data.description.trim() || null : null,
         createdBy: actor,
+        archivedAt: null,
       },
     });
 

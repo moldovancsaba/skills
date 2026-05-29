@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Box, Button, Center, Group, Loader, Modal, Stack, TextInput, Textarea } from "@mantine/core";
+import { Badge, Box, Button, Center, Group, Loader, Modal, Select, Stack, TextInput, Textarea } from "@mantine/core";
 import { IconChecklist as Checklist, IconPlus as Plus, IconRefresh as Refresh } from "@tabler/icons-react";
 import { SharedBoard } from "@/components/board/shared-board";
 import { PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
-import { UnifiedCardBody, UnifiedCardSection } from "@/components/ui/unified-card";
+import { UnifiedCardBody } from "@/components/ui/unified-card";
 import { Text } from "@/components/ui/typography";
+import type { BoardColumn } from "@/lib/board-system";
 import { PROJECT_BOARD_COLUMNS } from "@/lib/board-system";
 
 type UnitBoardItem = {
@@ -28,6 +29,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const [items, setItems] = useState<UnitBoardItem[]>([]);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
+  const [draftColumnKey, setDraftColumnKey] = useState<string>("IDEABANK");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -55,6 +57,26 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     return () => window.clearTimeout(timer);
   }, [load]);
 
+  const resetDraft = useCallback((columnKey = "IDEABANK") => {
+    setSelectedId(null);
+    setDraftTitle("");
+    setDraftDescription("");
+    setDraftColumnKey(columnKey);
+  }, []);
+
+  const openCreateModal = useCallback((columnKey = "IDEABANK") => {
+    resetDraft(columnKey);
+    setModalOpen(true);
+  }, [resetDraft]);
+
+  const openEditModal = useCallback((item: UnitBoardItem) => {
+    setSelectedId(item.id);
+    setDraftTitle(item.title);
+    setDraftDescription(item.description ?? "");
+    setDraftColumnKey(item.columnKey);
+    setModalOpen(true);
+  }, []);
+
   const createCard = useCallback(async () => {
     const title = draftTitle.trim();
     if (!title) return;
@@ -66,12 +88,13 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
         boardKey: "UNIT_PROJECT",
         title,
         description: draftDescription,
+        columnKey: draftColumnKey,
       }),
     });
-    setDraftTitle("");
-    setDraftDescription("");
+    setModalOpen(false);
+    resetDraft();
     await load();
-  }, [companyId, draftDescription, draftTitle, load]);
+  }, [companyId, draftColumnKey, draftDescription, draftTitle, load, resetDraft]);
 
   const updateCard = useCallback(async () => {
     if (!selected) return;
@@ -84,22 +107,46 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
         id: selected.id,
         title: draftTitle,
         description: draftDescription,
+        columnKey: draftColumnKey,
       }),
     });
+    if (draftColumnKey !== selected.columnKey) {
+      await fetch("/api/board-items", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId,
+          boardKey: "UNIT_PROJECT",
+          id: selected.id,
+          destinationColumn: draftColumnKey,
+          beforeId: null,
+          afterId: null,
+        }),
+      });
+    }
     setModalOpen(false);
+    resetDraft();
     await load();
-  }, [companyId, draftDescription, draftTitle, load, selected]);
+  }, [companyId, draftColumnKey, draftDescription, draftTitle, load, resetDraft, selected]);
 
   const archiveCard = useCallback(async (id: string) => {
     await fetch(`/api/board-items?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
     if (selectedId === id) {
-      setSelectedId(null);
       setModalOpen(false);
+      resetDraft();
     }
     await load();
-  }, [companyId, load, selectedId]);
+  }, [companyId, load, resetDraft, selectedId]);
+
+  const submitCard = useCallback(async () => {
+    if (selected) {
+      await updateCard();
+      return;
+    }
+    await createCard();
+  }, [createCard, selected, updateCard]);
 
   if (loading && items.length === 0) {
     return (
@@ -131,94 +178,69 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
 
         <PipelineAccentHeader activeKey="review" title="Project Delivery Flow" icon={Checklist} />
 
-        <UnifiedCardSection tone="review">
-          <Stack gap="md">
-            <Group justify="space-between" align="flex-end">
-              <Stack gap={4}>
-                <Text size="sm">Create a simple project card</Text>
-                <Text size="xs" c="dimmed">Cards are intentionally minimal for low-latency execution flow management.</Text>
-              </Stack>
-              <Badge variant="light" color="review">{items.length} active cards</Badge>
-            </Group>
-            <Group align="flex-end">
-              <TextInput
-                label="Title"
-                value={draftTitle}
-                onChange={(event) => setDraftTitle(event.currentTarget.value)}
-                placeholder="Deliver shared board runtime"
-                style={{ flex: 1 }}
-              />
-              <Textarea
-                label="Description"
-                value={draftDescription}
-                onChange={(event) => setDraftDescription(event.currentTarget.value)}
-                placeholder="Optional operating notes"
-                autosize
-                minRows={2}
-                style={{ flex: 1 }}
-              />
-              <Button leftSection={<Plus size={14} />} onClick={() => void createCard()}>
+        <SharedBoard
+          columns={PROJECT_BOARD_COLUMNS}
+          items={items}
+          renderColumnContent={(column: BoardColumn) => (
+            column.key === "IDEABANK" ? (
+              <Button
+                variant="light"
+                color="review"
+                leftSection={<Plus size={14} />}
+                onClick={() => openCreateModal(column.key)}
+              >
                 Add Card
               </Button>
-            </Group>
-          </Stack>
-        </UnifiedCardSection>
-
-        <Box style={{ overflowX: "auto", overflowY: "hidden" }}>
-          <SharedBoard
-            columns={PROJECT_BOARD_COLUMNS}
-            items={items}
-            onMove={async (request, nextItems) => {
-              setItems(nextItems);
-              try {
-                await fetch("/api/board-items", {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    companyId,
-                    boardKey: "UNIT_PROJECT",
-                    id: request.itemId,
-                    sourceColumn: request.sourceColumn,
-                    destinationColumn: request.destinationColumn,
-                    beforeId: request.beforeId,
-                    afterId: request.afterId,
-                  }),
-                });
-              } catch {
-                await load();
-              }
-            }}
-            renderCard={(item) => (
-              <UnifiedCardBody>
-                <Stack gap="xs" onClick={() => {
-                  setSelectedId(item.id);
-                  setDraftTitle(item.title);
-                  setDraftDescription(item.description ?? "");
-                  setModalOpen(true);
-                }}>
-                  <Text size="sm" lineClamp={2}>{item.title}</Text>
-                  {item.description ? (
-                    <Text size="xs" c="dimmed" lineClamp={3}>{item.description}</Text>
-                  ) : null}
-                  <Group justify="space-between">
-                    <Badge size="xs" variant="light" color="review">
-                      {item.createdBy || "webapp-user"}
-                    </Badge>
-                    <Text size="xs" c="dimmed">
-                      {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : ""}
-                    </Text>
-                  </Group>
-                </Stack>
-              </UnifiedCardBody>
-            )}
-          />
-        </Box>
+            ) : null
+          )}
+          onMove={async (request, nextItems) => {
+            setItems(nextItems);
+            try {
+              await fetch("/api/board-items", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  companyId,
+                  boardKey: "UNIT_PROJECT",
+                  id: request.itemId,
+                  sourceColumn: request.sourceColumn,
+                  destinationColumn: request.destinationColumn,
+                  beforeId: request.beforeId,
+                  afterId: request.afterId,
+                }),
+              });
+            } catch {
+              await load();
+            }
+          }}
+          renderCard={(item) => (
+            <UnifiedCardBody>
+              <Stack gap="xs" onClick={() => openEditModal(item)}>
+                <Text size="sm" lineClamp={2}>{item.title}</Text>
+                {item.description ? (
+                  <Text size="xs" c="dimmed" lineClamp={3}>{item.description}</Text>
+                ) : null}
+                <Group justify="space-between">
+                  <Badge size="xs" variant="light" color="review">
+                    {item.createdBy || "webapp-user"}
+                  </Badge>
+                  <Text size="xs" c="dimmed">
+                    {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : ""}
+                  </Text>
+                </Group>
+              </Stack>
+            </UnifiedCardBody>
+          )}
+        />
       </Stack>
 
       <Modal
         opened={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={selected ? "Edit project card" : "Project card"}
+        onClose={() => {
+          setModalOpen(false);
+          resetDraft();
+        }}
+        title={selected ? "Edit project card" : "Create project card"}
         centered
       >
         <Stack gap="md">
@@ -226,20 +248,37 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
             label="Title"
             value={draftTitle}
             onChange={(event) => setDraftTitle(event.currentTarget.value)}
+            placeholder="Deliver shared board runtime"
           />
           <Textarea
             label="Description"
             value={draftDescription}
             onChange={(event) => setDraftDescription(event.currentTarget.value)}
+            placeholder="Optional operating notes"
             autosize
             minRows={4}
           />
+          <Select
+            label="Column"
+            data={PROJECT_BOARD_COLUMNS.map((column) => ({
+              value: column.key,
+              label: column.label,
+            }))}
+            value={draftColumnKey}
+            onChange={(value) => {
+              if (value) setDraftColumnKey(value);
+            }}
+          />
           <Group justify="space-between">
-            <Button variant="subtle" color="review" onClick={() => selected && void archiveCard(selected.id)}>
-              Archive
-            </Button>
-            <Button onClick={() => void updateCard()}>
-              Save
+            {selected ? (
+              <Button variant="subtle" color="review" onClick={() => void archiveCard(selected.id)}>
+                Archive
+              </Button>
+            ) : (
+              <Box />
+            )}
+            <Button onClick={() => void submitCard()}>
+              {selected ? "Save" : "Create"}
             </Button>
           </Group>
         </Stack>

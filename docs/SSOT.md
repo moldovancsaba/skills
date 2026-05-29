@@ -33,6 +33,12 @@ Internal governance exception:
 - `Evaluation Bench` may exist as an admin-only internal quality-governance route for synthetic replay, regression checks, and promotion gates
 - it is not a normal end-user checklist surface and should not return to the main module navigation
 
+Delegated destination-app exception:
+
+- company-scoped destination apps such as `ClassScout` may exist inside the authenticated shell when they stay bounded to one destination workflow domain
+- they must not pretend to be a generic company dashboard or checklist-core module family
+- they must own one canonical route, one bounded landing summary contract, and one explicit deep-link policy
+
 ## 2. Core Model
 
 The product is card-based.
@@ -157,6 +163,8 @@ Destination-service execution contract:
 - ClassScout destination work must be materialized into the same queue-owned worker lane as other checklist jobs
 - the current shipped bridge uses the claimable `DESTINATION_MISSION_DAEMON` queue job to dispatch into the internal mission daemon runtime for ClassScout
 - this bridge is a transitional implementation detail; the architectural rule is that destination work is queue-owned, single-lane, and visible in mission control
+- the current shipped ClassScout operator home route is `/{companyId}/classscout`
+- that route is allowed to aggregate destination-owned review, live-catalog, mission-control, and unit-project-board state behind one bounded landing contract
 
 The older broad per-company “load companies and run a full synthesis cycle” description is no longer the runtime contract.
 
@@ -194,6 +202,8 @@ Dashboard route contract:
 - home summary charts should not all hydrate eagerly on first paint; defer heavy chart rendering until the cards approach the viewport
 - non-critical panels such as membership or identity details should not block the first product-summary render
 - home-card chart data should come from the prepared projection too, not from broad snapshot analytics reads on the hot path
+- if a company has an active delegated destination app such as ClassScout, the root `/{companyId}` route may intentionally resolve to that destination home instead of the generic tile dashboard
+- this exception must remain bounded by a dedicated landing summary contract and must not become a broad ad hoc analytics fan-out route
 
 Allowed bounded fallback:
 

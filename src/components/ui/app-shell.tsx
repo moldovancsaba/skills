@@ -258,6 +258,7 @@ type LinkCardProps = {
   variant?: SemanticColor;
   chartData?: any[];
   density?: "default" | "compact";
+  onOpen?: () => void;
 };
 
 export function LinkCard({
@@ -269,6 +270,7 @@ export function LinkCard({
   variant = "ingress",
   chartData,
   density = "default",
+  onOpen,
 }: LinkCardProps) {
   const tone = resolveModuleTone(variant);
   const mantineColor = resolveMantineColor(variant);
@@ -282,6 +284,7 @@ export function LinkCard({
       display="block"
       h="100%"
       td="none"
+      onClick={onOpen}
     >
       <UnifiedCard
         tone={tone}

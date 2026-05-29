@@ -265,6 +265,24 @@ export default function SalesPage() {
           title="Sales Lead Pipeline"
           icon={Briefcase}
         />
+
+        <Stack gap="md">
+          {counts.total === 0 ? (
+            <EmptyState
+              icon={Briefcase}
+              title="No opportunitycards yet"
+              description="Queue internet search or mine existing competitor and sales-scoped research to let the local AI create company leads."
+              tone="strategy"
+            />
+          ) : (
+            <SalesBoard
+              items={opportunitycards}
+              onAction={handleAction}
+              onReorder={handleReorder}
+            />
+          )}
+        </Stack>
+
         <Text size="sm">Sales lead generation runs inside the main local AI pipeline. The hosted webapp only queues intent, while the worker searches, mines, enriches, scores, and ranks company-only opportunitycards when the shared company pipeline is ready.</Text>
 
         <MetricGrid>
@@ -337,23 +355,6 @@ export default function SalesPage() {
             </Stack>
           </UnifiedCardBody>
         </UnifiedCard>
-
-        <Stack gap="md">
-          {counts.total === 0 ? (
-            <EmptyState
-              icon={Briefcase}
-              title="No opportunitycards yet"
-              description="Queue internet search or mine existing competitor and sales-scoped research to let the local AI create company leads."
-              tone="strategy"
-            />
-          ) : (
-            <SalesBoard
-              items={opportunitycards}
-              onAction={handleAction}
-              onReorder={handleReorder}
-            />
-          )}
-        </Stack>
 
         <Stack gap="md">
           <Text size="sm">Sales Knowmore</Text>

@@ -13,6 +13,7 @@ const routes = [
   "/terms",
   `/${COMPANY_ID}`,
   `/${COMPANY_ID}/data`,
+  `/${COMPANY_ID}/classscout`,
   `/${COMPANY_ID}/knowmore`,
   `/${COMPANY_ID}/goals`,
   `/${COMPANY_ID}/nba`,

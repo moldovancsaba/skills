@@ -16,6 +16,7 @@ export type DashboardInitialData = {
   scoreHealth: any;
   isOwner: boolean;
   projectionFreshness: ProjectionFreshness;
+  hasClassScout: boolean;
 };
 
 export type DataPageInitialData = {
@@ -136,9 +137,17 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
   const auth = await getSessionAndMembership(companyId);
   if (!auth) return null;
 
-  const [company, snapshot] = await Promise.all([
+  const [company, snapshot, classScoutInstance] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
     prisma.intelligenceSnapshot.findUnique({ where: { companyId } }),
+    prisma.destinationInstance.findFirst({
+      where: {
+        companyId,
+        destinationKey: "classscout",
+        isActive: true,
+      },
+      select: { id: true },
+    }),
   ]);
 
   if (!company) return null;
@@ -153,6 +162,7 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
     scoreHealth: snapshot?.scoreHealth && typeof snapshot.scoreHealth === "object" ? snapshot.scoreHealth : null,
     isOwner: ["OWNER", "SUPERADMIN"].includes(auth.membership.role),
     projectionFreshness: readModel.projectionFreshness,
+    hasClassScout: Boolean(classScoutInstance),
   };
 }
 

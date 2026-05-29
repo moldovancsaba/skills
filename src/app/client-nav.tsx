@@ -1,7 +1,7 @@
 'use client';
 
 import { AppShellNavbar, AppShellSection, NavLink, Stack, Group, Box, Avatar, Menu, rem, UnstyledButton, ScrollArea, ThemeIcon, Badge, Divider, Button, Anchor } from "@mantine/core";
-import { IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconChartBar as ChartBar, IconBuilding as Building } from "@tabler/icons-react";
+import { IconActivity as Activity, IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconChartBar as ChartBar, IconBuilding as Building } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
@@ -16,6 +16,14 @@ import { useI18n } from "@/lib/ui-i18n";
 import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
 
 const pipelineItems = [
+  {
+    key: "classscout",
+    href: (companyId: string) => `/${companyId}/classscout`,
+    label: "ClassScout",
+    icon: Activity,
+    color: "review",
+    tone: "review",
+  },
   {
     key: "data",
     href: (companyId: string) => `/${companyId}/data`,
@@ -149,6 +157,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [resolvedCompany, setResolvedCompany] = useState<any>(null);
   const [portfolioUnits, setPortfolioUnits] = useState<PortfolioUnit[]>([]);
+  const [hasClassScout, setHasClassScout] = useState(false);
 
   // Pure URL-driven company ID
   const companyIdFromUrl = params?.companyId as string;
@@ -206,6 +215,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
               setCompany(data.company);
             }
           }
+          setHasClassScout(Boolean(data.features?.classscout));
           const checklistCount = Number(data.counts?.checklist || 0);
           const planningCount = Math.max(Number(data.counts?.tactical || 0), checklistCount);
           setCounts({
@@ -298,6 +308,9 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
               />
 
               {pipelineItems.map((item) => {
+                if (item.key === "classscout" && !hasClassScout) {
+                  return null;
+                }
                 const companyId = companyIdFromUrl || company?.id;
                 const itemHref = companyId ? item.href(companyId) : "";
                 const isActive = Boolean(pathname && itemHref && (pathname === itemHref || pathname.startsWith(`${itemHref}/`)));

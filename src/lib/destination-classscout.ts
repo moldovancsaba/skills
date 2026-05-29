@@ -79,6 +79,10 @@ function getClassScoutBridgeConfig() {
   return { baseUrl: baseUrl.replace(/\/$/, ""), ingestKey };
 }
 
+export function isClassScoutBridgeConfigured() {
+  return Boolean(getClassScoutBridgeConfig());
+}
+
 export async function scoreClassScoutCandidate(input: {
   normalizedListing: ClassScoutNormalizedListingInput;
 }) {

@@ -29,6 +29,14 @@ Checklist-core includes:
 - worker queue steering
 - observability and bounded workflows
 
+Checklist-core also permits delegated destination mini-apps when they stay company-scoped, GDS-only, and contract-bounded instead of expanding the generic checklist surface.
+
+Current shipped delegated destination app:
+
+- `ClassScout` at `/{companyId}/classscout`
+- it owns entry into destination-specific `Content Ops`, `Live Catalog Queue`, `Project Board`, and `Mission Control`
+- it is not a generic new top-level checklist-core product family; it is a destination operator home inside the authenticated unit shell
+
 Checklist-core does not include first-class vertical products such as:
 
 - athlete or coach apps
@@ -57,6 +65,7 @@ Future-function rule:
 - if a large corpus view needs pagination, search and filtering must still operate on the full eligible corpus, not just the visible page slice
 - after the Knowmore follow-up audit, the same bootstrap rule also applies explicitly to sibling corpus routes such as Datacards and Topics
 - the same read-model discipline now also applies to Goals, and large Datacard file lists must page instead of shipping the full uploaded-file corpus on first load
+- destination mini-app routes must define one canonical landing route, one bounded summary contract, and one explicit entry-point policy rather than relying on generic dashboard tiles
 
 Documentation scope rule:
 

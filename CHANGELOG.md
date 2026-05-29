@@ -40,3 +40,8 @@ This release completes the local AI planner rollout and ships the first full Loc
 ### Operational Outcome
 
 - the local AI worker is deployed on the live local runtime and reports healthy status after the quality-engine rollout
+# 2026-05-29
+
+- shipped a first-class ClassScout operator home at `/{companyId}/classscout` with a canonical landing-summary API, bounded degraded/empty states, and normalized launch actions into Content Ops, Live Catalog Queue, Project Board, and Mission Control
+- added ClassScout-aware sidebar visibility and count wiring through the company nav contract
+- corrected ClassScout entry-point behavior so Content Ops launches the real review queue tab

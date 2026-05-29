@@ -333,7 +333,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
         onConvert={handleConvert}
       />
 
-      <Box style={{ flex: 1, overflowX: "auto", overflowY: "hidden" }} p="xl">
+      <Box style={{ flex: 1, overflowX: "hidden", overflowY: "auto" }} p="xl">
         <PipelineAccentHeader activeKey="tactical" title="Tactical Board" icon={Target} />
         <Group gap="sm" mb="md">
           <Badge size="sm" variant="light" color="tactical">

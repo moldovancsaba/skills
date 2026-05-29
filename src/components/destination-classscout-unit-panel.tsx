@@ -123,7 +123,7 @@ export function DestinationClassScoutUnitPanel({ companyId }: { companyId: strin
             </SimpleGrid>
 
             <Group gap="sm">
-              <Button color="review" leftSection={<IconChecklist size={16} />} rightSection={<IconArrowRight size={16} />} onClick={() => router.push(`/${companyId}/review`)}>
+              <Button color="review" leftSection={<IconChecklist size={16} />} rightSection={<IconArrowRight size={16} />} onClick={() => router.push(`/${companyId}/review?tab=review`)}>
                 Open ClassScout Content Ops
               </Button>
               <Button variant="light" color="strategy" leftSection={<IconActivity size={16} />} onClick={() => router.push(`/${companyId}/observability`)}>

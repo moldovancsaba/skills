@@ -34,6 +34,7 @@ type SharedBoardProps<T extends BoardCardRecord> = {
   items: T[];
   onMove: (request: BoardMoveRequest, nextItems: T[]) => Promise<void> | void;
   renderCard: (item: T, options: { dragging: boolean; overlay: boolean }) => React.ReactNode;
+  renderColumnContent?: (column: BoardColumn, options: { itemCount: number }) => React.ReactNode;
   getCardTone?: (item: T) => BoardColumn["tone"];
   emptyColumnCopy?: string;
 };
@@ -140,6 +141,7 @@ export function SharedBoard<T extends BoardCardRecord>({
   items,
   onMove,
   renderCard,
+  renderColumnContent,
   getCardTone,
   emptyColumnCopy = "Drop a card here.",
 }: SharedBoardProps<T>) {
@@ -244,56 +246,68 @@ export function SharedBoard<T extends BoardCardRecord>({
         setBoardItems(items);
       }}
     >
-      <Group wrap="nowrap" align="flex-start" gap="lg" h="100%" pt="md">
-        {columns.map((column) => {
-          const columnItems = getColumnItems(effectiveItems, column.key);
+      <Box style={{ width: "100%", maxWidth: "100%", overflowX: "auto", overflowY: "hidden" }}>
+        <Group
+          wrap="nowrap"
+          align="flex-start"
+          gap="lg"
+          h="100%"
+          pt="md"
+          style={{ minWidth: "max-content" }}
+        >
+          {columns.map((column) => {
+            const columnItems = getColumnItems(effectiveItems, column.key);
 
-          return (
-            <Stack key={column.key} gap="md" w={320} miw={320} h="100%">
-              <UnifiedCard tone={column.tone} accentBandTone={column.tone} flexShrink={0}>
-                <Group justify="space-between" wrap="nowrap">
-                  <Stack gap={2} style={{ overflow: "hidden" }}>
-                    <Text size="sm" c={column.tone === "neutral" ? "dimmed" : column.tone} fw={650} truncate>
-                      {column.label}
-                    </Text>
-                    <Text size="xs" c="dimmed" truncate>
-                      {column.description}
-                    </Text>
+            return (
+              <Stack key={column.key} gap="md" w={320} miw={320} h="100%">
+                <UnifiedCard tone={column.tone} accentBandTone={column.tone} flexShrink={0}>
+                  <Stack gap="md">
+                    <Group justify="space-between" wrap="nowrap">
+                      <Stack gap={2} style={{ overflow: "hidden" }}>
+                        <Text size="sm" c={column.tone === "neutral" ? "dimmed" : column.tone} fw={650} truncate>
+                          {column.label}
+                        </Text>
+                        <Text size="xs" c="dimmed" truncate>
+                          {column.description}
+                        </Text>
+                      </Stack>
+                      <Badge size="sm" variant="light" color={column.tone === "neutral" ? "gray" : column.tone}>
+                        {columnItems.length}
+                      </Badge>
+                    </Group>
+                    {renderColumnContent ? renderColumnContent(column, { itemCount: columnItems.length }) : null}
                   </Stack>
-                  <Badge size="sm" variant="light" color={column.tone === "neutral" ? "gray" : column.tone}>
-                    {columnItems.length}
-                  </Badge>
-                </Group>
-              </UnifiedCard>
+                </UnifiedCard>
 
-              <DroppableColumn column={column}>
-                <ScrollArea offsetScrollbars flex={1} viewportProps={{ style: { display: "flex", flexDirection: "column" } }}>
-                  <SortableContext items={columnItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
-                    <Stack gap="sm" p={4} flex={1}>
-                      {columnItems.length === 0 ? (
-                        <UnifiedCard tone={column.tone} dashed muted>
-                          <Text size="xs" c="dimmed">
-                            {emptyColumnCopy}
-                          </Text>
-                        </UnifiedCard>
-                      ) : null}
-                      {columnItems.map((item) => (
-                        <SortableBoardCard
-                          key={item.id}
-                          item={item}
-                          tone={getCardTone ? getCardTone(item) : column.tone}
-                        >
-                          {renderCard(item, { dragging: activeId === item.id, overlay: false })}
-                        </SortableBoardCard>
-                      ))}
-                    </Stack>
-                  </SortableContext>
-                </ScrollArea>
-              </DroppableColumn>
-            </Stack>
-          );
-        })}
-      </Group>
+                <DroppableColumn column={column}>
+                  <ScrollArea offsetScrollbars flex={1} viewportProps={{ style: { display: "flex", flexDirection: "column" } }}>
+                    <SortableContext items={columnItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+                      <Stack gap="sm" p={4} flex={1}>
+                        {columnItems.length === 0 ? (
+                          <UnifiedCard tone={column.tone} dashed muted>
+                            <Text size="xs" c="dimmed">
+                              {emptyColumnCopy}
+                            </Text>
+                          </UnifiedCard>
+                        ) : null}
+                        {columnItems.map((item) => (
+                          <SortableBoardCard
+                            key={item.id}
+                            item={item}
+                            tone={getCardTone ? getCardTone(item) : column.tone}
+                          >
+                            {renderCard(item, { dragging: activeId === item.id, overlay: false })}
+                          </SortableBoardCard>
+                        ))}
+                      </Stack>
+                    </SortableContext>
+                  </ScrollArea>
+                </DroppableColumn>
+              </Stack>
+            );
+          })}
+        </Group>
+      </Box>
 
       <DragOverlay>
         {activeItem ? (

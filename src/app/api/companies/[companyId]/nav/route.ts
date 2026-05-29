@@ -20,7 +20,7 @@ export async function GET(
   if (auth.error) return auth.error;
 
   try {
-    const [company, snapshot] = await profiler.measure("loadNavModels", () => Promise.all([
+    const [company, snapshot, classScoutInstance, classScoutAttentionCount] = await profiler.measure("loadNavModels", () => Promise.all([
       prisma.company.findUnique({
         where: { id: companyId },
         select: { id: true, name: true },
@@ -39,6 +39,25 @@ export async function GET(
           webappProjection: true,
         },
       }),
+      prisma.destinationInstance.findFirst({
+        where: {
+          companyId,
+          destinationKey: "classscout",
+          isActive: true,
+        },
+        select: { id: true },
+      }),
+      prisma.destinationReviewPacket.count({
+        where: {
+          companyId,
+          destinationInstance: {
+            destinationKey: "classscout",
+          },
+          packetState: {
+            in: ["AWAITING_REVIEW", "APPROVED", "REWORK_REQUESTED"],
+          },
+        },
+      }),
     ]));
 
     if (!company) {
@@ -51,7 +70,11 @@ export async function GET(
       company,
       counts: {
         ...readModel.navCounts,
+        classscout: classScoutInstance ? classScoutAttentionCount : 0,
         tactical: Math.max(Number(readModel.navCounts.tactical || 0), Number(readModel.navCounts.checklist || 0)),
+      },
+      features: {
+        classscout: Boolean(classScoutInstance),
       },
       ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),
     });

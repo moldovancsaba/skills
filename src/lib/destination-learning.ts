@@ -100,6 +100,8 @@ export async function getDestinationLearningSummary(input: {
       packets: packets.length,
       decisions: decisions.length,
       outcomes: outcomes.length,
+      published: publishedOutcomes,
+      publishFailures,
       runs: runs.length,
       drafts: drafts.length,
       stageEvents: stageEvents.length,

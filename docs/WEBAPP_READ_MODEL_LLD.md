@@ -68,6 +68,40 @@ This is what local operator surfaces should read:
 
 This truth belongs to `/local-ai`, runtime endpoints, and observability-oriented surfaces.
 
+### 3.3 Delegated destination-app truth
+
+Some online routes are destination-specific operator homes rather than generic product dashboards.
+
+Current shipped case:
+
+- `/{companyId}/classscout`
+
+These routes must follow a bounded landing-summary contract:
+
+- one canonical route
+- one canonical API summary contract
+- deterministic `ready`, `empty`, `partial`, and `fatal` states
+- explicit ownership of launch actions into subordinate destination workflows
+
+Current shipped ClassScout landing contract:
+
+- route: `/{companyId}/classscout`
+- API: `GET /api/classscout/landing-summary?companyId=...`
+- server contract owner: `src/lib/classscout-landing.ts`
+- primary UI consumer: `src/components/classscout-home.tsx`
+
+Allowed slices in that contract:
+
+- destination review/learning summary
+- mission-control summary
+- live-listing summary
+- unit project-board summary
+
+Forbidden pattern:
+
+- each destination tile or panel issuing its own page-level summary fetch on the hot landing path
+- routing operators into a generic company tile dashboard when the intent is destination-specific work
+
 ## 4. Read Model Contract
 
 The canonical per-company product read model lives on `IntelligenceSnapshot.webappProjection`.
@@ -204,6 +238,7 @@ Hot routes improved in this slice:
 - server-side topics bootstrap in `src/lib/server-topics-page-data.ts` via `/:companyId/topics`
 - server-side goals bootstrap in `src/lib/server-goals-page-data.ts` via `/:companyId/goals`
 - bounded file paging in `GET /api/data-files` so the datacard route no longer pulls the full file corpus on first load
+- canonical ClassScout landing-summary contract and destination home route so ClassScout-enabled units no longer fall back to the generic company tile dashboard
 
 ## 7.1 Knowmore pagination contract
 

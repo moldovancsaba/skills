@@ -26,6 +26,14 @@ export async function POST(request: NextRequest) {
     1,
     Math.min(typeof body.maxAutoRejections === "number" ? body.maxAutoRejections : defaults.maxAutoRejections, 10),
   );
+  const maxRevisionIntakes = Math.max(
+    1,
+    Math.min(typeof body.maxRevisionIntakes === "number" ? body.maxRevisionIntakes : defaults.maxRevisionIntakes, 20),
+  );
+  const maxApprovedPublishes = Math.max(
+    1,
+    Math.min(typeof body.maxApprovedPublishes === "number" ? body.maxApprovedPublishes : defaults.maxApprovedPublishes, 20),
+  );
 
   const results = [];
   const failures = [];
@@ -37,6 +45,8 @@ export async function POST(request: NextRequest) {
           maxRuns,
           maxPasses,
           maxAutoRejections,
+          maxRevisionIntakes,
+          maxApprovedPublishes,
         }),
       );
     } catch (error) {

@@ -1,5 +1,10 @@
 import { DestinationMissionState } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import {
+  publishApprovedClassScoutRevisionPackets,
+  readClassScoutMaintenanceDefaults,
+  sweepStaleClassScoutListings,
+} from "@/lib/destination-classscout-maintenance";
 import { listSchedulableDestinationMissionDefinitions } from "@/lib/destination-mission-definitions";
 import { executeClassScoutMissionUntilBlocked } from "@/lib/destination-mission-runner";
 import { listDestinationMissionRuns, startDestinationMissionRun } from "@/lib/destination-missions";
@@ -61,11 +66,14 @@ export function readDaemonDefaults() {
   const maxRuns = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_RUNS ?? 5);
   const maxPasses = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_PASSES ?? 3);
   const maxAutoRejections = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_AUTO_REJECTIONS ?? 5);
+  const maintenanceDefaults = readClassScoutMaintenanceDefaults();
 
   return {
     maxRuns: Number.isFinite(maxRuns) ? Math.max(1, Math.min(maxRuns, 20)) : 5,
     maxPasses: Number.isFinite(maxPasses) ? Math.max(1, Math.min(maxPasses, 8)) : 3,
     maxAutoRejections: Number.isFinite(maxAutoRejections) ? Math.max(1, Math.min(maxAutoRejections, 10)) : 5,
+    maxRevisionIntakes: maintenanceDefaults.maxRevisionIntakes,
+    maxApprovedPublishes: maintenanceDefaults.maxApprovedPublishes,
   };
 }
 
@@ -74,11 +82,15 @@ export async function executeDestinationMissionDaemonForCompany(input: {
   maxRuns?: number;
   maxPasses?: number;
   maxAutoRejections?: number;
+  maxRevisionIntakes?: number;
+  maxApprovedPublishes?: number;
 }) {
   const defaults = readDaemonDefaults();
   const maxRuns = input.maxRuns ?? defaults.maxRuns;
   const maxPasses = input.maxPasses ?? defaults.maxPasses;
   const maxAutoRejections = input.maxAutoRejections ?? defaults.maxAutoRejections;
+  const maxRevisionIntakes = input.maxRevisionIntakes ?? defaults.maxRevisionIntakes;
+  const maxApprovedPublishes = input.maxApprovedPublishes ?? defaults.maxApprovedPublishes;
 
   const eligibleStates = new Set<DestinationMissionState>([
     DestinationMissionState.QUEUED,
@@ -205,6 +217,16 @@ export async function executeDestinationMissionDaemonForCompany(input: {
     });
   }
 
+  const maintenancePublish = await publishApprovedClassScoutRevisionPackets({
+    companyId: input.companyId,
+    actorId: "destination-mission-daemon",
+    limit: maxApprovedPublishes,
+  });
+  const maintenanceSweep = await sweepStaleClassScoutListings({
+    companyId: input.companyId,
+    limit: maxRevisionIntakes,
+  });
+
   return {
     ok: true,
     companyId: input.companyId,
@@ -212,5 +234,9 @@ export async function executeDestinationMissionDaemonForCompany(input: {
     processed: results.length,
     skipped: runs.length - results.length,
     results,
+    maintenance: {
+      approvedPublishes: maintenancePublish,
+      staleRevisionSweep: maintenanceSweep,
+    },
   };
 }

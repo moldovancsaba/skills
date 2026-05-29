@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
           maxRuns: defaults.maxRuns,
           maxPasses: defaults.maxPasses,
           maxAutoRejections: defaults.maxAutoRejections,
+          maxRevisionIntakes: defaults.maxRevisionIntakes,
+          maxApprovedPublishes: defaults.maxApprovedPublishes,
         }),
       );
     } catch (error) {

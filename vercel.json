@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/api/cron/destination-missions",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/5 * * * *"
     }
   ]
 }

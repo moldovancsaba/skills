@@ -22,7 +22,7 @@ import { Notice, PageHeader, PageShell, PipelineAccentHeader } from "@/component
 import { UnifiedCardBody } from "@/components/ui/unified-card";
 import { Text } from "@/components/ui/typography";
 import type { BoardColumn } from "@/lib/board-system";
-import { PROJECT_BOARD_COLUMNS, sortBoardRecords } from "@/lib/board-system";
+import { BOARD_RANK_STEP, PROJECT_BOARD_COLUMNS, sortBoardRecords } from "@/lib/board-system";
 
 type UnitBoardItem = {
   id: string;
@@ -42,6 +42,10 @@ type UnitBoardItem = {
   sourceType?: string | null;
   sourceId?: string | null;
   notes?: string | null;
+};
+
+type UnitBoardDraftCard = UnitBoardItem & {
+  isOptimistic: true;
 };
 
 const RECENT_CREATE_TTL_MS = 45_000;
@@ -66,6 +70,51 @@ const SOURCE_TYPE_OPTIONS = [
   { value: "DATA", label: "Data" },
   { value: "AI_QUEUE", label: "AI Queue" },
 ];
+
+function buildOptimisticCard(params: {
+  id: string;
+  title: string;
+  description: string;
+  columnKey: string;
+  priority: number;
+  assignee: string;
+  dueDate: string;
+  estimatedEffort: string;
+  sourceType: string;
+  sourceId: string;
+  notes: string;
+  columnCards: UnitBoardItem[];
+}) {
+  const now = new Date().toISOString();
+  const columnRanks = params.columnCards
+    .map((item) => item.orderRank)
+    .filter((value): value is number => Number.isFinite(value))
+    .sort((left, right) => left - right);
+  const orderRank = columnRanks.length > 0
+    ? columnRanks[columnRanks.length - 1] + BOARD_RANK_STEP
+    : BOARD_RANK_STEP;
+
+  return {
+    id: params.id,
+    entityType: "BOARD_CARD" as const,
+    boardKey: "UNIT_PROJECT",
+    title: params.title,
+    description: params.description || null,
+    createdBy: "webapp-user",
+    createdAt: now,
+    updatedAt: now,
+    columnKey: params.columnKey,
+    orderRank,
+    priority: params.priority,
+    assignee: params.assignee || null,
+    dueDate: params.dueDate || null,
+    estimatedEffort: params.estimatedEffort ? Number(params.estimatedEffort) : null,
+    sourceType: params.sourceType || null,
+    sourceId: params.sourceId || null,
+    notes: params.notes || null,
+    isOptimistic: true,
+  } satisfies UnitBoardDraftCard;
+}
 
 function normalizeDraftPriority(value: string): number {
   const parsed = Number(value);
@@ -96,6 +145,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [boardError, setBoardError] = useState<string | null>(null);
+  const [isSubmitting, setSubmitting] = useState(false);
   const recentlyCreatedCards = useRef<Map<string, { createdAt: number; item: UnitBoardItem }>>(new Map());
   const loadRequestIdRef = useRef(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -280,45 +330,80 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const createCard = useCallback(async () => {
     const title = draftTitle.trim();
     if (!title) return;
+    if (isSubmitting) return;
+
+    const priority = normalizeDraftPriority(draftPriority);
+    const optimisticId = `temp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const optimisticCard = buildOptimisticCard({
+      id: optimisticId,
+      title,
+      description: draftDescription,
+      columnKey: draftColumnKey,
+      priority,
+      assignee: draftAssignee.trim(),
+      dueDate: draftDueDate,
+      estimatedEffort: draftEstimatedEffort,
+      sourceType: draftSourceType,
+      sourceId: draftSourceId,
+      notes: draftNotes,
+      columnCards: items.filter((item) => item.columnKey === draftColumnKey),
+    });
+
     const traceId = makeBoardTraceId();
-    const { response } = await requestBoardItems("/api/board-items", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        companyId,
-        boardKey: "UNIT_PROJECT",
-        title,
-        description: draftDescription,
-        columnKey: draftColumnKey,
-        priority: normalizeDraftPriority(draftPriority),
-        assignee: draftAssignee.trim(),
-        dueDate: draftDueDate || null,
-        estimatedEffort: draftEstimatedEffort ? Number(draftEstimatedEffort) : null,
-        sourceType: draftSourceType || null,
-        sourceId: draftSourceId.trim() || null,
-        notes: draftNotes.trim(),
-      }),
-    }, traceId);
-    if (!response.ok) {
+    setSubmitting(true);
+    setItems((current) => sortBoardRecords([...current, optimisticCard]));
+    recentlyCreatedCards.current.set(optimisticId, {
+      createdAt: Date.now(),
+      item: optimisticCard,
+    });
+
+    try {
+      const { response } = await requestBoardItems("/api/board-items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId,
+          boardKey: "UNIT_PROJECT",
+          title,
+          description: draftDescription,
+          columnKey: draftColumnKey,
+          priority,
+          assignee: draftAssignee.trim(),
+          dueDate: draftDueDate || null,
+          estimatedEffort: draftEstimatedEffort ? Number(draftEstimatedEffort) : null,
+          sourceType: draftSourceType || null,
+          sourceId: draftSourceId.trim() || null,
+          notes: draftNotes.trim(),
+        }),
+      }, traceId);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        presentBoardError(payload, "Unable to create the project card.");
+        setBoardError(`Unable to create the project card. TraceId: ${traceId}`);
+        setItems((current) => current.filter((item) => item.id !== optimisticId));
+        recentlyCreatedCards.current.delete(optimisticId);
+        return;
+      }
+
       const payload = await response.json().catch(() => null);
-      presentBoardError(payload, "Unable to create the project card.");
-      setBoardError(`Unable to create the project card. TraceId: ${traceId}`);
-      return;
+      const createdItem = payload?.item as UnitBoardItem | undefined;
+      if (createdItem) {
+        setItems((current) => current.map((item) => (item.id === optimisticId ? createdItem : item)));
+        recentlyCreatedCards.current.set(createdItem.id, {
+          createdAt: Date.now(),
+          item: createdItem,
+        });
+        recentlyCreatedCards.current.delete(optimisticId);
+      }
+
+      setModalOpen(false);
+      resetDraft();
+      setBoardError(null);
+      await load(traceId);
+    } finally {
+      setSubmitting(false);
     }
-    const payload = await response.json().catch(() => null);
-    const createdItem = payload?.item as UnitBoardItem | undefined;
-    if (createdItem) {
-      recentlyCreatedCards.current.set(createdItem.id, {
-        createdAt: Date.now(),
-        item: createdItem,
-      });
-      setItems((current) => sortBoardRecords([...current, createdItem]));
-    }
-    setModalOpen(false);
-    resetDraft();
-    setBoardError(null);
-    await load(traceId);
-  }, [companyId, draftAssignee, draftColumnKey, draftDescription, draftDueDate, draftEstimatedEffort, draftNotes, draftPriority, draftSourceId, draftSourceType, draftTitle, load, presentBoardError, requestBoardItems, resetDraft]);
+  }, [companyId, draftAssignee, draftColumnKey, draftDescription, draftDueDate, draftEstimatedEffort, draftNotes, draftPriority, draftSourceId, draftSourceType, draftTitle, isSubmitting, items, load, presentBoardError, requestBoardItems, resetDraft]);
 
   const updateCard = useCallback(async () => {
     if (!selected) return;
@@ -693,7 +778,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
             ) : (
               <Box />
             )}
-            <Button onClick={() => void submitCard()}>
+            <Button loading={isSubmitting && !selected} onClick={() => void submitCard()}>
               {selected ? "Save" : "Create"}
             </Button>
           </Group>

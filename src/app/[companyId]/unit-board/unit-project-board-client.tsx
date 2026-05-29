@@ -9,7 +9,7 @@ import { Notice, PageHeader, PageShell, PipelineAccentHeader } from "@/component
 import { UnifiedCardBody } from "@/components/ui/unified-card";
 import { Text } from "@/components/ui/typography";
 import type { BoardColumn } from "@/lib/board-system";
-import { PROJECT_BOARD_COLUMNS } from "@/lib/board-system";
+import { PROJECT_BOARD_COLUMNS, sortBoardRecords } from "@/lib/board-system";
 
 type UnitBoardItem = {
   id: string;
@@ -55,7 +55,10 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/board-items?companyId=${encodeURIComponent(companyId)}&boardKey=UNIT_PROJECT`);
+      const response = await fetch(
+        `/api/board-items?companyId=${encodeURIComponent(companyId)}&boardKey=UNIT_PROJECT&_=${Date.now()}`,
+        { cache: "no-store" },
+      );
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         presentBoardError(payload, "Unable to load the project board.");
@@ -114,6 +117,11 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       const payload = await response.json().catch(() => null);
       presentBoardError(payload, "Unable to create the project card.");
       return;
+    }
+    const payload = await response.json().catch(() => null);
+    const createdItem = payload?.item as UnitBoardItem | undefined;
+    if (createdItem) {
+      setItems((current) => sortBoardRecords([...current, createdItem]));
     }
     setModalOpen(false);
     resetDraft();

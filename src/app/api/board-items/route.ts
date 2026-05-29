@@ -9,6 +9,33 @@ export const dynamic = "force-dynamic";
 
 const UNIT_PROJECT_BOARD_KEY = "UNIT_PROJECT";
 
+function serializeBoardItem(card: {
+  id: string;
+  title: string;
+  description: string | null;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}, state: {
+  columnKey: string;
+  orderRank: number;
+  priority: number;
+} | null, boardKey: string, fallbackIndex = 0) {
+  return {
+    id: card.id,
+    entityType: "BOARD_CARD" as const,
+    boardKey,
+    title: card.title,
+    description: card.description,
+    createdBy: card.createdBy,
+    createdAt: card.createdAt,
+    updatedAt: card.updatedAt,
+    columnKey: state?.columnKey ?? PROJECT_BOARD_COLUMNS[0].key,
+    orderRank: Number(state?.orderRank ?? (fallbackIndex + 1) * BOARD_RANK_STEP),
+    priority: Number(state?.priority ?? 0),
+  };
+}
+
 function handleBoardItemsError(error: unknown, operation: string) {
   const persistenceFailure = classifyPersistenceFailure(error);
   if (persistenceFailure) {
@@ -97,7 +124,9 @@ export async function GET(request: NextRequest) {
       };
     }));
 
-    return NextResponse.json({ items, columns: PROJECT_BOARD_COLUMNS });
+    const response = NextResponse.json({ items, columns: PROJECT_BOARD_COLUMNS });
+    response.headers.set("Cache-Control", "no-store, max-age=0");
+    return response;
   } catch (error) {
     return handleBoardItemsError(error, "GET");
   }
@@ -132,7 +161,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await prisma.boardItemState.create({
+    const state = await prisma.boardItemState.create({
       data: {
         companyId,
         boardKey,
@@ -144,7 +173,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, cardId: card.id });
+    const response = NextResponse.json({
+      success: true,
+      cardId: card.id,
+      item: serializeBoardItem(card, state, boardKey),
+    });
+    response.headers.set("Cache-Control", "no-store, max-age=0");
+    return response;
   } catch (error) {
     return handleBoardItemsError(error, "POST");
   }
@@ -226,7 +261,9 @@ export async function PATCH(request: NextRequest) {
           },
         },
       });
-      return NextResponse.json(updated);
+      const response = NextResponse.json(updated);
+      response.headers.set("Cache-Control", "no-store, max-age=0");
+      return response;
     }
 
     const updated = await prisma.boardCard.update({
@@ -239,7 +276,9 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(updated);
+    const response = NextResponse.json(updated);
+    response.headers.set("Cache-Control", "no-store, max-age=0");
+    return response;
   } catch (error) {
     return handleBoardItemsError(error, "PATCH");
   }
@@ -266,7 +305,9 @@ export async function DELETE(request: NextRequest) {
       data: { archivedAt: new Date() },
     });
 
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
+    response.headers.set("Cache-Control", "no-store, max-age=0");
+    return response;
   } catch (error) {
     return handleBoardItemsError(error, "DELETE");
   }

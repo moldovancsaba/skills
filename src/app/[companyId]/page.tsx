@@ -1,5 +1,6 @@
 import CompanyDashboard from "./company-dashboard";
 import { ClassScoutHome } from "@/components/classscout-home";
+import { CompareHome } from "@/components/compare-home";
 import { Center, Loader, Stack } from "@mantine/core";
 import { Text } from "@/components/ui/typography";
 import { getDashboardInitialData } from "@/lib/server-company-page-data";
@@ -10,8 +11,12 @@ export default async function CompanyPage(
   const { companyId } = await params;
   const initialData = companyId ? await getDashboardInitialData(companyId) : null;
 
-  if (initialData?.hasClassScout) {
+  if (initialData?.webappProfile === "CLASSSCOUT") {
     return <ClassScoutHome companyId={companyId} />;
+  }
+
+  if (initialData?.webappProfile === "COMPARE") {
+    return <CompareHome companyId={companyId} />;
   }
 
   return (

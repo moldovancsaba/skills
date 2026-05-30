@@ -14,16 +14,9 @@ import { LabelText, MetaText } from "@/components/ui/typography";
 import { UiLanguageSelect } from "@/components/ui-language-select";
 import { useI18n } from "@/lib/ui-i18n";
 import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
+import { getWebappProfileLabel, getWebappRoute, UNIT_MODULE_DEFINITIONS } from "@/lib/intelligence-unit-capabilities";
 
-const pipelineItems = [
-  {
-    key: "classscout",
-    href: (companyId: string) => `/${companyId}/classscout`,
-    label: "ClassScout",
-    icon: Activity,
-    color: "review",
-    tone: "review",
-  },
+const staticModuleNavItems: PipelineItem[] = [
   {
     key: "data",
     href: (companyId: string) => `/${companyId}/data`,
@@ -114,6 +107,18 @@ const pipelineItems = [
   },
 ];
 
+type PipelineItem = {
+  key: string;
+  href: (companyId: string) => string;
+  label?: string;
+  labelKey?: string;
+  icon: any;
+  color: string;
+  tone: ModuleTone | "neutral";
+};
+
+type ModuleCapabilityState = Record<string, boolean>;
+
 type ClientNavProps = {
   initialSession?: {
     authenticated: boolean;
@@ -157,7 +162,8 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [resolvedCompany, setResolvedCompany] = useState<any>(null);
   const [portfolioUnits, setPortfolioUnits] = useState<PortfolioUnit[]>([]);
-  const [hasClassScout, setHasClassScout] = useState(false);
+  const [webappProfile, setWebappProfile] = useState<"NONE" | "CLASSSCOUT" | "COMPARE">("NONE");
+  const [moduleCapabilities, setModuleCapabilities] = useState<ModuleCapabilityState>({});
 
   // Pure URL-driven company ID
   const companyIdFromUrl = params?.companyId as string;
@@ -204,7 +210,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
       return () => window.clearTimeout(timer);
     }
 
-    const fetchCounts = async () => {
+  const fetchCounts = async () => {
       try {
         const res = await fetch(`/api/companies/${activeId}/nav`);
         if (res.ok) {
@@ -215,7 +221,12 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
               setCompany(data.company);
             }
           }
-          setHasClassScout(Boolean(data.features?.classscout));
+          if (data.webapp?.profile) {
+            setWebappProfile(data.webapp.profile);
+          }
+          if (data.webapp?.modules && typeof data.webapp.modules === "object") {
+            setModuleCapabilities(data.webapp.modules as ModuleCapabilityState);
+          }
           const checklistCount = Number(data.counts?.checklist || 0);
           const planningCount = Math.max(Number(data.counts?.tactical || 0), checklistCount);
           setCounts({
@@ -224,6 +235,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
             knowmore: data.counts?.knowmore || 0,
             sales: data.counts?.sales || 0,
             goals: data.counts?.goals || 0,
+            analytics: data.counts?.analytics || 0,
             checklist: checklistCount,
             tactical: planningCount,
             review: data.counts?.review || 0,
@@ -307,77 +319,104 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
                 }}
               />
 
-              {pipelineItems.map((item) => {
-                if (item.key === "classscout" && !hasClassScout) {
-                  return null;
-                }
-                const companyId = companyIdFromUrl || company?.id;
-                const itemHref = companyId ? item.href(companyId) : "";
-                const isActive = Boolean(pathname && itemHref && (pathname === itemHref || pathname.startsWith(`${itemHref}/`)));
-                const itemLabel = "labelKey" in item && item.labelKey ? t(item.labelKey) : item.label;
+              {(() => {
+                const webappRoute = getWebappRoute(webappProfile);
+                const items: PipelineItem[] = [];
+                const routeByProfile = webappRoute
+                  ? ({
+                      key: "webapp",
+                      href: (companyId: string) => `/${companyId}/${webappRoute}`,
+                      label: getWebappProfileLabel(webappProfile),
+                      icon: Activity,
+                      color: "review",
+                      tone: "review",
+                    } as PipelineItem)
+                  : null;
 
-                return (
-                  <NavLink
-                    key={item.key}
-                    label={itemLabel}
-                    leftSection={
-                      <ThemeIcon color={item.color}>
-                        <item.icon size={14} />
-                      </ThemeIcon>
-                    }
-                    rightSection={
-                      <Group gap={4}>
-                        {counts[item.key] !== undefined && (
-                          <Badge
-                            size="xs"
-                            color={item.color}
-                            px={6}
-                            miw={30}
-                            styles={{
-                              label: {
-                                fontVariantNumeric: "tabular-nums",
-                              },
-                            }}
-                          >
-                            {counts[item.key]}
-                          </Badge>
-                        )}
-                      </Group>
-                    }
-                    onClick={() => {
-                      if (!companyId) return;
-                      void logClientInteraction({
-                        companyId,
-                        surface: "global-navigation",
-                        interactionType: "PIPELINE_ROUTE_SELECT",
-                        entityType: "ROUTE",
-                        entityId: item.key,
-                        payload: { href: itemHref, label: itemLabel },
-                        teachingWeight: 30,
-                      });
-                      router.push(itemHref);
-                    }}
-                    active={isActive}
-                    variant="subtle"
-                    color={item.color}
-                    styles={{
-                      root: {
-                        borderLeft: "2px solid transparent",
-                        ...(isActive ? getSidebarActiveStyle(item.tone as ModuleTone) : {}),
-                        ...(!isActive
-                          ? {
-                              "&:hover": getSidebarHoverStyle(item.tone as ModuleTone),
-                            }
-                          : {}),
-                      },
-                      label: {
-                        color: isActive ? "var(--nav-link-active)" : "var(--nav-link-inactive)",
-                        fontWeight: 500,
-                      },
-                    }}
-                  />
-                );
-              })}
+                if (routeByProfile) {
+                  items.push(routeByProfile);
+                }
+
+                for (const item of staticModuleNavItems) {
+                  if (moduleCapabilities[item.key] === false) {
+                    continue;
+                  }
+                  const definition = UNIT_MODULE_DEFINITIONS.find((moduleDefinition) => moduleDefinition.key === item.key);
+                  if (!definition?.route) {
+                    continue;
+                  }
+                  items.push(item);
+                }
+
+                return items.map((item) => {
+                  const companyId = companyIdFromUrl || company?.id;
+                  const itemHref = companyId ? item.href(companyId) : "";
+                  const isActive = Boolean(pathname && itemHref && (pathname === itemHref || pathname.startsWith(`${itemHref}/`)));
+                  const itemLabel = "labelKey" in item && item.labelKey ? t(item.labelKey) : item.label;
+
+                  return (
+                    <NavLink
+                      key={item.key}
+                      label={itemLabel}
+                      leftSection={
+                        <ThemeIcon color={item.color}>
+                          <item.icon size={14} />
+                        </ThemeIcon>
+                      }
+                      rightSection={
+                        <Group gap={4}>
+                          {counts[item.key] !== undefined && (
+                            <Badge
+                              size="xs"
+                              color={item.color}
+                              px={6}
+                              miw={30}
+                              styles={{
+                                label: {
+                                  fontVariantNumeric: "tabular-nums",
+                                },
+                              }}
+                            >
+                              {counts[item.key]}
+                            </Badge>
+                          )}
+                        </Group>
+                      }
+                      onClick={() => {
+                        if (!companyId) return;
+                        void logClientInteraction({
+                          companyId,
+                          surface: "global-navigation",
+                          interactionType: "PIPELINE_ROUTE_SELECT",
+                          entityType: "ROUTE",
+                          entityId: item.key,
+                          payload: { href: itemHref, label: itemLabel },
+                          teachingWeight: 30,
+                        });
+                        router.push(itemHref);
+                      }}
+                      active={isActive}
+                      variant="subtle"
+                      color={item.color}
+                      styles={{
+                        root: {
+                          borderLeft: "2px solid transparent",
+                          ...(isActive ? getSidebarActiveStyle(item.tone as ModuleTone) : {}),
+                          ...(!isActive
+                            ? {
+                                "&:hover": getSidebarHoverStyle(item.tone as ModuleTone),
+                              }
+                            : {}),
+                        },
+                        label: {
+                          color: isActive ? "var(--nav-link-active)" : "var(--nav-link-inactive)",
+                          fontWeight: 500,
+                        },
+                      }}
+                    />
+                  );
+                });
+              })()}
             </Stack>
           ) : pathname === "/" ? (
             <Stack gap="sm">

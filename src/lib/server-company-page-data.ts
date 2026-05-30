@@ -3,6 +3,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { APP_SESSION_COOKIE, readAppSessionToken } from "@/lib/auth";
+import { type UnitWebappProfile, resolveUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
 import { type ProjectionFreshness } from "@/lib/webapp-projection";
 import { buildCompanyReadModel, type CompanyDashboardCounts } from "@/lib/company-read-model";
 
@@ -16,7 +17,8 @@ export type DashboardInitialData = {
   scoreHealth: any;
   isOwner: boolean;
   projectionFreshness: ProjectionFreshness;
-  hasClassScout: boolean;
+  webappProfile: UnitWebappProfile;
+  unitModules: Record<string, boolean>;
 };
 
 export type DataPageInitialData = {
@@ -137,7 +139,7 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
   const auth = await getSessionAndMembership(companyId);
   if (!auth) return null;
 
-  const [company, snapshot, classScoutInstance] = await Promise.all([
+  const [company, snapshot, classScoutInstance, compareInstance] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
     prisma.intelligenceSnapshot.findUnique({ where: { companyId } }),
     prisma.destinationInstance.findFirst({
@@ -148,11 +150,24 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
       },
       select: { id: true },
     }),
+    prisma.destinationInstance.findFirst({
+      where: {
+        companyId,
+        destinationKey: "compare",
+        isActive: true,
+      },
+      select: { id: true },
+    }),
   ]);
 
   if (!company) return null;
 
   const readModel = buildCompanyReadModel(snapshot);
+  const capabilities = resolveUnitCapabilities({
+    workerConfig: company?.workerConfig,
+    hasClassScoutDestination: Boolean(classScoutInstance),
+    hasCompareDestination: Boolean(compareInstance),
+  });
 
   return {
     company,
@@ -162,7 +177,8 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
     scoreHealth: snapshot?.scoreHealth && typeof snapshot.scoreHealth === "object" ? snapshot.scoreHealth : null,
     isOwner: ["OWNER", "SUPERADMIN"].includes(auth.membership.role),
     projectionFreshness: readModel.projectionFreshness,
-    hasClassScout: Boolean(classScoutInstance),
+    webappProfile: capabilities.profile,
+    unitModules: capabilities.modules,
   };
 }
 

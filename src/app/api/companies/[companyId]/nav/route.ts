@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { createRequestProfiler } from "@/lib/request-profile";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
+import { getWebappProfileLabel, normalizeUnitCapabilitiesPayload, resolveUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +21,10 @@ export async function GET(
   if (auth.error) return auth.error;
 
   try {
-    const [company, snapshot, classScoutInstance, classScoutAttentionCount] = await profiler.measure("loadNavModels", () => Promise.all([
+    const [company, snapshot, classScoutInstance, compareInstance, classScoutAttentionCount] = await profiler.measure("loadNavModels", () => Promise.all([
       prisma.company.findUnique({
         where: { id: companyId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, workerConfig: true },
       }),
       prisma.intelligenceSnapshot.findUnique({
         where: { companyId },
@@ -47,6 +48,14 @@ export async function GET(
         },
         select: { id: true },
       }),
+      prisma.destinationInstance.findFirst({
+        where: {
+          companyId,
+          destinationKey: "compare",
+          isActive: true,
+        },
+        select: { id: true },
+      }),
       prisma.destinationReviewPacket.count({
         where: {
           companyId,
@@ -65,6 +74,15 @@ export async function GET(
     }
 
     const readModel = buildCompanyReadModel(snapshot);
+    const capabilities = resolveUnitCapabilities({
+      workerConfig: company?.workerConfig,
+      hasClassScoutDestination: Boolean(classScoutInstance),
+      hasCompareDestination: Boolean(compareInstance),
+    });
+    const normalizedCapabilities = normalizeUnitCapabilitiesPayload({
+      webappProfile: capabilities.profile,
+      modules: capabilities.modules,
+    });
 
     const response = NextResponse.json({
       company,
@@ -75,7 +93,14 @@ export async function GET(
       },
       features: {
         classscout: Boolean(classScoutInstance),
+        compare: Boolean(compareInstance),
       },
+      webapp: {
+        profile: capabilities.profile,
+        modules: capabilities.modules,
+        profileLabel: getWebappProfileLabel(capabilities.profile),
+      },
+      normalizedCapabilities,
       ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),
     });
     return profiler.apply(response);

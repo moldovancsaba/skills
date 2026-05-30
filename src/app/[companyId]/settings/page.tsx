@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { IconBell as Bell, IconShieldCheck as ShieldCheck, IconKey as Key, IconSettings as SettingsIcon, IconCopy as Copy, IconRefresh as RefreshCcw, IconEye as Eye, IconEyeOff as EyeOff, IconMessage2 as MessageSquare, IconMail as Mail, IconDeviceMobile as Smartphone, IconWebhook as Webhook, IconGlobe as Globe, IconLanguage as Languages } from "@tabler/icons-react";
+import { useParams } from "next/navigation";
+import { IconBell as Bell, IconShieldCheck as ShieldCheck, IconKey as Key, IconSettings as SettingsIcon, IconCopy as Copy, IconRefresh as RefreshCcw, IconEye as Eye, IconEyeOff as EyeOff, IconDeviceMobile as Smartphone, IconGlobe as Globe, IconLanguage as Languages } from "@tabler/icons-react";
 import { 
-  Switch, Slider, Button, TextInput, Select, Group, Stack, Badge, Divider, ActionIcon, Tooltip, ThemeIcon, Box, SimpleGrid } from "@mantine/core";
+  Switch, Slider, Button, TextInput, Select, Group, Stack, Badge, ActionIcon, ThemeIcon, Box, SimpleGrid } from "@mantine/core";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardSection } from "@/components/ui/unified-card";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
@@ -12,6 +12,7 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { notifications } from "@mantine/notifications";
 import { UiLanguageSelect } from "@/components/ui-language-select";
 import { useI18n } from "@/lib/ui-i18n";
+import { UNIT_MODULE_DEFINITIONS, UNIT_WEBAPP_PROFILE_DESCRIPTIONS, type UnitModuleKey, type UnitWebappProfile } from "@/lib/intelligence-unit-capabilities";
 
 type CommunicationSettings = {
   isEnabled: boolean;
@@ -27,16 +28,21 @@ type CompanySettings = {
   id: string;
   name: string;
   allowedLanguages: string[];
+  unitCapabilities?: {
+    profile: UnitWebappProfile;
+    modules: Record<UnitModuleKey, boolean>;
+  };
 };
 
 export default function SettingsPage() {
   const params = useParams();
-  const router = useRouter();
   const companyId = params.companyId as string;
   const { t } = useI18n();
 
   const [settings, setSettings] = useState<CommunicationSettings | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
+  const [unitProfile, setUnitProfile] = useState<UnitWebappProfile>("NONE");
+  const [unitModules, setUnitModules] = useState<Record<UnitModuleKey, boolean>>({} as Record<UnitModuleKey, boolean>);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
@@ -52,7 +58,10 @@ export default function SettingsPage() {
         setSettings(await commRes.json());
       }
       if (companyRes.ok) {
-        setCompanySettings(await companyRes.json());
+        const companyData = await companyRes.json();
+        setCompanySettings(companyData);
+        setUnitProfile(companyData?.unitCapabilities?.profile ?? "NONE");
+        setUnitModules(companyData?.unitCapabilities?.modules ?? {});
       }
     } catch (error) {
       console.error("Failed to load settings", error);
@@ -60,6 +69,36 @@ export default function SettingsPage() {
       setLoading(false);
     }
   }, [companyId]);
+
+  const saveUnitCapabilities = async (nextProfile: UnitWebappProfile, nextModules?: Record<UnitModuleKey, boolean>) => {
+    if (!companySettings) return;
+    setSaving(true);
+    try {
+      const payload = {
+        unitCapabilities: {
+          webappProfile: nextProfile,
+          modules: nextModules ?? unitModules,
+        },
+      };
+      const res = await fetch(`/api/companies/${companyId}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const next = await res.json();
+        setUnitProfile(next?.unitCapabilities?.profile ?? nextProfile);
+        setUnitModules(next?.unitCapabilities?.modules ?? nextModules ?? unitModules);
+        notifications.show({ title: "Unit surface saved", message: "Webapp profile and module flags have been updated." });
+      } else {
+        notifications.show({ title: t("common.error"), message: t("settings.organizationSaveFailed"), color: "review" });
+      }
+    } catch (error) {
+      notifications.show({ title: t("common.error"), message: t("settings.organizationSaveFailed"), color: "review" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!companyId) return;
@@ -240,6 +279,69 @@ export default function SettingsPage() {
               </MetaText>
             </UnifiedCardSection>
           </Stack>
+          </UnifiedCardBody>
+        </UnifiedCard>
+
+        {/* Unit surface and module capabilities */}
+        <UnifiedCard tone="review">
+          <UnifiedCardBody>
+            <Stack gap="md">
+              <Group gap="sm">
+                <ThemeIcon color="review">
+                  <SettingsIcon size={18} />
+                </ThemeIcon>
+                <SectionTitle>Intelligence Unit Surface</SectionTitle>
+              </Group>
+              <MetaText>Control which webapp profile this unit should run and which module routes are exposed.</MetaText>
+              <BodyText>
+                {UNIT_WEBAPP_PROFILE_DESCRIPTIONS[unitProfile]}
+              </BodyText>
+
+              <Select
+                label="Webapp profile"
+                value={unitProfile}
+                onChange={(value) => {
+                  if (!value) return;
+                  const nextProfile = value as UnitWebappProfile;
+                  setUnitProfile(nextProfile);
+                  void saveUnitCapabilities(nextProfile);
+                }}
+                disabled={saving}
+                data={[
+                  { value: "NONE", label: "No Webapp" },
+                  { value: "CLASSSCOUT", label: "ClassScout" },
+                  { value: "COMPARE", label: "Compare" },
+                ]}
+              />
+
+              <UnifiedCardSection tone="review">
+                <Stack gap="sm">
+                  {UNIT_MODULE_DEFINITIONS.map((definition) => (
+                    <Group key={definition.key} justify="space-between" align="center" wrap="nowrap">
+                      <Box>
+                        <BodyText>{definition.label}</BodyText>
+                        <MetaText>
+                          {definition.description}
+                        </MetaText>
+                      </Box>
+                      <Switch
+                        size="md"
+                          checked={Boolean(unitModules[definition.key])}
+                          onChange={(event) => {
+                            const nextModules = {
+                              ...unitModules,
+                              [definition.key]: event.currentTarget.checked,
+                            };
+                            setUnitModules(nextModules);
+                            void saveUnitCapabilities(unitProfile, nextModules);
+                          }}
+                          disabled={definition.key === "webapp" || saving}
+                        />
+                    </Group>
+                  ))}
+                </Stack>
+              </UnifiedCardSection>
+            </Stack>
           </UnifiedCardBody>
         </UnifiedCard>
 

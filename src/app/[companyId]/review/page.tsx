@@ -1,11 +1,20 @@
-'use client';
+import { redirect } from "next/navigation";
+import { requireUnitRouteAccess } from "@/lib/unit-route-access";
+import ReviewPage from "./review-client";
 
-import { useParams } from "next/navigation";
-import { DestinationContentOpsWorkspace } from "@/components/destination-content-ops-workspace";
+export default async function ReviewRoutePage(
+  { params }: { params: Promise<{ companyId: string }> },
+) {
+  const { companyId } = await params;
+  const access = await requireUnitRouteAccess({
+    companyId,
+    requestPath: `/${companyId}/review`,
+    moduleKey: "review",
+  });
 
-export default function ReviewPage() {
-  const params = useParams();
-  const companyId = params.companyId as string;
+  if (!access.allowed) {
+    redirect(access.redirectTo);
+  }
 
-  return <DestinationContentOpsWorkspace companyId={companyId} />;
+  return <ReviewPage companyId={companyId} />;
 }

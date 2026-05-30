@@ -520,9 +520,10 @@ Any future destination webapp must:
 1. Keep board API boardKey/column enforcement explicit.
 2. Add client-side move retry backoff for transient 503/timeout.
 3. Keep optimistic cache reconciliation deterministic.
+4. Keep failed optimistic mutations visible with explicit sync-state until manual recovery succeeds.
 
 ### 18.3 Phase C - control-plane completion
-1. Add explicit deep-link guard middleware for disabled modules (route fallback/redirect).
+1. Keep explicit deep-link fallback behavior on module-guarded routes (route-level checks already added in each surface).
 2. Add operational telemetry dashboards for profile drift and module mismatch.
 3. Add incident runbook for quota and projection-stale states.
 
@@ -565,10 +566,16 @@ Shipped today:
 - class-specific landing summary contract and UI for ClassScout
 - local audit separation primitives in `src/lib/local-audit-db.ts`, `src/lib/audit-ledger.ts`
 
-Required next hardening (not fully implemented today):
-- route-level deep-link guards for module visibility
-- stronger automatic test harness for 500-class write failures in board API
+Remaining hardening (not fully implemented today):
 - standardized cross-surface board adapters for non-project future boards
+- operational dashboards for module drift and deep-link mismatch events
+
+Implemented in this iteration:
+- board mutation robustness:
+  - bounded client retry on retryable board write/move failures
+  - request timeout guard for board API reads/writes
+  - non-lossy create/update/move/archive error handling with visible sync-state
+- quota persistence classification broadened to reduce false 500 behavior and improve incident detection
 
 ## 22. Reference file map
 

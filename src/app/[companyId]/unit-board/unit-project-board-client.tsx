@@ -51,6 +51,9 @@ type UnitBoardDraftCard = UnitBoardItem & {
 };
 
 const RECENT_CREATE_TTL_MS = 180_000;
+const BOARD_REQUEST_TIMEOUT_MS = 12_000;
+const BOARD_RETRY_MAX_ATTEMPTS = 3;
+const BOARD_RETRY_BASE_MS = 500;
 type BoardFilter = {
   priority: string;
   sourceType: string;
@@ -137,13 +140,34 @@ type BoardWritePayload = {
   error?: string;
   detail?: string;
   retryable?: boolean;
+  reasonCode?: string;
+  retryAfterMs?: number;
   [key: string]: unknown;
 };
 
-function resolveBoardErrorMessage(payload: BoardWritePayload | null, fallback: string, traceId: string) {
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function calculateBoardRetryDelayMs(attemptIndex: number) {
+  return BOARD_RETRY_BASE_MS * (2 ** (attemptIndex - 1));
+}
+
+function isRetryableBoardFailure(payload: BoardWritePayload | null, status: number) {
+  if (payload?.retryable === true) return true;
+  return status === 503 || (status >= 500 && status !== 501);
+}
+
+function normalizeBoardErrorPayload(payload: BoardWritePayload | null, fallback: string, traceId: string) {
   const message = payload?.error || fallback;
   const detail = payload?.detail ? ` ${payload.detail}` : "";
   return `${message}${detail} (traceId ${traceId})`;
+}
+
+function parseBoardPayload(response: Response) {
+  return response.json().catch(() => null) as Promise<BoardWritePayload | null>;
 }
 
 export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
@@ -225,15 +249,24 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       traceEnabled ? "&debug=1" : ""
     }`;
 
-    const response = await fetch(normalizedUrl, {
-      ...init,
-      headers,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, BOARD_REQUEST_TIMEOUT_MS);
 
-    return {
-      response,
-      traceId: response.headers.get("X-Board-Trace-Id") ?? requestTraceId,
-    };
+    try {
+      const response = await fetch(normalizedUrl, {
+        ...init,
+        headers,
+        signal: controller.signal,
+      });
+      return {
+        response,
+        traceId: response.headers.get("X-Board-Trace-Id") ?? requestTraceId,
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
   }, [traceEnabled]);
 
   const reconcileLoadedItems = useCallback((loadedItems: UnitBoardItem[]) => {
@@ -346,8 +379,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
 
   const createCard = useCallback(async () => {
     const title = draftTitle.trim();
-    if (!title) return;
-    if (isSubmitting) return;
+    if (!title || isSubmitting) return;
 
     const priority = normalizeDraftPriority(draftPriority);
     const optimisticId = `temp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -365,9 +397,33 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       notes: draftNotes,
       columnCards: items.filter((item) => item.columnKey === draftColumnKey),
     });
+    const requestBody = {
+      companyId,
+      boardKey: "UNIT_PROJECT",
+      title,
+      description: draftDescription,
+      columnKey: draftColumnKey,
+      priority,
+      assignee: draftAssignee.trim(),
+      dueDate: draftDueDate || null,
+      estimatedEffort: draftEstimatedEffort ? Number(draftEstimatedEffort) : null,
+      sourceType: draftSourceType || null,
+      sourceId: draftSourceId.trim() || null,
+      notes: draftNotes.trim(),
+    };
+    const baseTraceId = makeBoardTraceId();
+    const applySyncError = (syncError: string) => {
+      setItems((current) => current.map((item) => (
+        item.id === optimisticId ? {
+          ...item,
+          syncState: "error",
+          syncError,
+        } : item
+      )));
+    };
 
-    const traceId = makeBoardTraceId();
     setSubmitting(true);
+    setBoardError(null);
     setItems((current) => sortBoardRecords([...current, optimisticCard]));
     recentlyCreatedCards.current.set(optimisticId, {
       createdAt: Date.now(),
@@ -375,81 +431,62 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     });
 
     try {
-      const { response } = await requestBoardItems("/api/board-items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companyId,
-          boardKey: "UNIT_PROJECT",
-          title,
-          description: draftDescription,
-          columnKey: draftColumnKey,
-          priority,
-          assignee: draftAssignee.trim(),
-          dueDate: draftDueDate || null,
-          estimatedEffort: draftEstimatedEffort ? Number(draftEstimatedEffort) : null,
-          sourceType: draftSourceType || null,
-          sourceId: draftSourceId.trim() || null,
-          notes: draftNotes.trim(),
-        }),
-      }, traceId);
-      const payload = await response.json().catch(() => null) as BoardWritePayload | null;
-      if (!response.ok) {
-        const message = resolveBoardErrorMessage(payload, "Unable to create the project card.", traceId);
-        presentBoardError(payload, "Unable to create the project card.");
-        setBoardError(message);
-        if (response.status >= 500 || payload?.retryable === true) {
-          setItems((current) => current.map((item) => (
-            item.id === optimisticId ? {
-              ...item,
-              syncState: "error",
-              syncError: message,
-            } : item
-          )));
+      for (let attempt = 1; attempt <= BOARD_RETRY_MAX_ATTEMPTS; attempt += 1) {
+        const requestTraceId = attempt === 1 ? baseTraceId : `${baseTraceId}-retry-${attempt - 1}`;
+        try {
+          const { response } = await requestBoardItems("/api/board-items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          }, requestTraceId);
+          const payload = await parseBoardPayload(response);
+          if (!response.ok) {
+            const message = normalizeBoardErrorPayload(payload, "Unable to create the project card.", requestTraceId);
+            if (isRetryableBoardFailure(payload, response.status) && attempt < BOARD_RETRY_MAX_ATTEMPTS) {
+              setBoardError(`Create request is retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${requestTraceId}`);
+              await sleep(Math.min(calculateBoardRetryDelayMs(attempt), 5000));
+              continue;
+            }
+            presentBoardError(payload, "Unable to create the project card.");
+            setBoardError(message);
+            applySyncError(message);
+            return;
+          }
+
+          const createdItem = payload?.item as UnitBoardItem | undefined;
+          if (!createdItem) {
+            const message = normalizeBoardErrorPayload(payload, "Unable to read the created project card.", requestTraceId);
+            presentBoardError(payload, "Unable to read the created project card.");
+            setBoardError(message);
+            applySyncError(message);
+            return;
+          }
+
+          setItems((current) => current.map((item) => (item.id === optimisticId ? createdItem : item)));
+          recentlyCreatedCards.current.set(createdItem.id, {
+            createdAt: Date.now(),
+            item: createdItem,
+          });
+          recentlyCreatedCards.current.delete(optimisticId);
+          setModalOpen(false);
+          resetDraft();
+          setBoardError(null);
+          await load(requestTraceId);
+          return;
+        } catch (error) {
+          const message = `Unable to create the project card. ${(error instanceof Error ? error.message : "Network issue")} (traceId ${requestTraceId})`;
+          if (attempt < BOARD_RETRY_MAX_ATTEMPTS) {
+            presentBoardError({ error: "Create request failed", detail: message }, "Unable to create the project card.");
+            setBoardError(`Retrying create request. Attempt ${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}. TraceId ${requestTraceId}`);
+            await sleep(Math.min(calculateBoardRetryDelayMs(attempt), 5000));
+            continue;
+          }
+          presentBoardError({ error: "Create request failed", detail: message }, "Unable to create the project card.");
+          setBoardError(message);
+          applySyncError(message);
           return;
         }
-        setItems((current) => current.filter((item) => item.id !== optimisticId));
-        recentlyCreatedCards.current.delete(optimisticId);
-        return;
       }
-
-      const createdItem = payload?.item as UnitBoardItem | undefined;
-      if (!createdItem) {
-        const message = resolveBoardErrorMessage(payload, "Unable to read the created project card.", traceId);
-        presentBoardError(payload, "Unable to read the created project card.");
-        setBoardError(message);
-        setItems((current) => current.map((item) => (
-          item.id === optimisticId ? {
-            ...item,
-            syncState: "error",
-            syncError: message,
-          } : item
-        )));
-        return;
-      }
-
-      setItems((current) => current.map((item) => (item.id === optimisticId ? createdItem : item)));
-      recentlyCreatedCards.current.set(createdItem.id, {
-        createdAt: Date.now(),
-        item: createdItem,
-      });
-      recentlyCreatedCards.current.delete(optimisticId);
-
-      setModalOpen(false);
-      resetDraft();
-      setBoardError(null);
-      await load(traceId);
-    } catch (error) {
-      const message = `Unable to create the project card. ${(error instanceof Error ? error.message : "Network issue")} (traceId ${traceId})`;
-      presentBoardError({ error: "Create request failed", detail: message }, "Unable to create the project card.");
-      setBoardError(message);
-      setItems((current) => current.map((item) => (
-        item.id === optimisticId ? {
-          ...item,
-          syncState: "error",
-          syncError: message,
-        } : item
-      )));
     } finally {
       setSubmitting(false);
     }
@@ -458,51 +495,101 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const updateCard = useCallback(async () => {
     if (!selected) return;
     const traceId = makeBoardTraceId();
-    const { response: updateResponse } = await requestBoardItems("/api/board-items", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        companyId,
-        boardKey: "UNIT_PROJECT",
-        id: selected.id,
-        title: draftTitle,
-        description: draftDescription,
-        columnKey: draftColumnKey,
-        priority: normalizeDraftPriority(draftPriority),
-        assignee: draftAssignee.trim(),
-        dueDate: draftDueDate || null,
-        estimatedEffort: draftEstimatedEffort ? Number(draftEstimatedEffort) : null,
-        sourceType: draftSourceType || null,
-        sourceId: draftSourceId.trim() || null,
-        notes: draftNotes.trim(),
-      }),
-    }, traceId);
-    if (!updateResponse.ok) {
-      const payload = await updateResponse.json().catch(() => null);
-      presentBoardError(payload, "Unable to update the project card.");
-      setBoardError(`Unable to update the project card. TraceId: ${traceId}`);
-      return;
-    }
-    if (draftColumnKey !== selected.columnKey) {
-      const { response: moveResponse } = await requestBoardItems("/api/board-items", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companyId,
-          boardKey: "UNIT_PROJECT",
-          id: selected.id,
-          destinationColumn: draftColumnKey,
-          beforeId: null,
-          afterId: null,
-        }),
-      }, traceId);
-      if (!moveResponse.ok) {
-        const payload = await moveResponse.json().catch(() => null);
-        presentBoardError(payload, "Unable to move the project card.");
-        setBoardError(`Unable to move the project card. TraceId: ${traceId}`);
+    const updatePayload = {
+      companyId,
+      boardKey: "UNIT_PROJECT",
+      id: selected.id,
+      title: draftTitle,
+      description: draftDescription,
+      columnKey: draftColumnKey,
+      priority: normalizeDraftPriority(draftPriority),
+      assignee: draftAssignee.trim(),
+      dueDate: draftDueDate || null,
+      estimatedEffort: draftEstimatedEffort ? Number(draftEstimatedEffort) : null,
+      sourceType: draftSourceType || null,
+      sourceId: draftSourceId.trim() || null,
+      notes: draftNotes.trim(),
+    };
+
+    for (let attempt = 1; attempt <= BOARD_RETRY_MAX_ATTEMPTS; attempt += 1) {
+      const requestTraceId = attempt === 1 ? traceId : `${traceId}-retry-${attempt - 1}`;
+      try {
+        const { response: updateResponse } = await requestBoardItems("/api/board-items", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatePayload),
+        }, requestTraceId);
+        const payload = await parseBoardPayload(updateResponse);
+        if (!updateResponse.ok) {
+          if (isRetryableBoardFailure(payload, updateResponse.status) && attempt < BOARD_RETRY_MAX_ATTEMPTS) {
+            setBoardError(`Unable to update the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${requestTraceId}`);
+            await sleep(Math.min(calculateBoardRetryDelayMs(attempt), 5000));
+            continue;
+          }
+          presentBoardError(payload, "Unable to update the project card.");
+          setBoardError(`Unable to update the project card. TraceId: ${requestTraceId}`);
+          return;
+        }
+        break;
+      } catch (error) {
+        if (attempt < BOARD_RETRY_MAX_ATTEMPTS) {
+          setBoardError(`Unable to update the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${requestTraceId}`);
+          await sleep(Math.min(calculateBoardRetryDelayMs(attempt), 5000));
+          continue;
+        }
+        presentBoardError(
+          {
+            error: "Update request failed",
+            detail: error instanceof Error ? error.message : "Network issue",
+          },
+          "Unable to update the project card.",
+        );
+        setBoardError(`Unable to update the project card. TraceId: ${requestTraceId}`);
         return;
       }
     }
+
+    if (draftColumnKey !== selected.columnKey) {
+      const movePayload = {
+        companyId,
+        boardKey: "UNIT_PROJECT",
+        id: selected.id,
+        destinationColumn: draftColumnKey,
+        beforeId: null,
+        afterId: null,
+      };
+      for (let attempt = 1; attempt <= BOARD_RETRY_MAX_ATTEMPTS; attempt += 1) {
+        const moveTraceId = attempt === 1 ? traceId : `${traceId}-move-retry-${attempt - 1}`;
+        try {
+          const { response: moveResponse } = await requestBoardItems("/api/board-items", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(movePayload),
+          }, moveTraceId);
+          const payload = await parseBoardPayload(moveResponse);
+          if (!moveResponse.ok) {
+            if (isRetryableBoardFailure(payload, moveResponse.status) && attempt < BOARD_RETRY_MAX_ATTEMPTS) {
+              setBoardError(`Unable to move the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${moveTraceId}`);
+              await sleep(Math.min(calculateBoardRetryDelayMs(attempt), 5000));
+              continue;
+            }
+            presentBoardError(payload, "Unable to move the project card.");
+            setBoardError(`Unable to move the project card. TraceId: ${moveTraceId}`);
+            return;
+          }
+          break;
+        } catch {
+          if (attempt < BOARD_RETRY_MAX_ATTEMPTS) {
+            setBoardError(`Unable to move the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${moveTraceId}`);
+            await sleep(Math.min(calculateBoardRetryDelayMs(attempt), 5000));
+            continue;
+          }
+          setBoardError(`Unable to move the project card. TraceId: ${moveTraceId}`);
+          return;
+        }
+      }
+    }
+
     setModalOpen(false);
     resetDraft();
     setBoardError(null);
@@ -511,23 +598,48 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
 
   const archiveCard = useCallback(async (id: string) => {
     const traceId = makeBoardTraceId();
-    const { response } = await requestBoardItems(
-      `/api/board-items?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(id)}`,
-      { method: "DELETE" },
-      traceId,
-    );
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      presentBoardError(payload, "Unable to archive the project card.");
-      setBoardError(`Unable to archive the project card. TraceId: ${traceId}`);
-      return;
+    for (let attempt = 1; attempt <= BOARD_RETRY_MAX_ATTEMPTS; attempt += 1) {
+      const requestTraceId = attempt === 1 ? traceId : `${traceId}-retry-${attempt - 1}`;
+      try {
+        const { response } = await requestBoardItems(
+          `/api/board-items?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(id)}`,
+          { method: "DELETE" },
+          requestTraceId,
+        );
+        const payload = response.ok ? null : await parseBoardPayload(response);
+        if (!response.ok) {
+          if (isRetryableBoardFailure(payload, response.status) && attempt < BOARD_RETRY_MAX_ATTEMPTS) {
+            setBoardError(`Unable to archive the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${requestTraceId}`);
+            await sleep(Math.min(calculateBoardRetryDelayMs(attempt), 5000));
+            continue;
+          }
+          presentBoardError(payload, "Unable to archive the project card.");
+          setBoardError(`Unable to archive the project card. TraceId: ${requestTraceId}`);
+          return;
+        }
+        if (selectedId === id) {
+          setModalOpen(false);
+          resetDraft();
+        }
+        setBoardError(null);
+        await load(requestTraceId);
+        return;
+      } catch (error) {
+        if (attempt < BOARD_RETRY_MAX_ATTEMPTS) {
+          setBoardError(`Unable to archive the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${requestTraceId}`);
+          await sleep(Math.min(calculateBoardRetryDelayMs(attempt), 5000));
+          continue;
+        }
+        presentBoardError(
+          {
+            error: "Archive request failed",
+            detail: error instanceof Error ? error.message : "Network issue",
+          },
+          "Unable to archive the project card.",
+        );
+        setBoardError(`Unable to archive the project card. TraceId: ${requestTraceId}`);
+      }
     }
-    if (selectedId === id) {
-      setModalOpen(false);
-      resetDraft();
-    }
-    setBoardError(null);
-    await load(traceId);
   }, [companyId, load, presentBoardError, requestBoardItems, resetDraft, selectedId]);
 
   const submitCard = useCallback(async () => {
@@ -558,31 +670,41 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       return sortBoardRecords(merged);
     });
     try {
-      const { response } = await requestBoardItems(
-        "/api/board-items",
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            companyId,
-            boardKey: "UNIT_PROJECT",
-            id: request.itemId,
-            sourceColumn: request.sourceColumn,
-            destinationColumn: request.destinationColumn,
-            beforeId: request.beforeId,
-            afterId: request.afterId,
-          }),
-        },
-        traceId,
-      );
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        presentBoardError(payload, "Unable to move the project card.");
-        await load(traceId);
+      const movePayload = {
+        companyId,
+        boardKey: "UNIT_PROJECT",
+        id: request.itemId,
+        sourceColumn: request.sourceColumn,
+        destinationColumn: request.destinationColumn,
+        beforeId: request.beforeId,
+        afterId: request.afterId,
+      };
+      for (let attempt = 1; attempt <= BOARD_RETRY_MAX_ATTEMPTS; attempt += 1) {
+        const requestTraceId = attempt === 1 ? traceId : `${traceId}-retry-${attempt - 1}`;
+        const { response } = await requestBoardItems(
+          "/api/board-items",
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(movePayload),
+          },
+          requestTraceId,
+        );
+        const payload = await parseBoardPayload(response);
+        if (!response.ok) {
+          if (isRetryableBoardFailure(payload, response.status) && attempt < BOARD_RETRY_MAX_ATTEMPTS) {
+            setBoardError(`Unable to move the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${requestTraceId}`);
+            await sleep(Math.min(calculateBoardRetryDelayMs(attempt), 5000));
+            continue;
+          }
+          presentBoardError(payload, "Unable to move the project card.");
+          await load(requestTraceId);
+          return;
+        }
+        setBoardError(null);
         return;
       }
-
-      setBoardError(null);
+      await load(traceId);
     } catch {
       await load(traceId);
     }

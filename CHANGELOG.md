@@ -5,6 +5,8 @@
 ### Fixed
 
 - destination workspace semantic-audit violations in the content-ops, review, and rulebook-runner surfaces
+- unit board mutations now keep optimistic creates visible through transient write failures and automatically retry transient failures instead of removing cards silently
+- board API write failure detection now broadens Atlas quota detection for quota/blocked-storage errors and enforces request timeouts on client calls
 
 ### Changed
 

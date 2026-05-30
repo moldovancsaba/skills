@@ -1,4 +1,13 @@
 const ATLAS_STORAGE_QUOTA_RETRY_AFTER_MS = 30 * 60 * 1000;
+const RETRYABLE_QUOTA_KEYWORDS = [
+  "over your space quota",
+  "writes are blocked",
+  "quota",
+  "storage limit",
+  "write blocked",
+  "out of disk space",
+  "insufficient disk space",
+];
 
 export type PersistenceFailureInfo = {
   kind: "ATLAS_STORAGE_QUOTA_BLOCKED";
@@ -43,12 +52,27 @@ function extractAtlasQuotaDetail(message: string) {
   return normalized.length > 320 ? `${normalized.slice(0, 317).trimEnd()}...` : normalized;
 }
 
+function readErrorName(error: unknown) {
+  if (error && typeof error === "object" && !Array.isArray(error)) {
+    const record = error as Record<string, unknown>;
+    if (typeof record.name === "string") return record.name;
+  }
+  return null;
+}
+
+function includesText(target: string, values: string[]) {
+  const normalized = target.toLowerCase();
+  return values.some((entry) => normalized.includes(entry.toLowerCase()));
+}
+
 export function classifyPersistenceFailure(error: unknown): PersistenceFailureInfo | null {
   const message = readErrorMessage(error);
   const prismaCode = readPrismaCode(error);
-  const atlasQuotaBlocked = /over your space quota|writes are blocked on your cluster|atlaserror/i.test(message);
+  const errorName = readErrorName(error);
+  const atlasErrorMeta = message.toLowerCase().includes("atlaserror");
+  const quotaBlockedLike = includesText(message, RETRYABLE_QUOTA_KEYWORDS) || atlasErrorMeta || errorName === "MongoBulkWriteError";
 
-  if (!atlasQuotaBlocked) return null;
+  if (!quotaBlockedLike) return null;
 
   return {
     kind: "ATLAS_STORAGE_QUOTA_BLOCKED",

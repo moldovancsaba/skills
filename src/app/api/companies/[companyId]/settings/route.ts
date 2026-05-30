@@ -5,6 +5,7 @@ import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { canonicalizeAllowedLanguagesForStorage } from "@/lib/language-catalog";
 import {
+  UNIT_CAPABILITIES_SCHEMA_VERSION,
   formatCapabilityPayload,
   normalizeUnitCapabilitiesPayload,
   resolveUnitCapabilities,
@@ -68,6 +69,9 @@ export async function GET(
         profile: capabilities.profile,
         modules: capabilities.modules,
       },
+      capabilitiesVersion: capabilities.schemaVersion,
+      capabilitiesSource: capabilities.source,
+      capabilitiesEnvelopeVersion: capabilities.sourceEnvelopeVersion,
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(company.allowedLanguages ?? []),
     });
   } catch (error) {
@@ -223,6 +227,7 @@ export async function PATCH(
         hasClassScoutDestination: Boolean(classScoutInstance),
         hasCompareDestination: Boolean(compareInstance),
       }),
+      capabilitiesVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(updated.allowedLanguages ?? []),
     });
   } catch (error) {

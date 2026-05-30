@@ -82,6 +82,7 @@ export async function GET(
     const normalizedCapabilities = normalizeUnitCapabilitiesPayload({
       webappProfile: capabilities.profile,
       modules: capabilities.modules,
+      v: capabilities.schemaVersion,
     });
 
     const response = NextResponse.json({
@@ -100,6 +101,8 @@ export async function GET(
         modules: capabilities.modules,
         profileLabel: getWebappProfileLabel(capabilities.profile),
       },
+      capabilitiesVersion: capabilities.schemaVersion,
+      capabilitiesSource: capabilities.source,
       normalizedCapabilities,
       ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),
     });

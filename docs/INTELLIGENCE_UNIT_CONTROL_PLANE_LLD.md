@@ -559,7 +559,9 @@ Any future destination webapp must:
 
 Shipped today:
 - profile resolution and settings mutation in `src/lib/intelligence-unit-capabilities.ts`
+  - versioned capability envelope (`schemaVersion` + `payload.v`) with legacy drift handling.
 - nav capability projection in `src/app/api/companies/[companyId]/nav/route.ts`
+  - capability contract fields include `capabilitiesVersion` and `capabilitiesSource` for drift visibility.
 - root route dispatch in `src/app/[companyId]/page.tsx`
 - shared board APIs in `src/app/api/board-items/route.ts`
 - shared board component + project board client in `src/components/board/shared-board.tsx`, `src/app/[companyId]/unit-board/unit-project-board-client.tsx`

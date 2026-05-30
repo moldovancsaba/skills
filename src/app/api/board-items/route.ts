@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 const UNIT_PROJECT_BOARD_KEY = "UNIT_PROJECT";
 const UNIT_PROJECT_BOARD_COLUMN_KEYS = new Set(PROJECT_BOARD_COLUMNS.map((column) => column.key));
+const MAX_TITLE_LENGTH = 420;
 
 type BoardCardMetadata = {
   assignee: string | null;
@@ -18,6 +19,8 @@ type BoardCardMetadata = {
   sourceId: string | null;
   notes: string | null;
 };
+
+type BoardItemsPayload = Record<string, unknown>;
 
 function normalizeBoardColumnKey(raw: unknown): string {
   if (typeof raw === "string" && UNIT_PROJECT_BOARD_COLUMN_KEYS.has(raw)) {
@@ -30,6 +33,60 @@ function normalizeTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeCardTitle(value: unknown): string | null {
+  const normalized = normalizeTrimmedString(value);
+  if (normalized == null) return null;
+  return normalized.slice(0, MAX_TITLE_LENGTH);
+}
+
+function normalizeBoardCardId(value: unknown): string | null {
+  const normalized = normalizeTrimmedString(value);
+  if (!normalized) return null;
+  if (normalized.length > 64) return null;
+  return normalized;
+}
+
+function parseBoardItemsPayload(request: NextRequest) {
+  return request.json()
+    .then((payload: unknown) => (typeof payload === "object" && payload !== null ? payload as BoardItemsPayload : null))
+    .catch(() => null);
+}
+
+function readCompanyId(request: NextRequest, payload: BoardItemsPayload | null) {
+  const fromBody = normalizeTrimmedString(payload?.companyId);
+  if (fromBody) return fromBody;
+  const fromQuery = normalizeTrimmedString(request.nextUrl.searchParams.get("companyId"));
+  return fromQuery ?? "";
+}
+
+function readBoardKey(payload: BoardItemsPayload | null, request: NextRequest) {
+  const fromPayload = normalizeTrimmedString(payload?.boardKey);
+  if (fromPayload) return fromPayload;
+  return normalizeTrimmedString(request.nextUrl.searchParams.get("boardKey")) || UNIT_PROJECT_BOARD_KEY;
+}
+
+function buildRequestErrorPayload(message: string, details: unknown, traceId: string) {
+  const detail = normalizeTrimmedString(details);
+  const response = NextResponse.json({
+    error: message,
+    detail: detail ?? null,
+    traceId,
+  }, { status: 400 });
+  return response;
+}
+
+function isMutationPayload(payload: BoardItemsPayload | null): payload is Record<string, unknown> {
+  return payload !== null;
+}
+
+function hasField(payload: BoardItemsPayload, key: string) {
+  return Object.prototype.hasOwnProperty.call(payload, key);
+}
+
+function isSupportedUnitProjectBoardKey(boardKey: string) {
+  return boardKey === UNIT_PROJECT_BOARD_KEY;
 }
 
 function normalizeBoardDueDate(value: unknown): string | null {
@@ -267,19 +324,27 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
-    const companyId = typeof data.companyId === "string" ? data.companyId : "";
-    const boardKey = typeof data.boardKey === "string" ? data.boardKey : UNIT_PROJECT_BOARD_KEY;
-    const columnKey = normalizeBoardColumnKey(data.columnKey);
-    const metadata = extractMetadata(data);
+    const payload = await parseBoardItemsPayload(request);
+    if (!isMutationPayload(payload)) {
+      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+    }
+
+    const companyId = readCompanyId(request, payload);
+    const boardKey = readBoardKey(payload, request);
+    const columnKey = normalizeBoardColumnKey(payload.columnKey);
+    const metadata = extractMetadata(payload);
     const traceId = getBoardTraceId(request);
     const debugTrace = shouldTraceBoardItems(request);
     const startedAt = Date.now();
+    const title = normalizeCardTitle(payload.title);
 
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
-    if (!companyId || !String(data.title || "").trim()) {
+    if (!companyId || !title) {
       return NextResponse.json({ error: "companyId and title are required" }, { status: 400 });
+    }
+    if (!isSupportedUnitProjectBoardKey(boardKey)) {
+      return buildRequestErrorPayload("Unsupported boardKey", `Only ${UNIT_PROJECT_BOARD_KEY} is supported.`, traceId);
     }
 
     const actor = auth.membership.id || auth.session.email || "webapp-user";
@@ -293,8 +358,8 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           boardKey,
-          title: String(data.title).trim(),
-          description: typeof data.description === "string" ? data.description.trim() || null : null,
+          title,
+          description: typeof payload.description === "string" ? payload.description.trim() || null : null,
           createdBy: actor,
           archivedAt: null,
         },
@@ -308,7 +373,7 @@ export async function POST(request: NextRequest) {
           entityId: card.id,
           columnKey,
           orderRank: Number(latestState?.orderRank ?? 0) + BOARD_RANK_STEP,
-          priority: normalizeBoardPriority(data.priority) ?? 1,
+          priority: normalizeBoardPriority(payload.priority) ?? 1,
           metadata,
         },
       });
@@ -344,16 +409,23 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const data = await request.json();
-    const companyId = typeof data.companyId === "string" ? data.companyId : "";
-    const boardKey = typeof data.boardKey === "string" ? data.boardKey : UNIT_PROJECT_BOARD_KEY;
-    const cardId = typeof data.id === "string" ? data.id : "";
+    const payload = await parseBoardItemsPayload(request);
+    if (!isMutationPayload(payload)) {
+      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+    }
+
+    const companyId = readCompanyId(request, payload);
+    const boardKey = readBoardKey(payload, request);
+    const cardId = normalizeBoardCardId(payload.id);
     const traceId = getBoardTraceId(request);
     const debugTrace = shouldTraceBoardItems(request);
-    const requestedPriority = normalizeBoardPriority(data.priority);
-    const requestedMetadata = extractMetadata(data);
+    if (!isSupportedUnitProjectBoardKey(boardKey)) {
+      return buildRequestErrorPayload("Unsupported boardKey", `Only ${UNIT_PROJECT_BOARD_KEY} is supported.`, traceId);
+    }
+    const requestedPriority = normalizeBoardPriority(payload.priority);
+    const requestedMetadata = extractMetadata(payload);
     const metadataProvided = ["assignee", "dueDate", "estimatedEffort", "sourceType", "sourceId", "notes"].some(
-      (key) => Object.prototype.hasOwnProperty.call(data, key),
+      (key) => hasField(payload, key),
     );
 
     const auth = await verifyMembership(request, companyId);
@@ -367,11 +439,11 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const isMove = typeof data.destinationColumn === "string";
+    const isMove = typeof payload.destinationColumn === "string";
     if (isMove) {
-      const destinationColumn = normalizeBoardColumnKey(data.destinationColumn);
-      const beforeId = typeof data.beforeId === "string" ? data.beforeId : null;
-      const afterId = typeof data.afterId === "string" ? data.afterId : null;
+      const destinationColumn = normalizeBoardColumnKey(payload.destinationColumn);
+      const beforeId = normalizeBoardCardId(payload.beforeId);
+      const afterId = normalizeBoardCardId(payload.afterId);
 
       await ensureBoardRanks(companyId, boardKey, destinationColumn);
 
@@ -437,9 +509,9 @@ export async function PATCH(request: NextRequest) {
     const updated = await prisma.boardCard.update({
       where: { id: cardId },
       data: {
-        title: data.title !== undefined ? String(data.title).trim() : existing.title,
-        description: data.description !== undefined
-          ? (typeof data.description === "string" ? data.description.trim() || null : null)
+        title: payload.title !== undefined ? normalizeCardTitle(payload.title) ?? existing.title : existing.title,
+        description: payload.description !== undefined
+          ? (typeof payload.description === "string" ? payload.description.trim() || null : null)
           : existing.description,
       },
     });
@@ -457,22 +529,22 @@ export async function PATCH(request: NextRequest) {
       });
       const currentMetadata = normalizeMetadata(currentState?.metadata ?? null);
       const mergedMetadata = {
-        assignee: Object.prototype.hasOwnProperty.call(data, "assignee")
+        assignee: hasField(payload, "assignee")
           ? requestedMetadata.assignee
           : currentMetadata.assignee,
-        dueDate: Object.prototype.hasOwnProperty.call(data, "dueDate")
+        dueDate: hasField(payload, "dueDate")
           ? requestedMetadata.dueDate
           : currentMetadata.dueDate,
-        estimatedEffort: Object.prototype.hasOwnProperty.call(data, "estimatedEffort")
+        estimatedEffort: hasField(payload, "estimatedEffort")
           ? requestedMetadata.estimatedEffort
           : currentMetadata.estimatedEffort,
-        sourceType: Object.prototype.hasOwnProperty.call(data, "sourceType")
+        sourceType: hasField(payload, "sourceType")
           ? requestedMetadata.sourceType
           : currentMetadata.sourceType,
-        sourceId: Object.prototype.hasOwnProperty.call(data, "sourceId")
+        sourceId: hasField(payload, "sourceId")
           ? requestedMetadata.sourceId
           : currentMetadata.sourceId,
-        notes: Object.prototype.hasOwnProperty.call(data, "notes")
+        notes: hasField(payload, "notes")
           ? requestedMetadata.notes
           : currentMetadata.notes,
       };

@@ -42,13 +42,15 @@ type UnitBoardItem = {
   sourceType?: string | null;
   sourceId?: string | null;
   notes?: string | null;
+  syncState?: "saving" | "error";
+  syncError?: string | null;
 };
 
 type UnitBoardDraftCard = UnitBoardItem & {
   isOptimistic: true;
 };
 
-const RECENT_CREATE_TTL_MS = 45_000;
+const RECENT_CREATE_TTL_MS = 180_000;
 type BoardFilter = {
   priority: string;
   sourceType: string;
@@ -112,6 +114,8 @@ function buildOptimisticCard(params: {
     sourceType: params.sourceType || null,
     sourceId: params.sourceId || null,
     notes: params.notes || null,
+    syncState: "saving",
+    syncError: null,
     isOptimistic: true,
   } satisfies UnitBoardDraftCard;
 }
@@ -127,6 +131,19 @@ function makeBoardTraceId(): string {
     return window.crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+type BoardWritePayload = {
+  error?: string;
+  detail?: string;
+  retryable?: boolean;
+  [key: string]: unknown;
+};
+
+function resolveBoardErrorMessage(payload: BoardWritePayload | null, fallback: string, traceId: string) {
+  const message = payload?.error || fallback;
+  const detail = payload?.detail ? ` ${payload.detail}` : "";
+  return `${message}${detail} (traceId ${traceId})`;
 }
 
 export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
@@ -376,30 +393,63 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
           notes: draftNotes.trim(),
         }),
       }, traceId);
+      const payload = await response.json().catch(() => null) as BoardWritePayload | null;
       if (!response.ok) {
-        const payload = await response.json().catch(() => null);
+        const message = resolveBoardErrorMessage(payload, "Unable to create the project card.", traceId);
         presentBoardError(payload, "Unable to create the project card.");
-        setBoardError(`Unable to create the project card. TraceId: ${traceId}`);
+        setBoardError(message);
+        if (response.status >= 500 || payload?.retryable === true) {
+          setItems((current) => current.map((item) => (
+            item.id === optimisticId ? {
+              ...item,
+              syncState: "error",
+              syncError: message,
+            } : item
+          )));
+          return;
+        }
         setItems((current) => current.filter((item) => item.id !== optimisticId));
         recentlyCreatedCards.current.delete(optimisticId);
         return;
       }
 
-      const payload = await response.json().catch(() => null);
       const createdItem = payload?.item as UnitBoardItem | undefined;
-      if (createdItem) {
-        setItems((current) => current.map((item) => (item.id === optimisticId ? createdItem : item)));
-        recentlyCreatedCards.current.set(createdItem.id, {
-          createdAt: Date.now(),
-          item: createdItem,
-        });
-        recentlyCreatedCards.current.delete(optimisticId);
+      if (!createdItem) {
+        const message = resolveBoardErrorMessage(payload, "Unable to read the created project card.", traceId);
+        presentBoardError(payload, "Unable to read the created project card.");
+        setBoardError(message);
+        setItems((current) => current.map((item) => (
+          item.id === optimisticId ? {
+            ...item,
+            syncState: "error",
+            syncError: message,
+          } : item
+        )));
+        return;
       }
+
+      setItems((current) => current.map((item) => (item.id === optimisticId ? createdItem : item)));
+      recentlyCreatedCards.current.set(createdItem.id, {
+        createdAt: Date.now(),
+        item: createdItem,
+      });
+      recentlyCreatedCards.current.delete(optimisticId);
 
       setModalOpen(false);
       resetDraft();
       setBoardError(null);
       await load(traceId);
+    } catch (error) {
+      const message = `Unable to create the project card. ${(error instanceof Error ? error.message : "Network issue")} (traceId ${traceId})`;
+      presentBoardError({ error: "Create request failed", detail: message }, "Unable to create the project card.");
+      setBoardError(message);
+      setItems((current) => current.map((item) => (
+        item.id === optimisticId ? {
+          ...item,
+          syncState: "error",
+          syncError: message,
+        } : item
+      )));
     } finally {
       setSubmitting(false);
     }
@@ -664,6 +714,15 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
                 {item.estimatedEffort != null ? (
                   <Text size="xs" c="dimmed">
                     Effort: {item.estimatedEffort}
+                  </Text>
+                ) : null}
+                {item.syncState === "saving" ? (
+                  <Text size="xs" c="dimmed">
+                    Syncing...
+                  </Text>
+                ) : item.syncState === "error" ? (
+                  <Text size="xs" c="review">
+                    {item.syncError || "Sync issue"}
                   </Text>
                 ) : null}
                 <Group justify="space-between">

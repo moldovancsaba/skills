@@ -351,7 +351,10 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
                 return items.map((item) => {
                   const companyId = companyIdFromUrl || company?.id;
                   const itemHref = companyId ? item.href(companyId) : "";
-                  const isActive = Boolean(pathname && itemHref && (pathname === itemHref || pathname.startsWith(`${itemHref}/`)));
+                  const itemHrefBase = itemHref.split("?")[0];
+                  const isActive = Boolean(
+                    pathname && itemHrefBase && (pathname === itemHrefBase || pathname.startsWith(`${itemHrefBase}/`))
+                  );
                   const itemLabel = "labelKey" in item && item.labelKey ? t(item.labelKey) : item.label;
 
                   return (

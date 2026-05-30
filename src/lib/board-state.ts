@@ -9,6 +9,11 @@ export type SurfaceBoardConfig = {
 };
 
 export const SURFACE_BOARD_CONFIG = {
+  unitBoard: {
+    boardKey: "UNIT_PROJECT",
+    entityType: "BOARD_CARD",
+    defaultColumnKey: "TODO",
+  },
   goals: {
     boardKey: "GOALS_STATUS",
     entityType: "GOALCARD",

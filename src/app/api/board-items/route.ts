@@ -4,11 +4,10 @@ import { verifyMembership } from "@/lib/permissions";
 import { BOARD_RANK_STEP, PROJECT_BOARD_COLUMNS, sortBoardRecords } from "@/lib/board-system";
 import { buildNormalizedRanks, computeServerBoardRank, needsBoardRebalance } from "@/lib/board-rank";
 import { classifyPersistenceFailure } from "@/lib/persistence-failures";
+import { resolveBoardAdapter, type ResolvedBoardAdapter } from "@/lib/board-adapters";
 
 export const dynamic = "force-dynamic";
 
-const UNIT_PROJECT_BOARD_KEY = "UNIT_PROJECT";
-const UNIT_PROJECT_BOARD_COLUMN_KEYS = new Set(PROJECT_BOARD_COLUMNS.map((column) => column.key));
 const MAX_TITLE_LENGTH = 420;
 
 type BoardCardMetadata = {
@@ -22,11 +21,12 @@ type BoardCardMetadata = {
 
 type BoardItemsPayload = Record<string, unknown>;
 
-function normalizeBoardColumnKey(raw: unknown): string {
-  if (typeof raw === "string" && UNIT_PROJECT_BOARD_COLUMN_KEYS.has(raw)) {
+function normalizeBoardColumnKey(adapter: ResolvedBoardAdapter, raw: unknown): string {
+  const boardColumnKeys = new Set(adapter.columns.map((column) => column.key));
+  if (typeof raw === "string" && boardColumnKeys.has(raw)) {
     return raw;
   }
-  return PROJECT_BOARD_COLUMNS[3].key;
+  return adapter.columns[0]?.key ?? PROJECT_BOARD_COLUMNS[0].key;
 }
 
 function normalizeTrimmedString(value: unknown): string | null {
@@ -61,10 +61,21 @@ function readCompanyId(request: NextRequest, payload: BoardItemsPayload | null) 
   return fromQuery ?? "";
 }
 
-function readBoardKey(payload: BoardItemsPayload | null, request: NextRequest) {
-  const fromPayload = normalizeTrimmedString(payload?.boardKey);
-  if (fromPayload) return fromPayload;
-  return normalizeTrimmedString(request.nextUrl.searchParams.get("boardKey")) || UNIT_PROJECT_BOARD_KEY;
+function readBoardSurfaceRequest(request: NextRequest, payload: BoardItemsPayload | null) {
+  return {
+    boardKey: normalizeTrimmedString(payload?.boardKey),
+    boardKeyFromQuery: normalizeTrimmedString(request.nextUrl.searchParams.get("boardKey")),
+    module: normalizeTrimmedString(payload?.module),
+    moduleFromQuery: normalizeTrimmedString(request.nextUrl.searchParams.get("module")),
+  };
+}
+
+function resolveAdapter(request: NextRequest, payload: BoardItemsPayload | null) {
+  const boardSurfaceRequest = readBoardSurfaceRequest(request, payload);
+  return resolveBoardAdapter({
+    boardKey: boardSurfaceRequest.boardKey ?? boardSurfaceRequest.boardKeyFromQuery,
+    module: boardSurfaceRequest.module ?? boardSurfaceRequest.moduleFromQuery,
+  });
 }
 
 function buildRequestErrorPayload(message: string, details: unknown, traceId: string) {
@@ -83,10 +94,6 @@ function isMutationPayload(payload: BoardItemsPayload | null): payload is Record
 
 function hasField(payload: BoardItemsPayload, key: string) {
   return Object.prototype.hasOwnProperty.call(payload, key);
-}
-
-function isSupportedUnitProjectBoardKey(boardKey: string) {
-  return boardKey === UNIT_PROJECT_BOARD_KEY;
 }
 
 function normalizeBoardDueDate(value: unknown): string | null {
@@ -177,7 +184,7 @@ function serializeBoardItem(card: {
   orderRank: number;
   priority: number;
   metadata?: unknown;
-} | null, boardKey: string, fallbackIndex = 0) {
+} | null, boardKey: string, fallbackIndex = 0, fallbackColumnKey = PROJECT_BOARD_COLUMNS[0].key) {
   const metadata = normalizeMetadata(state?.metadata ?? null);
   return {
     id: card.id,
@@ -188,7 +195,7 @@ function serializeBoardItem(card: {
     createdBy: card.createdBy,
     createdAt: card.createdAt,
     updatedAt: card.updatedAt,
-    columnKey: state?.columnKey ?? PROJECT_BOARD_COLUMNS[0].key,
+    columnKey: state?.columnKey ?? fallbackColumnKey,
     orderRank: Number(state?.orderRank ?? (fallbackIndex + 1) * BOARD_RANK_STEP),
     priority: Number(state?.priority ?? 0),
     assignee: metadata.assignee,
@@ -255,8 +262,9 @@ async function ensureBoardRanks(companyId: string, boardKey: string, columnKey: 
 
 export async function GET(request: NextRequest) {
   try {
+    const adapter = resolveAdapter(request, null);
     const companyId = request.nextUrl.searchParams.get("companyId");
-    const boardKey = request.nextUrl.searchParams.get("boardKey") || UNIT_PROJECT_BOARD_KEY;
+    const boardKey = adapter.boardKey;
     const traceId = getBoardTraceId(request);
     const debugTrace = shouldTraceBoardItems(request);
     const startedAt = Date.now();
@@ -265,17 +273,13 @@ export async function GET(request: NextRequest) {
     if (auth.error) return auth.error;
     if (!companyId) return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
 
-    if (boardKey !== UNIT_PROJECT_BOARD_KEY) {
-      return NextResponse.json({ error: "Unsupported boardKey" }, { status: 400 });
-    }
-
     const [allCards, states] = await Promise.all([
       prisma.boardCard.findMany({
         where: { companyId, boardKey },
         orderBy: { updatedAt: "desc" },
       }),
       prisma.boardItemState.findMany({
-        where: { companyId, boardKey, entityType: "BOARD_CARD" },
+        where: { companyId, boardKey, entityType: adapter.config.entityType },
         orderBy: { orderRank: "asc" },
       }),
     ]);
@@ -290,7 +294,7 @@ export async function GET(request: NextRequest) {
 
     const items = sortBoardRecords(cards.map((card, index) => {
       const state = stateMap.get(card.id);
-      return serializeBoardItem(card, state ?? null, boardKey, index);
+      return serializeBoardItem(card, state ?? null, boardKey, index, adapter.columns[0]?.key);
     }));
 
     if (debugTrace) {
@@ -311,7 +315,7 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.json({
       items,
-      columns: PROJECT_BOARD_COLUMNS,
+      columns: adapter.columns,
       traceId,
     });
     withBoardTrace(response, traceId, debugTrace);
@@ -328,10 +332,11 @@ export async function POST(request: NextRequest) {
     if (!isMutationPayload(payload)) {
       return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
     }
+    const adapter = resolveAdapter(request, payload);
 
     const companyId = readCompanyId(request, payload);
-    const boardKey = readBoardKey(payload, request);
-    const columnKey = normalizeBoardColumnKey(payload.columnKey);
+    const boardKey = adapter.boardKey;
+    const columnKey = normalizeBoardColumnKey(adapter, payload.columnKey);
     const metadata = extractMetadata(payload);
     const traceId = getBoardTraceId(request);
     const debugTrace = shouldTraceBoardItems(request);
@@ -343,8 +348,8 @@ export async function POST(request: NextRequest) {
     if (!companyId || !title) {
       return NextResponse.json({ error: "companyId and title are required" }, { status: 400 });
     }
-    if (!isSupportedUnitProjectBoardKey(boardKey)) {
-      return buildRequestErrorPayload("Unsupported boardKey", `Only ${UNIT_PROJECT_BOARD_KEY} is supported.`, traceId);
+    if (!adapter.allowWrite) {
+      return buildRequestErrorPayload("Board writes are disabled for this surface", "This board surface is read-only.", traceId);
     }
 
     const actor = auth.membership.id || auth.session.email || "webapp-user";
@@ -369,7 +374,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           boardKey,
-          entityType: "BOARD_CARD",
+          entityType: adapter.config.entityType,
           entityId: card.id,
           columnKey,
           orderRank: Number(latestState?.orderRank ?? 0) + BOARD_RANK_STEP,
@@ -396,7 +401,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       cardId: card.id,
-      item: serializeBoardItem(card, state, boardKey),
+      item: serializeBoardItem(card, state, boardKey, 0, adapter.columns[0]?.key),
       traceId,
     });
     withBoardTrace(response, traceId, debugTrace);
@@ -413,14 +418,15 @@ export async function PATCH(request: NextRequest) {
     if (!isMutationPayload(payload)) {
       return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
     }
+    const adapter = resolveAdapter(request, payload);
 
     const companyId = readCompanyId(request, payload);
-    const boardKey = readBoardKey(payload, request);
+    const boardKey = adapter.boardKey;
     const cardId = normalizeBoardCardId(payload.id);
     const traceId = getBoardTraceId(request);
     const debugTrace = shouldTraceBoardItems(request);
-    if (!isSupportedUnitProjectBoardKey(boardKey)) {
-      return buildRequestErrorPayload("Unsupported boardKey", `Only ${UNIT_PROJECT_BOARD_KEY} is supported.`, traceId);
+    if (!adapter.allowWrite) {
+      return buildRequestErrorPayload("Board writes are disabled for this surface", "This board surface is read-only.", traceId);
     }
     const requestedPriority = normalizeBoardPriority(payload.priority);
     const requestedMetadata = extractMetadata(payload);
@@ -435,13 +441,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     const existing = await prisma.boardCard.findUnique({ where: { id: cardId } });
-    if (!existing || existing.companyId !== companyId) {
+    if (!existing || existing.companyId !== companyId || existing.boardKey !== boardKey) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     const isMove = typeof payload.destinationColumn === "string";
     if (isMove) {
-      const destinationColumn = normalizeBoardColumnKey(payload.destinationColumn);
+      const destinationColumn = normalizeBoardColumnKey(adapter, payload.destinationColumn);
       const beforeId = normalizeBoardCardId(payload.beforeId);
       const afterId = normalizeBoardCardId(payload.afterId);
 
@@ -453,7 +459,7 @@ export async function PATCH(request: NextRequest) {
             where: {
               companyId,
               boardKey,
-              entityType: "BOARD_CARD",
+              entityType: adapter.config.entityType,
               entityId: { in: neighborIds },
             },
           })
@@ -469,7 +475,7 @@ export async function PATCH(request: NextRequest) {
           companyId_boardKey_entityType_entityId: {
             companyId,
             boardKey,
-            entityType: "BOARD_CARD",
+            entityType: adapter.config.entityType,
             entityId: cardId,
           },
         },
@@ -482,7 +488,7 @@ export async function PATCH(request: NextRequest) {
         create: {
           companyId,
           boardKey,
-          entityType: "BOARD_CARD",
+          entityType: adapter.config.entityType,
           entityId: cardId,
           columnKey: destinationColumn,
           orderRank: nextOrderRank,
@@ -496,7 +502,7 @@ export async function PATCH(request: NextRequest) {
           companyId_boardKey_entityType_entityId: {
             companyId,
             boardKey,
-            entityType: "BOARD_CARD",
+            entityType: adapter.config.entityType,
             entityId: cardId,
           },
         },
@@ -522,7 +528,7 @@ export async function PATCH(request: NextRequest) {
           companyId_boardKey_entityType_entityId: {
             companyId,
             boardKey,
-            entityType: "BOARD_CARD",
+            entityType: adapter.config.entityType,
             entityId: cardId,
           },
         },
@@ -555,7 +561,7 @@ export async function PATCH(request: NextRequest) {
             companyId_boardKey_entityType_entityId: {
               companyId,
               boardKey,
-              entityType: "BOARD_CARD",
+              entityType: adapter.config.entityType,
               entityId: cardId,
             },
           },
@@ -569,9 +575,9 @@ export async function PATCH(request: NextRequest) {
           data: {
             companyId,
             boardKey,
-            entityType: "BOARD_CARD",
+            entityType: adapter.config.entityType,
             entityId: cardId,
-            columnKey: PROJECT_BOARD_COLUMNS[3].key,
+            columnKey: adapter.columns[0]?.key ?? PROJECT_BOARD_COLUMNS[0].key,
             orderRank: BOARD_RANK_STEP,
             priority: requestedPriority ?? 1,
             metadata: mergedMetadata,
@@ -591,19 +597,24 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const adapter = resolveAdapter(request, null);
     const id = request.nextUrl.searchParams.get("id");
     const companyId = request.nextUrl.searchParams.get("companyId");
     const traceId = getBoardTraceId(request);
     const debugTrace = shouldTraceBoardItems(request);
+    const boardKey = adapter.boardKey;
 
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
     if (!companyId || !id) {
       return NextResponse.json({ error: "companyId and id are required" }, { status: 400 });
     }
+    if (!adapter.allowWrite) {
+      return buildRequestErrorPayload("Board writes are disabled for this surface", "This board surface is read-only.", traceId);
+    }
 
     const existing = await prisma.boardCard.findUnique({ where: { id } });
-    if (!existing || existing.companyId !== companyId) {
+    if (!existing || existing.companyId !== companyId || existing.boardKey !== boardKey) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 

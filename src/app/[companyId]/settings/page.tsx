@@ -12,7 +12,13 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { notifications } from "@mantine/notifications";
 import { UiLanguageSelect } from "@/components/ui-language-select";
 import { useI18n } from "@/lib/ui-i18n";
-import { UNIT_MODULE_DEFINITIONS, UNIT_WEBAPP_PROFILE_DESCRIPTIONS, type UnitModuleKey, type UnitWebappProfile } from "@/lib/intelligence-unit-capabilities";
+import {
+  UNIT_MODULE_BLOCKS,
+  UNIT_MODULE_DEFINITIONS,
+  UNIT_WEBAPP_PROFILE_DESCRIPTIONS,
+  type UnitModuleKey,
+  type UnitWebappProfile,
+} from "@/lib/intelligence-unit-capabilities";
 
 type CommunicationSettings = {
   isEnabled: boolean;
@@ -316,28 +322,45 @@ export default function SettingsPage() {
 
               <UnifiedCardSection tone="review">
                 <Stack gap="sm">
-                  {UNIT_MODULE_DEFINITIONS.map((definition) => (
-                    <Group key={definition.key} justify="space-between" align="center" wrap="nowrap">
-                      <Box>
-                        <BodyText>{definition.label}</BodyText>
-                        <MetaText>
-                          {definition.description}
-                        </MetaText>
-                      </Box>
-                      <Switch
-                        size="md"
-                          checked={Boolean(unitModules[definition.key])}
-                          onChange={(event) => {
-                            const nextModules = {
-                              ...unitModules,
-                              [definition.key]: event.currentTarget.checked,
-                            };
-                            setUnitModules(nextModules);
-                            void saveUnitCapabilities(unitProfile, nextModules);
-                          }}
-                          disabled={definition.key === "webapp" || saving}
-                        />
-                    </Group>
+                  {UNIT_MODULE_BLOCKS.map((block) => (
+                    <Stack key={block.key} gap="xs">
+                        <SectionTitle>{block.label}</SectionTitle>
+                      <MetaText>{block.description}</MetaText>
+                      <Stack gap="sm">
+                        {block.moduleKeys
+                          .map((moduleKey) => UNIT_MODULE_DEFINITIONS.find((definition) => definition.key === moduleKey))
+                          .filter(Boolean)
+                          .map((definition) => {
+                            if (!definition) return null;
+                            return (
+                              <Group
+                                key={definition.key}
+                                justify="space-between"
+                                align="center"
+                                wrap="nowrap"
+                              >
+                                <Box>
+                                  <BodyText>{definition.label}</BodyText>
+                                  <MetaText>{definition.description}</MetaText>
+                                </Box>
+                                <Switch
+                                  size="md"
+                                  checked={Boolean(unitModules[definition.key])}
+                                  onChange={(event) => {
+                                    const nextModules = {
+                                      ...unitModules,
+                                      [definition.key]: event.currentTarget.checked,
+                                    };
+                                    setUnitModules(nextModules);
+                                    void saveUnitCapabilities(unitProfile, nextModules);
+                                  }}
+                                  disabled={saving}
+                                />
+                              </Group>
+                            );
+                          })}
+                      </Stack>
+                    </Stack>
                   ))}
                 </Stack>
               </UnifiedCardSection>

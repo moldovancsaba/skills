@@ -18,6 +18,14 @@ import { getWebappProfileLabel, getWebappRoute, UNIT_MODULE_DEFINITIONS } from "
 
 const staticModuleNavItems: PipelineItem[] = [
   {
+    key: "unit-board",
+    href: (companyId: string) => `/${companyId}/unit-board`,
+    label: "Project Board",
+    icon: Building,
+    color: "review",
+    tone: "review",
+  },
+  {
     key: "data",
     href: (companyId: string) => `/${companyId}/data`,
     labelKey: "nav.data",
@@ -64,14 +72,6 @@ const staticModuleNavItems: PipelineItem[] = [
     icon: Sparkles,
     color: "strategy",
     tone: "strategy",
-  },
-  {
-    key: "unit-board",
-    href: (companyId: string) => `/${companyId}/unit-board`,
-    label: "Project Board",
-    icon: Building,
-    color: "review",
-    tone: "review",
   },
   {
     key: "tactical",

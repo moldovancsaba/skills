@@ -4,7 +4,14 @@ import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { canonicalizeAllowedLanguagesForStorage } from "@/lib/language-catalog";
-import { formatCapabilityPayload, normalizeUnitCapabilitiesPayload, type RawWorkerUnitCapabilities, UNIT_WEBAPP_PROFILE_DESCRIPTIONS, type UnitWebappProfile } from "@/lib/intelligence-unit-capabilities";
+import {
+  formatCapabilityPayload,
+  normalizeUnitCapabilitiesPayload,
+  resolveUnitCapabilities,
+  type RawWorkerUnitCapabilities,
+  UNIT_WEBAPP_PROFILE_DESCRIPTIONS,
+  type UnitWebappProfile,
+} from "@/lib/intelligence-unit-capabilities";
 
 export const dynamic = 'force-dynamic';
 
@@ -18,23 +25,49 @@ export async function GET(
   if (auth.error) return auth.error;
 
   try {
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-      select: {
-        id: true,
-        name: true,
-        allowedLanguages: true,
-        workerConfig: true,
-      },
-    });
+    const [company, classScoutInstance, compareInstance] = await Promise.all([
+      prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          id: true,
+          name: true,
+          allowedLanguages: true,
+          workerConfig: true,
+        },
+      }),
+      prisma.destinationInstance.findFirst({
+        where: {
+          companyId,
+          destinationKey: "classscout",
+          isActive: true,
+        },
+        select: { id: true },
+      }),
+      prisma.destinationInstance.findFirst({
+        where: {
+          companyId,
+          destinationKey: "compare",
+          isActive: true,
+        },
+        select: { id: true },
+      }),
+    ]);
 
     if (!company) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 });
     }
+    const capabilities = resolveUnitCapabilities({
+      workerConfig: company.workerConfig,
+      hasClassScoutDestination: Boolean(classScoutInstance),
+      hasCompareDestination: Boolean(compareInstance),
+    });
 
     return NextResponse.json({
       ...company,
-      unitCapabilities: normalizeUnitCapabilitiesPayload(company.workerConfig),
+      unitCapabilities: {
+        profile: capabilities.profile,
+        modules: capabilities.modules,
+      },
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(company.allowedLanguages ?? []),
     });
   } catch (error) {
@@ -61,6 +94,24 @@ export async function PATCH(
         workerConfig: true,
       },
     });
+    const [classScoutInstance, compareInstance] = await Promise.all([
+      prisma.destinationInstance.findFirst({
+        where: {
+          companyId,
+          destinationKey: "classscout",
+          isActive: true,
+        },
+        select: { id: true },
+      }),
+      prisma.destinationInstance.findFirst({
+        where: {
+          companyId,
+          destinationKey: "compare",
+          isActive: true,
+        },
+        select: { id: true },
+      }),
+    ]);
     
     // Validate allowedLanguages is an array of strings
     const hasLanguageUpdate = Array.isArray(data.allowedLanguages);
@@ -136,6 +187,16 @@ export async function PATCH(
     }
 
     if (hasCapabilityUpdate) {
+      const previousCapabilities = resolveUnitCapabilities({
+        workerConfig: existing?.workerConfig,
+        hasClassScoutDestination: Boolean(classScoutInstance),
+        hasCompareDestination: Boolean(compareInstance),
+      });
+      const nextCapabilities = resolveUnitCapabilities({
+        workerConfig: updated.workerConfig,
+        hasClassScoutDestination: Boolean(classScoutInstance),
+        hasCompareDestination: Boolean(compareInstance),
+      });
       await recordInteractionEventFromRequest(request, {
         companyId,
         surface: "settings-company",
@@ -143,15 +204,13 @@ export async function PATCH(
         entityType: "COMPANY",
         entityId: updated.id,
         beforeState: {
-          unitCapabilities: normalizeUnitCapabilitiesPayload(existing?.workerConfig),
+          unitCapabilities: previousCapabilities,
         },
         afterState: {
-          unitCapabilities: normalizeUnitCapabilitiesPayload(updated.workerConfig),
+          unitCapabilities: nextCapabilities,
         },
         payload: {
-          profileDescription: UNIT_WEBAPP_PROFILE_DESCRIPTIONS[
-            normalizeUnitCapabilitiesPayload(updated.workerConfig).profile
-          ],
+          profileDescription: UNIT_WEBAPP_PROFILE_DESCRIPTIONS[nextCapabilities.profile],
         },
         teachingWeight: 95,
       });
@@ -159,7 +218,11 @@ export async function PATCH(
 
     return NextResponse.json({
       ...updated,
-      unitCapabilities: normalizeUnitCapabilitiesPayload(updated.workerConfig),
+      unitCapabilities: resolveUnitCapabilities({
+        workerConfig: updated.workerConfig,
+        hasClassScoutDestination: Boolean(classScoutInstance),
+        hasCompareDestination: Boolean(compareInstance),
+      }),
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(updated.allowedLanguages ?? []),
     });
   } catch (error) {

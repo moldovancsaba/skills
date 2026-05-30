@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { createRequestProfiler } from "@/lib/request-profile";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
-import { getWebappProfileLabel, normalizeUnitCapabilitiesPayload, resolveUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
+import { getWebappProfileLabel, resolveUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -79,11 +79,6 @@ export async function GET(
       hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
-    const normalizedCapabilities = normalizeUnitCapabilitiesPayload({
-      webappProfile: capabilities.profile,
-      modules: capabilities.modules,
-      v: capabilities.schemaVersion,
-    });
 
     const response = NextResponse.json({
       company,
@@ -103,7 +98,9 @@ export async function GET(
       },
       capabilitiesVersion: capabilities.schemaVersion,
       capabilitiesSource: capabilities.source,
-      normalizedCapabilities,
+      capabilitiesEnvelopeVersion: capabilities.sourceEnvelopeVersion,
+      normalizedCapabilities: capabilities.normalized,
+      unitCapabilities: capabilities.normalized,
       ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),
     });
     return profiler.apply(response);

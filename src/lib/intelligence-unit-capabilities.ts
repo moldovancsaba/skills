@@ -27,6 +27,19 @@ export type RawWorkerUnitCapabilities = {
   payload?: unknown;
 };
 
+export type UnitCapabilityValidationIssue = {
+  code: string;
+  field: string;
+  value?: unknown;
+  message: string;
+};
+
+export type UnitCapabilityValidation = {
+  isValid: boolean;
+  errors: UnitCapabilityValidationIssue[];
+  warnings: UnitCapabilityValidationIssue[];
+};
+
 export type UnitCapabilityPayloadV2 = {
   v: 2;
   profile: UnitWebappProfile;
@@ -38,8 +51,8 @@ export type UnitCapabilitiesEnvelope = {
   payload: UnitCapabilityPayloadV2;
 };
 
-export const UNIT_CAPABILITIES_SCHEMA_VERSION = 2;
-export const UNIT_CAPABILITY_PAYLOAD_VERSION = 2;
+export const UNIT_CAPABILITIES_SCHEMA_VERSION: 2 = 2;
+export const UNIT_CAPABILITY_PAYLOAD_VERSION: 2 = 2;
 
 export type UnitModuleDefinition = {
   key: UnitModuleKey;
@@ -63,6 +76,8 @@ export type ResolvedUnitCapabilityConfig = {
 const LEGACY_MODULE_KEY_BY_ALIAS: Partial<Record<string, UnitModuleKey>> = {
   unitBoard: "unit-board",
 };
+
+const KNOWN_UNIT_MODULE_KEYS = new Set<string>(UNIT_MODULE_KEYS);
 
 export const UNIT_MODULE_DEFINITIONS: UnitModuleDefinition[] = [
   {
@@ -240,17 +255,28 @@ const UNIT_MODULE_PRESET_BY_WEBAPP: Record<UnitWebappProfile, Record<UnitModuleK
 
 const ROUTER_DEFAULT_WEBAPP_PROFILE: UnitWebappProfile = "NONE";
 
-function normalizeStoredPayload(profileCandidate: unknown, modulesCandidate: unknown): UnitCapabilityPayloadV2 {
-  const profile = normalizeRawProfile(profileCandidate);
-  const modules = normalizeModuleOverrides(modulesCandidate);
+function validateIssue(code: string, field: string, message: string, value?: unknown): UnitCapabilityValidationIssue {
+  return { code, field, value, message };
+}
+
+function normalizeStoredPayload(
+  profileCandidate: unknown,
+  modulesCandidate: unknown,
+  validation?: UnitCapabilityValidation,
+): UnitCapabilityPayloadV2 {
+  const profile = normalizeRawProfile(profileCandidate, validation);
+  const modules = normalizeModuleOverrides(modulesCandidate, validation);
+  const mergedModules = buildMergedModules(profile, modules);
   return {
     v: UNIT_CAPABILITY_PAYLOAD_VERSION,
     profile,
-    modules: buildMergedModules(profile, modules),
+    modules: mergedModules,
   };
 }
 
-function parseUnitCapabilitiesEnvelope(raw: unknown): UnitCapabilityPayloadV2 | null {
+function parseUnitCapabilitiesEnvelope(
+  raw: unknown,
+): { payload: UnitCapabilityPayloadV2; validation: UnitCapabilityValidation } | null {
   if (!raw || typeof raw !== "object") return null;
 
   const envelope = raw as Partial<UnitCapabilitiesEnvelope & { payload: unknown; schemaVersion: unknown; v: unknown }>;
@@ -264,19 +290,39 @@ function parseUnitCapabilitiesEnvelope(raw: unknown): UnitCapabilityPayloadV2 | 
 
   if (typeof candidate.v !== "number" || candidate.v !== UNIT_CAPABILITY_PAYLOAD_VERSION) return null;
 
-  const normalizedModules = normalizeModuleOverrides(candidate.modules);
-  const profile = normalizeRawProfile(candidate.profile);
-  return {
-    v: UNIT_CAPABILITY_PAYLOAD_VERSION,
-    profile,
-    modules: buildMergedModules(profile, normalizedModules),
+  const validation: UnitCapabilityValidation = {
+    isValid: true,
+    errors: [],
+    warnings: [],
   };
+  const normalizedModules = normalizeModuleOverrides(candidate.modules, validation);
+  const normalizedProfile = normalizeRawProfile(candidate.profile, validation);
+  const normalized = {
+    v: UNIT_CAPABILITY_PAYLOAD_VERSION,
+    profile: normalizedProfile,
+    modules: buildMergedModules(normalizedProfile, normalizedModules),
+  };
+  if (!validation.isValid) {
+    return null;
+  }
+  return { payload: normalized, validation };
 }
 
-function normalizeRawProfile(raw: unknown): UnitWebappProfile {
+function normalizeRawProfile(
+  raw: unknown,
+  validation?: UnitCapabilityValidation,
+): UnitWebappProfile {
   if (raw === "CLASSSCOUT") return "CLASSSCOUT";
   if (raw === "COMPARE") return "COMPARE";
   if (raw === "NONE") return "NONE";
+  if (validation && raw !== undefined) {
+    validation.warnings.push(validateIssue(
+      "invalid-webapp-profile",
+      "webappProfile",
+      `Unsupported profile ${String(raw)}; defaulting to ${ROUTER_DEFAULT_WEBAPP_PROFILE}`,
+      raw,
+    ));
+  }
   return ROUTER_DEFAULT_WEBAPP_PROFILE;
 }
 
@@ -285,16 +331,41 @@ function coerceBoolean(value: unknown): boolean | null {
   return null;
 }
 
-function normalizeModuleOverrides(raw: unknown): Partial<Record<UnitModuleKey, boolean>> {
+function normalizeModuleOverrides(
+  raw: unknown,
+  validation?: UnitCapabilityValidation,
+): Partial<Record<UnitModuleKey, boolean>> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    if (raw != null && validation) {
+      validation.warnings.push(
+        validateIssue("invalid-module-map", "modules", "modules must be an object; defaulting to preset modules", raw),
+      );
+    }
     return {};
   }
   const normalized: Partial<Record<UnitModuleKey, boolean>> = {};
-  UNIT_MODULE_KEYS.forEach((key) => {
-    const value = coerceBoolean((raw as Record<string, unknown>)[key]);
-    if (value !== null) {
-      normalized[key] = value;
+  Object.entries(raw as Record<string, unknown>).forEach(([key, value]) => {
+    const canonicalKey = KNOWN_UNIT_MODULE_KEYS.has(key)
+      ? (key as UnitModuleKey)
+      : LEGACY_MODULE_KEY_BY_ALIAS[key];
+
+    if (canonicalKey === undefined) {
+      if (validation) {
+        validation.warnings.push(validateIssue("unknown-module-key", `modules.${key}`, `Ignoring unknown module key ${key}`, key));
+      }
+      return;
     }
+
+    const coerced = coerceBoolean(value);
+    if (coerced === null) {
+      if (validation) {
+        validation.errors.push(
+          validateIssue("invalid-module-value", `modules.${key}`, `Module ${canonicalKey} must be boolean`, value),
+        );
+      }
+      return;
+    }
+    normalized[canonicalKey] = coerced;
   });
 
   Object.entries(LEGACY_MODULE_KEY_BY_ALIAS as Record<string, UnitModuleKey>).forEach(([legacyKey, normalizedKey]) => {
@@ -302,9 +373,19 @@ function normalizeModuleOverrides(raw: unknown): Partial<Record<UnitModuleKey, b
       const legacyValue = coerceBoolean((raw as Record<string, unknown>)[legacyKey]);
       if (legacyValue !== null) {
         normalized[normalizedKey] = legacyValue;
+      } else if (validation) {
+        validation.errors.push(
+          validateIssue(
+            "invalid-module-value",
+            `modules.${legacyKey}`,
+            `Legacy module alias ${legacyKey} must be boolean`,
+            legacyValue,
+          ),
+        );
       }
     }
   });
+
   return normalized;
 }
 
@@ -339,12 +420,12 @@ export function resolveUnitCapabilities(input: {
   const envelopePayload = parseUnitCapabilitiesEnvelope(workerCapabilitiesRaw);
   if (envelopePayload) {
     return {
-      profile: envelopePayload.profile,
-      modules: envelopePayload.modules,
+      profile: envelopePayload.payload.profile,
+      modules: envelopePayload.payload.modules,
       source: "custom",
       sourceEnvelopeVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
       schemaVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
-      normalized: envelopePayload,
+      normalized: envelopePayload.payload,
     };
   }
 
@@ -357,7 +438,7 @@ export function resolveUnitCapabilities(input: {
         modules: normalized.modules,
         source: "custom",
         sourceEnvelopeVersion: legacyWithVersion.v,
-        schemaVersion: legacyWithVersion.v,
+        schemaVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
         normalized: normalized,
       };
     }
@@ -390,9 +471,98 @@ export function resolveUnitCapabilities(input: {
     modules: buildMergedModules(profile, normalizedModules),
     source: hasExplicitProfile || hasAnyModuleOverride ? "custom" : "auto",
     sourceEnvelopeVersion: 1,
-    schemaVersion: 1,
+    schemaVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
     normalized: legacyFallbackPayload,
   };
+}
+
+export function normalizeUnitCapabilitiesPayloadForWrite(raw: unknown): {
+  payload: UnitCapabilityPayloadV2;
+  validation: UnitCapabilityValidation;
+} {
+  const validation: UnitCapabilityValidation = {
+    isValid: true,
+    errors: [],
+    warnings: [],
+  };
+
+  if (raw === null || raw === undefined) {
+    return {
+      payload: normalizeStoredPayload(ROUTER_DEFAULT_WEBAPP_PROFILE, undefined),
+      validation,
+    };
+  }
+
+  if (typeof raw !== "object") {
+    validation.errors.push(
+      validateIssue("invalid-capability-payload", "unitCapabilities", "unitCapabilities must be an object"),
+    );
+    return {
+      payload: normalizeStoredPayload(ROUTER_DEFAULT_WEBAPP_PROFILE, undefined, validation),
+      validation,
+    };
+  }
+
+  const asLegacy = raw as RawWorkerUnitCapabilities;
+  const envelopePayload = parseUnitCapabilitiesEnvelope(asLegacy);
+  if (envelopePayload?.validation) {
+    return {
+      payload: envelopePayload.payload,
+      validation: envelopePayload.validation,
+    };
+  }
+
+  const normalized = normalizeStoredPayload(asLegacy.webappProfile, asLegacy.modules, validation);
+  const hasExplicitProfile = Object.prototype.hasOwnProperty.call(asLegacy, "webappProfile");
+  const hasExplicitModules = Object.prototype.hasOwnProperty.call(asLegacy, "modules");
+  const hasExplicitPayload = Object.prototype.hasOwnProperty.call(asLegacy, "payload");
+
+  if (hasExplicitPayload && asLegacy.payload !== undefined) {
+    validation.warnings.push(
+      validateIssue(
+        "unsupported-payload",
+        "unitCapabilities.payload",
+        "Nested payload was ignored; supported fields are webappProfile/modules/v",
+        asLegacy.payload,
+      ),
+    );
+  }
+
+  if (asLegacy.v !== undefined && asLegacy.v !== UNIT_CAPABILITY_PAYLOAD_VERSION) {
+    validation.warnings.push(
+      validateIssue(
+        "migrated-capability-version",
+        "unitCapabilities.v",
+        `Capability payload version ${asLegacy.v} was migrated to version ${UNIT_CAPABILITY_PAYLOAD_VERSION}`,
+        asLegacy.v,
+      ),
+    );
+  }
+
+  if (hasExplicitProfile && asLegacy.webappProfile === undefined) {
+    validation.warnings.push(
+      validateIssue(
+        "missing-field",
+        "unitCapabilities.webappProfile",
+        "webappProfile key was present but undefined; defaulted to profile from payload",
+        asLegacy.webappProfile,
+      ),
+    );
+  }
+
+  if (!hasExplicitProfile && !hasExplicitModules && asLegacy.v && asLegacy.v !== UNIT_CAPABILITY_PAYLOAD_VERSION) {
+    validation.warnings.push(
+      validateIssue(
+        "legacy-version",
+        "unitCapabilities.v",
+        `Legacy capability payload detected with version ${asLegacy.v}; migrated deterministically`,
+        asLegacy.v,
+      ),
+    );
+  }
+
+  validation.isValid = validation.errors.length === 0;
+  return { payload: normalized, validation };
 }
 
 export function normalizeUnitCapabilitiesPayload(raw: unknown): {
@@ -402,7 +572,7 @@ export function normalizeUnitCapabilitiesPayload(raw: unknown): {
 } {
   const envelopePayload = parseUnitCapabilitiesEnvelope(raw);
   if (envelopePayload) {
-    return envelopePayload;
+    return envelopePayload.payload;
   }
 
   if (raw && typeof raw === "object" && Object.prototype.hasOwnProperty.call(raw, "v")) {

@@ -177,7 +177,9 @@ Stored in `company.workerConfig` as JSON:
 }
 ```
 
-- `normalizeUnitCapabilitiesPayload` ensures missing keys are backfilled.
+- `normalizeUnitCapabilitiesPayload` ensures missing keys are backfilled and read-time compatibility always normalizes to the explicit v2 contract.
+- write-path normalization now validates module booleans and profile values before persistence; malformed payloads are rejected as `400` with issue details.
+- persisted payload remains `{ schemaVersion: 2, payload: { v: 2, profile, modules } }` in `workerConfig.unitCapabilities`.
 - `resolveUnitCapabilities` computes effective profile and module map from:
   - worker config override
   - destination auto-detection (`classscout`, `compare`)
@@ -444,6 +446,7 @@ if (isQuotaBlocked(error)) {
 
 ### 14.1 Unit tests
 - `resolveUnitCapabilities` permutations for destination-only, override-only, combined and invalid payloads.
+- write-path normalization and validation for malformed module booleans / unsupported profile values.
 - rank and ordering helpers (`sortBoardRecords`, `moveBoardItem`, `computeRankBetween`, `computeServerBoardRank`).
 
 ### 14.2 API tests

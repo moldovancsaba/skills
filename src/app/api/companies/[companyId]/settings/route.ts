@@ -6,12 +6,13 @@ import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/aud
 import { canonicalizeAllowedLanguagesForStorage } from "@/lib/language-catalog";
 import {
   UNIT_CAPABILITIES_SCHEMA_VERSION,
+  type UnitCapabilityValidation,
   formatCapabilityPayload,
-  normalizeUnitCapabilitiesPayload,
+  normalizeUnitCapabilitiesPayloadForWrite,
+  type UnitWebappProfile,
   resolveUnitCapabilities,
   type RawWorkerUnitCapabilities,
   UNIT_WEBAPP_PROFILE_DESCRIPTIONS,
-  type UnitWebappProfile,
 } from "@/lib/intelligence-unit-capabilities";
 
 export const dynamic = 'force-dynamic';
@@ -65,10 +66,7 @@ export async function GET(
 
     return NextResponse.json({
       ...company,
-      unitCapabilities: {
-        profile: capabilities.profile,
-        modules: capabilities.modules,
-      },
+      unitCapabilities: capabilities.normalized,
       capabilitiesVersion: capabilities.schemaVersion,
       capabilitiesSource: capabilities.source,
       capabilitiesEnvelopeVersion: capabilities.sourceEnvelopeVersion,
@@ -130,8 +128,21 @@ export async function PATCH(
       : undefined;
     const incomingCapabilities = (data.unitCapabilities ?? null) as RawWorkerUnitCapabilities | null;
     let normalizedCapabilityPayload: { profile: UnitWebappProfile; modules: Record<string, boolean> } | null = null;
+    let unitCapabilityValidation: UnitCapabilityValidation | null = null;
     if (incomingCapabilities) {
-      normalizedCapabilityPayload = normalizeUnitCapabilitiesPayload(incomingCapabilities);
+      const validatedCapabilities = normalizeUnitCapabilitiesPayloadForWrite(incomingCapabilities);
+      if (!validatedCapabilities.validation.isValid) {
+        return NextResponse.json(
+          {
+            error: "Invalid unitCapabilities",
+            validation: validatedCapabilities.validation,
+          },
+          { status: 400 },
+        );
+      }
+
+      normalizedCapabilityPayload = validatedCapabilities.payload;
+      unitCapabilityValidation = validatedCapabilities.validation;
     }
 
     const normalizedWorkerConfig = typeof existing?.workerConfig === "object" && existing?.workerConfig !== null
@@ -145,7 +156,7 @@ export async function PATCH(
         } as Record<string, unknown>)
       : normalizedWorkerConfig;
 
-    const updated = await prisma.company.update({
+      const updated = await prisma.company.update({
       where: { id: companyId },
       data: {
         allowedLanguages: normalizedAllowedLanguages,
@@ -215,20 +226,28 @@ export async function PATCH(
         },
         payload: {
           profileDescription: UNIT_WEBAPP_PROFILE_DESCRIPTIONS[nextCapabilities.profile],
+          profileValidation:
+            (unitCapabilityValidation?.warnings ?? []).length > 0
+              ? unitCapabilityValidation?.warnings
+              : undefined,
+          profileValidationErrors: unitCapabilityValidation?.errors ?? [],
         },
         teachingWeight: 95,
       });
     }
 
+    const nextCapabilities = resolveUnitCapabilities({
+      workerConfig: updated.workerConfig,
+      hasClassScoutDestination: Boolean(classScoutInstance),
+      hasCompareDestination: Boolean(compareInstance),
+    });
+
     return NextResponse.json({
       ...updated,
-      unitCapabilities: resolveUnitCapabilities({
-        workerConfig: updated.workerConfig,
-        hasClassScoutDestination: Boolean(classScoutInstance),
-        hasCompareDestination: Boolean(compareInstance),
-      }),
+      unitCapabilities: nextCapabilities.normalized,
       capabilitiesVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(updated.allowedLanguages ?? []),
+      capabilitiesValidation: unitCapabilityValidation,
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

@@ -197,7 +197,7 @@ export async function getClassScoutLandingSummary(companyId: string): Promise<Cl
         key: "project-board",
         title: "Project Board",
         description: "Track unit-level delivery work with shared kanban runtime and explicit execution status.",
-        href: `/${companyId}/unit-board`,
+        href: `/${companyId}/unit-board?module=classscout`,
         tone: "tactical",
       },
       {

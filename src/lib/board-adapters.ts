@@ -32,6 +32,8 @@ const SURFACE_BY_MODULE: Record<string, BoardSurfaceKey> = {
   unitboard: "unitBoard",
   "unit-board": "unitBoard",
   unit: "unitBoard",
+  classscout: "unitBoard",
+  compare: "unitBoard",
   goals: "goals",
   topics: "topics",
   data: "data",

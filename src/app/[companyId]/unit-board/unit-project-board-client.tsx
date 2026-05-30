@@ -24,6 +24,9 @@ import { Text } from "@/components/ui/typography";
 import type { BoardColumn } from "@/lib/board-system";
 import { BOARD_RANK_STEP, PROJECT_BOARD_COLUMNS, sortBoardRecords } from "@/lib/board-system";
 
+const DEFAULT_BOARD_MODULE = "unit-board";
+const BOARD_API_KEY = "UNIT_PROJECT";
+
 type UnitBoardItem = {
   id: string;
   entityType: "BOARD_CARD";
@@ -108,7 +111,7 @@ function buildOptimisticCard(params: {
   return {
     id: params.id,
     entityType: "BOARD_CARD" as const,
-    boardKey: "UNIT_PROJECT",
+    boardKey: BOARD_API_KEY,
     title: params.title,
     description: params.description || null,
     createdBy: "webapp-user",
@@ -176,7 +179,18 @@ function parseBoardPayload(response: Response) {
   return response.json().catch(() => null) as Promise<BoardWritePayload | null>;
 }
 
-export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
+export function UnitProjectBoardClient({
+  companyId,
+  boardModule,
+}: {
+  companyId: string;
+  boardModule?: string;
+}) {
+  const normalizedBoardModule = useMemo(() => {
+    const normalized = boardModule?.trim().toLowerCase() || DEFAULT_BOARD_MODULE;
+    return normalized.length > 0 ? normalized : DEFAULT_BOARD_MODULE;
+  }, [boardModule]);
+
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<UnitBoardItem[]>([]);
   const itemsRef = useRef<UnitBoardItem[]>([]);
@@ -243,6 +257,11 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   }, []);
 
   const traceEnabled = useMemo(() => process.env.NODE_ENV !== "production", []);
+
+  const appendBoardScope = useCallback((url: string) => {
+    const connector = url.includes("?") ? "&" : "?";
+    return `${url}${connector}module=${encodeURIComponent(normalizedBoardModule)}&boardKey=${encodeURIComponent(BOARD_API_KEY)}`;
+  }, [normalizedBoardModule]);
 
   const requestBoardItems = useCallback(async (
     url: string,
@@ -319,7 +338,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     }
     try {
       const { response } = await requestBoardItems(
-        `/api/board-items?companyId=${encodeURIComponent(companyId)}&boardKey=UNIT_PROJECT&_=${Date.now()}`,
+        appendBoardScope(`/api/board-items?companyId=${encodeURIComponent(companyId)}&_=${Date.now()}`),
         { cache: "no-store" },
         traceId,
       );
@@ -357,7 +376,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
         setLoading(false);
       }
     }
-  }, [companyId, presentBoardError, reconcileLoadedItems, requestBoardItems]);
+  }, [appendBoardScope, companyId, presentBoardError, reconcileLoadedItems, requestBoardItems]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -422,7 +441,8 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     });
     const requestBody = {
       companyId,
-      boardKey: "UNIT_PROJECT",
+      boardKey: BOARD_API_KEY,
+      module: normalizedBoardModule,
       title,
       description: draftDescription,
       columnKey: draftColumnKey,
@@ -513,7 +533,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     } finally {
       setSubmitting(false);
     }
-  }, [companyId, draftAssignee, draftColumnKey, draftDescription, draftDueDate, draftEstimatedEffort, draftNotes, draftPriority, draftSourceId, draftSourceType, draftTitle, isSubmitting, items, load, presentBoardError, requestBoardItems, resetDraft]);
+  }, [companyId, draftAssignee, draftColumnKey, draftDescription, draftDueDate, draftEstimatedEffort, draftNotes, draftPriority, draftSourceId, draftSourceType, draftTitle, isSubmitting, items, load, normalizedBoardModule, presentBoardError, requestBoardItems, resetDraft]);
 
   const updateCard = useCallback(async () => {
     if (!selected) return;
@@ -538,7 +558,8 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
 
     const updatePayload = {
       companyId,
-      boardKey: "UNIT_PROJECT",
+      boardKey: BOARD_API_KEY,
+      module: normalizedBoardModule,
       id: selected.id,
       title: draftTitle,
       description: draftDescription,
@@ -595,7 +616,8 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     if (draftColumnKey !== selected.columnKey) {
       const movePayload = {
         companyId,
-        boardKey: "UNIT_PROJECT",
+        boardKey: BOARD_API_KEY,
+        module: normalizedBoardModule,
         id: selected.id,
         destinationColumn: draftColumnKey,
         beforeId: null,
@@ -639,7 +661,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     resetDraft();
     setBoardError(null);
     await load(traceId);
-  }, [companyId, draftAssignee, draftColumnKey, draftDescription, draftDueDate, draftEstimatedEffort, draftNotes, draftPriority, draftSourceId, draftSourceType, draftTitle, load, presentBoardError, requestBoardItems, resetDraft, selected]);
+  }, [companyId, draftAssignee, draftColumnKey, draftDescription, draftDueDate, draftEstimatedEffort, draftNotes, draftPriority, draftSourceId, draftSourceType, draftTitle, load, normalizedBoardModule, presentBoardError, requestBoardItems, resetDraft, selected]);
 
   const archiveCard = useCallback(async (id: string) => {
     const previousItems = itemsRef.current;
@@ -650,7 +672,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       const requestTraceId = attempt === 1 ? traceId : `${traceId}-retry-${attempt - 1}`;
       try {
         const { response } = await requestBoardItems(
-          `/api/board-items?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(id)}`,
+          appendBoardScope(`/api/board-items?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(id)}`),
           { method: "DELETE" },
           requestTraceId,
         );
@@ -690,7 +712,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
         setItems(previousItems);
       }
     }
-  }, [companyId, load, presentBoardError, requestBoardItems, resetDraft, selectedId]);
+  }, [appendBoardScope, companyId, load, presentBoardError, requestBoardItems, resetDraft, selectedId]);
 
   const submitCard = useCallback(async () => {
     if (selected) {
@@ -721,9 +743,10 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       return sortBoardRecords(merged);
     });
     try {
-      const movePayload = {
+  const movePayload = {
         companyId,
-        boardKey: "UNIT_PROJECT",
+        boardKey: BOARD_API_KEY,
+        module: normalizedBoardModule,
         id: request.itemId,
         sourceColumn: request.sourceColumn,
         destinationColumn: request.destinationColumn,
@@ -761,7 +784,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       setItems(previousItems);
       await load(traceId);
     }
-  }, [companyId, load, presentBoardError, requestBoardItems]);
+  }, [companyId, load, normalizedBoardModule, presentBoardError, requestBoardItems]);
 
   if (loading && items.length === 0) {
     return (

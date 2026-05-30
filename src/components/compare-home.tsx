@@ -52,7 +52,7 @@ export function CompareHome({ companyId, modules = {} }: { companyId: string; mo
         </RouteCardGrid>
 
         <Group>
-          <Button variant="light" color="synthesis" component={Link} href={`/${companyId}/unit-board`}>
+          <Button variant="light" color="synthesis" component={Link} href={`/${companyId}/unit-board?module=compare`}>
             Open project board
           </Button>
           <Button variant="outline" component={Link} href={`/${companyId}/settings`}>

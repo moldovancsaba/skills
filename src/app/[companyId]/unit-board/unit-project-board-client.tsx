@@ -179,6 +179,14 @@ function parseBoardPayload(response: Response) {
   return response.json().catch(() => null) as Promise<BoardWritePayload | null>;
 }
 
+function describeBoardError(error: unknown) {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return "Request timed out";
+  }
+  if (error instanceof Error) return error.message || "Network error";
+  return "Network error";
+}
+
 export function UnitProjectBoardClient({
   companyId,
   boardModule,
@@ -344,13 +352,15 @@ export function UnitProjectBoardClient({
       );
       if (requestId !== loadRequestIdRef.current) return;
       if (!response.ok) {
-        const payload = await response.json().catch(() => null);
+        const payload = await parseBoardPayload(response);
         presentBoardError(payload, "Unable to load the project board.");
         return;
       }
-      const data = await response.json();
+      const data = await parseBoardPayload(response);
       setBoardError(null);
-      const loadedItems: UnitBoardItem[] = Array.isArray(data.items) ? (data.items as UnitBoardItem[]) : [];
+      const loadedItems: UnitBoardItem[] = Array.isArray((data as { items?: unknown })?.items)
+        ? ((data as { items?: UnitBoardItem[] }).items ?? [])
+        : [];
       setItems(reconcileLoadedItems(loadedItems));
 
       const now = Date.now();
@@ -371,6 +381,9 @@ export function UnitProjectBoardClient({
         });
         recentlyCreatedCards.current = nextRecent;
       }
+    } catch (error) {
+      if (requestId !== loadRequestIdRef.current) return;
+      presentBoardError({ error: "Project board load failed", detail: describeBoardError(error) }, "Unable to load the project board.");
     } finally {
       if (requestId === loadRequestIdRef.current && traceEnabledLoading) {
         setLoading(false);
@@ -497,7 +510,7 @@ export function UnitProjectBoardClient({
           }
 
           const createdItem = payload?.item as UnitBoardItem | undefined;
-          if (!createdItem) {
+          if (!createdItem || typeof createdItem.id !== "string" || createdItem.id.length === 0) {
             const message = normalizeBoardErrorPayload(payload, "Unable to read the created project card.", requestTraceId);
             presentBoardError(payload, "Unable to read the created project card.");
             setBoardError(message);

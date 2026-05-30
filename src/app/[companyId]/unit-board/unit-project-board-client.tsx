@@ -50,6 +50,12 @@ type UnitBoardDraftCard = UnitBoardItem & {
   isOptimistic: true;
 };
 
+type PendingBoardCard = {
+  createdAt: number;
+  item: UnitBoardItem;
+  replacementId?: string;
+};
+
 const RECENT_CREATE_TTL_MS = 180_000;
 const BOARD_REQUEST_TIMEOUT_MS = 12_000;
 const BOARD_RETRY_MAX_ATTEMPTS = 3;
@@ -187,7 +193,7 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [boardError, setBoardError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
-  const recentlyCreatedCards = useRef<Map<string, { createdAt: number; item: UnitBoardItem }>>(new Map());
+  const recentlyCreatedCards = useRef<Map<string, PendingBoardCard>>(new Map());
   const loadRequestIdRef = useRef(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [boardFilter, setBoardFilter] = useState<BoardFilter>({ priority: "all", sourceType: "all" });
@@ -273,14 +279,22 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
     const now = Date.now();
     const nextItems = [...loadedItems];
     const seen = new Set(nextItems.map((item) => item.id));
-    const nextRecent = new Map<string, { createdAt: number; item: UnitBoardItem }>();
+    const nextRecent = new Map<string, PendingBoardCard>();
 
     recentlyCreatedCards.current.forEach((value, id) => {
       if (now - value.createdAt > RECENT_CREATE_TTL_MS) {
         return;
       }
-      if (!seen.has(id)) {
+
+      const shouldKeepPending = !value.replacementId || !seen.has(value.replacementId);
+      if (!shouldKeepPending) {
+        return;
+      }
+
+      const itemId = value.item.id;
+      if (!seen.has(itemId)) {
         nextItems.push(value.item);
+        seen.add(itemId);
       }
       nextRecent.set(id, value);
     });
@@ -318,14 +332,18 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
       const now = Date.now();
       const loadedIds = new Set(loadedItems.map((item) => item.id));
       if (recentlyCreatedCards.current.size > 0) {
-        const nextRecent = new Map<string, { createdAt: number; item: UnitBoardItem }>();
+        const nextRecent = new Map<string, PendingBoardCard>();
         recentlyCreatedCards.current.forEach((value, id) => {
-          if (loadedIds.has(id)) {
+          if (now - value.createdAt > RECENT_CREATE_TTL_MS) {
             return;
           }
-          if (now - value.createdAt <= RECENT_CREATE_TTL_MS) {
-            nextRecent.set(id, value);
+          if (!value.replacementId && loadedIds.has(id)) {
+            return;
           }
+          if (value.replacementId && loadedIds.has(value.replacementId)) {
+            return;
+          }
+          nextRecent.set(id, value);
         });
         recentlyCreatedCards.current = nextRecent;
       }
@@ -463,11 +481,11 @@ export function UnitProjectBoardClient({ companyId }: { companyId: string }) {
           }
 
           setItems((current) => current.map((item) => (item.id === optimisticId ? createdItem : item)));
-          recentlyCreatedCards.current.set(createdItem.id, {
+          recentlyCreatedCards.current.set(optimisticId, {
             createdAt: Date.now(),
             item: createdItem,
+            replacementId: createdItem.id,
           });
-          recentlyCreatedCards.current.delete(optimisticId);
           setModalOpen(false);
           resetDraft();
           setBoardError(null);

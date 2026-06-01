@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Button, Group, Loader, Paper, ScrollArea, Stack, Table, Tabs, Text, TextInput, Title } from "@mantine/core";
+import { Badge, Button, Group, Loader, ScrollArea, Stack, Table, Tabs, TextInput } from "@mantine/core";
 import { IconRefresh } from "@tabler/icons-react";
 import { Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
+import { BodyText, MetaText } from "@/components/ui/typography";
 
 type Snapshot = {
   visitorKey: string;
@@ -24,9 +26,9 @@ type Snapshot = {
 };
 
 function RowValue({ value }: { value: unknown }) {
-  if (value === null || value === undefined || value === "") return <Text c="dimmed">-</Text>;
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return <Text>{String(value)}</Text>;
-  return <Text size="sm" ff="monospace">{JSON.stringify(value)}</Text>;
+  if (value === null || value === undefined || value === "") return <MetaText>-</MetaText>;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return <BodyText>{String(value)}</BodyText>;
+  return <BodyText>{JSON.stringify(value)}</BodyText>;
 }
 
 export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "rangescout-hungary" }: { companyId: string; defaultVisitorKey?: string }) {
@@ -105,10 +107,12 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "rangescout
             <Tabs.Panel value="blueprint" pt="md">
               <Stack>
                 {sections.map(([label, value]) => (
-                  <Paper key={label} withBorder p="md">
-                    <Title order={5}>{label}</Title>
-                    <RowValue value={value} />
-                  </Paper>
+                  <UnifiedCard key={label} tone="neutral">
+                    <UnifiedCardHeader title={label} />
+                    <UnifiedCardBody>
+                      <RowValue value={value} />
+                    </UnifiedCardBody>
+                  </UnifiedCard>
                 ))}
               </Stack>
             </Tabs.Panel>

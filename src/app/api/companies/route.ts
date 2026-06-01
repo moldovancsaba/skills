@@ -7,6 +7,7 @@ import { normalizeIndustryHashtags } from "@/lib/hashtags";
 import { validateCompanyProfile } from "@/lib/profile-validation";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
 import { createRequestProfiler } from "@/lib/request-profile";
+import { provisionCompany } from "@/lib/check-lifecycle/provisioning-engine";
 
 export const dynamic = 'force-dynamic';
 
@@ -106,7 +107,11 @@ export async function POST(request: NextRequest) {
     if (auth.error) return auth.error;
     const { session } = auth;
 
-    const data = await request.json();
+    const dataRaw = await request.json().catch(() => ({}));
+    if (!dataRaw || typeof dataRaw !== "object" || Array.isArray(dataRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = dataRaw as Record<string, any>;
     
     // Validate Profile
     const v = validateCompanyProfile(data);
@@ -140,11 +145,14 @@ export async function POST(request: NextRequest) {
       createData.mainGoal = data.mainGoal;
     }
     
-    const company = await prisma.company.create({
-      data: createData,
+    const provisioned = await provisionCompany({
+      company: createData,
+      destinationKeys: Array.isArray(data.destinationKeys) ? data.destinationKeys : [],
+      actorId: session.email,
+      source: "api:companies:create",
     });
     
-    return NextResponse.json(company);
+    return NextResponse.json(provisioned);
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -160,7 +168,11 @@ export async function PATCH(request: NextRequest) {
     const auth = await verifySuperAdmin(request);
     if (auth.error) return auth.error;
 
-    const data = await request.json();
+    const dataRaw = await request.json().catch(() => ({}));
+    if (!dataRaw || typeof dataRaw !== "object" || Array.isArray(dataRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = dataRaw as Record<string, any>;
     
     // Validate Profile (Partial validation for PATCH)
     const v = validateCompanyProfile(data);

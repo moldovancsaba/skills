@@ -1,10 +1,10 @@
-# CHECKLIST Product SSOT
+# check Product SSOT
 
 This is the product and system single source of truth.
 
 It is subordinate only to [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md).
 
-For design, UI, and UX governance, `/Users/Shared/Projects/general-design-system` is the current checked-out external SSOT, and the governed upstream repository is `sovereignsquad/general-design-system`. CHECKLIST-local design documents define implementation adapter details, migration state, validation commands, and approved product-specific exceptions only.
+For design, UI, and UX governance, `/Users/Shared/Projects/general-design-system` is the current checked-out external SSOT, and the governed upstream repository is `sovereignsquad/general-design-system`. `check`-local design documents define implementation adapter details, migration state, validation commands, and approved product-specific exceptions only.
 
 Current GDS alignment:
 
@@ -12,13 +12,17 @@ Current GDS alignment:
 - GDS last updated: `2026-05-25`
 - shared package install path: not adopted yet in this repo; target end state is direct package consumption through `@gds/theme`, `@gds/core`, and `@gds/admin`
 
-Future-function delivery rules are further defined in [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md).
+Foundation and future-function delivery rules are further defined in [docs/CHECK_FOUNDATION_LLD.md](/Users/Shared/Projects/checklist/docs/CHECK_FOUNDATION_LLD.md) and [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md).
 
 ## 1. Product Purpose
 
-CHECKLIST is a continuously operating, multi-tenant intelligence system that transforms raw business evidence into structured knowledge, goals, and tactical work.
+`check` is a continuously operating, multi-tenant intelligence platform that transforms raw business evidence into structured knowledge, goals, tactical work, sales opportunities, project work, and Miniapp content where those Blocks are enabled.
 
-It is a general company decision-maker, task manager, and AI support system.
+It serves Units. A Unit may represent a company, organization, team, or intelligence operation.
+
+The Webapp is the B2B operator UI for `check`.
+
+Local is the local AI service that performs heavy research, scoring, maintenance, learning, and queue execution.
 
 It is not the product SSOT for:
 
@@ -35,15 +39,33 @@ Internal governance exception:
 
 Delegated destination-app exception:
 
-- company-scoped destination apps such as `ClassScout` may exist inside the authenticated shell when they stay bounded to one destination workflow domain
-- they must not pretend to be a generic company dashboard or checklist-core module family
-- they must own one canonical route, one bounded landing summary contract, and one explicit deep-link policy
+- public Miniapps such as `ClassScout` and `Compare` may be powered by a Unit
+- their Webapp-side Miniapp Ops surfaces may exist inside the authenticated shell
+- the public Miniapp is not the Webapp operator surface
+- Miniapp Ops must own one canonical route, one bounded landing summary contract, and one explicit deep-link policy
 
 ## 2. Core Model
 
-The product is card-based.
+The product is Unit-based, Block-enabled, Module-composed, and Card-based.
 
-Primary user-facing layers:
+Primary terms:
+
+- Unit
+- Block
+- Module
+- Card
+- Miniapp
+- Webapp
+- Local
+
+Current Blocks:
+
+- Checklist
+- Sales
+- Project
+- Miniapp
+
+Current Modules:
 
 - Data
 - Topics
@@ -57,7 +79,15 @@ Primary user-facing layers:
 - Observability
 - Workflows
 
-Anything outside those layers belongs to `IDEABANK`, a dedicated external product board, or a future explicitly approved promotion into checklist-core.
+Anything outside those Blocks and Modules belongs to `IDEABANK`, a dedicated external product board, or a future explicitly approved promotion into the `check` Block/Module/Card/Miniapp contract.
+
+Block rules:
+
+- Blocks are optional per Unit
+- Modules are reusable by multiple Blocks
+- a Unit can run Sales without Checklist
+- a Unit can run Project without intelligence automation
+- a Unit can run Miniapp Ops without making the Miniapp a Webapp screen
 
 ## 3. System Stack
 
@@ -158,14 +188,14 @@ Foreground execution contract:
    - complete or fail that job
 5. rest briefly
 
-Destination-service execution contract:
+Miniapp execution contract:
 
-- destination services are not allowed to run as a parallel shadow scheduler beside the general playlist
-- ClassScout destination work must be materialized into the same queue-owned worker lane as other checklist jobs
+- Miniapp services are not allowed to run as a parallel shadow scheduler beside the general playlist
+- ClassScout and Compare Miniapp work must be materialized into the same queue-owned worker lane as other `check` jobs
 - the current shipped bridge uses the claimable `DESTINATION_MISSION_DAEMON` queue job to dispatch into the internal mission daemon runtime for ClassScout
-- this bridge is a transitional implementation detail; the architectural rule is that destination work is queue-owned, single-lane, and visible in mission control
+- this bridge is a transitional implementation detail; the architectural rule is that Miniapp work is queue-owned, single-lane, and visible in mission control
 - the current shipped ClassScout operator home route is `/{companyId}/classscout`
-- that route is allowed to aggregate destination-owned review, live-catalog, mission-control, and unit-project-board state behind one bounded landing contract
+- that route is allowed to aggregate Miniapp-owned review, live-catalog, mission-control, and Project Board state behind one bounded landing contract
 
 The older broad per-company “load companies and run a full synthesis cycle” description is no longer the runtime contract.
 
@@ -191,19 +221,20 @@ Authoritative per-company product projection:
 Hot product reads that should prefer that projection:
 
 - company list
-- company dashboard
+- Unit workspace
 - company nav/sidebar counts
 - tactical/checklist planning summaries
+- enabled Block summaries where a Block is hot-path user-facing
 
 Dashboard route contract:
 
-- the home/main dashboard should bootstrap from server-loaded prepared company data on the first response
-- the company dashboard should bootstrap from server-loaded prepared data on the first response
+- the home/Webapp home should bootstrap from server-loaded prepared company data on the first response
+- the Unit workspace should bootstrap from server-loaded prepared data on the first response
 - the authenticated shell should bootstrap basic user identity from the signed server session where possible
 - home summary charts should not all hydrate eagerly on first paint; defer heavy chart rendering until the cards approach the viewport
 - non-critical panels such as membership or identity details should not block the first product-summary render
 - home-card chart data should come from the prepared projection too, not from broad snapshot analytics reads on the hot path
-- if a company has an active delegated destination app such as ClassScout, the root `/{companyId}` route may intentionally resolve to that destination home instead of the generic tile dashboard
+- if a Unit has an active Miniapp such as ClassScout or Compare, the root `/{companyId}` route may intentionally resolve to that Miniapp Ops Home instead of a generic tile dashboard
 - this exception must remain bounded by a dedicated landing summary contract and must not become a broad ad hoc analytics fan-out route
 
 Allowed bounded fallback:
@@ -233,7 +264,7 @@ The repetitive-job contract now also includes:
 - queue-topology refresh on claim miss is also delegated out of the foreground lane; `snapshot-worker` owns the background queue-sync cadence and may be force-woken by foreground
 - touched-company projection refresh now follows the same background ownership pattern: successful company work marks the company projection-dirty, and `snapshot-worker` drains those targeted repairs before the slower broad snapshot sweep
 - `snapshot-worker` also performs bounded cold-start projection backfill so missing or outdated product projections are repaired even before a company is touched again
-- the home/main dashboard is now part of the same server-bootstrap contract: it should not wait for post-mount company/session/industry fetch waterfalls when prepared product data is available
+- the home/Webapp home is now part of the same server-bootstrap contract: it should not wait for post-mount company/session/industry fetch waterfalls when prepared product data is available
 - persistent slowness on authenticated product routes should be investigated through real live-route profiling (`Server-Timing` plus `npm run profile:webapp`) rather than further blind trimming
 
 Backlog contract:
@@ -289,7 +320,7 @@ Tactical placement contract:
 
 ## 6. AI Brain Rule
 
-In CHECKLIST, the “AI brain” is not just model prompts.
+In `check`, the “AI brain” is not just model prompts.
 It also includes the repository rule and handover documents that future agents use as operating memory.
 
 Whenever the live contract changes, the AI brain must be updated in the same work.
@@ -297,7 +328,8 @@ Whenever the live contract changes, the AI brain must be updated in the same wor
 Minimum required updates:
 
 - `docs/RULEBOOK.md`
-- `HANDOVER.md`
+- `docs/CHECK_FOUNDATION_HANDOVER.md`
+- `docs/CHECK_FOUNDATION_LLD.md`
 
 Plus every directly affected deeper contract doc.
 

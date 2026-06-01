@@ -9,7 +9,7 @@ export default async function ClassScoutPage(
   const access = await requireUnitRouteAccess({
     companyId,
     requestPath: `/${companyId}/classscout`,
-    requiredProfiles: "CLASSSCOUT",
+    requiredMiniapps: "classscout",
   });
 
   if (!access.allowed) {

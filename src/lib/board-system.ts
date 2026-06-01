@@ -24,6 +24,7 @@ export type BoardMoveRequest = {
 export const BOARD_RANK_STEP = 1024;
 export const BOARD_REBALANCE_MIN_GAP = 0.0001;
 
+// Tactical planning board used by the checklist/tactical work surface.
 export const CHECKLIST_BOARD_COLUMNS: BoardColumn[] = [
   { key: "IDEABANK", label: "Idea Bank", description: "Someday", tone: "neutral" },
   { key: "ROADMAP", label: "Roadmap", description: "Later", tone: "strategy" },
@@ -32,6 +33,7 @@ export const CHECKLIST_BOARD_COLUMNS: BoardColumn[] = [
   { key: "CHECKLIST", label: "Now", description: "Active delivery", tone: "checklist" },
 ];
 
+// Shared runtime board schema used by unit-board and cross-surface board projections.
 export const PROJECT_BOARD_COLUMNS: BoardColumn[] = [
   { key: "IDEABANK", label: "Idea Bank", description: "Someday", tone: "neutral" },
   { key: "ROADMAP", label: "Roadmap", description: "Later", tone: "strategy" },

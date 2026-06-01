@@ -1,4 +1,4 @@
-# CHECKLIST Rulebook
+# check Rulebook
 
 This is the highest-priority repository rulebook.
 
@@ -12,16 +12,49 @@ The repository must be interpreted in this order:
 1. `docs/RULEBOOK.md`
 2. `docs/SSOT.md`
 3. `docs/SYSTEM_DESIGN_LLD.md`
-4. `docs/IMPLEMENTATION_RULEBOOK.md`
-5. `DESIGN_SYSTEM.md`
-6. `docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md`
-7. `HANDOVER.md`
-8. `DESIGN_SYSTEM_AGENT_HANDOFF.md`
-9. any older plan, audit, or historical note
+4. `docs/CHECK_FOUNDATION_LLD.md`
+5. `docs/IMPLEMENTATION_RULEBOOK.md`
+6. `docs/CANONICAL_TERMINOLOGY.md`
+7. `DESIGN_SYSTEM.md`
+8. `docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md`
+9. `HANDOVER.md`
+10. `DESIGN_SYSTEM_AGENT_HANDOFF.md`
+11. any older plan, audit, or historical note
 
 No lower document is allowed to redefine a higher-level rule.
 
-## 1.1 Professional Truthfulness Rule
+## 1.1 Mandatory Design System Authority
+
+All UI, UX, and frontend work in `check` must exclusively follow the Sovereign Squad General Design System.
+
+Authoritative source:
+
+- local checkout: `/Users/Shared/Projects/general-design-system`
+- upstream repository: `sovereignsquad/general-design-system`
+
+Non-negotiable rules:
+
+- do not introduce parallel component libraries
+- do not introduce local visual systems
+- do not introduce local token systems
+- do not introduce non-GDS interaction primitives
+- do not create page-specific typography, spacing, color, radius, elevation, motion, or layout grammar outside the GDS contract
+- do not bypass GDS accessibility rules
+- do not treat Mantine defaults as product design unless wrapped, themed, or explicitly approved by the GDS contract
+- do not ship UI that is only visually correct but fails keyboard, screen-reader, focus, contrast, reduced-motion, or semantic HTML requirements
+
+Repository-local design files may define adapters, migration state, validation commands, and approved exceptions only.
+They may not redefine the design system.
+
+Any approved exception must be documented with:
+
+- reason
+- affected surface
+- expected lifetime
+- rollback/removal plan
+- accessibility impact
+
+## 1.2 Professional Truthfulness Rule
 
 This repository is maintained under professional product-development standards.
 
@@ -38,6 +71,26 @@ When the system is non-compliant, that must be stated directly.
 
 ## 2. What We Use
 
+Canonical product language:
+
+- `check` is the full platform
+- `Unit` is one company, organization, team, or intelligence operation
+- `Block` is an optional product capability enabled inside a Unit
+- `Module` is a reusable functional area used by Blocks
+- `Card` is the atomic object managed by Modules and Blocks
+- `Miniapp` is a public-facing app powered by a Unit
+- `Webapp` is the B2B UI for operating `check`
+- `Local` is the local AI service
+
+Rules:
+
+- do not use `Checklist` as the name for the full platform
+- do not describe a main Webapp as a product concept; say `Webapp`
+- do not treat the Checklist Block as mandatory for every Unit
+- any Unit may enable only the Blocks it needs
+- Miniapps such as ClassScout and Compare are public apps, not Webapp screens
+- Miniapp Ops workspaces inside Webapp operate Miniapps but are not the Miniapps themselves
+
 Approved application stack:
 
 - Next.js 16 App Router
@@ -48,10 +101,11 @@ Approved application stack:
 - MongoDB Atlas
 - Ollama
 
-Approved product UI system:
+Approved product UI implementation lane:
 
-- Mantine only
-- Mantine theme only
+- Sovereign Squad General Design System only
+- Mantine only as the approved implementation substrate where it is GDS-themed, wrapped, or explicitly allowed
+- Mantine theme only through the approved GDS/local adapter contract
 - Mantine `Card` as the only approved base card primitive
 - `UnifiedCard` as the only approved feature-level product card API
 - `UnifiedCardModal` as the only approved modal content shell for product cards
@@ -73,7 +127,11 @@ Approved product UI system:
 - source-backed knowledge must persist durable citation snapshots and explicit conflict state; URL-only provenance is not accepted
 - the active self-learning path must stay Apple-Silicon-native: dataset export plus MLX / MLX-LM training plus Ollama deployment
 - Unsloth, LLaMA-Factory, and Axolotl are not part of the active delivery plan today and must not be represented as current rollout dependencies
-- delegated destination-unit workflow state is forbidden on the shared company dashboard: ClassScout or other destination mission-control, live-listing, review-packet, or publish telemetry must stay inside dedicated destination/review/observability surfaces, not the main company dashboard
+- Miniapp workflow state is forbidden on a generic Unit Home unless that Home is the Miniapp Ops surface: ClassScout, Compare, or other Miniapp mission-control, live-listing, review-packet, or publish telemetry must stay inside dedicated Miniapp Ops, review, or observability surfaces
+- destination mission daemon behavior is shared infrastructure for all Miniapps; it must not fork into ClassScout-only or Compare-only runtime code paths for scheduling, execution, or policy resolution
+- destination mission daemon limit tuning is allowed only through the shared per-Unit policy contract in `company.workerConfig.destinationDaemonPolicy` (defaults + per-miniapp overrides), not through ad hoc route-specific constants
+- cron and manual daemon routes must preserve policy precedence: explicit request override, then per-miniapp policy, then shared environment defaults
+- every Miniapp lane must expose a destination maintenance adapter contract for approved publish sweep and stale/review-pressure sweep behavior; lane-specific logic is implemented inside the adapter, not by forking daemon orchestration
 
 ## 3. What We Do Not Use
 
@@ -324,13 +382,14 @@ Budget governor rules:
 
 ## 10. Product Boundary And Backlog Rules
 
-Checklist-core must stay within this product definition:
+`check` must stay within this product definition:
 
-- general company decision-maker
-- task manager
-- AI support system
+- general intelligence platform
+- optional Block system for Units
+- task manager and decision-support system where those Blocks are enabled
+- AI support system through Local
 
-Checklist-core may include:
+`check` may include:
 
 - evidence ingestion and enrichment
 - knowledge synthesis
@@ -340,8 +399,9 @@ Checklist-core may include:
 - observability
 - bounded workflows
 - evidence-backed forecasting, benchmarking, policy, and decision-support layers that serve general company operations
+- optional Sales, Project, and Miniapp Blocks when they obey Block/Module/Card boundaries
 
-Checklist-core must not quietly expand into first-class vertical products such as:
+`check` must not quietly expand into undeclared vertical products such as:
 
 - athlete or coach apps
 - marketing content studios
@@ -356,9 +416,13 @@ Rules:
 - vertical or experimental ideas belong in `IDEABANK` until explicitly promoted
 - autonomous implementation must work from active delivery columns, not from the `IDEABANK` column
 - issue labels or ideabank titles do not override board state; if an item is in `IDEABANK`, it is research-only by default
-- ideabank or vertical items must not be exposed in checklist navigation, checklist product SSOT docs, or checklist-core release claims
+- ideabank or vertical items must not be exposed in Webapp navigation, product SSOT docs, or release claims
 - athlete-specific work does not belong on the checklist project board; it belongs on the dedicated athlete project board
 - the only allowed internal exception is `Evaluation Bench` as an admin-only AI quality-governance surface; it must stay outside the main checklist navigation and be framed as internal observability/governance tooling
+- Block enablement must be explicit per Unit
+- Project Block cards must not inherit intelligence business logic by default
+- Sales Block must not require the Checklist Block
+- Miniapp Block must not turn Miniapps into Webapp screens
 
 ## 11. Mandatory Completion Rules
 

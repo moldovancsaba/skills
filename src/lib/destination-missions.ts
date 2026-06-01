@@ -2,11 +2,13 @@ import { DestinationMissionState, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ensureDestinationInstance } from "@/lib/destination-workflows";
 import type { DestinationKey } from "@/lib/destination-workflow-contract";
+import { normalizeDestinationKey } from "@/lib/destination-scope";
 import {
   type DestinationMissionAttemptOutcome,
   type DestinationMissionDefinitionConfig,
   type DestinationMissionKind,
   type DestinationRulebookPolicySnapshot,
+  getDefaultRulebookPolicyForDestination,
   normalizeMissionDefinitionConfig,
   normalizeRulebookPolicySnapshot,
 } from "@/lib/destination-mission-contract";
@@ -29,18 +31,30 @@ function toMissionState(
 }
 
 function normalizePolicySnapshot(
-  _destinationKey: DestinationKey,
+  destinationKey: DestinationKey,
   value?: Partial<DestinationRulebookPolicySnapshot> | null,
 ): DestinationRulebookPolicySnapshot {
-  return normalizeRulebookPolicySnapshot(value);
+  return normalizeRulebookPolicySnapshot({
+    ...getDefaultRulebookPolicyForDestination(destinationKey),
+    ...(value ?? {}),
+  });
 }
 
 function derivePolicyFromMissionDefinition(
-  _destinationKey: DestinationKey,
+  destinationKey: DestinationKey,
   config?: Partial<DestinationMissionDefinitionConfig> | null,
 ) {
-  const normalizedConfig = normalizeMissionDefinitionConfig(config);
-  const policy = normalizeRulebookPolicySnapshot(normalizedConfig.rulebookPolicy);
+  const destinationDefaults = getDefaultRulebookPolicyForDestination(destinationKey);
+  const configWithDestinationDefaults = {
+    rulebookPolicy: destinationDefaults,
+    listingTypeScope: destinationDefaults.allowedListingTypes,
+    ...(config ?? {}),
+  };
+  const normalizedConfig = normalizeMissionDefinitionConfig(configWithDestinationDefaults);
+  const policy = normalizeRulebookPolicySnapshot({
+    ...destinationDefaults,
+    ...normalizedConfig.rulebookPolicy,
+  });
   return {
     config: normalizedConfig,
     policy: normalizeRulebookPolicySnapshot({
@@ -86,7 +100,7 @@ export async function startDestinationMissionRun(input: {
     ? null
     : await resolveActiveDestinationMissionDefinition({
       companyId: input.companyId,
-      destinationKey: input.destinationKey as "classscout",
+      destinationKey: input.destinationKey,
       missionKind: input.missionKind,
     });
   const resolvedDefinition = requestedDefinition ?? activeDefinition;
@@ -470,12 +484,14 @@ export async function updateDestinationMissionPolicy(input: {
     },
   });
   if (!mission) return null;
+  const missionDestinationKey = normalizeDestinationKey(mission.destinationKey);
+  if (!missionDestinationKey) return null;
 
   const currentPolicy = normalizePolicySnapshot(
-    mission.destinationKey as DestinationKey,
+    missionDestinationKey,
     mission.policySnapshot.policyJson as Partial<DestinationRulebookPolicySnapshot>,
   );
-  const nextPolicy = normalizePolicySnapshot(mission.destinationKey as DestinationKey, {
+  const nextPolicy = normalizePolicySnapshot(missionDestinationKey, {
     ...currentPolicy,
     ...input.policyPatch,
   });

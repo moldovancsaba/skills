@@ -4,12 +4,23 @@ import { CompareHome } from "@/components/compare-home";
 import { Center, Loader, Stack } from "@mantine/core";
 import { Text } from "@/components/ui/typography";
 import { getDashboardInitialData } from "@/lib/server-company-page-data";
+import { resolveFirstSupportedDestinationKey } from "@/lib/destination-scope";
 
 export default async function CompanyPage(
   { params }: { params: Promise<{ companyId: string }> },
 ) {
   const { companyId } = await params;
   const initialData = companyId ? await getDashboardInitialData(companyId) : null;
+  const enabledMiniapps = Array.isArray(initialData?.enabledMiniapps) ? initialData.enabledMiniapps : [];
+  const firstEnabledMiniapp = resolveFirstSupportedDestinationKey(enabledMiniapps);
+
+  if (firstEnabledMiniapp === "classscout") {
+    return <ClassScoutHome companyId={companyId} />;
+  }
+
+  if (firstEnabledMiniapp === "compare") {
+    return <CompareHome companyId={companyId} />;
+  }
 
   if (initialData?.webappProfile === "CLASSSCOUT") {
     return <ClassScoutHome companyId={companyId} />;

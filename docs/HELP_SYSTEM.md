@@ -16,7 +16,7 @@ It covers three user needs:
 
 Location:
 
-- company dashboard
+- Unit workspace
 - primary card grid
 - positioned as the third card in the core workflow set
 

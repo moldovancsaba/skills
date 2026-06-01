@@ -41,7 +41,11 @@ export async function PATCH(request: NextRequest) {
     const auth = await verifyMembership(request, existing.companyId);
     if (auth.error) return auth.error;
 
-    const data = await request.json();
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as any;
     const normalizedScores = normalizeKnowledgeScores({
       impact: data.impact ?? existing.impact,
       confidence: data.confidenceScore ?? data.confidence ?? existing.confidenceScore ?? existing.confidence,

@@ -1,4 +1,4 @@
-# CHECKLIST Onboarding
+# check Onboarding
 
 Start here only after reading:
 
@@ -11,7 +11,7 @@ If you skip those, you do not have the current system contract.
 
 ## What The System Is
 
-CHECKLIST is a multi-tenant autonomous intelligence system with:
+check is a multi-tenant autonomous intelligence system with:
 
 - a recurrent AI processing loop
 - a card-based product model

@@ -22,7 +22,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const data = await request.json();
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as any;
     const { companyId, metrics, counts, state } = data;
 
     if (!companyId) return NextResponse.json({ error: "Missing companyId" }, { status: 400 });

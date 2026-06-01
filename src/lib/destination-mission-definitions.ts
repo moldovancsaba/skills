@@ -4,7 +4,9 @@ import {
   normalizeMissionDefinitionConfig,
   type DestinationMissionDefinitionConfig,
 } from "@/lib/destination-mission-contract";
+import { normalizeDestinationKey } from "@/lib/destination-scope";
 import { ensureDestinationInstance } from "@/lib/destination-workflows";
+import type { DestinationKey } from "@/lib/destination-workflow-contract";
 
 function asJson(value: Record<string, unknown> | null | undefined): Prisma.InputJsonValue {
   return ((value && Object.keys(value).length > 0 ? value : {}) as Prisma.InputJsonValue);
@@ -23,7 +25,7 @@ function normalizeMissionDefinitionStatus(value: unknown) {
 
 export async function listDestinationMissionDefinitions(input: {
   companyId: string;
-  destinationKey: "classscout";
+  destinationKey: DestinationKey;
   missionKind?: string;
 }) {
   return prisma.destinationMissionDefinition.findMany({
@@ -64,7 +66,7 @@ export async function getDestinationMissionDefinition(input: {
 
 export async function resolveActiveDestinationMissionDefinition(input: {
   companyId: string;
-  destinationKey: "classscout";
+  destinationKey: DestinationKey;
   missionKind: string;
 }) {
   return prisma.destinationMissionDefinition.findFirst({
@@ -86,7 +88,7 @@ export async function resolveActiveDestinationMissionDefinition(input: {
 
 export async function listSchedulableDestinationMissionDefinitions(input: {
   companyId: string;
-  destinationKey: "classscout";
+  destinationKey: DestinationKey;
   missionKind?: string;
 }) {
   const definitions = await prisma.destinationMissionDefinition.findMany({
@@ -119,7 +121,7 @@ export async function listSchedulableDestinationMissionDefinitions(input: {
 
 export async function createDestinationMissionDefinition(input: {
   companyId: string;
-  destinationKey: "classscout";
+  destinationKey: DestinationKey;
   missionKind: string;
   name: string;
   config?: Partial<DestinationMissionDefinitionConfig> | null;
@@ -349,13 +351,15 @@ export async function duplicateDestinationMissionDefinition(input: {
     definitionId: input.definitionId,
   });
   if (!definition) return null;
+  const destinationKey = normalizeDestinationKey(definition.destinationKey);
+  if (!destinationKey) return null;
 
   const normalizedConfig = normalizeMissionDefinitionConfig(
     definition.configJson as Partial<DestinationMissionDefinitionConfig>,
   );
   return createDestinationMissionDefinition({
     companyId: input.companyId,
-    destinationKey: definition.destinationKey as "classscout",
+    destinationKey,
     missionKind: definition.missionKind,
     name: `${definition.name} Copy`,
     config: normalizedConfig,

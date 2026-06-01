@@ -14,7 +14,11 @@ const VALID_ACTIONS = new Set<FlashcardActionType>([
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as any;
     const action = data.action as FlashcardActionType;
     const sanitizedAnnotation = sanitizeOptionalUserFacingText(data.annotation);
 

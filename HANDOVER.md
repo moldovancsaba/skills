@@ -1,4 +1,4 @@
-# CHECKLIST Handover
+# check Handover
 
 This handover is for future engineers and agents.
 It is operational memory, not marketing.
@@ -25,7 +25,8 @@ Read first:
 2. [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md)
 3. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 4. [docs/CANONICAL_TERMINOLOGY.md](/Users/Shared/Projects/checklist/docs/CANONICAL_TERMINOLOGY.md)
-5. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
+5. [docs/CHECK_FOUNDATION_LLD.md](/Users/Shared/Projects/checklist/docs/CHECK_FOUNDATION_LLD.md)
+6. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
 
 Prisma hygiene:
 
@@ -36,6 +37,16 @@ Prisma hygiene:
 
 ## Current Contract
 
+- the full platform product name is `check`
+- `Unit` means one company, organization, team, or intelligence operation
+- `Block` means an optional product capability enabled inside a Unit
+- `Module` means reusable functional machinery used by Blocks
+- `Card` means the atomic work object managed by Modules and Blocks
+- `Miniapp` means a public-facing app powered by a Unit
+- `Webapp` means the B2B UI for operating `check`
+- `Local` means the local AI service
+- `Checklist` is an optional Block, not the platform name
+- a Unit can run Sales without Checklist, Project without intelligence automation, and Miniapp Ops without treating the Miniapp as a Webapp screen
 - Mantine is the only approved product UI framework
 - the shared app shell owns persisted UI language selection for `English`, `Hungarian`, `Spanish`, `Arabic`, and `Hebrew`
 - visible UI language and company AI `allowedLanguages` policy are separate contracts and must not be conflated
@@ -73,8 +84,8 @@ Prisma hygiene:
 - the first major hardening slice is now shipped: snapshot refresh runs in a dedicated `snapshot-worker`, the foreground queue worker no longer shares that lane, and both lanes expose separate health/progress truth
 - the next product-performance hardening slice is now projection-first webapp reads: the local AI side prepares company read models so the online app does not keep recomputing hot-route summary counts live
 - the shipped follow-up slice now includes projection-backed planning summaries and projection-freshness telemetry for dashboard, tactical, and checklist surfaces
-- the shipped follow-up slice now also includes server-side company dashboard bootstrap from prepared projection data, so the first page response is no longer blocked on a client dashboard fetch
-- the shipped follow-up slice now also includes server-side home/main dashboard bootstrap plus projection-backed home-card chart payloads, so the landing route no longer needs to pull full snapshot analytics documents on first load
+- the shipped follow-up slice now also includes server-side Unit workspace bootstrap from prepared projection data, so the first page response is no longer blocked on a client dashboard fetch
+- the shipped follow-up slice now also includes server-side home/Webapp home bootstrap plus projection-backed home-card chart payloads, so the landing route no longer needs to pull full snapshot analytics documents on first load
 - the shipped follow-up slice now also includes server-bootstrapped shell identity, so the authenticated sidebar can render immediately from the signed session cookie instead of waiting for a post-mount identity request
 - the shipped follow-up slice now also defers home-card chart rendering until those cards approach the viewport, reducing up-front client chart work on the landing page
 - the shipped Knowmore follow-up slice now also server-bootstraps the first page and uses database-level paging/filtering for knowledge rows, so the route no longer loads the full corpus and slices it in memory
@@ -82,7 +93,7 @@ Prisma hygiene:
 - the immediate sibling audit also hardened Datacards and Topics: Datacards now uses the existing server loader for first paint, and Topics no longer loads the full company list just to resolve one company page shell
 - the next follow-up slice also hardened Goals and reduced Datacard file-load cost: Goals now server-bootstrap instead of waiting on the old client waterfall, and Datacards now page uploaded files instead of loading the full file corpus on first paint
 - the dashboard first response is now intentionally narrower: non-critical member and identity details are not supposed to sit on the critical product-summary path
-- delegated destination-unit workflow state must not be mounted on the shared company dashboard; keep ClassScout and other destination telemetry confined to their dedicated review, destination, or observability surfaces
+- Miniapp workflow state must not be mounted on a generic Unit Home unless that Home is the Miniapp Ops surface; keep ClassScout, Compare, and other Miniapp telemetry confined to dedicated Miniapp Ops, review, or observability surfaces
 - the shipped follow-up slice now also includes bounded cold-start projection backfill in `snapshot-worker`, so fresh or repaired environments do not sit indefinitely on missing product read models
 - startup integrity scrub cooldown now persists across restarts instead of firing again on every guardian bounce
 - planner telemetry now retries and degrades to best-effort on retryable Prisma write conflicts instead of failing the owning job
@@ -122,7 +133,7 @@ Prisma hygiene:
 - Unsloth, LLaMA-Factory, and Axolotl are parked research only right now; do not reopen them as active dependencies without an explicit architecture decision
 - the internal admin-only `Evaluations` surface now also reads local `training/runs/*/run-manifest.json` plus optional `evaluation-report.json` files so MLX candidate runs are visible in-product, not only from the shell
 - completed local learning runs can now be published from the Evaluations surface into the normal `OutcomeEvent` / observability ledger, so candidate progression is no longer filesystem-only
-- checklist-core is a general company decision-maker, task manager, and AI support system; vertical athlete, campaign-studio, or GTM-execution products do not belong in the core product contract
+- `check` is a general intelligence platform with optional Blocks; vertical athlete, campaign-studio, or GTM-execution products do not belong in the core product contract unless explicitly promoted as governed Blocks
 - the one allowed internal exception is `Evaluation Bench`, which may exist as an admin-only AI quality and regression surface under the observability/governance umbrella
 - budget controls are operator-applied and reviewable: queue throttling, evaluation batching, and cache/reuse policy changes do not silently suppress critical evidence work
 
@@ -176,7 +187,7 @@ System:
 - local transition or hover systems for product surfaces
 - alternative card shells
 - “one-off” visual exceptions without updating the rulebook and audit
-- athlete/coaching products, content-studio products, and GTM-execution products in the checklist navigation or checklist-core docs
+- athlete/coaching products, content-studio products, and GTM-execution products in Webapp navigation or core `check` docs unless explicitly promoted as governed Blocks
 
 ## Mandatory Update Rule
 
@@ -226,6 +237,7 @@ The work is not done until:
 - the same touched-company pattern now also matters for product projections: company list/dashboard/nav should prefer `IntelligenceSnapshot.webappProjection`, with background/local-AI refresh owning projection freshness instead of hot-route live fan-out.
 - after those shipped read-model and server-bootstrap slices, further dashboard slowness should be attacked with authenticated live-route profiling (`Server-Timing` plus `npm run profile:webapp`), not blind payload trimming.
 - future mini-app work must follow `docs/IMPLEMENTATION_RULEBOOK.md`; do not repeat the pattern where prepared data exists but the webapp still rebuilds or overfetches live state on hot routes.
+- future Block, Module, and Miniapp work must also follow `docs/CHECK_FOUNDATION_LLD.md`; do not add product behavior without explicit Unit, Block, Module, Card, Webapp, Local, and Miniapp boundaries.
 - Human drag-and-drop on the `AI Queue` board switches jobs into `HUMAN_GUIDED` mode.
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now expressed through persisted queue/repair intents; the local AI worker is the only authority that escalates queue work through the shared queue contract.

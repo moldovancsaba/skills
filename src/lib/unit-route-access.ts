@@ -7,6 +7,7 @@ import {
   type UnitModuleKey,
   type UnitWebappProfile,
 } from "@/lib/intelligence-unit-capabilities";
+import { resolveEffectiveUnitCapabilities, type ModuleKey, type BlockKey } from "@/lib/check-foundation";
 
 export type UnitRouteAccessError = {
   allowed: false;
@@ -25,12 +26,34 @@ export type UnitRouteAccessContext = {
   };
   profile: UnitWebappProfile;
   modules: Record<UnitModuleKey, boolean>;
+  enabledBlocks: BlockKey[];
+  enabledModules: ModuleKey[];
+  enabledMiniapps: string[];
   webappRoute: string | null;
 };
 
 type UnitRouteAccessState = UnitRouteAccessContext | UnitRouteAccessError;
 
+const LEGACY_MODULE_TO_CANONICAL: Partial<Record<UnitModuleKey, ModuleKey>> = {
+  content: "miniapp",
+  data: "data",
+  checklist: "checklist",
+  analytics: "analytics",
+  goals: "goals",
+  knowmore: "knowmore",
+  pipeline: "aiQueue",
+  review: "review",
+  sales: "sales",
+  tactical: "tactical",
+  topics: "topics",
+  "unit-board": "project",
+};
+
 function normalizeProfileFilter(input: UnitWebappProfile | UnitWebappProfile[]) {
+  return Array.isArray(input) ? input : [input];
+}
+
+function normalizeMiniappFilter(input: string | string[]) {
   return Array.isArray(input) ? input : [input];
 }
 
@@ -49,13 +72,16 @@ export async function requireUnitRouteAccess({
   requestPath,
   moduleKey,
   requiredProfiles = [],
+  requiredMiniapps = [],
 }: {
   companyId: string;
   requestPath: string;
   moduleKey?: UnitModuleKey;
   requiredProfiles?: UnitWebappProfile[] | UnitWebappProfile;
+  requiredMiniapps?: string[] | string;
 }): Promise<UnitRouteAccessState> {
   const requestedProfiles = normalizeProfileFilter(requiredProfiles);
+  const requestedMiniapps = normalizeMiniappFilter(requiredMiniapps).filter(Boolean);
 
   if (!companyId) {
     return {
@@ -129,6 +155,11 @@ export async function requireUnitRouteAccess({
     hasClassScoutDestination: Boolean(classScoutInstance),
     hasCompareDestination: Boolean(compareInstance),
   });
+  const effectiveCapabilities = resolveEffectiveUnitCapabilities({
+    workerConfig: company.workerConfig,
+    hasClassScoutDestination: Boolean(classScoutInstance),
+    hasCompareDestination: Boolean(compareInstance),
+  });
 
   if (moduleKey && capabilities.modules[moduleKey] === false) {
     return {
@@ -136,12 +167,31 @@ export async function requireUnitRouteAccess({
       redirectTo: `/${companyId}`,
     };
   }
+  if (moduleKey) {
+    const canonicalModule = LEGACY_MODULE_TO_CANONICAL[moduleKey];
+    if (canonicalModule && !effectiveCapabilities.enabledModules.includes(canonicalModule)) {
+      return {
+        allowed: false,
+        redirectTo: `/${companyId}`,
+      };
+    }
+  }
 
   if (!isAuthorizedProfile(capabilities.profile, requestedProfiles)) {
     return {
       allowed: false,
       redirectTo: resolveProfileFallback(companyId, capabilities.profile) ?? `/${companyId}`,
     };
+  }
+  if (requestedMiniapps.length > 0) {
+    const enabledMiniapps = new Set(effectiveCapabilities.enabledMiniapps);
+    const hasRequiredMiniapp = requestedMiniapps.some((miniappId) => enabledMiniapps.has(miniappId));
+    if (!hasRequiredMiniapp) {
+      return {
+        allowed: false,
+        redirectTo: `/${companyId}`,
+      };
+    }
   }
 
   return {
@@ -154,6 +204,9 @@ export async function requireUnitRouteAccess({
     },
     profile: capabilities.profile,
     modules: capabilities.modules,
+    enabledBlocks: effectiveCapabilities.enabledBlocks,
+    enabledModules: effectiveCapabilities.enabledModules,
+    enabledMiniapps: effectiveCapabilities.enabledMiniapps,
     webappRoute: getWebappRoute(capabilities.profile),
   };
 }

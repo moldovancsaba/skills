@@ -136,6 +136,9 @@ export async function GET(request: NextRequest) {
   const showAll = request.nextUrl.searchParams.get("all") === "true";
   const kanbanColumn = request.nextUrl.searchParams.get("kanbanColumn") ?? request.nextUrl.searchParams.get("column");
   const departmentKey = (request.nextUrl.searchParams.get("departmentKey") || SALES_DEPARTMENT_KEY) as DepartmentKey;
+  if (!companyId) {
+    return NextResponse.json({ error: "companyId required" }, { status: 400 });
+  }
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
 
@@ -217,19 +220,27 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
-    const auth = await verifyMembership(request, data.companyId);
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as any;
+    const companyId = typeof data.companyId === "string" ? data.companyId : "";
+    if (!companyId) {
+      return NextResponse.json({ error: "companyId required" }, { status: 400 });
+    }
+    const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
 
     if (data.mode === "MINE") {
-      await escalateCompanyPipelineJob(prisma as never, data.companyId, "MINE_OPPORTUNITYCARDS");
-      await markCompanyPipelineTopologyDirty(prisma, data.companyId, "manual-opportunity-mine");
+      await escalateCompanyPipelineJob(prisma as never, companyId, "MINE_OPPORTUNITYCARDS");
+      await markCompanyPipelineTopologyDirty(prisma, companyId, "manual-opportunity-mine");
       await recordInteractionEventFromRequest(request, {
-        companyId: data.companyId,
+        companyId,
         surface: "sales",
         interactionType: "OPPORTUNITY_MINE",
         entityType: "OPPORTUNITYCARD",
-        entityId: data.companyId,
+        entityId: companyId,
         payload: { queued: true },
         teachingWeight: 60,
       });
@@ -241,14 +252,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (data.mode === "SEARCH") {
-      await escalateCompanyPipelineJob(prisma as never, data.companyId, "SEARCH_OPPORTUNITYCARDS");
-      await markCompanyPipelineTopologyDirty(prisma, data.companyId, "manual-opportunity-search");
+      await escalateCompanyPipelineJob(prisma as never, companyId, "SEARCH_OPPORTUNITYCARDS");
+      await markCompanyPipelineTopologyDirty(prisma, companyId, "manual-opportunity-search");
       await recordInteractionEventFromRequest(request, {
-        companyId: data.companyId,
+        companyId,
         surface: "sales",
         interactionType: "OPPORTUNITY_SEARCH",
         entityType: "OPPORTUNITYCARD",
-        entityId: data.companyId,
+        entityId: companyId,
         payload: { queued: true, mode: "SEARCH_OPPORTUNITYCARDS" },
         teachingWeight: 70,
       });
@@ -295,7 +306,7 @@ export async function POST(request: NextRequest) {
       return tx.opportunitycard.create({
         data: {
           publicId,
-          companyId: data.companyId,
+          companyId,
           companyName: normalized.companyName,
           title: normalized.title,
           body: normalized.body,
@@ -330,11 +341,11 @@ export async function POST(request: NextRequest) {
         },
       });
     }, TRANSACTION_SETTINGS);
-    await rebalanceOpportunitycardsForCompany(data.companyId);
-    await markCompanyPipelineTopologyDirty(prisma, data.companyId, "opportunitycard-create");
+    await rebalanceOpportunitycardsForCompany(companyId);
+    await markCompanyPipelineTopologyDirty(prisma, companyId, "opportunitycard-create");
 
     await recordInteractionEventFromRequest(request, {
-      companyId: data.companyId,
+      companyId,
       surface: "sales",
       interactionType: "OPPORTUNITYCARD_CREATE",
       entityType: "OPPORTUNITYCARD",
@@ -360,7 +371,11 @@ export async function PATCH(request: NextRequest) {
     const id = request.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-    const data = await request.json();
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as any;
     const existing = await prisma.opportunitycard.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

@@ -26,6 +26,7 @@ function normalizeBoardColumnKey(adapter: ResolvedBoardAdapter, raw: unknown): s
   if (typeof raw === "string" && boardColumnKeys.has(raw)) {
     return raw;
   }
+  // Invalid or missing columns fall back to the first configured column for this surface.
   return adapter.columns[0]?.key ?? PROJECT_BOARD_COLUMNS[0].key;
 }
 
@@ -195,6 +196,7 @@ function serializeBoardItem(card: {
     createdBy: card.createdBy,
     createdAt: card.createdAt,
     updatedAt: card.updatedAt,
+    // Use explicit state if present; otherwise return the fallback column from the current board surface.
     columnKey: state?.columnKey ?? fallbackColumnKey,
     orderRank: Number(state?.orderRank ?? (fallbackIndex + 1) * BOARD_RANK_STEP),
     priority: Number(state?.priority ?? 0),
@@ -577,6 +579,7 @@ export async function PATCH(request: NextRequest) {
             boardKey,
             entityType: adapter.config.entityType,
             entityId: cardId,
+            // New metadata-only state rows should use the same column fallback as normal card writes.
             columnKey: adapter.columns[0]?.key ?? PROJECT_BOARD_COLUMNS[0].key,
             orderRank: BOARD_RANK_STEP,
             priority: requestedPriority ?? 1,

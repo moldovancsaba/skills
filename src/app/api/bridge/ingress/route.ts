@@ -40,6 +40,9 @@ function verifyLegacyHmac(payload: unknown, signature: string, secret: string) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
     const bridgeSecret = request.headers.get("x-bridge-secret");
     const signature = request.headers.get("x-bridge-signature");
     const timestamp = request.headers.get("x-bridge-timestamp");

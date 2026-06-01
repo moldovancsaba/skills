@@ -62,7 +62,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
     console.log(`[WRITER] Duplicate detected: fc:${flashCard.id} matches ${duplicate.publicId} (title sim: ${similarity(duplicate.title, flashCard.title).toFixed(2)}, body sim: ${similarity(duplicate.body, flashCard.body).toFixed(2)})`);
     return { 
       processingStatus: "DECLINED", 
-      reviewStatus: "DECLINED", // Legacy status bridge
+      reviewStatus: "DECLINED", // Keep review status aligned with compatibility consumers.
       activityState: "ARCHIVED", // Hide duplicates
       userAnnotation: `[WRITER]: Detected duplicate of #${duplicate.publicId}` 
     };
@@ -108,7 +108,7 @@ async function refineDraftFlashCard(prisma, flashCard, memoryPrompt, topic = nul
     confidenceScore: confidence,
     confidence: confidence,
     processingStatus: procStatus,
-    status: "CHECKED", // Legacy status bridge
+    status: "CHECKED", // Keep compatibility status field synchronized with processing state.
     activityState: "ACTIVE"
   };
 };
@@ -139,7 +139,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null,
     console.log(`[WRITER] Duplicate task detected: tc:${taskCard.id} matches ${tcDuplicate.publicId}`);
     return { 
       processingStatus: "DECLINED", 
-      status: "DECLINED", // Legacy status bridge
+      status: "DECLINED", // Keep compatibility status field synchronized with task lifecycle.
       activityState: "ARCHIVED", // Hide duplicates
       userAnnotation: `[WRITER]: Duplicate task detected. Matches #${tcDuplicate.publicId}.` 
     };
@@ -250,7 +250,7 @@ async function refineDraftTaskCard(prisma, taskCard, memoryPrompt, topic = null,
     iceScore,
     scoreProfile: raw._scoreProfile || null,
     processingStatus: procStatus,
-    status: "CHECKED", // Legacy status bridge
+    status: "CHECKED", // Keep compatibility status field synchronized with task lifecycle.
     activityState: "ACTIVE"
   };
 };

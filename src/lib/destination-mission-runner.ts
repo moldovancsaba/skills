@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { DestinationMissionState, DestinationWorkflowState, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
@@ -6,8 +6,13 @@ import {
   extractClassScoutCandidate,
   prepareClassScoutCandidateReview,
   scoreClassScoutCandidate,
-  type ClassScoutDiscoveryArtifact,
 } from "@/lib/destination-classscout";
+import {
+  discoverCompareCandidates,
+  extractCompareCandidate,
+  prepareCompareCandidateReview,
+  scoreCompareCandidate,
+} from "@/lib/destination-compare";
 import {
   advanceDestinationMissionAttempt,
   claimDestinationMissionAttempt,
@@ -18,13 +23,121 @@ import {
 import { createDestinationFactSnapshot, upsertDestinationCandidate, upsertDestinationSourceDocument } from "@/lib/destination-workflows";
 
 type CandidateRecord = Awaited<ReturnType<typeof listMissionCandidates>>[number];
+type SupportedDestinationKey = "classscout" | "compare";
+
+type AdapterOutcome = {
+  ok: boolean;
+  status?: number;
+  error?: unknown;
+  data?: Record<string, unknown>;
+};
+
+type DestinationAdapter = {
+  key: SupportedDestinationKey;
+  label: string;
+  discover(input: { maxTargets?: number; maxCandidates?: number }): Promise<AdapterOutcome>;
+  extract(input: { discoveryArtifact: Record<string, unknown> }): Promise<AdapterOutcome>;
+  score(input: { normalizedListing: Record<string, unknown> }): Promise<AdapterOutcome>;
+  prepare(input: {
+    normalizedListing: Record<string, unknown>;
+    draftId: string;
+    evidenceSummary?: Record<string, unknown>;
+    workflowMetadata: Record<string, unknown>;
+    mediaRequest?: Record<string, unknown> | null;
+    metadata?: Record<string, unknown> | null;
+  }): Promise<AdapterOutcome>;
+};
+
+const DESTINATION_ADAPTERS: Record<SupportedDestinationKey, DestinationAdapter> = {
+  classscout: {
+    key: "classscout",
+    label: "ClassScout",
+    discover: (input) => discoverClassScoutCandidates(input),
+    extract: (input) => extractClassScoutCandidate(input as never),
+    score: (input) => scoreClassScoutCandidate({ normalizedListing: input.normalizedListing as never }),
+    prepare: (input) => prepareClassScoutCandidateReview({
+      ...input,
+      normalizedListing: input.normalizedListing as never,
+    }),
+  },
+  compare: {
+    key: "compare",
+    label: "Compare",
+    discover: (input) => discoverCompareCandidates(input),
+    extract: (input) => extractCompareCandidate(input),
+    score: (input) => scoreCompareCandidate(input),
+    prepare: (input) => prepareCompareCandidateReview(input),
+  },
+};
+
+export const SUPPORTED_DESTINATION_MISSION_KEYS = Object.freeze(
+  Object.keys(DESTINATION_ADAPTERS) as SupportedDestinationKey[],
+);
 
 function asRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
+function asArray<T>(value: unknown) {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 function asStringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function artifactText(artifact: Record<string, unknown>) {
+  return [
+    artifact.artifactId,
+    artifact.title,
+    artifact.categoryHint,
+    artifact.listingKindHint,
+    artifact.searchQuery,
+    artifact.sourceHost,
+    artifact.sourceUrl,
+    ...(Array.isArray(artifact.scarcityTargets) ? artifact.scarcityTargets : []),
+  ]
+    .map((value) => String(value ?? "").toLowerCase())
+    .join(" ");
+}
+
+function evaluateDestinationDiscoveryArtifact(destinationKey: SupportedDestinationKey, artifact: Record<string, unknown>) {
+  if (destinationKey !== "compare") return { ok: true as const };
+
+  const text = artifactText(artifact);
+  const forbidden = [
+    "birthday",
+    "kids",
+    "children",
+    "camp",
+    "after-school",
+    "toddler",
+    "play space",
+    "nomadicmatt",
+    "travel guide",
+  ];
+  const requiredSignals = [
+    "shooting",
+    "range",
+    "rifle",
+    "pistol",
+    "shotgun",
+    "ipsc",
+    "idpa",
+    "hunting",
+    "hunter",
+    "competition",
+    "course",
+    "club",
+    "association",
+    "expo",
+  ];
+  const forbiddenHit = forbidden.find((term) => text.includes(term));
+  if (forbiddenHit) return { ok: false as const, reason: `forbidden_compare_signal:${forbiddenHit}` };
+  if (!requiredSignals.some((term) => text.includes(term))) {
+    return { ok: false as const, reason: "missing_compare_industry_signal" };
+  }
+  return { ok: true as const };
 }
 
 function asJsonRecord(value: Record<string, unknown>): Prisma.InputJsonValue {
@@ -75,6 +188,12 @@ function buildDomainAttemptMap(mission: NonNullable<Awaited<ReturnType<typeof ge
   return counts;
 }
 
+function getDestinationAdapter(destinationKey: string): DestinationAdapter | null {
+  return destinationKey === "classscout" || destinationKey === "compare"
+    ? DESTINATION_ADAPTERS[destinationKey]
+    : null;
+}
+
 async function listMissionCandidates(companyId: string, missionId: string) {
   return prisma.destinationCandidate.findMany({
     where: { companyId, workflowRunId: missionId },
@@ -85,47 +204,55 @@ async function listMissionCandidates(companyId: string, missionId: string) {
   });
 }
 
-function asArray<T>(value: unknown) {
-  return Array.isArray(value) ? (value as T[]) : [];
-}
-
 async function discoverMissionCandidates(input: {
   companyId: string;
   missionId: string;
+  destinationKey: SupportedDestinationKey;
   actorId: string;
   maxTargets?: number;
   maxCandidates?: number;
 }) {
-  const discovery = await discoverClassScoutCandidates({
+  const adapter = DESTINATION_ADAPTERS[input.destinationKey];
+  const discovery = await adapter.discover({
     maxTargets: input.maxTargets,
     maxCandidates: input.maxCandidates,
   });
   if (!discovery.ok) {
     return {
       ok: false as const,
-      error: typeof discovery.error === "string" ? discovery.error : "ClassScout discovery failed.",
+      error: typeof discovery.error === "string" ? discovery.error : `${adapter.label} discovery failed.`,
       status: discovery.status ?? 502,
     };
   }
 
-  const artifacts = asArray<ClassScoutDiscoveryArtifact>(discovery.data?.artifacts);
+  const artifacts = asArray<Record<string, unknown>>(discovery.data?.artifacts);
   const persisted = [];
+  const skipped = [];
 
   for (const artifact of artifacts) {
+    const artifactId = typeof artifact.artifactId === "string" ? artifact.artifactId : null;
+    const sourceUrl = typeof artifact.sourceUrl === "string" ? artifact.sourceUrl : null;
+    if (!artifactId || !sourceUrl) continue;
+    const artifactGate = evaluateDestinationDiscoveryArtifact(input.destinationKey, artifact);
+    if (!artifactGate.ok) {
+      skipped.push({ artifactId, sourceUrl, reason: artifactGate.reason });
+      continue;
+    }
+
     const sourceDocument = await upsertDestinationSourceDocument({
       companyId: input.companyId,
-      destinationKey: "classscout",
+      destinationKey: input.destinationKey,
       workflowRunId: input.missionId,
-      sourceUrl: artifact.sourceUrl,
+      sourceUrl,
       sourceType: "officialDiscovery",
-      officialnessScore: artifact.officialnessScore,
-      rawText: artifact.rawText,
+      officialnessScore: typeof artifact.officialnessScore === "number" ? artifact.officialnessScore : undefined,
+      rawText: typeof artifact.rawText === "string" ? artifact.rawText : "",
       metadata: {
-        artifactId: artifact.artifactId,
-        authorityGrade: artifact.authorityGrade,
-        searchQuery: artifact.searchQuery,
-        sourceHost: artifact.sourceHost,
-        title: artifact.title,
+        artifactId,
+        authorityGrade: typeof artifact.authorityGrade === "string" ? artifact.authorityGrade : null,
+        searchQuery: typeof artifact.searchQuery === "string" ? artifact.searchQuery : null,
+        sourceHost: typeof artifact.sourceHost === "string" ? artifact.sourceHost : null,
+        title: typeof artifact.title === "string" ? artifact.title : null,
         discoveredBy: input.actorId,
       },
       fetchedAt: new Date().toISOString(),
@@ -133,21 +260,21 @@ async function discoverMissionCandidates(input: {
 
     const candidate = await upsertDestinationCandidate({
       companyId: input.companyId,
-      destinationKey: "classscout",
+      destinationKey: input.destinationKey,
       workflowRunId: input.missionId,
-      candidateFingerprint: artifact.artifactId,
-      canonicalSourceUrl: artifact.sourceUrl,
-      proposedType: artifact.listingKindHint,
+      candidateFingerprint: artifactId,
+      canonicalSourceUrl: sourceUrl,
+      proposedType: typeof artifact.listingKindHint === "string" ? artifact.listingKindHint : undefined,
       metadata: {
-        title: artifact.title,
-        categoryHint: artifact.categoryHint,
-        boroughGuess: artifact.boroughGuess,
-        neighborhoodGuess: artifact.neighborhoodGuess,
-        authorityGrade: artifact.authorityGrade,
-        prefilterReasons: artifact.prefilterReasons,
-        searchQuery: artifact.searchQuery,
-        scarcityTargets: artifact.scarcityTargets,
-        scoreResult: artifact.scoreResult,
+        title: typeof artifact.title === "string" ? artifact.title : null,
+        categoryHint: typeof artifact.categoryHint === "string" ? artifact.categoryHint : null,
+        boroughGuess: typeof artifact.boroughGuess === "string" ? artifact.boroughGuess : null,
+        neighborhoodGuess: typeof artifact.neighborhoodGuess === "string" ? artifact.neighborhoodGuess : null,
+        authorityGrade: typeof artifact.authorityGrade === "string" ? artifact.authorityGrade : null,
+        prefilterReasons: Array.isArray(artifact.prefilterReasons) ? artifact.prefilterReasons : [],
+        searchQuery: typeof artifact.searchQuery === "string" ? artifact.searchQuery : null,
+        scarcityTargets: Array.isArray(artifact.scarcityTargets) ? artifact.scarcityTargets : [],
+        scoreResult: asRecord(artifact.scoreResult),
         sourceDocumentId: sourceDocument.id,
         discoveryArtifact: artifact,
       },
@@ -156,7 +283,7 @@ async function discoverMissionCandidates(input: {
     persisted.push({ artifact, candidate, sourceDocument });
   }
 
-  return { ok: true as const, persisted };
+  return { ok: true as const, persisted, skipped };
 }
 
 function selectNextCandidate(
@@ -213,7 +340,11 @@ function buildEvidenceSummary(candidate: CandidateRecord, evidenceMap: Record<st
   };
 }
 
-export async function executeClassScoutMissionNextAttempt(input: {
+function candidateFingerprint(input: Record<string, unknown>) {
+  return createHash("sha256").update(JSON.stringify(input)).digest("hex");
+}
+
+export async function executeDestinationMissionNextAttempt(input: {
   companyId: string;
   missionId: string;
   actorId: string;
@@ -228,12 +359,14 @@ export async function executeClassScoutMissionNextAttempt(input: {
     if (!mission) {
       return { ok: false, error: "Mission run not found", status: 404, trail };
     }
-    if (mission.destinationKey !== "classscout") {
+    const adapter = getDestinationAdapter(mission.destinationKey);
+    if (!adapter) {
       return { ok: false, error: "Mission destination is not supported", status: 400, trail };
     }
     if (mission.state === DestinationMissionState.PAUSED) {
       return { ok: false, error: "Mission run is paused", status: 409, trail };
     }
+
     const terminalStates: DestinationMissionState[] = [
       DestinationMissionState.PUBLISHED_VERIFIED,
       DestinationMissionState.EXHAUSTED,
@@ -248,16 +381,19 @@ export async function executeClassScoutMissionNextAttempt(input: {
     const selection = selectNextCandidate(mission, candidates, Math.max(1, policy.maxDomainRetries ?? 2));
     trail.push({
       step: "selection",
+      destinationKey: adapter.key,
       availableCandidates: candidates.length,
       skipped: selection.skipped,
       domainAttempts: selection.domainAttempts,
     });
+
     const candidate = selection.candidate;
     if (!candidate) {
       if (!discoveryRefreshed) {
         const discoveryResult = await discoverMissionCandidates({
           companyId: input.companyId,
           missionId: mission.id,
+          destinationKey: adapter.key,
           actorId: input.actorId,
           maxTargets: 4,
           maxCandidates: 6,
@@ -267,7 +403,9 @@ export async function executeClassScoutMissionNextAttempt(input: {
           discoveryRefreshed = true;
           trail.push({
             step: "discover_refresh",
+            destinationKey: adapter.key,
             discoveredCount: discoveryResult.persisted.length,
+            skippedDiscoveryCount: discoveryResult.skipped.length,
           });
           if (mission.state === DestinationMissionState.QUEUED) {
             await transitionDestinationMissionState({
@@ -277,7 +415,9 @@ export async function executeClassScoutMissionNextAttempt(input: {
               metadata: {
                 discoveredBy: input.actorId,
                 discoveredCount: discoveryResult.persisted.length,
-                source: "executeClassScoutMissionNextAttempt",
+                skippedDiscoveryCount: discoveryResult.skipped.length,
+                skippedDiscovery: discoveryResult.skipped.slice(0, 10),
+                source: "executeDestinationMissionNextAttempt",
               },
             }).catch(() => null);
           }
@@ -286,6 +426,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
 
         trail.push({
           step: "discover_refresh_failed",
+          destinationKey: adapter.key,
           error: discoveryResult.error,
         });
       }
@@ -295,19 +436,20 @@ export async function executeClassScoutMissionNextAttempt(input: {
         missionId: mission.id,
         outcome: "EXHAUSTED",
         metadata: {
-          source: "executeClassScoutMissionNextAttempt",
+          source: "executeDestinationMissionNextAttempt",
           actorId: input.actorId,
           lastSelectionSkipped: selection.skipped,
           domainAttempts: selection.domainAttempts,
         },
       });
-      trail.push({ step: "exhausted", reason: "no_remaining_candidates", skipped: selection.skipped });
+      trail.push({ step: "exhausted", destinationKey: adapter.key, reason: "no_remaining_candidates", skipped: selection.skipped });
       return { ok: true, mission: exhausted, trail, terminal: true };
     }
 
     const metadata = asRecord(candidate.metadata);
-    const discoveryArtifact = asRecord(metadata?.discoveryArtifact) as ClassScoutDiscoveryArtifact | null;
+    const discoveryArtifact = asRecord(metadata?.discoveryArtifact);
     const candidateDomain = inferCandidateDomain(candidate);
+
     if (!discoveryArtifact) {
       const nextRun = await advanceDestinationMissionAttempt({
         companyId: input.companyId,
@@ -322,7 +464,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
           candidateDomain: candidateDomain || undefined,
         },
         metadata: {
-          source: "executeClassScoutMissionNextAttempt",
+          source: "executeDestinationMissionNextAttempt",
           actorId: input.actorId,
           candidateDomain: candidateDomain || null,
         },
@@ -331,7 +473,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
         where: { id: candidate.id },
         data: { status: DestinationWorkflowState.REJECTED },
       });
-      trail.push({ step: "reject", candidateId: candidate.id, reason: "missing_discovery_artifact" });
+      trail.push({ step: "reject", destinationKey: adapter.key, candidateId: candidate.id, reason: "missing_discovery_artifact" });
       if (nextRun?.state === DestinationMissionState.EXHAUSTED) {
         return { ok: true, mission: nextRun, trail, terminal: true };
       }
@@ -343,21 +485,21 @@ export async function executeClassScoutMissionNextAttempt(input: {
       missionId: mission.id,
       candidateId: candidate.id,
       workflowRunId: mission.id,
-        candidateFingerprint: candidate.candidateFingerprint,
-        metadata: {
-          source: "executeClassScoutMissionNextAttempt",
-          actorId: input.actorId,
-          selectedCandidateId: candidate.id,
-          candidateDomain: candidateDomain || null,
-        },
-      });
+      candidateFingerprint: candidate.candidateFingerprint,
+      metadata: {
+        source: "executeDestinationMissionNextAttempt",
+        actorId: input.actorId,
+        selectedCandidateId: candidate.id,
+        candidateDomain: candidateDomain || null,
+      },
+    });
 
     let normalizedListing = asRecord(candidate.factSnapshots[0]?.factsJson);
     let evidenceMap = asRecord(asRecord(candidate.factSnapshots[0]?.provenanceJson)?.evidenceMap);
     let mediaRequest: Record<string, unknown> | null = null;
 
     if (!normalizedListing || !evidenceMap) {
-      const extraction = await extractClassScoutCandidate({ discoveryArtifact });
+      const extraction = await adapter.extract({ discoveryArtifact });
       if (!extraction.ok) {
         const nextRun = await advanceDestinationMissionAttempt({
           companyId: input.companyId,
@@ -372,7 +514,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
             candidateDomain: candidateDomain || undefined,
           },
           metadata: {
-            source: "executeClassScoutMissionNextAttempt",
+            source: "executeDestinationMissionNextAttempt",
             actorId: input.actorId,
             candidateDomain: candidateDomain || null,
           },
@@ -381,7 +523,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
           where: { id: candidate.id },
           data: { status: DestinationWorkflowState.FAILED },
         });
-        trail.push({ step: "reject", candidateId: candidate.id, reason: "extraction_failed" });
+        trail.push({ step: "reject", destinationKey: adapter.key, candidateId: candidate.id, reason: "extraction_failed" });
         if (nextRun?.state === DestinationMissionState.EXHAUSTED) {
           return { ok: true, mission: nextRun, trail, terminal: true };
         }
@@ -392,7 +534,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
       normalizedListing = asRecord(result?.normalizedListing);
       evidenceMap = asRecord(result?.evidenceMap);
       mediaRequest = asRecord(result?.mediaRequest);
-      const extractorVersion = typeof result?.extractorVersion === "string" ? result.extractorVersion : "classscout-extractor@unknown";
+      const extractorVersion = typeof result?.extractorVersion === "string" ? result.extractorVersion : `${adapter.key}-extractor@unknown`;
 
       if (!normalizedListing || !evidenceMap) {
         const nextRun = await advanceDestinationMissionAttempt({
@@ -408,7 +550,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
             candidateDomain: candidateDomain || undefined,
           },
           metadata: {
-            source: "executeClassScoutMissionNextAttempt",
+            source: "executeDestinationMissionNextAttempt",
             actorId: input.actorId,
             candidateDomain: candidateDomain || null,
           },
@@ -417,7 +559,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
           where: { id: candidate.id },
           data: { status: DestinationWorkflowState.REJECTED },
         });
-        trail.push({ step: "reject", candidateId: candidate.id, reason: "extraction_missing_facts" });
+        trail.push({ step: "reject", destinationKey: adapter.key, candidateId: candidate.id, reason: "extraction_missing_facts" });
         if (nextRun?.state === DestinationMissionState.EXHAUSTED) {
           return { ok: true, mission: nextRun, trail, terminal: true };
         }
@@ -426,7 +568,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
 
       await createDestinationFactSnapshot({
         companyId: input.companyId,
-        destinationKey: "classscout",
+        destinationKey: adapter.key,
         candidateId: candidate.id,
         factsJson: normalizedListing,
         provenanceJson: {
@@ -437,13 +579,10 @@ export async function executeClassScoutMissionNextAttempt(input: {
         },
         extractorVersion,
       });
-      trail.push({ step: "extract", candidateId: candidate.id });
+      trail.push({ step: "extract", destinationKey: adapter.key, candidateId: candidate.id });
     }
 
-    const scoreResult = await scoreClassScoutCandidate({
-      normalizedListing: normalizedListing as never,
-    });
-
+    const scoreResult = await adapter.score({ normalizedListing: normalizedListing as Record<string, unknown> });
     if (!scoreResult.ok) {
       const nextRun = await advanceDestinationMissionAttempt({
         companyId: input.companyId,
@@ -452,22 +591,22 @@ export async function executeClassScoutMissionNextAttempt(input: {
         workflowRunId: mission.id,
         candidateFingerprint: candidate.candidateFingerprint,
         outcome: {
-            terminalKind: "retryable_failure",
-            rejectionCode: "scoring_failed",
-            rejectionDetail: typeof scoreResult.error === "string" ? scoreResult.error : "Candidate scoring failed.",
-            candidateDomain: candidateDomain || undefined,
-          },
-          metadata: {
-            source: "executeClassScoutMissionNextAttempt",
-            actorId: input.actorId,
-            candidateDomain: candidateDomain || null,
-          },
-        });
+          terminalKind: "retryable_failure",
+          rejectionCode: "scoring_failed",
+          rejectionDetail: typeof scoreResult.error === "string" ? scoreResult.error : "Candidate scoring failed.",
+          candidateDomain: candidateDomain || undefined,
+        },
+        metadata: {
+          source: "executeDestinationMissionNextAttempt",
+          actorId: input.actorId,
+          candidateDomain: candidateDomain || null,
+        },
+      });
       await prisma.destinationCandidate.update({
         where: { id: candidate.id },
         data: { status: DestinationWorkflowState.FAILED },
       });
-      trail.push({ step: "reject", candidateId: candidate.id, reason: "scoring_failed" });
+      trail.push({ step: "reject", destinationKey: adapter.key, candidateId: candidate.id, reason: "scoring_failed" });
       if (nextRun?.state === DestinationMissionState.EXHAUSTED) {
         return { ok: true, mission: nextRun, trail, terminal: true };
       }
@@ -516,7 +655,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
           candidateDomain: candidateDomain || undefined,
         },
         metadata: {
-          source: "executeClassScoutMissionNextAttempt",
+          source: "executeDestinationMissionNextAttempt",
           actorId: input.actorId,
           score,
           blockingReasons,
@@ -527,7 +666,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
         where: { id: candidate.id },
         data: { status: DestinationWorkflowState.REJECTED },
       });
-      trail.push({ step: "reject", candidateId: candidate.id, reason: blockingReasons[0] ?? "scarcity_score_below_threshold", score });
+      trail.push({ step: "reject", destinationKey: adapter.key, candidateId: candidate.id, reason: blockingReasons[0] ?? "scarcity_score_below_threshold", score });
       if (nextRun?.state === DestinationMissionState.EXHAUSTED) {
         return { ok: true, mission: nextRun, trail, terminal: true };
       }
@@ -537,6 +676,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
     if (!eligible) {
       trail.push({
         step: "soft_pass",
+        destinationKey: adapter.key,
         candidateId: candidate.id,
         score,
         blockingReasons,
@@ -544,10 +684,10 @@ export async function executeClassScoutMissionNextAttempt(input: {
     }
 
     const draftId = `draft-${randomUUID()}`;
-    const prepare = await prepareClassScoutCandidateReview({
-      normalizedListing: normalizedListing as never,
+    const prepare = await adapter.prepare({
+      normalizedListing: normalizedListing as Record<string, unknown>,
       draftId,
-      evidenceSummary: buildEvidenceSummary(candidate, evidenceMap),
+      evidenceSummary: buildEvidenceSummary(candidate, evidenceMap as Record<string, unknown>),
       workflowMetadata: {
         checklistCompanyId: input.companyId,
         workflowRunId: mission.id,
@@ -569,23 +709,23 @@ export async function executeClassScoutMissionNextAttempt(input: {
         workflowRunId: mission.id,
         candidateFingerprint: candidate.candidateFingerprint,
         outcome: {
-            terminalKind: "retryable_failure",
-            rejectionCode: "prepare_failed",
-            rejectionDetail: typeof prepare.error === "string" ? prepare.error : "Candidate preparation failed.",
-            candidateDomain: candidateDomain || undefined,
-          },
-          metadata: {
-            source: "executeClassScoutMissionNextAttempt",
-            actorId: input.actorId,
-            draftId,
-            candidateDomain: candidateDomain || null,
-          },
-        });
+          terminalKind: "retryable_failure",
+          rejectionCode: "prepare_failed",
+          rejectionDetail: typeof prepare.error === "string" ? prepare.error : "Candidate preparation failed.",
+          candidateDomain: candidateDomain || undefined,
+        },
+        metadata: {
+          source: "executeDestinationMissionNextAttempt",
+          actorId: input.actorId,
+          draftId,
+          candidateDomain: candidateDomain || null,
+        },
+      });
       await prisma.destinationCandidate.update({
         where: { id: candidate.id },
         data: { status: DestinationWorkflowState.FAILED },
       });
-      trail.push({ step: "reject", candidateId: candidate.id, reason: "prepare_failed" });
+      trail.push({ step: "reject", destinationKey: adapter.key, candidateId: candidate.id, reason: "prepare_failed" });
       if (nextRun?.state === DestinationMissionState.EXHAUSTED) {
         return { ok: true, mission: nextRun, trail, terminal: true };
       }
@@ -610,7 +750,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
           candidateDomain: candidateDomain || undefined,
         },
         metadata: {
-          source: "executeClassScoutMissionNextAttempt",
+          source: "executeDestinationMissionNextAttempt",
           actorId: input.actorId,
           draftId,
           candidateDomain: candidateDomain || null,
@@ -620,7 +760,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
         where: { id: candidate.id },
         data: { status: DestinationWorkflowState.REJECTED },
       });
-      trail.push({ step: "reject", candidateId: candidate.id, reason: diagnostics[0] ?? "publish_gate_blocked" });
+      trail.push({ step: "reject", destinationKey: adapter.key, candidateId: candidate.id, reason: diagnostics[0] ?? "publish_gate_blocked" });
       if (nextRun?.state === DestinationMissionState.EXHAUSTED) {
         return { ok: true, mission: nextRun, trail, terminal: true };
       }
@@ -632,7 +772,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
       missionId: mission.id,
       nextState: "CANDIDATE_IN_REVIEW",
       metadata: {
-        source: "executeClassScoutMissionNextAttempt",
+        source: "executeDestinationMissionNextAttempt",
         actorId: input.actorId,
         activeCandidateId: candidate.id,
         draftId,
@@ -643,7 +783,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
       where: { id: candidate.id },
       data: { status: DestinationWorkflowState.REVIEW_REQUIRED },
     });
-    trail.push({ step: "prepared", candidateId: candidate.id, draftId, score });
+    trail.push({ step: "prepared", destinationKey: adapter.key, candidateId: candidate.id, draftId, score });
 
     return {
       ok: true,
@@ -663,7 +803,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
     failureCode: "auto_runner_retry_budget_exhausted",
     failureDetail: "The auto runner exhausted its local retry budget before reaching review readiness.",
     metadata: {
-      source: "executeClassScoutMissionNextAttempt",
+      source: "executeDestinationMissionNextAttempt",
       actorId: input.actorId,
     },
   });
@@ -671,7 +811,7 @@ export async function executeClassScoutMissionNextAttempt(input: {
   return { ok: true, mission, trail, reviewReady: false, terminal: false };
 }
 
-export async function executeClassScoutMissionUntilBlocked(input: {
+export async function executeDestinationMissionUntilBlocked(input: {
   companyId: string;
   missionId: string;
   actorId: string;
@@ -681,10 +821,10 @@ export async function executeClassScoutMissionUntilBlocked(input: {
   const maxPasses = Math.max(1, Math.min(input.maxPasses ?? 3, 8));
   const maxAutoRejections = Math.max(1, Math.min(input.maxAutoRejections ?? 5, 10));
   const passes: Array<Record<string, unknown>> = [];
-  let lastResult: Awaited<ReturnType<typeof executeClassScoutMissionNextAttempt>> | null = null;
+  let lastResult: Awaited<ReturnType<typeof executeDestinationMissionNextAttempt>> | null = null;
 
   for (let pass = 0; pass < maxPasses; pass += 1) {
-    const result = await executeClassScoutMissionNextAttempt({
+    const result = await executeDestinationMissionNextAttempt({
       companyId: input.companyId,
       missionId: input.missionId,
       actorId: input.actorId,
@@ -741,4 +881,23 @@ export async function executeClassScoutMissionUntilBlocked(input: {
     trail: lastResult.trail ?? [],
     passes,
   };
+}
+
+export async function executeClassScoutMissionNextAttempt(input: {
+  companyId: string;
+  missionId: string;
+  actorId: string;
+  maxAutoRejections?: number;
+}) {
+  return executeDestinationMissionNextAttempt(input);
+}
+
+export async function executeClassScoutMissionUntilBlocked(input: {
+  companyId: string;
+  missionId: string;
+  actorId: string;
+  maxPasses?: number;
+  maxAutoRejections?: number;
+}) {
+  return executeDestinationMissionUntilBlocked(input);
 }

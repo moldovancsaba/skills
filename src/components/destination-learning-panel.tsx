@@ -6,6 +6,7 @@ import { IconBrain as Brain, IconRefresh as Refresh, IconRepeat as Repeat } from
 import { MetricCard } from "@/components/ui/app-shell";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
+import type { DestinationKey } from "@/lib/destination-workflow-contract";
 
 type LearningSummary = {
   generatedAt: string;
@@ -40,7 +41,7 @@ function pct(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
-export function DestinationLearningPanel({ companyId }: { companyId: string }) {
+export function DestinationLearningPanel({ companyId, destinationKey }: { companyId: string; destinationKey?: DestinationKey }) {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<LearningSummary | null>(null);
   const [candidates, setCandidates] = useState<ReplayCandidate[]>([]);
@@ -49,9 +50,10 @@ export function DestinationLearningPanel({ companyId }: { companyId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const destinationQuery = destinationKey ? `&destinationKey=${encodeURIComponent(destinationKey)}` : "";
       const [summaryResponse, candidatesResponse] = await Promise.all([
-        fetch(`/api/destination-learning/summary?companyId=${companyId}&destinationKey=classscout`),
-        fetch(`/api/destination-learning/replay-candidates?companyId=${companyId}&destinationKey=classscout`),
+        fetch(`/api/destination-learning/summary?companyId=${encodeURIComponent(companyId)}${destinationQuery}`),
+        fetch(`/api/destination-learning/replay-candidates?companyId=${encodeURIComponent(companyId)}${destinationQuery}`),
       ]);
       const summaryPayload = summaryResponse.ok ? await summaryResponse.json() : null;
       const candidatesPayload = candidatesResponse.ok ? await candidatesResponse.json() : null;
@@ -60,7 +62,7 @@ export function DestinationLearningPanel({ companyId }: { companyId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [companyId]);
+  }, [companyId, destinationKey]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -78,6 +80,7 @@ export function DestinationLearningPanel({ companyId }: { companyId: string }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             companyId,
+            destinationKey,
             candidateKind: candidate.kind,
             reviewPacketId: candidate.kind === "review-packet" ? candidate.id : undefined,
             workflowRunId: candidate.kind === "workflow-run" ? candidate.workflowRunId : undefined,
@@ -89,7 +92,7 @@ export function DestinationLearningPanel({ companyId }: { companyId: string }) {
         setActingId(null);
       }
     },
-    [companyId, load],
+    [companyId, destinationKey, load],
   );
 
   if (loading) {

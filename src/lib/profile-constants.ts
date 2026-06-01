@@ -1,5 +1,5 @@
 /**
- * COMPANY PROFILE CONSTANTS
+ * UNIT PROFILE CONSTANTS
  * Defines master lists for industries, business models, and product categories.
  */
 

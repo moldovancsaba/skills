@@ -4,6 +4,7 @@ import { verifyMembership } from "@/lib/permissions";
 import { createRequestProfiler } from "@/lib/request-profile";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
 import { getWebappProfileLabel, resolveUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
+import { resolveEffectiveUnitCapabilities } from "@/lib/check-foundation";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export async function GET(
   if (auth.error) return auth.error;
 
   try {
-    const [company, snapshot, classScoutInstance, compareInstance, classScoutAttentionCount] = await profiler.measure("loadNavModels", () => Promise.all([
+    const [company, snapshot, classScoutInstance, compareInstance, classScoutAttentionCount, compareAttentionCount] = await profiler.measure("loadNavModels", () => Promise.all([
       prisma.company.findUnique({
         where: { id: companyId },
         select: { id: true, name: true, workerConfig: true },
@@ -67,6 +68,17 @@ export async function GET(
           },
         },
       }),
+      prisma.destinationReviewPacket.count({
+        where: {
+          companyId,
+          destinationInstance: {
+            destinationKey: "compare",
+          },
+          packetState: {
+            in: ["AWAITING_REVIEW", "APPROVED", "REWORK_REQUESTED"],
+          },
+        },
+      }),
     ]));
 
     if (!company) {
@@ -79,12 +91,18 @@ export async function GET(
       hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
+    const effectiveCapabilities = resolveEffectiveUnitCapabilities({
+      workerConfig: company?.workerConfig,
+      hasClassScoutDestination: Boolean(classScoutInstance),
+      hasCompareDestination: Boolean(compareInstance),
+    });
 
     const response = NextResponse.json({
       company,
       counts: {
         ...readModel.navCounts,
         classscout: classScoutInstance ? classScoutAttentionCount : 0,
+        compare: compareInstance ? compareAttentionCount : 0,
         tactical: Math.max(Number(readModel.navCounts.tactical || 0), Number(readModel.navCounts.checklist || 0)),
       },
       features: {
@@ -95,6 +113,11 @@ export async function GET(
         profile: capabilities.profile,
         modules: capabilities.modules,
         profileLabel: getWebappProfileLabel(capabilities.profile),
+        enabledBlocks: effectiveCapabilities.enabledBlocks,
+        enabledModules: effectiveCapabilities.enabledModules,
+        enabledMiniapps: effectiveCapabilities.enabledMiniapps,
+        effectiveSource: effectiveCapabilities.source,
+        effectiveWarnings: effectiveCapabilities.warnings,
       },
       capabilitiesVersion: capabilities.schemaVersion,
       capabilitiesSource: capabilities.source,

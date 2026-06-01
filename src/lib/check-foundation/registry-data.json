@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "blocks": [
+    {
+      "key": "checklist",
+      "displayName": "Checklist Block",
+      "description": "Prioritized execution workspace for taskcards and supporting intelligence context.",
+      "requiredModules": ["data", "topics", "goals", "review", "knowmore", "tactical", "analytics", "aiQueue", "checklist"],
+      "optionalModules": [],
+      "defaultRoute": "checklist",
+      "cardTypes": ["datacard", "topiccard", "goalcard", "reviewcard", "flashcard", "taskcard", "logiccard"],
+      "publicService": false,
+      "accessibleDescription": "Checklist Block with prioritized work, supporting intelligence modules, and taskcards."
+    },
+    {
+      "key": "sales",
+      "displayName": "Sales Block",
+      "description": "Lead discovery and opportunity workflow powered by reusable Unit knowledge.",
+      "requiredModules": ["data", "knowmore", "analytics", "aiQueue", "sales"],
+      "optionalModules": ["review", "tactical"],
+      "defaultRoute": "sales",
+      "cardTypes": ["opportunitycard", "datacard", "flashcard", "logiccard"],
+      "publicService": false,
+      "accessibleDescription": "Sales Block for lead discovery, opportunitycards, and sales workflow operations."
+    },
+    {
+      "key": "project",
+      "displayName": "Project Block",
+      "description": "Standalone user-managed project kanban that reuses shared board and card technology without intelligence business coupling.",
+      "requiredModules": ["project"],
+      "optionalModules": [],
+      "defaultRoute": "unit-board",
+      "cardTypes": ["projectcard"],
+      "publicService": false,
+      "accessibleDescription": "Project Block with a standalone projectcard board."
+    },
+    {
+      "key": "miniapp",
+      "displayName": "Miniapp Block",
+      "description": "Operational workspace for public Miniapps such as ClassScout and Compare.",
+      "requiredModules": ["data", "knowmore", "analytics", "aiQueue", "miniapp"],
+      "optionalModules": ["review"],
+      "defaultRoute": "classscout",
+      "cardTypes": ["datacard", "reviewcard", "logiccard", "miniappPacket"],
+      "publicService": true,
+      "accessibleDescription": "Miniapp Block for operating public Miniapps through the Webapp."
+    }
+  ],
+  "modules": [
+    {
+      "key": "data",
+      "displayName": "Data Module",
+      "description": "Source data, datacards, uploads, evidence, and raw business context.",
+      "cardTypes": ["datacard"],
+      "runtimeOwner": "shared",
+      "defaultRoute": "data",
+      "accessibleDescription": "Data Module for source records and datacards."
+    },
+    {
+      "key": "topics",
+      "displayName": "Topics Module",
+      "description": "Topiccards, topic grouping, and topic intelligence behavior.",
+      "cardTypes": ["topiccard"],
+      "runtimeOwner": "shared",
+      "defaultRoute": "topics",
+      "accessibleDescription": "Topics Module for topiccards and topic intelligence."
+    },
+    {
+      "key": "goals",
+      "displayName": "Goals Module",
+      "description": "Goalcards, planning intent, and outcome context.",
+      "cardTypes": ["goalcard"],
+      "runtimeOwner": "shared",
+      "defaultRoute": "goals",
+      "accessibleDescription": "Goals Module for goalcards and planning context."
+    },
+    {
+      "key": "review",
+      "displayName": "Review Module",
+      "description": "Reviewcards, quality gates, approvals, and review queues.",
+      "cardTypes": ["reviewcard"],
+      "runtimeOwner": "shared",
+      "defaultRoute": "review",
+      "accessibleDescription": "Review Module for approvals, reviewcards, and quality gates."
+    },
+    {
+      "key": "knowmore",
+      "displayName": "Knowmore Module",
+      "description": "Flashcards, reusable knowledge, and learning context.",
+      "cardTypes": ["flashcard"],
+      "runtimeOwner": "shared",
+      "defaultRoute": "knowmore",
+      "accessibleDescription": "Knowmore Module for flashcards and reusable knowledge."
+    },
+    {
+      "key": "tactical",
+      "displayName": "Tactical Module",
+      "description": "Taskcards, tactical board behavior, and execution flow.",
+      "cardTypes": ["taskcard"],
+      "runtimeOwner": "shared",
+      "defaultRoute": "tactical",
+      "accessibleDescription": "Tactical Module for taskcards and tactical execution."
+    },
+    {
+      "key": "analytics",
+      "displayName": "Analytics Module",
+      "description": "Charts, KPIs, health metrics, and prepared read-model summaries.",
+      "cardTypes": [],
+      "runtimeOwner": "shared",
+      "defaultRoute": "analytics",
+      "accessibleDescription": "Analytics Module for charts, KPIs, and health summaries."
+    },
+    {
+      "key": "aiQueue",
+      "displayName": "AI Queue Module",
+      "description": "Logiccards, workflow ordering, pipeline control, and Local job coordination.",
+      "cardTypes": ["logiccard"],
+      "runtimeOwner": "local",
+      "defaultRoute": "pipeline",
+      "accessibleDescription": "AI Queue Module for logiccards, workflow order, and Local job control."
+    },
+    {
+      "key": "checklist",
+      "displayName": "Checklist Module",
+      "description": "Product UI for the current top-priority Checklist Block taskcards.",
+      "cardTypes": ["taskcard"],
+      "runtimeOwner": "webapp",
+      "defaultRoute": "checklist",
+      "accessibleDescription": "Checklist Module for the current highest-priority taskcards."
+    },
+    {
+      "key": "sales",
+      "displayName": "Sales Module",
+      "description": "Opportunitycards, lead harvesting, enrichment, dedupe, and sales workflow state.",
+      "cardTypes": ["opportunitycard"],
+      "runtimeOwner": "shared",
+      "defaultRoute": "sales",
+      "accessibleDescription": "Sales Module for opportunitycards and lead workflow state."
+    },
+    {
+      "key": "project",
+      "displayName": "Project Module",
+      "description": "Standalone projectcard board behavior for the Project Block.",
+      "cardTypes": ["projectcard"],
+      "runtimeOwner": "webapp",
+      "defaultRoute": "unit-board",
+      "accessibleDescription": "Project Module for standalone projectcard board behavior."
+    },
+    {
+      "key": "miniapp",
+      "displayName": "Miniapp Module",
+      "description": "Miniapp registry, content packets, adapter state, publish status, and public-service operations.",
+      "cardTypes": ["miniappPacket", "reviewcard", "logiccard"],
+      "runtimeOwner": "shared",
+      "defaultRoute": "classscout",
+      "accessibleDescription": "Miniapp Module for public Miniapp operations and publishing state."
+    }
+  ]
+}

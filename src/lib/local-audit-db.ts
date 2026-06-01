@@ -75,3 +75,31 @@ export async function findLocalOutcomeEvents(args: Prisma.OutcomeEventFindManyAr
     return [];
   }
 }
+
+export async function countLocalInteractionEvents(args: Prisma.InteractionEventCountArgs) {
+  const prisma = getLocalAuditPrisma();
+  if (!prisma) {
+    return 0;
+  }
+
+  try {
+    return await prisma.interactionEvent.count(args);
+  } catch (error) {
+    console.error("[AUDIT] Failed to count local interaction events:", error);
+    return 0;
+  }
+}
+
+export async function findLocalInteractionEvents(args: Prisma.InteractionEventFindManyArgs) {
+  const prisma = getLocalAuditPrisma();
+  if (!prisma) {
+    return [];
+  }
+
+  try {
+    return await prisma.interactionEvent.findMany(args);
+  } catch (error) {
+    console.error("[AUDIT] Failed to read local interaction events:", error);
+    return [];
+  }
+}

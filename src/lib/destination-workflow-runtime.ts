@@ -297,11 +297,20 @@ export async function setDestinationWorkflowReviewState(input: {
   return updated;
 }
 
-export async function getDestinationMissionControlSummary(companyId: string) {
+export async function getDestinationMissionControlSummary(companyId: string, destinationKey?: DestinationKey) {
   const now = Date.now();
   const [runs, packets, outcomes] = await Promise.all([
     prisma.destinationWorkflowRun.findMany({
-      where: { companyId },
+      where: {
+        companyId,
+        ...(destinationKey
+          ? {
+              destinationInstance: {
+                destinationKey,
+              },
+            }
+          : {}),
+      },
       include: {
         stageEvents: {
           orderBy: { createdAt: "desc" },
@@ -312,12 +321,30 @@ export async function getDestinationMissionControlSummary(companyId: string) {
       take: 200,
     }),
     prisma.destinationReviewPacket.findMany({
-      where: { companyId },
+      where: {
+        companyId,
+        ...(destinationKey
+          ? {
+              destinationInstance: {
+                destinationKey,
+              },
+            }
+          : {}),
+      },
       orderBy: { submittedAt: "desc" },
       take: 200,
     }),
     prisma.destinationOutcomeMemory.findMany({
-      where: { companyId },
+      where: {
+        companyId,
+        ...(destinationKey
+          ? {
+              destinationInstance: {
+                destinationKey,
+              },
+            }
+          : {}),
+      },
       orderBy: { createdAt: "desc" },
       take: 200,
     }),

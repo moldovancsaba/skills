@@ -10,7 +10,7 @@ export default async function ComparePage(
   const access = await requireUnitRouteAccess({
     companyId,
     requestPath: `/${companyId}/compare`,
-    requiredProfiles: "COMPARE",
+    requiredMiniapps: "compare",
   });
 
   if (!access.allowed) {

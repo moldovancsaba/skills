@@ -1,4 +1,10 @@
 import { prisma } from "@/lib/db";
+import {
+  countLocalInteractionEvents,
+  countLocalOutcomeEvents,
+  findLocalInteractionEvents,
+} from "@/lib/local-audit-db";
+import { getAllMiniappIntelligenceHealth } from "@/lib/miniapp-intelligence-health";
 
 function buildDefaultOpportunitycardRepairState() {
   return {
@@ -147,6 +153,15 @@ function buildDefaultObservabilitySummary() {
     },
     workerReports: [],
     recentEvents: [],
+    capabilityTransactions: {
+      appliedLast24h: 0,
+      previewsLast24h: 0,
+      recentApplies: [],
+      latestApplyAt: null,
+      conflictLast24h: 0,
+      validationFailuresLast24h: 0,
+    },
+    miniappIntelligenceHealth: {},
   };
 }
 
@@ -177,13 +192,95 @@ async function readLiveOpportunitycardRepairState() {
   };
 }
 
+async function readCapabilityTransactionSummary(companyId: string) {
+  const last24h = new Date(Date.now() - (24 * 60 * 60 * 1000));
+  const [
+    appliedLast24h,
+    previewsLast24h,
+    conflictLast24h,
+    validationFailuresLast24h,
+    recentApplyInteractions,
+  ] = await Promise.all([
+    countLocalOutcomeEvents({
+      where: {
+        companyId,
+        outcomeType: "UNIT_CAPABILITIES_UPDATED",
+        createdAt: { gte: last24h },
+      },
+    }),
+    countLocalInteractionEvents({
+      where: {
+        companyId,
+        interactionType: "CAPABILITY_TRANSACTION_PREVIEW",
+        createdAt: { gte: last24h },
+      },
+    }),
+    countLocalInteractionEvents({
+      where: {
+        companyId,
+        interactionType: "CAPABILITY_TRANSACTION_CONFLICT",
+        createdAt: { gte: last24h },
+      },
+    }),
+    countLocalInteractionEvents({
+      where: {
+        companyId,
+        interactionType: "CAPABILITY_TRANSACTION_VALIDATION_FAILED",
+        createdAt: { gte: last24h },
+      },
+    }),
+    findLocalInteractionEvents({
+      where: {
+        companyId,
+        interactionType: "CAPABILITY_TRANSACTION_APPLY",
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        createdAt: true,
+        payload: true,
+        userEmail: true,
+      },
+    }),
+  ]);
+
+  return {
+    appliedLast24h,
+    previewsLast24h,
+    conflictLast24h,
+    validationFailuresLast24h,
+    latestApplyAt: recentApplyInteractions[0]?.createdAt
+      ? new Date(recentApplyInteractions[0].createdAt).toISOString()
+      : null,
+    recentApplies: recentApplyInteractions.map((event) => {
+      const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
+        ? event.payload as Record<string, unknown>
+        : null;
+      const impact = payload?.impact && typeof payload.impact === "object" && !Array.isArray(payload.impact)
+        ? payload.impact as Record<string, unknown>
+        : null;
+      return {
+        id: event.id,
+        at: new Date(event.createdAt).toISOString(),
+        actor: event.userEmail || "unknown",
+        expectedVersion: typeof payload?.expectedVersion === "string" ? payload.expectedVersion : null,
+        hiddenRoutes: Array.isArray(impact?.hiddenRoutes) ? impact?.hiddenRoutes.length : 0,
+        blockedOperations: Array.isArray(impact?.blockedOperations) ? impact?.blockedOperations.length : 0,
+      };
+    }),
+  };
+}
+
 export async function getCompanyObservabilitySnapshot(companyId: string) {
-  const [snapshot, liveOpportunitycardRepair] = await Promise.all([
+  const [snapshot, liveOpportunitycardRepair, capabilityTransactions, miniappIntelligenceHealth] = await Promise.all([
     prisma.intelligenceSnapshot.findUnique({
       where: { companyId },
       select: { observabilitySummary: true },
     }),
     readLiveOpportunitycardRepairState(),
+    readCapabilityTransactionSummary(companyId),
+    getAllMiniappIntelligenceHealth(companyId),
   ]);
 
   const summary = snapshot?.observabilitySummary;
@@ -201,6 +298,8 @@ export async function getCompanyObservabilitySnapshot(companyId: string) {
   return {
     ...base,
     opportunitycardRepair: liveOpportunitycardRepair,
+    capabilityTransactions,
+    miniappIntelligenceHealth,
     recommendedActions: {
       ...recommendedActions,
       reviewOpportunitycardRepair: liveOpportunitycardRepair.status !== "COMPLETED",

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeDestinationMissionDaemonForCompany, readConfiguredDaemonCompanyIds, readDaemonDefaults } from "@/lib/destination-mission-daemon";
+import { executeDestinationMissionDaemonForCompany, readConfiguredDaemonCompanyIds } from "@/lib/destination-mission-daemon";
+import { normalizeDestinationKey } from "@/lib/destination-scope";
 import { verifyBackgroundJobSecret } from "@/lib/ingest-auth";
 import { classifyPersistenceFailure } from "@/lib/persistence-failures";
 
@@ -21,6 +22,11 @@ function parseCompanyIds(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const auth = await verifyBackgroundJobSecret(request);
   if (auth.error) return auth.error;
+  const destinationKeyRaw = request.nextUrl.searchParams.get("destinationKey");
+  if (destinationKeyRaw && !normalizeDestinationKey(destinationKeyRaw)) {
+    return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+  }
+  const destinationKey = normalizeDestinationKey(destinationKeyRaw);
 
   const companyIds = parseCompanyIds(request);
   if (!companyIds.length) {
@@ -30,7 +36,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const defaults = readDaemonDefaults();
   const results = [];
   const failures = [];
   for (const companyId of companyIds) {
@@ -38,11 +43,7 @@ export async function GET(request: NextRequest) {
       results.push(
         await executeDestinationMissionDaemonForCompany({
           companyId,
-          maxRuns: defaults.maxRuns,
-          maxPasses: defaults.maxPasses,
-          maxAutoRejections: defaults.maxAutoRejections,
-          maxRevisionIntakes: defaults.maxRevisionIntakes,
-          maxApprovedPublishes: defaults.maxApprovedPublishes,
+          destinationKey: destinationKey ?? undefined,
         }),
       );
     } catch (error) {
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
       ok: false,
       cron: true,
       companyIds,
+      destinationScope: destinationKey ?? null,
       processedCompanies: results.length,
       results,
       failures,
@@ -75,6 +77,7 @@ export async function GET(request: NextRequest) {
     ok: true,
     cron: true,
     companyIds,
+    destinationScope: destinationKey ?? null,
     processedCompanies: results.length,
     results,
   });

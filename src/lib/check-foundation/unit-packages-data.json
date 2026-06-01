@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "key": "core",
+      "displayName": "Core Unit",
+      "allowedBlocks": ["checklist", "project"],
+      "defaultEnabledBlocks": ["checklist"],
+      "requiredPermissions": ["card.create", "card.update"]
+    },
+    {
+      "key": "sales-only",
+      "displayName": "Sales Only Unit",
+      "allowedBlocks": ["sales", "project"],
+      "defaultEnabledBlocks": ["sales"],
+      "requiredPermissions": ["card.create", "card.update", "local.job.retry"]
+    },
+    {
+      "key": "project-only",
+      "displayName": "Project Only Unit",
+      "allowedBlocks": ["project"],
+      "defaultEnabledBlocks": ["project"],
+      "requiredPermissions": ["card.create", "card.update"]
+    },
+    {
+      "key": "miniapp-ops",
+      "displayName": "Miniapp Ops Unit",
+      "allowedBlocks": ["miniapp", "project"],
+      "defaultEnabledBlocks": ["miniapp"],
+      "requiredPermissions": ["miniapp.packet.approve", "miniapp.packet.publish"]
+    },
+    {
+      "key": "full",
+      "displayName": "Full Unit",
+      "allowedBlocks": ["checklist", "sales", "project", "miniapp"],
+      "defaultEnabledBlocks": ["checklist", "sales", "project", "miniapp"],
+      "requiredPermissions": [
+        "unit.block.enable",
+        "unit.block.disable",
+        "card.create",
+        "card.update",
+        "local.job.retry",
+        "miniapp.packet.approve",
+        "miniapp.packet.publish"
+      ]
+    }
+  ]
+}

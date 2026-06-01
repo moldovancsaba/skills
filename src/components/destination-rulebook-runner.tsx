@@ -5,6 +5,8 @@ import { Badge, Button, Code, Group, Loader, NativeSelect, SimpleGrid, Stack, Te
 import { IconPlayerPause, IconPlayerPlay, IconRefresh, IconRosetteDiscountCheck, IconSend } from "@tabler/icons-react";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
+import type { DestinationKey } from "@/lib/destination-workflow-contract";
+import { resolveDestinationLabel } from "@/lib/destination-scope";
 
 type MissionAttempt = {
   id: string;
@@ -163,7 +165,13 @@ const DEFAULT_NORMALIZED_LISTING = pretty({
   imageCandidates: [],
 });
 
-export function DestinationRulebookRunner({ companyId }: { companyId: string }) {
+export function DestinationRulebookRunner({
+  companyId,
+  destinationKey = "classscout",
+}: {
+  companyId: string;
+  destinationKey?: DestinationKey;
+}) {
   const [loading, setLoading] = useState(true);
   const [runs, setRuns] = useState<MissionRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -220,7 +228,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     try {
       const params = new URLSearchParams({
         companyId,
-        destinationKey: "classscout",
+        destinationKey,
         missionKind: "rulebook_new_listing",
       });
       const response = await fetch(`/api/destination-missions/runs?${params.toString()}`);
@@ -236,7 +244,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setLoading(false);
     }
-  }, [companyId, selectedRunId]);
+  }, [companyId, destinationKey, selectedRunId]);
 
   const loadMissionCandidates = useCallback(async (runId: string | null) => {
     if (!runId) {
@@ -244,7 +252,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
       return;
     }
 
-    const params = new URLSearchParams({ companyId });
+    const params = new URLSearchParams({ companyId, destinationKey });
     const response = await fetch(`/api/destination-missions/runs/${runId}/candidates?${params.toString()}`);
     const payload = response.ok ? await response.json() : null;
     const candidates = Array.isArray(payload?.candidates) ? (payload.candidates as MissionCandidateSummary[]) : [];
@@ -252,7 +260,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     if (candidates.length && !selectedCandidateId) {
       setSelectedCandidateId(candidates[0]?.id ?? null);
     }
-  }, [companyId, selectedCandidateId]);
+  }, [companyId, destinationKey, selectedCandidateId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadRuns(), 0);
@@ -274,7 +282,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
-          destinationKey: "classscout",
+          destinationKey,
           missionKind: "rulebook_new_listing",
           metadata: { startedFrom: "destination-rulebook-runner" },
         }),
@@ -288,7 +296,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setStarting(false);
     }
-  }, [companyId, loadRuns]);
+  }, [companyId, destinationKey, loadRuns]);
 
   const toggleMission = useCallback(async () => {
     if (!selectedRun) return;
@@ -298,13 +306,13 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
       await fetch(`/api/destination-missions/runs/${selectedRun.id}/${route}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId }),
+        body: JSON.stringify({ companyId, destinationKey }),
       });
       await loadRuns();
     } finally {
       setToggling(false);
     }
-  }, [companyId, loadRuns, selectedRun]);
+  }, [companyId, destinationKey, loadRuns, selectedRun]);
 
   const parseEditors = useCallback(() => {
     const normalizedListing = JSON.parse(normalizedListingJson) as Record<string, unknown>;
@@ -322,6 +330,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
+          destinationKey,
           maxTargets: 4,
           maxCandidates: 6,
         }),
@@ -335,7 +344,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setDiscovering(false);
     }
-  }, [companyId, loadMissionCandidates, loadRuns, selectedRun]);
+  }, [companyId, destinationKey, loadMissionCandidates, loadRuns, selectedRun]);
 
   const extractCandidate = useCallback(async () => {
     if (!selectedRun || !selectedDiscoveredCandidate) return;
@@ -346,6 +355,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
+          destinationKey,
           candidateId: selectedDiscoveredCandidate.candidate.id,
           discoveryArtifact: selectedDiscoveredCandidate.artifact,
         }),
@@ -373,7 +383,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setExtracting(false);
     }
-  }, [companyId, loadMissionCandidates, loadRuns, selectedDiscoveredCandidate, selectedRun]);
+  }, [companyId, destinationKey, loadMissionCandidates, loadRuns, selectedDiscoveredCandidate, selectedRun]);
 
   const scoreCandidate = useCallback(async () => {
     if (!selectedRun) return;
@@ -385,6 +395,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
+          destinationKey,
           normalizedListing,
         }),
       });
@@ -395,7 +406,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setScoring(false);
     }
-  }, [companyId, loadMissionCandidates, loadRuns, parseEditors, selectedRun]);
+  }, [companyId, destinationKey, loadMissionCandidates, loadRuns, parseEditors, selectedRun]);
 
   const prepareCandidate = useCallback(async () => {
     if (!selectedRun) return;
@@ -407,6 +418,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
+          destinationKey,
           candidateId: selectedCandidateId,
           normalizedListing,
           evidenceSummary,
@@ -421,7 +433,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setPreparing(false);
     }
-  }, [companyId, loadMissionCandidates, loadRuns, parseEditors, selectedCandidateId, selectedRun]);
+  }, [companyId, destinationKey, loadMissionCandidates, loadRuns, parseEditors, selectedCandidateId, selectedRun]);
 
   const executeNextAttempt = useCallback(async () => {
     if (!selectedRun) return;
@@ -432,6 +444,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
+          destinationKey,
           maxAutoRejections: 5,
         }),
       });
@@ -445,7 +458,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setAutoRunning(false);
     }
-  }, [companyId, loadMissionCandidates, loadRuns, selectedRun]);
+  }, [companyId, destinationKey, loadMissionCandidates, loadRuns, selectedRun]);
 
   const executeUntilBlocked = useCallback(async () => {
     if (!selectedRun) return;
@@ -456,6 +469,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
+          destinationKey,
           maxPasses: 3,
           maxAutoRejections: 5,
         }),
@@ -470,7 +484,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setCycleRunning(false);
     }
-  }, [companyId, loadMissionCandidates, loadRuns, selectedRun]);
+  }, [companyId, destinationKey, loadMissionCandidates, loadRuns, selectedRun]);
 
   const runDaemonTick = useCallback(async () => {
     setDaemonRunning(true);
@@ -480,6 +494,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
+          destinationKey,
           maxRuns: 5,
           maxPasses: 3,
           maxAutoRejections: 5,
@@ -492,7 +507,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setDaemonRunning(false);
     }
-  }, [companyId, loadMissionCandidates, loadRuns, selectedRun?.id, selectedRunId]);
+  }, [companyId, destinationKey, loadMissionCandidates, loadRuns, selectedRun?.id, selectedRunId]);
 
   const saveExecutionMode = useCallback(async () => {
     if (!selectedRun) return;
@@ -503,6 +518,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
+          destinationKey,
           policySnapshot: {
             executionMode,
           },
@@ -517,7 +533,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
     } finally {
       setSavingPolicy(false);
     }
-  }, [companyId, executionMode, loadRuns, selectedRun]);
+  }, [companyId, destinationKey, executionMode, loadRuns, selectedRun]);
 
   if (loading) {
     return (
@@ -548,7 +564,7 @@ export function DestinationRulebookRunner({ companyId }: { companyId: string }) 
             <Stack gap={2}>
               <SectionTitle>Run a new-listing mission from this unit</SectionTitle>
               <BodyText>
-                Run the active ClassScout mission definition from this unit, then move candidates into the review queue.
+                Run the active {resolveDestinationLabel(destinationKey)} mission definition from this unit, then move candidates into the review queue.
               </BodyText>
             </Stack>
             <Group gap="sm">

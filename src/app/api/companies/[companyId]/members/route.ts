@@ -16,6 +16,7 @@ export async function GET(
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { companyId } = await context.params;
+    if (!companyId) return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
 
     // Check if requester is member of this company
     const requester = await prisma.user.findFirst({
@@ -44,7 +45,12 @@ export async function POST(
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { companyId } = await context.params;
-    const { email, name, role } = await request.json();
+    if (!companyId) return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
+    const bodyRaw = await request.json().catch(() => ({}));
+    if (!bodyRaw || typeof bodyRaw !== "object" || Array.isArray(bodyRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const { email, name, role } = bodyRaw as Record<string, any>;
     const normalizedEmail = normalizeEmail(email);
 
     if (!normalizedEmail) return NextResponse.json({ error: "Email required" }, { status: 400 });
@@ -114,6 +120,7 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { companyId } = await context.params;
+    if (!companyId) return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
     const userId = request.nextUrl.searchParams.get("id");
 
     if (!userId) return NextResponse.json({ error: "User ID required" }, { status: 400 });

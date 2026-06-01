@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyIngestSecret } from "@/lib/ingest-auth";
+import { normalizeDestinationKey } from "@/lib/destination-scope";
 import { createDestinationFactSnapshot } from "@/lib/destination-workflows";
 import type { DestinationFactSnapshotInput } from "@/lib/destination-workflow-contract";
 
@@ -10,18 +11,32 @@ export async function POST(request: NextRequest) {
   if (auth.error) return auth.error;
 
   try {
-    const body = (await request.json()) as DestinationFactSnapshotInput;
-    if (!body.companyId || !body.destinationKey || !body.candidateId || !body.extractorVersion) {
+    const bodyRaw = await request.json();
+    if (!bodyRaw || typeof bodyRaw !== "object" || Array.isArray(bodyRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const body = bodyRaw as DestinationFactSnapshotInput;
+    const companyId = typeof body.companyId === "string" ? body.companyId : "";
+    const destinationKeyRaw = body.destinationKey;
+    if (!companyId || !destinationKeyRaw || !body.candidateId || !body.extractorVersion) {
       return NextResponse.json(
         { error: "companyId, destinationKey, candidateId, and extractorVersion are required" },
         { status: 400 },
       );
     }
+    const destinationKey = normalizeDestinationKey(destinationKeyRaw);
+    if (!destinationKey) {
+      return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+    }
     if (!body.factsJson || !body.provenanceJson) {
       return NextResponse.json({ error: "factsJson and provenanceJson are required" }, { status: 400 });
     }
 
-    const record = await createDestinationFactSnapshot(body);
+    const record = await createDestinationFactSnapshot({
+      ...body,
+      companyId,
+      destinationKey,
+    });
     return NextResponse.json({ ok: true, factSnapshot: record });
   } catch (error) {
     console.error("[API:DestinationWorkflows:FactIntake] failure:", error);

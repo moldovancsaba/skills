@@ -1,6 +1,20 @@
-# CHECKLIST
+# check
 
-CHECKLIST is a multi-tenant autonomous intelligence system built on a strict Mantine-only product UI and a recurrent AI pipeline.
+`check` is a multi-tenant intelligence platform for companies, organizations, teams, and intelligence units.
+
+The repository still uses `checklist` in package, route, and schema names where those names are legacy implementation details. Product language should use `check`.
+
+Core product language:
+
+- `Unit`: one company, organization, team, or intelligence operation
+- `Block`: an optional product capability enabled inside a Unit
+- `Module`: a reusable functional area used by Blocks
+- `Card`: the atomic object managed by Modules and Blocks
+- `Miniapp`: a public-facing app powered by a Unit
+- `Webapp`: the B2B UI for operating `check`
+- `Local`: the local AI service
+
+`check` is built on a strict Mantine-only product UI and a recurrent Local AI pipeline.
 
 `/Users/Shared/Projects/general-design-system` is the current checked-out General Design System source of truth for design, UI, and UX, and the governed upstream repository is `sovereignsquad/general-design-system`. Project-local files describe only implementation adapter details, migration state, validation commands, and approved exceptions.
 
@@ -18,9 +32,18 @@ GDS alignment:
 
 ## Product Boundary
 
-CHECKLIST is a general-purpose company decision-maker, task manager, and AI support system.
+`check` is a general-purpose intelligence platform.
 
-Checklist-core includes:
+It is not centered on one default Webapp or one mandatory dashboard. The Webapp is the B2B control surface, and each Unit can enable only the Blocks it needs.
+
+Current Block model:
+
+- `Checklist Block`: the original product block that helps a Unit identify and deliver priority taskcards
+- `Sales Block`: sales opportunity intelligence built from company knowledge and worker-owned internet research
+- `Project Block`: standalone user-managed kanban using shared board/card technology without intelligence business logic by default
+- `Miniapp Block`: creation, maintenance, review, publish, and verification workflows for public Miniapps such as ClassScout and Compare
+
+Modules include:
 
 - evidence ingestion and enrichment
 - knowledge synthesis
@@ -29,15 +52,16 @@ Checklist-core includes:
 - worker queue steering
 - observability and bounded workflows
 
-Checklist-core also permits delegated destination mini-apps when they stay company-scoped, GDS-only, and contract-bounded instead of expanding the generic checklist surface.
+Blocks can reuse Modules. A Unit can enable the Sales Block without the Checklist Block, the Project Block without intelligence automation, or the Miniapp Block without turning the Miniapp into a Webapp screen.
 
-Current shipped delegated destination app:
+Current shipped Miniapp work:
 
 - `ClassScout` at `/{companyId}/classscout`
-- it owns entry into destination-specific `Content Ops`, `Live Catalog Queue`, `Project Board`, and `Mission Control`
-- it is not a generic new top-level checklist-core product family; it is a destination operator home inside the authenticated unit shell
+- `Compare` at `/{companyId}/compare`
+- these are public-facing Miniapps with Webapp-side Miniapp Ops workspaces
+- the Webapp workspace is not the public Miniapp itself
 
-Checklist-core does not include first-class vertical products such as:
+`check` does not include undeclared first-class vertical products such as:
 
 - athlete or coach apps
 - marketing content studios
@@ -52,7 +76,7 @@ Allowed internal governance exception:
 - `Evaluation Bench` may exist as an admin-only internal quality-governance surface for replay, regression, and promotion gating
 - it is not a normal end-user checklist module and should stay outside the main navigation
 
-Those ideas may exist as research or future opportunities, but they belong in `IDEABANK` or in a dedicated external project board until they are explicitly reframed into the general CHECKLIST decision-support contract.
+Those ideas may exist as research or future opportunities, but they belong in `IDEABANK` or in a dedicated external project board until they are explicitly reframed into the `check` Block/Module/Card/Miniapp contract.
 
 This repository has one non-negotiable rule:
 
@@ -61,11 +85,11 @@ This repository has one non-negotiable rule:
 Future-function rule:
 
 - new product functions must follow [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md)
-- future mini-app work must stay projection-first, server-bootstrapped where appropriate, payload-disciplined, and profiling-driven once the obvious architectural problems are removed
+- future Block, Module, and Miniapp work must stay projection-first, server-bootstrapped where appropriate, payload-disciplined, and profiling-driven once the obvious architectural problems are removed
 - if a large corpus view needs pagination, search and filtering must still operate on the full eligible corpus, not just the visible page slice
 - after the Knowmore follow-up audit, the same bootstrap rule also applies explicitly to sibling corpus routes such as Datacards and Topics
 - the same read-model discipline now also applies to Goals, and large Datacard file lists must page instead of shipping the full uploaded-file corpus on first load
-- destination mini-app routes must define one canonical landing route, one bounded summary contract, and one explicit entry-point policy rather than relying on generic dashboard tiles
+- Miniapp Ops routes must define one canonical landing route, one bounded summary contract, and one explicit entry-point policy rather than relying on generic dashboard tiles
 
 Documentation scope rule:
 
@@ -81,6 +105,11 @@ Professional operating rule:
 Terminology rule:
 
 - use [docs/CANONICAL_TERMINOLOGY.md](/Users/Shared/Projects/checklist/docs/CANONICAL_TERMINOLOGY.md) for canonical entity and surface names
+- `check` is the platform name
+- `Webapp` is the B2B operator UI
+- `Local` is the local AI service
+- Blocks are optional per Unit
+- Miniapps are public-facing apps powered by Units
 - `ChecklistTask` is a `taskcard`
 - `Tactical Board` is a surface, not a card type
 
@@ -91,18 +120,19 @@ Read these in order. Lower documents must not contradict higher ones.
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
 2. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 3. [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
-4. [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md)
-5. [docs/CANONICAL_TERMINOLOGY.md](/Users/Shared/Projects/checklist/docs/CANONICAL_TERMINOLOGY.md)
-6. [docs/WEBAPP_READ_MODEL_LLD.md](/Users/Shared/Projects/checklist/docs/WEBAPP_READ_MODEL_LLD.md)
-7. [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
-8. [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
-9. [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
-10. [CHANGELOG.md](/Users/Shared/Projects/checklist/CHANGELOG.md)
-11. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
-12. [docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md](/Users/Shared/Projects/checklist/docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md)
-13. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
-14. [DESIGN_SYSTEM_AGENT_HANDOFF.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM_AGENT_HANDOFF.md)
-15. [documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md](/Users/Shared/Projects/checklist/documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md)
+4. [docs/CHECK_FOUNDATION_LLD.md](/Users/Shared/Projects/checklist/docs/CHECK_FOUNDATION_LLD.md)
+5. [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md)
+6. [docs/CANONICAL_TERMINOLOGY.md](/Users/Shared/Projects/checklist/docs/CANONICAL_TERMINOLOGY.md)
+7. [docs/WEBAPP_READ_MODEL_LLD.md](/Users/Shared/Projects/checklist/docs/WEBAPP_READ_MODEL_LLD.md)
+8. [docs/LOCAL_AI_PLANNER_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PLANNER_LLD.md)
+9. [docs/LOCAL_AI_QUALITY_ENGINE_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_QUALITY_ENGINE_LLD.md)
+10. [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
+11. [CHANGELOG.md](/Users/Shared/Projects/checklist/CHANGELOG.md)
+12. [DESIGN_SYSTEM.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM.md)
+13. [docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md](/Users/Shared/Projects/checklist/docs/SEMANTIC_DESIGN_SYSTEM_CONTRACT.md)
+14. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
+15. [DESIGN_SYSTEM_AGENT_HANDOFF.md](/Users/Shared/Projects/checklist/DESIGN_SYSTEM_AGENT_HANDOFF.md)
+16. [documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md](/Users/Shared/Projects/checklist/documents/05_technology/2026-04-01_engineering-standards-architecture_cto_v1.md)
 
 If two docs disagree:
 
@@ -314,8 +344,8 @@ Architecture note:
 - the local AI side also owns the webapp-ready company read model; the online app consumes those projections rather than recomputing many live counts on hot routes
 - productive company jobs now also mark that company projection-dirty so `snapshot-worker` can repair webapp-ready data quickly before the slower broad snapshot pass
 - `snapshot-worker` also performs bounded cold-start projection backfill so a fresh environment does not sit on missing prepared product reads indefinitely
-- the company dashboard now boots from server-loaded projection data instead of waiting for a client-side dashboard fetch after mount
-- the home/main dashboard now also boots from server-loaded prepared company data instead of waiting for a post-mount `/api/companies` waterfall
+- the Unit workspace now boots from server-loaded projection data instead of waiting for a client-side dashboard fetch after mount
+- the home/Webapp home now also boots from server-loaded prepared company data instead of waiting for a post-mount `/api/companies` waterfall
 - company-card trend charts are now carried inside the prepared webapp projection, so the home route does not need full snapshot analytics payloads to render summary cards
 - the authenticated shell now bootstraps basic session identity from the signed cookie on the server, so sidebar identity no longer waits for a post-mount `/api/auth/session` fetch
 - home summary charts now lazy-render when they approach the viewport, so the landing page does not pay the full mini-chart hydration/rendering cost up front

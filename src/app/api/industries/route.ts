@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     companies.forEach(c => {
       c.industries.forEach(h => hashtags.add(h));
       if (c.industry) {
-        // Handle legacy industry as a hashtag-like string
+        // Handle persisted free-text industry values as hashtag-like strings.
         const legacy = c.industry.trim();
         if (legacy) {
           const normalized = legacy.startsWith('#') ? legacy.toLowerCase() : `#${legacy.toLowerCase().replace(/\s+/g, '-')}`;

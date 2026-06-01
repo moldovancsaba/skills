@@ -1,4 +1,4 @@
-# CHECKLIST Local AI Runtime Hardening LLD
+# check Local AI Runtime Hardening LLD
 
 This document defines the target low-level design and implementation plan for hardening the local AI runtime for 24/7 healthy operation.
 

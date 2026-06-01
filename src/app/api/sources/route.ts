@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import type { SourceProcessingStatus } from "@prisma/client";
+import { DepartmentKey, type SourceProcessingStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { recordInteractionEventFromRequest } from "@/lib/audit-ledger";
@@ -15,13 +15,18 @@ import {
 import { buildSourceLifecycleData } from "@/lib/source-contract";
 import { ensureUnifiedSources } from "@/lib/sources";
 
+function normalizeDepartmentKey(value: unknown): DepartmentKey | null {
+  if (typeof value !== "string") return null;
+  return Object.values(DepartmentKey).includes(value as DepartmentKey) ? value as DepartmentKey : null;
+}
+
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
   const limitParam = request.nextUrl.searchParams.get("limit");
   const offsetParam = request.nextUrl.searchParams.get("offset");
+  if (!companyId) return NextResponse.json({ error: "companyId required" }, { status: 400 });
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
-  if (!companyId) return NextResponse.json({ error: "companyId required" }, { status: 400 });
 
   try {
     const limit = limitParam ? Number(limitParam) : null;
@@ -74,7 +79,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
+    const dataRaw = await request.json().catch(() => ({}));
+    if (!dataRaw || typeof dataRaw !== "object" || Array.isArray(dataRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = dataRaw as Record<string, any>;
     const companyId = typeof data.companyId === "string" ? data.companyId : "";
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
@@ -107,7 +116,7 @@ export async function POST(request: NextRequest) {
           provenance: typeof data.provenance === "string" ? data.provenance : null,
           sourceType: typeof data.sourceType === "string" ? data.sourceType : "MANUAL",
           intelligenceType: data.intelligenceType === "COMPETITOR" ? "COMPETITOR" : "INTERNAL",
-          departmentKey: typeof data.departmentKey === "string" ? data.departmentKey : null,
+          departmentKey: normalizeDepartmentKey(data.departmentKey),
         },
       });
     }, TRANSACTION_SETTINGS);
@@ -140,7 +149,11 @@ export async function PATCH(request: NextRequest) {
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
   try {
-    const data = await request.json();
+    const dataRaw = await request.json().catch(() => ({}));
+    if (!dataRaw || typeof dataRaw !== "object" || Array.isArray(dataRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = dataRaw as Record<string, any>;
     const existing = await prisma.source.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const auth = await verifyMembership(request, existing.companyId);
@@ -179,7 +192,7 @@ export async function PATCH(request: NextRequest) {
       provenance: data.provenance !== undefined ? data.provenance : existing.provenance,
       sourceType: data.sourceType !== undefined ? data.sourceType : existing.sourceType,
       intelligenceType: data.intelligenceType === "COMPETITOR" || data.intelligenceType === "INTERNAL" ? data.intelligenceType : existing.intelligenceType,
-      departmentKey: typeof data.departmentKey === "string" ? data.departmentKey : existing.departmentKey,
+      departmentKey: data.departmentKey !== undefined ? normalizeDepartmentKey(data.departmentKey) : existing.departmentKey,
     };
     const lifecycleData = buildSourceLifecycleData({
       ...existing,

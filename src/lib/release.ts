@@ -1,5 +1,5 @@
 /**
- * CHECKLIST Release Configuration
+ * check Release Configuration
  * Hardened version - Client Safe
  */
 

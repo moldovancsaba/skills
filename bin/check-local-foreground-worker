@@ -1,0 +1,5 @@
+#!/usr/bin/env node
+"use strict";
+
+process.env.CHECK_RUNNER_ID = "check.local.foreground-worker";
+require("../scripts/sync.js");

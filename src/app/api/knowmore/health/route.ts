@@ -61,9 +61,13 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const data = await request.json();
-    const companyId = String(data.companyId || "");
-    const action = String(data.action || "");
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as Record<string, unknown>;
+    const companyId = typeof data.companyId === "string" ? data.companyId : "";
+    const action = typeof data.action === "string" ? data.action : "";
 
     if (!companyId || !action) {
       return NextResponse.json({ error: "companyId and action required" }, { status: 400 });

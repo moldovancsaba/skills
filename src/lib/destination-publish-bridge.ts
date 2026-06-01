@@ -1,36 +1,89 @@
 import { prisma } from "@/lib/db";
 import { recordDestinationOutcomeMemory } from "@/lib/destination-review-bridge";
+import { normalizeDestinationKey } from "@/lib/destination-scope";
+import type { DestinationKey } from "@/lib/destination-workflow-contract";
 
-function getClassScoutBridgeConfig() {
-  const baseUrl = process.env.CLASSSCOUT_BASE_URL?.trim();
-  const ingestKey = process.env.CLASSSCOUT_INGEST_API_KEY?.trim();
+type DestinationBridgeDefinition = {
+  label: string;
+  baseUrlEnv: string;
+  ingestKeyEnv: string;
+  publishPath: string;
+};
+
+const DESTINATION_BRIDGE_DEFINITIONS: Record<DestinationKey, DestinationBridgeDefinition> = {
+  classscout: {
+    label: "ClassScout",
+    baseUrlEnv: "CLASSSCOUT_BASE_URL",
+    ingestKeyEnv: "CLASSSCOUT_INGEST_API_KEY",
+    publishPath: "/api/content-intelligence/publish-reviewed",
+  },
+  compare: {
+    label: "Compare",
+    baseUrlEnv: "COMPARE_BASE_URL",
+    ingestKeyEnv: "COMPARE_INGEST_API_KEY",
+    publishPath: "/api/content-intelligence/publish-reviewed",
+  },
+};
+
+function asMetadataRecord(metadata: unknown): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+  return metadata as Record<string, unknown>;
+}
+
+function getDestinationBridgeConfig(destinationKey: DestinationKey) {
+  const definition = DESTINATION_BRIDGE_DEFINITIONS[destinationKey];
+  const env = process.env as Record<string, string | undefined>;
+  const baseUrl = env[definition.baseUrlEnv]?.trim();
+  const ingestKey = env[definition.ingestKeyEnv]?.trim();
   if (!baseUrl || !ingestKey) {
     return null;
   }
-  return { baseUrl: baseUrl.replace(/\/$/, ""), ingestKey };
+  return {
+    ...definition,
+    baseUrl: baseUrl.replace(/\/$/, ""),
+    ingestKey,
+  };
 }
 
 function inferEntityKind(packet: {
+  destinationKey: DestinationKey;
   draftPayload: Record<string, unknown>;
   metadata: unknown;
 }) {
-  const metadata =
-    packet.metadata && typeof packet.metadata === "object" && !Array.isArray(packet.metadata)
-      ? (packet.metadata as Record<string, unknown>)
+  const metadata = asMetadataRecord(packet.metadata);
+  const metadataEntityKind =
+    typeof metadata?.entityKind === "string" && metadata.entityKind.trim()
+      ? metadata.entityKind.trim()
       : null;
-  if (metadata?.entityKind === "provider" || metadata?.entityKind === "meetupGroup") {
-    return metadata.entityKind;
+
+  if (packet.destinationKey === "classscout") {
+    if (metadataEntityKind === "provider" || metadataEntityKind === "meetupGroup") {
+      return metadataEntityKind;
+    }
+    if (typeof packet.draftPayload.category === "string") return "provider";
+    if (typeof packet.draftPayload.groupType === "string") return "meetupGroup";
+    return null;
   }
-  if (typeof packet.draftPayload.category === "string") return "provider";
-  if (typeof packet.draftPayload.groupType === "string") return "meetupGroup";
-  return null;
+
+  if (metadataEntityKind) {
+    return metadataEntityKind;
+  }
+  if (typeof packet.draftPayload.entityKind === "string" && packet.draftPayload.entityKind.trim()) {
+    return packet.draftPayload.entityKind.trim();
+  }
+  if (typeof packet.draftPayload.type === "string" && packet.draftPayload.type.trim()) {
+    return packet.draftPayload.type.trim();
+  }
+  if (typeof packet.draftPayload.category === "string" && packet.draftPayload.category.trim()) {
+    return "activity";
+  }
+  return "activity";
 }
 
 function inferAdapterVersion(packet: { metadata: unknown; bridgeVersion: string }) {
-  const metadata =
-    packet.metadata && typeof packet.metadata === "object" && !Array.isArray(packet.metadata)
-      ? (packet.metadata as Record<string, unknown>)
-      : null;
+  const metadata = asMetadataRecord(packet.metadata);
   return typeof metadata?.adapterVersion === "string" ? metadata.adapterVersion : packet.bridgeVersion;
 }
 
@@ -71,36 +124,36 @@ export async function publishDestinationReviewPacket(input: {
     return { ok: false, status: 404, error: "Review packet not found" };
   }
 
-  if (packet.destinationInstance.destinationKey !== "classscout") {
-    return { ok: false, status: 400, error: "Only ClassScout publish bridge is supported right now" };
+  const rawDestinationKey = String(packet.destinationInstance.destinationKey || "").trim();
+  const destinationKey = normalizeDestinationKey(rawDestinationKey);
+  if (!destinationKey) {
+    return { ok: false, status: 400, error: `Destination key "${rawDestinationKey || "unknown"}" is not supported by publish bridge` };
   }
 
   if (packet.packetState !== "APPROVED") {
     return { ok: false, status: 409, error: `Packet must be APPROVED before publish, got ${packet.packetState}` };
   }
 
-  const config = getClassScoutBridgeConfig();
+  const config = getDestinationBridgeConfig(destinationKey);
   if (!config) {
-    return { ok: false, status: 503, error: "ClassScout publish bridge is not configured" };
+    return { ok: false, status: 503, error: `${DESTINATION_BRIDGE_DEFINITIONS[destinationKey].label} publish bridge is not configured` };
   }
 
-  const entityKind = inferEntityKind({
-    draftPayload: resolvePublishDraftPayload({
-      draftPayload: packet.draftPayload as Record<string, unknown>,
-      reviewDecisions: packet.reviewDecisions,
-    }),
-    metadata: packet.metadata,
-  });
-  if (!entityKind) {
-    return { ok: false, status: 422, error: "Could not infer destination entity kind from review packet" };
-  }
-
-  const fetchImpl = input.fetchImpl ?? fetch;
   const publishDraftPayload = resolvePublishDraftPayload({
     draftPayload: packet.draftPayload as Record<string, unknown>,
     reviewDecisions: packet.reviewDecisions,
   });
-  const response = await fetchImpl(`${config.baseUrl}/api/content-intelligence/publish-reviewed`, {
+  const entityKind = inferEntityKind({
+    destinationKey,
+    draftPayload: publishDraftPayload,
+    metadata: packet.metadata,
+  });
+  if (!entityKind) {
+    return { ok: false, status: 422, error: `Could not infer ${config.label} entity kind from review packet` };
+  }
+
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const response = await fetchImpl(`${config.baseUrl}${config.publishPath}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${config.ingestKey}`,
@@ -114,6 +167,7 @@ export async function publishDestinationReviewPacket(input: {
       workflowMetadata: {
         companyId: input.companyId,
         checklistCompanyId: input.companyId,
+        destinationKey,
         workflowRunId: packet.workflowRunId,
         candidateId: packet.candidateId,
         reviewPacketId: packet.id,
@@ -128,7 +182,7 @@ export async function publishDestinationReviewPacket(input: {
   if (!response.ok) {
     await recordDestinationOutcomeMemory({
       companyId: input.companyId,
-      destinationKey: "classscout",
+      destinationKey,
       workflowRunId: packet.workflowRunId,
       candidateId: packet.candidateId,
       draftId: packet.draftId,
@@ -136,7 +190,7 @@ export async function publishDestinationReviewPacket(input: {
       bridgeVersion: packet.bridgeVersion,
       eventType: "publish_bridge_failed",
       reasonCode: typeof data.error === "string" ? data.error : `HTTP_${response.status}`,
-      notes: `Checklist publish bridge failed for review packet ${packet.id}`,
+      notes: `${config.label} publish bridge failed for review packet ${packet.id}`,
       actorType: "SYSTEM",
       actorId: input.reviewedBy,
       payload: data,
@@ -147,5 +201,6 @@ export async function publishDestinationReviewPacket(input: {
     ok: response.ok,
     status: response.status,
     data,
+    publicUrl: typeof data.publicUrl === "string" ? data.publicUrl : null,
   };
 }

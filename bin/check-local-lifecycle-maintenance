@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+"use strict";
+
+process.env.CHECK_RUNNER_ID = "check.local.lifecycle-maintenance";
+import("../scripts/run-lifecycle-maintenance.mjs").catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

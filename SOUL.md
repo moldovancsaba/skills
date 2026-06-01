@@ -1,4 +1,4 @@
-# CHECKLIST Soul
+# check Soul
 
 This file is a short AI-brain entrypoint for future agents and maintainers.
 
@@ -7,12 +7,21 @@ If you need the full operating rules, read in this order:
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
 2. [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md)
 3. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
-4. [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
-5. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
+4. [docs/CANONICAL_TERMINOLOGY.md](/Users/Shared/Projects/checklist/docs/CANONICAL_TERMINOLOGY.md)
+5. [docs/CHECK_FOUNDATION_LLD.md](/Users/Shared/Projects/checklist/docs/CHECK_FOUNDATION_LLD.md)
+6. [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
+7. [HANDOVER.md](/Users/Shared/Projects/checklist/HANDOVER.md)
 
 ## What Future Work Must Remember
 
 - local AI prepares, webapp reads
+- `check` is the platform
+- Units enable optional Blocks
+- Blocks use Modules
+- Modules manage Cards
+- Webapp is the B2B operator UI
+- Local is the AI service
+- Miniapps are public-facing apps powered by Units
 - hot product routes are projection-first
 - server bootstrap beats post-mount fetch waterfalls
 - payloads must be minimal and explicit

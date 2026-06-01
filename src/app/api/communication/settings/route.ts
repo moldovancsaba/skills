@@ -3,6 +3,7 @@
  * Manages notification channels, bridge secrets, and ICE thresholds.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { ChannelType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
@@ -16,6 +17,14 @@ function hashBridgeSecret(secret: string) {
 
 function isHashedBridgeSecret(secret: string | null | undefined) {
   return Boolean(secret && /^[a-f0-9]{64}$/i.test(secret));
+}
+
+function normalizeChannel(value: unknown): ChannelType | undefined {
+  if (value === ChannelType.IMESSAGE) return ChannelType.IMESSAGE;
+  if (value === ChannelType.WHATSAPP) return ChannelType.WHATSAPP;
+  if (value === ChannelType.EMAIL) return ChannelType.EMAIL;
+  if (value === ChannelType.WEBHOOK) return ChannelType.WEBHOOK;
+  return undefined;
 }
 
 function serializeSettings(settings: any, bridgeSecret?: string) {
@@ -63,24 +72,39 @@ export async function PATCH(request: NextRequest) {
   if (auth.error) return auth.error;
 
   try {
-    const data = await request.json();
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as {
+      channel?: string;
+      handle?: string | null;
+      isEnabled?: boolean;
+      minIceScore?: number;
+    };
+    const channel = normalizeChannel(data.channel);
+    const handle = typeof data.handle === "string" || data.handle === null ? data.handle : undefined;
+    const isEnabled = typeof data.isEnabled === "boolean" ? data.isEnabled : undefined;
+    const minIceScore = typeof data.minIceScore === "number" && Number.isFinite(data.minIceScore)
+      ? data.minIceScore
+      : undefined;
     const existing = await prisma.communicationSettings.findUnique({
       where: { companyId },
     });
     const updated = await prisma.communicationSettings.upsert({
       where: { companyId },
       update: {
-        channel: data.channel,
-        handle: data.handle,
-        isEnabled: data.isEnabled,
-        minIceScore: data.minIceScore,
+        channel,
+        handle,
+        isEnabled,
+        minIceScore,
       },
       create: {
         companyId,
-        channel: data.channel ?? "IMESSAGE",
-        handle: data.handle,
-        isEnabled: data.isEnabled ?? false,
-        minIceScore: data.minIceScore ?? 600,
+        channel: channel ?? ChannelType.IMESSAGE,
+        handle,
+        isEnabled: isEnabled ?? false,
+        minIceScore: minIceScore ?? 600,
       },
     });
 
@@ -106,16 +130,16 @@ export async function PATCH(request: NextRequest) {
       },
       payload: {
         changedFields: {
-          channel: data.channel !== undefined,
-          handle: data.handle !== undefined,
-          isEnabled: data.isEnabled !== undefined,
-          minIceScore: data.minIceScore !== undefined,
+          channel: channel !== undefined,
+          handle: handle !== undefined,
+          isEnabled: isEnabled !== undefined,
+          minIceScore: minIceScore !== undefined,
         },
       },
-      teachingWeight: data.minIceScore !== undefined ? 35 : 30,
+      teachingWeight: minIceScore !== undefined ? 35 : 30,
     });
 
-    if (data.minIceScore !== undefined || data.channel !== undefined || data.handle !== undefined || data.isEnabled !== undefined) {
+    if (minIceScore !== undefined || channel !== undefined || handle !== undefined || isEnabled !== undefined) {
       await recordOutcomeEvent({
         companyId,
         actorType: "HUMAN",
@@ -137,7 +161,7 @@ export async function PATCH(request: NextRequest) {
           isEnabled: updated.isEnabled,
           minIceScore: updated.minIceScore,
         },
-        teachingWeight: data.minIceScore !== undefined ? 35 : 30,
+        teachingWeight: minIceScore !== undefined ? 35 : 30,
       });
     }
 

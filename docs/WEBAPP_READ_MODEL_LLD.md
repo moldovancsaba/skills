@@ -1,4 +1,4 @@
-# CHECKLIST Webapp Read Model LLD
+# check Webapp Read Model LLD
 
 This document defines the low-level design for fast product reads in the online webapp.
 
@@ -68,13 +68,14 @@ This is what local operator surfaces should read:
 
 This truth belongs to `/local-ai`, runtime endpoints, and observability-oriented surfaces.
 
-### 3.3 Delegated destination-app truth
+### 3.3 Miniapp truth
 
-Some online routes are destination-specific operator homes rather than generic product dashboards.
+Some Webapp routes are Miniapp Ops homes rather than generic Unit Homes or Block Homes.
 
 Current shipped case:
 
 - `/{companyId}/classscout`
+- `/{companyId}/compare`
 
 These routes must follow a bounded landing-summary contract:
 
@@ -82,6 +83,7 @@ These routes must follow a bounded landing-summary contract:
 - one canonical API summary contract
 - deterministic `ready`, `empty`, `partial`, and `fatal` states
 - explicit ownership of launch actions into subordinate destination workflows
+- clear separation between the Webapp-side Miniapp Ops surface and the public Miniapp
 
 Current shipped ClassScout landing contract:
 
@@ -92,15 +94,15 @@ Current shipped ClassScout landing contract:
 
 Allowed slices in that contract:
 
-- destination review/learning summary
+- Miniapp review/learning summary
 - mission-control summary
 - live-listing summary
 - unit project-board summary
 
 Forbidden pattern:
 
-- each destination tile or panel issuing its own page-level summary fetch on the hot landing path
-- routing operators into a generic company tile dashboard when the intent is destination-specific work
+- each Miniapp tile or panel issuing its own page-level summary fetch on the hot landing path
+- routing operators into a generic Unit tile dashboard when the intent is Miniapp Ops work
 
 ## 4. Read Model Contract
 
@@ -210,16 +212,43 @@ Forbidden fallback pattern:
 The first slice of this architecture is now:
 
 - `IntelligenceSnapshot.webappProjection` persistence
-- snapshot-backed company dashboard reads
+- snapshot-backed Unit workspace reads
 - snapshot-backed company nav reads
 - snapshot-backed company list metrics
 - snapshot-backed planning summary reads for tactical and checklist surfaces
 - projection freshness telemetry on dashboard, tactical, and checklist surfaces
 - shared projection normalization in `src/lib/webapp-projection.ts`
+
+## 8. Block-First Nav Contract
+
+The company nav surface now supports a Block-first capability contract in addition to legacy profile/module fields.
+
+Route:
+
+- `GET /api/companies/{companyId}/nav`
+
+Webapp capability payload must include:
+
+- `webapp.enabledBlocks`
+- `webapp.enabledModules`
+- `webapp.enabledMiniapps`
+- `webapp.effectiveSource`
+- `webapp.effectiveWarnings`
+
+Block summary route:
+
+- `GET /api/companies/{companyId}/blocks/summary`
+- returns per-Block `enabled`, `readiness`, `health`, module set, action hints, and stale/freshness metadata
+
+Compatibility rules:
+
+- legacy fields (`webapp.profile`, `webapp.modules`) remain readable during migration
+- Webapp consumers may use legacy fields as fallback only
+- route/module access checks should prefer effective enabled modules where available
 - touched-company projection dirty queue drained by `snapshot-worker`
 - targeted projection repair after successful company work lands
-- server-side company dashboard bootstrap from prepared projection data instead of a post-mount dashboard fetch
-- server-side home/main dashboard bootstrap from prepared company data instead of a post-mount `/api/companies` waterfall
+- server-side Unit workspace bootstrap from prepared projection data instead of a post-mount dashboard fetch
+- server-side home/Webapp home bootstrap from prepared company data instead of a post-mount `/api/companies` waterfall
 - company summary-card charts embedded into `webappProjection.homeCharts` so the home route does not need heavy `analyticsHistory` reads
 - shell identity bootstrap from the signed session cookie so the authenticated sidebar does not wait for a post-mount identity fetch
 - home summary charts deferred behind viewport-driven lazy rendering so the landing page does not hydrate every mini chart immediately
@@ -231,7 +260,7 @@ Hot routes improved in this slice:
 - `GET /api/companies/[companyId]/dashboard`
 - `GET /api/companies/[companyId]/nav`
 - server-side home bootstrap in `src/lib/server-home-page-data.ts`
-- server-side company dashboard bootstrap in `src/lib/server-company-page-data.ts`
+- server-side Unit workspace bootstrap in `src/lib/server-company-page-data.ts`
 - server-side Knowmore bootstrap in `src/lib/server-knowmore-page-data.ts`
 - database-level Knowmore paging/filtering in `src/lib/flashcards.ts` and `GET /api/knowmore`
 - server-side datacard bootstrap in `src/lib/server-company-page-data.ts` via `/:companyId/data`
@@ -239,6 +268,8 @@ Hot routes improved in this slice:
 - server-side goals bootstrap in `src/lib/server-goals-page-data.ts` via `/:companyId/goals`
 - bounded file paging in `GET /api/data-files` so the datacard route no longer pulls the full file corpus on first load
 - canonical ClassScout landing-summary contract and destination home route so ClassScout-enabled units no longer fall back to the generic company tile dashboard
+- canonical Compare landing-summary contract and destination home route so Compare-enabled units have a first-class operational home state
+- canonical Company home route now prioritizes effective enabled Miniapps (`classscout`, `compare`) before legacy profile fallback
 
 ## 7.1 Knowmore pagination contract
 
@@ -347,6 +378,6 @@ The active delivery breakdown for this design is:
 - umbrella: webapp read-model hardening
 - child issue: company projection contract and snapshot persistence
 - child issue: company list projection-first reads
-- child issue: company dashboard and nav projection-first reads
+- child issue: Unit workspace and nav projection-first reads
 - child issue: tactical/checklist projection reads plus freshness telemetry
 - child issue: projection repair and touched-company invalidation

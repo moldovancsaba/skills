@@ -1,6 +1,6 @@
-# CHECKLIST Intelligence Unit Control-Plane LLD (v2.0)
+# check Unit Control-Plane LLD (v2.1)
 
-This document is the high-precision implementation guide for multi-unit intelligence control, webapp profile routing, and board runtime composition.  
+This document is the high-precision implementation guide for Unit control, Block enablement, legacy webapp profile routing, and board runtime composition.
 It is intended to be executable by any developer with minimal ambiguity.
 
 It is subordinate to:
@@ -8,8 +8,15 @@ It is subordinate to:
 1. [docs/RULEBOOK.md](./RULEBOOK.md)
 2. [docs/SSOT.md](./SSOT.md)
 3. [docs/SYSTEM_DESIGN_LLD.md](./SYSTEM_DESIGN_LLD.md)
-4. [docs/IMPLEMENTATION_RULEBOOK.md](./IMPLEMENTATION_RULEBOOK.md)
-5. [docs/WEBAPP_READ_MODEL_LLD.md](./WEBAPP_READ_MODEL_LLD.md)
+4. [docs/CHECK_FOUNDATION_LLD.md](./CHECK_FOUNDATION_LLD.md)
+5. [docs/IMPLEMENTATION_RULEBOOK.md](./IMPLEMENTATION_RULEBOOK.md)
+6. [docs/WEBAPP_READ_MODEL_LLD.md](./WEBAPP_READ_MODEL_LLD.md)
+
+Terminology note:
+
+- product language is Block-first
+- current implementation still contains `webappProfile` and `unitCapabilities.modules`
+- those names are compatibility details until the v3 Block capability payload lands
 
 ## 1. Why this control-plane exists
 
@@ -21,7 +28,8 @@ The current production system has three realities:
 
 This design gives us one strict control plane with these guarantees:
 
-- profile-based routing that supports future webapps
+- Block-based enablement that supports optional products per Unit
+- compatibility with existing Block-first capability-based routing
 - per-unit capability matrix for module exposure
 - one board contract usable by all unit surfaces
 - deterministic, observable write/read APIs
@@ -67,9 +75,9 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-  WebappProfile["resolve unit profile"] -->|NONE| RouteGeneric["/{companyId} -> CompanyDashboard"]
-  WebappProfile -->|CLASSSCOUT| RouteClassScout["/{companyId} -> ClassScoutHome"]
-  WebappProfile -->|COMPARE| RouteCompare["/{companyId} -> CompareHome"]
+  WebappProfile["resolve legacy profile / effective Blocks"] -->|NONE| RouteGeneric["/{companyId} -> UnitHome"]
+  WebappProfile -->|CLASSSCOUT| RouteClassScout["/{companyId} -> ClassScout Miniapp Ops"]
+  WebappProfile -->|COMPARE| RouteCompare["/{companyId} -> Compare Miniapp Ops"]
   RouteClassScout -->|gates modules| Nav["/api/companies/{companyId}/nav"]
   RouteCompare -->|gates modules| Nav
   RouteGeneric -->|gates modules| Nav
@@ -82,7 +90,7 @@ flowchart LR
 ### 3.1 Runtime responsibilities
 
 #### Webapp responsibilities
-- Resolve webapp profile and modules.
+- Resolve Unit Blocks, legacy webapp profile, and Modules.
 - Render routes from projection contracts.
 - Capture operator intents and minimal edits.
 - Never run bulk scoring, queue planning, enrichment, or heavy AI orchestration.
@@ -92,6 +100,25 @@ flowchart LR
 - Build webapp projection and operational refresh state.
 - Consume operator intents and feed queue/state back to Atlas.
 - Persist heavy events in local audit DB, not Atlas.
+- Feed Miniapp intelligence flows for ClassScout and Compare.
+- Expose enough health evidence for CHECK to show when Miniapp content is fresh, stale, blocked, retrying, or disconnected.
+
+### 3.2 Miniapp intelligence health rule
+
+Miniapp enablement is only the control-plane permission to expose a Miniapp.
+It is not proof that the Miniapp content loop is healthy.
+
+ClassScout and Compare are healthy only when all of these are true:
+
+- the Miniapp Block is enabled for the Unit
+- the matching destination instance is active
+- Local AI runtime is reachable and processing
+- current intelligence/source input exists for that destination
+- mission/review/publish workflow evidence exists or a clear setup-required state is shown
+- observability exposes stale, blocked, retrying, and failed states
+- rollback/recovery steps are documented and tested
+
+This health rule is part of the implementation plan and release gate. Work on new surfaces must not bypass it.
 
 ## 4. Core domain model
 
@@ -103,13 +130,31 @@ flowchart LR
   - projection (`IntelligenceSnapshot`)
   - destination enablement (`destinationInstance`)
 
-### 4.2 Webapp profile
+### 4.2 Block capability model
+
+Target product model:
+
+- a Unit enables Blocks
+- Blocks require Modules
+- Webapp renders enabled Block entry points
+- Local schedules work from enabled Blocks
+
+Initial Blocks:
+
+- `checklist`
+- `sales`
+- `project`
+- `miniapp`
+
+### 4.3 Legacy webapp profile
 `unitCapabilities.webappProfile` values:
 - `NONE`
 - `CLASSSCOUT`
 - `COMPARE`
 
-### 4.3 Modules
+This is a compatibility field. Product-facing work should say Block, Miniapp, Miniapp Ops, Webapp, and Local.
+
+### 4.4 Modules
 The module key set is:
 - `content`
 - `data`
@@ -125,14 +170,19 @@ The module key set is:
 - `unit-board`
 - `webapp`
 
-`webapp` is always present in every UI profile and maps the dedicated surface route (`/classscout` or `/compare`).
+`webapp` is currently present in every legacy UI profile and maps the dedicated Miniapp Ops surface route (`/classscout` or `/compare`).
 
-### 4.4 Board domain
+### 4.5 Board domain
 - `BoardCard` holds stable card metadata (`title`, `description`, creator, timestamps).
 - `BoardItemState` stores board runtime view state (`columnKey`, `orderRank`, `priority`, `metadata`).
 - `boardKey` partitions board type:
   - `UNIT_PROJECT` for the shared unit board.
-- `entityType` is fixed to `BOARD_CARD` for this surface today.
+- `entityType` follows surface config:
+   - `unit-board`: `BOARD_CARD`
+   - `goals`: `GOALCARD`
+   - `topics`: `TOPIC`
+   - `data`: `SOURCE`
+   - `pipeline`: `PIPELINE_JOB`
 
 ## 5. Technology stack and dependencies
 
@@ -157,7 +207,7 @@ The module key set is:
 ### 5.4 External package dependencies
 - `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` for board drag
 - `@mantine/notifications` for operator-visible warnings
-- Planned alignment target: UI components from `sovereignsquad/general-design-system` in all new modules
+- Mandatory frontend standard: all new UI/UX work must use `sovereignsquad/general-design-system`
 
 ## 6. Data contracts
 
@@ -167,23 +217,37 @@ Stored in `company.workerConfig` as JSON:
 ```json
 {
   "unitCapabilities": {
-    "webappProfile": "CLASSSCOUT",
-    "modules": {
-      "data": true,
-      "checklist": true,
-      "unit-board": true
+    "schemaVersion": 3,
+    "payload": {
+      "v": 3,
+      "blocks": {
+        "checklist": { "enabled": true },
+        "sales": { "enabled": true },
+        "project": { "enabled": false },
+        "miniapp": { "enabled": true }
+      },
+      "modules": {
+        "data": true,
+        "checklist": true,
+        "project": false
+      },
+      "miniapps": {
+        "classscout": { "enabled": true },
+        "compare": { "enabled": false }
+      }
     }
   }
 }
 ```
 
-- `normalizeUnitCapabilitiesPayload` ensures missing keys are backfilled and read-time compatibility always normalizes to the explicit v2 contract.
-- write-path normalization now validates module booleans and profile values before persistence; malformed payloads are rejected as `400` with issue details.
-- persisted payload remains `{ schemaVersion: 2, payload: { v: 2, profile, modules } }` in `workerConfig.unitCapabilities`.
-- `resolveUnitCapabilities` computes effective profile and module map from:
-  - worker config override
-  - destination auto-detection (`classscout`, `compare`)
-- `formatCapabilityPayload` serializes only normalized keys for storage.
+- canonical write-path is now block-first via `POST /api/companies/{companyId}/capabilities/transaction`.
+- read paths support both:
+  - v3 capability envelopes (`schemaVersion: 3`) as source of truth
+  - legacy v2 profile/module envelopes for backward compatibility projection
+- `resolveEffectiveUnitCapabilities` computes the effective enabled blocks/modules/miniapps for runtime gating.
+- `resolveUnitCapabilities` projects v3 data into legacy profile/module response shape when legacy consumers still request it.
+- validation failures in transaction mode return `422` with deterministic field-level error codes.
+- optimistic concurrency conflicts return `409` using `expectedVersion` versus current server `version`.
 
 ### 6.2 Project board contract
 API contract for `unit-board`:
@@ -260,11 +324,70 @@ Source for `initialData`:
   - `UNIT_SURFACE_UPDATE` interaction event
   - optional follow-up outcome events by operation
 
+### 7.5 Capability transaction flow (canonical)
+1. Client sends `POST /api/companies/{companyId}/capabilities/transaction` with:
+   - `mode: "preview" | "apply"`
+   - `expectedVersion` for apply mode
+   - optional `idempotencyKey`
+   - block/module/miniapp payload
+2. Server validates payload and normalizes to canonical v3 envelope.
+3. `preview` returns effective projection + impact (`hiddenRoutes`, `blockedOperations`, `affectedMiniapps`) without persistence.
+4. `apply` enforces optimistic concurrency and persists in one atomic write.
+5. successful apply emits audit interaction + outcome events.
+6. duplicate idempotency key replays same request safely; mismatched payload on same key returns conflict.
+
+### 7.6 Local-to-Miniapp intelligence flow
+1. Local runtime ingests or refreshes source intelligence for the Unit.
+2. Destination mission policy selects ClassScout or Compare scope.
+3. Mission run consumes Unit intelligence and creates destination candidates or review packets.
+4. Operator reviews, approves, publishes, or requests recovery from Miniapp Ops.
+5. Observability records freshness, failures, retries, blocked states, and successful outcomes.
+6. Release evidence must prove this flow separately for ClassScout and Compare.
+
+Legacy adoption rule:
+
+- If real Miniapp destination content exists from before mission runs were introduced, do not weaken the proof gate.
+- Adopt the legacy evidence into explicit mission lineage with `npm run backfill:destination-mission-lineage`.
+- The adopted run must be visibly marked in metadata and must reference the original review packet, outcome memory, workflow run, and candidate where available.
+- This is a compatibility bridge only. New destination content should be created by daemon/materialized mission runs.
+
+Local Compare bridge bootstrap:
+
+- `npm run bootstrap:compare-local-proof -- --companyId <companyId>` creates explicit local proof evidence when no organic Compare destination instance exists yet.
+- This is a development proof tool, not a production content source.
+- The proof records are marked with `source: bootstrap-compare-local-proof`.
+- Production readiness still requires Compare discovery/intelligence to produce real candidates, review packets, and publish outcomes.
+
+Shared health contract:
+
+- resolver: `src/lib/miniapp-intelligence-health.ts`
+- API: `GET /api/companies/{companyId}/miniapp-health`
+- optional query: `destinationKey=classscout|compare`
+- observability field: `miniappIntelligenceHealth`
+
+The contract reports:
+
+- `enabled`
+- `destinationActive`
+- `localConnected`
+- `freshnessState`
+- `missionState`
+- `reviewState`
+- `publishState`
+- `failureState`
+- `retryState`
+- `overallState`
+- `blockers`
+- `recoveryActions`
+- `evidenceRefs`
+
 ### 7.4 Board CRUD flow
 
 #### Create
 1. Validate `companyId` and trimmed title.
-2. Compute target column (default `TODO` index in current code maps to `TODO`).
+2. Compute target column:
+   - Use `payload.columnKey` when it matches the resolved surface columns.
+   - Fall back to the first configured column for that surface when omitted or invalid.
 3. Transaction:
    - create `BoardCard`
    - create matching `BoardItemState` with incremented rank.
@@ -306,14 +429,43 @@ Source for `initialData`:
 - Auth:
   - membership required.
 
+### 8.4 `/api/companies/[companyId]/capabilities/transaction`
+- `POST` request:
+  - `mode: "preview" | "apply"`
+  - `expectedVersion: string` (required for apply)
+  - `idempotencyKey?: string`
+  - `payload`:
+    - `blocks: Partial<Record<BlockKey, { enabled: boolean }>>`
+    - `modules?: Partial<Record<ModuleKey, boolean>>`
+    - `miniapps?: Record<string, { enabled: boolean }>`
+- `POST` success response:
+  - `ok`
+  - `mode`
+  - `version`
+  - `effective.enabledBlocks[]`
+  - `effective.enabledModules[]`
+  - `effective.enabledMiniapps[]`
+  - `warnings[]`
+  - `impact.hiddenRoutes[]`
+  - `impact.blockedOperations[]`
+  - `impact.affectedMiniapps[]`
+- Conflict responses:
+  - `409` for stale `expectedVersion`
+  - `409` for idempotency key reuse with different payload
+- Validation response:
+  - `422` with deterministic field-level validation errors
+- Auth:
+  - membership + admin role required
+
 ### 8.3 `/api/board-items`
-- `GET` query: `companyId`, optional `boardKey`, optional `traceId`
-  - supports only `UNIT_PROJECT` today.
+- `GET` query: `companyId`, optional `boardKey`, optional `module`, optional `traceId`
+  - resolves `boardKey` or `module` through `board-adapters` and supports shared read access across cross-surface keys.
 - `POST` body: `companyId`, `boardKey`, `title`, optional metadata
 - `PATCH` body:
   - move: `id`, `destinationColumn`, `beforeId`, `afterId`
   - update: `id`, `title`, `description`, metadata
 - `DELETE` query: `companyId`, `id`
+- Mutation endpoints are enforced as read-only for non-`unitBoard` surfaces.
 - Error envelope when persistence failure:
   - `error`, `detail`, `reasonCode`, `retryable`, `retryAfterMs`, `traceId`
 
@@ -392,6 +544,20 @@ if (isQuotaBlocked(error)) {
 - load refresh frequency after write errors
 
 ### 11.2 Capability telemetry
+- observability snapshot now includes `capabilityTransactions` summary built from local audit events:
+  - `appliedLast24h`
+  - `previewsLast24h`
+  - `conflictLast24h`
+  - `validationFailuresLast24h`
+  - `latestApplyAt`
+  - `recentApplies[]` with actor, expectedVersion, and impact counters
+- transaction API emits explicit interaction event types for telemetry:
+  - `CAPABILITY_TRANSACTION_PREVIEW`
+  - `CAPABILITY_TRANSACTION_VALIDATION_FAILED`
+  - `CAPABILITY_TRANSACTION_CONFLICT`
+  - `CAPABILITY_TRANSACTION_APPLY`
+- successful apply emits outcome type:
+  - `UNIT_CAPABILITIES_UPDATED`
 - profile resolution source (`auto` vs `custom`)
 - unknown profile/mismatch count
 - nav payload build time
@@ -484,28 +650,29 @@ if (isQuotaBlocked(error)) {
 
 ## 16. Block-based surface composition
 
-Business-level block model:
+Business-level Block model:
 
-- **CHECKLIST block** -> data, topics, goals, review, knowmore, analytics, tactical, checklist, pipeline, unit-board
-- **SALES block** -> data, knowmore, analytics, pipeline, sales, checklist, review
-- **CONTENT block** -> data, knowmore, analytics, content, unit-board
-- **PROJECT block** -> unit-board only
+- **Checklist Block** -> data, topics, goals, review, knowmore, analytics, tactical, checklist, pipeline as needed
+- **Sales Block** -> data, knowmore, analytics, pipeline, sales, review as needed
+- **Project Block** -> Project Board only; no intelligence lifecycle by default
+- **Miniapp Block** -> Miniapp Ops, missions, review packets, publish/verify/maintenance, plus required supporting Modules
 
 Current profile presets:
 - NONE preset: core modules mostly on, content OFF
 - CLASSSCOUT preset: class-specific modules ON/OFF as curated
 - COMPARE preset: tailored reduced module set
 
-Future profiles (for another destination webapp) inherit base preset and then apply profile-specific module overrides.
+Current profile presets are compatibility shortcuts. Future work should model Block enablement directly, then derive route and Module availability from Blocks.
 
-## 17. Cross-surface adapter model for webapps
+## 17. Cross-surface adapter model for Miniapps
 
-### 17.1 Destination surface contract
-Any future destination webapp must:
+### 17.1 Miniapp Ops surface contract
+Any future Miniapp Ops surface must:
 - expose a dedicated root route `/{companyId}/<surface>`
 - receive `companyId` only (server obtains all other context)
-- remain a separate module surface from core checklist routes
+- remain a separate Block surface from Checklist, Sales, and Project
 - keep navigation optional and capability-aware
+- operate the public Miniapp without being the public Miniapp itself
 
 ### 17.2 Data sources
 - read from server-projected contract or destination-specific service endpoints.
@@ -532,7 +699,7 @@ Any future destination webapp must:
 
 ### 18.4 Phase D - generalization
 1. Generalize board contract to accept additional boardKeys once other blocks require.
-2. Add block adapter docs for each future webapp destination.
+2. Add Block adapter docs for each future Miniapp.
 3. Expand GDS adoption in all newly added surfaces.
 
 ## 19. Edge cases
@@ -565,6 +732,8 @@ Shipped today:
   - versioned capability envelope (`schemaVersion` + `payload.v`) with legacy drift handling.
 - nav capability projection in `src/app/api/companies/[companyId]/nav/route.ts`
   - capability contract fields include `capabilitiesVersion` and `capabilitiesSource` for drift visibility.
+- canonical capability transaction endpoint in `src/app/api/companies/[companyId]/capabilities/transaction/route.ts`
+  - preview/apply contract, deterministic validation, optimistic concurrency, idempotency replay guards
 - root route dispatch in `src/app/[companyId]/page.tsx`
 - shared board APIs in `src/app/api/board-items/route.ts`
 - shared board component + project board client in `src/components/board/shared-board.tsx`, `src/app/[companyId]/unit-board/unit-project-board-client.tsx`
@@ -574,6 +743,8 @@ Shipped today:
 Remaining hardening (not fully implemented today):
 - standardized cross-surface board adapters for non-project future boards
 - operational dashboards for module drift and deep-link mismatch events
+- Local-to-Miniapp intelligence health proof for ClassScout and Compare
+- recovery behavior when Local is down, stale, or not feeding destination content
 
 Implemented in this iteration:
 - board mutation robustness:
@@ -589,6 +760,7 @@ Implemented in this iteration:
 - `/src/app/[companyId]/page.tsx`
 - `/src/app/api/companies/[companyId]/settings/route.ts`
 - `/src/app/api/companies/[companyId]/nav/route.ts`
+- `/src/app/api/companies/[companyId]/capabilities/transaction/route.ts`
 - `/src/app/api/board-items/route.ts`
 - `/src/app/[companyId]/unit-board/unit-project-board-client.tsx`
 - `/src/components/board/shared-board.tsx`
@@ -596,4 +768,14 @@ Implemented in this iteration:
 - `/src/components/compare-home.tsx`
 - `/src/lib/local-audit-db.ts`
 - `/src/lib/audit-ledger.ts`
+- `/src/app/[companyId]/observability/page.tsx`
+- `/src/lib/miniapp-intelligence-health.ts`
+- `/src/app/api/companies/[companyId]/miniapp-health/route.ts`
+- `/scripts/test-capability-transaction-contract.mjs`
+- `/scripts/test-miniapp-health-contract.mjs`
+- `/scripts/refresh-company-intelligence-snapshot.mjs`
+- `/scripts/backfill-destination-mission-lineage.mjs`
+- `/scripts/bootstrap-compare-local-proof.mjs`
+- `/scripts/verify-ui-alignment-proof-gate.mjs`
+- `/docs/UI_ALIGNMENT_RELEASE_PROOF_GATE.md`
 - `/src/lib/persistence-failures.ts`

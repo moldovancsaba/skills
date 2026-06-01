@@ -44,7 +44,7 @@ async function withMaintenanceRetry(operation, attempt = 0) {
 
 /**
  * Performs a global audit of all cards to ensure status and kind alignment.
- * Fixes legacy status strings and enforces the checklist Kind Registry.
+ * Fixes compatibility status strings and enforces the checklist Kind Registry.
  * 
  * @param {PrismaClient} prisma - Database client
  */
@@ -82,7 +82,7 @@ async function scrubDatabaseElemental(prisma) {
     console.warn(`[MAINTENANCE] Flashcard scrub partially failed: ${e.message}`);
   }
 
-  // Taskcards: fix invalid legacy status values only.
+  // Taskcards: fix invalid compatibility status values only.
   // NOTE: State transitions are now handled by the CandidateState lifecycle machine.
   //       Annotation-string inference has been removed. Never infer state from userAnnotation.
   try {
@@ -189,7 +189,7 @@ async function processUserFeedback(prisma, company) {
         const fc = await prisma.flashcard.findUnique({ where: { id: fcId } });
         if (!fc) continue;
 
-        // Ensure legacy numbers don't bypass bounds
+        // Ensure externally-sourced numbers don't bypass bounds
         const currentConf = Math.max(1, Math.min(10, fc.confidence));
         const currentWeight = Math.max(1, Math.min(10, fc.weight));
 

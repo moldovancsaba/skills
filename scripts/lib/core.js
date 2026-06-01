@@ -28,7 +28,7 @@ const STAGE_MODELS = {
 /**
  * M3.1: Hot-Swappable Model Resolver (Phase 1)
  * Returns the prioritized model list for a given pipeline stage.
- * Prioritizes: ModelConfig table > getWorkerConfig (Legacy) > STAGE_MODELS (Static)
+ * Prioritizes: ModelConfig table > getWorkerConfig (stored override) > STAGE_MODELS (Static)
  */
 let modelCache = {
   data: {},

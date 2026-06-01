@@ -28,7 +28,7 @@ async function main() {
   });
   console.log("By activityState (New):", byActivity);
 
-  // Check Legacy Field (if it still exists in the DB, though maybe not in Prisma)
+  // Check compatibility status columns if present in persisted rows.
   try {
     const raw = await prisma.flashcard.findFirst();
     console.log("Sample Data:", JSON.stringify(raw, null, 2));

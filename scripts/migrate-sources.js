@@ -2,11 +2,11 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 async function migrateLegacyEnums() {
-  console.log("Starting Migration of Legacy Enums (FlashcardSourceType & FlashcardStatus)...");
+  console.log("Starting migration of historical enums (FlashcardSourceType & FlashcardStatus)...");
 
   try {
     // We must use raw queries because Prisma Client will crash if it encounters invalid Enums during findMany().
-    // Update Flashcards where sources have legacy sourceType.
+    // Update Flashcards where sources still use historical sourceType values.
     
     console.log("Updating FlashcardSource array elements...");
     
@@ -38,7 +38,7 @@ async function migrateLegacyEnums() {
         return source;
       });
       
-      // Also check status if any legacy
+    // Also check status for remaining historical values.
       let newProcessingStatus = doc.processingStatus;
       let newActivityState = doc.activityState;
       let newStatus = doc.status;

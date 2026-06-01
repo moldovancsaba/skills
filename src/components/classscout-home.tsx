@@ -133,7 +133,7 @@ export function ClassScoutHome({ companyId }: { companyId: string }) {
 
   const primaryBadges = (
     <Group gap="xs">
-      <Badge variant="light" color="review">Destination App</Badge>
+      <Badge variant="light" color="review">Miniapp</Badge>
       {summary.bridgeConfigured ? (
         <Badge variant="light" color="strategy">Bridge Ready</Badge>
       ) : (

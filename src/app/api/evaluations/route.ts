@@ -42,9 +42,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
-    const companyId = String(data.companyId || "");
-    const action = String(data.action || "");
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as {
+      companyId?: string;
+      action?: string;
+      runId?: string;
+      candidate?: unknown;
+      persistObservability?: unknown;
+    };
+    const companyId = typeof data.companyId === "string" ? data.companyId : "";
+    const action = typeof data.action === "string" ? data.action : "";
     if (!companyId) {
       return NextResponse.json({ error: "companyId required" }, { status: 400 });
     }
@@ -53,7 +63,7 @@ export async function POST(request: NextRequest) {
     if (auth.error) return auth.error;
 
     if (action === "PUBLISH_LOCAL_LEARNING_RUN") {
-      const runId = String(data.runId || "");
+      const runId = typeof data.runId === "string" ? data.runId : "";
       if (!runId) {
         return NextResponse.json({ error: "runId required" }, { status: 400 });
       }
@@ -121,8 +131,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const candidate = (data.candidate || {}) as EvaluationVariant;
-    const persistObservability = Boolean(data.persistObservability);
+    const candidate =
+      data.candidate && typeof data.candidate === "object" && !Array.isArray(data.candidate)
+        ? (data.candidate as EvaluationVariant)
+        : undefined;
+    const persistObservability = data.persistObservability === true;
     const startedAt = Date.now();
     const comparison = compareEvaluationVariants(candidate);
     await recordAiWorkloadUsage({

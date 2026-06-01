@@ -1,4 +1,4 @@
-# CHECKLIST Local AI Planner LLD
+# check Local AI Planner LLD
 
 This document defines the shipped low-level design for the deterministic local AI planner introduced under GitHub umbrella issue `#191`.
 

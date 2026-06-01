@@ -1,6 +1,6 @@
 /**
  * PROFILE VALIDATION UTILITIES
- * Logic to ensure accuracy and completeness of company profile inputs.
+ * Logic to ensure accuracy and completeness of Unit profile inputs.
  */
 
 import { BUSINESS_MODELS, INDUSTRIES, PRODUCT_CATEGORIES } from "./profile-constants";

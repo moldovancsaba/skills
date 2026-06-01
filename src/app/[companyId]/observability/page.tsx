@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Badge, Box, Button, Group, Loader, SimpleGrid, Stack, Table } from "@mantine/core";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Badge, Box, Button, Group, Loader, Select, SimpleGrid, Stack, Table } from "@mantine/core";
 import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCoins as Coins, IconGauge as Gauge, IconHeartbeat as Heartbeat, IconListCheck as ListCheck, IconRefresh as RefreshIcon, IconStethoscope as Stethoscope } from "@tabler/icons-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
@@ -10,6 +10,8 @@ import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
 import { DestinationLearningPanel } from "@/components/destination-learning-panel";
 import { DestinationMissionControl } from "@/components/destination-mission-control";
+import { normalizeDestinationKey, resolveDestinationLabel } from "@/lib/destination-scope";
+import { DESTINATION_KEYS } from "@/lib/destination-workflow-contract";
 
 const QUEUE_COLUMN_RANK: Record<string, number> = {
   NOW: 0,
@@ -58,7 +60,15 @@ function chartTooltipFormatter(value: unknown) {
 export default function ObservabilityPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const companyId = params.companyId as string;
+  const destinationKey = normalizeDestinationKey(searchParams.get("destinationKey"));
+  const destinationScopeValue = destinationKey ?? "all";
+  const destinationScopeQuery = destinationKey ? `?destinationKey=${encodeURIComponent(destinationKey)}` : "";
+  const destinationScopeOptions = [
+    { value: "all", label: "All destinations" },
+    ...DESTINATION_KEYS.map((key) => ({ value: key, label: resolveDestinationLabel(key) })),
+  ];
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -94,6 +104,18 @@ export default function ObservabilityPage() {
     }
   }, [companyId]);
 
+  const updateDestinationScope = useCallback((nextScope: string | null) => {
+    const scope = normalizeDestinationKey(nextScope) ?? "all";
+    const query = new URLSearchParams(searchParams.toString());
+    if (scope === "all") {
+      query.delete("destinationKey");
+    } else {
+      query.set("destinationKey", scope);
+    }
+    const queryString = query.toString();
+    router.replace(`/${companyId}/observability${queryString ? `?${queryString}` : ""}`);
+  }, [companyId, router, searchParams]);
+
   if (loading) {
     return (
       <PageShell width="full">
@@ -113,6 +135,14 @@ export default function ObservabilityPage() {
   const workerBuild = data?.workerBuild || {};
   const quality = data?.quality || {};
   const boardHealth = data?.boardHealth || { totalStates: 0, boardCounts: {}, tightGapCount: 0, duplicatedRankCount: 0 };
+  const capabilityTransactions = data?.capabilityTransactions || {
+    appliedLast24h: 0,
+    previewsLast24h: 0,
+    conflictLast24h: 0,
+    validationFailuresLast24h: 0,
+    latestApplyAt: null,
+    recentApplies: [],
+  };
   const sortedQueueJobs = sortQueueJobs(queue.jobs || []);
   const currentJob = sortedQueueJobs[0] || null;
   const upcomingJobs = currentJob ? sortedQueueJobs.slice(1, 21) : sortedQueueJobs.slice(0, 20);
@@ -134,20 +164,31 @@ export default function ObservabilityPage() {
         title="Observability"
         description="Mission control for worker health, queue pressure, scoring integrity, and recent system outcomes."
         actions={
-          <Button
-            size="xs"
-            variant="light"
-            color="review"
-            leftSection={<Stethoscope size={14} />}
-            onClick={() => router.push(`/${companyId}/evaluations`)}
-          >
-            Internal Evaluation Bench
-          </Button>
+          <Group gap="xs" align="end">
+            <Select
+              label="Destination scope"
+              size="xs"
+              value={destinationScopeValue}
+              onChange={updateDestinationScope}
+              data={destinationScopeOptions}
+              allowDeselect={false}
+              w={180}
+            />
+            <Button
+              size="xs"
+              variant="light"
+              color="review"
+              leftSection={<Stethoscope size={14} />}
+              onClick={() => router.push(`/${companyId}/evaluations${destinationScopeQuery}`)}
+            >
+              Internal Evaluation Bench
+            </Button>
+          </Group>
         }
       />
 
-      <DestinationMissionControl companyId={companyId} />
-      <DestinationLearningPanel companyId={companyId} />
+      <DestinationMissionControl companyId={companyId} destinationKey={destinationKey ?? undefined} />
+      <DestinationLearningPanel companyId={companyId} destinationKey={destinationKey ?? undefined} />
 
       <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
         <MetricCard icon={Heartbeat} color="review" label="Guardian State" value={String(heartbeat.healthState || "unknown")} detail={String(heartbeat.healthStage || "—")} />
@@ -166,6 +207,8 @@ export default function ObservabilityPage() {
         <MetricCard icon={Heartbeat} color="review" label="Worker Build" value={String(workerBuild.appVersion || "unknown")} detail={String(workerBuild.gitSha || "—").slice(0, 12)} />
         <MetricCard icon={Gauge} color="knowmore" label="Task Quality" value={quality.tasks?.averages?.aggregate ?? 0} detail={String(quality.tasks?.weakestDimension || "—")} />
         <MetricCard icon={ListCheck} color="review" label="Board States" value={boardHealth.totalStates ?? 0} detail={`${boardHealth.tightGapCount ?? 0} tight rank gaps`} />
+        <MetricCard icon={Activity} color="strategy" label="Capability Applies (24h)" value={capabilityTransactions.appliedLast24h ?? 0} detail={capabilityTransactions.latestApplyAt || "no apply recorded"} />
+        <MetricCard icon={AlertTriangle} color="review" label="Capability Conflicts (24h)" value={capabilityTransactions.conflictLast24h ?? 0} detail={`${capabilityTransactions.validationFailuresLast24h ?? 0} validation failures`} />
       </SimpleGrid>
 
       {scoreHealth?.alerts?.length ? (
@@ -195,6 +238,34 @@ export default function ObservabilityPage() {
           {`${boardHealth.tightGapCount ?? 0} tight gaps and ${boardHealth.duplicatedRankCount ?? 0} duplicate rank collisions were detected across shared board-state columns.`}
         </Notice>
       ) : null}
+
+      <UnifiedCard tone="strategy">
+        <UnifiedCardHeader
+          title="Capability Transaction Activity"
+          supporting={<Badge variant="light" color="strategy">{capabilityTransactions.previewsLast24h ?? 0} previews (24h)</Badge>}
+        />
+        <UnifiedCardBody>
+          <Stack gap="sm">
+            {(capabilityTransactions.recentApplies || []).length > 0 ? (
+              (capabilityTransactions.recentApplies || []).map((event: any) => (
+                <Group key={event.id} justify="space-between" align="flex-start" wrap="nowrap">
+                  <Stack gap={2}>
+                    <BodyText>{event.at || "unknown time"}</BodyText>
+                    <MetaText>{`Actor: ${event.actor || "unknown"}`}</MetaText>
+                    <MetaText>{`Expected version: ${event.expectedVersion || "n/a"}`}</MetaText>
+                  </Stack>
+                  <Stack gap={2} align="flex-end">
+                    <Badge variant="outline" color="gray">{`${event.hiddenRoutes ?? 0} hidden routes`}</Badge>
+                    <Badge variant="outline" color="gray">{`${event.blockedOperations ?? 0} blocked ops`}</Badge>
+                  </Stack>
+                </Group>
+              ))
+            ) : (
+              <Notice title="No recent capability applies">No capability transaction apply events were recorded recently.</Notice>
+            )}
+          </Stack>
+        </UnifiedCardBody>
+      </UnifiedCard>
 
       <UnifiedCard tone="review">
         <UnifiedCardHeader title="Repair Actions" />

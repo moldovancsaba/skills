@@ -1,4 +1,4 @@
-export const DESTINATION_KEYS = ["classscout"] as const;
+export const DESTINATION_KEYS = ["classscout", "compare"] as const;
 
 export type DestinationKey = (typeof DESTINATION_KEYS)[number];
 

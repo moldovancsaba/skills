@@ -8,6 +8,7 @@ import {
   markDestinationMissionTerminal,
   transitionDestinationMissionState,
 } from "@/lib/destination-missions";
+import { normalizeDestinationKey } from "@/lib/destination-scope";
 import { createDestinationDraft, createDestinationFactSnapshot, ensureDestinationInstance } from "@/lib/destination-workflows";
 import { markDestinationWorkflowOutcome, setDestinationWorkflowReviewState } from "@/lib/destination-workflow-runtime";
 import type { DestinationKey } from "@/lib/destination-workflow-contract";
@@ -331,6 +332,9 @@ export async function getDestinationReviewPacket(companyId: string, reviewPacket
   const packet = await prisma.destinationReviewPacket.findFirst({
     where: { id: reviewPacketId, companyId },
     include: {
+      destinationInstance: {
+        select: { destinationKey: true },
+      },
       draft: true,
       reviewDecisions: {
         orderBy: { reviewedAt: "desc" },
@@ -341,6 +345,10 @@ export async function getDestinationReviewPacket(companyId: string, reviewPacket
     },
   });
   if (!packet) return null;
+  const destinationKey = normalizeDestinationKey(packet.destinationInstance.destinationKey);
+  if (!destinationKey) {
+    throw new Error(`Unsupported destination key for review packet ${packet.id}`);
+  }
 
   const latestFactSnapshot = packet.draft.basedOnFactSnapshotId
     ? await prisma.destinationFactSnapshot.findFirst({
@@ -376,6 +384,10 @@ export async function submitDestinationReviewDecision(input: DestinationReviewDe
     },
   });
   if (!packet) return null;
+  const destinationKey = normalizeDestinationKey(packet.destinationInstance.destinationKey);
+  if (!destinationKey) {
+    throw new Error(`Unsupported destination key: ${packet.destinationInstance.destinationKey}`);
+  }
 
   const correctedDraftPayload =
     input.correctedDraftPayload && typeof input.correctedDraftPayload === "object"
@@ -399,7 +411,7 @@ export async function submitDestinationReviewDecision(input: DestinationReviewDe
       : null;
   const promoted = await promoteReviewCorrections({
     companyId: input.companyId,
-    destinationKey: packet.destinationInstance.destinationKey as DestinationKey,
+    destinationKey,
     candidateId: packet.candidateId,
     bridgeVersion: input.bridgeVersion,
     reviewedBy: input.reviewedBy,
@@ -468,7 +480,7 @@ export async function submitDestinationReviewDecision(input: DestinationReviewDe
 
   await recordDestinationOutcomeMemory({
     companyId: input.companyId,
-    destinationKey: packet.destinationInstance.destinationKey as DestinationKey,
+    destinationKey,
     workflowRunId: packet.workflowRunId,
     candidateId: packet.candidateId,
     draftId: packet.draftId,

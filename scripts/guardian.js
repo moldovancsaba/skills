@@ -14,6 +14,11 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { PrismaClient } = require("@prisma/client");
+const {
+  applyRunnerIdentity,
+  buildRunnerEnvironment,
+  getRunnerDefinition,
+} = require("./lib/runtime/runner-registry");
 const { getResourceBand } = require("./lib/runtime/resource-bands");
 const {
   MEMORY_GOVERNOR_ACTIONS,
@@ -25,12 +30,23 @@ const {
   evaluateMemoryGovernorPolicy,
   buildMemoryGovernorEvent,
 } = require("./lib/runtime/memory-governor");
+const RUNNER = applyRunnerIdentity("check.local.guardian");
+const WORKER_RUNNER_ID = "check.local.foreground-worker";
+const SNAPSHOT_RUNNER_ID = "check.local.snapshot-worker";
+const STATUS_RUNNER_ID = "check.local.status-server";
+const WORKER_RUNNER = getRunnerDefinition(WORKER_RUNNER_ID);
+const SNAPSHOT_RUNNER = getRunnerDefinition(SNAPSHOT_RUNNER_ID);
+const STATUS_RUNNER = getRunnerDefinition(STATUS_RUNNER_ID);
 const prisma = new PrismaClient();
 
 // Configuration
 const WORKER_SCRIPT    = path.join(__dirname, "sync.js");
 const STATUS_SCRIPT    = path.join(__dirname, "status-server.js");
 const SNAPSHOT_SCRIPT  = path.join(__dirname, "snapshot-worker.js");
+const LOCAL_BIN_DIR    = path.join(__dirname, "..", "bin");
+const WORKER_COMMAND   = path.join(LOCAL_BIN_DIR, "check-local-foreground-worker");
+const STATUS_COMMAND   = path.join(LOCAL_BIN_DIR, "check-local-status-server");
+const SNAPSHOT_COMMAND = path.join(LOCAL_BIN_DIR, "check-local-snapshot-worker");
 const LOG_DIR          = path.join(__dirname, "..", "logs");
 const LOG_FILE         = path.join(LOG_DIR, "guardian.log");
 const HEARTBEAT_FILE   = path.join(LOG_DIR, "guardian-heartbeat.json");
@@ -66,7 +82,7 @@ function ts() {
  * @param {string} msg - Log message
  */
 function writeLog(level, msg) {
-  const line = `[${ts()}] [${level}] ${msg}`;
+  const line = `[${ts()}] [${level}] [${RUNNER.processTitle}] ${msg}`;
   console.log(line);
   logBuffer.push(line);
   if (logBuffer.length > MAX_LOG_LINES) logBuffer.splice(0, logBuffer.length - MAX_LOG_LINES);
@@ -180,9 +196,24 @@ async function executeCommand(cmd) {
  */
 function writeHeartbeat(extra = {}) {
   const data = {
+    runner: RUNNER,
+    processTitle: process.title,
     guardianPid:   process.pid,
     workerPid:     workerProcess?.pid ?? null,
     snapshotWorkerPid: snapshotProcess?.pid ?? null,
+    children: {
+      foregroundWorker: {
+        ...WORKER_RUNNER,
+        pid: workerProcess?.pid ?? null,
+        alive: workerAlive,
+      },
+      snapshotWorker: {
+        ...SNAPSHOT_RUNNER,
+        pid: snapshotProcess?.pid ?? null,
+        alive: snapshotWorkerAlive,
+      },
+      statusServer: STATUS_RUNNER,
+    },
     workerAlive,
     snapshotWorkerAlive,
     restartCount,
@@ -673,7 +704,7 @@ function killSnapshotWorker(reason) {
 function startWorker() {
   if (workerProcess) return;
 
-  log(`Starting local AI worker (attempt #${restartCount + 1}) | back-off=${restartMs}ms`);
+  log(`Starting ${WORKER_RUNNER.humanName} (attempt #${restartCount + 1}) | back-off=${restartMs}ms`);
   startedAt = Date.now();
   lastProgressAt = null;
   currentWorkFingerprint = null;
@@ -681,15 +712,12 @@ function startWorker() {
   workerAlive = false;
   reclaimPort(HEALTH_PORT);
 
-  const node = process.execPath;  // same node binary that runs guardian.js
-  const child = spawn(node, [WORKER_SCRIPT], {
+  const child = spawn(WORKER_COMMAND, [], {
     cwd: path.join(__dirname, ".."),
-    env: {
-      ...process.env,
-      PATH: process.env.PATH || "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+    env: buildRunnerEnvironment(WORKER_RUNNER_ID, {
       USE_SAFE_MODE: useSafeMode ? "true" : "false",
       FALLBACK_MODEL: FALLBACK_MODEL,
-    },
+    }),
     stdio: ["ignore", "pipe", "pipe"],
     detached: false,
   });
@@ -698,16 +726,16 @@ function startWorker() {
   workerAlive   = true;
 
   child.stdout.on("data", (d) => {
-    String(d).split("\n").filter(Boolean).forEach((line) => log(`[WORKER] ${line}`));
+    String(d).split("\n").filter(Boolean).forEach((line) => log(`[${WORKER_RUNNER.processTitle}] ${line}`));
   });
   child.stderr.on("data", (d) => {
-    String(d).split("\n").filter(Boolean).forEach((line) => err(`[WORKER] ${line}`));
+    String(d).split("\n").filter(Boolean).forEach((line) => err(`[${WORKER_RUNNER.processTitle}] ${line}`));
   });
 
   child.on("exit", (code, signal) => {
     workerProcess = null;
     workerAlive   = false;
-    warn(`Worker exited | code=${code} signal=${signal} restarts=${restartCount}`);
+    warn(`${WORKER_RUNNER.humanName} exited | code=${code} signal=${signal} restarts=${restartCount}`);
     writeHeartbeat({ exitCode: code, exitSignal: signal });
     if (isShuttingDown) {
       log("Guardian shutdown in progress. Worker restart suppressed.");
@@ -717,7 +745,7 @@ function startWorker() {
   });
 
   child.on("error", (e) => {
-    err(`Worker spawn error: ${e.message}`);
+    err(`${WORKER_RUNNER.humanName} spawn error: ${e.message}`);
     workerProcess = null;
     workerAlive   = false;
     if (isShuttingDown) {
@@ -729,13 +757,13 @@ function startWorker() {
 
   restartCount++;
   writeHeartbeat();
-  log(`Worker PID=${child.pid}`);
+  log(`${WORKER_RUNNER.humanName} PID=${child.pid}`);
 }
 
 function startSnapshotWorker() {
   if (snapshotProcess) return;
 
-  log(`Starting snapshot worker (attempt #${snapshotRestartCount + 1}) | back-off=${snapshotRestartMs}ms`);
+  log(`Starting ${SNAPSHOT_RUNNER.humanName} (attempt #${snapshotRestartCount + 1}) | back-off=${snapshotRestartMs}ms`);
   snapshotStartedAt = Date.now();
   lastSnapshotProgressAt = null;
   currentSnapshotFingerprint = null;
@@ -743,13 +771,9 @@ function startSnapshotWorker() {
   snapshotWorkerAlive = false;
   reclaimPort(SNAPSHOT_HEALTH_PORT);
 
-  const node = process.execPath;
-  const child = spawn(node, [SNAPSHOT_SCRIPT], {
+  const child = spawn(SNAPSHOT_COMMAND, [], {
     cwd: path.join(__dirname, ".."),
-    env: {
-      ...process.env,
-      PATH: process.env.PATH || "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
-    },
+    env: buildRunnerEnvironment(SNAPSHOT_RUNNER_ID),
     stdio: ["ignore", "pipe", "pipe"],
     detached: false,
   });
@@ -758,16 +782,16 @@ function startSnapshotWorker() {
   snapshotWorkerAlive = true;
 
   child.stdout.on("data", (d) => {
-    String(d).split("\n").filter(Boolean).forEach((line) => log(`[SNAPSHOT] ${line}`));
+    String(d).split("\n").filter(Boolean).forEach((line) => log(`[${SNAPSHOT_RUNNER.processTitle}] ${line}`));
   });
   child.stderr.on("data", (d) => {
-    String(d).split("\n").filter(Boolean).forEach((line) => err(`[SNAPSHOT] ${line}`));
+    String(d).split("\n").filter(Boolean).forEach((line) => err(`[${SNAPSHOT_RUNNER.processTitle}] ${line}`));
   });
 
   child.on("exit", (code, signal) => {
     snapshotProcess = null;
     snapshotWorkerAlive = false;
-    warn(`Snapshot worker exited | code=${code} signal=${signal} restarts=${snapshotRestartCount}`);
+    warn(`${SNAPSHOT_RUNNER.humanName} exited | code=${code} signal=${signal} restarts=${snapshotRestartCount}`);
     writeHeartbeat({ snapshotExitCode: code, snapshotExitSignal: signal });
     if (isShuttingDown) {
       log("Guardian shutdown in progress. Snapshot worker restart suppressed.");
@@ -777,7 +801,7 @@ function startSnapshotWorker() {
   });
 
   child.on("error", (e) => {
-    err(`Snapshot worker spawn error: ${e.message}`);
+    err(`${SNAPSHOT_RUNNER.humanName} spawn error: ${e.message}`);
     snapshotProcess = null;
     snapshotWorkerAlive = false;
     if (isShuttingDown) {
@@ -789,7 +813,7 @@ function startSnapshotWorker() {
 
   snapshotRestartCount++;
   writeHeartbeat();
-  log(`Snapshot worker PID=${child.pid}`);
+  log(`${SNAPSHOT_RUNNER.humanName} PID=${child.pid}`);
 }
 
 /**
@@ -826,8 +850,12 @@ function scheduleSnapshotRestart() {
 // Boot
 async function bootGuardian() {
   log("═══════════════════════════════════════════");
-  log("  checklist GUARDIAN STARTING");
+  log(`  ${RUNNER.humanName.toUpperCase()} STARTING`);
+  log(`  Runner:   ${RUNNER.id}`);
+  log(`  Process:  ${RUNNER.processTitle}`);
   log(`  Watching: ${WORKER_SCRIPT}`);
+  log(`  Snapshot: ${SNAPSHOT_SCRIPT}`);
+  log(`  Status:   ${STATUS_SCRIPT}`);
   log(`  Log:      ${LOG_FILE}`);
   log(`  PID:      ${process.pid}`);
   log("═══════════════════════════════════════════");
@@ -840,19 +868,18 @@ async function bootGuardian() {
   // Launch the status server as a sibling process (no restart logic — it's stateless)
   (function launchStatusServer() {
   reclaimPort(STATUS_HEALTH_PORT);
-  const node = process.execPath;
-  const s = spawn(node, [STATUS_SCRIPT], {
+  const s = spawn(STATUS_COMMAND, [], {
     cwd: path.join(__dirname, ".."),
-    env: { ...process.env, PATH: process.env.PATH || "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin" },
+    env: buildRunnerEnvironment(STATUS_RUNNER_ID),
     stdio: ["ignore", "pipe", "pipe"],
   });
-  s.stdout.on("data", (d) => String(d).split("\n").filter(Boolean).forEach((l) => log(`[STATUS] ${l}`)));
-  s.stderr.on("data", (d) => String(d).split("\n").filter(Boolean).forEach((l) => warn(`[STATUS] ${l}`)));
+  s.stdout.on("data", (d) => String(d).split("\n").filter(Boolean).forEach((l) => log(`[${STATUS_RUNNER.processTitle}] ${l}`)));
+  s.stderr.on("data", (d) => String(d).split("\n").filter(Boolean).forEach((l) => warn(`[${STATUS_RUNNER.processTitle}] ${l}`)));
   s.on("exit", (code) => {
-    warn(`Status server exited (code=${code}). Restarting in 5s...`);
+    warn(`${STATUS_RUNNER.humanName} exited (code=${code}). Restarting in 5s...`);
     setTimeout(launchStatusServer, 5000);
   });
-  log(`Status server PID=${s.pid} → http://127.0.0.1:10006`);
+  log(`${STATUS_RUNNER.humanName} PID=${s.pid} -> http://127.0.0.1:10006`);
   })();
 
   // Periodic health poll

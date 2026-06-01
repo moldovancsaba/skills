@@ -1,4 +1,4 @@
-# CHECKLIST Local AI Runtime SOP
+# check Local AI Runtime SOP
 
 This document defines the shipped operator-facing runtime sequence and rules for the local AI system.
 

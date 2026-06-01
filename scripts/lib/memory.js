@@ -31,7 +31,7 @@ const { truncate } = require("./shared");
 const MEMORY_SETTING_PREFIX = "memory:";
 const MAX_PERSISTED_GUIDELINES = 50;
 
-// Legacy helpers kept for backward compatibility with existing callers
+// Compatibility helpers retained for existing caller contracts.
 
 async function loadPersistedMemory(prisma, companyId) {
   const key = `${MEMORY_SETTING_PREFIX}${companyId}`;
@@ -201,7 +201,7 @@ async function processMemoryUpdates(prisma, company) {
     console.log(`[MEMORY] ${company.name}: Distilled ${created} new structured memory entries.`);
   }
 
-  // Also run legacy distillation for backward compat
+  // Also refresh compatibility-derived memory for compatibility consumers.
   await updateCompanyMemory(prisma, company);
 
   // M4.4: Distill #crm-context signals into strategic lessons
@@ -339,7 +339,7 @@ async function getStagedMemoryPrompt(prisma, company, stage, context = {}) {
   return sections.join("\n");
 }
 
-// Legacy updateCompanyMemory kept for backward compatibility
+// Compatibility adapter kept to preserve existing memory refresh call paths.
 
 async function updateCompanyMemory(prisma, company) {
   const cid = company.id;
@@ -370,11 +370,11 @@ async function updateCompanyMemory(prisma, company) {
 
   if (guidelines.length > 0) {
     await savePersistedMemory(prisma, cid, guidelines);
-    console.log(`[MEMORY] ${company.name}: Distilled ${guidelines.length} legacy signals.`);
+    console.log(`[MEMORY] ${company.name}: Distilled ${guidelines.length} compatibility signals.`);
   }
 }
 
-// Legacy getHumanMemoryPrompt calls getStagedMemoryPrompt for backward compatibility
+// Compatibility shim that routes to the staged memory prompt contract.
 
 async function getHumanMemoryPrompt(prisma, company) {
   return getStagedMemoryPrompt(prisma, company, "GENERATOR");
@@ -384,7 +384,7 @@ module.exports = {
   // M4.1: Structured memory
   processMemoryUpdates,
   getStagedMemoryPrompt,
-  // Legacy (backward compat)
+  // Compatibility shim for callers still using getHumanMemoryPrompt.
   getHumanMemoryPrompt,
   updateCompanyMemory,
   loadPersistedMemory,

@@ -8,7 +8,11 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const bodyRaw = await request.json().catch(() => ({}));
+    if (!bodyRaw || typeof bodyRaw !== "object" || Array.isArray(bodyRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const body = bodyRaw as Record<string, any>;
     const companyId = typeof body.companyId === "string" ? body.companyId : null;
 
     if (!companyId) {

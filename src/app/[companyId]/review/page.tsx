@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireUnitRouteAccess } from "@/lib/unit-route-access";
+import { getDashboardInitialData } from "@/lib/server-company-page-data";
+import { resolveFirstSupportedDestinationKey } from "@/lib/destination-scope";
 import ReviewPage from "./review-client";
 
 export default async function ReviewRoutePage(
@@ -16,5 +18,10 @@ export default async function ReviewRoutePage(
     redirect(access.redirectTo);
   }
 
-  return <ReviewPage companyId={companyId} />;
+  const initialData = await getDashboardInitialData(companyId);
+  const enabledMiniapps = Array.isArray(initialData?.enabledMiniapps) ? initialData.enabledMiniapps : [];
+  const firstEnabledMiniapp = resolveFirstSupportedDestinationKey(enabledMiniapps);
+  const initialDestinationKey = firstEnabledMiniapp === "compare" ? "compare" : "classscout";
+
+  return <ReviewPage companyId={companyId} initialDestinationKey={initialDestinationKey} />;
 }

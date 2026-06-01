@@ -8,8 +8,14 @@
 - unit board mutations now keep optimistic creates visible through transient write failures and automatically retry transient failures instead of removing cards silently
 - board API write failure detection now broadens Atlas quota detection for quota/blocked-storage errors and enforces request timeouts on client calls
 
+### Added
+
+- candidate projection hardening for public miniapp and visitor candidate endpoints so internal pipeline fields are hidden by default while `includeInternal` remains available for trusted operator flows
+
 ### Changed
 
+- product architecture docs now define `check` as the platform, with Unit, Block, Module, Card, Miniapp, Webapp, and Local as canonical terms
+- added a low-level `check` foundation plan for optional Block enablement, Miniapp parity, and safe migration from legacy profile/module naming
 - repo guards and repository operating docs now treat `npm run db:generate` as an explicit verification step before lint and typecheck when Prisma schema definitions may have changed
 - repo guards and repository operating docs now require `npm run build` before publish so missing production bundle dependencies are caught before merge
 - sales opportunitycards now expose linked supporting Knowmore cards in the review surface instead of raw lineage IDs alone

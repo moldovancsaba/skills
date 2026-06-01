@@ -42,7 +42,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as any;
     const correctionType = data.correctionType as FlashcardCorrectionType;
     const sourceType = data.sourceType as FlashcardSourceType | undefined;
     const sanitizedNote = sanitizeOptionalUserFacingText(data.note);
@@ -55,15 +59,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid sourceType" }, { status: 400 });
     }
 
-    if (!data.companyId) {
+    const companyId = typeof data.companyId === "string" ? data.companyId : "";
+    if (!companyId) {
       return NextResponse.json({ error: "companyId required" }, { status: 400 });
     }
 
-    const auth = await verifyMembership(request, data.companyId);
+    const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
 
     const result = await recordFlashcardCorrection({
-      companyId: data.companyId,
+      companyId,
       flashcardId: data.flashcardId,
       sourceType,
       sourceId: data.sourceId,

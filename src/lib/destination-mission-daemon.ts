@@ -1,21 +1,33 @@
 import { DestinationMissionState } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
-  publishApprovedClassScoutRevisionPackets,
-  readClassScoutMaintenanceDefaults,
-  sweepStaleClassScoutListings,
-} from "@/lib/destination-classscout-maintenance";
+  resolveDestinationDaemonPolicy,
+  type DestinationDaemonLimits,
+} from "@/lib/check-foundation/destination-daemon-policy";
+import {
+  executeDestinationMaintenanceAdapters,
+  readDestinationMaintenanceDefaults,
+} from "@/lib/destination-maintenance-adapters";
+import { getDestinationMissionKinds } from "@/lib/check-lifecycle/topology-registry";
 import { listSchedulableDestinationMissionDefinitions } from "@/lib/destination-mission-definitions";
-import { executeClassScoutMissionUntilBlocked } from "@/lib/destination-mission-runner";
+import { executeDestinationMissionUntilBlocked, SUPPORTED_DESTINATION_MISSION_KEYS } from "@/lib/destination-mission-runner";
 import { listDestinationMissionRuns, startDestinationMissionRun } from "@/lib/destination-missions";
 import { publishDestinationReviewPacket } from "@/lib/destination-publish-bridge";
+import type { DestinationKey } from "@/lib/destination-workflow-contract";
+
+const DAEMON_DESTINATION_KEYS: DestinationKey[] = [...SUPPORTED_DESTINATION_MISSION_KEYS];
 
 type MissionRunWithPolicy = {
   id: string;
   state: DestinationMissionState;
+  destinationKey?: string;
   missionDefinitionRevision?: { configJson?: unknown } | null;
   policySnapshot?: { policyJson?: unknown } | null;
 };
+
+function destinationLabel(destinationKey: DestinationKey) {
+  return destinationKey === "classscout" ? "ClassScout" : destinationKey === "compare" ? "Compare" : destinationKey;
+}
 
 function readExecutionMode(run: MissionRunWithPolicy) {
   const policy =
@@ -66,7 +78,7 @@ export function readDaemonDefaults() {
   const maxRuns = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_RUNS ?? 5);
   const maxPasses = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_PASSES ?? 3);
   const maxAutoRejections = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_AUTO_REJECTIONS ?? 5);
-  const maintenanceDefaults = readClassScoutMaintenanceDefaults();
+  const maintenanceDefaults = readDestinationMaintenanceDefaults();
 
   return {
     maxRuns: Number.isFinite(maxRuns) ? Math.max(1, Math.min(maxRuns, 20)) : 5,
@@ -77,21 +89,103 @@ export function readDaemonDefaults() {
   };
 }
 
-export async function executeDestinationMissionDaemonForCompany(input: {
-  companyId: string;
-  maxRuns?: number;
-  maxPasses?: number;
-  maxAutoRejections?: number;
-  maxRevisionIntakes?: number;
-  maxApprovedPublishes?: number;
-}) {
-  const defaults = readDaemonDefaults();
-  const maxRuns = input.maxRuns ?? defaults.maxRuns;
-  const maxPasses = input.maxPasses ?? defaults.maxPasses;
-  const maxAutoRejections = input.maxAutoRejections ?? defaults.maxAutoRejections;
-  const maxRevisionIntakes = input.maxRevisionIntakes ?? defaults.maxRevisionIntakes;
-  const maxApprovedPublishes = input.maxApprovedPublishes ?? defaults.maxApprovedPublishes;
+function clampDaemonLimit(value: number | undefined, fallback: number, min: number, max: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(Math.round(value), max));
+}
 
+function resolveDestinationDaemonLimits(input: {
+  destinationKey: DestinationKey;
+  defaults: DestinationDaemonLimits;
+  policy: ReturnType<typeof resolveDestinationDaemonPolicy>;
+  overrides: {
+    maxRuns?: number;
+    maxPasses?: number;
+    maxAutoRejections?: number;
+    maxRevisionIntakes?: number;
+    maxApprovedPublishes?: number;
+  };
+}): DestinationDaemonLimits {
+  const fallback = input.defaults;
+  const fromPolicy = input.policy.byDestination[input.destinationKey] ?? input.policy.defaults;
+  const base = fromPolicy ?? fallback;
+
+  return {
+    maxRuns: clampDaemonLimit(input.overrides.maxRuns, base.maxRuns, 1, 20),
+    maxPasses: clampDaemonLimit(input.overrides.maxPasses, base.maxPasses, 1, 8),
+    maxAutoRejections: clampDaemonLimit(input.overrides.maxAutoRejections, base.maxAutoRejections, 1, 10),
+    maxRevisionIntakes: clampDaemonLimit(input.overrides.maxRevisionIntakes, base.maxRevisionIntakes, 1, 20),
+    maxApprovedPublishes: clampDaemonLimit(input.overrides.maxApprovedPublishes, base.maxApprovedPublishes, 1, 20),
+  };
+}
+
+function buildDestinationRunProfile(input: {
+  destinationKey: DestinationKey;
+  definitions: unknown[];
+  runs: MissionRunWithPolicy[];
+}) {
+  const label = destinationLabel(input.destinationKey);
+  const activeDefinitions = Array.isArray(input.definitions) ? input.definitions : [];
+  const activeRuns = Array.isArray(input.runs) ? input.runs : [];
+  const runStates = new Set(activeRuns.map((run) => String(run.state || "")));
+  const autopilotRuns = activeRuns.filter((run) => readExecutionMode(run) === "autopilot");
+
+  if (runStates.has("FAILED_RECOVERABLE")) {
+    return {
+      queueColumn: "NOW",
+      priorityScore: 146,
+      reason: `Recoverable ${label} destination work is waiting for immediate retry.`,
+      sourceSignal: `destination:${input.destinationKey}:recoverable`,
+    };
+  }
+
+  if (runStates.has("PUBLISHING")) {
+    return {
+      queueColumn: "NOW",
+      priorityScore: 142,
+      reason: `${label} destination work is in the publishing phase and should stay at the front of the lane.`,
+      sourceSignal: `destination:${input.destinationKey}:publishing`,
+    };
+  }
+
+  if (runStates.has("CANDIDATE_IN_REVIEW")) {
+    return {
+      queueColumn: "SOON",
+      priorityScore: autopilotRuns.length > 0 ? 132 : 108,
+      reason:
+        autopilotRuns.length > 0
+          ? `${label} autopilot review work is ready for continued queue-owned processing.`
+          : `${label} destination work is waiting in review and should remain visible in the service lane.`,
+      sourceSignal: autopilotRuns.length > 0
+        ? `destination:${input.destinationKey}:autopilot-review`
+        : `destination:${input.destinationKey}:review`,
+    };
+  }
+
+  if (activeRuns.length > 0) {
+    return {
+      queueColumn: "SOON",
+      priorityScore: 104,
+      reason: `${activeRuns.length} ${label} destination run(s) are active under guarded or autopilot execution.`,
+      sourceSignal: `destination:${input.destinationKey}:active-runs`,
+    };
+  }
+
+  return {
+    queueColumn: "LATER",
+    priorityScore: 88,
+    reason: `${activeDefinitions.length} active scheduled ${label} mission definition(s) keep the lane armed for the next queue turn.`,
+    sourceSignal: `destination:${input.destinationKey}:scheduled`,
+  };
+}
+
+async function executeDestinationLaneForCompany(input: {
+  companyId: string;
+  destinationKey: DestinationKey;
+  maxRuns: number;
+  maxPasses: number;
+  maxAutoRejections: number;
+}) {
   const eligibleStates = new Set<DestinationMissionState>([
     DestinationMissionState.QUEUED,
     DestinationMissionState.CATALOG_INSPECTED,
@@ -104,18 +198,25 @@ export async function executeDestinationMissionDaemonForCompany(input: {
     ...eligibleStates,
     DestinationMissionState.PAUSED,
   ]);
+  const missionKinds = getDestinationMissionKinds(input.destinationKey, { includeLegacy: true });
 
-  const existingRuns = await listDestinationMissionRuns({
-    companyId: input.companyId,
-    destinationKey: "classscout",
-    missionKind: "rulebook_new_listing",
-  });
+  const existingRunsByKind = await Promise.all(
+    missionKinds.map((missionKind) => listDestinationMissionRuns({
+      companyId: input.companyId,
+      destinationKey: input.destinationKey,
+      missionKind: missionKind as never,
+    })),
+  );
+  const existingRuns = existingRunsByKind.flat();
 
-  const schedulableDefinitions = await listSchedulableDestinationMissionDefinitions({
-    companyId: input.companyId,
-    destinationKey: "classscout",
-    missionKind: "rulebook_new_listing",
-  });
+  const schedulableDefinitionsByKind = await Promise.all(
+    missionKinds.map((missionKind) => listSchedulableDestinationMissionDefinitions({
+      companyId: input.companyId,
+      destinationKey: input.destinationKey,
+      missionKind,
+    })),
+  );
+  const schedulableDefinitions = schedulableDefinitionsByKind.flat();
 
   const activeDefinitionRunIds = new Set(
     existingRuns
@@ -126,30 +227,35 @@ export async function executeDestinationMissionDaemonForCompany(input: {
 
   const definitionsToMaterialize = schedulableDefinitions
     .filter((definition) => !activeDefinitionRunIds.has(definition.id))
-    .slice(0, maxRuns);
+    .slice(0, input.maxRuns);
 
   const materializedRuns = [];
   for (const definition of definitionsToMaterialize) {
     materializedRuns.push(
       await startDestinationMissionRun({
         companyId: input.companyId,
-        destinationKey: "classscout",
-        missionKind: "rulebook_new_listing",
+        destinationKey: input.destinationKey,
+        missionKind: definition.missionKind as never,
         missionDefinitionId: definition.id,
         metadata: {
           startedFrom: "destination-mission-daemon",
           materializedFromDefinitionId: definition.id,
           materializedFromDefinitionName: definition.name,
+          destinationKey: input.destinationKey,
+          missionKind: definition.missionKind,
         },
       }),
     );
   }
 
-  const runs = await listDestinationMissionRuns({
-    companyId: input.companyId,
-    destinationKey: "classscout",
-    missionKind: "rulebook_new_listing",
-  });
+  const runsByKind = await Promise.all(
+    missionKinds.map((missionKind) => listDestinationMissionRuns({
+      companyId: input.companyId,
+      destinationKey: input.destinationKey,
+      missionKind: missionKind as never,
+    })),
+  );
+  const runs = runsByKind.flat();
 
   const selectedRuns = runs
     .filter((run) => eligibleStates.has(run.state))
@@ -157,7 +263,7 @@ export async function executeDestinationMissionDaemonForCompany(input: {
       const mode = readExecutionMode(run);
       return mode === "guarded" || mode === "autopilot";
     })
-    .slice(0, maxRuns);
+    .slice(0, input.maxRuns);
 
   const results = [];
   for (const run of selectedRuns) {
@@ -199,12 +305,12 @@ export async function executeDestinationMissionDaemonForCompany(input: {
         }),
       };
     } else {
-      result = await executeClassScoutMissionUntilBlocked({
+      result = await executeDestinationMissionUntilBlocked({
         companyId: input.companyId,
         missionId: run.id,
         actorId: "destination-mission-daemon",
-        maxPasses,
-        maxAutoRejections,
+        maxPasses: input.maxPasses,
+        maxAutoRejections: input.maxAutoRejections,
       });
     }
 
@@ -217,26 +323,95 @@ export async function executeDestinationMissionDaemonForCompany(input: {
     });
   }
 
-  const maintenancePublish = await publishApprovedClassScoutRevisionPackets({
+  return {
+    destinationKey: input.destinationKey,
+    materialized: materializedRuns.length,
+    processed: results.length,
+    skipped: runs.length - results.length,
+    profile: buildDestinationRunProfile({
+      destinationKey: input.destinationKey,
+      definitions: schedulableDefinitions,
+      runs: selectedRuns,
+    }),
+    results,
+  };
+}
+
+export async function executeDestinationMissionDaemonForCompany(input: {
+  companyId: string;
+  destinationKey?: DestinationKey;
+  maxRuns?: number;
+  maxPasses?: number;
+  maxAutoRejections?: number;
+  maxRevisionIntakes?: number;
+  maxApprovedPublishes?: number;
+}) {
+  const defaults = readDaemonDefaults();
+  const company = await prisma.company.findUnique({
+    where: { id: input.companyId },
+    select: { id: true, workerConfig: true },
+  });
+  if (!company) {
+    throw new Error(`Company ${input.companyId} not found for destination mission daemon.`);
+  }
+
+  const resolvedPolicy = resolveDestinationDaemonPolicy({
+    workerConfig: company.workerConfig,
+    fallbackDefaults: defaults,
+  });
+  const byDestinationLimits = {} as Record<DestinationKey, DestinationDaemonLimits>;
+
+  const destinationKeys = input.destinationKey ? [input.destinationKey] : DAEMON_DESTINATION_KEYS;
+  const destinationResults = [];
+  for (const destinationKey of destinationKeys) {
+    const destinationLimits = resolveDestinationDaemonLimits({
+      destinationKey,
+      defaults,
+      policy: resolvedPolicy,
+      overrides: {
+        maxRuns: input.maxRuns,
+        maxPasses: input.maxPasses,
+        maxAutoRejections: input.maxAutoRejections,
+        maxRevisionIntakes: input.maxRevisionIntakes,
+        maxApprovedPublishes: input.maxApprovedPublishes,
+      },
+    });
+    byDestinationLimits[destinationKey] = destinationLimits;
+
+    destinationResults.push(await executeDestinationLaneForCompany({
+      companyId: input.companyId,
+      destinationKey,
+      maxRuns: destinationLimits.maxRuns,
+      maxPasses: destinationLimits.maxPasses,
+      maxAutoRejections: destinationLimits.maxAutoRejections,
+    }));
+  }
+
+  const maintenance = await executeDestinationMaintenanceAdapters({
     companyId: input.companyId,
     actorId: "destination-mission-daemon",
-    limit: maxApprovedPublishes,
-  });
-  const maintenanceSweep = await sweepStaleClassScoutListings({
-    companyId: input.companyId,
-    limit: maxRevisionIntakes,
+    byDestinationLimits,
   });
 
   return {
     ok: true,
     companyId: input.companyId,
-    materialized: materializedRuns.length,
-    processed: results.length,
-    skipped: runs.length - results.length,
-    results,
-    maintenance: {
-      approvedPublishes: maintenancePublish,
-      staleRevisionSweep: maintenanceSweep,
+    destinationScope: input.destinationKey ?? null,
+    materialized: destinationResults.reduce((sum, item) => sum + Number(item.materialized || 0), 0),
+    processed: destinationResults.reduce((sum, item) => sum + Number(item.processed || 0), 0),
+    skipped: destinationResults.reduce((sum, item) => sum + Number(item.skipped || 0), 0),
+    destinationResults,
+    results: destinationResults.flatMap((item) => item.results.map((result) => ({
+      destinationKey: item.destinationKey,
+      ...result,
+    }))),
+    policy: {
+      source: resolvedPolicy.source,
+      warnings: resolvedPolicy.warnings,
+      defaults: resolvedPolicy.defaults,
+      byDestination: resolvedPolicy.byDestination,
+      effectiveByDestination: byDestinationLimits,
     },
+    maintenance,
   };
 }

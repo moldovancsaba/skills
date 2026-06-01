@@ -16,7 +16,7 @@ import {
   Textarea,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconChecklist as Checklist, IconPlus as Plus, IconRefresh as Refresh } from "@tabler/icons-react";
+import { IconChecklist as ChecklistIcon, IconPlus as Plus, IconRefresh as Refresh } from "@tabler/icons-react";
 import { SharedBoard } from "@/components/board/shared-board";
 import { Notice, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCardBody } from "@/components/ui/unified-card";
@@ -194,10 +194,15 @@ export function UnitProjectBoardClient({
   companyId: string;
   boardModule?: string;
 }) {
+  const allowedBoardModules = useMemo(
+    () => new Set(["unit-board", "unitboard", "unit", "project-board", "unit-project"]),
+    [],
+  );
   const normalizedBoardModule = useMemo(() => {
     const normalized = boardModule?.trim().toLowerCase() || DEFAULT_BOARD_MODULE;
-    return normalized.length > 0 ? normalized : DEFAULT_BOARD_MODULE;
-  }, [boardModule]);
+    if (normalized.length === 0) return DEFAULT_BOARD_MODULE;
+    return allowedBoardModules.has(normalized) ? normalized : DEFAULT_BOARD_MODULE;
+  }, [allowedBoardModules, boardModule]);
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<UnitBoardItem[]>([]);
@@ -833,7 +838,7 @@ export function UnitProjectBoardClient({
           )}
         />
 
-        <PipelineAccentHeader activeKey="review" title="Project Delivery Flow" icon={Checklist} />
+        <PipelineAccentHeader activeKey="review" title="Project Delivery Flow" icon={ChecklistIcon} />
 
         <Stack gap="sm">
           <Group align="flex-end" gap="sm" wrap="wrap">

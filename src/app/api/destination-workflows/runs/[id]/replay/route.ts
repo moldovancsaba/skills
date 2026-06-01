@@ -7,8 +7,13 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const body = await request.json();
+    const rawBody = await request.json();
+    if (!rawBody || typeof rawBody !== "object" || Array.isArray(rawBody)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const body = rawBody as Record<string, unknown>;
     const companyId = String(body.companyId || "");
+    if (!companyId) return NextResponse.json({ error: "companyId is required" }, { status: 400 });
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
 
@@ -34,7 +39,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       entityId: id,
       outcomeType: "DESTINATION_WORKFLOW_REPLAY",
       outcomeValue: fromStage,
-      annotation: body.reason,
+      annotation: typeof body.reason === "string" ? body.reason : undefined,
       payload: { fromStage },
       teachingWeight: 80,
     });

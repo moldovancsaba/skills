@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { canonicalizeAllowedLanguagesForStorage } from "@/lib/language-catalog";
 import {
   UNIT_CAPABILITIES_SCHEMA_VERSION,
-  type UnitCapabilityValidation,
-  formatCapabilityPayload,
-  normalizeUnitCapabilitiesPayloadForWrite,
-  type UnitWebappProfile,
   resolveUnitCapabilities,
-  type RawWorkerUnitCapabilities,
-  UNIT_WEBAPP_PROFILE_DESCRIPTIONS,
 } from "@/lib/intelligence-unit-capabilities";
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +15,9 @@ export async function GET(
   { params }: { params: Promise<{ companyId: string }> }
 ) {
   const { companyId } = await params;
+  if (!companyId) {
+    return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
+  }
 
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
@@ -82,12 +78,19 @@ export async function PATCH(
   { params }: { params: Promise<{ companyId: string }> }
 ) {
   const { companyId } = await params;
+  if (!companyId) {
+    return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
+  }
 
   const auth = await verifyMembership(request, companyId, "ADMIN");
   if (auth.error) return auth.error;
 
   try {
-    const data = await request.json();
+    const dataRaw = await request.json().catch(() => ({}));
+    if (!dataRaw || typeof dataRaw !== "object" || Array.isArray(dataRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = dataRaw as Record<string, any>;
     const existing = await prisma.company.findUnique({
       where: { id: companyId },
       select: {
@@ -118,6 +121,28 @@ export async function PATCH(
     // Validate allowedLanguages is an array of strings
     const hasLanguageUpdate = Array.isArray(data.allowedLanguages);
     const hasCapabilityUpdate = Boolean(data.unitCapabilities);
+    if (hasCapabilityUpdate) {
+      await recordInteractionEventFromRequest(request, {
+        companyId,
+        surface: "settings-company",
+        interactionType: "UNIT_CAPABILITIES_LEGACY_WRITE_BLOCKED",
+        entityType: "COMPANY",
+        entityId: companyId,
+        payload: {
+          reason: "capability-transaction-required",
+          requiredEndpoint: `/api/companies/${companyId}/capabilities/transaction`,
+        },
+        teachingWeight: 85,
+      });
+      return NextResponse.json(
+        {
+          error: "Unit capabilities must be updated through the capability transaction API.",
+          reasonCode: "capability_transaction_required",
+          requiredEndpoint: `/api/companies/${companyId}/capabilities/transaction`,
+        },
+        { status: 409 },
+      );
+    }
 
     if (hasLanguageUpdate && (!data.allowedLanguages.every((l: unknown) => typeof l === "string"))) {
       return NextResponse.json({ error: "Invalid allowedLanguages format" }, { status: 400 });
@@ -126,41 +151,11 @@ export async function PATCH(
     const normalizedAllowedLanguages = data.allowedLanguages
       ? canonicalizeAllowedLanguagesForStorage(data.allowedLanguages as string[])
       : undefined;
-    const incomingCapabilities = (data.unitCapabilities ?? null) as RawWorkerUnitCapabilities | null;
-    let normalizedCapabilityPayload: { profile: UnitWebappProfile; modules: Record<string, boolean> } | null = null;
-    let unitCapabilityValidation: UnitCapabilityValidation | null = null;
-    if (incomingCapabilities) {
-      const validatedCapabilities = normalizeUnitCapabilitiesPayloadForWrite(incomingCapabilities);
-      if (!validatedCapabilities.validation.isValid) {
-        return NextResponse.json(
-          {
-            error: "Invalid unitCapabilities",
-            validation: validatedCapabilities.validation,
-          },
-          { status: 400 },
-        );
-      }
-
-      normalizedCapabilityPayload = validatedCapabilities.payload;
-      unitCapabilityValidation = validatedCapabilities.validation;
-    }
-
-    const normalizedWorkerConfig = typeof existing?.workerConfig === "object" && existing?.workerConfig !== null
-      ? existing.workerConfig
-      : {};
-    const nextWorkerConfig = normalizedCapabilityPayload
-      ? ({
-          ...(typeof normalizedWorkerConfig === "object" ? normalizedWorkerConfig as Record<string, unknown> : {}),
-          unitCapabilities: formatCapabilityPayload(normalizedCapabilityPayload),
-          updatedBy: "settings-ui",
-        } as Record<string, unknown>)
-      : normalizedWorkerConfig;
 
       const updated = await prisma.company.update({
       where: { id: companyId },
       data: {
         allowedLanguages: normalizedAllowedLanguages,
-        workerConfig: nextWorkerConfig as Prisma.JsonValue,
       },
     });
 
@@ -201,41 +196,6 @@ export async function PATCH(
       });
     }
 
-    if (hasCapabilityUpdate) {
-      const previousCapabilities = resolveUnitCapabilities({
-        workerConfig: existing?.workerConfig,
-        hasClassScoutDestination: Boolean(classScoutInstance),
-        hasCompareDestination: Boolean(compareInstance),
-      });
-      const nextCapabilities = resolveUnitCapabilities({
-        workerConfig: updated.workerConfig,
-        hasClassScoutDestination: Boolean(classScoutInstance),
-        hasCompareDestination: Boolean(compareInstance),
-      });
-      await recordInteractionEventFromRequest(request, {
-        companyId,
-        surface: "settings-company",
-        interactionType: "UNIT_SURFACE_UPDATE",
-        entityType: "COMPANY",
-        entityId: updated.id,
-        beforeState: {
-          unitCapabilities: previousCapabilities,
-        },
-        afterState: {
-          unitCapabilities: nextCapabilities,
-        },
-        payload: {
-          profileDescription: UNIT_WEBAPP_PROFILE_DESCRIPTIONS[nextCapabilities.profile],
-          profileValidation:
-            (unitCapabilityValidation?.warnings ?? []).length > 0
-              ? unitCapabilityValidation?.warnings
-              : undefined,
-          profileValidationErrors: unitCapabilityValidation?.errors ?? [],
-        },
-        teachingWeight: 95,
-      });
-    }
-
     const nextCapabilities = resolveUnitCapabilities({
       workerConfig: updated.workerConfig,
       hasClassScoutDestination: Boolean(classScoutInstance),
@@ -247,7 +207,7 @@ export async function PATCH(
       unitCapabilities: nextCapabilities.normalized,
       capabilitiesVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(updated.allowedLanguages ?? []),
-      capabilitiesValidation: unitCapabilityValidation,
+      capabilitiesValidation: null,
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

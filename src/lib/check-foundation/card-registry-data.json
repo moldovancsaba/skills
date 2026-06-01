@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "cards": [
+    {
+      "cardType": "datacard",
+      "displayName": "Datacard",
+      "owningBlock": "checklist",
+      "owningModule": "data",
+      "lifecycleStates": ["DRAFT", "ACTIVE", "ARCHIVED"],
+      "scoring": "none",
+      "evidenceRequired": true,
+      "lineageRequired": true,
+      "allowedBoards": ["data", "checklist", "sales", "miniapp"],
+      "accessibleDescription": "Datacard with source evidence and business context."
+    },
+    {
+      "cardType": "topiccard",
+      "displayName": "Topiccard",
+      "owningBlock": "checklist",
+      "owningModule": "topics",
+      "lifecycleStates": ["DRAFT", "ACTIVE", "ARCHIVED"],
+      "scoring": "ice",
+      "evidenceRequired": true,
+      "lineageRequired": true,
+      "allowedBoards": ["topics", "checklist"],
+      "accessibleDescription": "Topiccard for grouped intelligence topics."
+    },
+    {
+      "cardType": "goalcard",
+      "displayName": "Goalcard",
+      "owningBlock": "checklist",
+      "owningModule": "goals",
+      "lifecycleStates": ["DRAFT", "ACTIVE", "ARCHIVED"],
+      "scoring": "ice",
+      "evidenceRequired": true,
+      "lineageRequired": true,
+      "allowedBoards": ["goals", "checklist"],
+      "accessibleDescription": "Goalcard for planning intent and outcomes."
+    },
+    {
+      "cardType": "reviewcard",
+      "displayName": "Reviewcard",
+      "owningBlock": "checklist",
+      "owningModule": "review",
+      "lifecycleStates": ["QUEUED", "AWAITING_REVIEW", "APPROVED", "REWORK_REQUESTED", "REJECTED", "ARCHIVED"],
+      "scoring": "none",
+      "evidenceRequired": true,
+      "lineageRequired": true,
+      "allowedBoards": ["review", "checklist", "miniapp"],
+      "accessibleDescription": "Reviewcard for approval and quality control states."
+    },
+    {
+      "cardType": "flashcard",
+      "displayName": "Flashcard",
+      "owningBlock": "checklist",
+      "owningModule": "knowmore",
+      "lifecycleStates": ["ACTIVE", "STALE", "ARCHIVED"],
+      "scoring": "ice",
+      "evidenceRequired": true,
+      "lineageRequired": true,
+      "allowedBoards": ["knowmore", "checklist", "sales", "miniapp"],
+      "accessibleDescription": "Flashcard for reusable knowledge synthesis."
+    },
+    {
+      "cardType": "taskcard",
+      "displayName": "Taskcard",
+      "owningBlock": "checklist",
+      "owningModule": "tactical",
+      "lifecycleStates": ["TODO", "IN_PROGRESS", "DONE", "ARCHIVED"],
+      "scoring": "priorityProfile",
+      "evidenceRequired": false,
+      "lineageRequired": true,
+      "allowedBoards": ["tactical", "checklist"],
+      "accessibleDescription": "Taskcard for prioritized execution work."
+    },
+    {
+      "cardType": "opportunitycard",
+      "displayName": "Opportunitycard",
+      "owningBlock": "sales",
+      "owningModule": "sales",
+      "lifecycleStates": ["DRAFT", "READY", "IN_PROGRESS", "ACCEPTED", "DECLINED", "ARCHIVED"],
+      "scoring": "priorityProfile",
+      "evidenceRequired": true,
+      "lineageRequired": true,
+      "allowedBoards": ["sales", "tactical"],
+      "accessibleDescription": "Opportunitycard for lead and sales opportunity lifecycle."
+    },
+    {
+      "cardType": "projectcard",
+      "displayName": "Projectcard",
+      "owningBlock": "project",
+      "owningModule": "project",
+      "lifecycleStates": ["TODO", "IN_PROGRESS", "DONE", "ARCHIVED"],
+      "scoring": "none",
+      "evidenceRequired": false,
+      "lineageRequired": false,
+      "allowedBoards": ["unit-board", "project"],
+      "accessibleDescription": "Projectcard for standalone project board management."
+    },
+    {
+      "cardType": "logiccard",
+      "displayName": "Logiccard",
+      "owningBlock": "checklist",
+      "owningModule": "aiQueue",
+      "lifecycleStates": ["QUEUED", "RUNNING", "RETRYING", "FAILED", "COMPLETED", "DEAD_LETTERED", "ARCHIVED"],
+      "scoring": "none",
+      "evidenceRequired": false,
+      "lineageRequired": true,
+      "allowedBoards": ["pipeline", "checklist", "sales", "miniapp"],
+      "accessibleDescription": "Logiccard for AI queue orchestration and workflow state."
+    },
+    {
+      "cardType": "miniappPacket",
+      "displayName": "Miniapp Packet",
+      "owningBlock": "miniapp",
+      "owningModule": "miniapp",
+      "lifecycleStates": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "PUBLISHING", "PUBLISHED", "FAILED", "ARCHIVED"],
+      "scoring": "none",
+      "evidenceRequired": true,
+      "lineageRequired": true,
+      "allowedBoards": ["miniapp", "review"],
+      "accessibleDescription": "Miniapp packet card for publish-ready public service content."
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import { APP_SESSION_COOKIE, readAppSessionToken } from "@/lib/auth";
 import { type UnitWebappProfile, resolveUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
 import { type ProjectionFreshness } from "@/lib/webapp-projection";
 import { buildCompanyReadModel, type CompanyDashboardCounts } from "@/lib/company-read-model";
+import { resolveEffectiveUnitCapabilities } from "@/lib/check-foundation";
 
 type DataType = "source" | "file";
 
@@ -19,6 +20,11 @@ export type DashboardInitialData = {
   projectionFreshness: ProjectionFreshness;
   webappProfile: UnitWebappProfile;
   unitModules: Record<string, boolean>;
+  enabledBlocks: string[];
+  enabledModules: string[];
+  enabledMiniapps: string[];
+  capabilitySource: string;
+  capabilityWarnings: string[];
 };
 
 export type DataPageInitialData = {
@@ -168,6 +174,11 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
     hasClassScoutDestination: Boolean(classScoutInstance),
     hasCompareDestination: Boolean(compareInstance),
   });
+  const effectiveCapabilities = resolveEffectiveUnitCapabilities({
+    workerConfig: company?.workerConfig,
+    hasClassScoutDestination: Boolean(classScoutInstance),
+    hasCompareDestination: Boolean(compareInstance),
+  });
 
   return {
     company,
@@ -179,6 +190,11 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
     projectionFreshness: readModel.projectionFreshness,
     webappProfile: capabilities.profile,
     unitModules: capabilities.modules,
+    enabledBlocks: effectiveCapabilities.enabledBlocks,
+    enabledModules: effectiveCapabilities.enabledModules,
+    enabledMiniapps: effectiveCapabilities.enabledMiniapps,
+    capabilitySource: effectiveCapabilities.source,
+    capabilityWarnings: effectiveCapabilities.warnings,
   };
 }
 

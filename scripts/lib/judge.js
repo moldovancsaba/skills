@@ -1,5 +1,5 @@
 /**
- * checklist JUDGE — backward-compat shim
+ * checklist JUDGE — compatibility shim
  * v2.1.0
  *
  * All functionality has been moved to evaluator.js (Trinity M2.3).

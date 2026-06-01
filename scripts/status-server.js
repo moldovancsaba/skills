@@ -11,6 +11,11 @@ const http = require("http");
 const fs   = require("fs");
 const path = require("path");
 const { PrismaClient } = require("@prisma/client");
+const {
+  applyRunnerIdentity,
+  listRunnerDefinitions,
+} = require("./lib/runtime/runner-registry");
+const RUNNER = applyRunnerIdentity("check.local.status-server");
 const prisma = new PrismaClient();
 
 const STATUS_PORT      = 10006;
@@ -36,10 +41,17 @@ function getJobMetadata(job) {
   return isPlainObject(job?.metadata) ? job.metadata : {};
 }
 
+function parsePlaylistAnchor(value) {
+  if (typeof value !== "string") return Number.POSITIVE_INFINITY;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+}
+
 function normalizeQueueJob(job, companyNames, entityLabels) {
   const metadata = getJobMetadata(job);
   const executionOptions = isPlainObject(metadata.executionOptions) ? metadata.executionOptions : {};
   const decomposition = isPlainObject(metadata.decomposition) ? metadata.decomposition : {};
+  const playlist = isPlainObject(metadata.playlist) ? metadata.playlist : {};
   const executionProfile = typeof executionOptions.profile === "string" ? executionOptions.profile : "full";
   const decompositionState = typeof decomposition.state === "string" ? decomposition.state : null;
   const isChildSlice = String(job.entityType || "").toUpperCase() === "PIPELINE_SLICE";
@@ -56,6 +68,11 @@ function normalizeQueueJob(job, companyNames, entityLabels) {
   return {
     ...job,
     metadata,
+    playlist,
+    playlistAnchorAt: typeof playlist.anchorAt === "string" ? playlist.anchorAt : null,
+    playlistAnchorTimestamp: parsePlaylistAnchor(playlist.anchorAt),
+    playlistIndex: Number.isFinite(playlist.playlistIndex) ? playlist.playlistIndex : null,
+    playlistLaneKey: typeof playlist.laneKey === "string" ? playlist.laneKey : null,
     companyName: companyNames.get(job.companyId) || job.companyId,
     entityLabel: job.entityId ? entityLabels.get(job.entityId) || job.entityId : null,
     executionProfile,
@@ -72,9 +89,21 @@ function sortQueueJobs(left, right) {
   const rightRunning = right.status === "RUNNING" ? 1 : 0;
   if (leftRunning !== rightRunning) return rightRunning - leftRunning;
 
+  const leftManualGuided = left.controlMode === "HUMAN_GUIDED" ? 1 : 0;
+  const rightManualGuided = right.controlMode === "HUMAN_GUIDED" ? 1 : 0;
+  if (leftManualGuided !== rightManualGuided) return rightManualGuided - leftManualGuided;
+
   const leftRank = QUEUE_COLUMN_RANK[left.queueColumn] ?? 99;
   const rightRank = QUEUE_COLUMN_RANK[right.queueColumn] ?? 99;
   if (leftRank !== rightRank) return leftRank - rightRank;
+
+  const leftAnchor = Number.isFinite(left.playlistAnchorTimestamp) ? left.playlistAnchorTimestamp : Number.POSITIVE_INFINITY;
+  const rightAnchor = Number.isFinite(right.playlistAnchorTimestamp) ? right.playlistAnchorTimestamp : Number.POSITIVE_INFINITY;
+  if (leftAnchor !== rightAnchor) return leftAnchor - rightAnchor;
+
+  if ((left.playlistIndex ?? Number.POSITIVE_INFINITY) !== (right.playlistIndex ?? Number.POSITIVE_INFINITY)) {
+    return (left.playlistIndex ?? Number.POSITIVE_INFINITY) - (right.playlistIndex ?? Number.POSITIVE_INFINITY);
+  }
 
   const leftPriority = Number(left.priorityScore || 0);
   const rightPriority = Number(right.priorityScore || 0);
@@ -98,6 +127,7 @@ async function getGlobalQueueSnapshot() {
       id: true,
       companyId: true,
       jobType: true,
+      controlMode: true,
       entityType: true,
       entityId: true,
       status: true,
@@ -433,6 +463,9 @@ async function buildStatusPayload() {
 
   return {
     ts: new Date().toISOString(),
+    runner: RUNNER,
+    processTitle: process.title,
+    runners: listRunnerDefinitions(),
     worker,
     backgroundWorker,
     guardian: heartbeat,
@@ -812,6 +845,8 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
     res.end(JSON.stringify({
       ok: true,
+      runner: RUNNER,
+      processTitle: process.title,
       ts: new Date().toISOString(),
       cachedAt: statusPayloadGeneratedAt ? new Date(statusPayloadGeneratedAt).toISOString() : null,
       cacheAgeMs: statusPayloadGeneratedAt ? Date.now() - statusPayloadGeneratedAt : null,
@@ -826,5 +861,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(STATUS_PORT, "127.0.0.1", () => {
-  console.log(`[STATUS] checklist Command Center running at http://127.0.0.1:${STATUS_PORT}`);
+  console.log(`[STATUS] ${RUNNER.humanName} running at http://127.0.0.1:${STATUS_PORT} (${RUNNER.id})`);
 });

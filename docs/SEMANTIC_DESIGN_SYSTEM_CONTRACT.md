@@ -1,6 +1,6 @@
 # Semantic Design System Contract
 
-This document defines the semantic vocabulary and enforcement rules for the live CHECKLIST product UI.
+This document defines the semantic vocabulary and enforcement rules for the live check webapp UI.
 
 It is subordinate to [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md).
 

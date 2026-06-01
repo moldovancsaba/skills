@@ -1,6 +1,15 @@
-# checklist Local AI Pipeline
+# check Local AI Pipeline
 
-This document describes the current shipped behavior of the checklist online/local AI pipeline.
+This document describes the current shipped behavior of the `check` Webapp/Local pipeline.
+
+Terminology:
+
+- `check` is the platform
+- `Webapp` is the B2B operator UI
+- `Local` is the local AI service
+- `Unit` is the company/organization/team scope
+- `Block` is an optional product capability enabled for a Unit
+- `Miniapp` is a public-facing app powered by a Unit
 
 The active self-learning rollout for this pipeline is Apple-Silicon-native:
 
@@ -15,7 +24,7 @@ Parked research tools such as Unsloth, LLaMA-Factory, and Axolotl are not part o
 
 checklist has two cooperating parts:
 
-1. `online webapp`
+1. `Webapp`
    - user-facing
    - runs on Vercel
    - captures raw data, topics, hashtags, and feedback
@@ -25,7 +34,7 @@ checklist has two cooperating parts:
    - should read prepared product projections first on hot routes
    - must not become an authoritative calculation layer for score health, observability interpretation, analytics history, or queue recommendations
 
-2. `local AI layer`
+2. `Local`
    - runs continuously on the local machine
    - supervises a queue-owned worker loop
    - fetches / enriches source evidence
@@ -53,7 +62,7 @@ Authoritative boundary:
 - the local AI layer owns the heavy event ledger in local MongoDB
 - the local AI layer pulls the needed records, calculates, and pushes updated product state back
 - the online app should not rebuild company-level product summaries from many live hot-path queries when prepared projections already exist
-- the local AI layer now also prepares planning-summary and projection-freshness data for tactical/checklist product surfaces
+- the local AI layer now also prepares planning-summary and projection-freshness data for tactical/check product surfaces
 
 ## Runtime processes
 
@@ -113,6 +122,28 @@ Rules:
 - `/local-ai` is local-only and not login-gated on localhost-style operator hosts
 - bare `/` rewrites to `/local-ai` only on local operator hosts; production root stays on the main webapp/login flow
 - the official runtime step-by-step sequence and recovery rules are defined in [docs/LOCAL_AI_RUNTIME_SOP.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_RUNTIME_SOP.md)
+
+## Local job attribution contract
+
+The Webapp-facing pipeline jobs API now exposes canonical Local-job attribution fields derived from queue jobs:
+
+- `unitId`
+- `blockId`
+- `moduleId`
+- `cardId` (optional)
+- `cardType` (optional)
+- `miniappId` (optional)
+- normalized Local job `status`
+
+Current adapter file:
+
+- `src/lib/local-job-attribution.js`
+
+Current API consumer route:
+
+- `GET /api/pipeline-jobs?companyId=...`
+
+This keeps existing queue contracts compatible while making Local job ownership visible in Unit/Block/Module terms.
 
 ## Canonical flow
 
@@ -244,13 +275,14 @@ Current managed job families:
 - `SCORE_ALERT_REPAIR`
 - `WORKFLOW_BLUEPRINT`
 
-Destination service lane contract:
+Miniapp service lane contract:
 
-- destination execution must join the same queue-owned worker model as the rest of checklist
-- ClassScout is currently the first destination service lane
+- Miniapp execution must join the same queue-owned worker model as the rest of `check`
+- ClassScout is currently the first Miniapp service lane
 - active scheduled ClassScout mission definitions and active guarded/autopilot ClassScout mission runs materialize into the claimable `DESTINATION_MISSION_DAEMON` queue job
 - the queue job dispatches into the internal daemon endpoint so the existing mission runtime can be reused without reintroducing a second independent scheduler
 - this keeps ClassScout under the same one-task-at-a-time, retry, timeout, and queue-visibility rules as the rest of the local AI system
+- Compare must use the same Miniapp execution pattern when brought to parity
 
 Legacy compatibility jobs may still appear:
 

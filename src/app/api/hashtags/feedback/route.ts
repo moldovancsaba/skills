@@ -12,10 +12,18 @@ function removeTag(values: string[] | null | undefined, tag: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
-    const entityType = String(data.entityType || "").toUpperCase() as HashtagEntityType;
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as {
+      entityType?: string;
+      entityId?: string;
+      tag?: unknown;
+    };
+    const entityType = (typeof data.entityType === "string" ? data.entityType : "").toUpperCase() as HashtagEntityType;
     const entityId = typeof data.entityId === "string" ? data.entityId : "";
-    const normalizedTag = normalizeHashtag(data.tag ?? "");
+    const normalizedTag = normalizeHashtag(String(data.tag ?? ""));
 
     if (!entityId || !normalizedTag) {
       return NextResponse.json({ error: "entityId and tag required" }, { status: 400 });

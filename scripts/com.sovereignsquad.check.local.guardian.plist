@@ -3,12 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.checklistsquad.checklist.guardian</string>
+    <string>com.sovereignsquad.check.local.guardian</string>
 
     <key>ProgramArguments</key>
     <array>
-        <string>/opt/homebrew/bin/node</string>
-        <string>/Users/Shared/Projects/checklist/scripts/guardian.js</string>
+        <string>/Users/Shared/Projects/checklist/bin/check-local-guardian</string>
     </array>
 
     <key>WorkingDirectory</key>
@@ -17,7 +16,13 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>CHECK_RUNNER_ID</key>
+        <string>check.local.guardian</string>
+        <key>CHECK_RUNNER_NAME</key>
+        <string>CHECK Local Guardian</string>
+        <key>CHECK_RUNNER_KIND</key>
+        <string>continuous</string>
     </dict>
 
     <!-- Auto-start at login and auto-restart on exit -->

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { IconBell as Bell, IconShieldCheck as ShieldCheck, IconKey as Key, IconSettings as SettingsIcon, IconCopy as Copy, IconRefresh as RefreshCcw, IconEye as Eye, IconEyeOff as EyeOff, IconDeviceMobile as Smartphone, IconGlobe as Globe, IconLanguage as Languages } from "@tabler/icons-react";
 import { 
-  Switch, Slider, Button, TextInput, Select, Group, Stack, Badge, ActionIcon, ThemeIcon, Box, SimpleGrid } from "@mantine/core";
+  Switch, Slider, Button, TextInput, Select, Group, Stack, Badge, ActionIcon, ThemeIcon, Box, SimpleGrid, NumberInput } from "@mantine/core";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardSection } from "@/components/ui/unified-card";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
@@ -13,12 +13,14 @@ import { notifications } from "@mantine/notifications";
 import { UiLanguageSelect } from "@/components/ui-language-select";
 import { useI18n } from "@/lib/ui-i18n";
 import {
-  UNIT_MODULE_BLOCKS,
-  UNIT_MODULE_DEFINITIONS,
-  UNIT_WEBAPP_PROFILE_DESCRIPTIONS,
-  type UnitModuleKey,
-  type UnitWebappProfile,
-} from "@/lib/intelligence-unit-capabilities";
+  BLOCK_DEFINITIONS,
+  BLOCK_KEYS,
+  MODULE_DEFINITIONS,
+  MODULE_KEYS,
+  type BlockKey,
+  type ModuleKey,
+} from "@/lib/check-foundation";
+import type { DestinationKey } from "@/lib/destination-workflow-contract";
 
 type CommunicationSettings = {
   isEnabled: boolean;
@@ -35,10 +37,178 @@ type CompanySettings = {
   name: string;
   allowedLanguages: string[];
   unitCapabilities?: {
-    profile: UnitWebappProfile;
-    modules: Record<UnitModuleKey, boolean>;
+    profile: string;
+    modules: Record<string, boolean>;
   };
 };
+
+type CapabilityIssue = {
+  field: string;
+  code: string;
+  message: string;
+};
+
+type CapabilityTransactionResponse = {
+  ok: boolean;
+  mode: "preview" | "apply";
+  version: string;
+  warnings: string[];
+  errors: CapabilityIssue[];
+  effective: {
+    enabledBlocks: BlockKey[];
+    enabledModules: ModuleKey[];
+    enabledMiniapps: string[];
+    source: string;
+  };
+  impact: {
+    hiddenRoutes: string[];
+    blockedOperations: string[];
+    affectedMiniapps: string[];
+  };
+  idempotentReplay?: boolean;
+};
+
+type CapabilityDraft = {
+  blocks: Record<BlockKey, boolean>;
+  modules: Record<ModuleKey, boolean>;
+  miniapps: Record<string, boolean>;
+};
+
+type DestinationDaemonLimitKey =
+  | "maxRuns"
+  | "maxPasses"
+  | "maxAutoRejections"
+  | "maxRevisionIntakes"
+  | "maxApprovedPublishes";
+
+type DestinationDaemonLimits = {
+  maxRuns: number;
+  maxPasses: number;
+  maxAutoRejections: number;
+  maxRevisionIntakes: number;
+  maxApprovedPublishes: number;
+};
+
+type DaemonPolicyResponse = {
+  source: "default" | "worker-config";
+  defaults: DestinationDaemonLimits;
+  byDestination: Record<DestinationKey, DestinationDaemonLimits>;
+  warnings?: string[];
+};
+
+const DAEMON_LIMIT_FIELDS: Array<{
+  key: DestinationDaemonLimitKey;
+  labelKey: string;
+  descriptionKey: string;
+  min: number;
+  max: number;
+}> = [
+  {
+    key: "maxRuns",
+    labelKey: "settings.daemonPolicyMaxRunsLabel",
+    descriptionKey: "settings.daemonPolicyMaxRunsDescription",
+    min: 1,
+    max: 20,
+  },
+  {
+    key: "maxPasses",
+    labelKey: "settings.daemonPolicyMaxPassesLabel",
+    descriptionKey: "settings.daemonPolicyMaxPassesDescription",
+    min: 1,
+    max: 8,
+  },
+  {
+    key: "maxAutoRejections",
+    labelKey: "settings.daemonPolicyMaxAutoRejectionsLabel",
+    descriptionKey: "settings.daemonPolicyMaxAutoRejectionsDescription",
+    min: 1,
+    max: 10,
+  },
+  {
+    key: "maxRevisionIntakes",
+    labelKey: "settings.daemonPolicyMaxRevisionIntakesLabel",
+    descriptionKey: "settings.daemonPolicyMaxRevisionIntakesDescription",
+    min: 1,
+    max: 20,
+  },
+  {
+    key: "maxApprovedPublishes",
+    labelKey: "settings.daemonPolicyMaxApprovedPublishesLabel",
+    descriptionKey: "settings.daemonPolicyMaxApprovedPublishesDescription",
+    min: 1,
+    max: 20,
+  },
+];
+
+function cloneDestinationDaemonByDestination(
+  value: Record<DestinationKey, DestinationDaemonLimits>,
+): Record<DestinationKey, DestinationDaemonLimits> {
+  return {
+    classscout: { ...value.classscout },
+    compare: { ...value.compare },
+  };
+}
+
+function clampDestinationDaemonLimit(
+  key: DestinationDaemonLimitKey,
+  rawValue: number,
+) {
+  const field = DAEMON_LIMIT_FIELDS.find((item) => item.key === key);
+  if (!field) return Math.round(rawValue);
+  return Math.max(field.min, Math.min(field.max, Math.round(rawValue)));
+}
+
+const DEFAULT_MINIAPP_KEYS = ["classscout", "compare"] as const;
+
+function buildEmptyCapabilityDraft(): CapabilityDraft {
+  return {
+    blocks: Object.fromEntries(BLOCK_KEYS.map((key) => [key, false])) as Record<BlockKey, boolean>,
+    modules: Object.fromEntries(MODULE_KEYS.map((key) => [key, false])) as Record<ModuleKey, boolean>,
+    miniapps: Object.fromEntries(DEFAULT_MINIAPP_KEYS.map((key) => [key, false])) as Record<string, boolean>,
+  };
+}
+
+function buildCapabilityDraftFromEffective(effective: {
+  enabledBlocks?: string[];
+  enabledModules?: string[];
+  enabledMiniapps?: string[];
+} | null | undefined): CapabilityDraft {
+  const base = buildEmptyCapabilityDraft();
+  const enabledBlockSet = new Set(effective?.enabledBlocks ?? []);
+  const enabledModuleSet = new Set(effective?.enabledModules ?? []);
+  const enabledMiniappSet = new Set(effective?.enabledMiniapps ?? []);
+
+  const miniappKeys = Array.from(new Set<string>([
+    ...Object.keys(base.miniapps),
+    ...Array.from(enabledMiniappSet),
+  ]));
+
+  return {
+    blocks: Object.fromEntries(
+      BLOCK_KEYS.map((key) => [key, enabledBlockSet.has(key)]),
+    ) as Record<BlockKey, boolean>,
+    modules: Object.fromEntries(
+      MODULE_KEYS.map((key) => [key, enabledModuleSet.has(key)]),
+    ) as Record<ModuleKey, boolean>,
+    miniapps: Object.fromEntries(
+      miniappKeys.map((key) => [key, enabledMiniappSet.has(key)]),
+    ) as Record<string, boolean>,
+  };
+}
+
+function toCapabilityPayload(draft: CapabilityDraft) {
+  return {
+    blocks: Object.fromEntries(
+      BLOCK_KEYS.map((key) => [key, { enabled: Boolean(draft.blocks[key]) }]),
+    ),
+    modules: Object.fromEntries(
+      MODULE_KEYS.map((key) => [key, Boolean(draft.modules[key])]),
+    ),
+    miniapps: Object.fromEntries(
+      Object.entries(draft.miniapps).map(([key, enabled]) => [key, { enabled: Boolean(enabled) }]),
+    ),
+  };
+}
 
 export default function SettingsPage() {
   const params = useParams();
@@ -47,17 +217,25 @@ export default function SettingsPage() {
 
   const [settings, setSettings] = useState<CommunicationSettings | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
-  const [unitProfile, setUnitProfile] = useState<UnitWebappProfile>("NONE");
-  const [unitModules, setUnitModules] = useState<Record<UnitModuleKey, boolean>>({} as Record<UnitModuleKey, boolean>);
+  const [daemonPolicy, setDaemonPolicy] = useState<DaemonPolicyResponse | null>(null);
+  const [daemonPolicyDraft, setDaemonPolicyDraft] = useState<Record<DestinationKey, DestinationDaemonLimits> | null>(null);
+  const [capabilityDraft, setCapabilityDraft] = useState<CapabilityDraft>(() => buildEmptyCapabilityDraft());
+  const [capabilityVersion, setCapabilityVersion] = useState("");
+  const [capabilityPreview, setCapabilityPreview] = useState<CapabilityTransactionResponse | null>(null);
+  const [capabilityWarnings, setCapabilityWarnings] = useState<string[]>([]);
+  const [capabilityErrors, setCapabilityErrors] = useState<CapabilityIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingDaemonPolicy, setSavingDaemonPolicy] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
 
   const fetchSettings = useCallback(async () => {
     try {
-      const [commRes, companyRes] = await Promise.all([
+      const [commRes, companyRes, daemonPolicyRes, packageRes] = await Promise.all([
         fetch(`/api/communication/settings?companyId=${companyId}`),
-        fetch(`/api/companies/${companyId}/settings`)
+        fetch(`/api/companies/${companyId}/settings`),
+        fetch(`/api/companies/${companyId}/daemon-policy`),
+        fetch(`/api/companies/${companyId}/package`),
       ]);
       
       if (commRes.ok) {
@@ -66,8 +244,40 @@ export default function SettingsPage() {
       if (companyRes.ok) {
         const companyData = await companyRes.json();
         setCompanySettings(companyData);
-        setUnitProfile(companyData?.unitCapabilities?.profile ?? "NONE");
-        setUnitModules(companyData?.unitCapabilities?.modules ?? {});
+      }
+      if (daemonPolicyRes.ok) {
+        const daemonPolicyData = await daemonPolicyRes.json() as DaemonPolicyResponse;
+        if (daemonPolicyData?.byDestination?.classscout && daemonPolicyData?.byDestination?.compare) {
+          setDaemonPolicy(daemonPolicyData);
+          setDaemonPolicyDraft(cloneDestinationDaemonByDestination(daemonPolicyData.byDestination));
+        }
+      }
+      if (packageRes.ok) {
+        const packageData = await packageRes.json() as {
+          capabilities?: {
+            enabledBlocks?: string[];
+            enabledModules?: string[];
+            enabledMiniapps?: string[];
+          };
+        };
+        const nextDraft = buildCapabilityDraftFromEffective(packageData?.capabilities);
+        setCapabilityDraft(nextDraft);
+
+        const previewRes = await fetch(`/api/companies/${companyId}/capabilities/transaction`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "preview",
+            payload: toCapabilityPayload(nextDraft),
+          }),
+        });
+        const previewData = await previewRes.json().catch(() => null) as CapabilityTransactionResponse | null;
+        if (previewData && typeof previewData === "object") {
+          setCapabilityPreview(previewData);
+          setCapabilityVersion(previewData.version || "");
+          setCapabilityWarnings(Array.isArray(previewData.warnings) ? previewData.warnings : []);
+          setCapabilityErrors(Array.isArray(previewData.errors) ? previewData.errors : []);
+        }
       }
     } catch (error) {
       console.error("Failed to load settings", error);
@@ -76,35 +286,143 @@ export default function SettingsPage() {
     }
   }, [companyId]);
 
-  const saveUnitCapabilities = async (nextProfile: UnitWebappProfile, nextModules?: Record<UnitModuleKey, boolean>) => {
-    if (!companySettings) return;
+  const runCapabilityTransaction = useCallback(async (input: {
+    mode: "preview" | "apply";
+    expectedVersion?: string;
+    idempotencyKey?: string;
+  }) => {
+    const response = await fetch(`/api/companies/${companyId}/capabilities/transaction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: input.mode,
+        expectedVersion: input.expectedVersion,
+        idempotencyKey: input.idempotencyKey,
+        payload: toCapabilityPayload(capabilityDraft),
+      }),
+    });
+    const payload = await response.json().catch(() => null) as CapabilityTransactionResponse | null;
+    return { response, payload };
+  }, [capabilityDraft, companyId]);
+
+  const previewCapabilityDraft = useCallback(async () => {
     setSaving(true);
     try {
-      const payload = {
-        unitCapabilities: {
-          webappProfile: nextProfile,
-          modules: nextModules ?? unitModules,
-        },
-      };
-      const res = await fetch(`/api/companies/${companyId}/settings`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        const next = await res.json();
-        setUnitProfile(next?.unitCapabilities?.profile ?? nextProfile);
-        setUnitModules(next?.unitCapabilities?.modules ?? nextModules ?? unitModules);
-        notifications.show({ title: "Unit surface saved", message: "Webapp profile and module flags have been updated." });
-      } else {
-        notifications.show({ title: t("common.error"), message: t("settings.organizationSaveFailed"), color: "review" });
+      const { response, payload } = await runCapabilityTransaction({ mode: "preview" });
+      if (!payload || typeof payload !== "object") {
+        notifications.show({
+          title: t("common.error"),
+          message: "Capability preview failed because the server response was invalid.",
+          color: "review",
+        });
+        return;
       }
+
+      setCapabilityPreview(payload);
+      setCapabilityVersion(payload.version || "");
+      setCapabilityWarnings(Array.isArray(payload.warnings) ? payload.warnings : []);
+      setCapabilityErrors(Array.isArray(payload.errors) ? payload.errors : []);
+
+      if (response.ok && payload.ok) {
+        notifications.show({
+          title: "Preview complete",
+          message: "Capability preview is ready. Review impact before applying.",
+        });
+        return;
+      }
+
+      notifications.show({
+        title: "Preview blocked",
+        message: "Fix validation errors before applying capability changes.",
+        color: "review",
+      });
     } catch (error) {
-      notifications.show({ title: t("common.error"), message: t("settings.organizationSaveFailed"), color: "review" });
+      notifications.show({
+        title: t("common.error"),
+        message: "Capability preview failed.",
+        color: "review",
+      });
     } finally {
       setSaving(false);
     }
-  };
+  }, [runCapabilityTransaction, t]);
+
+  const applyCapabilityDraft = useCallback(async () => {
+    setSaving(true);
+    try {
+      let expectedVersion = capabilityVersion;
+      if (!expectedVersion) {
+        const previewResult = await runCapabilityTransaction({ mode: "preview" });
+        const previewPayload = previewResult.payload;
+        if (!previewPayload || !previewResult.response.ok || !previewPayload.ok) {
+          setCapabilityPreview(previewPayload);
+          setCapabilityWarnings(Array.isArray(previewPayload?.warnings) ? previewPayload.warnings : []);
+          setCapabilityErrors(Array.isArray(previewPayload?.errors) ? previewPayload.errors : []);
+          notifications.show({
+            title: "Apply blocked",
+            message: "Preview is required before apply and the preview currently has errors.",
+            color: "review",
+          });
+          return;
+        }
+        expectedVersion = previewPayload.version;
+        setCapabilityVersion(expectedVersion);
+        setCapabilityPreview(previewPayload);
+      }
+
+      const idempotencyKey = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+      const { response, payload } = await runCapabilityTransaction({
+        mode: "apply",
+        expectedVersion,
+        idempotencyKey,
+      });
+
+      if (!payload || typeof payload !== "object") {
+        notifications.show({
+          title: t("common.error"),
+          message: "Capability apply failed because the server response was invalid.",
+          color: "review",
+        });
+        return;
+      }
+
+      setCapabilityPreview(payload);
+      setCapabilityVersion(payload.version || "");
+      setCapabilityWarnings(Array.isArray(payload.warnings) ? payload.warnings : []);
+      setCapabilityErrors(Array.isArray(payload.errors) ? payload.errors : []);
+
+      if (!response.ok || !payload.ok) {
+        notifications.show({
+          title: response.status === 409 ? "Version conflict" : "Apply blocked",
+          message: response.status === 409
+            ? "Capability state changed on the server. Review latest state and retry."
+            : "Capability apply failed. Resolve validation issues and retry.",
+          color: "review",
+        });
+        return;
+      }
+
+      const normalizedDraft = buildCapabilityDraftFromEffective(payload.effective);
+      setCapabilityDraft(normalizedDraft);
+      notifications.show({
+        title: payload.idempotentReplay ? "Apply replay accepted" : "Capabilities applied",
+        message: payload.idempotentReplay
+          ? "The same capability apply request was already completed."
+          : "Block, module, and miniapp capabilities were applied successfully.",
+      });
+    } catch (error) {
+      notifications.show({
+        title: t("common.error"),
+        message: "Capability apply failed.",
+        color: "review",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, [capabilityVersion, runCapabilityTransaction, t]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -151,6 +469,64 @@ export default function SettingsPage() {
       notifications.show({ title: t("common.error"), message: t("settings.organizationSaveFailed"), color: "review" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const updateDaemonPolicyLimit = (
+    destinationKey: DestinationKey,
+    limitKey: DestinationDaemonLimitKey,
+    value: number | string,
+  ) => {
+    if (!daemonPolicyDraft) return;
+    if (value === "") return;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return;
+    const nextValue = clampDestinationDaemonLimit(limitKey, numeric);
+    setDaemonPolicyDraft({
+      ...daemonPolicyDraft,
+      [destinationKey]: {
+        ...daemonPolicyDraft[destinationKey],
+        [limitKey]: nextValue,
+      },
+    });
+  };
+
+  const saveDaemonPolicy = async () => {
+    if (!daemonPolicyDraft) return;
+    setSavingDaemonPolicy(true);
+    try {
+      const res = await fetch(`/api/companies/${companyId}/daemon-policy`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          miniapps: daemonPolicyDraft,
+        }),
+      });
+      if (res.ok) {
+        const next = await res.json() as DaemonPolicyResponse;
+        if (next?.byDestination?.classscout && next?.byDestination?.compare) {
+          setDaemonPolicy(next);
+          setDaemonPolicyDraft(cloneDestinationDaemonByDestination(next.byDestination));
+        }
+        notifications.show({
+          title: t("settings.daemonPolicySaved"),
+          message: t("settings.daemonPolicyUpdated"),
+        });
+      } else {
+        notifications.show({
+          title: t("common.error"),
+          message: t("settings.daemonPolicySaveFailed"),
+          color: "review",
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: t("common.error"),
+        message: t("settings.daemonPolicySaveFailed"),
+        color: "review",
+      });
+    } finally {
+      setSavingDaemonPolicy(false);
     }
   };
 
@@ -288,82 +664,301 @@ export default function SettingsPage() {
           </UnifiedCardBody>
         </UnifiedCard>
 
-        {/* Unit surface and module capabilities */}
+        {/* Block control center */}
         <UnifiedCard tone="review">
           <UnifiedCardBody>
             <Stack gap="md">
-              <Group gap="sm">
-                <ThemeIcon color="review">
-                  <SettingsIcon size={18} />
-                </ThemeIcon>
-                <SectionTitle>Intelligence Unit Surface</SectionTitle>
+              <Group justify="space-between" align="flex-start">
+                <Stack gap={4}>
+                  <Group gap="sm">
+                    <ThemeIcon color="review">
+                      <SettingsIcon size={18} />
+                    </ThemeIcon>
+                    <SectionTitle>Block Control Center</SectionTitle>
+                  </Group>
+                  <MetaText>Enable or disable Blocks, Modules, and Miniapp destinations with preview-first transactional apply.</MetaText>
+                </Stack>
+                <Badge color="review" variant="light">
+                  {capabilityVersion ? `Version ${capabilityVersion}` : "Version pending"}
+                </Badge>
               </Group>
-              <MetaText>Control which webapp profile this unit should run and which module routes are exposed.</MetaText>
-              <BodyText>
-                {UNIT_WEBAPP_PROFILE_DESCRIPTIONS[unitProfile]}
-              </BodyText>
-
-              <Select
-                label="Webapp profile"
-                value={unitProfile}
-                onChange={(value) => {
-                  if (!value) return;
-                  const nextProfile = value as UnitWebappProfile;
-                  setUnitProfile(nextProfile);
-                  void saveUnitCapabilities(nextProfile);
-                }}
-                disabled={saving}
-                data={[
-                  { value: "NONE", label: "No Webapp" },
-                  { value: "CLASSSCOUT", label: "ClassScout" },
-                  { value: "COMPARE", label: "Compare" },
-                ]}
-              />
 
               <UnifiedCardSection tone="review">
                 <Stack gap="sm">
-                  {UNIT_MODULE_BLOCKS.map((block) => (
-                    <Stack key={block.key} gap="xs">
-                        <SectionTitle>{block.label}</SectionTitle>
-                      <MetaText>{block.description}</MetaText>
-                      <Stack gap="sm">
-                        {block.moduleKeys
-                          .map((moduleKey) => UNIT_MODULE_DEFINITIONS.find((definition) => definition.key === moduleKey))
-                          .filter(Boolean)
-                          .map((definition) => {
-                            if (!definition) return null;
-                            return (
-                              <Group
-                                key={definition.key}
-                                justify="space-between"
-                                align="center"
-                                wrap="nowrap"
-                              >
-                                <Box>
-                                  <BodyText>{definition.label}</BodyText>
-                                  <MetaText>{definition.description}</MetaText>
-                                </Box>
-                                <Switch
-                                  size="md"
-                                  checked={Boolean(unitModules[definition.key])}
-                                  onChange={(event) => {
-                                    const nextModules = {
-                                      ...unitModules,
-                                      [definition.key]: event.currentTarget.checked,
-                                    };
-                                    setUnitModules(nextModules);
-                                    void saveUnitCapabilities(unitProfile, nextModules);
-                                  }}
-                                  disabled={saving}
-                                />
-                              </Group>
-                            );
-                          })}
-                      </Stack>
-                    </Stack>
+                  <SectionTitle>Blocks</SectionTitle>
+                  {BLOCK_DEFINITIONS.map((definition) => (
+                    <Group key={definition.key} justify="space-between" align="flex-start" wrap="nowrap">
+                      <Box>
+                        <BodyText>{definition.displayName}</BodyText>
+                        <MetaText>{definition.description}</MetaText>
+                      </Box>
+                      <Switch
+                        size="md"
+                        checked={Boolean(capabilityDraft.blocks[definition.key])}
+                        disabled={saving}
+                        onChange={(event) => {
+                          const enabled = event.currentTarget.checked;
+                          setCapabilityPreview(null);
+                          setCapabilityWarnings([]);
+                          setCapabilityErrors([]);
+                          setCapabilityDraft((prev) => {
+                            const nextMiniapps = { ...prev.miniapps };
+                            if (definition.key === "miniapp" && !enabled) {
+                              for (const key of Object.keys(nextMiniapps)) {
+                                nextMiniapps[key] = false;
+                              }
+                            }
+                            return {
+                              ...prev,
+                              blocks: {
+                                ...prev.blocks,
+                                [definition.key]: enabled,
+                              },
+                              miniapps: nextMiniapps,
+                            };
+                          });
+                        }}
+                      />
+                    </Group>
                   ))}
                 </Stack>
               </UnifiedCardSection>
+
+              <UnifiedCardSection tone="review">
+                <Stack gap="sm">
+                  <SectionTitle>Miniapp destinations</SectionTitle>
+                  {Object.entries(capabilityDraft.miniapps).map(([miniappKey, enabled]) => (
+                    <Group key={miniappKey} justify="space-between" align="center" wrap="nowrap">
+                      <Box>
+                        <BodyText>{miniappKey}</BodyText>
+                        <MetaText>Miniapp capability and mission pipeline.</MetaText>
+                      </Box>
+                      <Switch
+                        size="md"
+                        checked={Boolean(enabled)}
+                        disabled={saving}
+                        onChange={(event) => {
+                          const nextEnabled = event.currentTarget.checked;
+                          setCapabilityPreview(null);
+                          setCapabilityWarnings([]);
+                          setCapabilityErrors([]);
+                          setCapabilityDraft((prev) => ({
+                            ...prev,
+                            miniapps: {
+                              ...prev.miniapps,
+                              [miniappKey]: nextEnabled,
+                            },
+                            blocks: {
+                              ...prev.blocks,
+                              miniapp: nextEnabled ? true : prev.blocks.miniapp,
+                            },
+                          }));
+                        }}
+                      />
+                    </Group>
+                  ))}
+                </Stack>
+              </UnifiedCardSection>
+
+              <UnifiedCardSection tone="review">
+                <Stack gap="sm">
+                  <SectionTitle>Module matrix</SectionTitle>
+                  {MODULE_DEFINITIONS.map((definition) => (
+                    <Group key={definition.key} justify="space-between" align="flex-start" wrap="nowrap">
+                      <Box>
+                        <BodyText>{definition.displayName}</BodyText>
+                        <MetaText>{definition.description}</MetaText>
+                      </Box>
+                      <Switch
+                        size="md"
+                        checked={Boolean(capabilityDraft.modules[definition.key])}
+                        disabled={saving}
+                        onChange={(event) => {
+                          const enabled = event.currentTarget.checked;
+                          setCapabilityPreview(null);
+                          setCapabilityWarnings([]);
+                          setCapabilityErrors([]);
+                          setCapabilityDraft((prev) => ({
+                            ...prev,
+                            modules: {
+                              ...prev.modules,
+                              [definition.key]: enabled,
+                            },
+                          }));
+                        }}
+                      />
+                    </Group>
+                  ))}
+                </Stack>
+              </UnifiedCardSection>
+
+              {capabilityWarnings.length > 0 ? (
+                <UnifiedCardSection tone="review">
+                  <Stack gap="xs">
+                    <SectionTitle>Warnings</SectionTitle>
+                    {capabilityWarnings.map((warning, index) => (
+                      <MetaText key={`capability-warning-${index}`}>{warning}</MetaText>
+                    ))}
+                  </Stack>
+                </UnifiedCardSection>
+              ) : null}
+
+              {capabilityErrors.length > 0 ? (
+                <UnifiedCardSection tone="review">
+                  <Stack gap="xs">
+                    <SectionTitle>Validation errors</SectionTitle>
+                    {capabilityErrors.map((issue, index) => (
+                      <MetaText key={`capability-error-${index}`}>
+                        {`${issue.field}: ${issue.message} (${issue.code})`}
+                      </MetaText>
+                    ))}
+                  </Stack>
+                </UnifiedCardSection>
+              ) : null}
+
+              {capabilityPreview?.impact ? (
+                <UnifiedCardSection tone="review">
+                  <Stack gap="xs">
+                    <SectionTitle>Runtime impact preview</SectionTitle>
+                    <MetaText>{`Hidden routes: ${capabilityPreview.impact.hiddenRoutes.length}`}</MetaText>
+                    <MetaText>{`Blocked operations: ${capabilityPreview.impact.blockedOperations.length}`}</MetaText>
+                    <MetaText>{`Affected miniapps: ${capabilityPreview.impact.affectedMiniapps.length}`}</MetaText>
+                  </Stack>
+                </UnifiedCardSection>
+              ) : null}
+
+              <Group justify="flex-end" gap="sm">
+                <Button
+                  variant="light"
+                  color="gray"
+                  disabled={saving}
+                  loading={saving}
+                  onClick={() => {
+                    void previewCapabilityDraft();
+                  }}
+                >
+                  Preview changes
+                </Button>
+                <Button
+                  color="review"
+                  disabled={saving}
+                  loading={saving}
+                  onClick={() => {
+                    void applyCapabilityDraft();
+                  }}
+                >
+                  Apply changes
+                </Button>
+              </Group>
+            </Stack>
+          </UnifiedCardBody>
+        </UnifiedCard>
+
+        <UnifiedCard tone="tactical">
+          <UnifiedCardBody>
+            <Stack gap="md">
+              <Group gap="sm">
+                <ThemeIcon color="tactical">
+                  <SettingsIcon size={18} />
+                </ThemeIcon>
+                <SectionTitle>{t("settings.daemonPolicyTitle")}</SectionTitle>
+              </Group>
+              <MetaText>
+                {t("settings.daemonPolicyDescription")}
+              </MetaText>
+
+              {daemonPolicy && daemonPolicyDraft ? (
+                <>
+                  <UnifiedCardSection tone="tactical">
+                    <Stack gap="xs">
+                      <MetaText>
+                        {t("settings.daemonPolicyResolvedSource", {
+                          source:
+                            daemonPolicy.source === "worker-config"
+                              ? t("settings.daemonPolicySourceWorkerConfig")
+                              : t("settings.daemonPolicySourceDefault"),
+                        })}
+                      </MetaText>
+                      <MetaText>{t("settings.daemonPolicyDefaultHint")}</MetaText>
+                      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+                        {DAEMON_LIMIT_FIELDS.map((field) => (
+                          <Group key={`defaults-${field.key}`} justify="space-between">
+                            <MetaText>{t(field.labelKey)}</MetaText>
+                            <Text>{daemonPolicy.defaults[field.key]}</Text>
+                          </Group>
+                        ))}
+                      </SimpleGrid>
+                    </Stack>
+                  </UnifiedCardSection>
+
+                  {(["classscout", "compare"] as DestinationKey[]).map((destinationKey) => (
+                    <UnifiedCardSection key={`daemon-${destinationKey}`} tone="tactical">
+                      <Stack gap="sm">
+                        <SectionTitle>
+                          {t("settings.daemonPolicyLaneOverrides", {
+                            destination:
+                              destinationKey === "classscout"
+                                ? t("settings.daemonPolicyDestinationClassScout")
+                                : t("settings.daemonPolicyDestinationCompare"),
+                          })}
+                        </SectionTitle>
+                        <MetaText>{t("settings.daemonPolicyLaneOverridesDescription")}</MetaText>
+                        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+                          {DAEMON_LIMIT_FIELDS.map((field) => (
+                            <NumberInput
+                              key={`${destinationKey}-${field.key}`}
+                              label={t(field.labelKey)}
+                              description={t(field.descriptionKey)}
+                              value={daemonPolicyDraft[destinationKey][field.key]}
+                              min={field.min}
+                              max={field.max}
+                              step={1}
+                              onChange={(value) => updateDaemonPolicyLimit(destinationKey, field.key, value)}
+                              disabled={savingDaemonPolicy}
+                            />
+                          ))}
+                        </SimpleGrid>
+                      </Stack>
+                    </UnifiedCardSection>
+                  ))}
+
+                  {Array.isArray(daemonPolicy.warnings) && daemonPolicy.warnings.length > 0 ? (
+                    <UnifiedCardSection tone="review">
+                      <Stack gap="xs">
+                        <MetaText>{t("settings.daemonPolicyWarnings")}</MetaText>
+                        {daemonPolicy.warnings.map((warning, index) => (
+                          <MetaText key={`daemon-warning-${index}`} c="review">
+                            {warning}
+                          </MetaText>
+                        ))}
+                      </Stack>
+                    </UnifiedCardSection>
+                  ) : null}
+
+                  <Group justify="flex-end">
+                    <Button
+                      variant="subtle"
+                      color="tactical"
+                      onClick={() => {
+                        if (!daemonPolicy?.byDestination) return;
+                        setDaemonPolicyDraft(cloneDestinationDaemonByDestination(daemonPolicy.byDestination));
+                      }}
+                      disabled={savingDaemonPolicy}
+                    >
+                      {t("settings.daemonPolicyReset")}
+                    </Button>
+                    <Button
+                      color="tactical"
+                      onClick={() => void saveDaemonPolicy()}
+                      loading={savingDaemonPolicy}
+                    >
+                      {t("settings.daemonPolicySave")}
+                    </Button>
+                  </Group>
+                </>
+              ) : (
+                <MetaText c="review">{t("settings.daemonPolicyLoadFailed")}</MetaText>
+              )}
             </Stack>
           </UnifiedCardBody>
         </UnifiedCard>

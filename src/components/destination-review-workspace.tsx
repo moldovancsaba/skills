@@ -14,14 +14,16 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import {
-  IconChecklist as Checklist,
+  IconChecklist as ChecklistIcon,
   IconEye as Eye,
+  IconExternalLink as ExternalLink,
   IconRefresh as Refresh,
   IconSend as Send,
 } from "@tabler/icons-react";
 import { EmptyState, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
+import type { DestinationKey } from "@/lib/destination-workflow-contract";
 
 type ReviewPacket = {
   id: string;
@@ -70,7 +72,16 @@ type ReviewPacket = {
       changedPaths?: string[];
     } | null;
   }>;
+  outcomeMemories?: Array<{
+    eventType: string;
+    reasonCode?: string | null;
+    notes?: string | null;
+    createdAt: string;
+    payload?: Record<string, unknown> | null;
+  }>;
 };
+
+type OutcomeMemory = NonNullable<ReviewPacket["outcomeMemories"]>[number];
 
 const DECISION_OPTIONS = [
   { value: "APPROVE", label: "Approve for publish" },
@@ -125,11 +136,34 @@ function liveListingLabel(packet: ReviewPacket) {
   return `${liveListing.type} revision · ${title}`;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function latestPublishOutcome(packet: ReviewPacket | null) {
+  const outcomes = packet?.outcomeMemories ?? [];
+  return outcomes.find((item) => item.eventType.startsWith("publish_") || item.eventType === "completed" || item.eventType === "complete") ?? null;
+}
+
+function readPublicUrlFromOutcome(outcome: OutcomeMemory | null) {
+  const payload = asRecord(outcome?.payload);
+  if (typeof payload?.publicUrl === "string" && payload.publicUrl.trim()) return payload.publicUrl;
+  const response = asRecord(payload?.response);
+  if (typeof response?.publicUrl === "string" && response.publicUrl.trim()) return response.publicUrl;
+  const publicVerification = asRecord(response?.publicVerification) ?? asRecord(payload?.publicVerification);
+  if (typeof publicVerification?.publicUrl === "string" && publicVerification.publicUrl.trim()) {
+    return publicVerification.publicUrl;
+  }
+  return null;
+}
+
 export function DestinationReviewWorkspace({
   companyId,
+  destinationKey,
   embedded = false,
 }: {
   companyId: string;
+  destinationKey?: DestinationKey;
   embedded?: boolean;
 }) {
   const [loading, setLoading] = useState(true);
@@ -157,6 +191,7 @@ export function DestinationReviewWorkspace({
     try {
       const params = new URLSearchParams({ companyId });
       if (packetStateFilter !== "ALL") params.set("packetState", packetStateFilter);
+      if (destinationKey) params.set("destinationKey", destinationKey);
       const response = await fetch(`/api/destination-review/packets?${params.toString()}`);
       const data = response.ok ? await response.json() : [];
       const nextPackets = Array.isArray(data) ? data : [];
@@ -177,14 +212,15 @@ export function DestinationReviewWorkspace({
     } finally {
       setLoading(false);
     }
-  }, [companyId, packetStateFilter]);
+  }, [companyId, destinationKey, packetStateFilter]);
 
   useEffect(() => {
     if (!selectedId) return;
     const controller = new AbortController();
     const loadPacketDetail = async () => {
+      const destinationQuery = destinationKey ? `&destinationKey=${encodeURIComponent(destinationKey)}` : "";
       const response = await fetch(
-        `/api/destination-review/packets/${selectedId}?companyId=${companyId}`,
+        `/api/destination-review/packets/${selectedId}?companyId=${encodeURIComponent(companyId)}${destinationQuery}`,
         { signal: controller.signal },
       );
       if (!response.ok) return;
@@ -198,7 +234,7 @@ export function DestinationReviewWorkspace({
     };
     void loadPacketDetail();
     return () => controller.abort();
-  }, [companyId, selectedId]);
+  }, [companyId, destinationKey, selectedId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -213,6 +249,8 @@ export function DestinationReviewWorkspace({
   );
   const latestCorrection = selectedPacket?.reviewDecisions?.[0]?.correctionSummary ?? null;
   const latestFactCorrection = selectedPacket?.reviewDecisions?.[0]?.factCorrectionSummary ?? null;
+  const publishOutcome = latestPublishOutcome(selectedPacket);
+  const publicUrl = readPublicUrlFromOutcome(publishOutcome);
 
   const submitDecision = useCallback(async () => {
     if (!selectedPacket) return;
@@ -239,6 +277,7 @@ export function DestinationReviewWorkspace({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
+          destinationKey,
           bridgeVersion: selectedPacket.bridgeVersion,
           decision,
           decisionReasonCode: reason,
@@ -258,7 +297,7 @@ export function DestinationReviewWorkspace({
     } finally {
       setSubmitting(false);
     }
-  }, [companyId, decision, draftEditorJson, factsEditorJson, loadPackets, notes, reason, selectedPacket]);
+  }, [companyId, decision, destinationKey, draftEditorJson, factsEditorJson, loadPackets, notes, reason, selectedPacket]);
 
   const publishApprovedPacket = useCallback(async () => {
     if (!selectedPacket) return;
@@ -267,10 +306,14 @@ export function DestinationReviewWorkspace({
       const response = await fetch(`/api/destination-review/packets/${selectedPacket.id}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId }),
+        body: JSON.stringify({ companyId, destinationKey }),
       });
       if (!response.ok) {
         throw new Error("Destination publish failed");
+      }
+      const result = await response.json().catch(() => ({})) as { publicUrl?: string | null };
+      if (result.publicUrl) {
+        window.open(result.publicUrl, "_blank", "noopener,noreferrer");
       }
       await loadPackets();
     } catch (error) {
@@ -278,7 +321,7 @@ export function DestinationReviewWorkspace({
     } finally {
       setPublishing(false);
     }
-  }, [companyId, loadPackets, selectedPacket]);
+  }, [companyId, destinationKey, loadPackets, selectedPacket]);
 
   if (loading) {
     const loadingContent = (
@@ -291,11 +334,11 @@ export function DestinationReviewWorkspace({
 
   const content = (
     <Stack gap="xl">
-      {embedded ? null : <PipelineAccentHeader activeKey="review" title="Destination Review Workspace" icon={Checklist} />}
+      {embedded ? null : <PipelineAccentHeader activeKey="review" title="Destination Review Workspace" icon={ChecklistIcon} />}
 
       {packets.length === 0 ? (
         <EmptyState
-          icon={Checklist}
+          icon={ChecklistIcon}
           tone="review"
           title="No destination packets waiting"
           description="The reusable destination workflow does not currently have any review-ready packets for this company."
@@ -457,6 +500,33 @@ export function DestinationReviewWorkspace({
                     <UnifiedCardHeader title="Decision Console" />
                     <UnifiedCardBody>
                       <Stack gap="md">
+                        <UnifiedCardSection tone={publishOutcome?.eventType === "publish_completed" ? "checklist" : publishOutcome ? "review" : "neutral"}>
+                          <Group justify="space-between" align="flex-start">
+                            <Stack gap={4}>
+                              <Text fw={600}>Miniapp visibility</Text>
+                              <BodyText>
+                                {publishOutcome
+                                  ? `${publishOutcome.eventType}${publishOutcome.reasonCode ? ` · ${publishOutcome.reasonCode}` : ""}`
+                                  : "Not published to the Miniapp yet."}
+                              </BodyText>
+                              {publishOutcome?.notes ? <MetaText>{publishOutcome.notes}</MetaText> : null}
+                              {publicUrl ? <MetaText>{publicUrl}</MetaText> : null}
+                            </Stack>
+                            {publicUrl ? (
+                              <Button
+                                component="a"
+                                href={publicUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                variant="light"
+                                color="checklist"
+                                leftSection={<ExternalLink size={16} />}
+                              >
+                                Open on Miniapp
+                              </Button>
+                            ) : null}
+                          </Group>
+                        </UnifiedCardSection>
                         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
                           <Select
                             label="Decision"
@@ -491,7 +561,7 @@ export function DestinationReviewWorkspace({
                                 loading={publishing}
                                 onClick={() => void publishApprovedPacket()}
                               >
-                                Publish To ClassScout
+                                Publish To Miniapp
                               </Button>
                             ) : null}
                             <Button

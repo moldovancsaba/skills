@@ -124,7 +124,7 @@ async function resolvePipelineEntityLabel(prisma, job) {
   }
 
   if (entityType === "DESTINATION_SERVICE") {
-    return job.entityId === "classscout" ? "ClassScout" : "Destination Service";
+    return "Destination Mission Daemon";
   }
 
   return null;
@@ -143,7 +143,7 @@ function getChecklistLocalRuntimeBridgeConfig() {
   const bearerToken = (process.env.CRON_SECRET || process.env.INGEST_SECRET || "").trim();
   if (!bearerToken) {
     throw createPipelineContractError(
-      "ClassScout destination lane requires CRON_SECRET or INGEST_SECRET so the queue can call the internal daemon endpoint.",
+      "Destination mission daemon requires CRON_SECRET or INGEST_SECRET so the queue can call the internal daemon endpoint.",
     );
   }
 
@@ -165,7 +165,7 @@ function getChecklistLocalRuntimeBridgeConfig() {
   };
 }
 
-async function runClassScoutDestinationMissionDaemonJob(job) {
+async function runDestinationMissionDaemonJob(job) {
   const config = getChecklistLocalRuntimeBridgeConfig();
   const payload = {
     companyId: job.companyId,
@@ -227,7 +227,7 @@ async function runClassScoutDestinationMissionDaemonJob(job) {
   const summary = failures
     .map((failure) => `${failure.baseUrl} (${failure.status || "ERR"}: ${failure.error})`)
     .join("; ");
-  throw new Error(`ClassScout destination lane could not reach the internal daemon endpoint. ${summary}`);
+  throw new Error(`Destination mission daemon could not reach the internal daemon endpoint. ${summary}`);
 }
 
 const MEMORY_INTENSIVE_PIPELINE_JOB_TYPES = new Set([
@@ -527,7 +527,7 @@ async function executePipelineJob(prisma, job, executionOptions = {}) {
       await recomputeFrontier(prisma, company);
       return 1;
     case "DESTINATION_MISSION_DAEMON":
-      return runClassScoutDestinationMissionDaemonJob(job);
+      return runDestinationMissionDaemonJob(job);
     case "FULL_MAINTENANCE":
       await runMaintenance(prisma, company);
       return 1;

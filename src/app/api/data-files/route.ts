@@ -102,6 +102,9 @@ export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
   const limitParam = request.nextUrl.searchParams.get("limit");
   const offsetParam = request.nextUrl.searchParams.get("offset");
+  if (!companyId) {
+    return NextResponse.json({ error: "companyId required" }, { status: 400 });
+  }
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
 
@@ -254,7 +257,11 @@ export async function PATCH(request: NextRequest) {
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
   try {
-    const data = await request.json();
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as any;
     const existing = await prisma.uploadedSourceFile.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

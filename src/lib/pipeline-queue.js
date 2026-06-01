@@ -6,7 +6,13 @@ const {
   PLANNER_MIN_DATACARDS_FOR_ACTIVE,
   getCompanyOperatingMode,
 } = require("./planner-contract");
+const { resolvePipelineJobAttribution } = require("./local-job-attribution");
 const { readFeedbackPressureIndex, countCompanyBlockedFamilies } = require("../../scripts/lib/planner/feedback-pressure");
+const {
+  getDestinationDaemonJobIdentity,
+  getLegacyDestinationDaemonJobIdentities,
+  listSchedulableDestinationMissionKinds,
+} = require("./check-lifecycle/topology-registry");
 
 const CORE_PIPELINE_JOB_TYPES = Object.freeze([
   "FEEDBACK_RECONCILIATION",
@@ -66,6 +72,7 @@ const PIPELINE_JOB_STATUSES = Object.freeze(["ACTIVE", "RUNNING", "PAUSED", "FAI
 const PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS = 10 * 60 * 1000;
 const GLOBAL_PIPELINE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const PIPELINE_TOPOLOGY_STATE_KEY = "local_ai_pipeline_topology_state";
+const PIPELINE_JOB_PLAYLIST_STATE_VERSION = 1;
 const PIPELINE_TOPOLOGY_RECENT_SYNC_LIMIT = 24;
 const PIPELINE_JOB_RETRY_LIMITS = Object.freeze({
   SCORE_ALERT_REPAIR: 6,
@@ -277,6 +284,117 @@ function getPipelineJobMetadata(job) {
   return isPlainObject(job?.metadata) ? job.metadata : {};
 }
 
+function normalizePlaylistState(value) {
+  if (!isPlainObject(value)) return {};
+  return {
+    version: 1,
+    blockId: typeof value.blockId === "string" ? value.blockId.toLowerCase() : null,
+    moduleId: typeof value.moduleId === "string" ? value.moduleId.toLowerCase() : null,
+    miniappId: typeof value.miniappId === "string" ? value.miniappId.toLowerCase() : null,
+    miniappKey: typeof value.miniappId === "string" ? value.miniappId.toLowerCase() : null,
+    anchorAt: typeof value.anchorAt === "string" ? value.anchorAt : null,
+    reasonTag: typeof value.reasonTag === "string" ? value.reasonTag : null,
+    queueColumn: typeof value.queueColumn === "string" ? value.queueColumn : null,
+    priorityScore: Number.isFinite(value.priorityScore) ? Number(value.priorityScore) : null,
+    source: typeof value.source === "string" ? value.source : null,
+    updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : null,
+    lastPlannedAt: typeof value.lastPlannedAt === "string" ? value.lastPlannedAt : null,
+    playlistIndex: Number.isFinite(value.playlistIndex) ? Number(value.playlistIndex) : null,
+    laneKey: typeof value.laneKey === "string" ? value.laneKey : null,
+  };
+}
+
+function normalizePlaylistMetadataForJob(metadata, fallback) {
+  const current = normalizePlaylistState(getPipelineJobMetadata(metadata).playlist);
+  const now = new Date().toISOString();
+  const fallbackLane = fallback || {};
+  return {
+    ...current,
+    version: PIPELINE_JOB_PLAYLIST_STATE_VERSION,
+    blockId: fallbackLane.blockId || current.blockId || "checklist",
+    moduleId: fallbackLane.moduleId || current.moduleId || "aiQueue",
+    miniappId: fallbackLane.miniappId || current.miniappId || null,
+    miniappKey: fallbackLane.miniappId || current.miniappId || fallbackLane.miniappKey || null,
+    anchorAt: current.anchorAt || now,
+    reasonTag: fallbackLane.reasonTag || current.reasonTag || "default",
+    source: "queue-sync",
+    updatedAt: now,
+  };
+}
+
+function resolveJobAttribution(jobType, companyId, entityType, entityId, metadata = {}) {
+  return resolvePipelineJobAttribution({
+    jobType,
+    companyId,
+    entityType,
+    entityId,
+    metadata,
+  });
+}
+
+function buildPlaylistMetadataForJob(input) {
+  const {
+    companyId,
+    jobType,
+    entityType = "COMPANY",
+    entityId,
+    baseMetadata = {},
+    reason = "",
+    queueColumn = "LATER",
+    priorityScore = 0,
+    playlistIndex,
+  } = input;
+  const attribution = resolveJobAttribution(jobType, companyId, entityType, entityId, baseMetadata);
+  const miniappId = attribution.miniappId && attribution.miniappId.trim().length > 0 ? attribution.miniappId : null;
+  const now = new Date().toISOString();
+  const blockId = attribution.blockId || "checklist";
+  const moduleId = attribution.moduleId || "aiQueue";
+  const laneKey = `block:${blockId}|module:${moduleId}|miniapp:${miniappId || "unit"}|type:${jobType}`;
+  const existing = normalizePlaylistState(getPipelineJobMetadata(baseMetadata).playlist);
+
+  return {
+    ...baseMetadata,
+    playlist: {
+      ...existing,
+      version: PIPELINE_JOB_PLAYLIST_STATE_VERSION,
+      blockId,
+      moduleId,
+      miniappId,
+      miniappKey: miniappId,
+      anchorAt: existing.anchorAt || now,
+      reasonTag: reason || existing.reasonTag || "default",
+      queueColumn,
+      priorityScore: Number(priorityScore || 0),
+      source: "queue-sync",
+      updatedAt: now,
+      lastPlannedAt: now,
+      playlistIndex: Number.isFinite(playlistIndex) ? playlistIndex : (Number.isFinite(existing.playlistIndex) ? existing.playlistIndex : null),
+      laneKey,
+    },
+  };
+}
+
+function getPlaylistAnchorAt(metadata) {
+  const playlist = normalizePlaylistState(getPipelineJobMetadata(metadata).playlist);
+  const anchorAt = playlist.anchorAt;
+  const parsed = anchorAt ? Date.parse(anchorAt) : NaN;
+  return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+}
+
+function getPlaylistIndex(metadata) {
+  const playlist = normalizePlaylistState(getPipelineJobMetadata(metadata).playlist);
+  if (Number.isFinite(playlist.playlistIndex)) return playlist.playlistIndex;
+  return Number.POSITIVE_INFINITY;
+}
+
+function getPlaylistRankTuple(metadata) {
+  return {
+    anchorAt: getPlaylistAnchorAt(metadata),
+    playlistIndex: getPlaylistIndex(metadata),
+    laneKey: normalizePlaylistState(getPipelineJobMetadata(metadata).playlist).laneKey,
+  };
+}
+
 function normalizePipelineTopologyState(value) {
   const dirtyCompanies = Array.isArray(value?.dirtyCompanies)
     ? value.dirtyCompanies.filter((entry) => isPlainObject(entry) && typeof entry.companyId === "string" && entry.companyId)
@@ -431,7 +549,7 @@ function lanePriorityBoost(lane) {
   }
 }
 
-function readClassScoutMissionExecutionPolicy(configJson) {
+function readDestinationMissionExecutionPolicy(configJson) {
   if (!isPlainObject(configJson) || !isPlainObject(configJson.executionPolicy)) return null;
   const executionPolicy = configJson.executionPolicy;
   const mode = typeof executionPolicy.mode === "string" ? executionPolicy.mode : "manual";
@@ -441,24 +559,42 @@ function readClassScoutMissionExecutionPolicy(configJson) {
   return { mode, cadence, cronEnabled, requireHumanPublishApproval };
 }
 
-function readClassScoutMissionExecutionMode(policyJson) {
+function readDestinationMissionExecutionMode(policyJson) {
   if (!isPlainObject(policyJson)) return "manual";
   const mode = typeof policyJson.executionMode === "string" ? policyJson.executionMode : "manual";
   return mode === "guarded" || mode === "autopilot" ? mode : "manual";
 }
 
-function buildClassScoutDestinationLaneProfile(definitions, runs) {
+function destinationLabel(destinationKey) {
+  if (destinationKey === "classscout") return "ClassScout";
+  if (destinationKey === "compare") return "Compare";
+  return String(destinationKey || "Destination");
+}
+
+function buildDestinationLaneProfile(definitions, runs) {
   const activeDefinitions = Array.isArray(definitions) ? definitions : [];
   const activeRuns = Array.isArray(runs) ? runs : [];
   const runStates = new Set(activeRuns.map((run) => String(run.state || "")));
-  const autopilotRuns = activeRuns.filter((run) => readClassScoutMissionExecutionMode(run.policySnapshot?.policyJson) === "autopilot");
+  const autopilotRuns = activeRuns.filter((run) => readDestinationMissionExecutionMode(run.policySnapshot?.policyJson) === "autopilot");
+  const activeDestinationKeys = Array.from(
+    new Set([
+      ...activeDefinitions.map((item) => String(item.destinationKey || "").trim()).filter(Boolean),
+      ...activeRuns.map((item) => String(item.destinationKey || "").trim()).filter(Boolean),
+    ]),
+  );
+  const destinationLabelText = activeDestinationKeys.length === 1
+    ? destinationLabel(activeDestinationKeys[0])
+    : "Miniapp destination";
+  const sourceScope = activeDestinationKeys.length === 1
+    ? activeDestinationKeys[0]
+    : "multi";
 
   if (runStates.has("FAILED_RECOVERABLE")) {
     return {
       queueColumn: "NOW",
       priorityScore: 146,
-      reason: "Recoverable ClassScout destination work is waiting for immediate queue-owned retry.",
-      sourceSignal: "destination:classscout:recoverable",
+      reason: `Recoverable ${destinationLabelText} work is waiting for immediate queue-owned retry.`,
+      sourceSignal: `destination:${sourceScope}:recoverable`,
     };
   }
 
@@ -466,8 +602,8 @@ function buildClassScoutDestinationLaneProfile(definitions, runs) {
     return {
       queueColumn: "NOW",
       priorityScore: 142,
-      reason: "ClassScout destination work is in the publishing phase and should stay at the front of the lane.",
-      sourceSignal: "destination:classscout:publishing",
+      reason: `${destinationLabelText} work is in the publishing phase and should stay at the front of the lane.`,
+      sourceSignal: `destination:${sourceScope}:publishing`,
     };
   }
 
@@ -477,9 +613,9 @@ function buildClassScoutDestinationLaneProfile(definitions, runs) {
       priorityScore: autopilotRuns.length > 0 ? 132 : 108,
       reason:
         autopilotRuns.length > 0
-          ? "ClassScout autopilot review work is ready for continued queue-owned processing."
-          : "ClassScout destination work is waiting in review and should remain visible in the service lane.",
-      sourceSignal: autopilotRuns.length > 0 ? "destination:classscout:autopilot-review" : "destination:classscout:review",
+          ? `${destinationLabelText} autopilot review work is ready for continued queue-owned processing.`
+          : `${destinationLabelText} work is waiting in review and should remain visible in the service lane.`,
+      sourceSignal: autopilotRuns.length > 0 ? `destination:${sourceScope}:autopilot-review` : `destination:${sourceScope}:review`,
     };
   }
 
@@ -487,38 +623,43 @@ function buildClassScoutDestinationLaneProfile(definitions, runs) {
     return {
       queueColumn: "SOON",
       priorityScore: 104,
-      reason: `${activeRuns.length} ClassScout destination run(s) are active under guarded or autopilot execution.`,
-      sourceSignal: "destination:classscout:active-runs",
+      reason: `${activeRuns.length} ${destinationLabelText} run(s) are active under guarded or autopilot execution.`,
+      sourceSignal: `destination:${sourceScope}:active-runs`,
     };
   }
 
   return {
     queueColumn: "LATER",
     priorityScore: 88,
-    reason: `${activeDefinitions.length} active scheduled ClassScout mission definition(s) keep the destination lane armed for the next queue turn.`,
-    sourceSignal: "destination:classscout:scheduled",
+    reason: `${activeDefinitions.length} active scheduled ${destinationLabelText} mission definition(s) keep the destination lane armed for the next queue turn.`,
+    sourceSignal: `destination:${sourceScope}:scheduled`,
   };
 }
 
-async function syncClassScoutDestinationMissionJob(prisma, companyId) {
+async function syncDestinationMissionDaemonJob(prisma, companyId, options = {}) {
+  const playlistIndex = Number.isFinite(Number(options.playlistIndex)) ? Number(options.playlistIndex) : null;
   const jobKey = {
     companyId,
-    jobType: "DESTINATION_MISSION_DAEMON",
-    entityType: "DESTINATION_SERVICE",
-    entityId: "classscout",
+    ...getDestinationDaemonJobIdentity(),
   };
+  const legacyJobKeys = getLegacyDestinationDaemonJobIdentities().map((identity) => ({
+    companyId,
+    ...identity,
+  }));
+  const supportedMissionKinds = listSchedulableDestinationMissionKinds();
 
-  const [definitions, runs, existing] = await Promise.all([
+  const [definitions, runs, existing, legacyJobs] = await Promise.all([
     prisma.destinationMissionDefinition.findMany({
       where: {
         companyId,
-        destinationKey: "classscout",
-        missionKind: "rulebook_new_listing",
+        missionKind: { in: supportedMissionKinds },
         status: "active",
       },
       select: {
         id: true,
         name: true,
+        destinationKey: true,
+        missionKind: true,
         configJson: true,
         updatedAt: true,
       },
@@ -527,14 +668,15 @@ async function syncClassScoutDestinationMissionJob(prisma, companyId) {
     prisma.destinationMissionRun.findMany({
       where: {
         companyId,
-        destinationKey: "classscout",
-        missionKind: "rulebook_new_listing",
+        missionKind: { in: supportedMissionKinds },
         state: {
           in: ["QUEUED", "CATALOG_INSPECTED", "DISCOVERING", "FAILED_RECOVERABLE", "CANDIDATE_IN_REVIEW", "PUBLISHING"],
         },
       },
       select: {
         id: true,
+        destinationKey: true,
+        missionKind: true,
         state: true,
         updatedAt: true,
         policySnapshot: {
@@ -550,10 +692,24 @@ async function syncClassScoutDestinationMissionJob(prisma, companyId) {
         companyId_jobType_entityType_entityId: jobKey,
       },
     }),
+    legacyJobKeys.length > 0
+      ? prisma.pipelineJob.findMany({
+          where: {
+            OR: legacyJobKeys.map((key) => ({
+              companyId: key.companyId,
+              jobType: key.jobType,
+              entityType: key.entityType,
+              entityId: key.entityId,
+            })),
+          },
+        })
+      : Promise.resolve([]),
   ]);
+  const legacyExisting = Array.isArray(legacyJobs) ? legacyJobs[0] : null;
+  const destinationLaneJob = existing ?? legacyExisting;
 
   const schedulableDefinitions = definitions.filter((definition) => {
-    const policy = readClassScoutMissionExecutionPolicy(definition.configJson);
+    const policy = readDestinationMissionExecutionPolicy(definition.configJson);
     return Boolean(
       policy
       && policy.cadence === "scheduled"
@@ -562,33 +718,61 @@ async function syncClassScoutDestinationMissionJob(prisma, companyId) {
     );
   });
 
-  const runnableRuns = runs.filter((run) => readClassScoutMissionExecutionMode(run.policySnapshot?.policyJson) !== "manual");
+  const runnableRuns = runs.filter((run) => readDestinationMissionExecutionMode(run.policySnapshot?.policyJson) !== "manual");
 
   if (schedulableDefinitions.length === 0 && runnableRuns.length === 0) {
-    if (existing && existing.status !== "RUNNING") {
-      await prisma.pipelineJob.delete({ where: { id: existing.id } });
+    const deletableJobs = [existing, ...legacyJobs].filter((job) => job && job.status !== "RUNNING");
+    if (deletableJobs.length > 0) {
+      await prisma.pipelineJob.deleteMany({ where: { id: { in: deletableJobs.map((job) => job.id) } } });
     }
     return null;
   }
 
-  const profile = buildClassScoutDestinationLaneProfile(schedulableDefinitions, runnableRuns);
+  const profile = buildDestinationLaneProfile(schedulableDefinitions, runnableRuns);
+  const activeDestinationKeys = Array.from(
+    new Set([
+      ...schedulableDefinitions.map((definition) => String(definition.destinationKey || "").trim()).filter(Boolean),
+      ...runnableRuns.map((run) => String(run.destinationKey || "").trim()).filter(Boolean),
+    ]),
+  );
+  const singleDestinationKey = activeDestinationKeys.length === 1 ? activeDestinationKeys[0] : null;
   const metadata = {
-    destinationKey: "classscout",
-    missionKind: "rulebook_new_listing",
+    destinationKey: singleDestinationKey ?? "multi",
+    miniappId: singleDestinationKey ?? null,
+    activeDestinationKeys,
+    missionKind: "multi",
+    activeMissionKinds: Array.from(
+      new Set([
+        ...schedulableDefinitions.map((definition) => String(definition.missionKind || "").trim()).filter(Boolean),
+        ...runnableRuns.map((run) => String(run.missionKind || "").trim()).filter(Boolean),
+      ]),
+    ),
     activeDefinitionIds: schedulableDefinitions.map((definition) => definition.id),
     activeDefinitionNames: schedulableDefinitions.map((definition) => definition.name),
     activeRunIds: runnableRuns.map((run) => run.id),
     activeRunStates: runnableRuns.map((run) => run.state),
-    serviceLane: "classscout",
+    serviceLanes: activeDestinationKeys,
+    serviceLane: singleDestinationKey ?? "multi",
   };
+  const playlistMetadata = buildPlaylistMetadataForJob({
+    companyId,
+    jobType: jobKey.jobType,
+    entityType: jobKey.entityType,
+    entityId: jobKey.entityId,
+    baseMetadata: metadata,
+    reason: profile.reason,
+    queueColumn: profile.queueColumn,
+    priorityScore: roundPriority(profile.priorityScore),
+    playlistIndex,
+  });
 
-  if (!existing) {
+  if (!destinationLaneJob) {
     return prisma.pipelineJob.create({
       data: {
         companyId,
-        jobType: "DESTINATION_MISSION_DAEMON",
-        entityType: "DESTINATION_SERVICE",
-        entityId: "classscout",
+        jobType: jobKey.jobType,
+        entityType: jobKey.entityType,
+        entityId: jobKey.entityId,
         status: "ACTIVE",
         controlMode: "AI_ONLY",
         queueColumn: profile.queueColumn,
@@ -596,26 +780,32 @@ async function syncClassScoutDestinationMissionJob(prisma, companyId) {
         priorityScore: roundPriority(profile.priorityScore),
         reason: profile.reason,
         sourceSignal: profile.sourceSignal,
-        metadata,
+        metadata: playlistMetadata,
       },
     });
   }
 
+  const duplicateLegacyJobs = legacyJobs.filter((job) => job.id !== destinationLaneJob.id);
+  if (duplicateLegacyJobs.length > 0) {
+    await prisma.pipelineJob.deleteMany({ where: { id: { in: duplicateLegacyJobs.map((job) => job.id) } } });
+  }
+
   return prisma.pipelineJob.update({
-    where: { id: existing.id },
+    where: { id: destinationLaneJob.id },
     data: {
+      entityId: jobKey.entityId,
       controlMode: "AI_ONLY",
-      queueColumn: existing.controlMode === "AI_ONLY" ? profile.queueColumn : existing.queueColumn,
+      queueColumn: destinationLaneJob.controlMode === "AI_ONLY" ? profile.queueColumn : destinationLaneJob.queueColumn,
       status:
-        existing.status === "RUNNING"
-          ? existing.status
-          : existing.status === "PAUSED"
-            ? existing.status
+        destinationLaneJob.status === "RUNNING"
+          ? destinationLaneJob.status
+          : destinationLaneJob.status === "PAUSED"
+            ? destinationLaneJob.status
             : "ACTIVE",
       priorityScore: roundPriority(profile.priorityScore),
       reason: profile.reason,
       sourceSignal: profile.sourceSignal,
-      metadata,
+      metadata: playlistMetadata,
     },
   });
 }
@@ -1271,6 +1461,7 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
   return withPipelineRetry(async () => {
     const signals = await gatherCompanyPipelineSignals(prisma, companyId);
     const jobs = [];
+    let playlistIndex = 0;
 
     for (const jobType of PIPELINE_JOB_TYPES) {
       const autoProfile = buildAutoJobProfile(jobType, signals);
@@ -1283,6 +1474,17 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
             entityId: companyId,
           },
         },
+      });
+      const plannedMetadata = buildPlaylistMetadataForJob({
+        companyId,
+        jobType,
+        entityType: "COMPANY",
+        entityId: companyId,
+        baseMetadata: getPipelineJobMetadata(existing),
+        reason: autoProfile.reason,
+        queueColumn: autoProfile.queueColumn,
+        priorityScore: autoProfile.priorityScore,
+        playlistIndex,
       });
 
       if (!existing) {
@@ -1299,9 +1501,10 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
             priorityScore: autoProfile.priorityScore,
             reason: autoProfile.reason,
             sourceSignal: autoProfile.sourceSignal,
-            metadata: {},
+            metadata: plannedMetadata,
           },
         }));
+        playlistIndex += 1;
         continue;
       }
 
@@ -1318,8 +1521,10 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
               : existing.status === "PAUSED"
                 ? existing.status
                 : "ACTIVE",
+          metadata: plannedMetadata,
         },
       }));
+      playlistIndex += 1;
     }
 
     const staleLegacyCompanyJobs = await prisma.pipelineJob.findMany({
@@ -1366,6 +1571,8 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
               : 0
           : 0;
       const workflowReason = `${blueprint.name} is active as a bounded workflow blueprint under ${blueprint.controlMode.toLowerCase().replace("_", "-")} control.`;
+      const workflowIndex = playlistIndex;
+      playlistIndex += 1;
       const existing = await prisma.pipelineJob.findUnique({
         where: {
           companyId_jobType_entityType_entityId: {
@@ -1375,6 +1582,17 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
             entityId: blueprint.id,
           },
         },
+      });
+      const workflowMetadata = buildPlaylistMetadataForJob({
+        companyId,
+        jobType: "WORKFLOW_BLUEPRINT",
+        entityType: "WORKFLOW_BLUEPRINT",
+        entityId: blueprint.id,
+        baseMetadata: getPipelineJobMetadata(existing),
+        reason: workflowReason,
+        queueColumn,
+        priorityScore: roundPriority(basePriority + alertBoost),
+        playlistIndex: workflowIndex,
       });
 
       if (!existing) {
@@ -1391,6 +1609,7 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
             priorityScore: roundPriority(basePriority + alertBoost),
             reason: workflowReason,
             sourceSignal: `workflow:${blueprint.templateKey ?? blueprint.id}`,
+            metadata: workflowMetadata,
           },
         }));
         continue;
@@ -1410,7 +1629,7 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
           priorityScore: roundPriority(basePriority + alertBoost),
           reason: workflowReason,
           sourceSignal: `workflow:${blueprint.templateKey ?? blueprint.id}`,
-          metadata: {},
+          metadata: workflowMetadata,
         },
       }));
     }
@@ -1430,9 +1649,12 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
       await prisma.pipelineJob.deleteMany({ where: { id: { in: removableIds } } });
     }
 
-    const destinationLaneJob = await syncClassScoutDestinationMissionJob(prisma, companyId);
+    const destinationLaneJob = await syncDestinationMissionDaemonJob(prisma, companyId, {
+      playlistIndex: playlistIndex + 1000,
+    });
     if (destinationLaneJob) {
       jobs.push(destinationLaneJob);
+      playlistIndex += 1;
     }
 
     return jobs;
@@ -1621,6 +1843,15 @@ function sortPipelineJobs(jobs) {
     const rightRank = getQueueColumnRank(right.queueColumn);
     if (leftRank !== rightRank) return leftRank - rightRank;
 
+    const leftPlaylist = getPlaylistRankTuple(left);
+    const rightPlaylist = getPlaylistRankTuple(right);
+    if (leftPlaylist.anchorAt !== rightPlaylist.anchorAt) {
+      return leftPlaylist.anchorAt - rightPlaylist.anchorAt;
+    }
+    if (leftPlaylist.playlistIndex !== rightPlaylist.playlistIndex) {
+      return leftPlaylist.playlistIndex - rightPlaylist.playlistIndex;
+    }
+
     if (leftManual && rightManual) {
       if ((left.manualSortOrder ?? 0) !== (right.manualSortOrder ?? 0)) {
         return (left.manualSortOrder ?? 0) - (right.manualSortOrder ?? 0);
@@ -1700,7 +1931,7 @@ async function applyManualPipelineQueueMove(prisma, companyId, movedJobId, sourc
 }
 
 async function claimNextPipelineJobs(prisma, limit = 1) {
-  const linearLimit = 1;
+  const linearLimit = Math.max(1, Number(limit || 1));
   const candidates = await prisma.pipelineJob.findMany({
     where: buildRunnablePipelineJobWhere(new Date()),
     orderBy: [{ updatedAt: "asc" }],
@@ -1711,7 +1942,6 @@ async function claimNextPipelineJobs(prisma, limit = 1) {
 
   const baseOrder = sortPipelineJobs(candidates);
   const baseRankById = new Map(baseOrder.map((job, index) => [job.id, index]));
-  const oldestTime = 0;
   const fairOrder = [...baseOrder].sort((left, right) => {
     const leftNeverTried = !left.lastTriedAt || (left.attemptCount ?? 0) === 0;
     const rightNeverTried = !right.lastTriedAt || (right.attemptCount ?? 0) === 0;
@@ -1719,14 +1949,23 @@ async function claimNextPipelineJobs(prisma, limit = 1) {
       return leftNeverTried ? -1 : 1;
     }
 
-    const leftTriedAt = left.lastTriedAt ? new Date(left.lastTriedAt).getTime() : oldestTime;
-    const rightTriedAt = right.lastTriedAt ? new Date(right.lastTriedAt).getTime() : oldestTime;
+    const leftTriedAt = left.lastTriedAt ? new Date(left.lastTriedAt).getTime() : Number.NEGATIVE_INFINITY;
+    const rightTriedAt = right.lastTriedAt ? new Date(right.lastTriedAt).getTime() : Number.NEGATIVE_INFINITY;
     if (leftTriedAt !== rightTriedAt) {
       return leftTriedAt - rightTriedAt;
     }
 
     if ((left.attemptCount ?? 0) !== (right.attemptCount ?? 0)) {
       return (left.attemptCount ?? 0) - (right.attemptCount ?? 0);
+    }
+
+    const leftPlaylist = getPlaylistRankTuple(left);
+    const rightPlaylist = getPlaylistRankTuple(right);
+    if (leftPlaylist.anchorAt !== rightPlaylist.anchorAt) {
+      return leftPlaylist.anchorAt - rightPlaylist.anchorAt;
+    }
+    if (leftPlaylist.playlistIndex !== rightPlaylist.playlistIndex) {
+      return leftPlaylist.playlistIndex - rightPlaylist.playlistIndex;
     }
 
     return (baseRankById.get(left.id) ?? 0) - (baseRankById.get(right.id) ?? 0);
@@ -1982,6 +2221,8 @@ async function spawnLowMemoryDecompositionChildJob(prisma, job, executionOptions
   if (isDecomposedPipelineJob(job)) return null;
 
   const parentMetadata = getPipelineJobMetadata(job);
+  const parentPlaylistRank = getPlaylistRankTuple(job).playlistIndex;
+  const childParentIndexBase = Number.isFinite(parentPlaylistRank) ? parentPlaylistRank * 1000 : null;
   const decompositionSignal = buildDecompositionSourceSignal(job.id);
   const existingChildren = await prisma.pipelineJob.findMany({
     where: {
@@ -2000,6 +2241,17 @@ async function spawnLowMemoryDecompositionChildJob(prisma, job, executionOptions
   const childPlans = buildLowMemoryDecompositionChildPlans(job, executionOptions);
 
   const decomposedAt = new Date().toISOString();
+  const parentMetadataWithPlaylist = buildPlaylistMetadataForJob({
+    companyId: job.companyId,
+    jobType: job.jobType,
+    entityType: job.entityType,
+    entityId: job.entityId,
+    baseMetadata: parentMetadata,
+    reason: job.reason || `${job.jobType} decomposed into bounded child slices.`,
+    queueColumn: job.queueColumn,
+    priorityScore: job.priorityScore || 0,
+    playlistIndex: parentPlaylistRank,
+  });
 
   await prisma.pipelineJob.update({
     where: { id: job.id },
@@ -2011,7 +2263,7 @@ async function spawnLowMemoryDecompositionChildJob(prisma, job, executionOptions
       reason: `${job.jobType} decomposed into a bounded child slice after repeated low-memory deferrals.`,
       updatedAt: new Date(),
       metadata: {
-        ...parentMetadata,
+        ...parentMetadataWithPlaylist,
         decomposition: {
           state: "DECOMPOSED",
           childSignal: decompositionSignal,
@@ -2031,25 +2283,38 @@ async function spawnLowMemoryDecompositionChildJob(prisma, job, executionOptions
 
   const createdChildren = [];
   for (const plan of childPlans) {
-    const childMetadata = {
-      parentJobId: job.id,
-      parentQueueColumn: job.queueColumn,
-      spawnedFromAttemptCount: Number(job.attemptCount || 0),
-      executionOptions: plan.executionOptions,
-      decomposition: {
-        state: "ACTIVE_CHILD",
-        spawnedAt: decomposedAt,
-        childIndex: plan.childIndex,
-        childCount: plan.childCount,
+    const childEntityId = `${job.id}:slice:${plan.childIndex}:${Date.now()}`;
+    const childPlaylistIndex = Number.isFinite(childParentIndexBase) ? childParentIndexBase + plan.childIndex + 1 : null;
+    const childMetadata = buildPlaylistMetadataForJob({
+      companyId: job.companyId,
+      jobType: job.jobType,
+      entityType: DECOMPOSED_PIPELINE_ENTITY_TYPE,
+      entityId: childEntityId,
+      baseMetadata: {
+        ...parentMetadata,
+        parentJobId: job.id,
+        parentQueueColumn: job.queueColumn,
+        spawnedFromAttemptCount: Number(job.attemptCount || 0),
+        executionOptions: plan.executionOptions,
+        decomposition: {
+          state: "ACTIVE_CHILD",
+          spawnedAt: decomposedAt,
+          childIndex: plan.childIndex,
+          childCount: plan.childCount,
+        },
       },
-    };
+      reason: `Bounded child slice ${plan.childIndex + 1}/${plan.childCount} for ${job.jobType} under low-memory decomposition.`,
+      queueColumn: "NOW",
+      priorityScore: Math.max(Number(job.priorityScore || 0), 140 - plan.childIndex),
+      playlistIndex: childPlaylistIndex,
+    });
 
     createdChildren.push(await prisma.pipelineJob.create({
       data: {
         companyId: job.companyId,
         jobType: job.jobType,
         entityType: DECOMPOSED_PIPELINE_ENTITY_TYPE,
-        entityId: `${job.id}:slice:${plan.childIndex}:${Date.now()}`,
+        entityId: childEntityId,
         status: "ACTIVE",
         controlMode: "AI_ONLY",
         queueColumn: "NOW",

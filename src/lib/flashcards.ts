@@ -1255,7 +1255,7 @@ function isPublishableSource(source: SourceRecord) {
     return Boolean(normalizeText(s.positioning) || normalizeText(s.pricing) || s.strengths.length > 0 || s.weaknesses.length > 0);
   }
 
-  // Fallback to legacy/generic insight check
+  // Fallback to non-type-specific insight checks for older card records.
   return extractSourceInsights(source as UnifiedSource, 2).length > 0;
 }
 
@@ -1889,7 +1889,7 @@ export async function recordFlashcardAction(input: FlashcardActionInput) {
         }
 
         // Only set manual if it's DIFFERENT from the AI baseline (if baseline exists)
-        // If baseline doesn't exist (e.g. legacy), we always treat user input as manual if it differs from current.
+        // If baseline doesn't exist (historical records), treat user input as manual when it differs from current.
         const baselineTitle = generatedTitle ?? flashcard.title;
         const baselineBody = generatedBody ?? flashcard.body;
 

@@ -1,6 +1,6 @@
-# CHECKLIST Design System Agent Handoff
+# check Design System Agent Handoff
 
-Use this document when another agent must refactor a separate project to match the CHECKLIST product UI contract.
+Use this document when another agent must refactor a separate project to match the check product UI contract.
 
 This is not a brand memo.
 This is an implementation rule set.

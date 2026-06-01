@@ -19,7 +19,7 @@ async function main() {
 
   for (const task of tasks) {
     // Generate fingerprint if missing
-    // For legacy tasks where we don't know the sourceFlashcardId, we use title only
+    // For historical tasks without a sourceFlashcardId, use title-only fingerprints.
     const fingerprint = task.fingerprint || hashValue(`EVO:TC:LEGACY:${task.companyId}:${task.title}`);
     const uniqueKey = `${task.companyId}:${fingerprint}`;
 
@@ -36,7 +36,7 @@ async function main() {
       fingerprint,
       processingStatus: task.processingStatus || "CHECKED",
       activityState: task.activityState || "ACTIVE",
-      status: task.status || "PENDING", // Legacy status bridge
+      status: task.status || "PENDING", // Preserve compatibility status fallback when modern state is unavailable.
       updatedAt: new Date()
     };
 

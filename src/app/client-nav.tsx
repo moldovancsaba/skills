@@ -118,6 +118,41 @@ type PipelineItem = {
 };
 
 type ModuleCapabilityState = Record<string, boolean>;
+type EffectiveBlockKey = "checklist" | "sales" | "project" | "miniapp";
+
+const CANONICAL_MODULE_TO_LEGACY_NAV_KEY: Record<string, string> = {
+  data: "data",
+  topics: "topics",
+  goals: "goals",
+  review: "review",
+  knowmore: "knowmore",
+  tactical: "tactical",
+  analytics: "analytics",
+  aiQueue: "pipeline",
+  checklist: "checklist",
+  sales: "sales",
+  project: "unit-board",
+};
+
+function mapCanonicalModulesToLegacyNavCapabilities(enabledModules: unknown): ModuleCapabilityState {
+  const baseline = UNIT_MODULE_DEFINITIONS.reduce<ModuleCapabilityState>((acc, definition) => {
+    acc[definition.key] = false;
+    return acc;
+  }, {});
+
+  if (!Array.isArray(enabledModules)) {
+    return baseline;
+  }
+
+  for (const key of enabledModules) {
+    if (typeof key !== "string") continue;
+    const legacyKey = CANONICAL_MODULE_TO_LEGACY_NAV_KEY[key];
+    if (!legacyKey) continue;
+    baseline[legacyKey] = true;
+  }
+
+  return baseline;
+}
 
 type ClientNavProps = {
   initialSession?: {
@@ -164,6 +199,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
   const [portfolioUnits, setPortfolioUnits] = useState<PortfolioUnit[]>([]);
   const [webappProfile, setWebappProfile] = useState<"NONE" | "CLASSSCOUT" | "COMPARE">("NONE");
   const [moduleCapabilities, setModuleCapabilities] = useState<ModuleCapabilityState>({});
+  const [enabledBlocks, setEnabledBlocks] = useState<EffectiveBlockKey[]>([]);
 
   // Pure URL-driven company ID
   const companyIdFromUrl = params?.companyId as string;
@@ -224,8 +260,18 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
           if (data.webapp?.profile) {
             setWebappProfile(data.webapp.profile);
           }
+          if (Array.isArray(data.webapp?.enabledBlocks)) {
+            setEnabledBlocks(
+              data.webapp.enabledBlocks.filter((value: unknown): value is EffectiveBlockKey =>
+                value === "checklist" || value === "sales" || value === "project" || value === "miniapp",
+              ),
+            );
+          }
           if (data.webapp?.modules && typeof data.webapp.modules === "object") {
             setModuleCapabilities(data.webapp.modules as ModuleCapabilityState);
+          }
+          if (Array.isArray(data.webapp?.enabledModules)) {
+            setModuleCapabilities(mapCanonicalModulesToLegacyNavCapabilities(data.webapp.enabledModules));
           }
           const checklistCount = Number(data.counts?.checklist || 0);
           const planningCount = Math.max(Number(data.counts?.tactical || 0), checklistCount);
@@ -322,6 +368,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
               {(() => {
                 const webappRoute = getWebappRoute(webappProfile);
                 const items: PipelineItem[] = [];
+                const canShowMiniappOps = enabledBlocks.length === 0 || enabledBlocks.includes("miniapp");
                 const routeByProfile = webappRoute
                   ? ({
                       key: "webapp",
@@ -333,7 +380,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
                     } as PipelineItem)
                   : null;
 
-                if (routeByProfile) {
+                if (routeByProfile && canShowMiniappOps) {
                   items.push(routeByProfile);
                 }
 

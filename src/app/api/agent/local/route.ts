@@ -3,7 +3,14 @@ import { verifyMembership } from "@/lib/permissions";
 
 export async function POST(request: NextRequest) {
   try {
-    const { companyId } = await request.json();
+    const bodyRaw = await request.json().catch(() => ({}));
+    if (!bodyRaw || typeof bodyRaw !== "object" || Array.isArray(bodyRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const { companyId } = bodyRaw as Record<string, unknown>;
+    if (!companyId || typeof companyId !== "string") {
+      return NextResponse.json({ error: "companyId required" }, { status: 400 });
+    }
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
 

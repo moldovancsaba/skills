@@ -1,3 +1,11 @@
+import {
+  getRequiredModulesForBlocks,
+  isBlockKey,
+  isModuleKey,
+  type BlockKey as CanonicalBlockKey,
+  type ModuleKey as CanonicalModuleKey,
+} from "@/lib/check-foundation/registry";
+
 export const UNIT_MODULE_KEYS = [
   "content",
   "data",
@@ -255,6 +263,21 @@ const UNIT_MODULE_PRESET_BY_WEBAPP: Record<UnitWebappProfile, Record<UnitModuleK
 
 const ROUTER_DEFAULT_WEBAPP_PROFILE: UnitWebappProfile = "NONE";
 
+const CANONICAL_MODULE_TO_LEGACY: Partial<Record<CanonicalModuleKey, UnitModuleKey>> = {
+  data: "data",
+  topics: "topics",
+  goals: "goals",
+  review: "review",
+  knowmore: "knowmore",
+  tactical: "tactical",
+  analytics: "analytics",
+  aiQueue: "pipeline",
+  checklist: "checklist",
+  sales: "sales",
+  project: "unit-board",
+  miniapp: "content",
+};
+
 function validateIssue(code: string, field: string, message: string, value?: unknown): UnitCapabilityValidationIssue {
   return { code, field, value, message };
 }
@@ -306,6 +329,157 @@ function parseUnitCapabilitiesEnvelope(
     return null;
   }
   return { payload: normalized, validation };
+}
+
+function parseUnitCapabilitiesV3Envelope(
+  raw: unknown,
+): { payload: UnitCapabilityPayloadV2; validation: UnitCapabilityValidation } | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const envelope = raw as {
+    schemaVersion?: unknown;
+    payload?: unknown;
+    blocks?: unknown;
+    modules?: unknown;
+    miniapps?: unknown;
+  };
+  if (envelope.schemaVersion !== 3) {
+    return null;
+  }
+
+  const candidate =
+    envelope.payload && typeof envelope.payload === "object" && !Array.isArray(envelope.payload)
+      ? envelope.payload as {
+          blocks?: unknown;
+          modules?: unknown;
+          miniapps?: unknown;
+        }
+      : envelope;
+
+  const blocksRecord =
+    candidate.blocks && typeof candidate.blocks === "object" && !Array.isArray(candidate.blocks)
+      ? candidate.blocks as Record<string, unknown>
+      : null;
+  if (!blocksRecord) return null;
+
+  const validation: UnitCapabilityValidation = {
+    isValid: true,
+    errors: [],
+    warnings: [],
+  };
+
+  const enabledBlocks: CanonicalBlockKey[] = [];
+  for (const [key, value] of Object.entries(blocksRecord)) {
+    if (!isBlockKey(key)) {
+      validation.warnings.push(
+        validateIssue("unknown-block-key", `unitCapabilities.blocks.${key}`, `Ignoring unknown Block key ${key}`, key),
+      );
+      continue;
+    }
+    if (!value || typeof value !== "object" || Array.isArray(value) || typeof (value as { enabled?: unknown }).enabled !== "boolean") {
+      validation.warnings.push(
+        validateIssue(
+          "invalid-block-enabled",
+          `unitCapabilities.blocks.${key}`,
+          `Block ${key} must provide an enabled boolean`,
+          value,
+        ),
+      );
+      continue;
+    }
+    if ((value as { enabled: boolean }).enabled) {
+      enabledBlocks.push(key);
+    }
+  }
+
+  const requiredModules = new Set<CanonicalModuleKey>(getRequiredModulesForBlocks(enabledBlocks));
+  const enabledCanonicalModules = new Set<CanonicalModuleKey>(requiredModules);
+
+  const modulesRecord =
+    candidate.modules && typeof candidate.modules === "object" && !Array.isArray(candidate.modules)
+      ? candidate.modules as Record<string, unknown>
+      : null;
+  for (const [key, value] of Object.entries(modulesRecord ?? {})) {
+    if (!isModuleKey(key)) {
+      validation.warnings.push(
+        validateIssue("unknown-module-key", `unitCapabilities.modules.${key}`, `Ignoring unknown canonical module ${key}`, key),
+      );
+      continue;
+    }
+    if (typeof value !== "boolean") {
+      validation.warnings.push(
+        validateIssue(
+          "invalid-module-value",
+          `unitCapabilities.modules.${key}`,
+          `Module ${key} must be boolean`,
+          value,
+        ),
+      );
+      continue;
+    }
+    if (value) {
+      enabledCanonicalModules.add(key);
+      continue;
+    }
+    if (requiredModules.has(key)) {
+      validation.warnings.push(
+        validateIssue(
+          "required-module-override-denied",
+          `unitCapabilities.modules.${key}`,
+          `Module ${key} cannot be disabled because enabled Blocks require it`,
+          value,
+        ),
+      );
+      continue;
+    }
+    enabledCanonicalModules.delete(key);
+  }
+
+  const miniappsRecord =
+    candidate.miniapps && typeof candidate.miniapps === "object" && !Array.isArray(candidate.miniapps)
+      ? candidate.miniapps as Record<string, unknown>
+      : null;
+  const classScoutEnabled = miniappsRecord?.classscout && typeof miniappsRecord.classscout === "object"
+    ? (miniappsRecord.classscout as { enabled?: unknown }).enabled === true
+    : false;
+  const compareEnabled = miniappsRecord?.compare && typeof miniappsRecord.compare === "object"
+    ? (miniappsRecord.compare as { enabled?: unknown }).enabled === true
+    : false;
+
+  if (classScoutEnabled && compareEnabled) {
+    validation.warnings.push(
+      validateIssue(
+        "multi-miniapp-profile-projection",
+        "unitCapabilities.miniapps",
+        "Both classscout and compare were enabled; legacy profile projection defaults to CLASSSCOUT",
+      ),
+    );
+  }
+
+  const profile: UnitWebappProfile = compareEnabled && !classScoutEnabled
+    ? "COMPARE"
+    : classScoutEnabled
+      ? "CLASSSCOUT"
+      : "NONE";
+
+  const modules: Record<UnitModuleKey, boolean> = { ...BASE_DEFAULT_MODULES };
+  for (const legacyKey of Object.values(CANONICAL_MODULE_TO_LEGACY)) {
+    if (legacyKey) modules[legacyKey] = false;
+  }
+  for (const canonicalKey of enabledCanonicalModules) {
+    const legacyKey = CANONICAL_MODULE_TO_LEGACY[canonicalKey];
+    if (legacyKey) modules[legacyKey] = true;
+  }
+  modules.webapp = true;
+
+  return {
+    payload: {
+      v: UNIT_CAPABILITY_PAYLOAD_VERSION,
+      profile,
+      modules,
+    },
+    validation,
+  };
 }
 
 function normalizeRawProfile(
@@ -426,6 +600,18 @@ export function resolveUnitCapabilities(input: {
       sourceEnvelopeVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
       schemaVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
       normalized: envelopePayload.payload,
+    };
+  }
+
+  const v3ProjectedPayload = parseUnitCapabilitiesV3Envelope(workerCapabilitiesRaw);
+  if (v3ProjectedPayload) {
+    return {
+      profile: v3ProjectedPayload.payload.profile,
+      modules: v3ProjectedPayload.payload.modules,
+      source: "custom",
+      sourceEnvelopeVersion: 3,
+      schemaVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
+      normalized: v3ProjectedPayload.payload,
     };
   }
 

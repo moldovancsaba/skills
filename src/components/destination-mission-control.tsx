@@ -6,6 +6,7 @@ import { IconActivity, IconRefresh as Refresh, IconRotateClockwise2, IconStethos
 import { MetricCard, Notice } from "@/components/ui/app-shell";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
+import type { DestinationKey } from "@/lib/destination-workflow-contract";
 
 type MissionSummary = {
   activeRuns: number;
@@ -17,21 +18,95 @@ type MissionSummary = {
   generatedAt: string;
 };
 
-export function DestinationMissionControl({ companyId }: { companyId: string }) {
+type OperationAction = "retry" | "cancel" | "replay" | "rollback" | "acknowledge";
+
+type OperationalItem = {
+  id: string;
+  source: "local_job" | "miniapp_publish" | "read_model" | "content_refresh";
+  severity: "info" | "warning" | "critical";
+  status: "running" | "retrying" | "failed" | "dead_lettered" | "stale" | "blocked" | "resolved";
+  summary: string;
+  safeActions: OperationAction[];
+  lastAttemptAt?: string | null;
+  nextAttemptAt?: string | null;
+  meta?: {
+    actionBasePath?: string;
+    destinationKey?: string;
+  };
+};
+
+type DestinationDaemonLane = {
+  destinationKey: string;
+  status: "inactive" | "healthy" | "warning" | "critical";
+  summary: string;
+  activeDefinitionCount: number;
+  activeRunCount: number;
+  failedRecoverableCount: number;
+  pausedCount: number;
+  runCounts: Record<string, number>;
+  lastRunUpdatedAt: string | null;
+};
+
+function laneStatusColor(status: DestinationDaemonLane["status"]) {
+  if (status === "critical") return "review";
+  if (status === "warning") return "tactical";
+  if (status === "healthy") return "strategy";
+  return "gray";
+}
+
+export function DestinationMissionControl({
+  companyId,
+  destinationKey,
+}: {
+  companyId: string;
+  destinationKey?: DestinationKey;
+}) {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<MissionSummary | null>(null);
+  const [daemonLanes, setDaemonLanes] = useState<DestinationDaemonLane[]>([]);
+  const [operationalItems, setOperationalItems] = useState<OperationalItem[]>([]);
   const [actingRunId, setActingRunId] = useState<string | null>(null);
+  const [actingOperationId, setActingOperationId] = useState<string | null>(null);
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/destination-workflows/mission-control/summary?companyId=${companyId}`);
-      const data = response.ok ? await response.json() : null;
-      setSummary(data);
+      const destinationQuery = destinationKey ? `&destinationKey=${encodeURIComponent(destinationKey)}` : "";
+      const operationsScopeQuery = destinationKey ? `?destinationKey=${encodeURIComponent(destinationKey)}` : "";
+      const [summaryResponse, operationsResponse] = await Promise.all([
+        fetch(`/api/destination-workflows/mission-control/summary?companyId=${encodeURIComponent(companyId)}${destinationQuery}`),
+        fetch(`/api/companies/${encodeURIComponent(companyId)}/operations${operationsScopeQuery}`),
+      ]);
+      const summaryData = summaryResponse.ok ? await summaryResponse.json() : null;
+      setSummary(summaryData);
+
+      if (operationsResponse.ok) {
+        const operationsData = await operationsResponse.json();
+        const lanesRaw = Array.isArray(operationsData?.destinationDaemon?.byDestination)
+          ? operationsData.destinationDaemon.byDestination
+          : [];
+        const itemsRaw = Array.isArray(operationsData?.items)
+          ? operationsData.items
+          : [];
+        const lanes = destinationKey
+          ? lanesRaw.filter((lane: DestinationDaemonLane) => lane.destinationKey === destinationKey)
+          : lanesRaw;
+        const items = destinationKey
+          ? itemsRaw.filter((item: OperationalItem) => {
+              if (item.source !== "miniapp_publish") return true;
+              return item.meta?.destinationKey === destinationKey;
+            })
+          : itemsRaw;
+        setDaemonLanes(lanes);
+        setOperationalItems(items);
+      } else {
+        setDaemonLanes([]);
+        setOperationalItems([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [companyId]);
+  }, [companyId, destinationKey]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -49,6 +124,7 @@ export function DestinationMissionControl({ companyId }: { companyId: string }) 
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             companyId,
+            destinationKey,
             runId,
             actionType,
             ...(actionType === "REPLAY" ? { fromStage: "FETCH_SOURCE" } : {}),
@@ -58,6 +134,32 @@ export function DestinationMissionControl({ companyId }: { companyId: string }) 
         await loadSummary();
       } finally {
         setActingRunId(null);
+      }
+    },
+    [companyId, destinationKey, loadSummary],
+  );
+
+  const runOperationAction = useCallback(
+    async (item: OperationalItem, action: OperationAction) => {
+      setActingOperationId(`${item.id}:${action}`);
+      try {
+        const fallbackBasePath = `/api/companies/${companyId}/operations/${encodeURIComponent(item.id)}`;
+        const actionBasePath = typeof item.meta?.actionBasePath === "string" && item.meta.actionBasePath
+          ? item.meta.actionBasePath
+          : fallbackBasePath;
+        await fetch(
+          `${actionBasePath}/${action}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              reason: "operator-action-from-observability",
+            }),
+          },
+        );
+        await loadSummary();
+      } finally {
+        setActingOperationId(null);
       }
     },
     [companyId, loadSummary],
@@ -94,6 +196,94 @@ export function DestinationMissionControl({ companyId }: { companyId: string }) 
           {summary.callbackFailureCount} callback-related failure event{summary.callbackFailureCount === 1 ? "" : "s"} were recorded recently.
         </Notice>
       ) : null}
+
+      <UnifiedCard tone="tactical">
+        <UnifiedCardHeader
+          title="Destination daemon lanes"
+          supporting={<Badge variant="light" color="tactical">{daemonLanes.length}</Badge>}
+        />
+        <UnifiedCardBody>
+          <Stack gap="sm">
+            {daemonLanes.length === 0 ? (
+              <BodyText>No destination daemon lane health data is available.</BodyText>
+            ) : (
+              daemonLanes.map((lane) => (
+                <UnifiedCardSection key={lane.destinationKey} tone="tactical">
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="center">
+                      <Group gap="xs">
+                        <Text fw={600}>{lane.destinationKey}</Text>
+                        <Badge variant="light" color={laneStatusColor(lane.status)}>
+                          {lane.status}
+                        </Badge>
+                      </Group>
+                      <MetaText>
+                        defs {lane.activeDefinitionCount} · runs {lane.activeRunCount}
+                      </MetaText>
+                    </Group>
+                    <MetaText>{lane.summary}</MetaText>
+                    <Group gap="sm">
+                      <MetaText>recoverable: {lane.failedRecoverableCount}</MetaText>
+                      <MetaText>paused: {lane.pausedCount}</MetaText>
+                      <MetaText>
+                        updated: {lane.lastRunUpdatedAt ? new Date(lane.lastRunUpdatedAt).toLocaleString() : "—"}
+                      </MetaText>
+                    </Group>
+                  </Stack>
+                </UnifiedCardSection>
+              ))
+            )}
+          </Stack>
+        </UnifiedCardBody>
+      </UnifiedCard>
+
+      <UnifiedCard tone="review">
+        <UnifiedCardHeader
+          title="Operations recovery items"
+          supporting={<Badge variant="light" color="review">{operationalItems.length}</Badge>}
+        />
+        <UnifiedCardBody>
+          <Stack gap="sm">
+            {operationalItems.length === 0 ? (
+              <BodyText>No active operational recovery items right now.</BodyText>
+            ) : (
+              operationalItems.slice(0, 12).map((item) => (
+                <UnifiedCardSection key={item.id} tone="review">
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="center">
+                      <Group gap="xs">
+                        <Badge variant="light" color={item.severity === "critical" ? "review" : item.severity === "warning" ? "tactical" : "strategy"}>
+                          {item.severity}
+                        </Badge>
+                        <Badge variant="outline" color="gray">
+                          {item.status}
+                        </Badge>
+                      </Group>
+                      <MetaText>{item.source}</MetaText>
+                    </Group>
+                    <BodyText>{item.summary}</BodyText>
+                    <MetaText>{item.id}</MetaText>
+                    <Group gap="xs">
+                      {item.safeActions.map((action) => (
+                        <Button
+                          key={`${item.id}:${action}`}
+                          size="xs"
+                          variant="light"
+                          color={action === "rollback" ? "review" : action === "cancel" ? "tactical" : "strategy"}
+                          loading={actingOperationId === `${item.id}:${action}`}
+                          onClick={() => void runOperationAction(item, action)}
+                        >
+                          {action}
+                        </Button>
+                      ))}
+                    </Group>
+                  </Stack>
+                </UnifiedCardSection>
+              ))
+            )}
+          </Stack>
+        </UnifiedCardBody>
+      </UnifiedCard>
 
       <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
         <UnifiedCard tone="review">

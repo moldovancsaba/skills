@@ -12,12 +12,11 @@ function normalizeTopicLabel(value: unknown) {
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
-  const auth = await verifyMembership(request, companyId);
-  if (auth.error) return auth.error;
-
   if (!companyId) {
     return NextResponse.json({ error: "companyId required" }, { status: 400 });
   }
+  const auth = await verifyMembership(request, companyId);
+  if (auth.error) return auth.error;
 
   try {
     const topics = await prisma.topic.findMany({
@@ -32,7 +31,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
+    const dataRaw = await request.json().catch(() => ({}));
+    if (!dataRaw || typeof dataRaw !== "object" || Array.isArray(dataRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = dataRaw as Record<string, any>;
     const companyId = typeof data.companyId === "string" ? data.companyId : "";
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
@@ -86,7 +89,11 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const data = await request.json();
+    const dataRaw = await request.json().catch(() => ({}));
+    if (!dataRaw || typeof dataRaw !== "object" || Array.isArray(dataRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = dataRaw as Record<string, any>;
     const existing = await prisma.topic.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "Topic not found" }, { status: 404 });

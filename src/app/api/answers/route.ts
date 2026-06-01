@@ -7,9 +7,13 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
-    const companyId = String(data.companyId || "");
-    const question = String(data.question || "").trim();
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as Record<string, unknown>;
+    const companyId = typeof data.companyId === "string" ? data.companyId : "";
+    const question = typeof data.question === "string" ? data.question.trim() : "";
     const entityTypes = Array.isArray(data.entityTypes)
       ? data.entityTypes.map((item: unknown) => String(item).trim()).filter(Boolean) as SearchEntityType[]
       : [];

@@ -1,4 +1,4 @@
-# CHECKLIST System Design LLD
+# check System Design LLD
 
 This document describes how the live system is structured at implementation level.
 
@@ -7,13 +7,43 @@ It is subordinate to:
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
 2. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 
+## 0. Product Foundation
+
+The product foundation is defined in [docs/CHECK_FOUNDATION_LLD.md](/Users/Shared/Projects/checklist/docs/CHECK_FOUNDATION_LLD.md).
+
+Canonical model:
+
+```text
+check
+  -> Unit
+    -> enabled Blocks
+      -> required Modules
+        -> Cards
+    -> optional Miniapps
+  -> Webapp
+  -> Local
+```
+
+Rules:
+
+- `check` is the full platform
+- Webapp is the B2B UI for operating Units
+- Local is the local AI service
+- Blocks are optional per Unit
+- Modules are reusable functional areas
+- Cards are the atomic work objects
+- Miniapps are public-facing apps powered by Units
+- a Unit can run Sales without Checklist
+- a Unit can run Project without intelligence automation
+- Miniapp Ops surfaces in Webapp are not the public Miniapps themselves
+
 ## 1. Runtime Architecture
 
 Primary layers:
 
-- web application
+- Webapp
 - database and persistence
-- autonomous AI loop
+- Local autonomous AI loop
 - background snapshot worker
 - product read-model projection layer
 - local self-learning export and Apple-Silicon training workspace
@@ -195,10 +225,10 @@ They are compatibility paths, not the primary operating contract.
 
 ## 6.2 Product route bootstrap
 
-- [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md) is the authoritative build rulebook for future product functions and mini-app surfaces.
+- [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md) is the authoritative build rulebook for future Block, Module, and Miniapp surfaces.
 - hot authenticated product routes should prefer server-first bootstrap from prepared projection data
-- the home/main dashboard route should render its company list from server-loaded prepared data on first response instead of waiting for a client waterfall
-- the company dashboard route is expected to render from server-loaded projection-backed data on first response instead of waiting for a client fetch after mount
+- the home/Webapp home route should render its company list from server-loaded prepared data on first response instead of waiting for a client waterfall
+- the Unit workspace route is expected to render from server-loaded projection-backed data on first response instead of waiting for a client fetch after mount
 - the authenticated shell should render basic session identity from server-readable signed session state instead of waiting for a client-side identity round trip
 - product-summary charts on the home route should defer heavy client rendering work until the cards approach the viewport
 - non-critical UI concerns such as member management or identity decoration should not sit on the critical first dashboard payload
@@ -237,6 +267,8 @@ They are compatibility paths, not the primary operating contract.
 - product pages must not recompute many live counts on load when a prepared projection exists
 - prepared home-card chart series should also live in the projection so the company list route does not need the full snapshot analytics document on its hot path
 - runtime/operator truth such as worker stage, memory governor state, and queue hardening remains outside this product projection and belongs to `/local-ai` plus runtime endpoints
+- Block Homes should receive Block-scoped projection slices instead of inferring business meaning from raw Module counts alone
+- Miniapp Ops Homes should receive Miniapp-scoped projection or service summaries with explicit `ready`, `empty`, `partial`, `degraded`, and `fatal` states
 
 Current first-slice projection consumers:
 
@@ -244,8 +276,8 @@ Current first-slice projection consumers:
 - `GET /api/companies/[companyId]/dashboard`
 - `GET /api/companies/[companyId]/nav`
 - `GET /api/companies/[companyId]/planning-summary`
-- server-side home/main dashboard bootstrap
-- server-side company dashboard bootstrapping
+- server-side home/Webapp home bootstrap
+- server-side Unit workspace bootstrapping
 
 ## 9. Blended Priority Architecture
 

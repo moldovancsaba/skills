@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+"use strict";
+
+process.env.CHECK_RUNNER_ID = "check.local.lifecycle-verifier";
+import("../scripts/verify-lifecycle.mjs").catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

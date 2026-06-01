@@ -69,7 +69,7 @@ function joinBody(body) {
  * @returns {object[]} Draft flashcard records ready for prisma.flashcard.create
  */
 async function draftFlashcardFromDataCard(prisma, company, dataCard, memoryPrompt, topic = null, options = {}) {
-  // Legacy single-source call — wrap in batch
+  // Compatibility wrapper: adapt single-source callers to batch flow.
   return draftFlashcardsFromEvidenceBatch(prisma, company, [dataCard], memoryPrompt, topic, options);
 }
 
@@ -323,7 +323,7 @@ async function draftFlashcardsFromEvidenceBatch(prisma, company, evidenceBatch, 
       citationSnapshotIds: citationSnapshots.map((snapshot) => snapshot.id),
       conflictDetected: conflict.detected,
       conflictSummary: conflict.summary,
-      // Legacy source linking (for backward compat)
+      // Keep source linkage for consumers that read compatibility lineage fields.
       sourceId: evidenceBatch[0].id,
       sourceType: "SOURCE",
     });

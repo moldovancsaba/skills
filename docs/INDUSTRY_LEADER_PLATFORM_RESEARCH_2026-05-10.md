@@ -4,13 +4,13 @@ Date: `2026-05-10`
 
 Purpose:
 
-- map the strongest current product patterns from leader platforms relevant to CHECKLIST
+- map the strongest current product patterns from leader platforms relevant to the check platform
 - translate them into reusable product opportunities
 - keep the ideabank grounded in real market behavior instead of generic AI wishlists
 
 ## Scope
 
-This research focuses on adjacent categories that overlap directly with CHECKLIST:
+This research focuses on adjacent categories that overlap directly with the check platform:
 
 - AI agent platforms
 - enterprise search and knowledge systems
@@ -36,7 +36,7 @@ Useful patterns:
 - low-code guardrails and admin safety controls
 - marketplace and MCP-based external integration surface
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - validates our worker queue, tracing, and HiTL direction
 - raises the bar on observability, guardrails, and action execution
@@ -54,7 +54,7 @@ Useful patterns:
 - autonomous task and business process execution
 - control-plane framing for agent management
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - supports a simpler operator-facing build surface for tasking and automation
 
@@ -74,7 +74,7 @@ Useful patterns:
 - browser extension access
 - no-code studio for agents, automations, and apps
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - strongly overlaps with Knowmore, pipeline control, and operator navigation
 
@@ -92,7 +92,7 @@ Useful patterns:
 - agentic engine on top of company knowledge
 - unified action layer from answers to next step
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - reinforces the need for cross-source search and contextual answer surfaces
 
@@ -109,7 +109,7 @@ Useful patterns:
 - AI embedded where projects and docs already live
 - meeting notes that become searchable operational memory
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - validates our card-based system staying embedded in the work surface, not as a separate assistant
 
@@ -127,7 +127,7 @@ Useful patterns:
 - smart workflow gallery / reusable workflow blueprints
 - admin controls for AI usage and data scope
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - strong validation for turning our worker queue and planning patterns into configurable workflow logic
 
@@ -146,7 +146,7 @@ Useful patterns:
 - AI notetaker and quick-turn summaries
 - MCP server for external AI clients
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - reinforces unified context, shareable work memory, and external AI consumption
 
@@ -164,7 +164,7 @@ Useful patterns:
 - AI blocks and workflow-level assistance
 - portfolio visibility across multiple initiatives
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - supports better board-level intelligence, portfolio rollups, and builder surfaces
 
@@ -182,7 +182,7 @@ Useful patterns:
 - AI orchestration for frontline execution
 - meeting and conversation intelligence
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - valuable for our planning, checklist, and deal/prioritization intelligence layer
 
@@ -199,7 +199,7 @@ Useful patterns:
 - smart follow-ups, feed, and chaptering
 - risk reduction through structured guidance
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - reinforces scoring, prioritization, and next-best-action quality requirements
 
@@ -220,7 +220,7 @@ Useful patterns:
 - writeback into CRM and downstream systems
 - MCP access to trusted GTM workflows
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - directly relevant to Data Ingress, scoring quality, and operator-grade research automation
 
@@ -238,7 +238,7 @@ Useful patterns:
 - AI blocks with refreshable summaries and action items
 - AI usage visibility
 
-Why it matters for CHECKLIST:
+Why it matters for the check platform:
 
 - useful for card summaries, explainability, and governance
 
@@ -283,7 +283,7 @@ Across these platforms, the strongest repeated patterns are:
 
 ## Recommended Product Principle
 
-For CHECKLIST, the winning angle is not to copy every leader.
+For the check platform, the winning angle is not to copy every leader.
 
 The better position is:
 

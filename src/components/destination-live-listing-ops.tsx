@@ -60,6 +60,7 @@ export function DestinationLiveListingOps({ companyId }: { companyId: string }) 
     setLoading(true);
     try {
       const params = new URLSearchParams({ companyId });
+      params.set("destinationKey", "classscout");
       if (listingType && listingType !== "all") params.set("listingType", listingType);
       if (borough) params.set("borough", borough);
       if (query.trim()) params.set("query", query.trim());
@@ -87,6 +88,7 @@ export function DestinationLiveListingOps({ companyId }: { companyId: string }) 
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             companyId,
+            destinationKey: "classscout",
             listingId: item.id,
             listingType: item.type,
           }),
@@ -102,7 +104,7 @@ export function DestinationLiveListingOps({ companyId }: { companyId: string }) 
   return (
     <UnifiedCard tone="strategy">
       <UnifiedCardHeader
-        title="Live ClassScout Listings"
+        title="Live Destination Listings"
         supporting={
           <Group gap="xs">
             <Badge variant="light" color="strategy">
@@ -131,7 +133,7 @@ export function DestinationLiveListingOps({ companyId }: { companyId: string }) 
               icon={Send}
               tone="strategy"
               title="No live listings match these filters"
-              description="Adjust the filters or refresh the bridge if ClassScout has new catalog rows to manage."
+              description="Adjust the filters or refresh the bridge if new destination rows are available to manage."
             />
           ) : (
             <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="md">

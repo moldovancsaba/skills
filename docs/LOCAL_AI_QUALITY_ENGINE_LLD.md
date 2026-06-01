@@ -1,4 +1,4 @@
-# CHECKLIST Local AI Quality Engine LLD
+# check Local AI Quality Engine LLD
 
 This document defines the shipped low-level design for the Local AI Quality Engine introduced under GitHub umbrella issue `#203`.
 

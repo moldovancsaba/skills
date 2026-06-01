@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { markDestinationMissionTerminal } from "@/lib/destination-missions";
+import { getDestinationMissionRun, markDestinationMissionTerminal } from "@/lib/destination-missions";
+import { normalizeDestinationKey } from "@/lib/destination-scope";
 import { verifyMembership } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const body = await request.json().catch(() => ({}));
-  const companyId = String(body.companyId || "");
+  const bodyRaw = await request.json().catch(() => null);
+  if (!bodyRaw || typeof bodyRaw !== "object" || Array.isArray(bodyRaw)) {
+    return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+  }
+  const body = bodyRaw as Record<string, unknown>;
+  const companyId = typeof body.companyId === "string" ? body.companyId : "";
+  if (!companyId) return NextResponse.json({ error: "companyId is required" }, { status: 400 });
+  const destinationKeyRaw = body.destinationKey;
+  if (destinationKeyRaw !== undefined && !normalizeDestinationKey(destinationKeyRaw)) {
+    return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+  }
+  const destinationKey = normalizeDestinationKey(destinationKeyRaw);
   const auth = await verifyMembership(request, companyId, "ADMIN");
   if (auth.error) return auth.error;
 
@@ -20,6 +37,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const { id } = await params;
+  if (destinationKey) {
+    const existingRun = await getDestinationMissionRun(companyId, id);
+    if (!existingRun || existingRun.destinationKey !== destinationKey) {
+      return NextResponse.json({ error: "Mission run not found" }, { status: 404 });
+    }
+  }
   try {
     const run = await markDestinationMissionTerminal({
       companyId,
@@ -28,10 +51,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       failureCode: typeof body.failureCode === "string" ? body.failureCode : null,
       failureDetail: typeof body.failureDetail === "string" ? body.failureDetail : null,
       successCandidateId: typeof body.successCandidateId === "string" ? body.successCandidateId : null,
-      metadata:
-        body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata)
-          ? body.metadata
-          : { terminalBy: auth.session.email },
+      metadata: asRecord(body.metadata) ?? { terminalBy: auth.session.email },
     });
     if (!run) return NextResponse.json({ error: "Mission run not found" }, { status: 404 });
     return NextResponse.json({ ok: true, run });

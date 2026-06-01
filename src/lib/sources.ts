@@ -28,13 +28,13 @@ export async function listCompanySources(companyId: string, entityTag?: string) 
 
 /**
  * Orchestrates unified source management for a company.
- * Legacy backfill logic has been removed from this path.
+ * Backfill-only logic was removed; source records are created through native pipelines.
  * 
  * @param {string} companyId - Unique company ID
- * @returns {Promise<boolean>} Always returns true as all sources are now native DataCards
+ * @returns {Promise<boolean>} Always returns true; caller compatibility preserved while no-op path remains.
  */
 export async function ensureUnifiedSources(companyId: string) {
-  // Legacy backfill logic has been purged. 
-  // All entities are now natively created as DataCards (Sources).
+  // Native path now owns source creation; this helper remains for compatibility call-sites.
+  // It intentionally returns true to keep behavior stable for existing integrations.
   return true;
 }

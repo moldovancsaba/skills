@@ -314,7 +314,8 @@ export async function POST(req: NextRequest) {
         where: { id: sourceId },
         data: { 
           activityState: "ARCHIVED",
-          status: "ARCHIVED" // Keeping legacy for safety
+          // Keep legacy task status in sync for compatibility readers; lifecycle is now driven by processing/activity states.
+          status: "ARCHIVED",
         }
       });
     } else if (sourceType === "SOURCE") {

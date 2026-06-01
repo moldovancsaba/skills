@@ -8,7 +8,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ candidateId: string }> },
 ) {
-  const companyId = request.nextUrl.searchParams.get("companyId");
+  const companyId = String(request.nextUrl.searchParams.get("companyId") || "");
+  if (!companyId) return NextResponse.json({ error: "companyId is required" }, { status: 400 });
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
 
@@ -17,7 +18,7 @@ export async function GET(
     return NextResponse.json({ error: "candidateId required" }, { status: 400 });
   }
 
-  const graph = await getDestinationCandidateGraph(companyId as string, candidateId);
+  const graph = await getDestinationCandidateGraph(companyId, candidateId);
   if (!graph) {
     return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
   }

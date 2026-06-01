@@ -47,6 +47,9 @@ export async function GET(request: NextRequest) {
   const showAll = request.nextUrl.searchParams.get("all") === "true";
   const reviewOnly = request.nextUrl.searchParams.get("review") === "true";
   const kanbanColumn = request.nextUrl.searchParams.get("kanbanColumn") ?? request.nextUrl.searchParams.get("column");
+  if (!companyId) {
+    return NextResponse.json({ error: "companyId required" }, { status: 400 });
+  }
   
   const auth = await verifyMembership(request, companyId);
   if (auth.error) return auth.error;
@@ -57,7 +60,7 @@ export async function GET(request: NextRequest) {
     if (reviewOnly) {
       where.processingStatus = "REVIEW";
     } else if (showAll) {
-      // Return everything active for the Kanban board
+      // Return active tasks across all Kanban columns (excludes archived/declined).
       where.activityState = { in: ["ACTIVE", "STALE"] };
       where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] };
     } else if (isArchived) {
@@ -68,7 +71,7 @@ export async function GET(request: NextRequest) {
     } else {
       where.processingStatus = { in: ["DRAFT", "CHECKED", "VERIFIED", "ACCEPTED"] };
       where.activityState = { in: ["ACTIVE", "STALE"] };
-      // Unified Tactical Logic (§24): Checklist only shows what is in the CHECKLIST column
+      // Default tactical view: active tasks in CHECKLIST and due now.
       where.kanbanColumn = "CHECKLIST";
       where.scheduledDate = { lte: new Date() };
     }
@@ -102,8 +105,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
-    const auth = await verifyMembership(request, data.companyId);
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as any;
+    const companyId = typeof data.companyId === "string" ? data.companyId : "";
+    if (!companyId) {
+      return NextResponse.json({ error: "companyId required" }, { status: 400 });
+    }
+    const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
 
     // Passive Ingress: No logic, no scoring, no ID generation.
@@ -115,7 +126,8 @@ export async function POST(request: NextRequest) {
         description: data.description,
         processingStatus: "DRAFT",
         activityState: "ACTIVE",
-        status: "PENDING", // Legacy status bridge
+        // Keep legacy status value in sync for compatibility readers.
+        status: "PENDING",
         scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : null,
         createdBy: data.createdBy,
         appVersion: APP_VERSION,
@@ -157,7 +169,11 @@ export async function PATCH(request: NextRequest) {
     const id = request.nextUrl.searchParams.get("id");
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-    const data = await request.json();
+    const payload = await request.json();
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = payload as any;
     const existing = await prisma.checklistTask.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

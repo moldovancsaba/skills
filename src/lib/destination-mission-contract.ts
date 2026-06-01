@@ -1,4 +1,4 @@
-export const DESTINATION_MISSION_KINDS = ["rulebook_new_listing"] as const;
+export const DESTINATION_MISSION_KINDS = ["rulebook_new_listing", "VISITOR_CONTENT_CURATION"] as const;
 
 export type DestinationMissionKind = (typeof DESTINATION_MISSION_KINDS)[number];
 
@@ -59,14 +59,14 @@ export type DestinationMissionAttemptOutcome = {
   candidateDomain?: string;
 };
 
-export const DEFAULT_CLASSSCOUT_RULEBOOK_POLICY: DestinationRulebookPolicySnapshot = {
+export const DEFAULT_DESTINATION_RULEBOOK_POLICY: DestinationRulebookPolicySnapshot = {
   version: "classscout-rulebook@v1",
   executionMode: "manual",
   minimumScarcityScore: 70,
   allowedListingTypes: [
     "Classes",
     "Camps",
-    "Birthday Parties",
+    "Competitions",
     "Drop-In Activities",
     "Meet-Up Groups",
   ],
@@ -79,21 +79,52 @@ export const DEFAULT_CLASSSCOUT_RULEBOOK_POLICY: DestinationRulebookPolicySnapsh
   stopCondition: "one_live_verified_listing",
 };
 
-export const DEFAULT_CLASSSCOUT_MISSION_DEFINITION: DestinationMissionDefinitionConfig = {
+export const DEFAULT_COMPARE_RULEBOOK_POLICY: DestinationRulebookPolicySnapshot = {
+  version: "compare-visitor-rulebook@v1",
+  executionMode: "manual",
+  minimumScarcityScore: 70,
+  allowedListingTypes: [
+    "Shooting Ranges",
+    "Sport Shooting Clubs",
+    "Shooting Courses",
+    "Competitions",
+    "Hunting Associations",
+    "Hunting Courses",
+    "Hunting Expos",
+  ],
+  requireOfficialSource: true,
+  requireImgBbImage: false,
+  requireRecurringProgramsWhenAvailable: false,
+  maxCandidatesPerMission: 12,
+  maxDomainRetries: 2,
+  maxContinuousPasses: 3,
+  stopCondition: "one_live_verified_listing",
+};
+
+export const DEFAULT_DESTINATION_MISSION_DEFINITION: DestinationMissionDefinitionConfig = {
   version: "classscout-mission-definition@v1",
   geographyScope: {
     boroughs: [],
     neighborhoods: [],
   },
-  listingTypeScope: [...DEFAULT_CLASSSCOUT_RULEBOOK_POLICY.allowedListingTypes],
+  listingTypeScope: [...DEFAULT_DESTINATION_RULEBOOK_POLICY.allowedListingTypes],
   executionPolicy: {
-    mode: DEFAULT_CLASSSCOUT_RULEBOOK_POLICY.executionMode,
+    mode: DEFAULT_DESTINATION_RULEBOOK_POLICY.executionMode,
     cadence: "manual-only",
     cronEnabled: false,
     requireHumanPublishApproval: true,
   },
-  rulebookPolicy: { ...DEFAULT_CLASSSCOUT_RULEBOOK_POLICY },
+  rulebookPolicy: { ...DEFAULT_DESTINATION_RULEBOOK_POLICY },
 };
+
+export const DEFAULT_CLASSSCOUT_RULEBOOK_POLICY = DEFAULT_DESTINATION_RULEBOOK_POLICY;
+export const DEFAULT_CLASSSCOUT_MISSION_DEFINITION = DEFAULT_DESTINATION_MISSION_DEFINITION;
+
+export function getDefaultRulebookPolicyForDestination(destinationKey: string): DestinationRulebookPolicySnapshot {
+  return destinationKey === "compare"
+    ? { ...DEFAULT_COMPARE_RULEBOOK_POLICY, allowedListingTypes: [...DEFAULT_COMPARE_RULEBOOK_POLICY.allowedListingTypes] }
+    : { ...DEFAULT_DESTINATION_RULEBOOK_POLICY, allowedListingTypes: [...DEFAULT_DESTINATION_RULEBOOK_POLICY.allowedListingTypes] };
+}
 
 function cleanStringArray(value: unknown) {
   if (!Array.isArray(value)) return [] as string[];
@@ -107,16 +138,16 @@ export function normalizeRulebookPolicySnapshot(
 ): DestinationRulebookPolicySnapshot {
   const nextValue = value ?? {};
   return {
-    ...DEFAULT_CLASSSCOUT_RULEBOOK_POLICY,
+    ...DEFAULT_DESTINATION_RULEBOOK_POLICY,
     ...nextValue,
     executionMode:
       nextValue.executionMode === "guarded" || nextValue.executionMode === "autopilot"
         ? nextValue.executionMode
-        : DEFAULT_CLASSSCOUT_RULEBOOK_POLICY.executionMode,
+        : DEFAULT_DESTINATION_RULEBOOK_POLICY.executionMode,
     allowedListingTypes:
       cleanStringArray(nextValue.allowedListingTypes).length > 0
         ? cleanStringArray(nextValue.allowedListingTypes)
-        : [...DEFAULT_CLASSSCOUT_RULEBOOK_POLICY.allowedListingTypes],
+        : [...DEFAULT_DESTINATION_RULEBOOK_POLICY.allowedListingTypes],
     stopCondition: "one_live_verified_listing",
   };
 }
@@ -161,7 +192,7 @@ export function normalizeMissionDefinitionConfig(
     version:
       typeof nextValue.version === "string" && nextValue.version.trim()
         ? nextValue.version.trim()
-        : DEFAULT_CLASSSCOUT_MISSION_DEFINITION.version,
+        : DEFAULT_DESTINATION_MISSION_DEFINITION.version,
     geographyScope: {
       boroughs: cleanStringArray(geographyScope?.boroughs),
       neighborhoods: cleanStringArray(geographyScope?.neighborhoods),

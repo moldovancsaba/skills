@@ -1,6 +1,6 @@
-# CHECKLIST Implementation Rulebook
+# check Implementation Rulebook
 
-This document defines how new product functions must be implemented in CHECKLIST.
+This document defines how new product functions must be implemented in `check`.
 
 It exists because the same failure pattern has already repeated:
 
@@ -15,10 +15,12 @@ It is subordinate to:
 1. [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RULEBOOK.md)
 2. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
 3. [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
+4. [docs/CHECK_FOUNDATION_LLD.md](/Users/Shared/Projects/checklist/docs/CHECK_FOUNDATION_LLD.md)
+5. [docs/CHECK_FOUNDATION_HANDOVER.md](/Users/Shared/Projects/checklist/docs/CHECK_FOUNDATION_HANDOVER.md)
 
 ## 1. Purpose
 
-Every new mini-app, module, dashboard, workflow surface, or support surface must be built so that:
+Every new Block, Module, Miniapp, workspace, board, workflow surface, or support surface must be built so that:
 
 - the machine stays operational under memory pressure
 - the online webapp reads prepared data quickly
@@ -27,6 +29,42 @@ Every new mini-app, module, dashboard, workflow surface, or support surface must
 - future agents can repeat the pattern without guesswork
 
 ## 2. Non-Negotiable Principles
+
+### 2.0 Mandatory General Design System rule
+
+All UI, UX, and frontend implementation must exclusively use the Sovereign Squad General Design System.
+
+Authoritative source:
+
+- local checkout: `/Users/Shared/Projects/general-design-system`
+- upstream repository: `sovereignsquad/general-design-system`
+
+Rules:
+
+- no parallel component libraries
+- no local visual systems
+- no local token systems
+- no non-GDS interaction primitives
+- no page-specific typography, spacing, color, radius, elevation, motion, or layout grammar outside the GDS contract
+- no raw Mantine default styling as product design unless wrapped, themed, or explicitly approved by the GDS contract
+- no UI state may ship without keyboard, screen-reader, focus, contrast, reduced-motion, and semantic HTML coverage where applicable
+
+Every new product function with UI must define its GDS components, UX states, accessibility behavior, and any approved exception before implementation.
+
+### 2.0.1 Mandatory destination-daemon policy model
+
+Miniapp mission automation must use one shared destination-daemon contract across all Miniapps.
+
+Rules:
+
+- daemon orchestration is destination-generic and must not hardcode one Miniapp as the control path
+- per-Unit daemon limits must resolve through `company.workerConfig.destinationDaemonPolicy` with `defaults` and `miniapps` overrides
+- runtime precedence must remain deterministic:
+1. explicit API override
+2. per-miniapp Unit policy
+3. shared environment fallback defaults
+- Miniapp-specific maintenance behavior must be plugged in through destination maintenance adapters, not by branching daemon ownership logic
+- new Miniapps must inherit the same daemon defaults and policy flow used by existing Miniapps unless an explicit rulebook exception is approved
 
 ### 2.1 Local AI prepares, webapp reads
 
@@ -133,7 +171,17 @@ Every new product function must go through this sequence.
 
 ### Step 1. Classify the function
 
-Decide which kind of surface it is:
+Decide what is being built:
+
+- Block
+- Module
+- Card family
+- Miniapp
+- Miniapp Ops surface
+- Webapp workspace
+- Local-only runtime feature
+
+Then decide which kind of surface it is:
 
 - hot product route
 - cold/admin route
@@ -142,7 +190,20 @@ Decide which kind of surface it is:
 
 This decision changes the allowed architecture.
 
-### Step 2. Define the authority boundary
+### Step 2. Define Block and Unit scope
+
+Write down:
+
+- which Unit owns the data
+- which Block enables the behavior
+- which Modules are required
+- which Card types are read or written
+- whether the feature must work without the Checklist Block
+- whether a disabled Block hides, freezes, or preserves the data
+
+If this is unclear, implementation is not ready.
+
+### Step 3. Define the authority boundary
 
 Write down:
 
@@ -153,7 +214,7 @@ Write down:
 
 If this is unclear, implementation is not ready.
 
-### Step 3. Define the read model
+### Step 4. Define the read model
 
 For any hot product route, define:
 
@@ -162,6 +223,7 @@ For any hot product route, define:
 - minimum payload contract
 - freshness field
 - fallback shape
+- Block key or Miniapp key when applicable
 
 Examples:
 
@@ -169,8 +231,9 @@ Examples:
 - planning summary sub-projection
 - compact chart series inside the product projection
 - server-bootstrapped paged corpus views where the hot path still needs direct entity rows, such as Knowmore
+- Miniapp landing summary contract for ClassScout or Compare
 
-### Step 4. Define invalidation and repair
+### Step 5. Define invalidation and repair
 
 Every prepared read model must have a refresh path.
 
@@ -181,7 +244,7 @@ Required questions:
 - when it is repaired
 - how operators can see if it is stale
 
-### Step 5. Build the server bootstrap
+### Step 6. Build the server bootstrap
 
 If the route is hot:
 
@@ -191,7 +254,7 @@ If the route is hot:
 
 Do not make the client discover its own first payload if the server already has enough context.
 
-### Step 6. Keep the client path narrow
+### Step 7. Keep the client path narrow
 
 The client may:
 
@@ -205,7 +268,7 @@ The client must not:
 - own the first summary truth for a hot route
 - fetch multiple summary endpoints on mount unless there is no justified server path
 
-### Step 7. Instrument the route
+### Step 8. Instrument the route
 
 For hot authenticated routes:
 
@@ -213,7 +276,7 @@ For hot authenticated routes:
 - expose named timing steps under profiling mode
 - make it possible to diagnose auth, membership, projection, fallback, and rendering costs separately
 
-### Step 8. Verify the whole path
+### Step 9. Verify the whole path
 
 Before calling the work complete:
 
@@ -302,21 +365,23 @@ If the work changes agent behavior, also update:
 Before shipping a new function, confirm all of these:
 
 1. The authority boundary is explicit.
-2. The route is classified as hot, cold, operator, or background.
-3. A read model exists for hot product data.
-4. The first useful response is server-bootstrapped where appropriate.
-5. The route payload is minimal and explicit.
-6. The client does not own the first summary truth unnecessarily.
-7. Non-critical hydration is deferred.
-8. Dirtying and repair of prepared data are defined.
-9. Profiling exists for meaningful hot authenticated routes.
-10. Docs and AI-brain files were updated with the change.
+2. The Unit, Block, Module, Card, Miniapp, Webapp, and Local terms are used correctly.
+3. The feature does not accidentally require an unrelated Block.
+4. The route is classified as hot, cold, operator, or background.
+5. A read model exists for hot product data.
+6. The first useful response is server-bootstrapped where appropriate.
+7. The route payload is minimal and explicit.
+8. The client does not own the first summary truth unnecessarily.
+9. Non-critical hydration is deferred.
+10. Dirtying and repair of prepared data are defined.
+11. Profiling exists for meaningful hot authenticated routes.
+12. Docs and AI-brain files were updated with the change.
 
 ## 7. Blunt Rule
 
-If a future mini-app loads slowly and the explanation is “it’s just reading from the database,” assume the architecture is still wrong until proven otherwise.
+If a future Block, Module, or Miniapp loads slowly and the explanation is “it’s just reading from the database,” assume the architecture is still wrong until proven otherwise.
 
-In CHECKLIST, fast product routes should usually mean:
+In `check`, fast product routes should usually mean:
 
 - the local AI side already prepared the right shape
 - the server rendered the first useful state

@@ -1,18 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordOutcomeEvent } from "@/lib/audit-ledger";
-import { submitDestinationReviewDecision } from "@/lib/destination-review-bridge";
+import { getDestinationReviewPacket, submitDestinationReviewDecision } from "@/lib/destination-review-bridge";
 import { verifyMembership } from "@/lib/permissions";
+import { normalizeDestinationKey } from "@/lib/destination-scope";
 
 export const dynamic = "force-dynamic";
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const body = await request.json();
+    const rawBody = await request.json();
+    if (!rawBody || typeof rawBody !== "object" || Array.isArray(rawBody)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const body = rawBody as Record<string, unknown>;
     const companyId = String(body.companyId || "");
+    if (!companyId) return NextResponse.json({ error: "companyId is required" }, { status: 400 });
+    const destinationKeyRaw = body.destinationKey;
+    if (destinationKeyRaw && !normalizeDestinationKey(destinationKeyRaw)) {
+      return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+    }
+    const destinationKey = normalizeDestinationKey(destinationKeyRaw);
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;
 
     const { id } = await params;
+    const existingPacket = await getDestinationReviewPacket(companyId, id);
+    if (!existingPacket) {
+      return NextResponse.json({ error: "Review packet not found" }, { status: 404 });
+    }
+    if (destinationKey && existingPacket.destinationInstance?.destinationKey !== destinationKey) {
+      return NextResponse.json({ error: "Review packet not found" }, { status: 404 });
+    }
     const decision = await submitDestinationReviewDecision({
       companyId,
       reviewPacketId: id,
@@ -21,17 +45,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       decisionReasonCode: String(body.decisionReasonCode || ""),
       decisionNotes: typeof body.decisionNotes === "string" ? body.decisionNotes : undefined,
       requestedAction: typeof body.requestedAction === "string" ? body.requestedAction : undefined,
-      correctedDraftPayload:
-        body.correctedDraftPayload && typeof body.correctedDraftPayload === "object" && !Array.isArray(body.correctedDraftPayload)
-          ? body.correctedDraftPayload
-          : undefined,
-      correctedFactsJson:
-        body.correctedFactsJson && typeof body.correctedFactsJson === "object" && !Array.isArray(body.correctedFactsJson)
-          ? body.correctedFactsJson
-          : undefined,
+      correctedDraftPayload: asRecord(body.correctedDraftPayload),
+      correctedFactsJson: asRecord(body.correctedFactsJson),
       reviewedBy: auth.session.email,
       reviewedAt: typeof body.reviewedAt === "string" ? body.reviewedAt : undefined,
-      metadata: body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
+      metadata: asRecord(body.metadata),
     });
 
     if (!decision) {

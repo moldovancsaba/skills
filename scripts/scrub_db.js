@@ -13,10 +13,10 @@ async function main() {
     if (!fc.processingStatus) update.processingStatus = "CHECKED";
     if (!fc.activityState) update.activityState = "ACTIVE";
     
-    // Legacy status bridge for Production Web App
-    // FlashcardReviewStatus: PENDING, ACCEPTED, DECLINED, MODIFIED_ACCEPTED
+    // Compatibility status fields for downstream readers that still consume this historical column name.
+    // FlashcardReviewStatus compatibility values: PENDING, ACCEPTED, DECLINED, MODIFIED_ACCEPTED
     if (!fc.reviewStatus) update.reviewStatus = "PENDING";
-    // FlashcardStatus (legacy status field): DRAFT, CHECKED, VERIFIED, etc.
+    // FlashcardStatus compatibility values kept for the compatibility column.
     if (!fc.status || fc.status === "DRAFT") update.status = "CHECKED";
     
     if (Object.keys(update).length > 0) {
@@ -36,8 +36,8 @@ async function main() {
     if (!tc.processingStatus) update.processingStatus = "CHECKED";
     if (!tc.activityState) update.activityState = "ACTIVE";
     
-    // Legacy status bridge for Production Web App
-    // Legacy task status: DRAFT, CHECKED, VERIFIED, EXPIRED, PENDING, ACCEPTED, DECLINED, COMPLETED, ARCHIVED
+    // Compatibility status fields for downstream readers that still consume this historical column.
+    // Task status compatibility values: DRAFT, CHECKED, VERIFIED, EXPIRED, PENDING, ACCEPTED, DECLINED, COMPLETED, ARCHIVED
     if (!tc.status || tc.status === "PENDING" || tc.status === "DRAFT") update.status = "CHECKED";
 
     if (Object.keys(update).length > 0) {

@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const bodyRaw = await request.json().catch(() => ({}));
+    if (!bodyRaw || typeof bodyRaw !== "object" || Array.isArray(bodyRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const body = bodyRaw as Record<string, unknown>;
     const { companyId, dataType, action } = body;
     return NextResponse.json({
       success: true,

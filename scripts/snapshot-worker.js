@@ -1,5 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const http = require("http");
+const { applyRunnerIdentity } = require("./lib/runtime/runner-registry");
 const {
   markCompanyProjectionDirty,
   refreshMissingProjectionSnapshots,
@@ -7,6 +8,7 @@ const {
   refreshIntelligenceSnapshotSlice,
 } = require("./lib/intelligence-snapshot");
 const { syncAllCompanyPipelineJobsIfDue, syncDirtyCompanyPipelineJobs } = require("../src/lib/pipeline-queue");
+const { maintainLifecycleShard } = require("../src/lib/check-lifecycle/maintenance-engine");
 const {
   getFreeMemoryMb,
   getResourceBand,
@@ -21,6 +23,7 @@ const {
 } = require("./lib/runtime/verification");
 const packageJson = require("../package.json");
 
+const RUNNER = applyRunnerIdentity("check.local.snapshot-worker");
 const prisma = new PrismaClient();
 const PORT = 10007;
 const APP_VERSION = packageJson.version;
@@ -29,6 +32,7 @@ const ACTIVE_INTERVAL = 60_000;
 const IDLE_INTERVAL = 5 * 60 * 1000;
 const POLLING_INTERVAL = 30_000;
 const SNAPSHOT_BATCH_SIZE = 2;
+const FOREGROUND_ACTIVE_QUEUE_BACKLOG_THRESHOLD = 24;
 
 let isRunning = false;
 let wakeRequested = false;
@@ -38,15 +42,29 @@ setInterval(async () => {
 }, 60_000);
 
 async function shouldYieldToForeground() {
-  const [runningJobs, activeJobs] = await Promise.all([
+  const [runningJobs, activeJobs, runnableActiveJobs, humanGuidedActiveJobs] = await Promise.all([
     prisma.pipelineJob.count({ where: { status: "RUNNING" } }),
     prisma.pipelineJob.count({ where: { status: "ACTIVE" } }),
+    prisma.pipelineJob.count({
+      where: {
+        status: "ACTIVE",
+        queueColumn: { in: ["NOW", "SOON", "LATER"] },
+      },
+    }),
+    prisma.pipelineJob.count({
+      where: {
+        status: "ACTIVE",
+        controlMode: "HUMAN_GUIDED",
+      },
+    }),
   ]);
 
   return {
-    shouldYield: runningJobs > 0 || activeJobs > 0,
+    shouldYield: runningJobs > 0 || runnableActiveJobs > FOREGROUND_ACTIVE_QUEUE_BACKLOG_THRESHOLD,
     runningJobs,
     activeJobs,
+    runnableActiveJobs,
+    humanGuidedActiveJobs,
   };
 }
 
@@ -83,13 +101,15 @@ async function runSnapshotLoop() {
       await updateSnapshotWorkerProgress(prisma, {
         state: "idle",
         stage: "PAUSED_FOREGROUND_BACKLOG",
-        activeTask: `Snapshot refresh paused while foreground queue has ${foregroundDecision.runningJobs} running and ${foregroundDecision.activeJobs} active job(s)`,
+        activeTask: `Snapshot refresh paused while foreground queue has ${foregroundDecision.runningJobs} running and ${foregroundDecision.runnableActiveJobs} runnable active job(s)`,
         currentCompany: null,
         metrics: {
           freeMemMb,
           resourceBand,
           runningJobs: foregroundDecision.runningJobs,
           activeJobs: foregroundDecision.activeJobs,
+          runnableActiveJobs: foregroundDecision.runnableActiveJobs,
+          humanGuidedActiveJobs: foregroundDecision.humanGuidedActiveJobs,
         },
       });
       const targetWakeTime = Date.now() + IDLE_INTERVAL;
@@ -115,6 +135,11 @@ async function runSnapshotLoop() {
       limit: SNAPSHOT_BATCH_SIZE,
     });
     const didSyncQueue = await syncAllCompanyPipelineJobsIfDue(prisma);
+    const lifecycleMaintenanceResult = await maintainLifecycleShard(prisma, {
+      trigger: "snapshot-worker",
+      limit: SNAPSHOT_BATCH_SIZE,
+      actorId: "snapshot-worker",
+    });
     for (const entry of Array.isArray(targetedSyncResult.syncedEntries) ? targetedSyncResult.syncedEntries : []) {
       await markCompanyProjectionDirty(prisma, entry.companyId, `topology-sync:${entry.reason || "background-dirty-drain"}`);
     }
@@ -130,6 +155,7 @@ async function runSnapshotLoop() {
         batchSize: SNAPSHOT_BATCH_SIZE,
         targetedQueueSyncs: targetedSyncResult.syncedCompanies,
         dirtyCompaniesRemaining: targetedSyncResult.dirtyCompaniesRemaining,
+        lifecycleMaintainedCompanies: lifecycleMaintenanceResult.repairedOrVerified,
         didSyncQueue,
       },
     });
@@ -150,6 +176,7 @@ async function runSnapshotLoop() {
         batchSize: SNAPSHOT_BATCH_SIZE,
         targetedQueueSyncs: targetedSyncResult.syncedCompanies,
         dirtyCompaniesRemaining: targetedSyncResult.dirtyCompaniesRemaining,
+        lifecycleMaintainedCompanies: lifecycleMaintenanceResult.repairedOrVerified,
         projectionBackfills: projectionBackfillResult.refreshedCompanies,
         missingProjectionCompaniesRemaining: projectionBackfillResult.remainingCandidates,
         didSyncQueue,
@@ -181,6 +208,7 @@ async function runSnapshotLoop() {
         resourceBand,
         targetedQueueSyncs: targetedSyncResult.syncedCompanies,
         dirtyCompaniesRemaining: targetedSyncResult.dirtyCompaniesRemaining,
+        lifecycleMaintainedCompanies: lifecycleMaintenanceResult.repairedOrVerified,
         projectionBackfills: projectionBackfillResult.refreshedCompanies,
         missingProjectionCompaniesRemaining: projectionBackfillResult.remainingCandidates,
         targetedProjectionRefreshes: targetedProjectionResult.refreshedCompanies,
@@ -224,7 +252,7 @@ const server = http.createServer(async (req, res) => {
   if (req.url === "/health" && req.method === "GET") {
     const progress = getSnapshotWorkerProgress();
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ progress }));
+    res.end(JSON.stringify({ runner: RUNNER, processTitle: process.title, progress }));
     return;
   }
 
@@ -243,11 +271,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, async () => {
-  console.log(`checklist snapshot worker v${APP_VERSION} active on port ${PORT}`);
+  console.log(`${RUNNER.humanName} v${APP_VERSION} active on port ${PORT} (${RUNNER.id})`);
   await updateSnapshotWorkerProgress(prisma, {
     state: "idle",
     stage: "BOOTING",
-    activeTask: "Booting snapshot worker",
+    activeTask: `Booting ${RUNNER.humanName}`,
     currentCompany: null,
   });
   void runSnapshotLoop();

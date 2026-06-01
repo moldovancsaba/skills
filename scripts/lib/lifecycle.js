@@ -137,7 +137,7 @@ function toSuppressed(reason = null) {
 function toArchived(reason = null) {
   return {
     candidateState: CandidateState.ARCHIVED,
-    activityState: "ARCHIVED", // Keep legacy field in sync
+    activityState: "ARCHIVED", // Keep compatibility activity state in sync
     evaluationReason: reason,
   };
 }
@@ -174,15 +174,15 @@ function isTerminal(item) {
          item.candidateState === CandidateState.DELIVERED;
 }
 
-// Legacy bridge
-// Maps the old annotation-string-based state inference to the new enum.
-// Used ONLY during the transition period. Remove after all items are migrated.
+// Compatibility bridge
+// Maps historical annotation-string-style state data to the canonical enum.
+// Used only for compatibility when backfilling older persisted records.
 
 /**
- * Infers a CandidateState from legacy processingStatus + activityState fields.
- * This is the LAST time we ever parse annotation strings for state.
+ * Infers a CandidateState from compatibility processingStatus + activityState fields.
+ * This compatibility layer is only for records in historical schema form.
  *
- * @param {object} item - ChecklistTask with legacy fields
+ * @param {object} item - ChecklistTask with compatibility fields
  * @returns {CandidateState}
  */
 function inferLegacyState(item) {

@@ -7,10 +7,12 @@ import { FormCheckbox, FormInput, FormSelect, FormTextarea } from "@/components/
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
 import {
-  DEFAULT_CLASSSCOUT_MISSION_DEFINITION,
+  DEFAULT_DESTINATION_MISSION_DEFINITION,
   normalizeMissionDefinitionConfig,
   type DestinationMissionDefinitionConfig,
 } from "@/lib/destination-mission-contract";
+import type { DestinationKey } from "@/lib/destination-workflow-contract";
+import { resolveDestinationLabel } from "@/lib/destination-scope";
 
 type MissionDefinitionRecord = {
   id: string;
@@ -91,7 +93,7 @@ function formStateToConfig(form: MissionDefinitionFormState): DestinationMission
       requireHumanPublishApproval: form.requireHumanPublishApproval,
     },
     rulebookPolicy: {
-      version: DEFAULT_CLASSSCOUT_MISSION_DEFINITION.rulebookPolicy.version,
+      version: DEFAULT_DESTINATION_MISSION_DEFINITION.rulebookPolicy.version,
       executionMode: form.mode,
       minimumScarcityScore: Number(form.minimumScarcityScore || 70),
       allowedListingTypes: parseList(form.listingTypeScope),
@@ -106,7 +108,14 @@ function formStateToConfig(form: MissionDefinitionFormState): DestinationMission
   });
 }
 
-export function DestinationMissionSetup({ companyId }: { companyId: string }) {
+export function DestinationMissionSetup({
+  companyId,
+  destinationKey = "classscout",
+}: {
+  companyId: string;
+  destinationKey?: DestinationKey;
+}) {
+  const destinationLabel = resolveDestinationLabel(destinationKey);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actioning, setActioning] = useState(false);
@@ -114,9 +123,10 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
   const [definitions, setDefinitions] = useState<MissionDefinitionRecord[]>([]);
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<string | null>(null);
   const [formState, setFormState] = useState<MissionDefinitionFormState>(
-    configToFormState(DEFAULT_CLASSSCOUT_MISSION_DEFINITION),
+    configToFormState(DEFAULT_DESTINATION_MISSION_DEFINITION),
   );
-  const [definitionName, setDefinitionName] = useState("ClassScout Production Scarcity Curator");
+  const defaultDefinitionName = `${destinationLabel} Production Scarcity Curator`;
+  const [definitionName, setDefinitionName] = useState(defaultDefinitionName);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastStartedRunId, setLastStartedRunId] = useState<string | null>(null);
 
@@ -137,7 +147,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
     try {
       const params = new URLSearchParams({
         companyId,
-        destinationKey: "classscout",
+        destinationKey,
         missionKind: "rulebook_new_listing",
       });
       const response = await fetch(`/api/destination-missions/definitions?${params.toString()}`);
@@ -149,13 +159,17 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
         null;
       setDefinitions(nextDefinitions);
       setSelectedDefinitionId(nextSelectedDefinition?.id ?? null);
-      applyDefinitionToEditor(nextSelectedDefinition);
+      if (nextSelectedDefinition) {
+        applyDefinitionToEditor(nextSelectedDefinition);
+      } else {
+        setDefinitionName(defaultDefinitionName);
+      }
     } catch (error) {
       setErrorMessage(String(error));
     } finally {
       setLoading(false);
     }
-  }, [applyDefinitionToEditor, companyId, selectedDefinitionId]);
+  }, [applyDefinitionToEditor, companyId, defaultDefinitionName, destinationKey, selectedDefinitionId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadDefinitions(), 0);
@@ -176,7 +190,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
-          destinationKey: "classscout",
+          destinationKey,
           missionKind: "rulebook_new_listing",
           name: definitionName,
           config,
@@ -193,7 +207,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
     } finally {
       setSaving(false);
     }
-  }, [companyId, definitionName, formState, loadDefinitions, selectedDefinition]);
+  }, [companyId, definitionName, destinationKey, formState, loadDefinitions, selectedDefinition]);
 
   const triggerAction = useCallback(async (action: "activate" | "pause" | "archive" | "duplicate") => {
     if (!selectedDefinition) return;
@@ -228,7 +242,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
-          destinationKey: "classscout",
+          destinationKey,
           missionKind: "rulebook_new_listing",
           missionDefinitionId: selectedDefinition.id,
           metadata: {
@@ -247,7 +261,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
     } finally {
       setStartingMission(false);
     }
-  }, [companyId, selectedDefinition]);
+  }, [companyId, destinationKey, selectedDefinition]);
 
   if (loading) {
     return (
@@ -276,7 +290,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
         <Stack gap="md">
           <Group justify="space-between" align="flex-start">
             <Stack gap={2}>
-              <SectionTitle>Define the ClassScout rulebook inside this unit</SectionTitle>
+              <SectionTitle>Define the {destinationLabel} rulebook inside this unit</SectionTitle>
               <BodyText>
                 This is the delegated mission source of truth for discovery scope, scarcity policy, execution mode, and publish guardrails.
               </BodyText>
@@ -309,7 +323,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
               <Stack gap="xs">
                 <MetaText>Definitions</MetaText>
                 {definitions.length === 0 ? (
-                  <BodyText>No mission definitions yet. Create one to make this unit the ClassScout rulebook source of truth.</BodyText>
+                  <BodyText>No mission definitions yet. Create one to make this unit the {destinationLabel} rulebook source of truth.</BodyText>
                 ) : null}
                 {definitions.map((definition) => {
                   const isSelected = definition.id === selectedDefinition?.id;
@@ -387,7 +401,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
                     </Button>
                   </>
                 ) : (
-                  <BodyText>Creating a definition here makes the Checklist unit the home for ClassScout mission setup.</BodyText>
+                  <BodyText>Creating a definition here makes the check Unit the home for {destinationLabel} mission setup.</BodyText>
                 )}
               </Stack>
             </UnifiedCardSection>
@@ -429,7 +443,7 @@ export function DestinationMissionSetup({ companyId }: { companyId: string }) {
                 />
                 <FormTextarea
                   label="Listing type scope"
-                  description="Comma-separated ClassScout listing types."
+                  description={`Comma-separated ${destinationLabel} listing types.`}
                   minRows={2}
                   value={formState.listingTypeScope}
                   onChange={(event) => setFormState((current) => ({ ...current, listingTypeScope: event.currentTarget.value }))}

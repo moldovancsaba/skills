@@ -5,7 +5,7 @@ import { SectionTitle, Text, Title } from "@/components/ui/typography";
 import { LEGAL_PROTOCOL_LABEL } from "@/lib/release";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy - checklist OS",
+  title: "Privacy Policy - check",
 };
 
 export default function PrivacyPage() {

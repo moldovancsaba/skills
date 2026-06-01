@@ -34,7 +34,7 @@ function generateFingerprint(data) {
  * Uses the local process clock for timestamps in the single-node runtime.
  */
 async function getServerTime(prisma) {
-  // The prisma parameter is retained for call-site compatibility.
+  // The prisma parameter is retained for compatible call-site usage.
   return new Date(); 
 }
 

@@ -1,5 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const http = require("http");
+const { applyRunnerIdentity } = require("./lib/runtime/runner-registry");
 const { OLLAMA_MODEL, envFlag } = require("./lib/core");
 const { runPipelineQueueBatch, shouldDelegateQueueRefresh } = require("./lib/pipeline-jobs");
 const { recoverOrphanedRunningPipelineJobs } = require("../src/lib/pipeline-queue");
@@ -7,6 +8,7 @@ const packageJson = require("../package.json");
 const APP_VERSION = packageJson.version;
 const { refreshCompanyIntelligenceSnapshot } = require("./lib/intelligence-snapshot");
 
+const RUNNER = applyRunnerIdentity("check.local.foreground-worker");
 const prisma = new PrismaClient();
 const PORT = 10005;
 const SNAPSHOT_PORT = 10007;
@@ -440,6 +442,8 @@ const server = http.createServer(async (req, res) => {
     const settings = await collectGlobalWorkerSettings(prisma);
 
     const health = {
+      runner: RUNNER,
+      processTitle: process.title,
       researchEnabled: envFlag(
         process.env.CHECKLIST_RESEARCH_ENABLED ?? process.env.checklist_RESEARCH_ENABLED,
         false,
@@ -478,6 +482,6 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, async () => {
-  console.log(`checklist local AI worker v${APP_VERSION} active on port ${PORT}`);
+  console.log(`${RUNNER.humanName} v${APP_VERSION} active on port ${PORT} (${RUNNER.id})`);
   runWorkerLoop();
 });

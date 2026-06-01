@@ -30,7 +30,7 @@ export function proxy(req: NextRequest) {
     return new NextResponse("Not Found", { status: 404 });
   }
 
-  // 1. Allow these specific public paths
+  // Public paths that bypass auth for shared entrypoints and inbound APIs.
   const publicPaths = [
     "/login",
     "/auth",

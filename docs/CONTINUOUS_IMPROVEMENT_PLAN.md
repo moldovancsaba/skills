@@ -54,7 +54,7 @@ checklist should behave like a persistent business researcher and improvement en
 
 ```text
 ┌────────────────────────────────────────────────────────────┐
-│ Online checklist App                                      │
+│ Online check Webapp                                      │
 │ - raw data entry                                          │
 │ - flashcard review and correction                         │
 │ - NBA task review and correction                          │

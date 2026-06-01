@@ -51,6 +51,25 @@ export async function getActiveDestinationInstance(companyId: string, destinatio
 export async function ensureDestinationInstance(companyId: string, destinationKey: DestinationKey) {
   const existing = await getActiveDestinationInstance(companyId, destinationKey);
   if (existing) return existing;
+  const inactive = await prisma.destinationInstance.findFirst({
+    where: { companyId, destinationKey, isActive: false },
+    orderBy: { updatedAt: "desc" },
+  });
+  if (inactive) {
+    return prisma.destinationInstance.update({
+      where: { id: inactive.id },
+      data: {
+        isActive: true,
+        config: normalizeJsonRecord({
+          ...(inactive.config && typeof inactive.config === "object" && !Array.isArray(inactive.config)
+            ? inactive.config as Record<string, unknown>
+            : {}),
+          reactivatedAt: new Date().toISOString(),
+          reactivatedBy: "destination-workflows.ensureDestinationInstance",
+        }),
+      },
+    });
+  }
   return prisma.destinationInstance.create({
     data: {
       companyId,

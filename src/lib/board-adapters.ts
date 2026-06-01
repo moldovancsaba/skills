@@ -2,7 +2,7 @@ import type { BoardColumn } from "@/lib/board-system";
 import { PROJECT_BOARD_COLUMNS } from "@/lib/board-system";
 import { SURFACE_BOARD_CONFIG, type SurfaceBoardConfig } from "@/lib/board-state";
 
-export type BoardSurfaceKey = keyof typeof SURFACE_BOARD_CONFIG;
+export type BoardSurfaceKey = "unitBoard";
 
 export type ResolvedBoardAdapter = {
   surface: BoardSurfaceKey;
@@ -14,30 +14,16 @@ export type ResolvedBoardAdapter = {
 
 const SURFACE_COLUMN_MAP: Record<BoardSurfaceKey, BoardColumn[]> = {
   unitBoard: PROJECT_BOARD_COLUMNS,
-  goals: PROJECT_BOARD_COLUMNS,
-  topics: PROJECT_BOARD_COLUMNS,
-  data: PROJECT_BOARD_COLUMNS,
-  pipeline: PROJECT_BOARD_COLUMNS,
 };
 
 const BOARD_KEY_TO_SURFACE: Record<string, BoardSurfaceKey> = {
   UNIT_PROJECT: "unitBoard",
-  GOALS_STATUS: "goals",
-  TOPICS_STATUS: "topics",
-  DATA_STATUS: "data",
-  PIPELINE_STATUS: "pipeline",
 };
 
 const SURFACE_BY_MODULE: Record<string, BoardSurfaceKey> = {
   unitboard: "unitBoard",
   "unit-board": "unitBoard",
   unit: "unitBoard",
-  classscout: "unitBoard",
-  compare: "unitBoard",
-  goals: "goals",
-  topics: "topics",
-  data: "data",
-  pipeline: "pipeline",
   "project-board": "unitBoard",
   "unit-project": "unitBoard",
 };
@@ -57,8 +43,8 @@ function normalizeBoardSurfaceToken(value?: unknown): BoardSurfaceKey | null {
 }
 
 function getDefaultReadWriteSupport(surface: BoardSurfaceKey) {
-  if (surface === "unitBoard") return true;
-  return false;
+  // The board-items route is Project Block-only; all valid surfaces map to unitBoard.
+  return surface === "unitBoard";
 }
 
 export function resolveBoardAdapter(input: { boardKey?: string | null; module?: string | null }): ResolvedBoardAdapter {
@@ -85,7 +71,7 @@ export function resolveBoardAdapter(input: { boardKey?: string | null; module?: 
     } satisfies ResolvedBoardAdapter;
   }
 
-  // Backward-compatible default for existing unit board clients.
+  // Backward-compatible default for legacy unit-board clients missing board/module input.
   return {
     surface: "unitBoard",
     config: SURFACE_BOARD_CONFIG.unitBoard,

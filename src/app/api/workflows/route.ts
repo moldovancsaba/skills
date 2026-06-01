@@ -29,7 +29,11 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const data = await request.json();
+    const dataRaw = await request.json().catch(() => ({}));
+    if (!dataRaw || typeof dataRaw !== "object" || Array.isArray(dataRaw)) {
+      return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
+    }
+    const data = dataRaw as Record<string, any>;
     const companyId = String(data.companyId || "");
     const blueprintId = String(data.blueprintId || "");
     if (!companyId || !blueprintId) {

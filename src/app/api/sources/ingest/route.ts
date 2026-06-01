@@ -17,13 +17,20 @@ export async function POST(request: NextRequest) {
   if (auth.error) return auth.error;
 
   try {
-    const body = await request.json();
+    const rawBody = await request.json().catch(() => null);
+    if (!rawBody || (typeof rawBody !== "object" && !Array.isArray(rawBody))) {
+      return NextResponse.json({ error: "JSON object or array body is required" }, { status: 400 });
+    }
     
     // Support both single object and array for batch ingestion
-    const items = Array.isArray(body) ? body : [body];
+    const items = Array.isArray(rawBody) ? rawBody : [rawBody];
     const results = [];
 
     for (const item of items) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        results.push({ success: false, error: "Each item must be a JSON object", item });
+        continue;
+      }
       const { companyId, content, hashtags, provenance, metadata } = item;
 
       if (!companyId || !content) {

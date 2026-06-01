@@ -16,5 +16,5 @@ export default async function CompareVisitorOpsPage(
     redirect(access.redirectTo);
   }
 
-  return <VisitorOpsWorkspace companyId={companyId} defaultVisitorKey="rangescout-hungary" />;
+  return <VisitorOpsWorkspace companyId={companyId} defaultVisitorKey="compare" />;
 }

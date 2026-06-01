@@ -43,6 +43,7 @@ const {
 } = require("./synthesis");
 const { getHumanMemoryPrompt, processMemoryUpdates } = require("./memory");
 const { markCompanyProjectionDirty } = require("./intelligence-snapshot");
+const { safeRecordLocalLaneEvent } = require("./runtime/lane-events");
 
 function createPipelineContractError(message) {
   const error = new Error(message);
@@ -165,13 +166,15 @@ function getChecklistLocalRuntimeBridgeConfig() {
   };
 }
 
-async function runDestinationMissionDaemonJob(job) {
+async function runDestinationMissionDaemonJob(job, executionOptions = {}) {
   const config = getChecklistLocalRuntimeBridgeConfig();
   const payload = {
     companyId: job.companyId,
+    destinationKey: job?.metadata?.destinationKey === "multi" ? undefined : job?.metadata?.destinationKey,
     maxRuns: 3,
     maxPasses: 3,
     maxAutoRejections: 5,
+    mutationAuthority: executionOptions.mutationAuthority,
   };
   const failures = [];
 
@@ -306,6 +309,22 @@ function createPipelineDeferredError(message, retryAfterMs) {
   return error;
 }
 
+function buildPlaylistMutationAuthority(job) {
+  return {
+    lane: "PLAYLIST",
+    jobId: job.id,
+    actor: "local-worker",
+    companyId: job.companyId,
+    destinationKey: job?.metadata?.destinationKey || undefined,
+  };
+}
+
+function assertPipelineMutationAuthority(context) {
+  if (!context || context.lane !== "PLAYLIST" || !context.jobId) {
+    throw createPipelineContractError("Pipeline job execution requires Playlist mutation authority.");
+  }
+}
+
 function buildExecutionOptionsForJob(job, resourceBand) {
   const attemptCount = Number(job?.attemptCount || 0);
   const weightClass = PIPELINE_JOB_WEIGHT_CLASS[job?.jobType] || JOB_WEIGHT_CLASSES.MEDIUM;
@@ -316,6 +335,7 @@ function buildExecutionOptionsForJob(job, resourceBand) {
     countOverrides: null,
     selectionOffset: 0,
     weightClass,
+    mutationAuthority: buildPlaylistMutationAuthority(job),
   };
 
   if (resourceBand === RESOURCE_BANDS.HEALTHY) {
@@ -401,6 +421,7 @@ function resolvePipelineJobExecutionPlan(job, freeMemOverride = null) {
           : null,
         selectionOffset: Number.isFinite(metadataOptions.selectionOffset) ? Number(metadataOptions.selectionOffset) : 0,
         weightClass: PIPELINE_JOB_WEIGHT_CLASS[job?.jobType] || JOB_WEIGHT_CLASSES.MEDIUM,
+        mutationAuthority: buildPlaylistMutationAuthority(job),
       },
     };
   }
@@ -503,6 +524,7 @@ async function runPlannerQualityJob(prisma, company, jobType, executionOptions =
 }
 
 async function executePipelineJob(prisma, job, executionOptions = {}) {
+  assertPipelineMutationAuthority(executionOptions.mutationAuthority);
   const company = job.company ?? await prisma.company.findUnique({ where: { id: job.companyId } });
   if (!company) {
     throw new Error(`Pipeline job ${job.id} has no company`);
@@ -527,7 +549,7 @@ async function executePipelineJob(prisma, job, executionOptions = {}) {
       await recomputeFrontier(prisma, company);
       return 1;
     case "DESTINATION_MISSION_DAEMON":
-      return runDestinationMissionDaemonJob(job);
+      return runDestinationMissionDaemonJob(job, executionOptions);
     case "FULL_MAINTENANCE":
       await runMaintenance(prisma, company);
       return 1;
@@ -707,6 +729,22 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
       });
       stopHeartbeat = startRunningJobHeartbeat(prisma, job, companyName, entityLabel);
       const executionPlan = resolvePipelineJobExecutionPlan(job);
+      await safeRecordLocalLaneEvent(prisma, {
+        lane: "PLAYLIST",
+        eventType: "STARTED",
+        actor: "local-worker",
+        companyId: job.companyId,
+        jobId: job.id,
+        destinationKey: executionPlan.executionOptions?.mutationAuthority?.destinationKey,
+        summary: `Started ${job.jobType} from ${job.queueColumn}.`,
+        metadata: {
+          jobType: job.jobType,
+          entityType: job.entityType,
+          entityId: job.entityId,
+          executionProfile: executionPlan.executionOptions?.profile || "full",
+          resourceBand: executionPlan.resourceBand,
+        },
+      });
       const result = await executePipelineJob(prisma, job, executionPlan.executionOptions);
       if (stopHeartbeat) {
         await stopHeartbeat();
@@ -739,6 +777,21 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         executionProfile: executionPlan.executionOptions?.profile || "full",
         resourceBand: executionPlan.resourceBand,
       });
+      await safeRecordLocalLaneEvent(prisma, {
+        lane: "PLAYLIST",
+        eventType: "COMPLETED",
+        actor: "local-worker",
+        companyId: job.companyId,
+        jobId: job.id,
+        destinationKey: executionPlan.executionOptions?.mutationAuthority?.destinationKey,
+        summary: `${job.jobType} completed successfully.`,
+        metadata: {
+          workloadUnits,
+          runtimeMs: Date.now() - startedAt,
+          executionProfile: executionPlan.executionOptions?.profile || "full",
+          resourceBand: executionPlan.resourceBand,
+        },
+      });
       executed += 1;
     } catch (error) {
       if (stopHeartbeat) {
@@ -747,6 +800,20 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
       }
       console.error(`[PIPELINE QUEUE] ${job.jobType} failed for ${job.company?.name ?? job.companyId}:`, error.message);
       const classification = classifyPipelineJobError(error);
+      await safeRecordLocalLaneEvent(prisma, {
+        lane: "PLAYLIST",
+        eventType: classification.retryable ? "RETRY" : "FAILED",
+        actor: "local-worker",
+        companyId: job.companyId,
+        jobId: job.id,
+        destinationKey: resolvePipelineJobExecutionPlan(job).executionOptions?.mutationAuthority?.destinationKey,
+        summary: `${job.jobType} ${classification.retryable ? "will retry" : "failed"}: ${error.message}`,
+        metadata: {
+          failureClass: classification.class,
+          retryable: classification.retryable,
+          runtimeMs: Date.now() - startedAt,
+        },
+      });
       if (shouldDecomposeLowMemoryPipelineJob(job, classification)) {
         await spawnLowMemoryDecompositionChildJob(prisma, job, {
           profile: "minimal",

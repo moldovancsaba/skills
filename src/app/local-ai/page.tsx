@@ -15,6 +15,7 @@ const STATUS_API_URL = "http://127.0.0.1:10006/api/status";
 const RAW_HEALTH_URL = "http://127.0.0.1:10005/health";
 const RAW_SNAPSHOT_HEALTH_URL = "http://127.0.0.1:10007/health";
 const RAW_COMMAND_CENTER_URL = "http://127.0.0.1:10006";
+const LANE_EVENTS_URL = "/api/local-ai/lane-events?limit=40";
 const PAGE_TEXT: Record<UiLanguage, Record<string, string>> = {
   en: {
     title: "Local AI Mission Control",
@@ -219,6 +220,23 @@ function formatSignedValue(value: number | null | undefined) {
   return `${sign}${resolved}`;
 }
 
+function getLaneEventTone(event: any) {
+  switch (String(event?.eventType || "")) {
+    case "FAILED":
+    case "TIMEOUT":
+      return "review";
+    case "RETRY":
+    case "ROLLBACK":
+    case "STOP_REQUESTED":
+      return "tactical";
+    case "APPROVED":
+    case "CHILDREN_CREATED":
+      return "knowmore";
+    default:
+      return "strategy";
+  }
+}
+
 const CARD_TYPE_HISTORY = [
   { key: "datacards", label: "Datacards", color: "var(--mantine-color-cyan-6)" },
   { key: "flashcards", label: "Flashcards", color: "var(--mantine-color-orange-6)" },
@@ -261,6 +279,8 @@ export default function LocalAiMissionControlPage() {
   const { language } = useI18n();
   const pageText = PAGE_TEXT[language] ?? PAGE_TEXT.en;
   const [data, setData] = useState<any | null>(null);
+  const [laneEvents, setLaneEvents] = useState<any[]>([]);
+  const [laneEventsError, setLaneEventsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -287,6 +307,33 @@ export default function LocalAiMissionControlPage() {
 
     void load();
     const timer = window.setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLaneEvents() {
+      try {
+        const response = await fetch(LANE_EVENTS_URL, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Lane events returned ${response.status}`);
+        }
+        const payload = await response.json();
+        if (cancelled) return;
+        setLaneEvents(Array.isArray(payload?.events) ? payload.events : []);
+        setLaneEventsError(null);
+      } catch (err) {
+        if (cancelled) return;
+        setLaneEventsError(err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    void loadLaneEvents();
+    const timer = window.setInterval(loadLaneEvents, 5000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -610,6 +657,55 @@ export default function LocalAiMissionControlPage() {
           </SimpleGrid>
 
           <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
+            <UnifiedCard tone="knowmore">
+              <UnifiedCardHeader
+                title="Execution Lane History"
+                supporting={<Badge variant="light" color="knowmore">{laneEvents.length} recent</Badge>}
+              />
+              <UnifiedCardBody>
+                {laneEventsError ? (
+                  <Notice title="Lane history unavailable">{laneEventsError}</Notice>
+                ) : laneEvents.length ? (
+                  <Table highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>When</Table.Th>
+                        <Table.Th>Lane</Table.Th>
+                        <Table.Th>Event</Table.Th>
+                        <Table.Th>Summary</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {laneEvents.slice(0, 12).map((event: any) => (
+                        <Table.Tr key={event.id}>
+                          <Table.Td>{formatTimestamp(event.createdAt)}</Table.Td>
+                          <Table.Td>
+                            <Badge variant="light" color={getLaneEventTone(event)}>
+                              {String(event.lane || "—").replace(/_/g, " ")}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>{String(event.eventType || "—").replace(/_/g, " ")}</Table.Td>
+                          <Table.Td>
+                            <Stack gap={2}>
+                              <BodyText>{event.summary || "—"}</BodyText>
+                              <MetaText>
+                                {event.companyId ? `Unit ${event.companyId}` : "Global"}
+                                {event.destinationKey ? ` · Miniapp ${event.destinationKey}` : ""}
+                                {event.jobId ? ` · Job ${event.jobId}` : ""}
+                                {event.burstId ? ` · Burst ${event.burstId}` : ""}
+                              </MetaText>
+                            </Stack>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                ) : (
+                  <Notice title="No lane events yet">The worker has not recorded Playlist, System Health, or Burst lane events in the current retention window.</Notice>
+                )}
+              </UnifiedCardBody>
+            </UnifiedCard>
+
             <UnifiedCard tone="strategy">
               <UnifiedCardHeader
                 title="Runtime Verification"

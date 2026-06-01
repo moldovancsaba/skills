@@ -31,7 +31,7 @@ function RowValue({ value }: { value: unknown }) {
   return <BodyText>{JSON.stringify(value)}</BodyText>;
 }
 
-export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "rangescout-hungary" }: { companyId: string; defaultVisitorKey?: string }) {
+export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }: { companyId: string; defaultVisitorKey?: string }) {
   const [visitorKey, setVisitorKey] = useState(defaultVisitorKey);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +80,7 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "rangescout
                 aria-label="Visitor key"
                 value={visitorKey}
                 onChange={(event) => setVisitorKey(event.currentTarget.value)}
-                placeholder="rangescout-hungary"
+                placeholder="compare"
               />
               <Button leftSection={<IconRefresh size={14} />} onClick={() => void load()} loading={loading}>Refresh</Button>
             </Group>

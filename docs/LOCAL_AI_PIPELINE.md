@@ -218,6 +218,17 @@ Runtime hardening note:
 - repeated low-memory deferrals can now fan one oversized parent job out into multiple bounded child slices with persisted selection offsets, so the queue can keep moving through distinct smaller units instead of retrying only one minimal slice forever
 - scheduled runtime verification now runs from `snapshot-worker`, persists the latest report, and exposes the result through `/local-ai`
 - productive company jobs now refresh queue topology for that touched company directly, and only fall back to the dirty-company retry queue when that targeted refresh cannot be completed inline
+
+Execution lane observability:
+
+- `SystemSetting.local_ai_lane_events` is the compact operator event ring buffer for Local execution
+- the local audit database stores the long-term lane event mirror as `OutcomeEvent` records when `LOCAL_DATABASE_URL` is configured
+- Playlist queue jobs emit `STARTED`, `COMPLETED`, `RETRY`, and `FAILED` events
+- Human-Approved Burst requests emit `APPROVED` and `CHILDREN_CREATED` events before child jobs run
+- Human-Approved Burst recovery emits `STOP_REQUESTED` or `ROLLBACK` and parks child jobs for safe operator review
+- event writes are best-effort and secret-redacted so observability cannot take down content creation
+- `GET /api/local-ai/lane-events` returns the recent lane history for Superadmin operators
+- `/local-ai` renders the recent lane history directly for local operators
 - the broader hardening design is defined in [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 
 ## Deterministic planner and quality engine
@@ -251,6 +262,19 @@ Shipped quality-engine behavior includes:
 ## Queue-owned scheduler contract
 
 The queue is the single execution authority for local-AI work.
+
+Local execution is split into three lanes:
+
+- System Health Lane: urgent runtime survival and correctness work that cannot wait behind product backlog
+- Playlist Lane: normal business and product mutation work
+- Human-Approved Burst Lane: exceptional operator-approved throughput work that still materializes as audited queue shards
+
+Runnable inventory contract:
+
+- `scripts/local-runnable-inventory.mjs` is the implementation inventory for local execution entrypoints
+- `npm run audit:local-runnables` validates that every current runnable entrypoint has a lane classification
+- forbidden bypass entries are allowed only as explicit migration evidence and must include a migration target
+- the inventory is the input for Playlist authority enforcement, System Health allowlisting, and Human-Approved Burst implementation
 
 Current managed job families:
 

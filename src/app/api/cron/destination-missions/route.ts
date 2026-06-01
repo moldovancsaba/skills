@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeDestinationMissionDaemonForCompany, readConfiguredDaemonCompanyIds } from "@/lib/destination-mission-daemon";
+import { readConfiguredDaemonCompanyIds } from "@/lib/destination-mission-daemon";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
 import { verifyBackgroundJobSecret } from "@/lib/ingest-auth";
-import { classifyPersistenceFailure } from "@/lib/persistence-failures";
+import { prisma } from "@/lib/db";
+import { escalateCompanyPipelineJob } from "@/lib/pipeline-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -36,49 +37,26 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const results = [];
-  const failures = [];
+  const queued = [];
   for (const companyId of companyIds) {
-    try {
-      results.push(
-        await executeDestinationMissionDaemonForCompany({
-          companyId,
-          destinationKey: destinationKey ?? undefined,
-        }),
-      );
-    } catch (error) {
-      const classified = classifyPersistenceFailure(error);
-      if (!classified) throw error;
-      failures.push({
-        companyId,
-        ...classified,
-      });
-    }
-  }
-
-  if (failures.length > 0) {
-    const status = failures.some((failure) => failure.status !== 503) ? 500 : 503;
-    return NextResponse.json({
-      ok: false,
-      cron: true,
-      companyIds,
-      destinationScope: destinationKey ?? null,
-      processedCompanies: results.length,
-      results,
-      failures,
-      retryable: failures.every((failure) => failure.retryable),
-      retryAfterMs: Math.max(...failures.map((failure) => failure.retryAfterMs)),
-      reasonCode: failures[0]?.reasonCode ?? "destination_mission_daemon_failed",
-      summary: failures[0]?.summary ?? "Destination mission daemon failed.",
-    }, { status });
+    const job = await escalateCompanyPipelineJob(prisma, companyId, "DESTINATION_MISSION_DAEMON", "DESTINATION_SERVICE", "destination-service");
+    queued.push({
+      companyId,
+      destinationKey: destinationKey ?? null,
+      jobId: job?.id ?? null,
+      queued: Boolean(job),
+    });
   }
 
   return NextResponse.json({
     ok: true,
     cron: true,
+    queued: true,
+    lane: "PLAYLIST",
+    jobType: "DESTINATION_MISSION_DAEMON",
     companyIds,
     destinationScope: destinationKey ?? null,
-    processedCompanies: results.length,
-    results,
+    results: queued,
+    message: "Cron destination mission work was queued for CHECK Local instead of executing directly.",
   });
 }

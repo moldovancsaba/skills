@@ -27,6 +27,48 @@ The local AI runtime is split into 4 long-running processes:
    - observability and control surface
    - no business-state mutation
 
+## 1.1 Execution lanes
+
+Local execution uses three lanes.
+
+System Health Lane:
+
+- keeps the local system alive and truthful
+- covers heartbeat, memory guard, stale job recovery, queue topology repair, process cleanup, model unload under memory pressure, connectivity checks, lifecycle verification, projection truth repair, and worker restart/kill actions
+- may run ahead of the playlist because core health cannot wait behind product backlog
+- must be bounded, named, observable, and must not create business content
+
+Playlist Lane:
+
+- owns all normal business and product mutation
+- covers Visitor discovery, Miniapp content creation, source refresh, i18n refresh, card creation, card maintenance, review packet creation, publish checks, scarcity-triggered creation, opportunity mining, and feedback-driven repair
+- must use persisted queue jobs as the execution authority
+
+Human-Approved Burst Lane:
+
+- exists only for explicit operator-approved high-priority throughput
+- example: stress-test Local AI by generating 30 Compare Visitor items
+- must create audited queue child shards with approval reason, target, max concurrency, memory threshold, timeout, stop behavior, and rollback/rework behavior
+- must never start automatically
+- must not bypass content quality, evidence, image, i18n, review, or publish gates
+
+Runnable inventory:
+
+- `scripts/local-runnable-inventory.mjs` generates the current local execution entrypoint inventory
+- `npm run audit:local-runnables` validates the inventory
+- every package script, local runner, top-level script, and API route must classify as `SYSTEM_HEALTH`, `PLAYLIST`, `HUMAN_APPROVED_BURST`, or `FORBIDDEN_BYPASS`
+- forbidden bypass entries must name their migration target and stay visible until converted to queue-owned work
+- direct destination daemon HTTP and cron triggers must enqueue or escalate `DESTINATION_MISSION_DAEMON` playlist work; they must not execute daemon mutation inline
+- system commands must be allowlisted and stamped with lane metadata before the local worker processes them
+- Human-Approved Burst work is planned by `src/lib/human-approved-burst.ts`; approved requests decompose into `PIPELINE_SLICE` child jobs with parent burst metadata, requested output count, memory threshold, timeout, rollback mode, and approval details
+- `POST /api/local-ai/bursts` is the operator API for creating Human-Approved Burst child jobs; it requires Admin membership, validates the burst contract, and writes child jobs into the Playlist queue instead of executing work inline
+- Local lane events are compactly stored in `SystemSetting.local_ai_lane_events`; Playlist execution and Human-Approved Burst creation must emit approval, child-shard creation, start, retry, completion, and failure events; `GET /api/local-ai/lane-events` exposes the recent event ring buffer to Superadmins
+- lane event writes are best-effort observability; a transient event-ledger write failure must never stop Playlist content creation or Burst child-job creation
+- lane event payloads must be human-readable, bounded, and secret-redacted before storage
+- `/local-ai` renders the recent lane history so operators can see what the System Health, Playlist, and Human-Approved Burst lanes actually did without reading raw logs
+- lane events are also mirrored into the local audit database as `OutcomeEvent` records when `LOCAL_DATABASE_URL` is available; the `SystemSetting` ring buffer is the quick dashboard cache, not the long-term ledger
+- Human-Approved Burst recovery uses `PATCH /api/local-ai/bursts` with `STOP_REQUESTED`, `ROLLBACK_PARK_CHILD_JOBS`, or `ROLLBACK_REWORK_CHILD_OUTPUTS`; recovery parks child shards, records the operator reason, and emits a lane event
+
 ## 2. Foreground loop
 
 The foreground loop is the main mutation loop.
@@ -68,15 +110,35 @@ Sequence:
    - mark job complete
    - clear cooldown
    - record usage
+   - write a `PLAYLIST / COMPLETED` lane event
 16. on failure:
    - classify error
    - retry with cooldown or dead-letter into `FAILED + PARKED`
+   - write a `PLAYLIST / RETRY` or `PLAYLIST / FAILED` lane event
 17. stop heartbeat
 18. if work happened:
    - rest for the active interval
 19. if no work happened:
    - rest for the idle interval
 20. start the next cycle
+
+Playlist observability contract:
+
+1. every claimed queue job writes a `PLAYLIST / STARTED` lane event before business execution
+2. every successful job writes `PLAYLIST / COMPLETED`
+3. every retryable failure writes `PLAYLIST / RETRY`
+4. every terminal failure writes `PLAYLIST / FAILED`
+5. the lane event must include the queue job id, Unit id when available, Miniapp destination key when available, runtime profile, resource band, and bounded failure classification when relevant
+6. observability write failures are logged and swallowed so they do not break the business queue
+
+Human-Approved Burst observability contract:
+
+1. every accepted operator request writes `HUMAN_APPROVED_BURST / APPROVED`
+2. every child-shard creation writes `HUMAN_APPROVED_BURST / CHILDREN_CREATED`
+3. child jobs execute later through the Playlist lane as ordinary queue-owned work
+4. child job execution events appear as Playlist events with the child job id and destination key
+5. rollback or stop actions must be added as lane events before they mutate child jobs
+6. stop and rollback actions must park child jobs instead of deleting them so review, recovery, and audit trails remain intact
 
 ## 3. Background loop
 

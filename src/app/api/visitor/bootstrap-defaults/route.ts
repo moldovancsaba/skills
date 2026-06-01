@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (importExisting) {
       migrationResults = await Promise.all([
         migrateVisitorFromExistingDestination(companyId, "classscout-new-york", { activate: true }),
-        migrateVisitorFromExistingDestination(companyId, "rangescout-hungary", { activate: true }),
+        migrateVisitorFromExistingDestination(companyId, "compare", { activate: true }),
       ]);
     }
     await seedComparePublicConfig(companyId);

@@ -904,6 +904,14 @@ try {
     }
 
     const sanitizeResult = await sanitizeSourceDocument({ ...sourceCard, sourceDatacard: sourceDatacard });
+    const publicReadyIssues = validatePublicReadyComparePayload(sanitizeResult.payload);
+    if (publicReadyIssues.length > 0) {
+      skipped.push({
+        sourceUrl: sourceCard.sourceUrl,
+        reason: `not public-ready: ${publicReadyIssues.join(", ")}`,
+      });
+      continue;
+    }
     const result = await publishListing(company.id, instance, {
       sourceCard,
       sourceUrl: sourceCard.sourceUrl,

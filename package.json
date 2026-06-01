@@ -71,6 +71,7 @@
     "refresh:intelligence-snapshot": "node scripts/refresh-company-intelligence-snapshot.mjs",
     "backfill:destination-mission-lineage": "node scripts/backfill-destination-mission-lineage.mjs",
     "bootstrap:compare-local-proof": "node scripts/bootstrap-compare-local-proof.mjs",
+    "research:compare-visitor-sources": "node scripts/research-compare-visitor-sources.mjs",
     "publish:compare-source-backed": "node scripts/publish-compare-source-backed-content.mjs",
     "profile:webapp": "node scripts/profile-webapp-routes.mjs"
   },

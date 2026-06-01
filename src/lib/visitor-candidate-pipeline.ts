@@ -84,9 +84,9 @@ function hasSuspiciousCopy(value: unknown) {
   ].some((token) => text.includes(token));
 }
 
-function sanitizeCopyText(value: unknown, fallback: string) {
+function sanitizeCopyText(value: unknown) {
   const text = asString(value);
-  if (!text) return fallback;
+  if (!text) return "";
   const cleaned = text
     .split(/(?<=[.!?])\s+/)
     .map((sentence) => sentence.trim())
@@ -95,26 +95,20 @@ function sanitizeCopyText(value: unknown, fallback: string) {
     .join(" ")
     .replace(/\s{2,}/g, " ")
     .trim();
-  return cleaned && !hasSuspiciousCopy(cleaned) ? cleaned : fallback;
+  return cleaned && !hasSuspiciousCopy(cleaned) ? cleaned : "";
 }
 
 function sanitizeComparePayload(input: unknown) {
   const safe = asRecord(input) ?? {};
-  const fallbackBadge = "Verified";
-  const fallbackShort = "";
-  const fallbackLong = "";
   const safePayload = { ...safe };
   const shortLegacy = asString(safePayload.short);
   const longLegacy = asString(safePayload.long);
-  const announcementBadge = asString(safePayload.announcementBadge) || asString(safePayload.badge) || fallbackBadge;
-  const shortDescription = asString(safePayload.shortDescription) || shortLegacy || fallbackShort;
-  const longDescription = asString(safePayload.longDescription) || longLegacy || fallbackLong;
-  safePayload.announcementBadge = sanitizeCopyText(announcementBadge, fallbackBadge);
-  safePayload.shortDescription = sanitizeCopyText(shortDescription, fallbackShort);
-  safePayload.longDescription = sanitizeCopyText(longDescription, fallbackLong);
-  if (safePayload.announcementBadge === "") safePayload.announcementBadge = fallbackBadge;
-  if (safePayload.shortDescription === "") safePayload.shortDescription = fallbackShort;
-  if (safePayload.longDescription === "") safePayload.longDescription = fallbackLong;
+  const announcementBadge = asString(safePayload.announcementBadge) || asString(safePayload.badge);
+  const shortDescription = asString(safePayload.shortDescription) || shortLegacy;
+  const longDescription = asString(safePayload.longDescription) || longLegacy;
+  safePayload.announcementBadge = sanitizeCopyText(announcementBadge);
+  safePayload.shortDescription = sanitizeCopyText(shortDescription);
+  safePayload.longDescription = sanitizeCopyText(longDescription);
   if (safePayload.badge && !safePayload.announcementBadge) delete safePayload.badge;
   if (safePayload.short && !safePayload.shortDescription) delete safePayload.short;
   if (safePayload.long && !safePayload.longDescription) delete safePayload.long;

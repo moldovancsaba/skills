@@ -328,7 +328,7 @@ Rules:
 
 - Webapp reads Block projections first
 - Local refreshes projections
-- missing projections use bounded fallback only
+- missing content projections block, rework, or show an explicit non-content UI state; they must not use fallback text filling
 - stale projections are repaired in background
 
 ## 11. Implementation Plan

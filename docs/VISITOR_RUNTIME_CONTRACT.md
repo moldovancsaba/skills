@@ -74,7 +74,7 @@ This document defines the implemented runtime behavior for the Visitor App backe
 10. Visitor public content must carry a real uploaded public image before publish. For Compare, that means an ImgBB HTTPS image URL in the public payload.
 11. Public payload scope is a contract. A Compare payload must remain `catalogProject: "compare"`; Local must not introduce alternate miniapp or product names while publishing or repairing content.
 12. Backend process language such as source status, CHECK Local maintenance notes, placeholder labels, or review instructions must stay in review/ops metadata and must not appear in public card copy.
-
+13. Fallback text filling is prohibited in content creation for every Miniapp and the Webapp. Local may normalize, translate, or remove unsafe copy, but it must not invent replacement card descriptions, summaries, long descriptions, badges, titles, source labels, or marketing text. Missing public content must block the candidate, move it to rework, or render an explicit non-content UI state.
 ## State Mapping
 
 Visitor candidate lifecycle is persisted in `destinationCandidate.metadata.visitorCandidateState`.

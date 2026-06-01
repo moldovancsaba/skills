@@ -130,9 +130,9 @@ function hasSuspiciousCopy(value) {
   ].some((token) => text.includes(token));
 }
 
-function sanitizeCopyText(value, fallback) {
+function sanitizeCopyText(value) {
   const text = asString(value);
-  if (!text) return fallback;
+  if (!text) return "";
   const cleaned = text
     .split(/(?<=[.!?])\s+/)
     .map((sentence) => sentence.trim())
@@ -141,99 +141,34 @@ function sanitizeCopyText(value, fallback) {
     .join(" ")
     .replace(/\s{2,}/g, " ")
     .trim();
-  return cleaned && !hasSuspiciousCopy(cleaned) ? cleaned : fallback;
+  return cleaned && !hasSuspiciousCopy(cleaned) ? cleaned : "";
 }
 
 function sanitizeComparePayloadForStorage(inputPayload, sourceUrl = "") {
   const payload = asRecord(inputPayload) ?? {};
-  const name = asString(payload.name) || asString(payload.title) || "Compare Listing";
-  const provider = asString(payload.provider) || asString(payload.company) || name;
-  const location = asString(payload.location) || asString(payload.address) || asString(payload.neighborhood) || "";
-  const category = asString(payload.category) || asString(payload.type) || asString(payload.activityType) || "Listing";
-  const sourceHost = (() => {
-    try {
-      return new URL(sourceUrl).hostname.replace(/^www\./, "");
-    } catch {
-      return sourceUrl;
-    }
-  })();
-
-  const fallbackContext = {
-    name,
-    provider,
-    sourceHost,
-    sourceUrl,
-    category,
-    location,
-  };
   const localized = asRecord(payload.localized) ?? {};
-  const fallbackEn = buildFallbackCopy("en", fallbackContext);
-  const fallbackHu = buildFallbackCopy("hu", fallbackContext);
-  const fallbackIt = buildFallbackCopy("it", fallbackContext);
 
   const next = {
     ...payload,
     localized: {
-      en: sanitizeLocalizedCopy(localized.en, "en", fallbackEn),
-      hu: sanitizeLocalizedCopy(localized.hu, "hu", fallbackHu),
-      it: sanitizeLocalizedCopy(localized.it, "it", fallbackIt),
+      en: sanitizeLocalizedCopy(localized.en),
+      hu: sanitizeLocalizedCopy(localized.hu),
+      it: sanitizeLocalizedCopy(localized.it),
     },
-    announcementBadge: sanitizeCopyText(asString(payload.announcementBadge) || asString(payload.badge), fallbackEn.announcementBadge),
-    shortDescription: sanitizeCopyText(
-      asString(payload.shortDescription) || asString(payload.short),
-      fallbackEn.shortDescription,
-    ),
-    longDescription: sanitizeCopyText(
-      asString(payload.longDescription) || asString(payload.long),
-      fallbackEn.longDescription,
-    ),
+    announcementBadge: sanitizeCopyText(asString(payload.announcementBadge) || asString(payload.badge)),
+    shortDescription: sanitizeCopyText(asString(payload.shortDescription) || asString(payload.short)),
+    longDescription: sanitizeCopyText(asString(payload.longDescription) || asString(payload.long)),
   };
 
-  if (next.announcementBadge === "") next.announcementBadge = fallbackEn.announcementBadge;
-  if (next.shortDescription === "") next.shortDescription = fallbackEn.shortDescription;
-  if (next.longDescription === "") next.longDescription = fallbackEn.longDescription;
   if (payload.badge && !payload.announcementBadge) delete next.badge;
   if (payload.short && !payload.shortDescription) delete next.short;
   if (payload.long && !payload.longDescription) delete next.long;
   return next;
 }
 
-function buildFallbackCopy(locale, context) {
-  const normalized = {
-    en: {
-      badge: "Verified",
-      short: "",
-      long: "",
-    },
-    hu: {
-      badge: "Ellenőrzött",
-      short: "",
-      long: "",
-    },
-    it: {
-      badge: "Verificato",
-      short: "",
-      long: "",
-    },
-  }[locale] || {
-    badge: "Verified",
-    short: "",
-    long: "",
-  };
-
-  return {
-    announcementBadge: normalized.badge,
-    shortDescription: normalized.short.replace("{name}", context.name).replace("{provider}", context.provider),
-    longDescription: normalized.long
-      .replace("{name}", context.name)
-      .replace("{provider}", context.provider)
-      .replace("{sourceHost}", context.sourceHost || context.sourceUrl),
-  };
-}
-
-function sanitizeLocalizedCopy(value, locale, fallback) {
+function sanitizeLocalizedCopy(value) {
   const safe = asRecord(value);
-  if (!safe) return fallback;
+  if (!safe) return {};
 
   const legacyBadge = asString(safe.badge);
   const legacyShort = asString(safe.short);
@@ -243,14 +178,10 @@ function sanitizeLocalizedCopy(value, locale, fallback) {
   const longDescription = asString(safe.longDescription) || legacyLong;
   const next = {
     ...safe,
-    announcementBadge: sanitizeCopyText(announcementBadge, fallback.announcementBadge),
-    shortDescription: sanitizeCopyText(shortDescription, fallback.shortDescription),
-    longDescription: sanitizeCopyText(longDescription, fallback.longDescription),
+    announcementBadge: sanitizeCopyText(announcementBadge),
+    shortDescription: sanitizeCopyText(shortDescription),
+    longDescription: sanitizeCopyText(longDescription),
   };
-
-  if (next.announcementBadge === "") next.announcementBadge = fallback.announcementBadge;
-  if (next.shortDescription === "") next.shortDescription = fallback.shortDescription;
-  if (next.longDescription === "") next.longDescription = fallback.longDescription;
 
   if (safe.badge && !safe.announcementBadge) delete next.badge;
   if (safe.short && !safe.shortDescription) delete next.short;
@@ -267,11 +198,11 @@ const CONTENT_TYPE_LABELS = {
   competition: "Competition",
   expo: "Expo",
   source_only: "Source Only",
-  unknown: "Listing",
+  unknown: "",
 };
 
 function pickContentTypeLabel(type) {
-  return CONTENT_TYPE_LABELS[normalizeVisitorKey(type)] || "Listing";
+  return CONTENT_TYPE_LABELS[normalizeVisitorKey(type)] || "";
 }
 
 function buildSafeDraftPayload({ sourceUrl, sourceDatacard }) {
@@ -281,59 +212,27 @@ function buildSafeDraftPayload({ sourceUrl, sourceDatacard }) {
   const contentType = asString(
     asStringArray(sourceDatacard.knownContentTypes)[0] || asString(draftPayload.contentType) || asString(draftPayload.type) || asString(sourceDatacard.sourceKind),
   ) || "unknown";
-  const sourceHost = (() => {
-    try {
-      return new URL(sourceUrl).hostname.replace(/^www\./, "");
-    } catch {
-      return sourceUrl;
-    }
-  })();
-
-  const name = asString(draftPayload.name) || asString(facts.title) || asString(sourceDatacard.sourceTitle) || "Compare Listing";
+  const name = asString(draftPayload.name) || asString(facts.title) || asString(sourceDatacard.sourceTitle);
   const provider = asString(draftProvider) || asString(facts.provider) || name;
   const location = asString(draftPayload.address) || asString(facts.location) || asString(draftPayload.neighborhood) || "";
   const category = asString(draftPayload.category) || pickContentTypeLabel(contentType);
-  const fallbackContext = {
-    name,
-    provider,
-    sourceHost,
-    sourceUrl,
-    category,
-    location,
-  };
-
   const localizedSource = asRecord(draftPayload.localized) ?? {};
   const localized = {
-    en: sanitizeLocalizedCopy(
-      localizedSource.en,
-      "en",
-      buildFallbackCopy("en", fallbackContext),
-    ),
-    hu: sanitizeLocalizedCopy(
-      localizedSource.hu,
-      "hu",
-      buildFallbackCopy("hu", fallbackContext),
-    ),
-    it: sanitizeLocalizedCopy(
-      localizedSource.it,
-      "it",
-      buildFallbackCopy("it", fallbackContext),
-    ),
+    en: sanitizeLocalizedCopy(localizedSource.en),
+    hu: sanitizeLocalizedCopy(localizedSource.hu),
+    it: sanitizeLocalizedCopy(localizedSource.it),
   };
 
   const safeTopShort = (() => {
     const shortText = asString(draftPayload.shortDescription);
-    const shortFallback = asString(draftPayload.short) || buildFallbackCopy("en", fallbackContext).shortDescription;
-    const fallbackText = buildFallbackCopy("en", fallbackContext).shortDescription;
-    const candidate = shortText || shortFallback;
-    return sanitizeCopyText(candidate, fallbackText);
+    const candidate = shortText || asString(draftPayload.short);
+    return sanitizeCopyText(candidate);
   })();
 
   const safeTopLong = (() => {
     const longText = asString(draftPayload.longDescription);
-    const fallbackText = buildFallbackCopy("en", fallbackContext).longDescription;
     const candidate = longText || asString(draftPayload.long);
-    return sanitizeCopyText(candidate, fallbackText);
+    return sanitizeCopyText(candidate);
   })();
 
   return {

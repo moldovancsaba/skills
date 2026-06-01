@@ -132,6 +132,7 @@ Approved product UI implementation lane:
 - destination mission daemon limit tuning is allowed only through the shared per-Unit policy contract in `company.workerConfig.destinationDaemonPolicy` (defaults + per-miniapp overrides), not through ad hoc route-specific constants
 - cron and manual daemon routes must preserve policy precedence: explicit request override, then per-miniapp policy, then shared environment defaults
 - every Miniapp lane must expose a destination maintenance adapter contract for approved publish sweep and stale/review-pressure sweep behavior; lane-specific logic is implemented inside the adapter, not by forking daemon orchestration
+- fallback text filling is strictly forbidden for all Miniapps and the Webapp: Local, workers, scripts, routes, and UI must not invent replacement titles, summaries, descriptions, badges, labels, marketing copy, or source wording when real content is missing; missing content must block, rework, or show an explicit non-content UI state
 
 ## 3. What We Do Not Use
 

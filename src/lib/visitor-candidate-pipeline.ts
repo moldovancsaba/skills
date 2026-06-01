@@ -101,8 +101,8 @@ function sanitizeCopyText(value: unknown, fallback: string) {
 function sanitizeComparePayload(input: unknown) {
   const safe = asRecord(input) ?? {};
   const fallbackBadge = "Verified";
-  const fallbackShort = `Verified listing for ${asString(safe.name)}.`;
-  const fallbackLong = `Listing for ${asString(safe.name)}. Source: ${asString(safe.website) || ""}`.trim();
+  const fallbackShort = "";
+  const fallbackLong = "";
   const safePayload = { ...safe };
   const shortLegacy = asString(safePayload.short);
   const longLegacy = asString(safePayload.long);
@@ -291,6 +291,8 @@ export async function classifyVisitorCandidate(
   input: { contentType?: string; confidence?: number; forbidden?: boolean; reasons?: string[] } = {},
   destinationKeyHint?: unknown,
 ) {
+  const destinationKey = resolveDestinationKeyForVisitorWithHint(visitorKey, destinationKeyHint);
+  if (!destinationKey) throw new Error("Unsupported visitorKey");
   const instance = await getInstance(companyId, visitorKey, destinationKeyHint);
   const taxonomy = await getVisitorTaxonomy(companyId, visitorKey, destinationKeyHint);
   const row = await prisma.destinationCandidate.findFirst({
@@ -308,6 +310,7 @@ export async function classifyVisitorCandidate(
   };
   const qualityGate = evaluateVisitorQualityGate({
     taxonomy,
+    destinationKey,
     contentType: classification.contentType,
     sourceUrl: row.canonicalSourceUrl,
     extractedFacts: asRecord(metadata.extractedFacts),
@@ -357,6 +360,8 @@ export async function scoreVisitorCandidate(
   input: { sourceTrustScore?: number; evidenceCompleteness?: number; taxonomyFit?: number; locationFit?: number; audienceFit?: number } = {},
   destinationKeyHint?: unknown,
 ) {
+  const destinationKey = resolveDestinationKeyForVisitorWithHint(visitorKey, destinationKeyHint);
+  if (!destinationKey) throw new Error("Unsupported visitorKey");
   const instance = await getInstance(companyId, visitorKey, destinationKeyHint);
   const taxonomy = await getVisitorTaxonomy(companyId, visitorKey, destinationKeyHint);
   const row = await prisma.destinationCandidate.findFirst({
@@ -377,6 +382,7 @@ export async function scoreVisitorCandidate(
     0.1 * audienceFit;
   const qualityGate = evaluateVisitorQualityGate({
     taxonomy,
+    destinationKey,
     contentType: asString(asRecord(metadata.classification)?.contentType || row.proposedType),
     sourceUrl: row.canonicalSourceUrl,
     extractedFacts: asRecord(metadata.extractedFacts),

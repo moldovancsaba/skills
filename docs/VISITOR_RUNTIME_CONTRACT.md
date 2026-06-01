@@ -70,6 +70,10 @@ This document defines the implemented runtime behavior for the Visitor App backe
    - `downrank_source -> REWORK_REQUIRED/FAILED`
    - `require_review -> NEEDS_REVIEW/REVIEW_REQUIRED`
 8. Public verification reports blocked reasons and publish counts.
+9. Visitor public content must never be rescued with generic fallback copy. If Local cannot produce a real content summary, the candidate is blocked or sent to rework.
+10. Visitor public content must carry a real uploaded public image before publish. For Compare, that means an ImgBB HTTPS image URL in the public payload.
+11. Public payload scope is a contract. A Compare payload must remain `catalogProject: "compare"`; Local must not introduce alternate miniapp or product names while publishing or repairing content.
+12. Backend process language such as source status, CHECK Local maintenance notes, placeholder labels, or review instructions must stay in review/ops metadata and must not appear in public card copy.
 
 ## State Mapping
 

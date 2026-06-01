@@ -32,7 +32,25 @@ const STATIC_OR_FAKE_CONTENT_TERMS = [
   "dummy",
   "test listing",
   "tbd",
+  "listing for",
+  "verified listing for",
+  "published listing",
+  "offers activities",
+  "source-backed",
+  "source backed",
+  "check local",
 ];
+
+function isImgBbHttpsImageUrl(value: unknown) {
+  const url = asString(value);
+  if (!url || !/^https:\/\//i.test(url)) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "i.ibb.co" || host === "ibb.co" || host === "image.ibb.co" || host.endsWith(".ibb.co");
+  } catch {
+    return false;
+  }
+}
 
 export type VisitorProjectionGateResult = {
   blocked: boolean;
@@ -88,6 +106,12 @@ export function evaluateCompareProjectionGate(input: {
     asString(metadata?.description),
     asString(metadata?.categoryHint),
     asString(metadata?.activityType),
+    asString(listing?.shortDescription),
+    asString(listing?.longDescription),
+    asString(metadata?.shortDescription),
+    asString(metadata?.longDescription),
+    asString(asRecord(metadata?.publicDraftPayload)?.shortDescription),
+    asString(asRecord(metadata?.publicDraftPayload)?.longDescription),
     ...asStringArray(listing?.tags),
     ...asStringArray(metadata?.tags),
   ]
@@ -100,6 +124,15 @@ export function evaluateCompareProjectionGate(input: {
   }
   if (STATIC_OR_FAKE_CONTENT_TERMS.some((term) => searchable.includes(term))) {
     blockedReasons.push("fake_static_cms_content");
+  }
+
+  const publicDraft = asRecord(metadata?.publicDraftPayload) ?? listing;
+  const catalogProject = asString(publicDraft?.catalogProject).toLowerCase();
+  if (catalogProject && catalogProject !== "compare") {
+    blockedReasons.push("public_scope_mismatch");
+  }
+  if (!isImgBbHttpsImageUrl(publicDraft?.image ?? publicDraft?.coverImageUrl)) {
+    blockedReasons.push("missing_uploaded_public_image");
   }
 
   const manualPatched =

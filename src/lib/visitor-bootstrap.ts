@@ -17,7 +17,7 @@ export function buildDefaultVisitorBlueprints(): VisitorBlueprint[] {
       feedbackPolicyVersion: "v1",
     },
     {
-      visitorKey: "rangescout-hungary",
+      visitorKey: "compare",
       state: "active",
       industry: "sport_shooting_hunting",
       location: { country: "Hungary", geoGranularity: "country" },
@@ -56,7 +56,7 @@ export function buildDefaultVisitorTaxonomies(): VisitorTaxonomy[] {
       },
     },
     {
-      visitorKey: "rangescout-hungary",
+      visitorKey: "compare",
       version: "v1",
       contentTypes: [
         { contentType: "range", primitive: "venue", publicEligible: true, label: "Range" },

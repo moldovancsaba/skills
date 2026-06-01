@@ -18,6 +18,7 @@ function asStringArray(value: unknown) {
 
 export type VisitorQualityGateInput = {
   taxonomy: VisitorTaxonomy | null;
+  destinationKey?: string;
   contentType: string;
   sourceUrl?: string;
   extractedFacts?: unknown;
@@ -37,6 +38,72 @@ function hasValue(value: unknown) {
   if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
   return true;
+}
+
+const PUBLIC_COPY_LEAK_PATTERNS = [
+  /^listing\s+for\b/i,
+  /^verified\s+listing\s+for\b/i,
+  /\boffers\s+activities\b/i,
+  /\bpublished\s+listing\b/i,
+  /\bsource[-\s]?backed\b/i,
+  /\bcheck\s+local\b/i,
+  /\bpublic\s+catalog\b/i,
+  /\bshould\s+(?:refresh|update|be\s+refreshed)\b/i,
+  /\bbefore\s+(?:showing|publishing)\b/i,
+  /\bnot\s+yet\s+extracted\b/i,
+  /\bnot\s+stable\b/i,
+  /\bplaceholder\b/i,
+  /\bsample\s+listing\b/i,
+  /\btest\s+listing\b/i,
+  /\bdummy\b/i,
+  /\btbd\b/i,
+];
+
+function isImgBbHttpsImageUrl(value: unknown) {
+  const url = asString(value);
+  if (!url || !/^https:\/\//i.test(url)) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "i.ibb.co" || host === "ibb.co" || host === "image.ibb.co" || host.endsWith(".ibb.co");
+  } catch {
+    return false;
+  }
+}
+
+function collectPublicPayloadIssues(input: { destinationKey?: string; metadata: Record<string, unknown>; facts: Record<string, unknown> }) {
+  const payload = asRecord(input.metadata.publicDraftPayload) ?? asRecord(input.facts.publicDraftPayload);
+  if (!payload) return [] as string[];
+
+  const issues: string[] = [];
+  const destinationKey = asString(input.destinationKey || input.metadata.destinationKey || input.metadata.miniappKey).toLowerCase();
+  const catalogProject = asString(payload.catalogProject).toLowerCase();
+  if (catalogProject && destinationKey && catalogProject !== destinationKey) {
+    issues.push("public_scope_mismatch");
+  }
+
+  const image = asString(payload.image) || asString(payload.coverImageUrl);
+  if (!isImgBbHttpsImageUrl(image)) {
+    issues.push("missing_uploaded_public_image");
+  }
+
+  const descriptionValues = [
+    payload.shortDescription,
+    payload.longDescription,
+    payload.description,
+    asRecord(payload.localized)?.en && asRecord(asRecord(payload.localized)?.en)?.shortDescription,
+    asRecord(payload.localized)?.en && asRecord(asRecord(payload.localized)?.en)?.longDescription,
+  ]
+    .map(asString)
+    .filter(Boolean);
+
+  if (descriptionValues.length === 0 || descriptionValues.every((value) => value.length < 50)) {
+    issues.push("missing_public_content_summary");
+  }
+  if (descriptionValues.some((value) => PUBLIC_COPY_LEAK_PATTERNS.some((pattern) => pattern.test(value)))) {
+    issues.push("backend_or_placeholder_copy_leak");
+  }
+
+  return [...new Set(issues)];
 }
 
 export function evaluateVisitorQualityGate(input: VisitorQualityGateInput): VisitorQualityGateResult {
@@ -91,6 +158,12 @@ export function evaluateVisitorQualityGate(input: VisitorQualityGateInput): Visi
   if (missingEvidenceFields.length > 0) {
     reviewReasons.push("missing_required_evidence");
   }
+
+  blockingReasons.push(...collectPublicPayloadIssues({
+    destinationKey: input.destinationKey,
+    metadata,
+    facts,
+  }));
 
   return {
     pass: blockingReasons.length === 0 && missingEvidenceFields.length === 0,

@@ -73,7 +73,7 @@ function readVisitorReadiness(
   const candidateKeys = Object.keys(blueprints).filter((key) => {
     const lower = key.toLowerCase();
     if (destinationKey === "classscout") return lower.includes("classscout");
-    return lower.includes("compare") || lower.includes("rangescout");
+    return lower.includes("compare");
   });
   for (const key of candidateKeys) {
     const blueprint = asRecord(blueprints[key]);

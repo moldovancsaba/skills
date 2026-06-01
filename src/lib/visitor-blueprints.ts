@@ -77,7 +77,7 @@ export function resolveDestinationKeyForVisitor(visitorKeyRaw: string): Destinat
   const visitorKey = normalizeVisitorKey(visitorKeyRaw);
   if (!visitorKey) return null;
   if (visitorKey.includes("classscout")) return "classscout";
-  if (visitorKey.includes("rangescout") || visitorKey.includes("compare")) return "compare";
+  if (visitorKey.includes("compare")) return "compare";
   return null;
 }
 
@@ -140,7 +140,7 @@ function writeVisitorStore(existingConfig: Prisma.JsonValue | null | undefined, 
 async function getDestinationInstanceForVisitor(companyId: string, visitorKey: string, destinationKeyHint?: unknown) {
   const destinationKey = resolveDestinationKeyForVisitorWithHint(visitorKey, destinationKeyHint);
   if (!destinationKey) {
-    throw new Error(`Unsupported visitorKey "${visitorKey}". Expected classscout-* or rangescout-/compare-*.`);
+    throw new Error(`Unsupported visitorKey "${visitorKey}". Expected classscout-* or compare.`);
   }
   return ensureDestinationInstance(companyId, destinationKey);
 }

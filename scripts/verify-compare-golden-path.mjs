@@ -134,7 +134,7 @@ async function run() {
       },
       select: { id: true, createdAt: true, config: true },
     });
-    const visitorReadiness = readVisitorBlueprintAndTaxonomy(compareInstance?.config, "rangescout-hungary");
+    const visitorReadiness = readVisitorBlueprintAndTaxonomy(compareInstance?.config, "compare");
 
     const [missionRunCount, reviewPacketCount, approvedPacketCount, publishedOutcomeCount, failedPipelineJobCount, sourceDocumentCount, candidateCount, snapshot] = await Promise.all([
       compareInstance

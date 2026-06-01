@@ -15,7 +15,7 @@ const comparePublicCopy = JSON.parse(
 function parseArgs(argv) {
   const args = {
     companyId: "",
-    visitorKey: "rangescout-hungary",
+    visitorKey: "compare",
     outDir: "logs",
     limit: 20,
     cleanCatalog: false,
@@ -123,6 +123,10 @@ function hasSuspiciousCopy(value) {
     "published by check local",
     "should not be shown",
     "compare listing",
+    "listing for",
+    "verified listing for",
+    "published listing",
+    "offers activities",
   ].some((token) => text.includes(token));
 }
 
@@ -198,26 +202,23 @@ function buildFallbackCopy(locale, context) {
   const normalized = {
     en: {
       badge: "Verified",
-      short: "Listing for {name}.",
-      long:
-        "Published listing for {name}. Source: {sourceHost}.",
+      short: "",
+      long: "",
     },
     hu: {
       badge: "Ellenőrzött",
-      short: "Helyszín: {name}.",
-      long:
-        "Megjelenő találat: {name}. Forrás: {sourceHost}.",
+      short: "",
+      long: "",
     },
     it: {
       badge: "Verificato",
-      short: "Risorsa: {name}.",
-      long:
-        "Voce pubblicata per {name}. Fonte: {sourceHost}.",
+      short: "",
+      long: "",
     },
   }[locale] || {
     badge: "Verified",
-    short: "Listing for {name}.",
-    long: "Published listing for {name}. Source: {sourceHost}.",
+    short: "",
+    long: "",
   };
 
   return {
@@ -391,8 +392,7 @@ async function ensureCompany(companyId) {
     where: {
       OR: [
         { name: { equals: "Compare", mode: "insensitive" } },
-        { name: { equals: "RangeScout EU", mode: "insensitive" } },
-      ],
+  ],
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -423,8 +423,8 @@ async function ensureDestinationInstance(companyId) {
       config: {
         visitor: {
           blueprints: {
-            "rangescout-hungary": {
-              visitorKey: "rangescout-hungary",
+            "compare": {
+              visitorKey: "compare",
               state: "active",
               industry: "sport_shooting_hunting",
               location: { country: "Hungary", geoGranularity: "country" },
@@ -488,7 +488,7 @@ async function listSourceCards(instanceId, visitorKey, limit) {
 }
 
 function buildVisitorSourceKey(sourceDatacard) {
-  return normalizeVisitorKey(asString(sourceDatacard.visitorKey) || "rangescout-hungary");
+  return normalizeVisitorKey(asString(sourceDatacard.visitorKey) || "compare");
 }
 
 async function sanitizeSourceDocument(sourceCard) {
@@ -640,6 +640,32 @@ function shouldPublishFromCard(sourceDatacard) {
   return hasTitle && hasSource && autoPublishEligible;
 }
 
+function isImgBbHttpsImageUrl(value) {
+  const url = asString(value);
+  if (!url || !/^https:\/\//i.test(url)) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "i.ibb.co" || host === "ibb.co" || host === "image.ibb.co" || host.endsWith(".ibb.co");
+  } catch {
+    return false;
+  }
+}
+
+function validatePublicReadyComparePayload(payload) {
+  const issues = [];
+  if (asString(payload.catalogProject) !== "compare") issues.push("public_scope_mismatch");
+  if (!asString(payload.name)) issues.push("missing_name");
+  if (!isImgBbHttpsImageUrl(payload.image)) issues.push("missing_uploaded_public_image");
+  const descriptions = [payload.shortDescription, payload.longDescription]
+    .map(asString)
+    .filter(Boolean);
+  if (descriptions.length === 0 || descriptions.every((description) => description.length < 50)) {
+    issues.push("missing_public_content_summary");
+  }
+  if (descriptions.some(hasSuspiciousCopy)) issues.push("backend_or_placeholder_copy_leak");
+  return [...new Set(issues)];
+}
+
 async function publishListing(companyId, instance, listing) {
   const instanceId = instance.id;
   const sourceCard = listing.sourceCard;
@@ -648,10 +674,15 @@ async function publishListing(companyId, instance, listing) {
 
   const sourceUrl = listing.sourceUrl;
   const sourcePayload = listing.sanitizedPayload;
+  const publicReadyIssues = validatePublicReadyComparePayload(sourcePayload);
+  if (publicReadyIssues.length > 0) {
+    throw new Error(`Compare payload is not public-ready for ${sourceUrl}: ${publicReadyIssues.join(", ")}`);
+  }
   const contentType = asString(asStringArray(sourceDatacard.knownContentTypes)[0] || "unknown");
   // keep stable candidate keying; datacard id is retained for traceability.
   const datacardId = asString(sourceDatacard.sourceId || sourcePayload.id || hash(sourceUrl).slice(0, 20));
-  const fingerprint = hash(`${normalizeVisitorKey(sourceDatacard.visitorKey || "rangescout-hungary")}|${sourceUrl}|${contentType}|${asString(sourcePayload.name)}`);
+  const visitorKey = normalizeVisitorKey(sourceDatacard.visitorKey || "compare");
+  const fingerprint = hash(`${visitorKey}|${sourceUrl}|${contentType}|${asString(sourcePayload.name)}`);
   const name = asString(sourcePayload.name);
 
   const workflowRun = await prisma.destinationWorkflowRun.create({
@@ -663,7 +694,7 @@ async function publishListing(companyId, instance, listing) {
       currentStage: "PUBLISH_REVIEWED_DRAFT",
       metadata: json({
         source: "publish-compare-source-backed-content",
-        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        visitorKey,
         sourceUrl,
         generatedAt: nowIso(),
         sourceDocumentId: sourceCard.sourceDocumentId,
@@ -691,7 +722,7 @@ async function publishListing(companyId, instance, listing) {
         visitorSourceDatacard: {
           ...sourceDatacardRecord,
           sourceId: datacardId,
-          visitorKey: "rangescout-hungary",
+          visitorKey,
           datacardType: sourceDatacardRecord.datacardType || "trusted_source_datacard",
           url: sourceUrl,
           canonicalUrl: sourceUrl,
@@ -735,7 +766,7 @@ async function publishListing(companyId, instance, listing) {
       status: "PUBLISHING",
       dedupeStatus: "UNIQUE",
       metadata: json({
-        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        visitorKey,
         sourceDatacardId: datacardId,
         visitorCandidateState: "APPROVED",
         sourceDatacardIds: [sourceCard.sourceDocumentId],
@@ -758,7 +789,7 @@ async function publishListing(companyId, instance, listing) {
       status: "PUBLISHING",
       dedupeStatus: "UNIQUE",
       metadata: json({
-        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        visitorKey,
         sourceDatacardId: datacardId,
         visitorCandidateState: "APPROVED",
         sourceDatacardIds: [sourceCard.sourceDocumentId],
@@ -845,7 +876,7 @@ async function publishListing(companyId, instance, listing) {
       mediaSummary: json({ status: "source-only" }),
       draftPayload: json(sourcePayload),
       metadata: json({
-        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        visitorKey,
         entityKind: asString(sourceDatacard.entityKind) || "provider",
         autoPublishEligible: true,
       }),
@@ -876,7 +907,7 @@ async function publishListing(companyId, instance, listing) {
     data: {
       status: published ? "PUBLISHED" : "FAILED",
       metadata: json({
-        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        visitorKey,
         sourceDatacardId: datacardId,
         visitorCandidateState: published ? "PUBLISHED" : "REWORK_REQUIRED",
         sourceDatacardIds: [sourceCard.sourceDocumentId],
@@ -898,7 +929,7 @@ async function publishListing(companyId, instance, listing) {
       currentStage: published ? "PUBLIC_VISIBLE" : "PUBLISH_FAILED",
       metadata: json({
         source: "publish-compare-source-backed-content",
-        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        visitorKey,
         sourceUrl,
         sourceDocumentId: sourceDoc.id,
         publish,

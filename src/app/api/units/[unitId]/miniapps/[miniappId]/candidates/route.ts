@@ -58,6 +58,10 @@ export async function GET(
     const take = Math.max(1, Math.min(100, Number(request.nextUrl.searchParams.get("take") || 50)));
     // Public candidates are projected-only by default; add `?includeInternal=true` for operator/admin flows.
     const includeInternal = isTruthy(request.nextUrl.searchParams.get("includeInternal")) || request.nextUrl.searchParams.get("mode") === "internal";
+    const includeBlocked = isTruthy(request.nextUrl.searchParams.get("includeBlocked"));
+    const shouldExposeBlocked = includeInternal || includeBlocked;
+    const isCompareMiniapp = miniappId === "compare";
+
     const candidates = await prisma.destinationCandidate.findMany({
       where: {
         companyId: guard.context.unitId,
@@ -80,13 +84,17 @@ export async function GET(
       take,
     });
 
-    const items = candidates.map((candidate) => {
+    const items = [];
+    let blockedCount = 0;
+    for (const candidate of candidates) {
       const metadata = asRecord(candidate.metadata);
       const qualitySignals = deriveCompareQualitySignals(metadata);
       const qualityScore = scoreCompareCandidate(qualitySignals);
-      const projectionGate = evaluateCompareProjectionGate({
-        metadata,
-      });
+      const projectionGate = isCompareMiniapp
+        ? evaluateCompareProjectionGate({
+            metadata,
+          })
+        : { blocked: false, blockedReasons: [] };
       const qualityEvaluation = evaluateCompareCandidate({
         qualityScore,
         eligibilityFlags: qualitySignals.eligibilityFlags,
@@ -123,40 +131,48 @@ export async function GET(
         scoreMinimumMet: qualityScore >= 55,
       };
 
-      if (!includeInternal) {
-        return publicCandidate;
+      if (projectionGate.blocked) {
+        blockedCount += 1;
+        if (!shouldExposeBlocked) {
+          continue;
+        }
       }
 
-      // Internal mode preserves legacy/local debugging context used by reviewer flows.
-      return {
-        ...publicCandidate,
-        status: normalizedStatus,
-        runtime: {
-          destinationStatus: candidate.status,
-          dedupeStatus: candidate.dedupeStatus,
-          latestReviewPacketId: latestPacket?.id ?? null,
-          latestReviewPacketState: latestPacket?.packetState ?? null,
-          compareQuality: {
-            qualityScore,
-            minimumQualityScore: 55,
-            acceptable: qualityEvaluation.acceptable,
-            requiresReview: qualityEvaluation.requiresReview,
-            reasons: qualityEvaluation.reasons,
-            projectionBlocked: projectionGate.blocked,
-            projectionBlockedReasons: projectionGate.blockedReasons,
-            regionConfidence: qualitySignals.regionConfidence,
-            seasonConfidence: qualitySignals.seasonConfidence,
-            providerConfidence: qualitySignals.providerConfidence,
-          },
-        },
-      };
-    });
+      const publicCandidateResult = includeInternal
+        ? {
+            ...publicCandidate,
+            status: normalizedStatus,
+            runtime: {
+              destinationStatus: candidate.status,
+              dedupeStatus: candidate.dedupeStatus,
+              latestReviewPacketId: latestPacket?.id ?? null,
+              latestReviewPacketState: latestPacket?.packetState ?? null,
+              compareQuality: {
+                qualityScore,
+                minimumQualityScore: 55,
+                acceptable: qualityEvaluation.acceptable,
+                requiresReview: qualityEvaluation.requiresReview,
+                reasons: qualityEvaluation.reasons,
+                projectionBlocked: projectionGate.blocked,
+                projectionBlockedReasons: projectionGate.blockedReasons,
+                regionConfidence: qualitySignals.regionConfidence,
+                seasonConfidence: qualitySignals.seasonConfidence,
+                providerConfidence: qualitySignals.providerConfidence,
+              },
+            },
+          }
+        : publicCandidate;
+
+      // Public API callers get the projected output only.
+      items.push(publicCandidateResult);
+    }
 
     return NextResponse.json({
       ok: true,
       unitId: guard.context.unitId,
       miniappId: guard.context.miniappId,
       count: items.length,
+      blockedCount,
       items,
     });
   } catch (error) {

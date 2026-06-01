@@ -453,6 +453,7 @@ Current implementation note:
   - `POST /api/units/{unitId}/miniapps/{miniappId}/content/{contentId}/refresh`
 - `GET /api/visitor/{visitorKey}/candidates`
   - returns a public-safe projection by default and only includes raw/internal runtime fields when `includeInternal=true` or `mode=internal`
+  - for visitorKey `compare`, blocked projection rows are filtered out by default (`source-only`, weak/blocked source, inherited legacy/placeholder signals, static fake content)
 - Local destination daemon and queue lane now evaluate both `classscout` and `compare` with the same default execution policy model, establishing the baseline for future miniapps in this family
 - queue activation for destination daemon is now derived from active mission definitions/runs generically, reducing hardcoded single-miniapp coupling
 

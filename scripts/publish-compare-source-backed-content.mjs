@@ -15,19 +15,34 @@ const comparePublicCopy = JSON.parse(
 function parseArgs(argv) {
   const args = {
     companyId: "",
+    visitorKey: "rangescout-hungary",
     outDir: "logs",
-    cleanCatalog: true,
+    limit: 20,
+    cleanCatalog: false,
+    syncCatalogOnly: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === "--companyId") {
       args.companyId = String(argv[index + 1] || "").trim();
       index += 1;
+    } else if (token === "--visitorKey") {
+      args.visitorKey = String(argv[index + 1] || "").trim();
+      index += 1;
     } else if (token === "--outDir") {
       args.outDir = String(argv[index + 1] || "logs").trim() || "logs";
       index += 1;
+    } else if (token === "--limit") {
+      const raw = Number(argv[index + 1]);
+      if (Number.isFinite(raw)) args.limit = Math.max(1, Math.min(100, Math.trunc(raw)));
+      index += 1;
+    } else if (token === "--clean") {
+      args.cleanCatalog = true;
     } else if (token === "--no-clean") {
       args.cleanCatalog = false;
+    } else if (token === "--sync-catalog-only") {
+      args.syncCatalogOnly = true;
+      args.cleanCatalog = true;
     }
   }
   return args;
@@ -45,315 +60,327 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-const LOCALIZED_PROVIDER_COPY = {
-  "prov-ranger-sport-budapest": {
-    hu: {
-      announcementBadge: "Ellenőrzött",
-      shortDescription:
-        "Forrással igazolt budapesti lőtér és akadémia vezetett fegyveres csomagokkal, 25-100 méteres lőtávval és napi nyitvatartással.",
-      longDescription:
-        "A Ranger Sport hivatalos oldala budapesti lőtéri élményt mutat be vezetett csomagokkal, 25-100 méteres lőtávval, napi 10:00-20:00 nyitvatartással, szállodai transzferrel, oktatói támogatással, biztonsági felszereléssel és EUR 55-től induló csomagárakkal. A Compare ezt a listát csak hivatalos forrás alapján jeleníti meg, és a CHECK Local frissíti, ha a kereskedelmi állítások változnak.",
-    },
-    it: {
-      announcementBadge: "Verificato",
-      shortDescription:
-        "Poligono e accademia di Budapest supportati da fonte, con pacchetti guidati, distanza di tiro 25-100 m e apertura quotidiana.",
-      longDescription:
-        "Il sito ufficiale di Ranger Sport presenta un'esperienza di tiro a Budapest con pacchetti guidati, distanza 25-100 m, apertura quotidiana 10:00-20:00, transfer dall'hotel, supporto istruttore, attrezzatura di sicurezza e pacchetti da EUR 55. Compare pubblica questa scheda solo da fonte ufficiale e CHECK Local la aggiorna prima di mostrare variazioni commerciali.",
-    },
-  },
-  "prov-gepard-shooting-range-budapest": {
-    hu: {
-      announcementBadge: "Ellenőrzött",
-      shortDescription:
-        "Forrással igazolt budapesti beltéri lőtér felügyelt lőtérhasználattal, klubtagsági lehetőséggel és közzétett elérhetőségekkel.",
-      longDescription:
-        "A Gepard hivatalos angol oldala megadja a 1222 Budapest, Nagytétényi út 66. címet, telefonszámot, e-mail címet, munkanapi nyitvatartást, éves klubtagsági információt és egyszeri lőtérhasználati díjat. A díj a forrás szerint lőtérhasználatot, felügyeletet és klubfegyvereket tartalmaz, a lőszer nélkül.",
-    },
-    it: {
-      announcementBadge: "Verificato",
-      shortDescription:
-        "Poligono indoor di Budapest supportato da fonte, con uso supervisionato, opzione club e contatti pubblicati.",
-      longDescription:
-        "Il sito inglese ufficiale di Gepard indica l'indirizzo 1222 Budapest, Nagytétényi út 66, telefono, email, orari feriali, informazioni sull'iscrizione annuale al club e una tariffa una tantum per l'uso del poligono. La fonte indica che la tariffa include uso del poligono, supervisione e armi del club, ma non munizioni.",
-    },
-  },
-  "prov-celeritas-shooting-club-budapest": {
-    hu: {
-      announcementBadge: "Ellenőrzött",
-      shortDescription:
-        "Forrással igazolt budapesti lövészklub fedett lőtéri környezettel, online foglalással, hivatásos lövészetvezetőkkel és biztonsági információkkal.",
-      longDescription:
-        "A Celeritas hivatalos oldala budapesti lövészklubot ír le fedett, pincei lőtérrel, online foglalással, hivatásos lövészetvezetőkkel, csomaginformációkkal, biztonsági szabályokkal és részvételi feltételekkel. Az ár egyeztetés alapján jelenik meg, mert a CHECK Local még nem normalizált stabil nyilvános csomagárat a Compare szerződésbe.",
-    },
-    it: {
-      announcementBadge: "Verificato",
-      shortDescription:
-        "Club di tiro di Budapest supportato da fonte, con poligono coperto, prenotazione online, responsabili professionali e informazioni di sicurezza.",
-      longDescription:
-        "Il sito ufficiale di Celeritas descrive un club di tiro a Budapest con poligono coperto nel seminterrato, prenotazione online, responsabili di tiro professionali, informazioni sui pacchetti, regole di sicurezza e condizioni di partecipazione. Il prezzo resta su richiesta perché CHECK Local non ha ancora normalizzato una tariffa pubblica stabile nel contratto Compare.",
-    },
-  },
-  "prov-b-pro-steel-match-1-budapest": {
-    hu: {
-      announcementBadge: "Ellenőrzött",
-      shortDescription:
-        "Forrással igazolt MDLSZ versenykiírás a B-Pro Steel Match eseményhez, budapesti B-Pro Lőtér és Tréning Centrum helyszínnel.",
-      longDescription:
-        "Az MDLSZ portál dokumentuma azonosítja a B-Pro Steel Match 1 versenyt, a szervező B-Pro Bellators SE egyesületet és a budapesti B-Pro Lőtér és Tréning Centrum helyszínt. A CHECK Local ezt versenylistaként publikálja, és az időpontot, nevezést és részletes versenyadatokat közvetlenül az MDLSZ forrásból kell frissítenie, mielőtt időérzékeny állításokat jelenít meg.",
-    },
-    it: {
-      announcementBadge: "Verificato",
-      shortDescription:
-        "Avviso gara MDLSZ supportato da fonte per B-Pro Steel Match presso B-Pro Lőtér és Tréning Centrum a Budapest.",
-      longDescription:
-        "Il documento del portale MDLSZ identifica la gara B-Pro Steel Match 1, l'associazione organizzatrice B-Pro Bellators SE e la sede B-Pro Lőtér és Tréning Centrum a Budapest. CHECK Local pubblica questa voce come competizione e deve aggiornare data, iscrizione e dettagli direttamente dalla fonte MDLSZ prima di mostrare informazioni sensibili al tempo.",
-    },
-  },
-  "prov-omvk-hunter-education-resources": {
-    hu: {
-      announcementBadge: "Ellenőrzött",
-      shortDescription:
-        "Forrással igazolt országos vadászkamarai forrás vadászvizsgához és hivatalos magyar vadászati ágazati információkhoz.",
-      longDescription:
-        "Az Országos Magyar Vadászkamara hivatalos oldala vadászati ágazati forrásokat, közleményeket és vadászvizsgához kapcsolódó információkat tesz közzé Magyarország számára. Ez a lista szándékosan ár egyeztetés alapján jelenik meg, mert a CHECK Local még nem vont ki stabil nyilvános tanfolyamdíjat ehhez a forráshoz.",
-    },
-    it: {
-      announcementBadge: "Verificato",
-      shortDescription:
-        "Risorsa nazionale della camera venatoria supportata da fonte per esami da cacciatore e informazioni ufficiali ungheresi.",
-      longDescription:
-        "Il sito ufficiale dell'Országos Magyar Vadászkamara pubblica risorse del settore venatorio, comunicazioni e informazioni relative agli esami da cacciatore in Ungheria. Questa scheda è marcata prezzo su richiesta perché CHECK Local non ha ancora estratto una tariffa pubblica stabile per il corso o la risorsa.",
-    },
-  },
-  "prov-fehova-budapest-hunting-exhibition": {
-    hu: {
-      announcementBadge: "Ellenőrzött",
-      shortDescription:
-        "Forrással igazolt budapesti kiállítás vadászoknak, horgászoknak, fegyveres kiállítóknak és outdoor ágazati látogatóknak a HUNGEXPO-n.",
-      longDescription:
-        "A HUNGEXPO a FeHoVa eseményt jelentős magyar és regionális rendezvényként írja le vadászok, horgászok, természetkedvelők és fegyveres kiállítók számára a HUNGEXPO Budapest Kongresszusi és Kiállítási Központban. A CHECK Local ezt outdoor és vadászati felfedezési elemként publikálja, és a pontos dátumokat, jegyinformációkat közvetlenül a Hungexpo forrásból kell frissítenie.",
-    },
-    it: {
-      announcementBadge: "Verificato",
-      shortDescription:
-        "Fiera di Budapest supportata da fonte per cacciatori, pescatori, espositori di armi e visitatori outdoor presso HUNGEXPO.",
-      longDescription:
-        "HUNGEXPO descrive FeHoVa come un evento ungherese e regionale importante per cacciatori, pescatori, amanti della natura ed espositori legati alle armi presso HUNGEXPO Budapest Congress and Exhibition Centre. CHECK Local pubblica questa voce come elemento outdoor/venatorio e deve aggiornare date e biglietteria direttamente dalla fonte Hungexpo.",
-    },
-  },
-};
+function asRecord(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value;
+}
 
-function provider(input) {
+function asString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function asStringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => asString(entry))
+    .filter(Boolean)
+    .filter((entry) => entry.length <= 200);
+}
+
+function asNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function normalizeSourceUrl(value) {
+  const raw = asString(value);
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    url.hash = "";
+    url.search = "";
+    return url.toString().toLowerCase();
+  } catch {
+    return raw.toLowerCase();
+  }
+}
+
+function normalizeVisitorKey(value) {
+  return asString(value).toLowerCase();
+}
+
+function hasSuspiciousCopy(value) {
+  const text = asString(value).toLowerCase();
+  if (!text) return false;
+  return [
+    "source-backed",
+    "source backed",
+    "check local",
+    "source verified",
+    "should refresh",
+    "should be refreshed",
+    "before showing",
+    "publicly",
+    "publishes this",
+    "checkout",
+    "this listing is",
+    "this is intentionally",
+    "intentionally marked",
+    "not yet extracted",
+    "not stable",
+    "should be updated",
+    "before publishing",
+    "published by check local",
+    "should not be shown",
+    "compare listing",
+  ].some((token) => text.includes(token));
+}
+
+function sanitizeCopyText(value, fallback) {
+  const text = asString(value);
+  if (!text) return fallback;
+  const cleaned = text
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .filter((sentence) => !hasSuspiciousCopy(sentence))
+    .join(" ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return cleaned && !hasSuspiciousCopy(cleaned) ? cleaned : fallback;
+}
+
+function sanitizeComparePayloadForStorage(inputPayload, sourceUrl = "") {
+  const payload = asRecord(inputPayload) ?? {};
+  const name = asString(payload.name) || asString(payload.title) || "Compare Listing";
+  const provider = asString(payload.provider) || asString(payload.company) || name;
+  const location = asString(payload.location) || asString(payload.address) || asString(payload.neighborhood) || "";
+  const category = asString(payload.category) || asString(payload.type) || asString(payload.activityType) || "Listing";
+  const sourceHost = (() => {
+    try {
+      return new URL(sourceUrl).hostname.replace(/^www\./, "");
+    } catch {
+      return sourceUrl;
+    }
+  })();
+
+  const fallbackContext = {
+    name,
+    provider,
+    sourceHost,
+    sourceUrl,
+    category,
+    location,
+  };
+  const localized = asRecord(payload.localized) ?? {};
+  const fallbackEn = buildFallbackCopy("en", fallbackContext);
+  const fallbackHu = buildFallbackCopy("hu", fallbackContext);
+  const fallbackIt = buildFallbackCopy("it", fallbackContext);
+
+  const next = {
+    ...payload,
+    localized: {
+      en: sanitizeLocalizedCopy(localized.en, "en", fallbackEn),
+      hu: sanitizeLocalizedCopy(localized.hu, "hu", fallbackHu),
+      it: sanitizeLocalizedCopy(localized.it, "it", fallbackIt),
+    },
+    announcementBadge: sanitizeCopyText(asString(payload.announcementBadge) || asString(payload.badge), fallbackEn.announcementBadge),
+    shortDescription: sanitizeCopyText(
+      asString(payload.shortDescription) || asString(payload.short),
+      fallbackEn.shortDescription,
+    ),
+    longDescription: sanitizeCopyText(
+      asString(payload.longDescription) || asString(payload.long),
+      fallbackEn.longDescription,
+    ),
+  };
+
+  if (next.announcementBadge === "") next.announcementBadge = fallbackEn.announcementBadge;
+  if (next.shortDescription === "") next.shortDescription = fallbackEn.shortDescription;
+  if (next.longDescription === "") next.longDescription = fallbackEn.longDescription;
+  if (payload.badge && !payload.announcementBadge) delete next.badge;
+  if (payload.short && !payload.shortDescription) delete next.short;
+  if (payload.long && !payload.longDescription) delete next.long;
+  return next;
+}
+
+function buildFallbackCopy(locale, context) {
+  const normalized = {
+    en: {
+      badge: "Verified",
+      short: "Listing for {name}.",
+      long:
+        "Published listing for {name}. Source: {sourceHost}.",
+    },
+    hu: {
+      badge: "Ellenőrzött",
+      short: "Helyszín: {name}.",
+      long:
+        "Megjelenő találat: {name}. Forrás: {sourceHost}.",
+    },
+    it: {
+      badge: "Verificato",
+      short: "Risorsa: {name}.",
+      long:
+        "Voce pubblicata per {name}. Fonte: {sourceHost}.",
+    },
+  }[locale] || {
+    badge: "Verified",
+    short: "Listing for {name}.",
+    long: "Published listing for {name}. Source: {sourceHost}.",
+  };
+
   return {
-    catalogProject: "compare",
-    image: "",
-    galleryImages: [],
-    rating: 0,
-    reviewCount: 0,
-    badges: [],
-    bookingEnabled: false,
-    localized: LOCALIZED_PROVIDER_COPY[input.id],
-    publishedAt: nowIso(),
-    updatedAt: nowIso(),
-    ...input,
+    announcementBadge: normalized.badge,
+    shortDescription: normalized.short.replace("{name}", context.name).replace("{provider}", context.provider),
+    longDescription: normalized.long
+      .replace("{name}", context.name)
+      .replace("{provider}", context.provider)
+      .replace("{sourceHost}", context.sourceHost || context.sourceUrl),
   };
 }
 
-const SOURCE_BACKED_LISTINGS = [
-  {
-    sourceUrl: "https://www.rangersport.hu/",
-    sourceTitle: "Ranger Sport Budapest shooting range",
-    contentType: "shooting_school",
-    entityKind: "provider",
-    facts: {
-      title: "Ranger Sport Budapest shooting range",
-      provider: "Ranger Sport HU",
-      location: "Budapest, Hungary",
-      evidence:
-        "Official site describes a Budapest shooting range with 25-100m shooting distance, daily 10:00-20:00 opening, guided packages, and starting prices from EUR 55.",
-    },
-    draft: provider({
-      id: "prov-ranger-sport-budapest",
-      name: "Ranger Sport Budapest",
-      category: "Classes",
-      borough: "Hungary",
-      neighborhood: "Budapest",
-      address: "Budapest, Deak Ferenc ter-M, 1052 Hungary",
-      activityTypes: ["Rifle", "Pistol", "Shotgun", "Range Training"],
-      ageRanges: ["Beginner", "Licensed Adult"],
-      dayTimeTags: ["Weekday", "Weekend", "Morning", "Afternoon"],
-      pricePerClass: 55,
-      shortDescription:
-        "Verified Budapest shooting range and academy with guided firearm packages, 25-100m shooting distance, and daily opening hours.",
-      longDescription:
-        "Ranger Sport's official site presents a Budapest shooting range experience with guided packages, 25-100m shooting distance, daily 10:00-20:00 operation, hotel pickup, instructor support, safety equipment, and packages starting from EUR 55. This Compare listing is created from the official source only and should be refreshed by CHECK Local before any commercial claim changes.",
-      email: "info@rangersport.hu",
-      website: "https://www.rangersport.hu/",
-      phone: "+36 1 808 8170",
-    }),
-  },
-  {
-    sourceUrl: "https://www.gepardloter.com/en",
-    sourceTitle: "Gepard Shooting Range Budapest",
-    contentType: "range",
-    entityKind: "provider",
-    facts: {
-      title: "Gepard Shooting Range Budapest",
-      provider: "Gepard Loter",
-      location: "1222 Budapest, Nagytetenyi ut 66",
-      evidence:
-        "Official English site lists the Budapest address, workday opening hours, phone, email, annual club membership, and a one-time range fee.",
-    },
-    draft: provider({
-      id: "prov-gepard-shooting-range-budapest",
-      name: "Gepard Shooting Range Budapest",
-      category: "Camps",
-      borough: "Hungary",
-      neighborhood: "Budapest",
-      address: "1222 Budapest, Nagytetenyi ut 66, Hungary",
-      activityTypes: ["Pistol", "Rifle", "Range Training"],
-      ageRanges: ["Beginner", "Licensed Adult"],
-      dayTimeTags: ["Weekday", "Evening", "Weekend"],
-      pricePerClass: 15,
-      shortDescription:
-        "Verified indoor Budapest shooting range with supervised range use, club membership option, and published contact details.",
-      longDescription:
-        "Gepard's official site lists its address at 1222 Budapest, Nagytetenyi ut 66, a contact phone number, email, workday opening hours, annual club membership information, and a one-time range fee that includes range use, supervision, and club guns but not ammunition.",
-      email: "gmloterferenczgabor@gmail.com",
-      website: "https://www.gepardloter.com/en",
-      phone: "+36 70 247 6499",
-    }),
-  },
-  {
-    sourceUrl: "https://www.celeritas.hu/",
-    sourceTitle: "Celeritas Shooting Club Budapest",
-    contentType: "range",
-    entityKind: "provider",
-    facts: {
-      title: "Celeritas Shooting Club Budapest",
-      provider: "Celeritas Shooting Club",
-      location: "Budapest, Hungary",
-      evidence:
-        "Official site describes a covered basement range, online booking, professional range officers, safety rules, packages, and rare firearm experiences.",
-    },
-    draft: provider({
-      id: "prov-celeritas-shooting-club-budapest",
-      name: "Celeritas Shooting Club Budapest",
-      category: "Camps",
-      borough: "Hungary",
-      neighborhood: "Budapest",
-      address: "1239 Budapest, Grassalkovich ut 294, Hungary",
-      activityTypes: ["Pistol", "Rifle", "Range Training"],
-      ageRanges: ["Beginner", "Licensed Adult"],
-      dayTimeTags: ["Weekday", "Weekend", "Seasonal"],
-      pricePerClass: 0,
-      shortDescription:
-        "Verified Budapest shooting club with indoor range context, online booking, professional range officers, and safety information.",
-      longDescription:
-        "Celeritas' official site describes a Budapest shooting club with a covered basement range, online booking, professional range officers, package information, safety rules, and participation conditions. Price is not normalized here because CHECK Local has not yet extracted a stable public package price into the Compare contract.",
-      email: "",
-      website: "https://www.celeritas.hu/",
-      phone: "",
-    }),
-  },
-  {
-    sourceUrl: "https://portal.mdlsz.com/race/3763/1767779977_B-ProSteelMatch1.pdf",
-    sourceTitle: "MDLSZ B-Pro Steel Match 1 competition notice",
-    contentType: "competition",
-    entityKind: "provider",
-    facts: {
-      title: "B-Pro Steel Match 1",
-      provider: "B-Pro Bellators SE / MDLSZ portal",
-      location: "1097 Budapest, Peceli utca 2",
-      evidence:
-        "MDLSZ portal competition notice identifies B-Pro Steel Match 1, B-Pro Bellators SE, and B-Pro Loter es Trening Centrum in Budapest.",
-    },
-    draft: provider({
-      id: "prov-b-pro-steel-match-1-budapest",
-      name: "B-Pro Steel Match 1",
-      category: "Competitions",
-      borough: "Hungary",
-      neighborhood: "Budapest",
-      address: "1097 Budapest, Peceli utca 2, Hungary",
-      activityTypes: ["Pistol", "Competition", "IPSC"],
-      ageRanges: ["Competition", "Licensed Adult"],
-      dayTimeTags: ["Weekend", "Seasonal"],
-      pricePerClass: 0,
-      shortDescription:
-        "Verified MDLSZ competition notice for B-Pro Steel Match at B-Pro Loter es Trening Centrum in Budapest.",
-      longDescription:
-        "The MDLSZ portal document identifies B-Pro Steel Match 1, the organizing association B-Pro Bellators SE, and the Budapest venue B-Pro Loter es Trening Centrum. CHECK Local publishes this as a competition listing and should refresh date, registration, and match details directly from the official MDLSZ source before presenting time-sensitive claims.",
-      email: "",
-      website: "https://portal.mdlsz.com/race/3763/1767779977_B-ProSteelMatch1.pdf",
-      phone: "",
-    }),
-  },
-  {
-    sourceUrl: "https://www.omvk.hu/",
-    sourceTitle: "Orszagos Magyar Vadaszkamara official site",
-    contentType: "hunter_education",
-    entityKind: "provider",
-    facts: {
-      title: "OMVK hunter education and exam resources",
-      provider: "Orszagos Magyar Vadaszkamara",
-      location: "Hungary",
-      evidence:
-        "Official national hunting chamber site publishes Hungarian hunting-sector news and hunter exam/resource information.",
-    },
-    draft: provider({
-      id: "prov-omvk-hunter-education-resources",
-      name: "OMVK hunter education and exam resources",
-      category: "Classes",
-      borough: "Hungary",
-      neighborhood: "Budapest",
-      address: "Budapest, Hungary",
-      activityTypes: ["Hunter Safety", "Hunter Prep", "Hunt"],
-      ageRanges: ["Hunter Prep", "Licensed Adult"],
-      dayTimeTags: ["Weekday", "Seasonal"],
-      pricePerClass: 0,
-      shortDescription:
-        "Verified national hunting chamber resource for hunter exam and official Hungarian hunting-sector information.",
-      longDescription:
-        "The Orszagos Magyar Vadaszkamara official site publishes hunting-sector resources, announcements, and hunter exam-related information for Hungary. This listing is intentionally marked price-on-request because CHECK Local has not extracted a stable public course fee for this resource.",
-      email: "",
-      website: "https://www.omvk.hu/",
-      phone: "",
-    }),
-  },
-  {
-    sourceUrl: "https://hungexpo.hu/en/events/fehova/",
-    sourceTitle: "FeHoVa hunting, fishing, and arms exhibition",
-    contentType: "expo",
-    entityKind: "provider",
-    facts: {
-      title: "FeHoVa Budapest hunting, fishing, and arms exhibition",
-      provider: "HUNGEXPO",
-      location: "HUNGEXPO Budapest Congress and Exhibition Centre",
-      evidence:
-        "Hungexpo describes FeHoVa as a major hunting, fishing, and arms event at HUNGEXPO Budapest Congress and Exhibition Centre.",
-    },
-    draft: provider({
-      id: "prov-fehova-budapest-hunting-exhibition",
-      name: "FeHoVa Budapest hunting, fishing, and arms exhibition",
-      category: "Drop-In Activities",
-      borough: "Hungary",
-      neighborhood: "Budapest",
-      address: "1101 Budapest, Albertirsai ut 10, Hungary",
-      activityTypes: ["Hunt", "Shotgun", "Rifle"],
-      ageRanges: ["Hunter Prep", "Licensed Adult"],
-      dayTimeTags: ["Seasonal", "Weekend"],
-      pricePerClass: 0,
-      shortDescription:
-        "Verified Budapest exhibition for hunters, anglers, arms exhibitors, and outdoor-sector visitors at HUNGEXPO.",
-      longDescription:
-        "HUNGEXPO describes FeHoVa as a major Hungarian and regional event for hunters, anglers, nature lovers, and arms-related exhibitors at the HUNGEXPO Budapest Congress and Exhibition Centre. CHECK Local publishes this as an outdoor/hunting discovery item and should refresh exact event dates and ticketing directly from Hungexpo before showing time-sensitive details.",
-      email: "",
-      website: "https://hungexpo.hu/en/events/fehova/",
-      phone: "",
-    }),
-  },
-];
+function sanitizeLocalizedCopy(value, locale, fallback) {
+  const safe = asRecord(value);
+  if (!safe) return fallback;
+
+  const legacyBadge = asString(safe.badge);
+  const legacyShort = asString(safe.short);
+  const legacyLong = asString(safe.long);
+  const announcementBadge = asString(safe.announcementBadge) || legacyBadge;
+  const shortDescription = asString(safe.shortDescription) || legacyShort;
+  const longDescription = asString(safe.longDescription) || legacyLong;
+  const next = {
+    ...safe,
+    announcementBadge: sanitizeCopyText(announcementBadge, fallback.announcementBadge),
+    shortDescription: sanitizeCopyText(shortDescription, fallback.shortDescription),
+    longDescription: sanitizeCopyText(longDescription, fallback.longDescription),
+  };
+
+  if (next.announcementBadge === "") next.announcementBadge = fallback.announcementBadge;
+  if (next.shortDescription === "") next.shortDescription = fallback.shortDescription;
+  if (next.longDescription === "") next.longDescription = fallback.longDescription;
+
+  if (safe.badge && !safe.announcementBadge) delete next.badge;
+  if (safe.short && !safe.shortDescription) delete next.short;
+  if (safe.long && !safe.longDescription) delete next.long;
+
+  return next;
+}
+
+const CONTENT_TYPE_LABELS = {
+  range: "Range",
+  shooting_school: "Shooting School",
+  hunter_education: "Hunter Education",
+  club: "Club",
+  competition: "Competition",
+  expo: "Expo",
+  source_only: "Source Only",
+  unknown: "Listing",
+};
+
+function pickContentTypeLabel(type) {
+  return CONTENT_TYPE_LABELS[normalizeVisitorKey(type)] || "Listing";
+}
+
+function buildSafeDraftPayload({ sourceUrl, sourceDatacard }) {
+  const facts = asRecord(sourceDatacard.extractedFacts) ?? {};
+  const sourceDraftPayload = asRecord(sourceDatacard.publicDraftPayload) ?? {};
+  const { provider: draftProvider, ...draftPayload } = sourceDraftPayload;
+  const contentType = asString(
+    asStringArray(sourceDatacard.knownContentTypes)[0] || asString(draftPayload.contentType) || asString(draftPayload.type) || asString(sourceDatacard.sourceKind),
+  ) || "unknown";
+  const sourceHost = (() => {
+    try {
+      return new URL(sourceUrl).hostname.replace(/^www\./, "");
+    } catch {
+      return sourceUrl;
+    }
+  })();
+
+  const name = asString(draftPayload.name) || asString(facts.title) || asString(sourceDatacard.sourceTitle) || "Compare Listing";
+  const provider = asString(draftProvider) || asString(facts.provider) || name;
+  const location = asString(draftPayload.address) || asString(facts.location) || asString(draftPayload.neighborhood) || "";
+  const category = asString(draftPayload.category) || pickContentTypeLabel(contentType);
+  const fallbackContext = {
+    name,
+    provider,
+    sourceHost,
+    sourceUrl,
+    category,
+    location,
+  };
+
+  const localizedSource = asRecord(draftPayload.localized) ?? {};
+  const localized = {
+    en: sanitizeLocalizedCopy(
+      localizedSource.en,
+      "en",
+      buildFallbackCopy("en", fallbackContext),
+    ),
+    hu: sanitizeLocalizedCopy(
+      localizedSource.hu,
+      "hu",
+      buildFallbackCopy("hu", fallbackContext),
+    ),
+    it: sanitizeLocalizedCopy(
+      localizedSource.it,
+      "it",
+      buildFallbackCopy("it", fallbackContext),
+    ),
+  };
+
+  const safeTopShort = (() => {
+    const shortText = asString(draftPayload.shortDescription);
+    const shortFallback = asString(draftPayload.short) || buildFallbackCopy("en", fallbackContext).shortDescription;
+    const fallbackText = buildFallbackCopy("en", fallbackContext).shortDescription;
+    const candidate = shortText || shortFallback;
+    return sanitizeCopyText(candidate, fallbackText);
+  })();
+
+  const safeTopLong = (() => {
+    const longText = asString(draftPayload.longDescription);
+    const fallbackText = buildFallbackCopy("en", fallbackContext).longDescription;
+    const candidate = longText || asString(draftPayload.long);
+    return sanitizeCopyText(candidate, fallbackText);
+  })();
+
+  return {
+    ...draftPayload,
+    catalogProject: "compare",
+    image: asString(draftPayload.image),
+    galleryImages: Array.isArray(draftPayload.galleryImages) ? draftPayload.galleryImages : [],
+    rating: asNumber(draftPayload.rating),
+    reviewCount: asNumber(draftPayload.reviewCount),
+    badges: asRecordArray(draftPayload.badges),
+    bookingEnabled: draftPayload.bookingEnabled === true,
+    localized,
+    publishedAt: asString(draftPayload.publishedAt) || nowIso(),
+    updatedAt: nowIso(),
+    id: asString(draftPayload.id) || hash(`compare:${sourceUrl}`).slice(0, 24),
+    name,
+    category,
+    borough: asString(draftPayload.borough) || asString(facts.country) || "",
+    neighborhood: asString(draftPayload.neighborhood) || location,
+    address: asString(draftPayload.address) || location,
+    activityTypes: asStringArray(draftPayload.activityTypes),
+    ageRanges: asStringArray(draftPayload.ageRanges),
+    dayTimeTags: asStringArray(draftPayload.dayTimeTags),
+    pricePerClass: asNumber(draftPayload.pricePerClass),
+    shortDescription: safeTopShort,
+    longDescription: safeTopLong,
+    email: asString(draftPayload.email),
+    website: asString(draftPayload.website) || sourceUrl,
+    phone: asString(draftPayload.phone),
+  };
+}
+
+function asRecordArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry) => entry !== undefined && entry !== null);
+}
+
+function safeMetadataParse(value) {
+  if (value == null) return {};
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+  return asRecord(value) || {};
+}
 
 async function ensureCompany(companyId) {
   if (companyId) {
@@ -393,7 +420,7 @@ async function ensureDestinationInstance(companyId) {
       destinationKey: "compare",
       name: "Compare",
       authRef: "check-local-compare-bridge",
-      config: json({
+      config: {
         visitor: {
           blueprints: {
             "rangescout-hungary": {
@@ -410,28 +437,151 @@ async function ensureDestinationInstance(companyId) {
             },
           },
         },
-      }),
+      },
     },
   });
 }
 
-async function compareFetch(path, body) {
-  const baseUrl = String(process.env.COMPARE_BASE_URL || "").replace(/\/$/, "");
-  const ingestKey = String(process.env.COMPARE_INGEST_API_KEY || "").trim();
-  if (!baseUrl || !ingestKey) throw new Error("COMPARE_BASE_URL and COMPARE_INGEST_API_KEY are required");
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${ingestKey}`,
-      "Content-Type": "application/json",
+async function listSourceCards(instanceId, visitorKey, limit) {
+  const rows = await prisma.destinationSourceDocument.findMany({
+    where: {
+      destinationInstanceId: instanceId,
+      sourceType: "visitor_datacard",
     },
-    body: JSON.stringify(body),
+    orderBy: { updatedAt: "desc" },
+    take: 500,
   });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(`Compare ${path} failed (${response.status}): ${JSON.stringify(data)}`);
+
+  const normalizedVisitor = normalizeVisitorKey(visitorKey);
+  const latestByUrl = new Map();
+
+  for (const row of rows) {
+    const metadata = safeMetadataParse(row.metadata);
+    const sourceDatacard = asRecord(metadata.visitorSourceDatacard);
+    if (!sourceDatacard) continue;
+
+    const sourceUrl = normalizeSourceUrl(
+      asString(sourceDatacard.canonicalUrl) || asString(sourceDatacard.url) || asString(row.sourceUrl),
+    );
+    if (!sourceUrl) continue;
+    const datacardVisitorKey = normalizeVisitorKey(sourceDatacard.visitorKey || normalizedVisitor);
+    if (normalizedVisitor && datacardVisitorKey !== normalizedVisitor) continue;
+    if (asString(sourceDatacard.trustTier).toLowerCase() === "blocked") continue;
+    if (latestByUrl.has(sourceUrl)) continue;
+
+    latestByUrl.set(sourceUrl, {
+      sourceDocumentId: row.id,
+      sourceUrl,
+      sourceDatacard: {
+        ...sourceDatacard,
+        datacardType: asString(sourceDatacard.datacardType) || "source_datacard",
+        url: normalizeSourceUrl(asString(sourceDatacard.url) || sourceUrl),
+        canonicalUrl: sourceUrl,
+      },
+      fetchedAt: row.updatedAt,
+      sourceFacts: asRecord(sourceDatacard.extractedFacts) ?? {},
+    });
   }
-  return data;
+
+  const cards = [...latestByUrl.values()].slice(0, limit);
+  return cards;
+}
+
+function buildVisitorSourceKey(sourceDatacard) {
+  return normalizeVisitorKey(asString(sourceDatacard.visitorKey) || "rangescout-hungary");
+}
+
+async function sanitizeSourceDocument(sourceCard) {
+  const sourceUrl = sourceCard.sourceUrl;
+  const sourceDatacard = asRecord(sourceCard.sourceDatacard) ?? {};
+  const safePayload = buildSafeDraftPayload({ sourceUrl, sourceDatacard: { ...sourceDatacard, extractedFacts: sourceCard.sourceFacts } });
+  const currentMeta = safeMetadataParse(await prisma.destinationSourceDocument
+    .findUnique({ where: { id: sourceCard.sourceDocumentId }, select: { metadata: true } })
+    .then((value) => value?.metadata));
+  const currentDatacard = asRecord(currentMeta.visitorSourceDatacard);
+  if (!currentDatacard) return { sourceCard, payload: safePayload, changed: false };
+
+  const alreadySafe = JSON.stringify(currentDatacard.publicDraftPayload ?? {}) === JSON.stringify(safePayload);
+  if (alreadySafe) return { sourceCard, payload: safePayload, changed: false };
+
+  await prisma.destinationSourceDocument.update({
+    where: { id: sourceCard.sourceDocumentId },
+    data: {
+      metadata: json({
+        ...currentMeta,
+        visitorSourceDatacard: {
+          ...currentDatacard,
+          publicDraftPayload: safePayload,
+        },
+      }),
+      fetchedAt: sourceCard.fetchedAt instanceof Date ? sourceCard.fetchedAt : undefined,
+    },
+  });
+
+  return { sourceCard, payload: safePayload, changed: true };
+}
+
+async function repairPersistedPayloads(instanceId) {
+  const candidates = await prisma.destinationCandidate.findMany({
+    where: { destinationInstanceId: instanceId },
+    select: { id: true, canonicalSourceUrl: true, metadata: true },
+  });
+  const candidateIds = candidates.map((candidate) => candidate.id);
+  const allDrafts = candidateIds.length > 0
+    ? await prisma.destinationDraft.findMany({
+      where: { candidateId: { in: candidateIds } },
+      select: { id: true, candidateId: true, draftJson: true },
+    })
+    : [];
+  const draftsByCandidate = new Map();
+  for (const draft of allDrafts) {
+    const current = draftsByCandidate.get(draft.candidateId) ?? [];
+    current.push(draft);
+    draftsByCandidate.set(draft.candidateId, current);
+  }
+  let repairedCandidateCount = 0;
+  let repairedDraftCount = 0;
+
+  for (const candidate of candidates) {
+    const sourceUrl = candidate.canonicalSourceUrl;
+    const metadata = safeMetadataParse(candidate.metadata);
+    const currentPublicDraft = asRecord(metadata.publicDraftPayload);
+    if (!currentPublicDraft) continue;
+
+    const cleanPayload = sanitizeComparePayloadForStorage(currentPublicDraft, sourceUrl);
+    if (JSON.stringify(cleanPayload) !== JSON.stringify(currentPublicDraft)) {
+      repairedCandidateCount += 1;
+      await prisma.destinationCandidate.update({
+        where: { id: candidate.id },
+        data: {
+          metadata: json({
+            ...metadata,
+            publicDraftPayload: cleanPayload,
+          }),
+        },
+      });
+    }
+
+    const relatedDrafts = draftsByCandidate.get(candidate.id) ?? [];
+    for (const draft of relatedDrafts) {
+      const draftPayload = asRecord(draft.draftJson) ?? {};
+      if (Object.keys(draftPayload).length > 0) {
+        const cleanDraftPayload = sanitizeComparePayloadForStorage(draftPayload, sourceUrl);
+        if (JSON.stringify(cleanDraftPayload) !== JSON.stringify(draftPayload)) {
+          repairedDraftCount += 1;
+          await prisma.destinationDraft.update({
+            where: { id: draft.id },
+            data: { draftJson: json(cleanDraftPayload) },
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    repairedCandidateCount,
+    repairedDraftCount,
+  };
 }
 
 async function cleanCompareCatalog() {
@@ -458,92 +608,115 @@ async function cleanCompareCatalog() {
   });
 }
 
+async function compareFetch(path, body) {
+  const baseUrl = String(process.env.COMPARE_BASE_URL || "").replace(/\/$/, "");
+  const ingestKey = String(process.env.COMPARE_INGEST_API_KEY || "").trim();
+  if (!baseUrl || !ingestKey) {
+    throw new Error("COMPARE_BASE_URL and COMPARE_INGEST_API_KEY are required");
+  }
+
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ingestKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Compare ${path} failed (${response.status}): ${JSON.stringify(data)}`);
+  }
+
+  return data;
+}
+
+function shouldPublishFromCard(sourceDatacard) {
+  const extracted = asRecord(sourceDatacard.extractedFacts) ?? {};
+  const hasTitle = asString(sourceDatacard.sourceTitle || extracted.title) !== "";
+  const hasSource = asString(sourceDatacard.sourceUrl || sourceDatacard.url || sourceDatacard.canonicalUrl) !== "";
+  const autoPublishEligible = sourceDatacard.autoPublishEligible !== false;
+  return hasTitle && hasSource && autoPublishEligible;
+}
+
 async function publishListing(companyId, instance, listing) {
-  const at = new Date();
-  const fingerprint = hash(`rangescout-hungary|${listing.sourceUrl}|${listing.draft.id}`);
-  const contentHash = hash(JSON.stringify([listing.sourceUrl, listing.facts, listing.draft]));
+  const instanceId = instance.id;
+  const sourceCard = listing.sourceCard;
+  const sourceDatacard = asRecord(sourceCard.sourceDatacard);
+  const sourceFacts = asRecord(listing.sourceFacts) ?? asRecord(sourceDatacard.extractedFacts) ?? {};
+
+  const sourceUrl = listing.sourceUrl;
+  const sourcePayload = listing.sanitizedPayload;
+  const contentType = asString(asStringArray(sourceDatacard.knownContentTypes)[0] || "unknown");
+  // keep stable candidate keying; datacard id is retained for traceability.
+  const datacardId = asString(sourceDatacard.sourceId || sourcePayload.id || hash(sourceUrl).slice(0, 20));
+  const fingerprint = hash(`${normalizeVisitorKey(sourceDatacard.visitorKey || "rangescout-hungary")}|${sourceUrl}|${contentType}|${asString(sourcePayload.name)}`);
+  const name = asString(sourcePayload.name);
 
   const workflowRun = await prisma.destinationWorkflowRun.create({
     data: {
       companyId,
-      destinationInstanceId: instance.id,
-      workflowKind: "visitor_source_backed_publish",
+      destinationInstanceId: instanceId,
+      workflowKind: "compare_source_backed_publish",
       state: "PUBLISHING",
       currentStage: "PUBLISH_REVIEWED_DRAFT",
       metadata: json({
         source: "publish-compare-source-backed-content",
-        visitorKey: "rangescout-hungary",
-        sourceUrl: listing.sourceUrl,
-        generatedAt: at.toISOString(),
+        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        sourceUrl,
+        generatedAt: nowIso(),
+        sourceDocumentId: sourceCard.sourceDocumentId,
       }),
     },
   });
 
-  const sourceDoc = await prisma.destinationSourceDocument.create({
-    data: {
-      companyId,
-      destinationInstanceId: instance.id,
-      workflowRunId: workflowRun.id,
-      sourceUrl: listing.sourceUrl,
-      sourceType: "visitor_datacard",
-      officialnessScore: 95,
-      contentHash,
-      httpStatus: 200,
-      rawText: listing.facts.evidence,
-      fetchedAt: at,
-      metadata: json({
-        visitorSourceDatacard: {
-          sourceId: "pending",
-          visitorKey: "rangescout-hungary",
-          datacardType: "trusted_source_datacard",
-          url: listing.sourceUrl,
-          canonicalUrl: listing.sourceUrl,
-          sourceKind: listing.contentType === "competition" ? "calendar" : "official_site",
-          trustTier: "trusted",
-          industryRelevance: 1,
-          locationRelevance: 1,
-          extractionHints: ["Use official source facts only", "Do not infer price or schedule when absent"],
-          knownContentTypes: [listing.contentType],
-          sourceTitle: listing.sourceTitle,
-          entityKind: listing.entityKind,
-          extractedFacts: listing.facts,
-          publicDraftPayload: listing.draft,
-          autoPublishEligible: true,
-          refreshCadenceDays: 14,
-          lastCheckedAt: at.toISOString(),
-          createdAt: at.toISOString(),
-          updatedAt: at.toISOString(),
-        },
-      }),
-    },
+  const sourceDoc = await prisma.destinationSourceDocument.findFirst({
+    where: { id: sourceCard.sourceDocumentId },
+    select: { id: true, sourceUrl: true, metadata: true },
   });
+  if (!sourceDoc) {
+    throw new Error(`Source document missing for ${sourceUrl}`);
+  }
+
+  const sourceDatacardMetadata = safeMetadataParse(sourceDoc.metadata);
+  const sourceDatacardRecord = asRecord(sourceDatacardMetadata.visitorSourceDatacard) ?? {};
+  const now = nowIso();
   await prisma.destinationSourceDocument.update({
     where: { id: sourceDoc.id },
     data: {
+      sourceUrl,
       metadata: json({
+        ...sourceDatacardMetadata,
         visitorSourceDatacard: {
-          sourceId: sourceDoc.id,
+          ...sourceDatacardRecord,
+          sourceId: datacardId,
           visitorKey: "rangescout-hungary",
-          datacardType: "trusted_source_datacard",
-          url: listing.sourceUrl,
-          canonicalUrl: listing.sourceUrl,
-          sourceKind: listing.contentType === "competition" ? "calendar" : "official_site",
-          trustTier: "trusted",
-          industryRelevance: 1,
-          locationRelevance: 1,
-          extractionHints: ["Use official source facts only", "Do not infer price or schedule when absent"],
-          knownContentTypes: [listing.contentType],
-          sourceTitle: listing.sourceTitle,
-          entityKind: listing.entityKind,
-          extractedFacts: listing.facts,
-          publicDraftPayload: listing.draft,
+          datacardType: sourceDatacardRecord.datacardType || "trusted_source_datacard",
+          url: sourceUrl,
+          canonicalUrl: sourceUrl,
+          sourceKind: asString(sourceDatacardRecord.sourceKind) || "official_site",
+          trustTier: asString(sourceDatacardRecord.trustTier) || "trusted",
+          industryRelevance: Number.isFinite(Number(sourceDatacardRecord.industryRelevance))
+            ? Number(sourceDatacardRecord.industryRelevance)
+            : 1,
+          locationRelevance: Number.isFinite(Number(sourceDatacardRecord.locationRelevance))
+            ? Number(sourceDatacardRecord.locationRelevance)
+            : 1,
+          extractionHints: asStringArray(sourceDatacardRecord.extractionHints),
+          knownContentTypes: asStringArray(sourceDatacardRecord.knownContentTypes),
+          sourceTitle: asString(sourceDatacardRecord.sourceTitle) || asString(sourcePayload.name),
+          entityKind: asString(sourceDatacardRecord.entityKind) || "provider",
+          extractedFacts: sourceFacts,
+          publicDraftPayload: sourcePayload,
           autoPublishEligible: true,
-          refreshCadenceDays: 14,
-          lastCheckedAt: at.toISOString(),
-          createdAt: at.toISOString(),
-          updatedAt: at.toISOString(),
+          refreshCadenceDays: Number(sourceDatacardRecord.refreshCadenceDays) || 14,
+          lastCheckedAt: now,
+          createdAt: sourceDatacardRecord.createdAt || now,
+          updatedAt: now,
         },
       }),
+      fetchedAt: new Date(),
     },
   });
 
@@ -551,76 +724,85 @@ async function publishListing(companyId, instance, listing) {
     where: {
       companyId_destinationInstanceId_candidateFingerprint: {
         companyId,
-        destinationInstanceId: instance.id,
+        destinationInstanceId: instanceId,
         candidateFingerprint: fingerprint,
       },
     },
     update: {
       workflowRunId: workflowRun.id,
-      canonicalSourceUrl: listing.sourceUrl,
-      proposedType: listing.contentType,
+      canonicalSourceUrl: sourceUrl,
+      proposedType: contentType,
       status: "PUBLISHING",
       dedupeStatus: "UNIQUE",
       metadata: json({
-        visitorKey: "rangescout-hungary",
+        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        sourceDatacardId: datacardId,
         visitorCandidateState: "APPROVED",
-        sourceDatacardIds: [sourceDoc.id],
-        sourceTrustTier: "trusted",
-        entityKind: listing.entityKind,
+        sourceDatacardIds: [sourceCard.sourceDocumentId],
+        sourceTrustTier: asString(sourceDatacard.trustTier) || "trusted",
+        entityKind: asString(sourceDatacard.entityKind) || "provider",
         adapterVersion: "visitor-public-draft-adapter@v1",
-        publicDraftPayload: listing.draft,
-        extractedFacts: listing.facts,
+        publicDraftPayload: sourcePayload,
+        extractedFacts: sourceFacts,
         autoPublishEligible: true,
+        sourceUrl,
       }),
     },
     create: {
       companyId,
-      destinationInstanceId: instance.id,
+      destinationInstanceId: instanceId,
       workflowRunId: workflowRun.id,
       candidateFingerprint: fingerprint,
-      canonicalSourceUrl: listing.sourceUrl,
-      proposedType: listing.contentType,
+      canonicalSourceUrl: sourceUrl,
+      proposedType: contentType,
       status: "PUBLISHING",
       dedupeStatus: "UNIQUE",
       metadata: json({
-        visitorKey: "rangescout-hungary",
+        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        sourceDatacardId: datacardId,
         visitorCandidateState: "APPROVED",
-        sourceDatacardIds: [sourceDoc.id],
-        sourceTrustTier: "trusted",
-        entityKind: listing.entityKind,
+        sourceDatacardIds: [sourceCard.sourceDocumentId],
+        sourceTrustTier: asString(sourceDatacard.trustTier) || "trusted",
+        entityKind: asString(sourceDatacard.entityKind) || "provider",
         adapterVersion: "visitor-public-draft-adapter@v1",
-        publicDraftPayload: listing.draft,
-        extractedFacts: listing.facts,
+        publicDraftPayload: sourcePayload,
+        extractedFacts: sourceFacts,
         autoPublishEligible: true,
       }),
     },
   });
 
-  const version = await prisma.destinationFactSnapshot.count({ where: { candidateId: candidate.id } }) + 1;
+  const version = await prisma.destinationFactSnapshot.count({
+    where: { candidateId: candidate.id },
+  }) + 1;
   const factSnapshot = await prisma.destinationFactSnapshot.create({
     data: {
       companyId,
-      destinationInstanceId: instance.id,
+      destinationInstanceId: instanceId,
       candidateId: candidate.id,
       version,
-      factsJson: json({ ...listing.facts, sourceUrl: listing.sourceUrl }),
+      factsJson: json({
+        ...sourceFacts,
+        sourceUrl,
+      }),
       provenanceJson: json({
         source: "publish-compare-source-backed-content",
         sourceDocumentId: sourceDoc.id,
-        canonicalSourceUrl: listing.sourceUrl,
+        canonicalSourceUrl: sourceUrl,
       }),
       extractorVersion: "check-local-source-backed-extractor@v1",
     },
   });
+
   const draft = await prisma.destinationDraft.create({
     data: {
       companyId,
-      destinationInstanceId: instance.id,
+      destinationInstanceId: instanceId,
       candidateId: candidate.id,
       version,
       destinationKey: "compare",
       adapterVersion: "visitor-public-draft-adapter@v1",
-      draftJson: json(listing.draft),
+      draftJson: json(sourcePayload),
       provenanceJson: json({
         source: "publish-compare-source-backed-content",
         factSnapshotId: factSnapshot.id,
@@ -643,7 +825,7 @@ async function publishListing(companyId, instance, listing) {
   const reviewPacket = await prisma.destinationReviewPacket.create({
     data: {
       companyId,
-      destinationInstanceId: instance.id,
+      destinationInstanceId: instanceId,
       workflowRunId: workflowRun.id,
       candidateId: candidate.id,
       draftId: draft.id,
@@ -651,30 +833,30 @@ async function publishListing(companyId, instance, listing) {
       packetFingerprint,
       packetState: "APPROVED",
       evidenceSummary: json({
-        sourceUrl: listing.sourceUrl,
+        sourceUrl,
         sourceDocumentId: sourceDoc.id,
-        sourceTitle: listing.sourceTitle,
-        evidence: listing.facts.evidence,
+        sourceTitle: asString(sourceDatacard.sourceTitle) || asString(sourcePayload.name),
+        evidence: asString(sourceFacts.evidence),
       }),
       diagnostics: json({
-        imagePolicy: "No fake image was used. Empty image renders as a neutral verified-source placeholder.",
-        pricePolicy: "Price is only shown when extracted from source; otherwise public UI says price on request.",
+        imagePolicy: "Only media extracted from official source pages is published.",
+        pricePolicy: "Price is shown only when extracted from source; otherwise omitted from the payload.",
       }),
-      mediaSummary: json({ status: "not_used_no_fake_media" }),
-      draftPayload: json(listing.draft),
+      mediaSummary: json({ status: "source-only" }),
+      draftPayload: json(sourcePayload),
       metadata: json({
-        visitorKey: "rangescout-hungary",
-        entityKind: listing.entityKind,
+        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        entityKind: asString(sourceDatacard.entityKind) || "provider",
         autoPublishEligible: true,
       }),
-      submittedAt: at,
+      submittedAt: new Date(),
     },
   });
 
   const publish = await compareFetch("/api/content-intelligence/publish-reviewed", {
     draftId: draft.id,
-    entityKind: listing.entityKind,
-    draftPayload: listing.draft,
+    entityKind: asString(sourceDatacard.entityKind) || "provider",
+    draftPayload: sourcePayload,
     adapterVersion: "visitor-public-draft-adapter@v1",
     workflowMetadata: {
       companyId,
@@ -694,19 +876,21 @@ async function publishListing(companyId, instance, listing) {
     data: {
       status: published ? "PUBLISHED" : "FAILED",
       metadata: json({
-        visitorKey: "rangescout-hungary",
+        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        sourceDatacardId: datacardId,
         visitorCandidateState: published ? "PUBLISHED" : "REWORK_REQUIRED",
-        sourceDatacardIds: [sourceDoc.id],
-        sourceTrustTier: "trusted",
-        entityKind: listing.entityKind,
+        sourceDatacardIds: [sourceCard.sourceDocumentId],
+        sourceTrustTier: asString(sourceDatacard.trustTier) || "trusted",
+        entityKind: asString(sourceDatacard.entityKind) || "provider",
         adapterVersion: "visitor-public-draft-adapter@v1",
-        publicDraftPayload: listing.draft,
-        extractedFacts: listing.facts,
+        publicDraftPayload: sourcePayload,
+        extractedFacts: sourceFacts,
         autoPublishEligible: true,
         publish,
       }),
     },
   });
+
   await prisma.destinationWorkflowRun.update({
     where: { id: workflowRun.id },
     data: {
@@ -714,16 +898,18 @@ async function publishListing(companyId, instance, listing) {
       currentStage: published ? "PUBLIC_VISIBLE" : "PUBLISH_FAILED",
       metadata: json({
         source: "publish-compare-source-backed-content",
-        visitorKey: "rangescout-hungary",
-        sourceUrl: listing.sourceUrl,
+        visitorKey: sourceDatacard.visitorKey || "rangescout-hungary",
+        sourceUrl,
+        sourceDocumentId: sourceDoc.id,
         publish,
       }),
     },
   });
+
   const outcome = await prisma.destinationOutcomeMemory.create({
     data: {
       companyId,
-      destinationInstanceId: instance.id,
+      destinationInstanceId: instanceId,
       workflowRunId: workflowRun.id,
       candidateId: candidate.id,
       draftId: draft.id,
@@ -734,21 +920,29 @@ async function publishListing(companyId, instance, listing) {
       notes: published ? "Verified Compare listing published by CHECK Local." : "Verified Compare listing failed publish.",
       actorType: "SYSTEM",
       actorId: "CHECK Local verified Compare publisher",
-      payload: json({ publish, sourceUrl: listing.sourceUrl }),
+      payload: json({
+        publish,
+        sourceUrl,
+        sourceDocumentId: sourceDoc.id,
+        candidateId: candidate.id,
+        draftId: draft.id,
+        reviewPacketId: reviewPacket.id,
+      }),
     },
   });
 
   return {
-    id: listing.draft.id,
-    name: listing.draft.name,
-    sourceUrl: listing.sourceUrl,
-    workflowRunId: workflowRun.id,
-    sourceDocumentId: sourceDoc.id,
+    sourceDocumentId: sourceCard.sourceDocumentId,
+    sourceUrl,
     candidateId: candidate.id,
     draftId: draft.id,
     reviewPacketId: reviewPacket.id,
     outcomeId: outcome.id,
+    workflowRunId: workflowRun.id,
+    published,
     publish,
+    name,
+    version,
   };
 }
 
@@ -757,24 +951,79 @@ const args = parseArgs(process.argv.slice(2));
 try {
   const company = await ensureCompany(args.companyId);
   const instance = await ensureDestinationInstance(company.id);
-  const clean = args.cleanCatalog ? await cleanCompareCatalog() : null;
-  const published = [];
-  for (const listing of SOURCE_BACKED_LISTINGS) {
-    published.push(await publishListing(company.id, instance, listing));
+
+  if (args.cleanCatalog) {
+    await cleanCompareCatalog();
   }
 
-  mkdirSync(args.outDir, { recursive: true });
-  const outputPath = join(args.outDir, `compare-source-backed-publish-${Date.now()}.json`);
+  const sourceCards = await listSourceCards(instance.id, args.visitorKey, args.limit);
+  const sanitized = [];
+  const published = [];
+  const skipped = [];
+  let repairedPayloads = { repairedCandidateCount: 0, repairedDraftCount: 0 };
+
+  if (sourceCards.length === 0) {
+    throw new Error(`No active source cards found for compare visitor ${args.visitorKey}.`);
+  }
+
+  for (const sourceCard of sourceCards) {
+    const sourceDatacard = asRecord(sourceCard.sourceDatacard) ?? {};
+    if (!shouldPublishFromCard(sourceDatacard)) {
+      skipped.push({ sourceUrl: sourceCard.sourceUrl, reason: "autoPublishEligible false or missing required fields" });
+      continue;
+    }
+
+    const sanitizeResult = await sanitizeSourceDocument({ ...sourceCard, sourceDatacard: sourceDatacard });
+    const result = await publishListing(company.id, instance, {
+      sourceCard,
+      sourceUrl: sourceCard.sourceUrl,
+      sourceDatacard,
+      sourceFacts: sourceCard.sourceFacts,
+      sanitizedPayload: sanitizeResult.payload,
+    });
+    sanitized.push({ sourceUrl: sourceCard.sourceUrl, changed: sanitizeResult.changed, ...result });
+    published.push(result);
+  }
+
+  if (args.cleanCatalog) {
+    repairedPayloads = await repairPersistedPayloads(instance.id);
+  }
+
   const output = {
     ok: true,
     companyId: company.id,
-    companyName: company.name,
+    visitorKey: normalizeVisitorKey(args.visitorKey),
     destinationInstanceId: instance.id,
-    cleanCatalog: clean,
+    cleanCatalogRequested: args.cleanCatalog,
+    sourceCardsExamined: sourceCards.length,
+    publishedCount: published.length,
+    skippedCount: skipped.length,
+    skipped,
+    repairedPayloads,
     published,
   };
+
+  mkdirSync(args.outDir, { recursive: true });
+  const outputPath = join(args.outDir, `compare-source-backed-publish-${Date.now()}.json`);
   writeFileSync(outputPath, JSON.stringify(output, null, 2), "utf8");
-  console.log(JSON.stringify({ ok: true, outputPath, companyId: company.id, publishedCount: published.length }, null, 2));
+  console.log(
+    JSON.stringify({
+      ok: true,
+      outputPath,
+      companyId: company.id,
+      destinationInstanceId: instance.id,
+      sourceCardsExamined: sourceCards.length,
+      publishedCount: published.length,
+      skippedCount: skipped.length,
+      sanitizedCount: sanitized.length,
+      repairedCandidatePayloads: repairedPayloads.repairedCandidateCount,
+      repairedDraftPayloads: repairedPayloads.repairedDraftCount,
+      targetCompareApp: process.env.COMPARE_BASE_URL || null,
+    },
+    null,
+    2,
+    ),
+  );
 } catch (error) {
   console.error(`Compare source-backed publish failed: ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;

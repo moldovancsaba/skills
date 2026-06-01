@@ -11,6 +11,7 @@
 ### Added
 
 - candidate projection hardening for public miniapp and visitor candidate endpoints so internal pipeline fields are hidden by default while `includeInternal` remains available for trusted operator flows
+- compare and visitor candidate APIs now drop projection-blocked items by default (`source-only`, weak source trust, inherited legacy/placeholder signals, and fake/static content), with `includeBlocked` available for operator-led diagnostics
 
 ### Changed
 

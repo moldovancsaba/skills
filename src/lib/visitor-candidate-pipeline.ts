@@ -59,6 +59,68 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function hasSuspiciousCopy(value: unknown) {
+  const text = asString(value).toLowerCase();
+  if (!text) return false;
+  return [
+    "source-backed",
+    "source backed",
+    "check local",
+    "source verified",
+    "source backed listing",
+    "should refresh",
+    "should be refreshed",
+    "should update",
+    "before showing",
+    "before publishing",
+    "published this",
+    "this listing is",
+    "intentionally marked",
+    "not yet extracted",
+    "not stable",
+    "published by check local",
+    "compare listing",
+    "should not be shown",
+  ].some((token) => text.includes(token));
+}
+
+function sanitizeCopyText(value: unknown, fallback: string) {
+  const text = asString(value);
+  if (!text) return fallback;
+  const cleaned = text
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .filter((sentence) => !hasSuspiciousCopy(sentence))
+    .join(" ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return cleaned && !hasSuspiciousCopy(cleaned) ? cleaned : fallback;
+}
+
+function sanitizeComparePayload(input: unknown) {
+  const safe = asRecord(input) ?? {};
+  const fallbackBadge = "Verified";
+  const fallbackShort = `Verified listing for ${asString(safe.name)}.`;
+  const fallbackLong = `Listing for ${asString(safe.name)}. Source: ${asString(safe.website) || ""}`.trim();
+  const safePayload = { ...safe };
+  const shortLegacy = asString(safePayload.short);
+  const longLegacy = asString(safePayload.long);
+  const announcementBadge = asString(safePayload.announcementBadge) || asString(safePayload.badge) || fallbackBadge;
+  const shortDescription = asString(safePayload.shortDescription) || shortLegacy || fallbackShort;
+  const longDescription = asString(safePayload.longDescription) || longLegacy || fallbackLong;
+  safePayload.announcementBadge = sanitizeCopyText(announcementBadge, fallbackBadge);
+  safePayload.shortDescription = sanitizeCopyText(shortDescription, fallbackShort);
+  safePayload.longDescription = sanitizeCopyText(longDescription, fallbackLong);
+  if (safePayload.announcementBadge === "") safePayload.announcementBadge = fallbackBadge;
+  if (safePayload.shortDescription === "") safePayload.shortDescription = fallbackShort;
+  if (safePayload.longDescription === "") safePayload.longDescription = fallbackLong;
+  if (safePayload.badge && !safePayload.announcementBadge) delete safePayload.badge;
+  if (safePayload.short && !safePayload.shortDescription) delete safePayload.short;
+  if (safePayload.long && !safePayload.longDescription) delete safePayload.long;
+  return safePayload;
+}
+
 function readCandidateState(metadata: unknown): VisitorCandidateState {
   const state = asString(asRecord(metadata)?.visitorCandidateState).toUpperCase();
   if ((VISITOR_CANDIDATE_STATES as readonly string[]).includes(state)) return state as VisitorCandidateState;
@@ -139,6 +201,8 @@ export async function discoverVisitorCandidates(companyId: string, visitorKey: s
     .slice(0, Math.max(1, Math.min(limit, 200)));
 
   const createdIds: string[] = [];
+  const destinationKey = resolveDestinationKeyForVisitorWithHint(visitorKey, destinationKeyHint);
+  const shouldSanitizeComparePayload = destinationKey === "compare";
   for (const card of eligible) {
     const fingerprint = fingerprintFromSource(card.canonicalUrl, visitorKey);
     const existing = await prisma.destinationCandidate.findFirst({
@@ -151,6 +215,7 @@ export async function discoverVisitorCandidates(companyId: string, visitorKey: s
     });
     if (existing) continue;
     const draftPayload = asRecord(card.publicDraftPayload);
+    const payloadForMetadata = shouldSanitizeComparePayload ? sanitizeComparePayload(draftPayload) : draftPayload;
     const sourceFacts = asRecord(card.extractedFacts);
     const draftName = asString(draftPayload?.name);
     const draftLocation = [asString(draftPayload?.neighborhood), asString(draftPayload?.borough)].filter(Boolean).join(", ");
@@ -171,7 +236,7 @@ export async function discoverVisitorCandidates(companyId: string, visitorKey: s
           sourceTitle: card.sourceTitle ?? draftName,
           entityKind: card.entityKind,
           adapterVersion: "visitor-public-draft-adapter@v1",
-          publicDraftPayload: draftPayload ?? undefined,
+        publicDraftPayload: payloadForMetadata ?? undefined,
           extractedFacts: sourceFacts ?? undefined,
           autoPublishEligible: card.autoPublishEligible === true,
           title: asString(sourceFacts?.title) || draftName,

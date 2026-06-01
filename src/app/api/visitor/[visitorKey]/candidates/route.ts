@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMembership } from "@/lib/permissions";
 import { listVisitorCandidates } from "@/lib/visitor-candidate-pipeline";
+import { evaluateCompareProjectionGate } from "@/lib/visitor-public-projection-gate";
+import { resolveDestinationKeyForVisitorWithHint } from "@/lib/visitor-blueprints";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,12 @@ function pickFromRecord(record: Record<string, unknown> | null, keys: string[]) 
     if (value) return value;
   }
   return "";
+}
+
+function toBoolean(value: string | null) {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
 function mapPublicCandidate(candidate: {
@@ -75,10 +83,38 @@ export async function GET(
     const destinationKey = String(request.nextUrl.searchParams.get("destinationKey") || "").trim() || undefined;
     const includeInternal =
       isTruthy(request.nextUrl.searchParams.get("includeInternal")) || request.nextUrl.searchParams.get("mode") === "internal";
+    const includeBlocked = toBoolean(request.nextUrl.searchParams.get("includeBlocked"));
+    const shouldExposeBlocked = includeInternal || includeBlocked;
+    const resolvedDestinationKey = destinationKey ?? resolveDestinationKeyForVisitorWithHint(visitorKey, undefined);
+    const isCompareVisitor = resolvedDestinationKey === "compare";
+
     const candidates = await listVisitorCandidates(companyId, visitorKey, destinationKey);
     // Keep internal routes explicit; public callers get the reduced projection.
-    const rows = includeInternal ? candidates : candidates.map((candidate) => mapPublicCandidate(candidate));
-    return NextResponse.json({ ok: true, visitorKey, candidates: rows });
+    const rows: Array<Record<string, unknown>> = [];
+    let blockedCount = 0;
+    for (const candidate of candidates) {
+      const projectionGate = isCompareVisitor
+        ? evaluateCompareProjectionGate({
+            metadata: candidate.metadata,
+            normalizedListing: asRecord(candidate.extractedFacts),
+          })
+        : { blocked: false, blockedReasons: [] };
+
+      if (projectionGate.blocked) {
+        blockedCount += 1;
+        if (!shouldExposeBlocked) continue;
+      }
+
+      rows.push(includeInternal ? candidate : mapPublicCandidate(candidate));
+    }
+
+    return NextResponse.json({
+      ok: true,
+      visitorKey,
+      blockedCount,
+      candidates: rows,
+      totalCandidates: candidates.length,
+    });
   } catch (error) {
     return NextResponse.json({ ok: false, error: String(error) }, { status: 400 });
   }

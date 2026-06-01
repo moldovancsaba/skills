@@ -57,18 +57,19 @@ This document defines the implemented runtime behavior for the Visitor App backe
 
 1. Source datacards do not auto-publish content.
 2. `source-only` and non-public taxonomy types are blocked by quality gate.
-3. Forbidden mappings in taxonomy are enforced at classification time.
-4. Missing required evidence fields force review state.
-5. Review prep auto-creates:
+3. For compare visitor output, public candidate APIs now filter out blocked projection candidates (source-only sources, weak source trust, inherited legacy labels, and fake/static content) by default; internal operators can request full rows with `includeInternal=true` or `includeBlocked=true`.
+4. Forbidden mappings in taxonomy are enforced at classification time.
+5. Missing required evidence fields force review state.
+6. Review prep auto-creates:
    - workflow run (if missing)
    - fact snapshot
    - draft
    - review packet
-6. Feedback rule application performs immediate candidate re-audit and state transition:
+7. Feedback rule application performs immediate candidate re-audit and state transition:
    - `forbid_mapping -> RETIRED/REJECTED`
    - `downrank_source -> REWORK_REQUIRED/FAILED`
    - `require_review -> NEEDS_REVIEW/REVIEW_REQUIRED`
-7. Public verification reports blocked reasons and publish counts.
+8. Public verification reports blocked reasons and publish counts.
 
 ## State Mapping
 
@@ -93,4 +94,3 @@ Workflow state mapping:
 - Retry behavior:
   - discover is idempotent by candidate fingerprint
   - review packet submission is idempotent by packet fingerprint
-

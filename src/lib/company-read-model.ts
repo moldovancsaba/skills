@@ -34,23 +34,8 @@ export type CompanyNavCounts = {
 export type CompanyPlanningSummary = WebappProjection["planningSummary"];
 
 type SnapshotReadModelFields = {
-  observabilitySummary?: unknown;
   webappProjection?: unknown;
 };
-
-function readQueueTotal(observabilitySummary: unknown): number | null {
-  if (!observabilitySummary || typeof observabilitySummary !== "object") {
-    return null;
-  }
-
-  const summary = observabilitySummary as Record<string, unknown>;
-  if (!summary.queue || typeof summary.queue !== "object") {
-    return null;
-  }
-
-  const queue = summary.queue as Record<string, unknown>;
-  return Number(queue.totalActiveJobs ?? 0);
-}
 
 const EMPTY_COUNTS: CompanyDashboardCounts = {
   sources: 0,
@@ -101,12 +86,11 @@ export type CompanyReadModel = {
 export function buildCompanyReadModel(snapshot: SnapshotReadModelFields | null | undefined): CompanyReadModel {
   const projection = normalizeWebappProjection(snapshot?.webappProjection);
   const projectionFreshness = getProjectionFreshness(projection?.generatedAt ?? null);
-  const queueTotal = readQueueTotal(snapshot?.observabilitySummary);
   const counts = projection?.counts
     ? {
         ...projection.counts,
         tacticalCount: Math.max(projection.counts.tacticalCount, projection.counts.checklistCount),
-        pipelineJobs: Number(queueTotal ?? projection.counts.pipelineJobs ?? 0),
+        pipelineJobs: Number(projection.counts.pipelineJobs ?? 0),
       }
     : EMPTY_COUNTS;
   const navCounts = projection?.navCounts
@@ -117,7 +101,7 @@ export function buildCompanyReadModel(snapshot: SnapshotReadModelFields | null |
           Number(projection.navCounts.tactical ?? counts.tacticalCount ?? 0),
           Number(projection.navCounts.checklist ?? counts.checklistCount ?? 0),
         ),
-        pipeline: Number(queueTotal ?? projection.navCounts.pipeline ?? counts.pipelineJobs ?? 0),
+        pipeline: Number(projection.navCounts.pipeline ?? counts.pipelineJobs ?? 0),
       }
     : EMPTY_NAV_COUNTS;
   const planningSummary = projection?.planningSummary

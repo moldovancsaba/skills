@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { createRequestProfiler } from "@/lib/request-profile";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
+import { buildProjectionMetadata } from "@/lib/webapp-projection";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +29,6 @@ export async function GET(
       prisma.intelligenceSnapshot.findUnique({
         where: { companyId },
         select: {
-          checklistCount: true,
-          tacticalBoardCount: true,
           webappProjection: true,
           updatedAt: true,
         },
@@ -52,9 +51,8 @@ export async function GET(
         ),
       },
       projection: {
+        ...buildProjectionMetadata(readModel.projection),
         available: Boolean(readModel.projection),
-        freshness: readModel.projectionFreshness,
-        generatedAt: readModel.projection?.generatedAt ?? null,
         snapshotUpdatedAt: snapshot?.updatedAt?.toISOString() ?? null,
       },
       ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),

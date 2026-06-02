@@ -4,6 +4,7 @@ import { verifyMembership } from "@/lib/permissions";
 import { APP_VERSION, BRAIN_VERSION } from "@/lib/release";
 import { createRequestProfiler } from "@/lib/request-profile";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
+import { buildProjectionMetadata } from "@/lib/webapp-projection";
 import { resolveUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
 import { resolveEffectiveUnitCapabilities } from "@/lib/check-foundation";
 
@@ -79,9 +80,8 @@ export async function GET(
       counts: readModel.counts,
       topTasks: readModel.topTasks,
       projection: {
+        ...buildProjectionMetadata(readModel.projection),
         available: Boolean(readModel.projection),
-        freshness: readModel.projectionFreshness,
-        generatedAt: readModel.projection?.generatedAt ?? null,
         snapshotUpdatedAt: snapshot?.updatedAt?.toISOString() ?? null,
         planningSummary: readModel.planningSummary,
       },

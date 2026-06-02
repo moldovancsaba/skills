@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
+import { buildProjectionMetadata } from "@/lib/webapp-projection";
 import { listBlockDefinitions, resolveEffectiveUnitCapabilities, type BlockKey } from "@/lib/check-foundation";
 
 export const dynamic = "force-dynamic";
@@ -36,14 +37,6 @@ function resolveHealth(input: {
     return "warning";
   }
   return "ok";
-}
-
-function isProjectionStale(generatedAt?: string | null) {
-  if (!generatedAt) return true;
-  const parsed = new Date(generatedAt);
-  if (Number.isNaN(parsed.getTime())) return true;
-  const ageMs = Date.now() - parsed.getTime();
-  return ageMs > 12 * 60 * 60 * 1000;
 }
 
 function buildBlockCounts(input: {
@@ -135,14 +128,6 @@ export async function GET(
       prisma.intelligenceSnapshot.findUnique({
         where: { companyId },
         select: {
-          dataIngressCount: true,
-          topicSynthesisCount: true,
-          knowmoreCount: true,
-          strategicGoalsCount: true,
-          checklistCount: true,
-          tacticalBoardCount: true,
-          reviewGatewayCount: true,
-          observabilitySummary: true,
           webappProjection: true,
         },
       }),
@@ -161,7 +146,7 @@ export async function GET(
     }
 
     const readModel = buildCompanyReadModel(snapshot);
-    const projection = snapshot?.webappProjection as { generatedAt?: string } | null;
+    const projectionMetadata = buildProjectionMetadata(readModel.projection);
     const effective = resolveEffectiveUnitCapabilities({
       workerConfig: company.workerConfig,
       hasClassScoutDestination: Boolean(classScoutInstance),
@@ -207,8 +192,12 @@ export async function GET(
     return NextResponse.json({
       companyId,
       generatedAt: new Date().toISOString(),
-      sourceGeneratedAt: projection?.generatedAt ?? null,
-      stale: isProjectionStale(projection?.generatedAt ?? null),
+      sourceGeneratedAt: projectionMetadata.generatedAt,
+      stale: projectionMetadata.freshness.status === "STALE" || projectionMetadata.freshness.status === "MISSING",
+      projection: {
+        ...projectionMetadata,
+        available: Boolean(readModel.projection),
+      },
       blocks,
       capabilities: {
         source: effective.source,

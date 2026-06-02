@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { createRequestProfiler } from "@/lib/request-profile";
-import { getProjectionFreshness, normalizeWebappProjection } from "@/lib/webapp-projection";
+import { buildProjectionMetadata, normalizeWebappProjection } from "@/lib/webapp-projection";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +45,8 @@ export async function GET(
       company,
       summary,
       projection: {
+        ...buildProjectionMetadata(projection),
         available: Boolean(projection),
-        freshness: getProjectionFreshness(projection?.generatedAt ?? null),
-        generatedAt: projection?.generatedAt ?? null,
         snapshotUpdatedAt: snapshot?.updatedAt?.toISOString() ?? null,
       },
       ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),

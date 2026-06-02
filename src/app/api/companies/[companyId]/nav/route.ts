@@ -3,36 +3,11 @@ import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { createRequestProfiler } from "@/lib/request-profile";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
+import { buildProjectionMetadata } from "@/lib/webapp-projection";
 import { getWebappProfileLabel, resolveUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
 import { resolveEffectiveUnitCapabilities } from "@/lib/check-foundation";
 
 export const dynamic = "force-dynamic";
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
-}
-
-function readProjectionCount(value: unknown, keys: string[]) {
-  let current: unknown = value;
-  for (const key of keys) {
-    const record = asRecord(current);
-    if (!record) return 0;
-    current = record[key];
-  }
-  return Number(current || 0);
-}
-
-function readMiniappAttentionCount(snapshot: { webappProjection?: unknown; observabilitySummary?: unknown } | null | undefined, miniappKey: "classscout" | "compare") {
-  const webappProjection = snapshot?.webappProjection;
-  return Math.max(
-    readProjectionCount(webappProjection, ["navCounts", miniappKey]),
-    readProjectionCount(webappProjection, ["counts", miniappKey]),
-    readProjectionCount(webappProjection, ["miniapps", miniappKey, "reviewPressureCount"]),
-    readProjectionCount(webappProjection, ["miniapps", miniappKey, "attentionCount"]),
-    readProjectionCount(snapshot?.observabilitySummary, ["miniapps", miniappKey, "reviewPressureCount"]),
-    readProjectionCount(snapshot?.observabilitySummary, ["miniapps", miniappKey, "attentionCount"]),
-  );
-}
 
 export async function GET(
   request: NextRequest,
@@ -56,14 +31,6 @@ export async function GET(
       prisma.intelligenceSnapshot.findUnique({
         where: { companyId },
         select: {
-          dataIngressCount: true,
-          topicSynthesisCount: true,
-          knowmoreCount: true,
-          strategicGoalsCount: true,
-          checklistCount: true,
-          tacticalBoardCount: true,
-          reviewGatewayCount: true,
-          observabilitySummary: true,
           webappProjection: true,
         },
       }),
@@ -105,9 +72,13 @@ export async function GET(
       company,
       counts: {
         ...readModel.navCounts,
-        classscout: classScoutInstance ? readMiniappAttentionCount(snapshot, "classscout") : 0,
-        compare: compareInstance ? readMiniappAttentionCount(snapshot, "compare") : 0,
+        classscout: classScoutInstance ? Number(readModel.projection?.miniapps.classscout?.attentionCount ?? 0) : 0,
+        compare: compareInstance ? Number(readModel.projection?.miniapps.compare?.attentionCount ?? 0) : 0,
         tactical: Math.max(Number(readModel.navCounts.tactical || 0), Number(readModel.navCounts.checklist || 0)),
+      },
+      projection: {
+        ...buildProjectionMetadata(readModel.projection),
+        available: Boolean(readModel.projection),
       },
       features: {
         classscout: Boolean(classScoutInstance),

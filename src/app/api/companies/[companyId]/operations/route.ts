@@ -5,6 +5,7 @@ import { verifyMembership } from "@/lib/permissions";
 import { listPersistedCompanyPipelineJobs } from "@/lib/pipeline-queue";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
 import { DESTINATION_KEYS, type DestinationKey } from "@/lib/destination-workflow-contract";
+import { buildProjectionMetadata, normalizeWebappProjection } from "@/lib/webapp-projection";
 
 export const dynamic = "force-dynamic";
 
@@ -39,14 +40,6 @@ type DestinationDaemonHealth = {
   lastRunUpdatedAt: string | null;
 };
 
-function isProjectionStale(generatedAt?: string | null) {
-  if (!generatedAt) return true;
-  const parsed = new Date(generatedAt);
-  if (Number.isNaN(parsed.getTime())) return true;
-  const ageMs = Date.now() - parsed.getTime();
-  return ageMs > 12 * 60 * 60 * 1000;
-}
-
 function normalizeOperationalStatusFromJob(status: string, attemptCount: number, lastError?: string | null): OperationalStatus {
   if (status === "RUNNING") return "running";
   if (status === "FAILED") {
@@ -72,31 +65,6 @@ function actionsFromOperationalStatus(status: OperationalStatus): OperationalAct
   if (status === "running") return ["cancel", "acknowledge"];
   if (status === "stale") return ["retry", "acknowledge"];
   return ["acknowledge"];
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
-}
-
-function readProjectionCount(value: unknown, keys: string[]) {
-  let current: unknown = value;
-  for (const key of keys) {
-    const record = asRecord(current);
-    if (!record) return 0;
-    current = record[key];
-  }
-  return Number(current || 0);
-}
-
-function readMiniappReviewPressureCount(snapshot: { webappProjection?: unknown; observabilitySummary?: unknown } | null | undefined, miniappKey: SupportedDestinationKey) {
-  const webappProjection = snapshot?.webappProjection;
-  return Math.max(
-    readProjectionCount(webappProjection, ["miniapps", miniappKey, "reviewPressureCount"]),
-    readProjectionCount(webappProjection, ["miniapps", miniappKey, "attentionCount"]),
-    readProjectionCount(webappProjection, ["operations", "miniapps", miniappKey, "reviewPressureCount"]),
-    readProjectionCount(snapshot?.observabilitySummary, ["miniapps", miniappKey, "reviewPressureCount"]),
-    readProjectionCount(snapshot?.observabilitySummary, ["miniapps", miniappKey, "attentionCount"]),
-  );
 }
 
 function destinationLabel(destinationKey: SupportedDestinationKey) {
@@ -177,7 +145,6 @@ export async function GET(
         where: { companyId },
         select: {
           webappProjection: true,
-          observabilitySummary: true,
         },
       }),
       prisma.destinationMissionDefinition.findMany({
@@ -246,8 +213,10 @@ export async function GET(
       });
     }
 
-    const projectionGeneratedAt = (snapshot?.webappProjection as { generatedAt?: string } | null)?.generatedAt ?? null;
-    if (isProjectionStale(projectionGeneratedAt)) {
+    const projection = normalizeWebappProjection(snapshot?.webappProjection);
+    const projectionMetadata = buildProjectionMetadata(projection);
+    const projectionGeneratedAt = projectionMetadata.generatedAt;
+    if (projectionMetadata.freshness.status === "STALE" || projectionMetadata.freshness.status === "MISSING") {
       items.push({
         id: "read-model:projection-stale",
         unitId: companyId,
@@ -265,7 +234,7 @@ export async function GET(
       });
     }
 
-    const classScoutReviewPressureCount = readMiniappReviewPressureCount(snapshot, "classscout");
+    const classScoutReviewPressureCount = Number(projection?.miniapps.classscout?.reviewPressureCount ?? 0);
     if (classScoutReviewPressureCount > 0) {
       items.push({
         id: "miniapp-publish:classscout-review-pressure",
@@ -285,7 +254,7 @@ export async function GET(
       });
     }
 
-    const compareReviewPressureCount = readMiniappReviewPressureCount(snapshot, "compare");
+    const compareReviewPressureCount = Number(projection?.miniapps.compare?.reviewPressureCount ?? 0);
     if (compareReviewPressureCount > 0) {
       items.push({
         id: "miniapp-publish:compare-review-pressure",
@@ -356,6 +325,10 @@ export async function GET(
       unitId: companyId,
       generatedAt: new Date().toISOString(),
       destinationScope: destinationKeyScope ?? null,
+      projection: {
+        ...projectionMetadata,
+        available: Boolean(projection),
+      },
       items: scopedItems,
       destinationDaemon: {
         byDestination: scopedDestinationDaemon,

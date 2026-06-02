@@ -11,6 +11,19 @@ type ProjectionCounts = {
   pipelineJobs: number;
 };
 
+export type ProjectionMetadata = {
+  projectionType: string;
+  version: number;
+  generatedAt: string | null;
+  freshness: ProjectionFreshness;
+  sourceRunId: string | null;
+  inputWatermark: string | null;
+  recordCount: number;
+  checksum: string | null;
+  stalenessStatus: string;
+  errorState: string | null;
+};
+
 export const WEBAPP_SUMMARY_REFRESH_MS = 60 * 60 * 1000;
 export const WEBAPP_SUMMARY_CLIENT_POLL_MS = 30 * 1000;
 
@@ -82,9 +95,21 @@ export type ProjectionSalesSummary = {
   topDomains: ProjectionRankedEntry[];
 };
 
+export type ProjectionMiniappSummary = {
+  attentionCount: number;
+  reviewPressureCount: number;
+};
+
 export type WebappProjection = {
   version: number;
+  projectionType: string;
   generatedAt: string;
+  sourceRunId: string | null;
+  inputWatermark: string | null;
+  recordCount: number;
+  checksum: string | null;
+  stalenessStatus: string;
+  errorState: string | null;
   counts: ProjectionCounts;
   homeCharts: {
     data: Array<{ date: string; value: number }>;
@@ -113,6 +138,7 @@ export type WebappProjection = {
   };
   topTasks: WebappProjectionTask[];
   salesSummary: ProjectionSalesSummary;
+  miniapps: Record<string, ProjectionMiniappSummary>;
 };
 
 const EMPTY_COUNTS: ProjectionCounts = {
@@ -165,6 +191,10 @@ const EMPTY_SALES_SUMMARY: ProjectionSalesSummary = {
   topDomains: [],
 };
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
 export function getProjectionFreshness(generatedAt: string | null | undefined, now = new Date()): ProjectionFreshness {
   if (!generatedAt) {
     return {
@@ -188,6 +218,22 @@ export function getProjectionFreshness(generatedAt: string | null | undefined, n
     status: ageMinutes <= 60 ? "FRESH" : ageMinutes <= 120 ? "AGING" : "STALE",
     generatedAt,
     ageMinutes,
+  };
+}
+
+export function buildProjectionMetadata(projection: WebappProjection | null): ProjectionMetadata {
+  const freshness = getProjectionFreshness(projection?.generatedAt ?? null);
+  return {
+    projectionType: projection?.projectionType ?? "companyWebappProjection",
+    version: Number(projection?.version ?? 0),
+    generatedAt: projection?.generatedAt ?? null,
+    freshness,
+    sourceRunId: projection?.sourceRunId ?? null,
+    inputWatermark: projection?.inputWatermark ?? null,
+    recordCount: Number(projection?.recordCount ?? 0),
+    checksum: projection?.checksum ?? null,
+    stalenessStatus: projection?.stalenessStatus ?? freshness.status,
+    errorState: projection?.errorState ?? (projection ? null : "PROJECTION_MISSING"),
   };
 }
 
@@ -261,6 +307,18 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
   const salesSummaryValue = candidate.salesSummary && typeof candidate.salesSummary === "object"
     ? candidate.salesSummary as Record<string, unknown>
     : {};
+  const miniappsValue = asRecord(candidate.miniapps) ?? {};
+  const miniapps = Object.fromEntries(
+    Object.entries(miniappsValue)
+      .filter(([, value]) => asRecord(value))
+      .map(([key, value]) => {
+        const record = asRecord(value) ?? {};
+        return [key, {
+          attentionCount: Number(record.attentionCount || record.reviewPressureCount || 0),
+          reviewPressureCount: Number(record.reviewPressureCount || record.attentionCount || 0),
+        }];
+      }),
+  );
   const normalizeRankedEntries = (input: unknown): ProjectionRankedEntry[] =>
     Array.isArray(input)
       ? input
@@ -321,7 +379,14 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
 
   return {
     version: Number(candidate.version || 1),
+    projectionType: String(candidate.projectionType || "companyWebappProjection"),
     generatedAt: String(candidate.generatedAt || ""),
+    sourceRunId: candidate.sourceRunId ? String(candidate.sourceRunId) : null,
+    inputWatermark: candidate.inputWatermark ? String(candidate.inputWatermark) : null,
+    recordCount: Number(candidate.recordCount || 0),
+    checksum: candidate.checksum ? String(candidate.checksum) : null,
+    stalenessStatus: String(candidate.stalenessStatus || "FRESH"),
+    errorState: candidate.errorState ? String(candidate.errorState) : null,
     counts: resolvedCounts,
     homeCharts: {
       ...EMPTY_HOME_CHARTS,
@@ -363,5 +428,6 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
       ...salesSummary,
       opportunitycards: Math.max(Number(salesSummary.opportunitycards || 0), Number(resolvedCounts.sales || 0)),
     },
+    miniapps,
   };
 }

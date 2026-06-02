@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { computeCompanyScoreHealth } = require("../../src/lib/score-health");
 const { gatherCompanyPipelineSignals } = require("../../src/lib/pipeline-queue");
 const { scoreProfileQuality } = require("../../src/lib/scoring-contract");
@@ -108,6 +109,23 @@ function normalizeTagSelectionKey(tags = []) {
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableStringify(entry)).join(",")}]`;
+  }
+  if (isPlainObject(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function checksumProjectionPayload(value) {
+  return crypto.createHash("sha256").update(stableStringify(value)).digest("hex");
 }
 
 function normalizeProjectionRefreshState(value) {
@@ -1201,9 +1219,38 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
     observabilitySummary && typeof observabilitySummary.queue === "object" && observabilitySummary.queue
       ? observabilitySummary.queue
       : {};
-  const webappProjection = {
+  const miniappSummary =
+    observabilitySummary && typeof observabilitySummary.miniapps === "object" && observabilitySummary.miniapps
+      ? observabilitySummary.miniapps
+      : {};
+  const readMiniappProjectionCounts = (miniappKey) => {
+    const entry = miniappSummary && typeof miniappSummary[miniappKey] === "object" && miniappSummary[miniappKey]
+      ? miniappSummary[miniappKey]
+      : {};
+    const reviewPressureCount = Number(entry.reviewPressureCount || entry.attentionCount || 0);
+    return {
+      attentionCount: Number(entry.attentionCount || reviewPressureCount || 0),
+      reviewPressureCount,
+    };
+  };
+  const generatedAt = new Date().toISOString();
+  const projectionPayload = {
     version: WEBAPP_PROJECTION_VERSION,
-    generatedAt: new Date().toISOString(),
+    projectionType: "companyWebappProjection",
+    generatedAt,
+    sourceRunId: `snapshot:${companyId}:${generatedAt}`,
+    inputWatermark: `snapshot:${companyId}:${Math.max(
+      dataSources + uploadedFiles,
+      topics,
+      flashcards,
+      goals,
+      opportunitycards,
+      checklistCount,
+      reviewCount,
+    )}`,
+    recordCount: dataSources + uploadedFiles + topics + flashcards + goals + opportunitycards + checklistCount + reviewCount,
+    stalenessStatus: "FRESH",
+    errorState: null,
     counts: {
       sources: dataSources + uploadedFiles,
       files: uploadedFiles,
@@ -1258,6 +1305,14 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       topTerms: toRankedEntries(searchState?.termScores, 6),
       topDomains: toRankedEntries(searchState?.domainScores, 6),
     },
+    miniapps: {
+      classscout: readMiniappProjectionCounts("classscout"),
+      compare: readMiniappProjectionCounts("compare"),
+    },
+  };
+  const webappProjection = {
+    ...projectionPayload,
+    checksum: checksumProjectionPayload(projectionPayload),
   };
 
   const metrics = {

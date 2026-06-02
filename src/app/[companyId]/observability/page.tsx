@@ -13,6 +13,8 @@ import { DestinationMissionControl } from "@/components/destination-mission-cont
 import { normalizeDestinationKey, resolveDestinationLabel } from "@/lib/destination-scope";
 import { DESTINATION_KEYS } from "@/lib/destination-workflow-contract";
 import { SEMANTIC_CHART_BAR_RADIUS, SEMANTIC_CHART_GRID_STROKE, getSemanticListItemStyle } from "@/lib/semantic-theme";
+import { resolveEnabledLegacyModules } from "@/lib/module-capability-utils";
+import type { UnitModuleKey } from "@/lib/intelligence-unit-capabilities";
 
 const QUEUE_COLUMN_RANK: Record<string, number> = {
   NOW: 0,
@@ -91,8 +93,11 @@ export default function ObservabilityPage() {
       void (async () => {
         const response = await fetch(`/api/companies/${companyId}/nav`);
         const payload = await response.json().catch(() => null);
-        const enabledModules = Array.isArray(payload?.webapp?.enabledModules) ? payload.webapp.enabledModules : [];
-        const allowed = enabledModules.includes("analytics") || enabledModules.includes("aiQueue");
+        const enabledModules = resolveEnabledLegacyModules({
+          enabledModules: payload?.webapp?.enabledModules,
+          enabledBlocks: payload?.webapp?.enabledBlocks,
+        }) as UnitModuleKey[];
+        const allowed = enabledModules.includes("analytics") || enabledModules.includes("pipeline");
         if (cancelled) return;
         if (!allowed) {
           router.replace(`/${companyId}`);

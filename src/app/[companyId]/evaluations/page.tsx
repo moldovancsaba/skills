@@ -16,6 +16,8 @@ import {
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
+import { resolveEnabledLegacyModules } from "@/lib/module-capability-utils";
+import type { UnitModuleKey } from "@/lib/intelligence-unit-capabilities";
 
 function scorePercent(value?: number) {
   return Math.round((value ?? 0) * 100);
@@ -128,8 +130,11 @@ export default function EvaluationsPage() {
       void (async () => {
         const response = await fetch(`/api/companies/${companyId}/nav`);
         const payload = await response.json().catch(() => null);
-        const enabledModules = Array.isArray(payload?.webapp?.enabledModules) ? payload.webapp.enabledModules : [];
-        const allowed = enabledModules.includes("analytics") || enabledModules.includes("aiQueue");
+        const enabledModules = resolveEnabledLegacyModules({
+          enabledModules: payload?.webapp?.enabledModules,
+          enabledBlocks: payload?.webapp?.enabledBlocks,
+        }) as UnitModuleKey[];
+        const allowed = enabledModules.includes("analytics") || enabledModules.includes("pipeline");
         if (cancelled) return;
         if (!allowed) {
           router.replace(`/${companyId}`);

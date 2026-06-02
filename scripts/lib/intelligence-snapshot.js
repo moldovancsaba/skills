@@ -20,6 +20,8 @@ const SNAPSHOT_REFRESH_META_KEY = "local_ai_snapshot_refresh_meta";
 const PROJECTION_REFRESH_STATE_KEY = "local_ai_webapp_projection_refresh_state";
 const PROJECTION_RECENT_REFRESH_LIMIT = 24;
 const WEBAPP_PROJECTION_VERSION = 1;
+const MINIAPP_REVIEW_PRESSURE_PACKET_STATES = Object.freeze(["AWAITING_REVIEW", "REVIEW_REQUIRED", "APPROVED"]);
+const MINIAPP_REVIEW_KEYS = Object.freeze(["classscout", "compare"]);
 const KNOWMORE_PIPELINE_JOB_TYPES = Object.freeze([
   "ENSURE_FLASHCARD_MINIMUM",
   "RESEARCH_BACKFILL",
@@ -815,6 +817,62 @@ async function buildKnowmoreHealth(prisma, companyId, scoreHealth) {
   };
 }
 
+function summarizeMiniappPacketCounts(countRows) {
+  const byState = {};
+  let reviewPressureCount = 0;
+
+  if (!Array.isArray(countRows)) return { byState, reviewPressureCount: 0 };
+
+  for (const row of countRows) {
+    const state = typeof row?.packetState === "string" ? row.packetState : null;
+    const count = Number(row._count?._all || 0);
+    if (!state || !Number.isFinite(count) || count < 0) continue;
+    byState[state] = count;
+    if (MINIAPP_REVIEW_PRESSURE_PACKET_STATES.includes(state)) {
+      reviewPressureCount += count;
+    }
+  }
+
+  return {
+    byState,
+    reviewPressureCount,
+  };
+}
+
+async function scanMiniappReviewPressureForDestination(prisma, companyId, destinationKey) {
+  const key = typeof destinationKey === "string" ? destinationKey : "";
+  if (!key) {
+    return {
+      byState: {},
+      reviewPressureCount: 0,
+    };
+  }
+
+  const countRows = await prisma.destinationReviewPacket.groupBy({
+    by: ["packetState"],
+    where: {
+      companyId,
+      destinationInstance: {
+        destinationKey: key,
+      },
+    },
+    _count: {
+      _all: true,
+    },
+  });
+
+  return summarizeMiniappPacketCounts(countRows);
+}
+
+function buildMiniappPressureRecord(entry) {
+  const reviewPressureCount = Number(entry?.reviewPressureCount || entry?.attentionCount || 0);
+  const attentionCount = Number(entry?.attentionCount || reviewPressureCount || 0);
+  return {
+    attentionCount,
+    reviewPressureCount,
+  };
+}
+
 async function buildBudgetSummary(prisma, companyId) {
   const since = new Date(Date.now() - DAY_MS);
   const [usages, policies, openEvents, activeJobs, evaluationFailureCount] = await Promise.all([
@@ -873,7 +931,20 @@ async function buildBudgetSummary(prisma, companyId) {
 }
 
 async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
-  const [activeJobs, workerReports, recentEvents, budget, plannerSignals, plannerEvents, flashcards, goals, tasks, opportunitycards, opportunitycardRepairSetting] = await Promise.all([
+  const [
+    activeJobs,
+    workerReports,
+    recentEvents,
+    budget,
+    plannerSignals,
+    plannerEvents,
+    flashcards,
+    goals,
+    tasks,
+    opportunitycards,
+    opportunitycardRepairSetting,
+    ...miniappPressureSummaries
+  ] = await Promise.all([
     prisma.pipelineJob.findMany({
       where: { companyId, status: { in: ["ACTIVE", "RUNNING", "FAILED"] } },
       orderBy: [{ updatedAt: "desc" }],
@@ -947,6 +1018,7 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
       where: { key: "opportunitycard_score_contract_repair_v1" },
       select: { value: true, updatedAt: true },
     }),
+    ...MINIAPP_REVIEW_KEYS.map((destinationKey) => scanMiniappReviewPressureForDestination(prisma, companyId, destinationKey)),
   ]);
 
   const guardianHeartbeat = readGuardianHeartbeat();
@@ -993,6 +1065,18 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
     goals: summarizeCardQuality(goals),
     tasks: summarizeCardQuality(tasks),
   };
+
+  const miniapps = Object.fromEntries(
+    MINIAPP_REVIEW_KEYS.map((destinationKey, index) => {
+      const counts = miniappPressureSummaries[index] && isPlainObject(miniappPressureSummaries[index])
+        ? miniappPressureSummaries[index]
+        : null;
+      return [
+        destinationKey,
+        buildMiniappPressureRecord(counts),
+      ];
+    }),
+  );
 
   return {
     guardianHeartbeat,
@@ -1043,6 +1127,7 @@ async function buildObservabilitySummary(prisma, companyId, scoreHealth) {
     budget,
     workerReports,
     recentEvents,
+    miniapps,
   };
 }
 

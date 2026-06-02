@@ -128,7 +128,7 @@ Status:
 - Delivered. Company dashboard and home surfaces are module-gated.
 - Delivered. Nav miniapp counts read only from projection/observability fields.
 - Delivered. Operations miniapp review-pressure items read only from projection/observability fields.
-- Remaining follow-up: Local AI snapshot writer should publish `webappProjection.miniapps.<miniappKey>.reviewPressureCount` so ClassScout/Compare attention counters are populated without packet scans.
+- Delivered. Local AI snapshot writer now publishes `webappProjection.miniapps.<miniappKey>.reviewPressureCount` from destination review packet pressure counts.
 
 ### 4. Charts
 

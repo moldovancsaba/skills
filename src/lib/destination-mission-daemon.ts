@@ -20,6 +20,7 @@ const DAEMON_DESTINATION_KEYS: DestinationKey[] = [...SUPPORTED_DESTINATION_MISS
 type MissionRunWithPolicy = {
   id: string;
   state: DestinationMissionState;
+  failureCode?: string | null;
   destinationKey?: string;
   missionDefinitionRevision?: { configJson?: unknown } | null;
   policySnapshot?: { policyJson?: unknown } | null;
@@ -64,6 +65,26 @@ function requiresHumanPublishApproval(run: MissionRunWithPolicy) {
   }
 
   return true;
+}
+
+function isFinalPublishOutcome(outcome: { eventType: string; reasonCode?: string | null; payload?: unknown }) {
+  if (outcome.eventType === "publish_completed" || outcome.eventType === "publish_blocked" || outcome.eventType === "publish_failed") {
+    return true;
+  }
+
+  if (outcome.eventType !== "publish_bridge_failed") {
+    return false;
+  }
+
+  const payload = outcome.payload && typeof outcome.payload === "object" && !Array.isArray(outcome.payload)
+    ? outcome.payload as Record<string, unknown>
+    : null;
+
+  return outcome.reasonCode === "HTTP_422" || payload?.status === "blocked" || payload?.retryable === false;
+}
+
+function isSpentRecoverableRun(run: MissionRunWithPolicy) {
+  return run.state === DestinationMissionState.FAILED_RECOVERABLE && run.failureCode === "auto_runner_retry_budget_exhausted";
 }
 
 function uniqueValues(values: string[]) {
@@ -127,7 +148,8 @@ function buildDestinationRunProfile(input: {
   const label = destinationLabel(input.destinationKey);
   const activeDefinitions = Array.isArray(input.definitions) ? input.definitions : [];
   const activeRuns = Array.isArray(input.runs) ? input.runs : [];
-  const runStates = new Set(activeRuns.map((run) => String(run.state || "")));
+  const schedulableRuns = activeRuns.filter((run) => !isSpentRecoverableRun(run));
+  const runStates = new Set(schedulableRuns.map((run) => String(run.state || "")));
   const autopilotRuns = activeRuns.filter((run) => readExecutionMode(run) === "autopilot");
 
   if (runStates.has("FAILED_RECOVERABLE")) {
@@ -166,7 +188,7 @@ function buildDestinationRunProfile(input: {
     return {
       queueColumn: "SOON",
       priorityScore: 104,
-      reason: `${activeRuns.length} ${label} destination run(s) are active under guarded or autopilot execution.`,
+      reason: `${activeRuns.length} ${label} destination run(s) are active or recently spent under guarded or autopilot execution.`,
       sourceSignal: `destination:${input.destinationKey}:active-runs`,
     };
   }
@@ -221,6 +243,7 @@ async function executeDestinationLaneForCompany(input: {
   const activeDefinitionRunIds = new Set(
     existingRuns
       .filter((run) => materializationBlockingStates.has(run.state))
+      .filter((run) => !isSpentRecoverableRun(run))
       .map((run) => run.missionDefinitionId)
       .filter((value): value is string => Boolean(value)),
   );
@@ -259,6 +282,7 @@ async function executeDestinationLaneForCompany(input: {
 
   const selectedRuns = runs
     .filter((run) => eligibleStates.has(run.state))
+    .filter((run) => !isSpentRecoverableRun(run))
     .filter((run) => {
       const mode = readExecutionMode(run);
       return mode === "guarded" || mode === "autopilot";
@@ -290,7 +314,7 @@ async function executeDestinationLaneForCompany(input: {
       executionMode === "autopilot" &&
       !requiresHumanPublishApproval(run) &&
       approvedPacket &&
-      !approvedPacket.outcomeMemories.some((item) => item.eventType === "publish_completed") &&
+      !approvedPacket.outcomeMemories.some((item) => isFinalPublishOutcome(item)) &&
       (run.state === DestinationMissionState.PUBLISHING || run.state === DestinationMissionState.CANDIDATE_IN_REVIEW);
 
     let result;

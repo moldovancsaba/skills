@@ -39,6 +39,22 @@ function readCompareReviewStaleHours() {
   return Math.max(1, Math.min(Math.round(raw), 240));
 }
 
+function isFinalPublishOutcome(outcome: { eventType: string; reasonCode?: string | null; payload?: unknown }) {
+  if (outcome.eventType === "publish_completed" || outcome.eventType === "publish_blocked" || outcome.eventType === "publish_failed") {
+    return true;
+  }
+
+  if (outcome.eventType !== "publish_bridge_failed") {
+    return false;
+  }
+
+  const payload = outcome.payload && typeof outcome.payload === "object" && !Array.isArray(outcome.payload)
+    ? outcome.payload as Record<string, unknown>
+    : null;
+
+  return outcome.reasonCode === "HTTP_422" || payload?.status === "blocked" || payload?.retryable === false;
+}
+
 export function readDestinationMaintenanceDefaults(): DestinationMaintenanceLimits {
   const defaults = readClassScoutMaintenanceDefaults();
   return {
@@ -74,7 +90,7 @@ async function publishApprovedPacketsForDestination(input: {
   });
 
   const selected = packets
-    .filter((packet) => !packet.outcomeMemories.some((item) => item.eventType === "publish_completed"))
+    .filter((packet) => !packet.outcomeMemories.some((item) => isFinalPublishOutcome(item)))
     .slice(0, limit);
 
   const results = [];

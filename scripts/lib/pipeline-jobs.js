@@ -168,12 +168,18 @@ function getChecklistLocalRuntimeBridgeConfig() {
 
 async function runDestinationMissionDaemonJob(job, executionOptions = {}) {
   const config = getChecklistLocalRuntimeBridgeConfig();
+  const boundedLimit = Number.isFinite(executionOptions.batchLimitOverride)
+    ? Math.max(1, Math.min(Number(executionOptions.batchLimitOverride), 3))
+    : null;
+  const maxRuns = boundedLimit ?? 3;
+  const maxPasses = boundedLimit ?? 3;
+  const maxAutoRejections = boundedLimit ? Math.max(2, boundedLimit) : 5;
   const payload = {
     companyId: job.companyId,
     destinationKey: job?.metadata?.destinationKey === "multi" ? undefined : job?.metadata?.destinationKey,
-    maxRuns: 3,
-    maxPasses: 3,
-    maxAutoRejections: 5,
+    maxRuns,
+    maxPasses,
+    maxAutoRejections,
     mutationAuthority: executionOptions.mutationAuthority,
   };
   const failures = [];

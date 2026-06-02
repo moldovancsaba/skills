@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { ensureDestinationInstance } from "@/lib/destination-workflows";
 import type { DestinationKey } from "@/lib/destination-workflow-contract";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
+import { resolveMiniappIntelligenceContract } from "@/lib/miniapp-intelligence-contracts";
 import {
   type DestinationMissionAttemptOutcome,
   type DestinationMissionDefinitionConfig,
@@ -90,6 +91,10 @@ export async function startDestinationMissionRun(input: {
   metadata?: Record<string, unknown> | null;
 }) {
   const destinationInstance = await ensureDestinationInstance(input.companyId, input.destinationKey);
+  const intelligenceContract = resolveMiniappIntelligenceContract({
+    miniappKey: input.destinationKey,
+    destinationKeyHint: input.destinationKey,
+  });
   const requestedDefinition = input.missionDefinitionId
     ? await getDestinationMissionDefinition({
       companyId: input.companyId,
@@ -134,12 +139,15 @@ export async function startDestinationMissionRun(input: {
         destinationInstanceId: destinationInstance.id,
         destinationKey: input.destinationKey,
         missionKind: input.missionKind,
-        version: policy.version,
-        policyJson: policy as unknown as Prisma.InputJsonValue,
-        metadata: asJson({
-          ...((input.metadata as Record<string, unknown> | null) ?? {}),
-          ...definitionLineageMetadata,
-        }),
+      version: policy.version,
+      policyJson: policy as unknown as Prisma.InputJsonValue,
+      metadata: asJson({
+        ...((input.metadata as Record<string, unknown> | null) ?? {}),
+        miniappIntelligenceContractKey: intelligenceContract.contract.key,
+        miniappIntelligenceContractValid: intelligenceContract.validation.valid,
+        miniappIntelligenceContractErrors: intelligenceContract.validation.errors,
+        ...definitionLineageMetadata,
+      }),
       },
     });
 
@@ -156,6 +164,9 @@ export async function startDestinationMissionRun(input: {
         state: DestinationMissionState.QUEUED,
         metadata: asJson({
           ...((input.metadata as Record<string, unknown> | null) ?? {}),
+          miniappIntelligenceContractKey: intelligenceContract.contract.key,
+          miniappIntelligenceContractValid: intelligenceContract.validation.valid,
+          miniappIntelligenceContractErrors: intelligenceContract.validation.errors,
           ...definitionLineageMetadata,
         }),
       },

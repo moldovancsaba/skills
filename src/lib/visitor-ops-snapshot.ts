@@ -8,11 +8,13 @@ import { listVisitorCandidates } from "@/lib/visitor-candidate-pipeline";
 import { listVisitorFeedbackMemory, listVisitorRefinementRuns } from "@/lib/visitor-learning";
 import { getVisitorPublicVerificationSummary } from "@/lib/visitor-public-verification";
 import { ensureDestinationInstance } from "@/lib/destination-workflows";
+import { resolveVisitorCapabilityForVisitorKey } from "@/lib/visitor-capability-resolver";
 
 export async function getVisitorOpsSnapshot(companyId: string, visitorKey: string, destinationKeyHint?: unknown) {
   const destinationKey = resolveDestinationKeyForVisitorWithHint(visitorKey, destinationKeyHint);
   if (!destinationKey) throw new Error("Unsupported visitorKey");
   const instance = await ensureDestinationInstance(companyId, destinationKey);
+  const effectiveCapability = resolveVisitorCapabilityForVisitorKey(visitorKey);
 
   const [
     blueprint,
@@ -61,6 +63,7 @@ export async function getVisitorOpsSnapshot(companyId: string, visitorKey: strin
     checkedAt: new Date().toISOString(),
     visitorKey: visitorKey.toLowerCase(),
     destinationKey,
+    effectiveCapability,
     blueprint,
     taxonomy,
     sources,

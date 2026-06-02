@@ -166,6 +166,120 @@ function getChecklistLocalRuntimeBridgeConfig() {
   };
 }
 
+function toPlainObject(value) {
+  return isPlainObject(value) ? value : {};
+}
+
+function mapVisitorIntentToAction(intentKind) {
+  switch (String(intentKind || "")) {
+    case "candidate.discover":
+      return "candidate_discover";
+    case "candidate.extract":
+      return "candidate_extract";
+    case "candidate.classify":
+      return "candidate_classify";
+    case "candidate.score":
+      return "candidate_score";
+    case "candidate.prepareReview":
+      return "candidate_prepare_review";
+    case "research.burst":
+      return "run_burst";
+    case "research.tasks.plan":
+      return "replan";
+    case "research.gates.evaluate":
+      return "evaluate_gates";
+    case "research.opportunities.promote":
+      return "promote_opportunities";
+    default:
+      return null;
+  }
+}
+
+async function runMiniappResearchIntentJob(job, executionOptions = {}) {
+  const intent = toPlainObject(toPlainObject(job.metadata).visitorIntent);
+  const visitorKey = String(intent.visitorKey || "").trim().toLowerCase();
+  if (!visitorKey) {
+    throw createPipelineContractError("RESEARCH_BACKFILL requires visitorIntent.visitorKey");
+  }
+
+  const action = mapVisitorIntentToAction(intent.intentKind);
+  if (!action) {
+    throw createPipelineContractError(`Unsupported visitorIntent intentKind: ${intent.intentKind}`);
+  }
+
+  const intentPayload = toPlainObject(intent.payload);
+  const candidateId = typeof intent.candidateId === "string" ? intent.candidateId.trim() : "";
+  const discoverLimit = Math.max(1, Math.min(200, Math.floor(Number(intentPayload.discoverLimit || intentPayload.limit || 30)) || 30));
+  const processLimit = Math.max(1, Math.min(200, Math.floor(Number(intentPayload.processLimit || 30)) || 30));
+  const payload = {
+    companyId: job.companyId,
+    destinationKey: intent.destinationKey,
+    action,
+    candidateId: candidateId || undefined,
+    targetVisibleCards: Number.isFinite(Number(intentPayload.targetVisibleCards)) ? Number(intentPayload.targetVisibleCards) : undefined,
+    maxCycles: Number.isFinite(Number(intentPayload.maxCycles)) ? Number(intentPayload.maxCycles) : undefined,
+    tasksPerCycle: Number.isFinite(Number(intentPayload.tasksPerCycle)) ? Number(intentPayload.tasksPerCycle) : undefined,
+    discoverLimit,
+    processLimit,
+    autoApprove: intentPayload.autoApprove === true,
+    autoPublish: intentPayload.autoPublish === true,
+    limit: Number.isFinite(Number(intentPayload.limit)) ? Number(intentPayload.limit) : undefined,
+    payload: intentPayload,
+  };
+
+  const config = getChecklistLocalRuntimeBridgeConfig();
+  const failures = [];
+
+  for (const baseUrl of config.candidateBaseUrls) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+
+    try {
+      const response = await fetch(`${baseUrl}/api/miniapps/${encodeURIComponent(visitorKey)}/ops/actions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.bearerToken}`,
+          "Content-Type": "application/json",
+          "User-Agent": "checklist-local-ai-miniapp-intent",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      const data = await response.json().catch(() => ({}));
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        failures.push({ baseUrl, status: response.status, error: data?.error || `HTTP_${response.status}` });
+        continue;
+      }
+      if (data?.ok === false) {
+        failures.push({ baseUrl, status: response.status, error: data?.error || data?.code || "miniapp_action_failed" });
+        continue;
+      }
+
+      const operations = Number.isFinite(Number(data?.operations))
+        ? Number(data.operations)
+        : Number.isFinite(Number(data?.result?.createdCount)) ? Number(data.result.createdCount)
+          : Number.isFinite(Number(data?.result?.processed)) ? Number(data.result.processed)
+            : Number.isFinite(Number(data?.result?.discovered)) ? Number(data.result.discovered)
+              : 1;
+      return Math.max(1, operations);
+    } catch (error) {
+      clearTimeout(timeout);
+      failures.push({
+        baseUrl,
+        error: error?.name === "AbortError" ? `Timed out after ${config.timeoutMs}ms` : String(error?.message || error),
+      });
+    }
+  }
+
+  const summary = failures
+    .map((failure) => `${failure.baseUrl} (${failure.status || "ERR"}: ${failure.error})`)
+    .join("; ");
+  throw new Error(`Miniapp research intent worker could not reach the miniapp ops runner. ${summary}`);
+}
+
 async function runDestinationMissionDaemonJob(job, executionOptions = {}) {
   const config = getChecklistLocalRuntimeBridgeConfig();
   const boundedLimit = Number.isFinite(executionOptions.batchLimitOverride)
@@ -547,6 +661,8 @@ async function executePipelineJob(prisma, job, executionOptions = {}) {
   }
 
   switch (job.jobType) {
+    case "RESEARCH_BACKFILL":
+      return toPlainObject(job.metadata).visitorIntent ? runMiniappResearchIntentJob(job, executionOptions) : runPlannerBootstrapJob(prisma, company, executionOptions);
     case "FEEDBACK_RECONCILIATION":
       return processFeedbackEvents(prisma, company);
     case "CARD_RESCORING":

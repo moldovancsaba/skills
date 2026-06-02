@@ -12,6 +12,13 @@ import { evaluateMiniappPromotionGates } from "@/lib/miniapp-promotion-gates";
 import { getMiniappBurstControllerState, runMiniappBurstUntilTarget } from "@/lib/miniapp-burst-controller";
 import { listMiniappLearningMemory, syncMiniappLearningMemory, upsertMiniappLearningRules } from "@/lib/miniapp-learning-memory";
 import { runVisitorPipelineOnce } from "@/lib/visitor-pipeline-runner";
+import {
+  discoverVisitorCandidates,
+  extractVisitorCandidate,
+  classifyVisitorCandidate,
+  scoreVisitorCandidate,
+  prepareVisitorReviewPacket,
+} from "@/lib/visitor-candidate-pipeline";
 
 export type MiniappOpsAction =
   | "replan"
@@ -22,6 +29,11 @@ export type MiniappOpsAction =
   | "sync_learning"
   | "retry_task"
   | "run_human_lane"
+  | "candidate_discover"
+  | "candidate_extract"
+  | "candidate_classify"
+  | "candidate_score"
+  | "candidate_prepare_review"
   | "pause_burst"
   | "resume_burst"
   | "suppress_domain"
@@ -36,19 +48,27 @@ type OpsInput = {
 type ActionInput = OpsInput & {
   action: MiniappOpsAction;
   taskId?: string;
+  candidateId?: string;
   sourceTerm?: string;
   reason?: string;
   targetVisibleCards?: number;
   maxCycles?: number;
   tasksPerCycle?: number;
-  discoverLimit?: number;
-  processLimit?: number;
   autoApprove?: boolean;
   autoPublish?: boolean;
+  discoverLimit?: number;
+  processLimit?: number;
+  payload?: Record<string, unknown>;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function asPositiveInt(value: unknown, fallback: number, max = 200) {
+  const numeric = Math.floor(Number(value));
+  if (!Number.isFinite(numeric) || numeric <= 0) return fallback;
+  return Math.min(max, numeric);
 }
 
 function asString(value: unknown) {
@@ -107,6 +127,39 @@ async function resolveOpsContext(input: OpsInput) {
     visitorKey: resolved.contract.miniappKey,
     instance,
   };
+}
+
+function resolveCandidateId(input: ActionInput) {
+  return asString(input.taskId) || asString(input.candidateId);
+}
+
+function estimateOperations(action: MiniappOpsAction, result: unknown) {
+  const parsed = asRecord(result);
+  if (action === "candidate_discover") {
+    return Number(parsed.createdCount || parsed.discoveredCount || 0);
+  }
+  if (action.startsWith("candidate_")) {
+    return result ? 1 : 0;
+  }
+  if (action === "run_burst" && Number(parsed.cyclesRun) > 0) {
+    return Number(parsed.cyclesRun);
+  }
+  const cyclesRecord = parsed as { cycles?: unknown[] };
+  const cyclesValue = Array.isArray(cyclesRecord.cycles)
+    ? Number(cyclesRecord.cycles.length)
+    : 0;
+  if (cyclesValue > 0) {
+    return cyclesValue;
+  }
+  if (Number(parsed.plannedCount) > 0) return Number(parsed.plannedCount);
+  if (Number(parsed.evidenceTaskCount) > 0) return Number(parsed.evidenceTaskCount);
+  if (Number(parsed.publishedAfter) > 0 && Number(parsed.publishedBefore) >= 0) {
+    return Math.max(0, Number(parsed.publishedAfter) - Number(parsed.publishedBefore));
+  }
+  if (Number(parsed.processed) > 0) return Number(parsed.processed);
+  if (Number(parsed.createdCount) > 0) return Number(parsed.createdCount);
+  if (Number(parsed.discovered) > 0) return Number(parsed.discovered);
+  return 1;
 }
 
 function summarizeBlockers(input: {
@@ -336,6 +389,37 @@ export async function executeMiniappOpsAction(input: ActionInput) {
     result = await evaluateMiniappPromotionGates({ companyId: input.companyId, visitorKey, destinationKeyHint: destinationKey, limit: 50 });
   } else if (input.action === "sync_learning") {
     result = await syncMiniappLearningMemory({ companyId: input.companyId, visitorKey, destinationKeyHint: destinationKey, limit: 100 });
+  } else if (input.action === "candidate_discover") {
+    result = await discoverVisitorCandidates(
+      input.companyId,
+      visitorKey,
+      asPositiveInt(input.discoverLimit, 30, 200),
+      destinationKey,
+    );
+  } else if (input.action === "candidate_extract") {
+    const candidateId = resolveCandidateId(input);
+    if (!candidateId) throw new Error("candidateId is required for candidate_extract");
+    const extracted = await extractVisitorCandidate(input.companyId, visitorKey, candidateId, destinationKey);
+    if (!extracted) throw new Error(`Candidate not found: ${candidateId}`);
+    result = { candidateId, extracted };
+  } else if (input.action === "candidate_classify") {
+    const candidateId = resolveCandidateId(input);
+    if (!candidateId) throw new Error("candidateId is required for candidate_classify");
+    const classified = await classifyVisitorCandidate(input.companyId, visitorKey, candidateId, {}, destinationKey);
+    if (!classified) throw new Error(`Candidate not found: ${candidateId}`);
+    result = { candidateId, classified };
+  } else if (input.action === "candidate_score") {
+    const candidateId = resolveCandidateId(input);
+    if (!candidateId) throw new Error("candidateId is required for candidate_score");
+    const scored = await scoreVisitorCandidate(input.companyId, visitorKey, candidateId, {}, destinationKey);
+    if (!scored) throw new Error(`Candidate not found: ${candidateId}`);
+    result = { candidateId, scored };
+  } else if (input.action === "candidate_prepare_review") {
+    const candidateId = resolveCandidateId(input);
+    if (!candidateId) throw new Error("candidateId is required for candidate_prepare_review");
+    const prepared = await prepareVisitorReviewPacket(input.companyId, visitorKey, candidateId, destinationKey);
+    if (!prepared) throw new Error(`Candidate not found: ${candidateId}`);
+    result = { candidateId, prepared };
   } else if (input.action === "run_human_lane") {
     result = await runVisitorPipelineOnce({
       companyId: input.companyId,
@@ -406,6 +490,7 @@ export async function executeMiniappOpsAction(input: ActionInput) {
       startedAt,
       finishedAt: new Date().toISOString(),
     },
+    operations: estimateOperations(input.action, result),
     result,
   };
 }

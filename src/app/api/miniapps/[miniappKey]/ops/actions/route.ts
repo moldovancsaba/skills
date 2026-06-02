@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMembership } from "@/lib/permissions";
+import { verifyBackgroundJobSecret } from "@/lib/ingest-auth";
 import { executeMiniappOpsAction, type MiniappOpsAction } from "@/lib/miniapp-ops-console";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,10 @@ export async function POST(
   const companyId = asString(body.companyId);
   if (!companyId) return NextResponse.json({ ok: false, error: "companyId is required" }, { status: 400 });
   const auth = await verifyMembership(request, companyId, "ADMIN");
-  if (auth.error) return auth.error;
+  if (auth.error) {
+    const workerAuth = await verifyBackgroundJobSecret(request);
+    if (workerAuth.error) return workerAuth.error;
+  }
 
   const { miniappKey } = await params;
   try {
@@ -33,7 +37,8 @@ export async function POST(
       miniappKey,
       destinationKeyHint: asString(body.destinationKey) || undefined,
       action: asString(body.action) as MiniappOpsAction,
-      taskId: asString(body.taskId) || undefined,
+      taskId: asString(body.taskId) || asString(body.candidateId) || undefined,
+      candidateId: asString(body.candidateId) || asString(body.taskId) || undefined,
       sourceTerm: asString(body.sourceTerm) || undefined,
       reason: asString(body.reason) || undefined,
       targetVisibleCards: Number(body.targetVisibleCards) || undefined,
@@ -41,6 +46,7 @@ export async function POST(
       tasksPerCycle: Number(body.tasksPerCycle) || undefined,
       discoverLimit: Number(body.discoverLimit) || undefined,
       processLimit: Number(body.processLimit) || undefined,
+      payload: asRecord(body.payload),
       autoApprove: asBoolean(body.autoApprove),
       autoPublish: asBoolean(body.autoPublish),
     });

@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
   }
   const destinationKey = normalizeDestinationKey(destinationKeyRaw);
-  const packets = await prisma.destinationReviewPacket.findMany({
+  const cards = await prisma.destinationReviewPacket.findMany({
     where: {
       companyId,
       ...(packetState ? { packetState } : {}),
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  return NextResponse.json(packets);
+  return NextResponse.json(cards);
 }
 
 export async function POST(request: NextRequest) {
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
     }
 
-    const packet = await submitDestinationReviewPacket({
+    const card = await submitDestinationReviewPacket({
       companyId,
       destinationKey,
       workflowRunId: String(body.workflowRunId || ""),
@@ -96,9 +96,9 @@ export async function POST(request: NextRequest) {
       mediaSummary: asRecord(body.mediaSummary),
       metadata: asRecord(body.metadata),
     } as never);
-    return NextResponse.json({ ok: true, packet });
+    return NextResponse.json({ ok: true, card });
   } catch (error) {
-    console.error("[API:DestinationReview:Packets] POST failure:", error);
+    console.error("[API:DestinationReview:Cards] POST failure:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

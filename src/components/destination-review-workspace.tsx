@@ -98,8 +98,8 @@ const REASON_OPTIONS = [
   { value: "REJECTED_NOT_FIT", label: "Not a fit" },
 ];
 
-const PACKET_STATE_OPTIONS = [
-  { value: "ALL", label: "All packet states" },
+const REVIEW_CARD_STATE_OPTIONS = [
+  { value: "ALL", label: "All review card states" },
   { value: "PENDING", label: "Pending review" },
   { value: "REVIEW_REQUIRED", label: "Review required" },
   { value: "APPROVED", label: "Approved" },
@@ -340,8 +340,8 @@ export function DestinationReviewWorkspace({
         <EmptyState
           icon={ChecklistIcon}
           tone="review"
-          title="No destination packets waiting"
-          description="The reusable destination workflow does not currently have any review-ready packets for this company."
+          title="No destination review cards waiting"
+          description="The reusable destination workflow does not currently have any review-ready cards for this company."
           primaryAction={
             <Button variant="light" color="review" leftSection={<Refresh size={16} />} onClick={() => void loadPackets()}>
               Refresh Queue
@@ -356,7 +356,7 @@ export function DestinationReviewWorkspace({
                 supporting={
                   <Group gap="xs">
                     <Badge color="review" variant="light">
-                      {packets.length} packet{packets.length === 1 ? "" : "s"}
+                      {packets.length} card{packets.length === 1 ? "" : "s"}
                     </Badge>
                     <Button variant="subtle" size="compact-sm" color="review" leftSection={<Refresh size={14} />} onClick={() => void loadPackets()}>
                       Refresh
@@ -367,9 +367,9 @@ export function DestinationReviewWorkspace({
               <UnifiedCardBody>
                 <Stack gap="sm">
                   <Select
-                    label="Packet state"
+                    label="Review card state"
                     value={packetStateFilter}
-                    data={PACKET_STATE_OPTIONS}
+                    data={REVIEW_CARD_STATE_OPTIONS}
                     onChange={(value) => {
                       selectPacket(null);
                       setPacketStateFilter(value || "ALL");
@@ -550,7 +550,7 @@ export function DestinationReviewWorkspace({
                         />
                         <Group justify="space-between" align="center">
                           <MetaText>
-                            Packet ID: {selectedPacket.id}
+                            Review card ID: {selectedPacket.id}
                           </MetaText>
                           <Group gap="sm">
                             {selectedPacket.packetState === "APPROVED" ? (

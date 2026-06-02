@@ -58,7 +58,7 @@ export function DestinationContentOpsWorkspace({
             </TabsTab>
           ) : null}
           <TabsTab value="review" leftSection={<IconChecklist size={14} />}>
-            Review packets
+            Review cards
           </TabsTab>
           <TabsTab value="mission" leftSection={<IconActivity size={14} />}>
             Mission control

@@ -12,7 +12,7 @@ datacards + flashcards
   -> web evidence
   -> opportunitycards
   -> candidates
-  -> drafts and review packets
+  -> drafts and review cards
   -> public content cards
   -> public verification
   -> learning memory

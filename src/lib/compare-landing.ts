@@ -146,7 +146,7 @@ export async function getCompareLandingSummary(companyId: string): Promise<Compa
 
   const packets = packetsResult.ok ? packetsResult.value : [];
   if (!packetsResult.ok) {
-    unavailableSections.push({ key: "missionControl", message: packetsResult.error instanceof Error ? packetsResult.error.message : "Packet summary unavailable." });
+    unavailableSections.push({ key: "missionControl", message: packetsResult.error instanceof Error ? packetsResult.error.message : "Review card summary unavailable." });
   }
 
   const publishedOutcomes = publishedOutcomesResult.ok ? Number(publishedOutcomesResult.value || 0) : 0;

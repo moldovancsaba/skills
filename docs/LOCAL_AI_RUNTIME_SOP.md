@@ -41,7 +41,7 @@ System Health Lane:
 Playlist Lane:
 
 - owns all normal business and product mutation
-- covers Visitor discovery, Miniapp content creation, source refresh, i18n refresh, card creation, card maintenance, review packet creation, publish checks, scarcity-triggered creation, opportunity mining, and feedback-driven repair
+- covers Visitor discovery, Miniapp content creation, source refresh, i18n refresh, card creation, card maintenance, review card creation, publish checks, scarcity-triggered creation, opportunity mining, and feedback-driven repair
 - must use persisted queue jobs as the execution authority
 
 Human-Approved Burst Lane:

@@ -27,10 +27,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { id } = await params;
     const existingPacket = await getDestinationReviewPacket(companyId, id);
     if (!existingPacket) {
-      return NextResponse.json({ ok: false, error: "Review packet not found" }, { status: 404 });
+      return NextResponse.json({ ok: false, error: "Review card not found" }, { status: 404 });
     }
     if (destinationKey && existingPacket.destinationInstance?.destinationKey !== destinationKey) {
-      return NextResponse.json({ ok: false, error: "Review packet not found" }, { status: 404 });
+      return NextResponse.json({ ok: false, error: "Review card not found" }, { status: 404 });
     }
     const result = await publishDestinationReviewPacket({
       companyId,

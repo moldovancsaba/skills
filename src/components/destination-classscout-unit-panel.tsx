@@ -91,7 +91,7 @@ export function DestinationClassScoutUnitPanel({ companyId }: { companyId: strin
         ) : (
           <Stack gap="md">
             <BodyText>
-              Manage the full ClassScout content workflow for this unit: live catalog revisions, review packets,
+              Manage the full ClassScout content workflow for this unit: live catalog revisions, review cards,
               human corrections, publication, replay, and learning feedback.
             </BodyText>
 
@@ -104,7 +104,7 @@ export function DestinationClassScoutUnitPanel({ companyId }: { companyId: strin
               </UnifiedCardSection>
               <UnifiedCardSection tone="review">
                 <Stack gap={4}>
-                  <MetaText>Workflow packets</MetaText>
+                  <MetaText>Workflow cards</MetaText>
                   <SectionTitle>{packetCount}</SectionTitle>
                 </Stack>
               </UnifiedCardSection>

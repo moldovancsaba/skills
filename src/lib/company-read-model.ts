@@ -34,13 +34,6 @@ export type CompanyNavCounts = {
 export type CompanyPlanningSummary = WebappProjection["planningSummary"];
 
 type SnapshotReadModelFields = {
-  dataIngressCount?: number | null;
-  topicSynthesisCount?: number | null;
-  knowmoreCount?: number | null;
-  strategicGoalsCount?: number | null;
-  checklistCount?: number | null;
-  tacticalBoardCount?: number | null;
-  reviewGatewayCount?: number | null;
   observabilitySummary?: unknown;
   webappProjection?: unknown;
 };
@@ -59,51 +52,42 @@ function readQueueTotal(observabilitySummary: unknown): number | null {
   return Number(queue.totalActiveJobs ?? 0);
 }
 
-function buildCountsFromSnapshot(snapshot: SnapshotReadModelFields | null | undefined): CompanyDashboardCounts {
-  const checklistCount = Number(snapshot?.checklistCount ?? 0);
-  return {
-    sources: Number(snapshot?.dataIngressCount ?? 0),
-    files: 0,
-    topics: Number(snapshot?.topicSynthesisCount ?? 0),
-    flashcards: Number(snapshot?.knowmoreCount ?? 0),
-    goals: Number(snapshot?.strategicGoalsCount ?? 0),
-    sales: 0,
-    tacticalCount: Math.max(Number(snapshot?.tacticalBoardCount ?? 0), checklistCount),
-    checklistCount,
-    reviewCount: Number(snapshot?.reviewGatewayCount ?? 0),
-    pipelineJobs: Number(readQueueTotal(snapshot?.observabilitySummary) ?? 0),
-  };
-}
+const EMPTY_COUNTS: CompanyDashboardCounts = {
+  sources: 0,
+  files: 0,
+  topics: 0,
+  flashcards: 0,
+  goals: 0,
+  sales: 0,
+  tacticalCount: 0,
+  checklistCount: 0,
+  reviewCount: 0,
+  pipelineJobs: 0,
+};
 
-function buildNavCountsFromDashboard(counts: CompanyDashboardCounts): CompanyNavCounts {
-  const checklistCount = Number(counts.checklistCount ?? 0);
-  return {
-    data: Number(counts.sources ?? 0),
-    topics: Number(counts.topics ?? 0),
-    knowmore: Number(counts.flashcards ?? 0),
-    goals: Number(counts.goals ?? 0),
-    sales: Number(counts.sales ?? 0),
-    review: Number(counts.reviewCount ?? 0),
-    checklist: checklistCount,
-    tactical: Math.max(Number(counts.tacticalCount ?? 0), checklistCount),
-    pipeline: Number(counts.pipelineJobs ?? 0),
-  };
-}
+const EMPTY_NAV_COUNTS: CompanyNavCounts = {
+  data: 0,
+  topics: 0,
+  knowmore: 0,
+  goals: 0,
+  sales: 0,
+  review: 0,
+  checklist: 0,
+  tactical: 0,
+  pipeline: 0,
+};
 
-function buildPlanningSummaryFromSnapshot(snapshot: SnapshotReadModelFields | null | undefined): CompanyPlanningSummary {
-  const checklistCount = Number(snapshot?.checklistCount ?? 0);
-  return {
-    laneCounts: {
-      IDEABANK: 0,
-      ROADMAP: 0,
-      BACKLOG: 0,
-      TODO: 0,
-      CHECKLIST: checklistCount,
-    },
-    tacticalCount: Math.max(Number(snapshot?.tacticalBoardCount ?? 0), checklistCount),
-    checklistCount,
-  };
-}
+const EMPTY_PLANNING_SUMMARY: CompanyPlanningSummary = {
+  laneCounts: {
+    IDEABANK: 0,
+    ROADMAP: 0,
+    BACKLOG: 0,
+    TODO: 0,
+    CHECKLIST: 0,
+  },
+  tacticalCount: 0,
+  checklistCount: 0,
+};
 
 export type CompanyReadModel = {
   projection: WebappProjection | null;
@@ -124,7 +108,7 @@ export function buildCompanyReadModel(snapshot: SnapshotReadModelFields | null |
         tacticalCount: Math.max(projection.counts.tacticalCount, projection.counts.checklistCount),
         pipelineJobs: Number(queueTotal ?? projection.counts.pipelineJobs ?? 0),
       }
-    : buildCountsFromSnapshot(snapshot);
+    : EMPTY_COUNTS;
   const navCounts = projection?.navCounts
     ? {
         ...projection.navCounts,
@@ -135,7 +119,7 @@ export function buildCompanyReadModel(snapshot: SnapshotReadModelFields | null |
         ),
         pipeline: Number(queueTotal ?? projection.navCounts.pipeline ?? counts.pipelineJobs ?? 0),
       }
-    : buildNavCountsFromDashboard(counts);
+    : EMPTY_NAV_COUNTS;
   const planningSummary = projection?.planningSummary
     ? {
         ...projection.planningSummary,
@@ -145,7 +129,7 @@ export function buildCompanyReadModel(snapshot: SnapshotReadModelFields | null |
         ),
         checklistCount: Number(projection.planningSummary.checklistCount ?? counts.checklistCount ?? 0),
       }
-    : buildPlanningSummaryFromSnapshot(snapshot);
+    : EMPTY_PLANNING_SUMMARY;
 
   return {
     projection,

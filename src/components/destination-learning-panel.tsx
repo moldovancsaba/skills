@@ -116,8 +116,8 @@ export function DestinationLearningPanel({ companyId, destinationKey }: { compan
 
       <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
         <MetricCard icon={Brain} color="review" label="First-Pass Approval" value={pct(summary.quality.firstPassApprovalRate)} detail="approved without rejection" />
-        <MetricCard icon={Brain} color="strategy" label="Publish Success" value={pct(summary.quality.publishSuccessRate)} detail="approved packets that published" />
-        <MetricCard icon={Brain} color="checklist" label="Rework Rate" value={pct(summary.quality.reworkRate)} detail="packets sent back for fixes" />
+        <MetricCard icon={Brain} color="strategy" label="Publish Success" value={pct(summary.quality.publishSuccessRate)} detail="approved cards that published" />
+        <MetricCard icon={Brain} color="checklist" label="Rework Rate" value={pct(summary.quality.reworkRate)} detail="cards sent back for fixes" />
         <MetricCard icon={Brain} color="knowmore" label="Workflow Failure" value={pct(summary.quality.workflowFailureRate)} detail="runs ending in failed state" />
         <MetricCard icon={Brain} color="strategy" label="Draft Corrections" value={pct(summary.quality.draftCorrectionRate)} detail="decisions with payload edits" />
         <MetricCard icon={Brain} color="checklist" label="Fact Corrections" value={pct(summary.quality.factCorrectionRate)} detail="decisions with fact edits" />

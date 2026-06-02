@@ -47,7 +47,7 @@ export const DEFAULT_VISITOR_CAPABILITY_RULES: VisitorCapabilityRule[] = [
     id: "source-backed-publication",
     scope: "check.miniapp",
     version: "v1",
-    appliesTo: ["miniapp-publication", "review-packets", "public-verification"],
+    appliesTo: ["miniapp-publication", "review-cards", "public-verification"],
     precedence: 200,
   },
   {

@@ -121,7 +121,7 @@ export async function publishDestinationReviewPacket(input: {
   });
 
   if (!packet) {
-    return { ok: false, status: 404, error: "Review packet not found" };
+    return { ok: false, status: 404, error: "Review card not found" };
   }
 
   const rawDestinationKey = String(packet.destinationInstance.destinationKey || "").trim();
@@ -131,7 +131,7 @@ export async function publishDestinationReviewPacket(input: {
   }
 
   if (packet.packetState !== "APPROVED") {
-    return { ok: false, status: 409, error: `Packet must be APPROVED before publish, got ${packet.packetState}` };
+    return { ok: false, status: 409, error: `Review card must be APPROVED before publish, got ${packet.packetState}` };
   }
 
   const config = getDestinationBridgeConfig(destinationKey);
@@ -149,7 +149,7 @@ export async function publishDestinationReviewPacket(input: {
     metadata: packet.metadata,
   });
   if (!entityKind) {
-    return { ok: false, status: 422, error: `Could not infer ${config.label} entity kind from review packet` };
+    return { ok: false, status: 422, error: `Could not infer ${config.label} entity kind from review card` };
   }
 
   const fetchImpl = input.fetchImpl ?? fetch;
@@ -190,7 +190,7 @@ export async function publishDestinationReviewPacket(input: {
       bridgeVersion: packet.bridgeVersion,
       eventType: "publish_bridge_failed",
       reasonCode: typeof data.error === "string" ? data.error : `HTTP_${response.status}`,
-      notes: `${config.label} publish bridge failed for review packet ${packet.id}`,
+      notes: `${config.label} publish bridge failed for review card ${packet.id}`,
       actorType: "SYSTEM",
       actorId: input.reviewedBy,
       payload: data,

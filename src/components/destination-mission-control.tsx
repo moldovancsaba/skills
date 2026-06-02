@@ -188,7 +188,7 @@ export function DestinationMissionControl({
         <MetricCard icon={IconActivity} color="review" label="Active Runs" value={summary.activeRuns} detail="workflow runs still in motion" />
         <MetricCard icon={IconStethoscope} color="strategy" label="Stale Runs" value={summary.staleRuns.length} detail="past timeout threshold" />
         <MetricCard icon={IconRotateClockwise2} color="checklist" label="Retry Backlog" value={summary.retryBacklog} detail="failed runs awaiting recovery" />
-        <MetricCard icon={Refresh} color="knowmore" label="Open Review Packets" value={summary.reviewQueueAging.openPackets} detail={`${Math.round(summary.reviewQueueAging.oldestPacketAgeMs / 60000)} min oldest`} />
+        <MetricCard icon={Refresh} color="knowmore" label="Open Review Cards" value={summary.reviewQueueAging.openPackets} detail={`${Math.round(summary.reviewQueueAging.oldestPacketAgeMs / 60000)} min oldest`} />
       </SimpleGrid>
 
       {summary.callbackFailureCount > 0 ? (

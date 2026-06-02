@@ -182,7 +182,7 @@ export async function getClassScoutLandingSummary(companyId: string): Promise<Cl
       {
         key: "content-ops",
         title: "Content Ops",
-        description: "Review packets, approve outcomes, and work the human decision queue.",
+        description: "Review cards, approve outcomes, and work the human decision queue.",
         href: `/${companyId}/review?tab=review`,
         tone: "review",
       },

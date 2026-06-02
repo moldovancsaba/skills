@@ -756,7 +756,7 @@ export function DestinationRulebookRunner({
               disabled={!selectedRun}
               onClick={() => void prepareCandidate()}
             >
-              Prepare review packet
+              Prepare review card
             </Button>
           </Group>
 

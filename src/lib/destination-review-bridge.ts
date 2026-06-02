@@ -347,7 +347,7 @@ export async function getDestinationReviewPacket(companyId: string, reviewPacket
   if (!packet) return null;
   const destinationKey = normalizeDestinationKey(packet.destinationInstance.destinationKey);
   if (!destinationKey) {
-    throw new Error(`Unsupported destination key for review packet ${packet.id}`);
+    throw new Error(`Unsupported destination key for review card ${packet.id}`);
   }
 
   const latestFactSnapshot = packet.draft.basedOnFactSnapshotId

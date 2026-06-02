@@ -339,7 +339,7 @@ Source for `initialData`:
 ### 7.6 Local-to-Miniapp intelligence flow
 1. Local runtime ingests or refreshes source intelligence for the Unit.
 2. Destination mission policy selects ClassScout or Compare scope.
-3. Mission run consumes Unit intelligence and creates destination candidates or review packets.
+3. Mission run consumes Unit intelligence and creates destination candidates or review cards.
 4. Operator reviews, approves, publishes, or requests recovery from Miniapp Ops.
 5. Observability records freshness, failures, retries, blocked states, and successful outcomes.
 6. Release evidence must prove this flow separately for ClassScout and Compare.
@@ -348,7 +348,7 @@ Legacy adoption rule:
 
 - If real Miniapp destination content exists from before mission runs were introduced, do not weaken the proof gate.
 - Adopt the legacy evidence into explicit mission lineage with `npm run backfill:destination-mission-lineage`.
-- The adopted run must be visibly marked in metadata and must reference the original review packet, outcome memory, workflow run, and candidate where available.
+- The adopted run must be visibly marked in metadata and must reference the original review card, outcome memory, workflow run, and candidate where available.
 - This is a compatibility bridge only. New destination content should be created by daemon/materialized mission runs.
 
 Local Compare bridge bootstrap:
@@ -356,7 +356,7 @@ Local Compare bridge bootstrap:
 - `npm run bootstrap:compare-local-proof -- --companyId <companyId>` creates explicit local proof evidence when no organic Compare destination instance exists yet.
 - This is a development proof tool, not a production content source.
 - The proof records are marked with `source: bootstrap-compare-local-proof`.
-- Production readiness still requires Compare discovery/intelligence to produce real candidates, review packets, and publish outcomes.
+- Production readiness still requires Compare discovery/intelligence to produce real candidates, review cards, and publish outcomes.
 
 Shared health contract:
 
@@ -655,7 +655,7 @@ Business-level Block model:
 - **Checklist Block** -> data, topics, goals, review, knowmore, analytics, tactical, checklist, pipeline as needed
 - **Sales Block** -> data, knowmore, analytics, pipeline, sales, review as needed
 - **Project Block** -> Project Board only; no intelligence lifecycle by default
-- **Miniapp Block** -> Miniapp Ops, missions, review packets, publish/verify/maintenance, plus required supporting Modules
+- **Miniapp Block** -> Miniapp Ops, missions, review cards, publish/verify/maintenance, plus required supporting Modules
 
 Current profile presets:
 - NONE preset: core modules mostly on, content OFF

@@ -100,7 +100,7 @@ for (const route of [
   assertHas(routeSource, /destinationKey/, `${route} route must be destination scoped.`);
 }
 
-for (const tab of ["Mission setup", "Review packets", "Mission control"]) {
+for (const tab of ["Mission setup", "Review cards", "Mission control"]) {
   assertHas(workspace, new RegExp(tab), `ClassScout workspace must expose ${tab}.`);
 }
 assertHas(

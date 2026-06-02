@@ -192,7 +192,7 @@ export function ClassScoutHome({ companyId }: { companyId: string }) {
         ) : null}
 
         <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
-          <MetricCard icon={History} color="review" label="Workflow Packets" value={summary.summary.workflowPackets} detail={`${summary.summary.reviewRequired} require attention`} />
+          <MetricCard icon={History} color="review" label="Workflow Cards" value={summary.summary.workflowPackets} detail={`${summary.summary.reviewRequired} require attention`} />
           <MetricCard icon={Book} color="knowmore" label="Live Listings" value={summary.summary.liveListings} detail={`${summary.summary.replayCandidates} replay candidates`} />
           <MetricCard icon={Kanban} color="tactical" label="Project Cards" value={summary.summary.projectCards} detail={`${summary.summary.publishedOutcomes} published outcomes`} />
           <MetricCard icon={Radar} color="strategy" label="Mission Pressure" value={summary.summary.activeRuns} detail={`${summary.summary.staleRuns} stale · ${summary.summary.failedWorkflows} failed`} />
@@ -224,7 +224,7 @@ export function ClassScoutHome({ companyId }: { companyId: string }) {
                 <UnifiedCardSection tone="review">
                   <Group justify="space-between">
                     <Text fw={600}>Content Ops</Text>
-                    <MetaText>{summary.sections.learning?.packetCount ?? 0} packets</MetaText>
+                    <MetaText>{summary.sections.learning?.packetCount ?? 0} cards</MetaText>
                   </Group>
                   <BodyText>First-pass approval {pct(summary.sections.learning?.firstPassApprovalRate ?? 0)}.</BodyText>
                 </UnifiedCardSection>

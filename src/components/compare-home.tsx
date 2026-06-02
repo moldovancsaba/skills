@@ -65,7 +65,7 @@ export function CompareHome({ companyId, modules = {} }: { companyId: string; mo
       <Stack gap="xl">
         <PageHeader
           title="Compare"
-          description="Dedicated operator home for Compare workflows, packet review, and mission follow-through."
+          description="Dedicated operator home for Compare workflows, review cards, and mission follow-through."
           actions={(
             <Group gap="sm">
               <Badge variant="light" color="review">Miniapp</Badge>
@@ -128,7 +128,7 @@ export function CompareHome({ companyId, modules = {} }: { companyId: string; mo
 
         {summary ? (
           <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
-            <MetricCard icon={History} color="review" label="Workflow Packets" value={summary.summary.workflowPackets} detail={`${summary.summary.reviewRequired} require review`} />
+            <MetricCard icon={History} color="review" label="Workflow Cards" value={summary.summary.workflowPackets} detail={`${summary.summary.reviewRequired} require review`} />
             <MetricCard icon={Rocket} color="knowmore" label="Published Outcomes" value={summary.summary.publishedOutcomes} detail={`${summary.summary.approvedPackets} approved`} />
             <MetricCard icon={CircleDashed} color="strategy" label="Active Runs" value={summary.summary.activeRuns} detail={`${summary.summary.failedRuns} failed`} />
             <MetricCard

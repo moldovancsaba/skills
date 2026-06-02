@@ -17,10 +17,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (auth.error) return auth.error;
 
   const { id } = await params;
-  const packet = await getDestinationReviewPacket(companyId, id);
-  if (!packet) return NextResponse.json({ error: "Review packet not found" }, { status: 404 });
-  if (destinationKey && packet.destinationInstance?.destinationKey !== destinationKey) {
-    return NextResponse.json({ error: "Review packet not found" }, { status: 404 });
+  const card = await getDestinationReviewPacket(companyId, id);
+  if (!card) return NextResponse.json({ error: "Review card not found" }, { status: 404 });
+  if (destinationKey && card.destinationInstance?.destinationKey !== destinationKey) {
+    return NextResponse.json({ error: "Review card not found" }, { status: 404 });
   }
-  return NextResponse.json(packet);
+  return NextResponse.json(card);
 }

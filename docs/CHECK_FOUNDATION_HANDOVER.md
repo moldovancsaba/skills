@@ -143,7 +143,7 @@ Retry/timeout behavior:
 
 Rollback/recovery behavior:
 
-- keep failed packets in review/publish visibility
+- keep failed review cards in review/publish visibility
 - use replay and refresh flows instead of destructive resets
 - record outcome/audit events for permission, publish, and review decisions
 
@@ -154,7 +154,7 @@ Canonical miniapp flow:
 ```text
 mission start
   -> candidate generation
-  -> review packet creation
+  -> review card creation
   -> human approve/reject/rework
   -> publish via miniapp adapter
   -> outcome recording
@@ -445,11 +445,11 @@ This prevents compare-first Units from being forced into classscout-default revi
 
 ## Destination-scoped review queue
 
-Review packet listing now supports optional destination filtering:
+Review card listing now supports optional destination filtering:
 
 - `GET /api/destination-review/cards?companyId=:id&destinationKey=:key`
 - `destinationKey` is validated against supported destination keys.
-- when provided, packets are filtered by `destinationInstance.destinationKey`.
+- when provided, review cards are filtered by `destinationInstance.destinationKey`.
 
 Workspace propagation:
 
@@ -464,7 +464,7 @@ Mission control summary now accepts optional destination scope:
 
 - `GET /api/destination-workflows/mission-control/summary?companyId=:id&destinationKey=:key`
 - destination key is validated via shared destination-key guard.
-- when destination scope is present, workflow runs, review packets, and outcome memories are filtered by destination instance.
+- when destination scope is present, workflow runs, review cards, and outcome memories are filtered by destination instance.
 
 Workspace propagation:
 
@@ -550,7 +550,7 @@ Observability now preserves active destination scope when navigating to Internal
 
 ## Destination-scoped review detail and mutations
 
-Review packet detail and mutation endpoints now support optional destination scoping and strict validation:
+Review card detail and mutation endpoints now support optional destination scoping and strict validation:
 
 - `GET /api/destination-review/cards/:id`
 - `POST /api/destination-review/cards/:id/decision`
@@ -675,7 +675,7 @@ Additional API consistency updates completed:
 - `POST /api/destination-review/cards`
   - now enforces non-empty `companyId`
   - validates `destinationKey` with shared normalization helper
-  - passes normalized values into review packet submission
+  - passes normalized values into review card submission
 - `GET /api/destination-review/cards`
   - now uses shared destination normalization helper for key validation/parsing
 
@@ -822,7 +822,7 @@ Touched route families include:
 - destination mission definition actions (`activate`, `pause`, `duplicate`, `archive`, `PATCH`)
 - destination daemon trigger
 - destination replay/mission-control mutation routes
-- destination review packet publish mutation
+- destination review card publish mutation
 
 This complements the explicit required-field prechecks and keeps bad-payload handling deterministic.
 
@@ -1123,7 +1123,7 @@ This pass focuses on canonical miniapp/public-destination flows and aligns body-
 - `POST` now rejects non-object payloads (when payload is present).
 - Preserves existing optional-body semantics.
 
-### 4) Destination review packet publish route
+### 4) Destination review card publish route
 - File: `src/app/api/destination-review/cards/[id]/publish/route.ts`
 - `POST` now requires a JSON object body and validates `companyId` via typed extraction.
 - Removes permissive fallback that previously accepted malformed payload shapes.

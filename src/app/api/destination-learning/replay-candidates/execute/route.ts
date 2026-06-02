@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       if (destinationKey) {
         const packet = await getDestinationReviewPacket(companyId, reviewPacketId);
         if (!packet || packet.destinationInstance?.destinationKey !== destinationKey) {
-          return NextResponse.json({ ok: false, error: "Review packet not found" }, { status: 404 });
+          return NextResponse.json({ ok: false, error: "Review card not found" }, { status: 404 });
         }
       }
       const result = await publishDestinationReviewPacket({

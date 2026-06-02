@@ -291,7 +291,7 @@ Every Miniapp must define:
 - Unit ownership
 - Mission types
 - Rulebook fields
-- candidate/evidence/draft/packet lifecycle
+- candidate/evidence/draft/review-card lifecycle
 - publish contract
 - verify contract
 - maintenance contract

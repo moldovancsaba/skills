@@ -81,7 +81,7 @@ export async function POST(
     });
 
     if (!decision) {
-      return NextResponse.json({ error: "Review packet not found" }, { status: 404 });
+      return NextResponse.json({ error: "Review card not found" }, { status: 404 });
     }
 
     return NextResponse.json({

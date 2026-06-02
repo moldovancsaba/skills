@@ -64,7 +64,7 @@ This document defines the implemented runtime behavior for the Visitor App backe
    - workflow run (if missing)
    - fact snapshot
    - draft
-   - review packet
+   - review card
 7. Feedback rule application performs immediate candidate re-audit and state transition:
    - `forbid_mapping -> RETIRED/REJECTED`
    - `downrank_source -> REWORK_REQUIRED/FAILED`
@@ -97,4 +97,4 @@ Workflow state mapping:
   - candidates/review artifacts: destination workflow tables
 - Retry behavior:
   - discover is idempotent by candidate fingerprint
-  - review packet submission is idempotent by packet fingerprint
+  - review card submission is idempotent by packet fingerprint

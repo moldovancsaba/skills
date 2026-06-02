@@ -114,7 +114,7 @@ Before release, each Miniapp must prove:
 6. Observability exposes failures, retries, and stale-data state.
 7. Recovery is documented when Local is down, stale, or blocked.
 
-Legacy Miniapp evidence can satisfy the mission-run requirement only after explicit mission-lineage adoption. The adopted mission run must keep metadata pointing to the original input, review packet, outcome memory, workflow run, and candidate where those references exist.
+Legacy Miniapp evidence can satisfy the mission-run requirement only after explicit mission-lineage adoption. The adopted mission run must keep metadata pointing to the original input, review card, outcome memory, workflow run, and candidate where those references exist.
 
 ## Go/No-Go checklist
 

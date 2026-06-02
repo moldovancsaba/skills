@@ -6,6 +6,14 @@ This document defines the implemented runtime behavior for the Visitor App backe
 
 `blueprint/taxonomy -> source datacards -> candidate pipeline -> review -> publish -> feedback/refinement -> public verification`
 
+Scope is enforced by the miniapp capability chain:
+
+- `check`
+- `check.miniapp`
+- `check.miniapp.visitors`
+- `check.miniapp.visitors.compare`
+- `check.miniapp.visitors.classscout`
+
 ## API Surface
 
 ### Blueprint + Taxonomy

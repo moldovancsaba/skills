@@ -257,10 +257,15 @@ Every new issue must define:
 - pseudo-code or decision logic
 - UX states
 - accessibility expectations
-- observability/retry/rollback behavior
+- observability/retries/timeouts
+- rollback/recovery path
 - tests
 - documentation updates
-- dependency and execution order
+- dependency mapping and execution order
+
+Required board/doc governance artifacts:
+
+- [docs/PROJECT_BOARD_GOVERNANCE.md](/Users/Shared/Projects/checklist/docs/PROJECT_BOARD_GOVERNANCE.md)
 
 No umbrella or vague tickets.
 

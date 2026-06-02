@@ -66,6 +66,34 @@ Rules:
 - Miniapp-specific maintenance behavior must be plugged in through destination maintenance adapters, not by branching daemon ownership logic
 - new Miniapps must inherit the same daemon defaults and policy flow used by existing Miniapps unless an explicit rulebook exception is approved
 
+### 2.0.2 Delivery governance and issue quality
+
+Delivery issues must follow:
+
+- issue standard:
+  - [general-design-system #81](https://github.com/sovereignsquad/general-design-system/issues/81)
+- issue template in `.github/ISSUE_TEMPLATE/feature-delivery.yml`
+- board governance contract in [docs/PROJECT_BOARD_GOVERNANCE.md](/Users/Shared/Projects/checklist/docs/PROJECT_BOARD_GOVERNANCE.md)
+
+Every issue must define, at minimum, all of the following:
+
+- architecture
+- runtime flow
+- contracts
+- APIs
+- pseudo-code
+- UX states
+- accessibility
+- observability
+- retries and timeouts
+- rollback/recovery
+- testing
+- documentation
+- dependencies
+- execution order (numeric sequencing)
+- edge cases
+- operational behavior
+
 ### 2.1 Local AI prepares, webapp reads
 
 If a product surface needs aggregated, ranked, counted, scored, summarized, or trend-shaped data:

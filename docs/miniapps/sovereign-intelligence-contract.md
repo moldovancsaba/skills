@@ -46,6 +46,26 @@ Each miniapp declares:
 - `failurePolicy`: retryable, terminal, and learning-memory codes.
 - `verificationPolicy`: public API and visible-card counting rules.
 
+## Capability Scopes (Contract Rule)
+
+Miniapp capability checks are evaluated on explicit parent scope chains:
+
+- `check`
+- `check.miniapp`
+- `check.miniapp.visitors`
+- `check.miniapp.visitors.compare` for Compare
+- `check.miniapp.visitors.classscout` for ClassScout
+
+This means:
+
+- compare/classscout must inherit shared check and miniapp-level rules.
+- compare/classscout level rules apply at `check.miniapp.visitors.compare` and `check.miniapp.visitors.classscout`.
+- no issue can treat `ClassScout` or `Compare` as independent from the parent `check`/`check.miniapp` contracts.
+
+Implementation reference:
+
+- `src/lib/visitor-capability-resolver.ts`
+
 ## Mandatory Invariants
 
 - `promotionPolicy.successMetric` must be `verified_public_visible_cards`.
@@ -82,6 +102,23 @@ Its initial coverage goals target verified public cards for:
 - Hunting Associations
 
 The contract explicitly forbids treating manually seeded source cards as the output. Source pages are evidence discovered by research tasks; they are not miniapp inventory.
+
+### Compare Datacard Package Guidance
+
+At startup and on maintenance, the Compare local intelligence model should start with these data-card clusters:
+
+- `source-discovery`
+  - Search seeds and proven sources (for example "shooting range", "target shooting", "hunting association")
+- `category-rules`
+  - Allowed and forbidden category terms per geography
+- `quality-thresholds`
+  - Minimum evidence + source authority + freshness constraints for promotion
+- `learning-rules`
+  - `forbid`, `suppress`, and `retry` rules produced by feedback and operator corrections
+- `avoidance-rules`
+  - Terms that must force `REWORK_REQUIRED` even when confidence is high (for example, birthday-themed, placeholder-only, fake/static content)
+
+This structure is not a second-card type system; it is an operational content source for local intelligence planning and maintenance loops.
 
 ## ClassScout Compatibility Contract
 

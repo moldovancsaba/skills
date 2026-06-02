@@ -6,74 +6,169 @@ body:
     id: objective
     attributes:
       label: Objective
-      description: One clear sentence describing what must be achieved.
-      placeholder: State the concrete outcome this issue must achieve.
-    validations:
-      required: true
-
-  - type: textarea
-    id: unified_context
-    attributes:
-      label: Unified Context
-      description: Explain the surrounding system, linked work, and why this exists now.
-      placeholder: Provide the operational, product, and dependency context.
-    validations:
-      required: true
-
-  - type: textarea
-    id: problem
-    attributes:
-      label: Problem
-      description: Describe the current gap, failure, or risk.
-      placeholder: What is broken, missing, risky, or unclear today?
-    validations:
-      required: true
-
-  - type: textarea
-    id: goal
-    attributes:
-      label: Goal
-      description: Describe the target state after this issue is complete.
-      placeholder: What should be true when this work is done?
-    validations:
-      required: true
-
-  - type: textarea
-    id: scope
-    attributes:
-      label: Scope
-      description: Define both in-scope and out-of-scope boundaries.
+      description: Clear operational outcome and customer-facing effect if this issue is done.
       value: |
-        In scope:
-        - item
-        - item
-
-        Out of scope:
-        - item
-        - item
+        - Business outcome:
+        - User visible behavior change:
+        - Success criteria:
     validations:
       required: true
 
   - type: textarea
-    id: constraints
+    id: architecture
     attributes:
-      label: Constraints
-      description: Hard requirements the implementation must not violate.
-      placeholder: |
-        - preserve current behavior X
-        - no secret exposure
-        - keep compatibility with Y
-    validations:
-      required: true
-
-  - type: textarea
-    id: acceptance_checks
-    attributes:
-      label: Acceptance Checks
-      description: Observable checks that prove the issue is complete.
+      label: Architecture
+      description: Explicitly define boundary ownership and runtime contract touchpoints.
       value: |
-        - [ ] check
-        - [ ] check
+        - Ownership boundaries:
+        - Data read/write boundaries:
+        - Cross-cutting systems:
+    validations:
+      required: true
+
+  - type: textarea
+    id: runtime_flow
+    attributes:
+      label: Runtime Flow
+      description: Deterministic execution sequence including entry/exit conditions.
+      value: |
+        1. Entry:
+        2. Work steps:
+        3. Completion condition:
+        4. Failure handling:
+    validations:
+      required: true
+
+  - type: textarea
+    id: contracts
+    attributes:
+      label: Contracts
+      description: Data contracts, schema constraints, and compatibility expectations.
+      value: |
+        - Contract objects:
+        - Validation logic:
+        - Backward compatibility:
+    validations:
+      required: true
+
+  - type: textarea
+    id: apis
+    attributes:
+      label: APIs
+      description: Route changes and request/response contracts with idempotency expectations.
+      value: |
+        - Route:
+        - Method:
+        - Request:
+        - Response:
+        - Auth:
+        - Idempotency:
+    validations:
+      required: true
+
+  - type: textarea
+    id: pseudo_code
+    attributes:
+      label: Pseudo-code
+      description: Core logic in short pseudo-code or decision-table form.
+      value: |
+        // Add the most important control flow here
+        if (...) {
+          ...
+        }
+    validations:
+      required: true
+
+  - type: textarea
+    id: ux_states
+    attributes:
+      label: UX States
+      description: Loading, empty, error, ready, retrying, degraded, and recovered states.
+      value: |
+        - loading:
+        - empty:
+        - ready:
+        - partial:
+        - error:
+        - retrying:
+        - degraded:
+        - recovered:
+    validations:
+      required: true
+
+  - type: textarea
+    id: accessibility
+    attributes:
+      label: Accessibility
+      description: Keyboard, focus, labels, announcements, contrast, motion, and error messaging behavior.
+      value: |
+        - keyboard flow:
+        - focus handling:
+        - labels/announcements:
+        - contrast/motion:
+    validations:
+      required: true
+
+  - type: textarea
+    id: observability
+    attributes:
+      label: Observability
+      description: Logs, metrics, traces, dashboards, and success visibility.
+      value: |
+        - metrics:
+        - logs:
+        - traces:
+        - dashboards:
+    validations:
+      required: true
+
+  - type: textarea
+    id: retries
+    attributes:
+      label: Retries and Timeouts
+      description: Define bounded retries and timeout budgets.
+      value: |
+        - timeout budget:
+        - retry policy:
+        - cancellation behavior:
+    validations:
+      required: true
+
+  - type: textarea
+    id: rollback_recovery
+    attributes:
+      label: Rollback and Recovery
+      description: Define safe replay, rollback, and compensation behavior.
+      value: |
+        - rollback path:
+        - replay path:
+        - user/operator recovery action:
+        - irreversible state warnings:
+    validations:
+      required: true
+
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing
+      description: Unit tests, integration tests, contract tests, and coverage expectations.
+      value: |
+        - Unit:
+        - Integration:
+        - Contract/QA:
+        - Manual/ops:
+    validations:
+      required: true
+
+  - type: textarea
+    id: documentation
+    attributes:
+      label: Documentation
+      description: Runtime docs, handoff notes, runbooks, and migration notes to update.
+      value: |
+        - docs to update:
+        - docs changes:
+        - handoff notes:
     validations:
       required: true
 
@@ -81,41 +176,42 @@ body:
     id: dependencies
     attributes:
       label: Dependencies
-      description: Upstream issues, PRs, or explicit "none".
-      placeholder: |
-        - issue or PR link
-        - decision or prerequisite
-        - none
+      description: Upstream issues, PRs, decisions, and explicit blockers.
+      value: |
+        - depends on:
+        - depends on decision:
+        - external dependency:
     validations:
       required: true
 
   - type: textarea
-    id: risks
+    id: execution_order
     attributes:
-      label: Risks
-      description: Operational, product, delivery, or safety risks.
-      placeholder: |
-        - risk
-        - risk
+      label: Execution Order
+      description: Assign a monotonic numeric execution order for sequencing on the project board (1+ integer).
+      placeholder: e.g. 17
     validations:
       required: true
 
   - type: textarea
-    id: delivery_artifact
+    id: edge_cases
     attributes:
-      label: Delivery Artifact
-      description: The expected implementation package, shipped output, or decision package.
-      placeholder: Describe the output expected from this issue.
+      label: Edge Cases
+      description: Known edge cases that must be covered before this issue is done.
+      value: |
+        - edge:
+        - edge:
     validations:
       required: true
 
   - type: textarea
-    id: developer_notes
+    id: operational_behavior
     attributes:
-      label: Developer Notes
-      description: Suggested implementation surfaces, interfaces, or design decisions.
-      placeholder: |
-        - suggested implementation surface
-        - design decision to preserve
+      label: Operational Behavior
+      description: What this issue changes for operators and where they observe it in operation.
+      value: |
+        - operator behavior change:
+        - observability impact:
+        - expected runtime impact:
     validations:
       required: true

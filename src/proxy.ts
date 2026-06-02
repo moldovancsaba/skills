@@ -40,7 +40,7 @@ export function proxy(req: NextRequest) {
     "/api/test-public",
     "/card",
     "/api/cards",
-    "/api/destination-review/packets",
+    "/api/destination-review/cards",
     "/api/destination-review/outcomes",
     "/api/destination-review/live-listing-status",
     "/api/destination-missions/daemon",

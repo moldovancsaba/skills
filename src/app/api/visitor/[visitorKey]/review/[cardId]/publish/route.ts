@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ visitorKey: string; packetId: string }> },
+  { params }: { params: Promise<{ visitorKey: string; cardId: string }> },
 ) {
   const bodyRaw = await request.json().catch(() => null);
   if (!bodyRaw || typeof bodyRaw !== "object" || Array.isArray(bodyRaw)) {
@@ -20,19 +20,19 @@ export async function POST(
   const auth = await verifyMembership(request, companyId, "MEMBER");
   if (auth.error) return auth.error;
 
-  const { visitorKey, packetId } = await params;
+  const { visitorKey, cardId } = await params;
   const destinationKeyHint = typeof body.destinationKey === "string" ? body.destinationKey.trim() : undefined;
   const destinationKey = resolveDestinationKeyForVisitorWithHint(visitorKey, destinationKeyHint);
   if (!destinationKey) return NextResponse.json({ ok: false, error: "Unsupported visitorKey" }, { status: 400 });
 
-  const packet = await getDestinationReviewPacket(companyId, packetId);
-  if (!packet || packet.destinationInstance?.destinationKey !== destinationKey) {
-    return NextResponse.json({ ok: false, error: "Review packet not found" }, { status: 404 });
+  const card = await getDestinationReviewPacket(companyId, cardId);
+  if (!card || card.destinationInstance?.destinationKey !== destinationKey) {
+    return NextResponse.json({ ok: false, error: "Review card not found" }, { status: 404 });
   }
 
   const result = await publishDestinationReviewPacket({
     companyId,
-    reviewPacketId: packetId,
+    reviewPacketId: cardId,
     reviewedBy: auth.session.email,
   });
   return NextResponse.json({ visitorKey, ...result }, { status: result.status });

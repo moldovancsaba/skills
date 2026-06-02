@@ -10,9 +10,10 @@ const laneEventsRoute = readFileSync("src/app/api/local-ai/lane-events/route.ts"
 const localAiPage = readFileSync("src/app/local-ai/page.tsx", "utf8");
 
 assert.match(daemonRoute, /escalateCompanyPipelineJob/, "destination daemon route must enqueue/escalate pipeline work");
-assert.match(daemonRoute, /assertPlaylistMutationAuthority/, "destination daemon route must require Playlist authority before direct execution");
-assert.match(daemonRoute, /executeDestinationMissionDaemonForCompany/, "destination daemon route may execute only as an internal queue-authorized bridge");
+assert.doesNotMatch(daemonRoute, /assertPlaylistMutationAuthority/, "destination daemon route must not execute Playlist work in Webapp");
+assert.doesNotMatch(daemonRoute, /executeDestinationMissionDaemonForCompany/, "destination daemon route must queue Local daemon work instead of executing directly");
 assert.match(daemonRoute, /lane:\s*"PLAYLIST"/, "destination daemon route must report Playlist lane");
+assert.match(daemonRoute, /queued:\s*true/, "destination daemon route must return a queued receipt");
 
 assert.match(cronRoute, /escalateCompanyPipelineJob/, "cron destination route must enqueue/escalate pipeline work");
 assert.doesNotMatch(cronRoute, /executeDestinationMissionDaemonForCompany/, "cron destination route must not execute daemon work directly");

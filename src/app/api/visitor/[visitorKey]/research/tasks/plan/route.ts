@@ -28,6 +28,10 @@ export async function POST(
     visitorKey,
     intentKind: "research.tasks.plan",
     destinationKey: asString(body.destinationKey) || null,
+    payload: {
+      targetVisibleCards: Number(body.targetVisibleCards) || 100,
+      limit: Number(body.limit) || 100,
+    },
   });
   return NextResponse.json(receipt, { status: 202 });
 }

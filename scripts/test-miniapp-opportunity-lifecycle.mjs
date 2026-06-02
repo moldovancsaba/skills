@@ -21,8 +21,12 @@ assert(lifecycle.includes("DestinationWorkflowState.DISCOVERED"), "new candidate
 assert(lifecycle.includes("miniappEvidencePromotion"), "evidence artifacts must record promotion outcome");
 
 assert(listRoute.includes('verifyMembership(request, companyId, "MEMBER")'), "opportunity list route must require membership");
+assert(listRoute.includes("miniappOpportunityCard"), "opportunity list route must read stored opportunity projections");
+assert(!listRoute.includes("listMiniappOpportunityCards"), "opportunity list route must not import lifecycle runtime");
 assert(promoteRoute.includes('verifyMembership(request, companyId, "ADMIN")'), "promotion route must require admin access");
-assert(promoteRoute.includes("promoteMiniappEvidenceToOpportunities"), "promotion route must call lifecycle");
+assert(promoteRoute.includes("queueVisitorLocalIntent"), "promotion route must queue Local AI intent");
+assert(promoteRoute.includes('intentKind: "research.opportunities.promote"'), "promotion route must preserve promotion intent kind");
+assert(!promoteRoute.includes("promoteMiniappEvidenceToOpportunities"), "promotion route must not execute lifecycle runtime in Webapp");
 
 assert(docs.includes("Opportunity Lifecycle"), "docs must document opportunity lifecycle");
 assert(docs.includes("REWORK_REQUIRED"), "docs must document rework path");

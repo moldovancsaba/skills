@@ -28,6 +28,11 @@ export async function POST(
     visitorKey,
     intentKind: "research.burst",
     destinationKey: asString(body.destinationKey) || null,
+    payload: {
+      targetVisibleCards: Number(body.targetVisibleCards) || 100,
+      maxCycles: Number(body.maxCycles) || 1,
+      tasksPerCycle: Number(body.tasksPerCycle) || 3,
+    },
   });
   return NextResponse.json(receipt, { status: 202 });
 }

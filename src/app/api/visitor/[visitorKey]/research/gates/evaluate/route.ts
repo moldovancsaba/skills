@@ -29,6 +29,9 @@ export async function POST(
     intentKind: "research.gates.evaluate",
     candidateId: asString(body.candidateId) || null,
     destinationKey: asString(body.destinationKey) || null,
+    payload: {
+      limit: Number(body.limit) || 25,
+    },
   });
   return NextResponse.json(receipt, { status: 202 });
 }

@@ -447,7 +447,7 @@ This prevents compare-first Units from being forced into classscout-default revi
 
 Review packet listing now supports optional destination filtering:
 
-- `GET /api/destination-review/packets?companyId=:id&destinationKey=:key`
+- `GET /api/destination-review/cards?companyId=:id&destinationKey=:key`
 - `destinationKey` is validated against supported destination keys.
 - when provided, packets are filtered by `destinationInstance.destinationKey`.
 
@@ -475,7 +475,7 @@ Workspace propagation:
 
 Destination-scoped read endpoints now reject invalid destination keys with `400` instead of silently dropping the filter:
 
-- `GET /api/destination-review/packets`
+- `GET /api/destination-review/cards`
 - `GET /api/destination-workflows/mission-control/summary`
 
 Accepted values remain `classscout` and `compare`.
@@ -552,9 +552,9 @@ Observability now preserves active destination scope when navigating to Internal
 
 Review packet detail and mutation endpoints now support optional destination scoping and strict validation:
 
-- `GET /api/destination-review/packets/:id`
-- `POST /api/destination-review/packets/:id/decision`
-- `POST /api/destination-review/packets/:id/publish`
+- `GET /api/destination-review/cards/:id`
+- `POST /api/destination-review/cards/:id/decision`
+- `POST /api/destination-review/cards/:id/publish`
 
 Behavior:
 
@@ -672,11 +672,11 @@ This prevents invalid destination strings from entering workflow, review-memory,
 
 Additional API consistency updates completed:
 
-- `POST /api/destination-review/packets`
+- `POST /api/destination-review/cards`
   - now enforces non-empty `companyId`
   - validates `destinationKey` with shared normalization helper
   - passes normalized values into review packet submission
-- `GET /api/destination-review/packets`
+- `GET /api/destination-review/cards`
   - now uses shared destination normalization helper for key validation/parsing
 
 - `POST /api/destination-missions/runs`
@@ -795,7 +795,7 @@ Hardened routes that used `field in body` required-field checks without first gu
 
 Updated:
 
-- `POST /api/destination-review/packets`
+- `POST /api/destination-review/cards`
 - `POST /api/destination-review/outcomes`
 - `POST /api/destination-workflows/live-revisions/intake`
 
@@ -834,7 +834,7 @@ Added `JSON object body is required` (`400`) guards to:
 
 - `POST /api/destination-workflows/runs/:id/replay`
 - `POST /api/destination-workflows/runs/:id/retry`
-- `POST /api/destination-review/packets/:id/decision`
+- `POST /api/destination-review/cards/:id/decision`
 - `POST /api/destination-workflows/runs`
 - `POST /api/destination-learning/exports`
 - `POST /api/destination-missions/runs`
@@ -1124,7 +1124,7 @@ This pass focuses on canonical miniapp/public-destination flows and aligns body-
 - Preserves existing optional-body semantics.
 
 ### 4) Destination review packet publish route
-- File: `src/app/api/destination-review/packets/[id]/publish/route.ts`
+- File: `src/app/api/destination-review/cards/[id]/publish/route.ts`
 - `POST` now requires a JSON object body and validates `companyId` via typed extraction.
 - Removes permissive fallback that previously accepted malformed payload shapes.
 

@@ -192,7 +192,7 @@ export function DestinationReviewWorkspace({
       const params = new URLSearchParams({ companyId });
       if (packetStateFilter !== "ALL") params.set("packetState", packetStateFilter);
       if (destinationKey) params.set("destinationKey", destinationKey);
-      const response = await fetch(`/api/destination-review/packets?${params.toString()}`);
+      const response = await fetch(`/api/destination-review/cards?${params.toString()}`);
       const data = response.ok ? await response.json() : [];
       const nextPackets = Array.isArray(data) ? data : [];
       const previousSelectedId = selectedIdRef.current;
@@ -220,7 +220,7 @@ export function DestinationReviewWorkspace({
     const loadPacketDetail = async () => {
       const destinationQuery = destinationKey ? `&destinationKey=${encodeURIComponent(destinationKey)}` : "";
       const response = await fetch(
-        `/api/destination-review/packets/${selectedId}?companyId=${encodeURIComponent(companyId)}${destinationQuery}`,
+        `/api/destination-review/cards/${selectedId}?companyId=${encodeURIComponent(companyId)}${destinationQuery}`,
         { signal: controller.signal },
       );
       if (!response.ok) return;
@@ -272,7 +272,7 @@ export function DestinationReviewWorkspace({
     }
     setSubmitting(true);
     try {
-      const response = await fetch(`/api/destination-review/packets/${selectedPacket.id}/decision`, {
+      const response = await fetch(`/api/destination-review/cards/${selectedPacket.id}/decision`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -303,7 +303,7 @@ export function DestinationReviewWorkspace({
     if (!selectedPacket) return;
     setPublishing(true);
     try {
-      const response = await fetch(`/api/destination-review/packets/${selectedPacket.id}/publish`, {
+      const response = await fetch(`/api/destination-review/cards/${selectedPacket.id}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ companyId, destinationKey }),

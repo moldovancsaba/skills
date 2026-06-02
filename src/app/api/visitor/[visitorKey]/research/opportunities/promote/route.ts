@@ -28,6 +28,9 @@ export async function POST(
     visitorKey,
     intentKind: "research.opportunities.promote",
     destinationKey: asString(body.destinationKey) || null,
+    payload: {
+      limit: Number(body.limit) || 25,
+    },
   });
   return NextResponse.json(receipt, { status: 202 });
 }

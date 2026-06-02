@@ -40,8 +40,8 @@ This document defines the implemented runtime behavior for the Visitor App backe
 
 ### Review + Publish
 
-- `POST /api/visitor/:visitorKey/review/:packetId/decision`
-- `POST /api/visitor/:visitorKey/review/:packetId/publish`
+- `POST /api/visitor/:visitorKey/review/:cardId/decision`
+- `POST /api/visitor/:visitorKey/review/:cardId/publish`
 
 ### Feedback + Refinement
 

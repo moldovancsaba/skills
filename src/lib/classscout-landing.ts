@@ -6,7 +6,7 @@ import { isClassScoutBridgeConfigured, listClassScoutLiveListings } from "@/lib/
 import { getDestinationLearningSummary, getDestinationReplayCandidates } from "@/lib/destination-learning";
 import { getDestinationMissionControlSummary } from "@/lib/destination-workflow-runtime";
 import { getActiveDestinationInstance } from "@/lib/destination-workflows";
-import { resolveClassScoutRoutes, type ClassScoutRouteContract } from "@/lib/classscout-routes";
+import { resolveClassScoutEntryPoint, resolveClassScoutRoutes, type ClassScoutRouteContract } from "@/lib/classscout-routes";
 
 const UNIT_PROJECT_BOARD_KEY = "UNIT_PROJECT";
 
@@ -69,6 +69,14 @@ export type ClassScoutLandingSummary = {
     activeRuns: number;
     staleRuns: number;
   };
+  entryPoints: Array<{
+    sourceSurface: string;
+    intent: string;
+    targetDestination: string;
+    preservesDeepLink: boolean;
+    compatibilityRedirectRequired: boolean;
+    accessibleLabel: string;
+  }>;
   actions: Array<{
     key: string;
     title: string;
@@ -201,6 +209,38 @@ export async function getClassScoutLandingSummary(companyId: string): Promise<Cl
     staleRuns: mission?.staleRuns.length ?? 0,
   };
   const routes = resolveClassScoutRoutes(companyId);
+  const entryPoints = [
+    resolveClassScoutEntryPoint({
+      companyId,
+      sourceSurface: "classscout-home",
+      intent: "open-content-ops",
+    }),
+    resolveClassScoutEntryPoint({
+      companyId,
+      sourceSurface: "classscout-home",
+      intent: "open-live-catalog",
+    }),
+    resolveClassScoutEntryPoint({
+      companyId,
+      sourceSurface: "classscout-home",
+      intent: "open-project-board",
+    }),
+    resolveClassScoutEntryPoint({
+      companyId,
+      sourceSurface: "classscout-home",
+      intent: "open-mission-control",
+    }),
+    resolveClassScoutEntryPoint({
+      companyId,
+      sourceSurface: "classscout-home",
+      intent: "open-visitor-ops",
+    }),
+    resolveClassScoutEntryPoint({
+      companyId,
+      sourceSurface: "destination-classscout-unit-panel",
+      intent: "open-app-home",
+    }),
+  ];
   const reviewPackets = {
     total: summary.workflowPackets,
     pending: summary.reviewRequired,
@@ -276,40 +316,41 @@ export async function getClassScoutLandingSummary(companyId: string): Promise<Cl
     bridgeConfigured: isClassScoutBridgeConfigured(),
     unavailableSections,
     summary,
+    entryPoints,
     actions: [
       {
         key: "content-ops",
         title: "Content Ops",
         description: "Review cards, approve outcomes, and work the human decision queue.",
-        href: routes.reviewRoute,
+        href: entryPoints[0].targetDestination,
         tone: "review",
       },
       {
         key: "live-queue",
         title: "Live Catalog Queue",
         description: "Inspect live listings and open destination revisions that need attention.",
-        href: routes.opsRoute,
+        href: entryPoints[1].targetDestination,
         tone: "knowmore",
       },
       {
         key: "project-board",
         title: "Project Board",
         description: "Track unit-level delivery work with shared kanban runtime and explicit execution status.",
-        href: `/${companyId}/unit-board?module=classscout`,
+        href: entryPoints[2].targetDestination,
         tone: "tactical",
       },
       {
         key: "mission-control",
         title: "Mission Control",
         description: "Monitor runtime health, stale runs, and destination workflow recovery actions.",
-        href: routes.observabilityRoute,
+        href: entryPoints[3].targetDestination,
         tone: "strategy",
       },
       {
         key: "visitor-ops",
         title: "Visitor Ops",
         description: "Drive research planning, evidence, and gating workflows in one operator console.",
-        href: `/${companyId}/classscout/visitor-ops`,
+        href: entryPoints[4].targetDestination,
         tone: "strategy",
       },
     ],

@@ -6,6 +6,8 @@ import { IconActivity, IconArrowRight, IconChecklist, IconRefresh, IconSparkles 
 import { useRouter } from "next/navigation";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";
 import { BodyText, MetaText, SectionTitle } from "@/components/ui/typography";
+import { resolveClassScoutEntryPoint } from "@/lib/classscout-routes";
+import { logClientInteraction } from "@/lib/client-events";
 
 type LiveListingSummary = {
   id: string;
@@ -69,6 +71,40 @@ export function DestinationClassScoutUnitPanel({ companyId }: { companyId: strin
     }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+  const homeEntry = resolveClassScoutEntryPoint({
+    companyId,
+    sourceSurface: "destination-classscout-unit-panel",
+    intent: "open-app-home",
+  });
+  const missionControlEntry = resolveClassScoutEntryPoint({
+    companyId,
+    sourceSurface: "destination-classscout-unit-panel",
+    intent: "open-mission-control",
+  });
+  const liveCatalogEntry = resolveClassScoutEntryPoint({
+    companyId,
+    sourceSurface: "destination-classscout-unit-panel",
+    intent: "open-live-catalog",
+  });
+
+  const openEntryPoint = useCallback(
+    (entry: { intent: string; targetDestination: string; accessibleLabel: string; preservesDeepLink: boolean }) => {
+      void logClientInteraction({
+        companyId,
+        surface: "destination-classscout-unit-panel",
+        interactionType: "CLASSSCOUT_ENTRY_POINT_OPEN",
+        entityType: "ROUTE",
+        entityId: entry.intent,
+        payload: {
+          href: entry.targetDestination,
+          preservesDeepLink: entry.preservesDeepLink,
+        },
+        teachingWeight: 25,
+      });
+      router.push(entry.targetDestination);
+    },
+    [companyId, router],
+  );
 
   return (
     <UnifiedCard tone="review">
@@ -123,13 +159,31 @@ export function DestinationClassScoutUnitPanel({ companyId }: { companyId: strin
             </SimpleGrid>
 
             <Group gap="sm">
-              <Button color="review" leftSection={<IconChecklist size={16} />} rightSection={<IconArrowRight size={16} />} onClick={() => router.push(`/${companyId}/review?tab=review`)}>
-                Open ClassScout Content Ops
+              <Button
+                color="review"
+                leftSection={<IconChecklist size={16} />}
+                rightSection={<IconArrowRight size={16} />}
+                aria-label={homeEntry.accessibleLabel}
+                onClick={() => openEntryPoint(homeEntry)}
+              >
+                Open ClassScout Home
               </Button>
-              <Button variant="light" color="strategy" leftSection={<IconActivity size={16} />} onClick={() => router.push(`/${companyId}/observability`)}>
+              <Button
+                variant="light"
+                color="strategy"
+                leftSection={<IconActivity size={16} />}
+                aria-label={missionControlEntry.accessibleLabel}
+                onClick={() => openEntryPoint(missionControlEntry)}
+              >
                 Open Mission Control
               </Button>
-              <Button variant="light" color="knowmore" leftSection={<IconSparkles size={16} />} onClick={() => router.push(`/${companyId}/review?tab=ops`)}>
+              <Button
+                variant="light"
+                color="knowmore"
+                leftSection={<IconSparkles size={16} />}
+                aria-label={liveCatalogEntry.accessibleLabel}
+                onClick={() => openEntryPoint(liveCatalogEntry)}
+              >
                 Open Live Catalog Queue
               </Button>
             </Group>

@@ -88,7 +88,8 @@ These routes must follow a bounded landing-summary contract:
 Current shipped ClassScout landing contract:
 
 - route: `/{companyId}/classscout`
-- API: `GET /api/classscout/landing-summary?companyId=...`
+- API: `GET /api/classscout/landing?companyId=...`
+- compatibility API: `GET /api/classscout/landing-summary?companyId=...`
 - server contract owner: `src/lib/classscout-landing.ts`
 - primary UI consumer: `src/components/classscout-home.tsx`
 

@@ -341,12 +341,39 @@ Source for `initialData`:
   - `/{companyId}/review` as generic review infrastructure
   - `/{companyId}/review?tab=ops` as generic review ops infrastructure
   - `/{companyId}/observability` as generic mission-control infrastructure
+- `src/lib/classscout-routes.ts` also owns `resolveClassScoutEntryPoint`.
+  - generic ClassScout entry points resolve to `/{companyId}/classscout`
+  - explicit Content Ops intent preserves `/{companyId}/review`
+  - explicit Live Catalog intent preserves `/{companyId}/review?tab=ops`
+  - explicit Mission Control intent preserves `/{companyId}/observability`
+  - explicit Visitor Ops intent preserves `/{companyId}/classscout/visitor-ops`
 - `webapp` profile route rendered if available.
 - Module list filtered to `moduleCapabilities[key] !== false`.
 - Deep-link not required to exist in nav to navigate currently; route should still recover gracefully.
 - ClassScout renders with stable sidebar key `classscout`; Compare renders with stable sidebar key `compare`.
 - ClassScout badge counts come from the nav read model when available; badge absence must not hide the item.
 - ClassScout active state covers `/{companyId}/classscout` and grouped descendant routes.
+
+### 7.2.1 ClassScout Entry-Point Migration
+- Default policy: every generic ClassScout launch opens the canonical ClassScout home.
+- Preserved deep links are allowed only when the visible label names the specific workflow.
+- The destination unit panel primary action now opens ClassScout home.
+- Destination unit panel Mission Control and Live Catalog buttons remain explicit deep links.
+- Entry-point classifications include `sourceSurface`, `intent`, `targetDestination`, `preservesDeepLink`, `compatibilityRedirectRequired`, and `accessibleLabel`.
+- Rollback is local to each source surface because every migrated source calls the shared resolver instead of hardcoding routes.
+
+### 7.2.2 ClassScout Navigation Quality
+- Sidebar visibility uses the stable `classscout` item key and optional `counts.classscout`.
+- Sidebar active state covers the canonical route and descendants.
+- Landing telemetry emits:
+  - `CLASSSCOUT_HOME_LOADED`
+  - `CLASSSCOUT_ACTION_OPEN`
+- Migrated unit-panel launches emit `CLASSSCOUT_ENTRY_POINT_OPEN`.
+- Landing load telemetry includes degraded source slices so support can distinguish data failure from route/UI failure.
+- Action controls keep accessible labels and text labels; status is never color-only.
+- Regression coverage lives in:
+  - `scripts/test-classscout-surface-contract.mjs`
+  - `scripts/test-classscout-navigation-quality-contract.mjs`
 
 ### 7.3 Settings flow
 - `GET /api/companies/{companyId}/settings` returns `unitCapabilities`.
@@ -487,6 +514,7 @@ The contract reports:
   - `missionControl.activeRuns/failedRuns/retryBacklog`
   - `routeTargets.review/ops/observability`
   - `fetchHealth.degraded` and source-level health rows
+  - `entryPoints[]` with canonical/deep-link classification
 - The legacy `/api/classscout/landing-summary` route remains available for existing UI consumers.
 - Partial source failures must return degraded source health instead of crashing the whole landing surface.
 - `/{companyId}/classscout` server-loads this summary and passes it to the GDS-only ClassScout operator home.

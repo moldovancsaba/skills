@@ -22,6 +22,7 @@ function assert(condition, message) {
 }
 
 assert(/type\s+ClassScoutRouteContract/.test(files.routes), "ClassScout route contract type must exist");
+assert(/resolveClassScoutEntryPoint/.test(files.routes), "ClassScout entry-point resolver must exist");
 assert(/landingRoute:\s*`\/\$\{string\}\/classscout`/.test(files.routes), "landing route must be canonical /{companyId}/classscout");
 assert(/reviewRoute:\s*`\/\$\{string\}\/review`/.test(files.routes), "review route ownership must remain generic");
 assert(/opsRoute:\s*`\/\$\{string\}\/review\?tab=ops`/.test(files.routes), "ops route ownership must remain generic review ops");
@@ -30,6 +31,7 @@ assert(/observabilityRoute:\s*`\/\$\{string\}\/observability`/.test(files.routes
 for (const field of ["liveListings", "reviewPackets", "learning", "missionControl", "routeTargets", "fetchHealth"]) {
   assert(files.landing.includes(field), `ClassScout landing read model must include ${field}`);
 }
+assert(/entryPoints/.test(files.landing), "ClassScout landing read model must include entry-point classifications");
 assert(/Promise\.all/.test(files.landing), "ClassScout landing read model must compose sources in parallel");
 assert(/unavailableSections/.test(files.landing), "ClassScout landing read model must preserve partial-failure visibility");
 assert(/getClassScoutLandingSummary/.test(files.landingApi), "canonical landing API must use the shared landing summary builder");

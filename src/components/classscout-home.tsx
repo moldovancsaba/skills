@@ -76,7 +76,7 @@ export function ClassScoutHome({
     void logClientInteraction({
       companyId,
       surface: "classscout-home",
-      interactionType: "CLASSCOUT_HOME_LOADED",
+      interactionType: "CLASSSCOUT_HOME_LOADED",
       entityType: "ROUTE",
       entityId: "classscout",
       payload: {
@@ -94,7 +94,7 @@ export function ClassScoutHome({
     void logClientInteraction({
       companyId,
       surface: "classscout-home",
-      interactionType: "CLASSCOUT_ACTION_OPEN",
+      interactionType: "CLASSSCOUT_ACTION_OPEN",
       entityType: "ROUTE",
       entityId: actionKey,
       payload: { href },

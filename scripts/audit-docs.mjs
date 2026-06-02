@@ -1,6 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
 
 const ROOT = process.cwd();
 
@@ -87,12 +86,33 @@ const forbiddenPatterns = [
 ];
 
 function activeDocumentationFiles() {
-  const output = execSync("rg --files README.md docs documents", { cwd: ROOT, encoding: "utf8" });
-  return output
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((file) => !file.startsWith("docs/archive/") && !file.startsWith("documents/09_archive/"));
+  const roots = ["README.md", "docs", "documents"];
+  const files = [];
+
+  function walk(relativePath) {
+    const absolutePath = join(ROOT, relativePath);
+    if (!existsSync(absolutePath)) return;
+
+    const stat = statSync(absolutePath);
+    if (stat.isFile()) {
+      files.push(relativePath);
+      return;
+    }
+    if (!stat.isDirectory()) return;
+
+    for (const entry of readdirSync(absolutePath).sort()) {
+      walk(`${relativePath}/${entry}`);
+    }
+  }
+
+  for (const root of roots) {
+    walk(root);
+  }
+
+  return files.filter((file) =>
+    !file.startsWith("docs/archive/") &&
+    !file.startsWith("documents/09_archive/"),
+  );
 }
 
 for (const relativePath of requiredFiles) {

@@ -4,10 +4,10 @@ This document defines the shipped operator-facing runtime sequence and rules for
 
 It is subordinate to:
 
-1. [docs/SSOT.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/SSOT.md)
-2. [docs/SYSTEM_DESIGN_LLD.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/SYSTEM_DESIGN_LLD.md)
-3. [docs/LOCAL_AI_PIPELINE.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_PIPELINE.md)
-4. [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
+1. [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
+2. [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
+3. [docs/LOCAL_AI_PIPELINE.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PIPELINE.md)
+4. [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 
 ## 1. Runtime split
 
@@ -72,10 +72,12 @@ Runnable inventory:
 Current inventory evidence:
 
 - the audit currently classifies package scripts, local runners, top-level scripts, and API routes into the three lanes or `FORBIDDEN_BYPASS`
-- the remaining explicit forbidden bypasses are:
-  - `/api/miniapps/[miniappKey]/intelligence-contract`
-  - `/api/miniapps/[miniappKey]/ops/actions`
-- those routes must be converted to queue-owned Playlist jobs, Human-Approved Burst child jobs, or read-only contract projection before they can be considered production-safe direct execution paths
+- `/api/miniapps/[miniappKey]/intelligence-contract` is read-only contract projection and must stay non-mutating
+- `/api/miniapps/[miniappKey]/ops/actions` is a Playlist entrypoint:
+  - operator/API calls enqueue persisted `RESEARCH_BACKFILL` jobs with `metadata.visitorIntent`
+  - worker-secret calls may execute the action because they are the queued job runner consuming the work
+  - queueable action responses must return `miniapp_ops_action_queued`
+- any future direct miniapp action must either be read-only, queue-owned Playlist work, or explicit Human-Approved Burst child work before it can pass inventory audit
 
 Playlist mutation authority contract:
 
@@ -96,6 +98,8 @@ Playlist mutation authority contract:
 
 - endpoints must not silently fall back to direct mutation when enqueue fails
 - Human-Approved Burst child work may mutate only in categories that explicitly allow `HUMAN_APPROVED_BURST_CHILD`
+- miniapp ops queueing is implemented by `src/lib/miniapp-ops-queue.ts`
+- the local worker bridge executes those queued miniapp actions through `scripts/lib/pipeline-jobs.js`
 
 ## 2. Foreground loop
 
@@ -353,3 +357,16 @@ The simplest truthful operator summary is:
 9. repeat
 10. refresh read-only snapshots separately in the background
 11. persist scheduled runtime verification so the operator surface can prove the runtime still agrees with itself
+
+## 12. Destination mission action routes
+
+The destination mission action routes are Webapp controls, not Local execution lanes.
+
+Rules:
+
+1. `discover-candidates`, `extract-candidate`, `score-candidate`, `prepare-candidate`, `execute-next-attempt`, and `execute-until-blocked` validate the operator and mission scope
+2. those routes enqueue `DESTINATION_MISSION_DAEMON` work for the `DESTINATION_MISSION_RUN`
+3. those routes return a `202` Playlist receipt with `queued: true`
+4. those routes must not import or execute ClassScout or Compare discovery, extraction, scoring, preparation, fact snapshot, candidate persistence, or state-transition helpers
+5. CHECK Local owns retries, timeout handling, candidate selection, scoring, preparation, persistence, and mission state movement
+6. the Webapp UI refreshes mission/candidate read models after enqueue and must treat immediate local-AI artifacts as unavailable

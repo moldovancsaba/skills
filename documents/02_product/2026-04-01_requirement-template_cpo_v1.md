@@ -1,6 +1,6 @@
 # Requirements Standard
 
-**Title:** {checklist} — Requirement Template and Acceptance Criteria
+**Title:** check — Requirement Template and Acceptance Criteria
 **Owner:** CPO
 **Purpose:** Define standard format for product requirements and acceptance criteria
 **Status:** Approved

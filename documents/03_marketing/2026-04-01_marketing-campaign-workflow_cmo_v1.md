@@ -1,6 +1,6 @@
 # Marketing Campaign Workflow
 
-**Title:** {checklist} — Campaign Workflow
+**Title:** check — Campaign Workflow
 **Owner:** CMO
 **Purpose:** Define end-to-end workflow for all campaigns from brief to post-campaign analysis.
 **Status:** Draft

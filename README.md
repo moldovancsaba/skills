@@ -289,7 +289,7 @@ Required environment:
 
 Repository-local runtime note:
 
-- this checkout now uses an ignored local [`.env`](/Users/chappie/.codex/worktrees/4aa5/checklist/.env) for `DATABASE_URL`
+- this checkout now uses an ignored local [`.env`](/Users/Shared/Projects/checklist/.env) for `DATABASE_URL`
 - the shared local source of truth for that value is [`/Users/Shared/Projects/checklist/.env.prod-db-url.tmp`](/Users/Shared/Projects/checklist/.env.prod-db-url.tmp)
 - that shared file contains a raw MongoDB URI, not a `KEY=value` shell export, so if the local `.env` is missing it must be injected into `DATABASE_URL` explicitly
 - start the local audit database with `npm run local-audit-db:start`
@@ -383,12 +383,12 @@ Important:
 
 Related architecture references:
 
-- [docs/SSOT.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/SSOT.md)
-- [docs/SYSTEM_DESIGN_LLD.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/SYSTEM_DESIGN_LLD.md)
-- [docs/LOCAL_AI_PIPELINE.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_PIPELINE.md)
-- [docs/WEBAPP_READ_MODEL_LLD.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/WEBAPP_READ_MODEL_LLD.md)
-- [docs/LOCAL_AI_RUNTIME_SOP.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_RUNTIME_SOP.md)
-- [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
+- [docs/SSOT.md](/Users/Shared/Projects/checklist/docs/SSOT.md)
+- [docs/SYSTEM_DESIGN_LLD.md](/Users/Shared/Projects/checklist/docs/SYSTEM_DESIGN_LLD.md)
+- [docs/LOCAL_AI_PIPELINE.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_PIPELINE.md)
+- [docs/WEBAPP_READ_MODEL_LLD.md](/Users/Shared/Projects/checklist/docs/WEBAPP_READ_MODEL_LLD.md)
+- [docs/LOCAL_AI_RUNTIME_SOP.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_SOP.md)
+- [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
 
 ### Verify the repo before working
 
@@ -409,7 +409,7 @@ Release artifacts:
 24/7 runtime hardening design:
 
 - [docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_HARDENING_LLD.md)
-- [docs/LOCAL_AI_RUNTIME_SOP.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_RUNTIME_SOP.md)
+- [docs/LOCAL_AI_RUNTIME_SOP.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_SOP.md)
 
 ## Frontend Sources Of Truth
 

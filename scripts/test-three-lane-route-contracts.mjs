@@ -8,6 +8,17 @@ const pipelineJobs = readFileSync("scripts/lib/pipeline-jobs.js", "utf8");
 const burstRoute = readFileSync("src/app/api/local-ai/bursts/route.ts", "utf8");
 const laneEventsRoute = readFileSync("src/app/api/local-ai/lane-events/route.ts", "utf8");
 const localAiPage = readFileSync("src/app/local-ai/page.tsx", "utf8");
+const miniappOpsActionsRoute = readFileSync("src/app/api/miniapps/[miniappKey]/ops/actions/route.ts", "utf8");
+const miniappIntelligenceContractRoute = readFileSync("src/app/api/miniapps/[miniappKey]/intelligence-contract/route.ts", "utf8");
+const destinationMissionQueueHelper = readFileSync("src/lib/destination-mission-queue.ts", "utf8");
+const destinationMissionActionRoutes = [
+  "src/app/api/destination-missions/runs/[id]/discover-candidates/route.ts",
+  "src/app/api/destination-missions/runs/[id]/extract-candidate/route.ts",
+  "src/app/api/destination-missions/runs/[id]/score-candidate/route.ts",
+  "src/app/api/destination-missions/runs/[id]/prepare-candidate/route.ts",
+  "src/app/api/destination-missions/runs/[id]/execute-next-attempt/route.ts",
+  "src/app/api/destination-missions/runs/[id]/execute-until-blocked/route.ts",
+].map((file) => [file, readFileSync(file, "utf8")]);
 
 assert.match(daemonRoute, /escalateCompanyPipelineJob/, "destination daemon route must enqueue/escalate pipeline work");
 assert.doesNotMatch(daemonRoute, /assertPlaylistMutationAuthority/, "destination daemon route must not execute Playlist work in Webapp");
@@ -46,5 +57,24 @@ assert.match(laneEventsRoute, /verifySuperAdmin/, "lane events API must be opera
 assert.match(laneEventsRoute, /listLocalLaneEvents/, "lane events API must read compact lane event history");
 assert.match(localAiPage, /LANE_EVENTS_URL/, "local mission control must request lane events");
 assert.match(localAiPage, /Execution Lane History/, "local mission control must render lane event history");
+
+assert.match(miniappOpsActionsRoute, /enqueueMiniappOpsAction/, "miniapp ops actions route must queue operator mutation intents");
+assert.match(miniappOpsActionsRoute, /canQueueMiniappOpsAction/, "miniapp ops actions route must explicitly gate queueable actions");
+assert.match(miniappOpsActionsRoute, /workerAuthorized/, "miniapp ops actions route must separate worker-authorized execution from operator enqueue");
+assert.match(miniappOpsActionsRoute, /verifyBackgroundJobSecret/, "miniapp ops actions route must require worker secret for direct execution fallback");
+assert.match(miniappOpsActionsRoute, /executeMiniappOpsAction/, "miniapp ops actions route may only execute through worker-authorized path");
+assert.match(miniappIntelligenceContractRoute, /export async function GET/, "miniapp intelligence contract route must expose read-only GET");
+assert.doesNotMatch(miniappIntelligenceContractRoute, /export async function POST/, "miniapp intelligence contract route must not expose mutation verbs");
+assert.doesNotMatch(miniappIntelligenceContractRoute, /prisma\./, "miniapp intelligence contract route must not perform live database fan-out");
+
+assert.match(destinationMissionQueueHelper, /escalateCompanyPipelineJob/, "destination mission queue helper must escalate persisted Playlist work");
+assert.match(destinationMissionQueueHelper, /jobType:\s*"DESTINATION_MISSION_DAEMON"/, "destination mission queue helper must target daemon worker jobs");
+assert.match(destinationMissionQueueHelper, /lane:\s*"PLAYLIST"/, "destination mission queue helper must report Playlist lane");
+for (const [file, source] of destinationMissionActionRoutes) {
+  assert.match(source, /queueDestinationMissionRunAction/, `${file} must enqueue destination mission work`);
+  assert.match(source, /verifyMembership\(request,\s*companyId,\s*"ADMIN"\)/, `${file} must require admin membership`);
+  assert.match(source, /status:\s*202/, `${file} must return a queued response`);
+  assert.doesNotMatch(source, /discoverClassScoutCandidates|discoverCompareCandidates|extractClassScoutCandidate|extractCompareCandidate|scoreClassScoutCandidate|scoreCompareCandidate|prepareClassScoutCandidateReview|prepareCompareCandidateReview/, `${file} must not execute destination intelligence helpers in Webapp`);
+}
 
 console.log("Three-lane route contract tests passed.");

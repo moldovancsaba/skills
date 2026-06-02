@@ -1,8 +1,8 @@
 # Company Identity
 
-**Title:** {checklist} — Company Identity
+**Title:** check — Company Identity
 **Owner:** CEO
-**Purpose:** Define what {checklist} is, what it does, and how it operates.
+**Purpose:** Define what check is, what it does, and how it operates.
 **Status:** Approved
 **Last Updated:** 2026-04-01
 **Relevant Team:** Company-wide
@@ -15,7 +15,7 @@
 
 ## 1. Company Name
 
-{checklist}
+check
 
 ## 2. Legal Structure
 
@@ -23,7 +23,7 @@ Virtual-only company.
 
 ## 3. Product
 
-Delivers simple, actionable solutions to clients.
+check is a Unit-based intelligence platform that turns business evidence into structured cards, goals, tasks, sales opportunities, project work, and public Miniapp content where those Blocks are enabled.
 
 ## 4. Operating Standard
 
@@ -58,5 +58,5 @@ Any work system that cannot be understood, followed, audited, and repeated is no
 
 ## 8. Approved Working Directories
 
-- **Working directory:** /Users/moldovancsaba/Projects/checklist
-- **Documentation directory:** /Users/moldovancsaba/Projects/checklist/documents
+- **Working directory:** /Users/Shared/Projects/checklist
+- **Documentation directory:** /Users/Shared/Projects/checklist/documents

@@ -1,6 +1,6 @@
 # Delivery Workflow
 
-**Title:** {checklist} — Delivery Workflow
+**Title:** check — Delivery Workflow
 **Owner:** CCO
 **Purpose:** Define the standard delivery process for every customer engagement
 **Status:** Active

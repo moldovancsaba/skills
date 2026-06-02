@@ -1,6 +1,6 @@
 # Support SOP and Escalation Matrix
 
-**Title:** {checklist} — Support SOP and Escalation Matrix
+**Title:** check — Support SOP and Escalation Matrix
 **Owner:** CCO
 **Purpose:** Define standard support handling and escalation procedures
 **Status:** Active

@@ -1,6 +1,6 @@
 # Feedback Capture Standard
 
-**Title:** {checklist} — Feedback Capture Standard
+**Title:** check — Feedback Capture Standard
 **Owner:** CCO
 **Purpose:** Define how customer feedback is captured, categorized, and routed
 **Status:** Active

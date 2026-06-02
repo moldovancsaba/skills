@@ -1,6 +1,6 @@
 # Company-Wide Definition of Done
 
-**Title:** {checklist} — Definition of Done
+**Title:** check — Definition of Done
 **Owner:** CEO
 **Purpose:** Define the universal completion standard for all work.
 **Status:** Approved

@@ -1,6 +1,6 @@
 # Documentation Architecture
 
-**Title:** {checklist} — Documentation Architecture
+**Title:** check — Documentation Architecture
 **Owner:** CEO
 **Purpose:** Define the approved folder structure and intent for all company documentation.
 **Status:** Approved
@@ -16,10 +16,10 @@
 ## Approved Directory Structure
 
 ```
-/Projects/checklist/documents/
+/Users/Shared/Projects/checklist/documents/
 ├── 00_company/        — Company-wide rules, identity, governance, and operating standards.
 ├── 01_strategy/       — Top-level priorities, goals, metrics, and strategic direction.
-├── 02_product/        — The product itself, requirements, research, product decisions, and checklist content assets.
+├── 02_product/        — The product itself, requirements, research, product decisions, and card/content assets.
 ├── 03_marketing/      — Positioning, campaigns, channels, messaging, and growth reporting.
 ├── 04_customer/       — Client-facing delivery, onboarding, support, account management, and feedback.
 ├── 05_technology/     — Systems, engineering rules, environments, architecture, release, and incident management.
@@ -31,7 +31,7 @@
 
 ## Single Source of Truth Rule
 
-No official company documentation may live outside /Users/moldovancsaba/Projects/checklist/documents unless explicitly approved by the CEO or delegate.
+No official company documentation may live outside /Users/Shared/Projects/checklist/documents unless explicitly approved by the CEO or delegate.
 
 ## Archive Rule
 

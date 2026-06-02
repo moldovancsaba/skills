@@ -1,6 +1,6 @@
 # Handoff Standard to CCO
 
-**Title:** {checklist} — Handoff Standard to CCO  
+**Title:** check — Handoff Standard to CCO  
 **Owner:** CSO  
 **Purpose:** Define standardized handoff process from Sales to Customer Success for seamless client onboarding and delivery.  
 **Status:** Draft  
@@ -35,7 +35,7 @@ A complete handoff package must include the following elements:
 - Any amendments or addendums
 
 ### 2.2 Solution Configuration Details
-- Specific {checklist} solution components purchased
+- Specific check solution components purchased
 - Customization requirements (if any)
 - Integration points with client systems
 - Technical specifications and requirements
@@ -54,7 +54,7 @@ A complete handoff package must include the following elements:
 - Success criteria and expected outcomes
 - ROI expectations and value realization timeline
 - Key performance indicators (KPIs) to track
-- Competitive situation and why client chose {checklist}
+- Competitive situation and why client chose check
 
 ### 2.5 Sales Process Artifacts
 - Discovery notes and requirements documentation
@@ -166,4 +166,4 @@ The handoff is considered complete only when:
 - Real-time dashboard showing handoff pipeline status
 
 ---
-*This document serves as the standardized handoff process from Sales to Customer Success (CCO) for all {checklist} closed-won opportunities.*
+*This document serves as the standardized handoff process from Sales to Customer Success (CCO) for all check closed-won opportunities.*

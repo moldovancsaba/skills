@@ -1,6 +1,6 @@
 # Product Workflow & Stage Gates
 
-**Title:** {checklist} — Product Workflow & Stage Gates  
+**Title:** check — Product Workflow & Stage Gates  
 **Owner:** CPO  
 **Purpose:** Define the workflow for product work including stage gates and approval points.  
 **Status:** Approved  

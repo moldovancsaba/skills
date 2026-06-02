@@ -1,6 +1,6 @@
 # Weekly Marketing Performance Report
 
-**Title:** {checklist} — Weekly Marketing Performance Report
+**Title:** check — Weekly Marketing Performance Report
 **Owner:** CMO
 **Purpose:** Provide a concise weekly snapshot of marketing performance.
 **Status:** Draft

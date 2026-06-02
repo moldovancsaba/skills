@@ -1,6 +1,6 @@
 # Marketing Workflow and Pipeline Stages
 
-**Title:** {checklist} — Marketing Workflow and Pipeline Stages
+**Title:** check — Marketing Workflow and Pipeline Stages
 **Owner:** CMO
 **Purpose:** Define the marketing funnel stages, workflows, and stage gates for all marketing activities.
 **Status:** Draft
@@ -17,7 +17,7 @@
 ## 1. Marketing Funnel Stages
 
 ### Stage 1: Awareness
-**Definition:** Prospect becomes aware of {checklist} and its solutions.
+**Definition:** Prospect becomes aware of check and its solutions.
 **Key Activities:** Content marketing, SEO, social media, PR, advertising
 **Metrics:** Impressions, reach, website traffic, social followers
 **Exit Criteria:** Prospect engages with content (click, visit, follow)
@@ -31,7 +31,7 @@
 **Owner:** Content Marketing / Demand Generation
 
 ### Stage 3: Consideration
-**Definition:** Prospect evaluates {checklist} against alternatives.
+**Definition:** Prospect evaluates check against alternatives.
 **Key Activities:** Comparison guides, product demos, free trials, consultations
 **Metrics:** Demo requests, trial signups, pricing page visits
 **Exit Criteria:** Prospect requests a demo or starts a trial

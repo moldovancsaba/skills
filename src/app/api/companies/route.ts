@@ -9,6 +9,7 @@ import { buildCompanyReadModel } from "@/lib/company-read-model";
 import { createRequestProfiler } from "@/lib/request-profile";
 import { provisionCompany } from "@/lib/check-lifecycle/provisioning-engine";
 import { resolveEffectiveUnitCapabilities } from "@/lib/check-foundation";
+import { deleteUnitData } from "@/lib/unit-crud";
 
 export const dynamic = 'force-dynamic';
 
@@ -236,12 +237,7 @@ export async function DELETE(request: NextRequest) {
     const auth = await verifySuperAdmin(request);
     if (auth.error) return auth.error;
 
-    // Delete related data first
-    await prisma.feedback.deleteMany({ where: { checklistTask: { companyId: id } } });
-    await prisma.checklistTask.deleteMany({ where: { companyId: id } });
-    await prisma.flashcard.deleteMany({ where: { companyId: id } });
-    await prisma.user.deleteMany({ where: { companyId: id } });
-    await prisma.company.delete({ where: { id } });
+    await deleteUnitData(prisma, id);
     
     return NextResponse.json({ success: true });
   } catch (error) {

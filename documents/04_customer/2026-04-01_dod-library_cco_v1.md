@@ -1,6 +1,6 @@
 # Service Definition of Done Library
 
-**Title:** {checklist} — Service Definition of Done Library
+**Title:** check — Service Definition of Done Library
 **Owner:** CCO
 **Purpose:** Define completion standards for all major recurring customer work types
 **Status:** Active

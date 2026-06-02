@@ -1,6 +1,6 @@
 # Marketing Brand Rules
 
-**Title:** {checklist} — Brand Rules
+**Title:** check — Brand Rules
 **Owner:** CMO
 **Purpose:** Define brand voice, visual identity, and usage guidelines.
 **Status:** Draft

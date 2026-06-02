@@ -1,6 +1,6 @@
 # Lead Handoff to Sales
 
-**Title:** {checklist} — Lead Handoff Standard to Sales
+**Title:** check — Lead Handoff Standard to Sales
 **Owner:** CMO
 **Purpose:** Standardize when and how marketing hands off leads to Sales.
 **Status:** Draft

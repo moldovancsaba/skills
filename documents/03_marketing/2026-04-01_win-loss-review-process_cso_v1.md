@@ -1,6 +1,6 @@
 # Win-Loss Review Process
 
-**Title:** {checklist} — Win-Loss Review Process  
+**Title:** check — Win-Loss Review Process  
 **Owner:** CSO  
 **Purpose:** Define standardized process for analyzing won and lost opportunities to improve sales effectiveness and win rates.  
 **Status:** Draft  
@@ -233,4 +233,4 @@ Insights from win-loss reviews inform:
 - Annual sales kickoff presentation highlighting key trends
 
 ---
-*This document serves as the standardized process for conducting win-loss reviews to drive continuous improvement in {checklist}'s sales effectiveness.*
+*This document serves as the standardized process for conducting win-loss reviews to drive continuous improvement in check's sales effectiveness.*

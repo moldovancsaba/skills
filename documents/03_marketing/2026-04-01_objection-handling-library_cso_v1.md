@@ -1,6 +1,6 @@
 # Objection Handling Library
 
-**Title:** {checklist} — Objection Handling Library  
+**Title:** check — Objection Handling Library  
 **Owner:** CSO  
 **Purpose:** Define standardized responses to common sales objections for consistent and effective client communication.  
 **Status:** Draft  
@@ -189,4 +189,4 @@ Effective objection handling follows the LAIR framework:
   - Provide documentation of compliance adherence
 
 ---
-*This document serves as the standardized objection handling reference for all {checklist} sales representatives to ensure consistent, effective responses to client concerns throughout the sales process.*
+*This document serves as the standardized objection handling reference for all check sales representatives to ensure consistent, effective responses to client concerns throughout the sales process.*

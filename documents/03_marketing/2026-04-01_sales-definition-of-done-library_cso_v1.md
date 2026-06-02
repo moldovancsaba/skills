@@ -1,6 +1,6 @@
 # Sales Definition of Done Library
 
-**Title:** {checklist} — Sales Definition of Done Library  
+**Title:** check — Sales Definition of Done Library  
 **Owner:** CSO  
 **Purpose:** Define clear completion criteria for all major sales activities and deliverables to ensure consistent quality and execution.  
 **Status:** Draft  
@@ -65,7 +65,7 @@ A proposal is considered "done" when:
 - [ ] Implementation plan includes timeline, milestones, and resource requirements
 - [ ] Investment summary provides clear pricing breakdown and payment terms
 - [ ] Value proposition includes quantified business benefits and ROI
-- [ ] Terms and conditions reflect standard {checklist} agreements
+- [ ] Terms and conditions reflect standard check agreements
 - [ ] Acceptance procedure outlines clear next steps for client approval
 
 ### 3.2 Internal Review
@@ -263,4 +263,4 @@ Periodic compliance audits will check:
 - [ ] Quality of qualification and discovery documentation
 
 ---
-*This document serves as the comprehensive Definition of Done library for all {checklist} sales activities to ensure consistent quality, execution, and completion standards.*
+*This document serves as the comprehensive Definition of Done library for all check sales activities to ensure consistent quality, execution, and completion standards.*

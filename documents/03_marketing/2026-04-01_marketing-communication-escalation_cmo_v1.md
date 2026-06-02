@@ -1,6 +1,6 @@
 # Marketing Communication Flow and Escalation Rules
 
-**Title:** {checklist} — Marketing Communication Flow and Escalation Rules
+**Title:** check — Marketing Communication Flow and Escalation Rules
 **Owner:** CMO
 **Purpose:** Define how marketing communicates internally, escalates issues, and collaborates with other functions.
 **Status:** Draft
@@ -78,7 +78,7 @@ All escalations must include:
 ## 4. Collaboration Tools
 
 ### 4.1 Approved Tools
-- **Documentation:** /Users/moldovancsaba/Projects/checklist/documents
+- **Documentation:** /Users/Shared/Projects/checklist/documents
 - **Communication:** Company-approved messaging platform
 - **Project Management:** Company-approved project management tool
 - **File Storage:** Company-approved cloud storage

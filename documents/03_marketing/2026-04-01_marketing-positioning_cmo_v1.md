@@ -1,8 +1,8 @@
 # Marketing Positioning
 
-**Title:** {checklist} — Marketing Positioning
+**Title:** check — Marketing Positioning
 **Owner:** CMO
-**Purpose:** Define market category, value proposition, and differentiation for {checklist}.
+**Purpose:** Define market category, value proposition, and differentiation for check.
 **Status:** Draft
 **Last Updated:** 2026-04-01
 **Relevant Team:** Marketing

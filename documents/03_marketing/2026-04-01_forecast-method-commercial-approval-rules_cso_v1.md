@@ -1,6 +1,6 @@
 # Forecast Method and Commercial Approval Rules
 
-**Title:** {checklist} — Forecast Method and Commercial Approval Rules  
+**Title:** check — Forecast Method and Commercial Approval Rules  
 **Owner:** CSO  
 **Purpose:** Define standardized sales forecasting methodology and commercial approval rules for predictable revenue predictability.  
 **Status:** Draft  
@@ -15,7 +15,7 @@
 
 ## 1. Sales Forecasting Methodology
 
-{checklist} uses a weighted pipeline forecast approach with commitment-based adjustments.
+check uses a weighted pipeline forecast approach with commitment-based adjustments.
 
 ### 1.1 Forecast Categories
 All opportunities are classified into one of four forecast categories:
@@ -151,7 +151,7 @@ For complex transactions, a Deal Desk may be convened:
 ### 3.2 Contract Governance
 All contracts must adhere to:
 
-- **Standard Template:** Use approved {checklist} contract template
+- **Standard Template:** Use approved check contract template
 - **Term Limits:** Maximum 36 months without special approval
 - **Payment Terms:** Net 30 days standard; deviations require Finance approval
 - **Auto-renewal:** Requires explicit customer consent and 60-day notice period
@@ -168,4 +168,4 @@ Sales must ensure transactions meet revenue recognition criteria:
 All opportunities must address these criteria before Stage 5 progression.
 
 ---
-*This document serves as the standardized forecast methodology and commercial approval framework for all {checklist} sales activities.*
+*This document serves as the standardized forecast methodology and commercial approval framework for all check sales activities.*

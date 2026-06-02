@@ -1,6 +1,6 @@
 # Audience and Ideal Customer Profile (ICP) Definition
 
-**Title:** {checklist} — Audience and ICP Definition
+**Title:** check — Audience and ICP Definition
 **Owner:** CMO
 **Purpose:** Define who we sell to and who we do not sell to, with clarity that aligns Sales, Marketing, and Product.
 **Status:** Draft
@@ -16,7 +16,7 @@
 
 ## 1. Target Audience Overview
 
-{checklist} delivers simple, actionable solutions to clients. Our audience values clarity, speed, and reliability over complexity.
+check gives Units a governed AI operating layer for evidence, planning, execution, sales, projects, and public Miniapps. Our audience values clarity, speed, reliability, and auditability over fragmented tools.
 
 ## 2. Ideal Customer Profile (ICP)
 

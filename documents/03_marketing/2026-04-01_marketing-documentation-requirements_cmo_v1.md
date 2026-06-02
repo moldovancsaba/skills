@@ -1,6 +1,6 @@
 # Marketing Documentation Requirements
 
-**Title:** {checklist} — Marketing Documentation Requirements
+**Title:** check — Marketing Documentation Requirements
 **Owner:** CMO
 **Purpose:** Define what documentation marketing must produce, maintain, and archive.
 **Status:** Draft
@@ -41,7 +41,7 @@
 ### 2.1 Storage Location
 All marketing documents must be stored in:
 ```
-/Users/moldovancsaba/Projects/checklist/documents/03_marketing/
+/Users/Shared/Projects/checklist/documents/03_marketing/
 ```
 
 ### 2.2 Folder Structure

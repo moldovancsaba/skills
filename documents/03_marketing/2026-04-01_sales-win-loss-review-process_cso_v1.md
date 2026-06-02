@@ -1,6 +1,6 @@
 # Sales Win-Loss Review Process
 
-**Title:** {checklist} — Sales Win-Loss Review Process  
+**Title:** check — Sales Win-Loss Review Process  
 **Owner:** CSO  
 **Purpose:** Define a standardized process for reviewing won and lost deals to improve sales effectiveness, win rates, and forecasting accuracy.  
 **Status:** Draft  

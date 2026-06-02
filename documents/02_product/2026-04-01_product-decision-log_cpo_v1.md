@@ -1,6 +1,6 @@
 # Product Decision Log
 
-**Title:** {checklist} — Product Decision Log
+**Title:** check — Product Decision Log
 **Owner:** CPO
 **Purpose:** Record all product decisions with rationale and context
 **Status:** Active

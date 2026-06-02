@@ -1,6 +1,6 @@
 # Product Vision & Roadmap
 
-**Title:** {checklist} — Product Vision & Roadmap  
+**Title:** check — Product Vision & Roadmap  
 **Owner:** CPO  
 **Purpose:** Define the product direction, strategic priorities, and execution timeline.  
 **Status:** Approved  
@@ -15,11 +15,11 @@
 
 ## Product Vision
 
-**Mission:** Deliver simple, actionable checklist solutions that help clients get things done.
+**Mission:** Help Units turn raw business evidence into governed cards, decisions, work, sales opportunities, and public Miniapp content.
 
-**Target Customer:** Small-to-medium businesses and professionals who need structured workflows.
+**Target Customer:** Companies, organizations, teams, and intelligence operations that need a governed AI operating layer for evidence, planning, execution, sales, projects, or public Miniapps.
 
-**Core Value Proposition:** Simple tools that produce reliable, repeatable outcomes.
+**Core Value Proposition:** A Block-enabled intelligence platform with a Webapp control surface and Local AI runtime that produce auditable, repeatable, evidence-backed outcomes.
 
 ---
 
@@ -36,7 +36,7 @@
 ### Q3 2026 — Core Product
 | Milestone | Owner | Status |
 |-----------|-------|--------|
-| First client checklist deliverable | Product | Planned |
+| First client intelligence deliverable | Product | Planned |
 | Product decision log operational | Product | Planned |
 | Prioritization framework in use | Product | Planned |
 
@@ -51,7 +51,7 @@
 ## Strategic Priorities
 
 1. **Clarity over complexity** — Every feature must solve one clear problem.
-2. **Repeatable outcomes** — Checklists must work reliably.
+2. **Repeatable outcomes** — Cards, Blocks, and Miniapps must work reliably.
 3. **Customer-driven** — Build what clients need, not what we assume.
 
 ---

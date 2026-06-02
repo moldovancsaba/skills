@@ -46,6 +46,7 @@ Current verified state:
 - Opportunitycard search state reads Webapp projection instead of importing worker search-learning code.
 - Flashcard, goalcard, and conversion writes no longer calculate canonical scoring in the Webapp; they preserve/sanitize operator fields and leave canonical scoring to Local AI.
 - Destination mission daemon and run execution endpoints enqueue CHECK Local work instead of executing mission/daemon runtime code in the Webapp process.
+- Destination mission run action endpoints `discover-candidates`, `extract-candidate`, `score-candidate`, `prepare-candidate`, `execute-next-attempt`, and `execute-until-blocked` now return queued Playlist receipts through `src/lib/destination-mission-queue.ts`; direct Miniapp intelligence execution is forbidden in those routes.
 - Visitor/miniapp command endpoints enqueue CHECK Local intents instead of running classify, extract, score, discover, burst, gate, plan, or promotion logic inline.
 - Visitor/miniapp candidate, task, opportunity, and burst-state endpoints read stored projections/metadata instead of importing runtime planners or promotion gates.
 
@@ -128,7 +129,7 @@ Status:
 - Delivered. Company dashboard and home surfaces are module-gated.
 - Delivered. Nav miniapp counts read only from projection/observability fields.
 - Delivered. Operations miniapp review-pressure items read only from projection/observability fields.
-- Delivered. Local AI snapshot writer now publishes `webappProjection.miniapps.<miniappKey>.reviewPressureCount` from destination review packet pressure counts.
+- Delivered. Local AI snapshot writer now publishes `webappProjection.miniapps.<miniappKey>.reviewPressureCount` from destination review card pressure counts.
 
 ### 4. Charts
 

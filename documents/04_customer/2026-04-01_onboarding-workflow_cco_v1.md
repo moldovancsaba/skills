@@ -1,6 +1,6 @@
 # Onboarding Workflow
 
-**Title:** {checklist} — Onboarding Workflow
+**Title:** check — Onboarding Workflow
 **Owner:** CCO
 **Purpose:** Define the standard onboarding process for every new customer
 **Status:** Active

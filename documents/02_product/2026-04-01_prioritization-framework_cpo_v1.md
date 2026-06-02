@@ -1,6 +1,6 @@
 # Prioritisation Framework
 
-**Title:** {checklist} — Product Prioritisation Framework
+**Title:** check — Product Prioritisation Framework
 **Owner:** CPO
 **Purpose:** Define how product requests are evaluated and prioritised
 **Status:** Approved

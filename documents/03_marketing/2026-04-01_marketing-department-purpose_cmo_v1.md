@@ -1,6 +1,6 @@
 # Marketing Department Purpose and Business Role
 
-**Title:** {checklist} — Marketing Department Purpose and Business Role
+**Title:** check — Marketing Department Purpose and Business Role
 **Owner:** CMO
 **Purpose:** Define the marketing department's mandate, business role, and contribution to the company value chain.
 **Status:** Draft
@@ -20,7 +20,7 @@ Marketing owns market visibility, demand creation, positioning, messaging, and b
 
 ## 2. Business Role
 
-Marketing is the engine that generates qualified demand for {checklist}'s simple, actionable solutions. We ensure the right audience knows about us, understands our value, and engages with our brand.
+Marketing generates qualified demand for check's Unit-based intelligence platform. We ensure the right audience knows about us, understands our value, and engages with our brand.
 
 ## 3. Position in Company Value Chain
 

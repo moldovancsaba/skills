@@ -51,4 +51,4 @@ This checklist is complete when all steps are checked, the client has accepted t
 
 ### Storage
 
-All delivery outputs are stored in the client's account record under `/Projects/checklist/documents/04_customer/` with client-specific subdirectories as needed.
+All delivery outputs are stored in the client's account record under `/Users/Shared/Projects/checklist/documents/04_customer/` with client-specific subdirectories as needed.

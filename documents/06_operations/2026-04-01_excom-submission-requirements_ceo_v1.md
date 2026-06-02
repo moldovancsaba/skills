@@ -1,6 +1,6 @@
 # Executive Submission Requirements
 
-**Title:** {checklist} — ExCom Submission Pack Requirements
+**Title:** check — ExCom Submission Pack Requirements
 **Owner:** CEO
 **Purpose:** Define what each executive must submit for the Operational Playbook.
 **Status:** Active

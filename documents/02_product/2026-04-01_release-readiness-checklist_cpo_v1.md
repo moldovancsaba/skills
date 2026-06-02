@@ -1,6 +1,6 @@
 # Release Readiness Checklist
 
-**Title:** {checklist} — Release Readiness Checklist
+**Title:** check — Release Readiness Checklist
 **Owner:** CPO
 **Purpose:** Verify all readiness criteria before release
 **Status:** Approved

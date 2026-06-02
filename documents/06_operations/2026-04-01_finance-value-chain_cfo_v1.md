@@ -1,5 +1,5 @@
-# {checklist} — Finance Value Chain
-**Title:** {checklist} — Finance Value Chain
+# check — Finance Value Chain
+**Title:** check — Finance Value Chain
 **Owner:** CFO
 **Purpose:** Define the end-to-end finance value chain that enables economically controlled, financially visible, and commercially disciplined decision-making.
 **Status:** Approved

@@ -1,6 +1,6 @@
 # Executive Committee — Org Chart
 
-**Title:** {checklist} — Executive Committee Org Chart
+**Title:** check — Executive Committee Org Chart
 **Owner:** CEO
 **Purpose:** Define the executive structure and reporting lines.
 **Status:** Active
@@ -43,12 +43,12 @@ OWNER: MOLDOVAN, Csaba Zoltan
 
 | Department | Documents Path |
 |---|---|
-| Marketing (CMO) | /Users/moldovancsaba/Projects/checklist/documents/03_marketing/ |
-| Sales (CSO) | /Users/moldovancsaba/Projects/checklist/documents/03_marketing/ |
-| Product (CPO) | /Users/moldovancsaba/Projects/checklist/documents/02_product/ |
-| Technology (CTO) | /Users/moldovancsaba/Projects/checklist/documents/05_technology/ |
-| Customer (CCO) | /Users/moldovancsaba/Projects/checklist/documents/04_customer/ |
-| Finance (CFO) | /Users/moldovancsaba/Projects/checklist/documents/06_operations/ |
+| Marketing (CMO) | /Users/Shared/Projects/checklist/documents/03_marketing/ |
+| Sales (CSO) | /Users/Shared/Projects/checklist/documents/03_marketing/ |
+| Product (CPO) | /Users/Shared/Projects/checklist/documents/02_product/ |
+| Technology (CTO) | /Users/Shared/Projects/checklist/documents/05_technology/ |
+| Customer (CCO) | /Users/Shared/Projects/checklist/documents/04_customer/ |
+| Finance (CFO) | /Users/Shared/Projects/checklist/documents/06_operations/ |
 
 ## CEO Standing Priorities
 

@@ -1,8 +1,8 @@
 # Marketing Messaging Playbook
 
-**Title:** {checklist} — Messaging Playbook
+**Title:** check — Messaging Playbook
 **Owner:** CMO
-**Purpose:** Provide consistent messaging, value propositions, and storylines for {checklist} campaigns.
+**Purpose:** Provide consistent messaging, value propositions, and storylines for check campaigns.
 **Status:** Draft
 **Last Updated:** 2026-04-01
 **Relevant Team:** Marketing

@@ -1,6 +1,6 @@
 # Marketing Launch Checklist
 
-**Title:** {checklist} — Launch Checklist
+**Title:** check — Launch Checklist
 **Owner:** CMO
 **Purpose:** Ensure all campaigns have a formal launch readiness check.
 **Status:** Draft

@@ -1,6 +1,6 @@
 # Marketing Channel Ownership Map
 
-**Title:** {checklist} — Channel Ownership
+**Title:** check — Channel Ownership
 **Owner:** CMO
 **Purpose:** Assign ownership for each marketing channel and ensure accountability.
 **Status:** Draft

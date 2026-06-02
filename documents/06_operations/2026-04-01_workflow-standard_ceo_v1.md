@@ -1,6 +1,6 @@
 # Workflow Standard
 
-**Title:** {checklist} — Workflow Standard
+**Title:** check — Workflow Standard
 **Owner:** CEO
 **Purpose:** Define the universal work lifecycle for all company functions.
 **Status:** Approved

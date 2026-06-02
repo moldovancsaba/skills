@@ -1,6 +1,6 @@
 # Client Reporting Workflow
 
-**Title:** {checklist} — Client Reporting Workflow
+**Title:** check — Client Reporting Workflow
 **Owner:** CCO
 **Purpose:** Define how client-facing reports are produced, delivered, and archived
 **Status:** Active

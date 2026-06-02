@@ -1,6 +1,6 @@
 # Company-Wide Operating Rules
 
-**Title:** {checklist} — Operating Rules
+**Title:** check — Operating Rules
 **Owner:** CEO
 **Purpose:** Define the non-negotiable operating standards for all company functions.
 **Status:** Approved
@@ -19,7 +19,7 @@ No function, department, or individual may operate with self-invented standards 
 
 ## Rule 2 — Official work belongs in official locations
 
-All official work must be stored in approved directories under /Users/moldovancsaba/Projects/checklist/documents.
+All official work must be stored in approved directories under /Users/Shared/Projects/checklist/documents.
 
 ## Rule 3 — No undocumented decisions, handoffs, or process changes
 

@@ -32,7 +32,7 @@ If you see authoritative calculation logic in the webapp layer, treat it as arch
 
 ## Future Function Rule
 
-New mini-app functions must follow [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md).
+New Miniapp functions must follow [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md).
 
 That means:
 

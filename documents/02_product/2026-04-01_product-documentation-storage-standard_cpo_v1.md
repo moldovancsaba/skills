@@ -1,6 +1,6 @@
 # Product Documentation Storage Standard
 
-**Title:** {checklist} — Product Documentation Storage Standard
+**Title:** check — Product Documentation Storage Standard
 **Owner:** CPO
 **Purpose:** Define where and how product documentation is stored
 **Status:** Approved

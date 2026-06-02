@@ -38,7 +38,7 @@ const forbiddenPatterns = [
   },
   {
     pattern: new RegExp(
-      `Workflow ${packetsTitle}|Workflow ${packets}|Review ${packets}|Open Review ${packetsTitle}|No destination ${packets}|${packetTitle} ID|${packetTitle} state|All ${packet} states`,
+      `Workflow ${packetsTitle}|Workflow ${packets}|Review ${packetsTitle}|Review ${packets}|Open Review ${packetsTitle}|No destination ${packets}|${packets} are waiting|destination review ${packets}|${packetTitle} ID|${packetTitle} state|All ${packet} states`,
     ),
     message: "Operator-facing review surfaces must use card terminology.",
   },

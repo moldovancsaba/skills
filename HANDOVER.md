@@ -242,9 +242,22 @@ The work is not done until:
 - `Reset to AI only` clears manual queue influence and returns scheduling to autonomous control.
 - Score-health alert repair is now expressed through persisted queue/repair intents; the local AI worker is the only authority that escalates queue work through the shared queue contract.
 - Workflow edits, Knowmore repair actions, and Observability repair actions now enqueue persisted worker commands instead of executing queue authority in app routes.
+- Destination mission action routes now enqueue `DESTINATION_MISSION_DAEMON` work through `src/lib/destination-mission-queue.ts`; do not reintroduce ClassScout/Compare discovery, extraction, scoring, preparation, persistence, or mission-state execution inside Webapp API routes.
 - Topic/source/file ingress routes no longer derive authoritative scores in the webapp layer; they persist raw rows and let the local AI system score them later.
 - Frontier recompute assigns tactical columns by relative blended-priority rank, not raw ICE alone, while preserving manual human drag/drop anchors.
 - Historical flashcard, task, and opportunitycard rescoring must continue through the bounded `scripts/repair-ice-scores.js` path or the shared worker-owned repair module behind it; do not replace them with one-off bulk rewrites.
 - The Refiner now owns duplicate-cluster tagging and split-aware task refinement in addition to merge/suppress/enrich behavior. Do not collapse it back into text-only rewriting.
 - Budget governor is observability-first: usage/cost values are estimates unless explicitly marked actual, and controls are recorded as events/policies rather than hidden scheduling overrides.
 - Future autonomous implementation selection must ignore ideabank-only items unless an operator explicitly promotes them into an active delivery column first.
+
+## 2026-06-03 Active GitHub Issue / Board Notes
+
+- Canonical quality reference remains `sovereignsquad/general-design-system#81`; UI and UX delivery must use the General Design System only.
+- Current active refactor parents on the repository project board are `#400 Three-Lane Runtime Stabilization` and `#402 CHECK Foundation Refactor`.
+- Issue `#370 Queue: Playlist Lane mutation authority` has local implementation evidence and should be moved to `Review (ALMOST)` once the GitHub GraphQL rate limit resets.
+- The `#370` evidence comment already exists: `https://github.com/sovereignsquad/checklist/issues/370#issuecomment-4607616319`.
+- The failed board mutation was not an implementation failure. The blocker was GitHub GraphQL rate limiting: `API rate limit exceeded for user ID 2206999`.
+- Evidence to add or preserve on `#370`: miniapp ops actions now enqueue normal operator mutation requests through `src/lib/miniapp-ops-queue.ts`; only worker-secret calls execute `executeMiniappOpsAction` directly; visitor research actions are mapped into persisted `PipelineJob` payloads in `scripts/lib/pipeline-jobs.js`; route inventory classifies `/api/miniapps/:miniappKey/ops/actions` as mutating `PLAYLIST` and `/api/miniapps/:miniappKey/intelligence-contract` as read-only `SYSTEM_HEALTH`.
+- Evidence to add or preserve on `#372`: destination mission run action routes `discover-candidates`, `extract-candidate`, `score-candidate`, `prepare-candidate`, `execute-next-attempt`, and `execute-until-blocked` now return queued Playlist receipts through `src/lib/destination-mission-queue.ts`; direct ClassScout/Compare runtime helper imports are forbidden by `scripts/test-intent-api-no-execution.mjs` and `scripts/test-three-lane-route-contracts.mjs`.
+- Proof commands from this slice: `npm run audit:local-runnables`, `npm run test:intelligence-unit-refactor`, `npm run test:local-execution-lanes`, `npm run test:three-lane-routes`, `npm run test:miniapp-ops-console`, `npm run test:unit-capability-v2`, `npm run lint`, and `npm run build`.
+- Next issue candidate after `#370`: continue `#372 Direct execution migration` only with route-by-route evidence. Do not invent broad cleanup tickets; each follow-up must name the route, the mutation authority, the expected queue intent, retry/timeout behavior, recovery path, and contract test.

@@ -158,7 +158,7 @@ Documentation must be updated when:
 All technology documentation must be stored in:
 
 ```
-/Users/moldovancsaba/Projects/checklist/documents/05_technology/
+/Users/Shared/Projects/checklist/documents/05_technology/
 ```
 
 ### Backup Requirements
@@ -172,7 +172,7 @@ All technology documentation must be stored in:
 Deprecated documents move to:
 
 ```
-/Users/moldovancsaba/Projects/checklist/documents/09_archive/
+/Users/Shared/Projects/checklist/documents/09_archive/
 ```
 
 ---

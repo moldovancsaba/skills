@@ -121,7 +121,7 @@ Rules:
 - `/local-ai` is global runtime observability, not a company route
 - `/local-ai` is local-only and not login-gated on localhost-style operator hosts
 - bare `/` rewrites to `/local-ai` only on local operator hosts; production root stays on the main webapp/login flow
-- the official runtime step-by-step sequence and recovery rules are defined in [docs/LOCAL_AI_RUNTIME_SOP.md](/Users/chappie/.codex/worktrees/9d01/checklist/docs/LOCAL_AI_RUNTIME_SOP.md)
+- the official runtime step-by-step sequence and recovery rules are defined in [docs/LOCAL_AI_RUNTIME_SOP.md](/Users/Shared/Projects/checklist/docs/LOCAL_AI_RUNTIME_SOP.md)
 
 ## Local job attribution contract
 
@@ -302,11 +302,12 @@ Current managed job families:
 Miniapp service lane contract:
 
 - Miniapp execution must join the same queue-owned worker model as the rest of `check`
-- ClassScout is currently the first Miniapp service lane
-- active scheduled ClassScout mission definitions and active guarded/autopilot ClassScout mission runs materialize into the claimable `DESTINATION_MISSION_DAEMON` queue job
+- ClassScout and Compare share one Miniapp service lane contract
+- active scheduled mission definitions and active guarded/autopilot mission runs materialize into the claimable `DESTINATION_MISSION_DAEMON` queue job
+- Webapp destination mission run action routes are queue controls only: `discover-candidates`, `extract-candidate`, `score-candidate`, `prepare-candidate`, `execute-next-attempt`, and `execute-until-blocked` validate operator scope, enqueue `DESTINATION_MISSION_DAEMON`, and return a `202` Playlist receipt
+- ClassScout/Compare discovery, extraction, scoring, preparation, persistence, retries, timeout handling, and mission-state movement are CHECK Local responsibilities
 - the queue job dispatches into the internal daemon endpoint so the existing mission runtime can be reused without reintroducing a second independent scheduler
-- this keeps ClassScout under the same one-task-at-a-time, retry, timeout, and queue-visibility rules as the rest of the local AI system
-- Compare must use the same Miniapp execution pattern when brought to parity
+- this keeps Miniapp work under the same one-task-at-a-time, retry, timeout, and queue-visibility rules as the rest of the local AI system
 
 Legacy compatibility jobs may still appear:
 
@@ -392,6 +393,7 @@ UI/runtime contract:
 - observability is no longer read-only; operators can write bounded queue/repair intents through the shared webapp surface, and the local AI system pulls and executes queue sync, score-repair escalation, and failed-job recovery from MongoDB Atlas
 - heavy runtime audit history must not accumulate in Atlas; it belongs in the local audit database
 - workflow edits and repair actions are bridged through persisted worker commands; the webapp does not execute queue authority directly
+- destination mission run action requests are bridged through persisted `DESTINATION_MISSION_DAEMON` queue work; the webapp does not execute Miniapp intelligence helpers directly
 
 Some flashcards are sourced from AI-harvested public research rather than direct user-entered rows. Those are still normal flashcards in storage, but their source lineage points at `Source` rows tagged with:
 

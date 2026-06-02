@@ -1,6 +1,6 @@
 # Client Communication Standard
 
-**Title:** {checklist} — Client Communication Standard
+**Title:** check — Client Communication Standard
 **Owner:** CCO
 **Purpose:** Define how the company communicates with clients at every touchpoint
 **Status:** Active

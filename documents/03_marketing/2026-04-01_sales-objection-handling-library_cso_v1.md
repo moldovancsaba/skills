@@ -1,6 +1,6 @@
 # Sales Objection Handling Library
 
-**Title:** {checklist} — Sales Objection Handling Library  
+**Title:** check — Sales Objection Handling Library  
 **Owner:** CSO  
 **Purpose:** Define common sales objections and approved responses to improve win rates and sales effectiveness.  
 **Status:** Draft  

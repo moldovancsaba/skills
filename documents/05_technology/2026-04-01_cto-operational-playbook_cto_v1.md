@@ -103,7 +103,7 @@ All Technology work follows the company workflow standard with these stage gates
 ### 5.1 Storage Standard
 
 All Technology documentation lives under:
-`/Users/moldovancsaba/Projects/checklist/documents/05_technology/`
+`/Users/Shared/Projects/checklist/documents/05_technology/`
 
 ### 5.2 Document Naming Standard
 

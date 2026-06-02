@@ -1,8 +1,8 @@
 # Positioning Document
 
-**Title:** {checklist} — Positioning Document
+**Title:** check — Positioning Document
 **Owner:** CMO
-**Purpose:** Define how {checklist} is positioned in the market against alternatives.
+**Purpose:** Define how check is positioned in the market against alternatives.
 **Status:** Draft
 **Last Updated:** 2026-04-01
 **Relevant Team:** Marketing, Sales, Product, CEO
@@ -16,35 +16,35 @@
 
 ## 1. Positioning Statement Template
 
-**For** [target audience] **who** [need/pain point], **{checklist} is the** [category] **that** [key benefit]. **Unlike** [primary alternative], **we** [key differentiator].
+**For** [target audience] **who** [need/pain point], **check is the** [category] **that** [key benefit]. **Unlike** [primary alternative], **we** [key differentiator].
 
 ## 2. Current Positioning
 
 ### 2.1 Target Audience
-Small to mid-size professional service firms and consultancies (1-50 employees) who are overwhelmed by complex systems.
+Companies, organizations, teams, and intelligence operations that need a governed AI operating layer for evidence, planning, execution, sales, projects, or public Miniapps.
 
 ### 2.2 Need/Pain Point
-Need simple, actionable solutions that are documented, repeatable, and auditable.
+Need to turn scattered source evidence into auditable cards, priorities, work, sales opportunities, and public content without letting the Webapp become an uncontrolled AI computation layer.
 
 ### 2.3 Category
-Business process simplification and actionable documentation.
+Unit-based intelligence operations platform.
 
 ### 2.4 Key Benefit
-Delivers systems that are simple, actionable, and ready to scale.
+Delivers governed Card, Block, Module, Webapp, Local, and Miniapp contracts that make AI-generated work auditable and repeatable.
 
 ### 2.5 Primary Alternative
-Complex consulting engagements or DIY approaches that lack structure.
+Generic CRMs, task boards, content tools, spreadsheets, or ad hoc AI workflows that fragment evidence, work, and publication.
 
 ### 2.6 Key Differentiator
-We practice what we sell: our company operates on the same simple, documented, accountable, repeatable, and auditable standards we deliver to clients.
+check uses one card/property foundation across evidence, knowledge, goals, tasks, sales opportunities, projects, review, logic, and Miniapp content.
 
 ## 3. Market Category
 
 ### 3.1 Current Category
-Business process consulting and documentation services.
+AI intelligence operations platforms.
 
 ### 3.2 Category Creation Opportunity
-"Actionable Documentation" — a new category that sits between complex business process management and simple task lists.
+"Unit Intelligence Operations" — a category that sits between generic CRMs, task boards, content systems, and ad hoc AI tooling.
 
 ## 4. Competitive Differentiation
 

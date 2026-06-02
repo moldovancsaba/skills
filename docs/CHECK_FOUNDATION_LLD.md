@@ -168,6 +168,7 @@ Target Card families:
 - `opportunitycard`
 - `projectcard`
 - `logiccard`
+- `miniappcard`
 
 Rules:
 
@@ -510,7 +511,7 @@ Before a Miniapp is considered production-ready:
 - Mission can be configured
 - Local can run it
 - candidates persist evidence
-- Packets can be reviewed
+- miniappcards can be reviewed
 - publish is explicit
 - verify is explicit
 - maintenance refresh works

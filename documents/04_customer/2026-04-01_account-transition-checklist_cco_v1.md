@@ -1,6 +1,6 @@
 # Account Transition Checklist
 
-**Title:** {checklist} — Account Transition Checklist
+**Title:** check — Account Transition Checklist
 **Owner:** CCO
 **Purpose:** Ensure complete and controlled handoff of customer accounts between stages or owners
 **Status:** Active

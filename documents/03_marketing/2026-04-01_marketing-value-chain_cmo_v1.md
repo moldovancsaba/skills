@@ -1,6 +1,6 @@
 # Marketing Departmental Value Chain
 
-**Title:** {checklist} — Marketing Departmental Value Chain
+**Title:** check — Marketing Departmental Value Chain
 **Owner:** CMO
 **Purpose:** Define the end-to-end value chain for marketing activities, from market insight to lead handoff.
 **Status:** Draft

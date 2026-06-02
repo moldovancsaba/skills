@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams } from "next/navigation";
-import { IconBell as Bell, IconShieldCheck as ShieldCheck, IconKey as Key, IconSettings as SettingsIcon, IconCopy as Copy, IconRefresh as RefreshCcw, IconEye as Eye, IconEyeOff as EyeOff, IconDeviceMobile as Smartphone, IconGlobe as Globe, IconLanguage as Languages } from "@tabler/icons-react";
+import { useParams, useRouter } from "next/navigation";
+import { IconBell as Bell, IconShieldCheck as ShieldCheck, IconKey as Key, IconSettings as SettingsIcon, IconCopy as Copy, IconRefresh as RefreshCcw, IconEye as Eye, IconEyeOff as EyeOff, IconDeviceMobile as Smartphone, IconGlobe as Globe, IconLanguage as Languages, IconTrash as Trash, IconBuilding as Building } from "@tabler/icons-react";
 import { 
   Switch, Slider, Button, TextInput, Select, Group, Stack, Badge, ActionIcon, ThemeIcon, Box, SimpleGrid, NumberInput } from "@mantine/core";
 import { PageHeader, PageShell } from "@/components/ui/app-shell";
@@ -256,6 +256,7 @@ function buildModuleMatrixRows(
 
 export default function SettingsPage() {
   const params = useParams();
+  const router = useRouter();
   const companyId = params.companyId as string;
   const { t } = useI18n();
 
@@ -268,6 +269,9 @@ export default function SettingsPage() {
   const [capabilityPreview, setCapabilityPreview] = useState<CapabilityTransactionResponse | null>(null);
   const [capabilityWarnings, setCapabilityWarnings] = useState<string[]>([]);
   const [capabilityErrors, setCapabilityErrors] = useState<CapabilityIssue[]>([]);
+  const [unitNameDraft, setUnitNameDraft] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletingUnit, setDeletingUnit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingDaemonPolicy, setSavingDaemonPolicy] = useState(false);
@@ -288,6 +292,7 @@ export default function SettingsPage() {
       if (companyRes.ok) {
         const companyData = await companyRes.json();
         setCompanySettings(companyData);
+        setUnitNameDraft(companyData.name || "");
       }
       if (daemonPolicyRes.ok) {
         const daemonPolicyData = await daemonPolicyRes.json() as DaemonPolicyResponse;
@@ -503,16 +508,65 @@ export default function SettingsPage() {
       const res = await fetch(`/api/companies/${companyId}/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...companySettings, ...updates }),
+        body: JSON.stringify(updates),
       });
       if (res.ok) {
-        setCompanySettings(await res.json());
+        const updated = await res.json();
+        setCompanySettings(updated);
+        setUnitNameDraft(updated.name || "");
         notifications.show({ title: t("settings.organizationSaved"), message: t("settings.organizationUpdated") });
+      } else {
+        const payload = await res.json().catch(() => null);
+        notifications.show({
+          title: t("common.error"),
+          message: payload?.error || t("settings.organizationSaveFailed"),
+          color: "review",
+        });
       }
     } catch (error) {
       notifications.show({ title: t("common.error"), message: t("settings.organizationSaveFailed"), color: "review" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const renameUnit = async () => {
+    const nextName = unitNameDraft.trim().replace(/\s+/g, " ");
+    if (!companySettings || !nextName || nextName === companySettings.name) return;
+    await saveCompanySettings({ name: nextName });
+  };
+
+  const deleteUnit = async () => {
+    if (!companySettings || deleteConfirmation.trim() !== companySettings.name) {
+      notifications.show({
+        title: t("common.error"),
+        message: "Type the current Unit name exactly before deleting.",
+        color: "review",
+      });
+      return;
+    }
+    setDeletingUnit(true);
+    try {
+      const res = await fetch(`/api/companies/${companyId}/settings`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: deleteConfirmation.trim() }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error || "Failed to delete Unit.");
+      }
+      notifications.show({ title: "Unit deleted", message: `${companySettings.name} was deleted.` });
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      notifications.show({
+        title: t("common.error"),
+        message: error instanceof Error ? error.message : "Failed to delete Unit.",
+        color: "review",
+      });
+    } finally {
+      setDeletingUnit(false);
     }
   };
 
@@ -658,6 +712,76 @@ export default function SettingsPage() {
         </UnifiedCard>
 
         {/* Organization settings */}
+        <UnifiedCard tone="strategy">
+          <UnifiedCardBody>
+            <Stack gap="lg">
+              <Group justify="space-between" align="flex-start">
+                <Stack gap={4}>
+                  <Group gap="sm">
+                    <ThemeIcon color="strategy">
+                      <Building size={18} />
+                    </ThemeIcon>
+                    <SectionTitle>Unit Identity</SectionTitle>
+                  </Group>
+                  <BodyText>Rename or permanently delete this operating Unit.</BodyText>
+                </Stack>
+                <Badge color="strategy" size="sm">Unit</Badge>
+              </Group>
+
+              <UnifiedCardSection tone="strategy">
+                <Stack gap="sm">
+                  <TextInput
+                    label="Unit name"
+                    value={unitNameDraft}
+                    onChange={(event) => setUnitNameDraft(event.currentTarget.value)}
+                    disabled={saving || deletingUnit}
+                  />
+                  <Group justify="flex-end">
+                    <Button
+                      color="strategy"
+                      onClick={() => void renameUnit()}
+                      disabled={saving || deletingUnit || !companySettings || !unitNameDraft.trim() || unitNameDraft.trim() === companySettings.name}
+                      loading={saving}
+                    >
+                      Rename Unit
+                    </Button>
+                  </Group>
+                </Stack>
+              </UnifiedCardSection>
+
+              <UnifiedCardSection tone="review">
+                <Stack gap="sm">
+                  <Group gap="sm">
+                    <ThemeIcon color="review">
+                      <Trash size={18} />
+                    </ThemeIcon>
+                    <SectionTitle>Delete Unit</SectionTitle>
+                  </Group>
+                  <BodyText>Deletion removes the Unit and its stored cards, workers, projections, Miniapp data, members, and settings. This cannot be undone.</BodyText>
+                  <TextInput
+                    label={`Type "${companySettings?.name ?? ""}" to confirm`}
+                    value={deleteConfirmation}
+                    onChange={(event) => setDeleteConfirmation(event.currentTarget.value)}
+                    disabled={saving || deletingUnit}
+                  />
+                  <Group justify="flex-end">
+                    <Button
+                      color="review"
+                      variant="outline"
+                      leftSection={<Trash size={16} />}
+                      onClick={() => void deleteUnit()}
+                      disabled={!companySettings || deleteConfirmation.trim() !== companySettings.name || saving}
+                      loading={deletingUnit}
+                    >
+                      Delete Unit
+                    </Button>
+                  </Group>
+                </Stack>
+              </UnifiedCardSection>
+            </Stack>
+          </UnifiedCardBody>
+        </UnifiedCard>
+
         <UnifiedCard tone="synthesis">
           <UnifiedCardBody>
           <Stack gap="lg">

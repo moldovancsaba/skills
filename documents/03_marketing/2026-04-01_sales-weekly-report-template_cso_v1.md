@@ -1,6 +1,6 @@
 # Sales Weekly Report Template
 
-**Title:** {checklist} — Sales Weekly Report Template  
+**Title:** check — Sales Weekly Report Template  
 **Owner:** CSO  
 **Purpose:** Define the standard format and content for the weekly sales report to ensure consistent communication of sales performance and pipeline health.  
 **Status:** Draft  

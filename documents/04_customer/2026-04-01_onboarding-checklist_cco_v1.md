@@ -44,4 +44,4 @@ This checklist is complete when all steps are checked, the client has confirmed 
 
 ### Storage
 
-All onboarding outputs are stored in the client's account record under `/Projects/checklist/documents/04_customer/` with client-specific subdirectories as needed.
+All onboarding outputs are stored in the client's account record under `/Users/Shared/Projects/checklist/documents/04_customer/` with client-specific subdirectories as needed.

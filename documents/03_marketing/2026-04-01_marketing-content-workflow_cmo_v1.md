@@ -1,6 +1,6 @@
 # Marketing Content Production & Approval Workflow
 
-**Title:** {checklist} — Content Production & Approval Workflow
+**Title:** check — Content Production & Approval Workflow
 **Owner:** CMO
 **Purpose:** Define the lifecycle for marketing content from brief to publish.
 **Status:** Draft

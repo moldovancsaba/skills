@@ -1,6 +1,6 @@
 # Weekly Sales Report
 
-**Title:** {checklist} — Weekly Sales Report  
+**Title:** check — Weekly Sales Report  
 **Owner:** CSO  
 **Purpose:** Define standardized format and content for weekly sales reporting to ensure consistent pipeline visibility and forecast accuracy.  
 **Status:** Draft  
@@ -181,4 +181,4 @@ The report should trigger specific actions when:
 - **Slippage Risk:** >20% of commit forecast at risk
 
 ---
-*This document serves as the standardized format and process for the {checklist} Weekly Sales Report to ensure consistent, actionable sales performance visibility.*
+*This document serves as the standardized format and process for the check Weekly Sales Report to ensure consistent, actionable sales performance visibility.*

@@ -1,6 +1,6 @@
 # Product Feedback Intake Process
 
-**Title:** {checklist} — Product Feedback Intake Process
+**Title:** check — Product Feedback Intake Process
 **Owner:** CPO
 **Purpose:** Define how customer and market feedback is collected, triaged, and processed
 **Status:** Approved

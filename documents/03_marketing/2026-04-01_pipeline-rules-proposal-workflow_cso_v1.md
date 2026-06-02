@@ -1,6 +1,6 @@
 # Pipeline Rules and Proposal Workflow
 
-**Title:** {checklist} — Pipeline Rules and Proposal Workflow  
+**Title:** check — Pipeline Rules and Proposal Workflow  
 **Owner:** CSO  
 **Purpose:** Define standardized pipeline management rules and proposal creation workflow for consistent sales execution.  
 **Status:** Draft  
@@ -57,7 +57,7 @@ Proposals may only be initiated when:
 Standardized steps for proposal creation:
 
 #### 2.2.1 Solution Configuration
-- Select appropriate {checklist} solution components based on client needs
+- Select appropriate check solution components based on client needs
 - Validate technical feasibility and implementation requirements
 - Configure pricing according to volume and term considerations
 - Document assumptions and dependencies
@@ -70,7 +70,7 @@ All proposals must include:
 - Implementation Plan: Timeline, milestones, and resource requirements
 - Investment Summary: Clear pricing breakdown and payment terms
 - Value Proposition: Quantified business benefits and ROI
-- Terms & Conditions: Standard {checklist} agreement terms
+- Terms & Conditions: Standard check agreement terms
 - Acceptance Procedure: Clear next steps for client approval
 
 #### 2.2.3 Internal Review Process
@@ -156,4 +156,4 @@ All risks must be documented in CRM with:
 - Status updates tracked weekly
 
 ---
-*This document serves as the standardized pipeline management and proposal workflow framework for all {checklist} sales activities.*
+*This document serves as the standardized pipeline management and proposal workflow framework for all check sales activities.*

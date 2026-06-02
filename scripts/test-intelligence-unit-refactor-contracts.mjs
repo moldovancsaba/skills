@@ -6,6 +6,9 @@ const files = {
   capabilities: readFileSync(join(ROOT, "src/lib/intelligence-unit-capabilities.ts"), "utf8"),
   packages: readFileSync(join(ROOT, "src/lib/check-foundation/unit-packages.ts"), "utf8"),
   lanes: readFileSync(join(ROOT, "src/lib/local-execution-lanes.ts"), "utf8"),
+  miniappOpsQueue: readFileSync(join(ROOT, "src/lib/miniapp-ops-queue.ts"), "utf8"),
+  miniappOpsRoute: readFileSync(join(ROOT, "src/app/api/miniapps/[miniappKey]/ops/actions/route.ts"), "utf8"),
+  pipelineJobs: readFileSync(join(ROOT, "scripts/lib/pipeline-jobs.js"), "utf8"),
   inventory: readFileSync(join(ROOT, "scripts/local-runnable-inventory.mjs"), "utf8"),
 };
 
@@ -31,9 +34,20 @@ assert(/assertPlaylistMutationPolicy/.test(files.lanes), "playlist mutation cate
 assert(/buildQueuedMutationResponse/.test(files.lanes), "queued mutation response helper must exist");
 assert(/Work was queued for CHECK Local/.test(files.lanes), "queued mutation response must expose operator-safe message");
 
-assert(/api:\/api\/miniapps\/:miniappKey\/ops\/actions/.test(files.inventory), "miniapp ops action bypass must be explicitly classified");
-assert(/Human-Approved Burst child jobs/.test(files.inventory), "miniapp ops bypass must have migration target");
+assert(/ACTION_TO_VISITOR_INTENT/.test(files.miniappOpsQueue), "miniapp ops queue adapter must map actions to visitor intents");
+assert(/RESEARCH_BACKFILL/.test(files.miniappOpsQueue), "miniapp ops actions must enqueue RESEARCH_BACKFILL jobs");
+assert(/MINIAPP_OPS_ACTION/.test(files.miniappOpsQueue), "miniapp ops queued jobs must use explicit entity type");
+assert(/miniapp_ops_action_queued/.test(files.miniappOpsQueue), "miniapp ops queue adapter must return queued action code");
+assert(/workerAuthorized/.test(files.miniappOpsRoute), "miniapp ops route must distinguish worker execution from operator queueing");
+assert(/enqueueMiniappOpsAction/.test(files.miniappOpsRoute), "miniapp ops route must enqueue operator calls");
+assert(/research\.evidence\.run/.test(files.pipelineJobs), "pipeline worker must map evidence run visitor intent");
+assert(/research\.humanLane\.run/.test(files.pipelineJobs), "pipeline worker must map human lane visitor intent");
+assert(/sourceTerm/.test(files.pipelineJobs), "pipeline worker must pass sourceTerm through queued miniapp actions");
+
+assert(/api:\/api\/miniapps\/:miniappKey\/ops\/actions/.test(files.inventory), "miniapp ops action route must be explicitly classified");
+assert(/api:\/api\/miniapps\/:miniappKey\/ops\/actions", \{ lane: LANE\.PLAYLIST/.test(files.inventory), "miniapp ops action route must classify as Playlist after queue migration");
 assert(/api:\/api\/miniapps\/:miniappKey\/intelligence-contract/.test(files.inventory), "miniapp intelligence contract bypass must be explicitly classified");
+assert(/api:\/api\/miniapps\/:miniappKey\/intelligence-contract", \{ lane: LANE\.SYSTEM_HEALTH/.test(files.inventory), "miniapp intelligence contract must classify as read-only System Health");
 
 if (failures.length > 0) {
   console.error("intelligence unit refactor contracts failed:\n");

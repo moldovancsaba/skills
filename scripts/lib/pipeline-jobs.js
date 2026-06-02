@@ -184,10 +184,22 @@ function mapVisitorIntentToAction(intentKind) {
       return "candidate_prepare_review";
     case "research.burst":
       return "run_burst";
+    case "research.evidence.run":
+      return "run_evidence";
     case "research.tasks.plan":
       return "replan";
+    case "research.task.retry":
+      return "retry_task";
     case "research.gates.evaluate":
       return "evaluate_gates";
+    case "research.learning.sync":
+      return "sync_learning";
+    case "research.learning.suppress":
+      return "suppress_domain";
+    case "research.learning.overrideSuppression":
+      return "override_suppression";
+    case "research.humanLane.run":
+      return "run_human_lane";
     case "research.opportunities.promote":
       return "promote_opportunities";
     default:
@@ -209,6 +221,15 @@ async function runMiniappResearchIntentJob(job, executionOptions = {}) {
 
   const intentPayload = toPlainObject(intent.payload);
   const candidateId = typeof intent.candidateId === "string" ? intent.candidateId.trim() : "";
+  const taskId = typeof intent.taskId === "string" && intent.taskId.trim()
+    ? intent.taskId.trim()
+    : typeof intentPayload.taskId === "string" ? intentPayload.taskId.trim() : "";
+  const sourceTerm = typeof intent.sourceTerm === "string" && intent.sourceTerm.trim()
+    ? intent.sourceTerm.trim()
+    : typeof intentPayload.sourceTerm === "string" ? intentPayload.sourceTerm.trim() : "";
+  const reason = typeof intent.reason === "string" && intent.reason.trim()
+    ? intent.reason.trim()
+    : typeof intentPayload.reason === "string" ? intentPayload.reason.trim() : "";
   const discoverLimit = Math.max(1, Math.min(200, Math.floor(Number(intentPayload.discoverLimit || intentPayload.limit || 30)) || 30));
   const processLimit = Math.max(1, Math.min(200, Math.floor(Number(intentPayload.processLimit || 30)) || 30));
   const payload = {
@@ -216,6 +237,9 @@ async function runMiniappResearchIntentJob(job, executionOptions = {}) {
     destinationKey: intent.destinationKey,
     action,
     candidateId: candidateId || undefined,
+    taskId: taskId || candidateId || undefined,
+    sourceTerm: sourceTerm || undefined,
+    reason: reason || undefined,
     targetVisibleCards: Number.isFinite(Number(intentPayload.targetVisibleCards)) ? Number(intentPayload.targetVisibleCards) : undefined,
     maxCycles: Number.isFinite(Number(intentPayload.maxCycles)) ? Number(intentPayload.maxCycles) : undefined,
     tasksPerCycle: Number.isFinite(Number(intentPayload.tasksPerCycle)) ? Number(intentPayload.tasksPerCycle) : undefined,

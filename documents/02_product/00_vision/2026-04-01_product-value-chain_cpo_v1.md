@@ -1,6 +1,6 @@
 # Product Value Chain
 
-**Title:** {checklist} — Product Value Chain  
+**Title:** check — Product Value Chain  
 **Owner:** CPO  
 **Purpose:** Define how product work creates value for the company and customers.  
 **Status:** Approved  

@@ -64,18 +64,20 @@ Rules:
 - `datacard`: the evidence-layer card persisted through `Source`
 - `topiccard`: the focus/planning card persisted through `Topic`
 - `goalcard`: the strategy-layer card persisted through `Goalcard`
-- `reviewcard`: a human-review card or packet depending on the owning Module
+- `reviewcard`: a human-review card for approval, rejection, correction, or publish decisions
 - `flashcard`: the knowledge-layer card persisted through `Flashcard`
 - `taskcard`: the execution/planning card persisted through `ChecklistTask`
 - `opportunitycard`: the sales opportunity card
 - `projectcard`: the standalone Project Block card
 - `logiccard`: a queue, workflow, or pipeline-ordering card when exposed as business logic
+- `miniappcard`: publish-ready public Miniapp content such as visitor classes, camps, programs, venues, drop-in activities, and events
 
 Required usage:
 
 - say `taskcard` when referring to the card entity represented by `ChecklistTask`
 - say `projectcard` only for standalone Project Block cards
 - say `opportunitycard` only for Sales Block opportunity records
+- say `miniappcard` for public Miniapp content cards and their review/publish lifecycle
 - do not use `checklist item` as the primary product noun when the meaning is the persisted `ChecklistTask` entity
 
 ## Surface Terms
@@ -136,7 +138,7 @@ Rules:
 - `Miniapp Ops`: Webapp workspace used to operate a Miniapp
 - `Mission`: configured goal for Local to create or maintain Miniapp content
 - `Rulebook`: rules a Mission must follow
-- `Packet`: reviewable bundle of draft content, evidence, and suggested action
+- `miniappcard`: reviewable/publishable public content card with draft content, evidence, and suggested action
 - `Publish`: sending approved content to the Miniapp
 - `Verify`: checking that published content is live and correct
 
@@ -158,6 +160,7 @@ Allowed implementation aliases while migration is in progress:
 - `DestinationInstance` may remain the storage model for a Miniapp integration until renamed
 - `DestinationMission*` may remain the storage model for Miniapp Missions until renamed
 - `unit-board` may remain the route/module key for Project Board implementation
+- `DestinationReviewPacket`, `packetState`, and `packetFingerprint` may remain storage/schema names only; product language, docs, routes, and UI must say review card, card state, and card fingerprint
 
 Migration rule:
 

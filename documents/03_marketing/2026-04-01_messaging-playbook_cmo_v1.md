@@ -1,6 +1,6 @@
 # Messaging Playbook
 
-**Title:** {checklist} — Messaging Playbook
+**Title:** check — Messaging Playbook
 **Owner:** CMO
 **Purpose:** Define consistent messaging across all channels and touchpoints.
 **Status:** Draft
@@ -17,46 +17,46 @@
 ## 1. Messaging Hierarchy
 
 ### 1.1 Master Narrative
-We deliver simple, actionable solutions that companies can understand, follow, audit, and repeat at scale.
+check helps Units turn raw business evidence into governed cards, decisions, work, sales opportunities, and public Miniapp content.
 
 ### 1.2 Value Propositions
 
 | Value Prop | Message |
 |------------|---------|
-| **Simplicity** | Systems that are simple enough to understand immediately |
-| **Actionability** | Every deliverable includes clear next steps |
-| **Accountability** | All work is documented and auditable |
-| **Repeatability** | Processes that can be followed without us |
-| **Scalability** | Systems that grow with your business |
+| **Evidence** | Source-backed cards preserve what the system knows and why |
+| **Actionability** | Tasks, goals, opportunities, and project work stay tied to decisions |
+| **Accountability** | Webapp actions, Local AI work, and outcomes remain auditable |
+| **Repeatability** | Blocks and Modules reuse one governed card/property foundation |
+| **Scalability** | Units can enable only the Blocks and Miniapps they need |
 
 ### 1.3 Proof Points
-- We operate using our own documented systems
-- All work follows our Definition of Done
-- Clients can repeat what we deliver without us
-- Systems are simple, documented, accountable, repeatable, and auditable
+- The product model is Unit-based, Block-enabled, Module-composed, and Card-based
+- Webapp reads prepared state while Local owns heavy AI work
+- Miniapps such as ClassScout and Compare are public apps powered by Unit intelligence
+- Card and property contracts are enforced by repository tests
 
 ## 2. Messaging by Audience
 
 ### 2.1 CEO/Founder
 **Pain Point:** Overwhelmed by complexity, needs systems that scale
-**Message:** We deliver simple, actionable systems that your team can follow without you.
+**Message:** check turns scattered business evidence into governed cards, priorities, and operating decisions.
 **Call to Action:** Get a free system audit
 
 ### 2.2 Operations Manager
 **Pain Point:** Lack of documented processes, inconsistent execution
-**Message:** We create documented, repeatable processes your team can execute consistently.
-**Call to Action:** Download process templates
+**Message:** check gives your team a controlled AI layer for evidence, work, and operational follow-through.
+**Call to Action:** See the card/property foundation
 
 ### 2.3 Consultant/Advisor
 **Pain Point:** Client work lacks structure, needs frameworks
-**Message:** We provide simple frameworks you can use with your clients immediately.
-**Call to Action:** Access framework library
+**Message:** check packages client evidence into reusable cards, tasks, opportunities, and Miniapp-ready content.
+**Call to Action:** Explore Unit intelligence workflows
 
 ## 3. Messaging by Channel
 
 ### 3.1 Website
-- Headline: Simple, actionable solutions that scale
-- Subheadline: We deliver documented, repeatable systems for growing businesses
+- Headline: Evidence-backed intelligence for operating Units
+- Subheadline: Turn company knowledge into governed cards, work, sales opportunities, and public Miniapp content
 - CTA: Get Started
 
 ### 3.2 Email
@@ -70,7 +70,7 @@ We deliver simple, actionable solutions that companies can understand, follow, a
 - Format: Problem → Solution → Question
 
 ### 3.4 Sales Collateral
-- One-liner: We deliver simple, actionable solutions that companies can understand, follow, audit, and repeat.
+- One-liner: check turns raw business evidence into governed cards, decisions, work, and public Miniapp content.
 - Elevator pitch: 30-second version of positioning statement
 - Case study format: Problem → Solution → Results → Repeatable Outcome
 

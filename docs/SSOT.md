@@ -192,7 +192,8 @@ Miniapp execution contract:
 
 - Miniapp services are not allowed to run as a parallel shadow scheduler beside the general playlist
 - ClassScout and Compare Miniapp work must be materialized into the same queue-owned worker lane as other `check` jobs
-- the current shipped bridge uses the claimable `DESTINATION_MISSION_DAEMON` queue job to dispatch into the internal mission daemon runtime for ClassScout
+- the current shipped bridge uses the claimable `DESTINATION_MISSION_DAEMON` queue job to dispatch into the internal mission daemon runtime for ClassScout and Compare mission scopes
+- destination mission run action routes are queue controls only; they validate operator scope, enqueue `DESTINATION_MISSION_DAEMON`, and return queued Playlist receipts instead of running discovery, extraction, scoring, preparation, persistence, or mission-state transitions in the Webapp
 - this bridge is a transitional implementation detail; the architectural rule is that Miniapp work is queue-owned, single-lane, and visible in mission control
 - the current shipped ClassScout operator home route is `/{companyId}/classscout`
 - that route is allowed to aggregate Miniapp-owned review, live-catalog, mission-control, and Project Board state behind one bounded landing contract

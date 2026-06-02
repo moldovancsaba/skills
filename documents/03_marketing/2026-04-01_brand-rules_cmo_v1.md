@@ -1,8 +1,8 @@
 # Brand Rules
 
-**Title:** {checklist} — Brand Rules
+**Title:** check — Brand Rules
 **Owner:** CMO
-**Purpose:** Define how the {checklist} brand is represented across all touchpoints.
+**Purpose:** Define how the check brand is represented across all touchpoints.
 **Status:** Draft
 **Last Updated:** 2026-04-01
 **Relevant Team:** Marketing, Sales, Product, All Staff
@@ -19,7 +19,7 @@
 ### 1.1 Voice Attributes
 | Attribute | Description | Example |
 |-----------|-------------|---------|
-| **Clear** | Simple, direct language | "We deliver simple systems" not "We provide comprehensive solutions" |
+| **Clear** | Simple, direct language | "Turn evidence into governed cards" not "We provide comprehensive solutions" |
 | **Actionable** | Focused on next steps | "Download the template" not "Learn more about our offerings" |
 | **Accountable** | Takes ownership | "We will deliver" not "We aim to deliver" |
 | **Professional** | Respectful, competent | "We recommend" not "You should" |
@@ -28,7 +28,7 @@
 ### 1.2 Tone by Context
 | Context | Tone | Example |
 |---------|------|---------|
-| **Website** | Confident, clear | "We deliver simple, actionable solutions" |
+| **Website** | Confident, clear | "Evidence-backed intelligence for operating Units" |
 | **Email** | Helpful, direct | "Here's the template you requested" |
 | **Social** | Engaging, insightful | "3 mistakes to avoid when documenting processes" |
 | **Sales** | Consultative, focused | "Let's understand your challenges first" |
@@ -37,7 +37,7 @@
 ## 2. Visual Identity
 
 ### 2.1 Logo Usage
-- Primary logo: {checklist} wordmark with checkmark icon
+- Primary logo: check wordmark with checkmark icon
 - Minimum size: 120px width for digital, 1 inch for print
 - Clear space: Minimum 1x logo height on all sides
 - Background: White or light neutral colors only

@@ -1,6 +1,6 @@
 # Qualification Criteria and Sales Stage Definitions
 
-**Title:** {checklist} — Qualification Criteria and Sales Stage Definitions  
+**Title:** check — Qualification Criteria and Sales Stage Definitions  
 **Owner:** CSO  
 **Purpose:** Define standardized qualification criteria and sales stage definitions for consistent opportunity management.  
 **Status:** Draft  
@@ -15,7 +15,7 @@
 
 ## 1. Qualification Criteria Framework
 
-{checklist} uses the BANT qualification framework enhanced with solution-specific criteria:
+check uses the BANT qualification framework enhanced with solution-specific criteria:
 
 ### 1.1 BANT Criteria
 - **Budget:** Confirmed budget allocation or ability to secure funds for solution
@@ -24,14 +24,14 @@
 - **Timeline:** Defined timeline for evaluation and purchase decision
 
 ### 1.2 Solution-Specific Qualification
-- **Solution Fit:** Clear match between client needs and {checklist} solution capabilities
+- **Solution Fit:** Clear match between client needs and check solution capabilities
 - **Technical Feasibility:** Solution can be implemented in client's technical environment
 - **Organizational Readiness:** Client has capacity to adopt and utilize solution effectively
 - **Value Proposition Alignment:** Client recognizes and values our unique proposition
 
 ## 2. Sales Stage Definitions
 
-{checklist} sales process consists of six standardized stages:
+check sales process consists of six standardized stages:
 
 ### 2.1 Stage 1: Lead Qualification
 **Purpose:** Initial assessment of lead quality and fit
@@ -155,4 +155,4 @@ Opportunities should be disqualified if:
 - Solution requires capabilities outside our roadmap without exceptions
 
 ---
-*This document serves as the standardized qualification and stage definition framework for all {checklist} sales opportunities.*
+*This document serves as the standardized qualification and stage definition framework for all check sales opportunities.*

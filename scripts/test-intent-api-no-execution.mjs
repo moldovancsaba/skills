@@ -13,6 +13,15 @@ const intentFiles = [
   "src/app/api/visitor/[visitorKey]/research/tasks/plan/route.ts",
 ];
 
+const destinationMissionActionFiles = [
+  "src/app/api/destination-missions/runs/[id]/discover-candidates/route.ts",
+  "src/app/api/destination-missions/runs/[id]/extract-candidate/route.ts",
+  "src/app/api/destination-missions/runs/[id]/score-candidate/route.ts",
+  "src/app/api/destination-missions/runs/[id]/prepare-candidate/route.ts",
+  "src/app/api/destination-missions/runs/[id]/execute-next-attempt/route.ts",
+  "src/app/api/destination-missions/runs/[id]/execute-until-blocked/route.ts",
+];
+
 const forbidden = [
   "visitor-candidate-pipeline",
   "miniapp-burst-controller",
@@ -28,6 +37,31 @@ for (const file of intentFiles) {
   assert.match(source, /queueVisitorLocalIntent/, `${file} must queue Local AI intent`);
   for (const token of forbidden) {
     assert.doesNotMatch(source, new RegExp(token), `${file} must not import or execute ${token}`);
+  }
+}
+
+const forbiddenDestinationRuntimeHelpers = [
+  "discoverClassScoutCandidates",
+  "discoverCompareCandidates",
+  "extractClassScoutCandidate",
+  "extractCompareCandidate",
+  "scoreClassScoutCandidate",
+  "scoreCompareCandidate",
+  "prepareClassScoutCandidateReview",
+  "prepareCompareCandidateReview",
+  "upsertDestinationCandidate",
+  "upsertDestinationSourceDocument",
+  "createDestinationFactSnapshot",
+  "advanceDestinationMissionAttempt",
+  "transitionDestinationMissionState",
+];
+
+for (const file of destinationMissionActionFiles) {
+  const source = readFileSync(file, "utf8");
+  assert.match(source, /queueDestinationMissionRunAction/, `${file} must queue destination mission work`);
+  assert.match(source, /status:\s*202/, `${file} must return a queued receipt`);
+  for (const helper of forbiddenDestinationRuntimeHelpers) {
+    assert.doesNotMatch(source, new RegExp(helper), `${file} must not execute ${helper} in the webapp route`);
   }
 }
 

@@ -1,6 +1,6 @@
 # Communication and Meeting Standard
 
-**Title:** {checklist} — Communication and Meeting Standard
+**Title:** check — Communication and Meeting Standard
 **Owner:** CEO
 **Purpose:** Define how the company communicates, escalates, and runs meetings.
 **Status:** Approved

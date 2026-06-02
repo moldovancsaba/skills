@@ -167,7 +167,7 @@ Track all significant technical decisions with context, rationale, and outcomes.
 | Date | 2026-04-01 |
 | Title | Single Source of Truth for Documentation |
 | Context | Documentation scattered across locations causes confusion and outdated information |
-| Decision | All official Technology documentation lives in `/Projects/checklist/documents/05_technology/` |
+| Decision | All official Technology documentation lives in `/Users/Shared/Projects/checklist/documents/05_technology/` |
 | Rationale | Centralized documentation ensures discoverability, consistency, and version control |
 | Alternatives | Distributed documentation, wiki-based, multiple repositories |
 | Impact | All technology docs must be stored in approved location |

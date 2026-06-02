@@ -1,6 +1,6 @@
 # Customer Department Operational Playbook
 
-**Title:** {checklist} — Customer Department Operating Standards
+**Title:** check — Customer Department Operating Standards
 **Owner:** CCO
 **Purpose:** Define customer department workflows, standards, and deliverables
 **Status:** Active

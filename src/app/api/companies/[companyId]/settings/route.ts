@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { canonicalizeAllowedLanguagesForStorage } from "@/lib/language-catalog";
+import { deleteUnitData } from "@/lib/unit-crud";
 import {
   UNIT_CAPABILITIES_SCHEMA_VERSION,
   formatCapabilityPayload,
@@ -14,6 +15,13 @@ import {
 } from "@/lib/intelligence-unit-capabilities";
 
 export const dynamic = 'force-dynamic';
+
+function normalizeUnitName(value: unknown) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  if (!trimmed) return null;
+  return trimmed.slice(0, 120);
+}
 
 export async function GET(
   request: NextRequest,
@@ -110,6 +118,7 @@ export async function PATCH(
       where: { id: companyId },
       select: {
         id: true,
+        name: true,
         allowedLanguages: true,
         workerConfig: true,
       },
@@ -215,6 +224,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid allowedLanguages format" }, { status: 400 });
     }
 
+    const hasNameUpdate = Object.prototype.hasOwnProperty.call(data, "name");
+    const normalizedName = hasNameUpdate ? normalizeUnitName(data.name) : undefined;
+    if (hasNameUpdate && !normalizedName) {
+      return NextResponse.json({ error: "Unit name is required" }, { status: 400 });
+    }
+
     const normalizedAllowedLanguages = data.allowedLanguages
       ? canonicalizeAllowedLanguagesForStorage(data.allowedLanguages as string[])
       : undefined;
@@ -245,6 +260,7 @@ export async function PATCH(
       const updated = await prisma.company.update({
       where: { id: companyId },
       data: {
+        ...(normalizedName ? { name: normalizedName } : {}),
         allowedLanguages: normalizedAllowedLanguages,
         ...(nextWorkerConfig ? { workerConfig: nextWorkerConfig } : {}),
       },
@@ -287,6 +303,39 @@ export async function PATCH(
       });
     }
 
+    if (normalizedName && normalizedName !== existing?.name) {
+      await recordInteractionEventFromRequest(request, {
+        companyId,
+        surface: "settings-company",
+        interactionType: "UNIT_RENAME",
+        entityType: "COMPANY",
+        entityId: updated.id,
+        beforeState: {
+          name: existing?.name ?? null,
+        },
+        afterState: {
+          name: updated.name,
+        },
+        teachingWeight: 70,
+      });
+
+      await recordOutcomeEvent({
+        companyId,
+        actorType: "HUMAN",
+        entityType: "COMPANY",
+        entityId: updated.id,
+        outcomeType: "UNIT_RENAMED",
+        outcomeValue: updated.name,
+        beforeState: {
+          name: existing?.name ?? null,
+        },
+        afterState: {
+          name: updated.name,
+        },
+        teachingWeight: 70,
+      });
+    }
+
     const nextCapabilities = resolveUnitCapabilities({
       workerConfig: updated.workerConfig,
       hasClassScoutDestination: Boolean(classScoutInstance),
@@ -312,6 +361,67 @@ export async function PATCH(
       profileMigration,
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(updated.allowedLanguages ?? []),
       capabilitiesValidation: capabilityV2Validation?.validation ?? null,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ companyId: string }> }
+) {
+  const { companyId } = await params;
+  if (!companyId) {
+    return NextResponse.json({ error: "Missing companyId" }, { status: 400 });
+  }
+
+  const auth = await verifyMembership(request, companyId, "ADMIN");
+  if (auth.error) return auth.error;
+
+  try {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { id: true, name: true },
+    });
+    if (!company) {
+      return NextResponse.json({ error: "Unit not found" }, { status: 404 });
+    }
+
+    const bodyRaw = await request.json().catch(() => ({}));
+    const body = bodyRaw && typeof bodyRaw === "object" && !Array.isArray(bodyRaw)
+      ? bodyRaw as Record<string, unknown>
+      : {};
+    const confirmation = typeof body.confirmation === "string" ? body.confirmation.trim() : "";
+    if (confirmation !== company.name) {
+      return NextResponse.json(
+        { error: "Unit name confirmation is required before deletion." },
+        { status: 400 },
+      );
+    }
+
+    await recordInteractionEventFromRequest(request, {
+      companyId,
+      surface: "settings-company",
+      interactionType: "UNIT_DELETE",
+      entityType: "COMPANY",
+      entityId: company.id,
+      beforeState: {
+        name: company.name,
+      },
+      payload: {
+        confirmedName: confirmation,
+      },
+      teachingWeight: 100,
+    });
+
+    const deleted = await deleteUnitData(prisma, companyId);
+
+    return NextResponse.json({
+      ok: true,
+      deleted: true,
+      companyId,
+      deletedModels: deleted.deletedModels,
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

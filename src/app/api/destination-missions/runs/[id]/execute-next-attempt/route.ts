@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDestinationMissionRun } from "@/lib/destination-missions";
-import { prisma } from "@/lib/db";
-import { escalateCompanyPipelineJob } from "@/lib/pipeline-queue";
+import { queueDestinationMissionRunAction } from "@/lib/destination-mission-queue";
 import { verifyMembership } from "@/lib/permissions";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
 
@@ -30,18 +29,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Mission run not found" }, { status: 404 });
     }
   }
-  const job = await escalateCompanyPipelineJob(prisma, companyId, "DESTINATION_MISSION_DAEMON", "DESTINATION_MISSION_RUN", id);
-
-  return NextResponse.json({
-    ok: true,
-    queued: true,
-    lane: "PLAYLIST",
-    jobType: "DESTINATION_MISSION_DAEMON",
-    jobId: job?.id ?? null,
+  const result = await queueDestinationMissionRunAction({
     companyId,
     missionId: id,
-    destinationScope: destinationKey ?? null,
+    destinationScope: destinationKey,
     actorId: auth.session.email,
-    message: "Destination mission attempt was queued for CHECK Local instead of executing directly.",
-  }, { status: 202 });
+    action: "execute-next-attempt",
+  });
+
+  return NextResponse.json(result, { status: 202 });
 }

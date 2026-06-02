@@ -1,6 +1,6 @@
 # Product Definition of Done Library
 
-**Title:** {checklist} — Product Definition of Done Library
+**Title:** check — Product Definition of Done Library
 **Owner:** CPO
 **Purpose:** Define completion standards for each product work type
 **Status:** Approved

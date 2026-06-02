@@ -36,7 +36,7 @@ export const manualSections: HelpSection[] = [
   {
     id: "system-model",
     title: "Understand the three system layers",
-    summary: "checklist works best when you treat data, Knowmore, and tasks as separate jobs, and keep the webapp and local AI roles separate.",
+    summary: "check works best when you treat data, Knowmore, and tasks as separate jobs, and keep the Webapp and Local roles separate.",
     bullets: [
       "Data is raw source input: notes, URLs, research snippets, and uploaded files.",
       "Knowmore is the knowledge layer: flashcards generated from evidence and enrichment.",

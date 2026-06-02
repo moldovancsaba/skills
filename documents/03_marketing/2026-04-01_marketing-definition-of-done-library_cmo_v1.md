@@ -1,6 +1,6 @@
 # Marketing Definition of Done Library
 
-**Title:** {checklist} — Marketing DoD Library
+**Title:** check — Marketing DoD Library
 **Owner:** CMO
 **Purpose:** Provide DoD templates for major recurring marketing work.
 **Status:** Draft

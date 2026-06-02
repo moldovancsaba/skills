@@ -1,6 +1,6 @@
 # Product Department Operational Playbook
 
-**Title:** {checklist} — Product Department Operating Standards
+**Title:** check — Product Department Operating Standards
 **Owner:** CPO
 **Purpose:** Define product department workflows, standards, and deliverables
 **Status:** Approved

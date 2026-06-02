@@ -313,7 +313,7 @@ Use this order when tuning a Unit:
 3. increase `maxRuns` only when queue pressure is sustained
 4. increase `maxPasses` only when candidates frequently stop before review-ready
 5. increase `maxAutoRejections` carefully; high values can hide quality drift
-6. increase maintenance limits only when approved packet backlog or stale review pressure is visible
+6. increase maintenance limits only when approved review-card backlog or stale review pressure is visible
 7. keep overrides minimal; avoid diverging both lanes unless behavior differs materially
 
 ### Operational checks
@@ -411,7 +411,7 @@ This prevents cross-destination UI drift where a destination lane exposes contro
 - `counts.classscout`
 - `counts.compare`
 
-Both counters use the same packet-state pressure criteria (`AWAITING_REVIEW`, `APPROVED`, `REWORK_REQUESTED`) scoped per destination instance.
+Both counters use the same review-card pressure criteria (`AWAITING_REVIEW`, `APPROVED`, `REWORK_REQUESTED`) scoped per destination instance.
 
 ## Miniapp Ops workspace route fallback normalization
 
@@ -459,7 +459,7 @@ Review card listing now supports optional destination filtering:
 Workspace propagation:
 
 - destination content-ops workspace passes active destination scope into review workspace
-- review workspace includes `destinationKey` in packet list fetches
+- review workspace includes `destinationKey` in review-card list fetches
 
 This prevents mixed-destination review queues when a Unit has multiple Miniapps enabled.
 
@@ -565,11 +565,11 @@ Behavior:
 
 - require `companyId` where applicable
 - reject invalid `destinationKey` values (`400`)
-- when destination scope is provided, packet destination must match or request returns `404`
+- when destination scope is provided, review-card destination must match or request returns `404`
 
 UI propagation:
 
-- review workspace now forwards `destinationKey` for packet detail load, decision submit, and publish actions
+- review workspace now forwards `destinationKey` for review-card detail load, decision submit, and publish actions
 
 ## Destination-scoped replay execution hardening
 
@@ -577,7 +577,7 @@ UI propagation:
 
 - validates `companyId`
 - validates `destinationKey` when provided
-- for `review-packet` replay path, enforces packet destination match before publish replay
+- for the review-card replay path, enforces review-card destination match before publish replay
 
 Learning panel now forwards active `destinationKey` when executing replay actions.
 
@@ -783,8 +783,8 @@ Updated:
   - mission policy update path now normalizes mission destination key before policy normalization/merge
 
 - `src/lib/destination-review-bridge.ts`
-  - review decision flow now normalizes packet destination key once and reuses typed key for correction promotion + outcome memory write
-  - throws explicit unsupported-destination error if packet destination key is invalid
+  - review decision flow now normalizes review-card destination key once and reuses typed key for correction promotion + outcome memory write
+  - throws explicit unsupported-destination error if review-card destination key is invalid
 
 - `src/lib/destination-mission-runner.ts`
   - removed remaining API-level destination cast in fact snapshot creation; relies on typed adapter key directly
@@ -1192,7 +1192,9 @@ This pass hardens the mission run-control lifecycle used by ClassScout/Compare o
 - Standardized mutation-body validation to reject non-object payloads with `JSON object body is required`.
 - Tightened `companyId` extraction from permissive coercion to explicit string checks.
 - Tightened destination key checks from truthy-only guards to explicit provided-value validation (`destinationKeyRaw !== undefined`).
-- Preserved existing business state machine behavior (discover, score, prepare, extract, advance, pause/resume, terminal marking, execute loops).
+- Preserved direct state-machine behavior only for lifecycle/operator state controls such as pause/resume, terminal marking, advance-attempt, and run `PATCH`.
+- Replaced Webapp-side mission intelligence execution for `discover-candidates`, `extract-candidate`, `score-candidate`, `prepare-candidate`, `execute-next-attempt`, and `execute-until-blocked` with queued `DESTINATION_MISSION_DAEMON` Playlist receipts via `src/lib/destination-mission-queue.ts`.
+- ClassScout/Compare discovery, extraction, scoring, preparation, candidate persistence, fact snapshots, retry/timeout behavior, and mission-state movement now belong to CHECK Local for those action routes.
 
 ### Why this matters
 - Removes malformed payload drift across the most critical mission execution controls.

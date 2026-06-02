@@ -105,4 +105,4 @@ Workflow state mapping:
   - candidates/review artifacts: destination workflow tables
 - Retry behavior:
   - discover is idempotent by candidate fingerprint
-  - review card submission is idempotent by packet fingerprint
+  - review card submission is idempotent by card fingerprint

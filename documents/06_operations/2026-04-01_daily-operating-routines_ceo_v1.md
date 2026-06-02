@@ -1,6 +1,6 @@
 # Daily Operating Routines
 
-**Title:** {checklist} — Daily Operating Routines
+**Title:** check — Daily Operating Routines
 **Owner:** CEO
 **Purpose:** Define daily operating discipline for all levels of the company.
 **Status:** Approved

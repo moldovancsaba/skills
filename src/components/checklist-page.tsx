@@ -373,7 +373,7 @@ export function ChecklistPage({ companyId, archived = false }: ChecklistPageProp
                 {planningSummary ? (
                   <>
                     <Text size="xs" c="dimmed">
-                      Planning {Math.max(Number(planningSummary.tacticalCount || 0), Number(planningSummary.checklistCount || 0))}
+                      Planning {Number(planningSummary.tacticalCount || 0)}
                     </Text>
                     <Text size="xs" c="dimmed">
                       Checklist {Number(planningSummary.checklistCount || 0)}

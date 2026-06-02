@@ -15,6 +15,7 @@ import { UiLanguageSelect } from "@/components/ui-language-select";
 import { useI18n } from "@/lib/ui-i18n";
 import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
 import { getWebappProfileLabel, getWebappRoute, UNIT_MODULE_DEFINITIONS } from "@/lib/intelligence-unit-capabilities";
+import { resolveEnabledLegacyModules } from "@/lib/module-capability-utils";
 
 const staticModuleNavItems: PipelineItem[] = [
   {
@@ -120,40 +121,6 @@ type PipelineItem = {
 type ModuleCapabilityState = Record<string, boolean>;
 type EffectiveBlockKey = "checklist" | "sales" | "project" | "miniapp";
 
-const CANONICAL_MODULE_TO_LEGACY_NAV_KEY: Record<string, string> = {
-  data: "data",
-  topics: "topics",
-  goals: "goals",
-  review: "review",
-  knowmore: "knowmore",
-  tactical: "tactical",
-  analytics: "analytics",
-  aiQueue: "pipeline",
-  checklist: "checklist",
-  sales: "sales",
-  project: "unit-board",
-};
-
-function mapCanonicalModulesToLegacyNavCapabilities(enabledModules: unknown): ModuleCapabilityState {
-  const baseline = UNIT_MODULE_DEFINITIONS.reduce<ModuleCapabilityState>((acc, definition) => {
-    acc[definition.key] = false;
-    return acc;
-  }, {});
-
-  if (!Array.isArray(enabledModules)) {
-    return baseline;
-  }
-
-  for (const key of enabledModules) {
-    if (typeof key !== "string") continue;
-    const legacyKey = CANONICAL_MODULE_TO_LEGACY_NAV_KEY[key];
-    if (!legacyKey) continue;
-    baseline[legacyKey] = true;
-  }
-
-  return baseline;
-}
-
 type ClientNavProps = {
   initialSession?: {
     authenticated: boolean;
@@ -246,9 +213,9 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
       return () => window.clearTimeout(timer);
     }
 
-  const fetchCounts = async () => {
-      try {
-        const res = await fetch(`/api/companies/${activeId}/nav`);
+      const fetchCounts = async () => {
+        try {
+          const res = await fetch(`/api/companies/${activeId}/nav`);
         if (res.ok) {
           const data = await res.json();
           if (data.company) {
@@ -271,10 +238,17 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
             setModuleCapabilities(data.webapp.modules as ModuleCapabilityState);
           }
           if (Array.isArray(data.webapp?.enabledModules)) {
-            setModuleCapabilities(mapCanonicalModulesToLegacyNavCapabilities(data.webapp.enabledModules));
+            const resolvedModules = resolveEnabledLegacyModules({
+              enabledModules: data.webapp.enabledModules,
+              enabledBlocks: data.webapp.enabledBlocks,
+            });
+            setModuleCapabilities(UNIT_MODULE_DEFINITIONS.reduce<ModuleCapabilityState>((acc, definition) => {
+              acc[definition.key] = resolvedModules.includes(definition.key);
+              return acc;
+            }, {}));
           }
           const checklistCount = Number(data.counts?.checklist || 0);
-          const planningCount = Math.max(Number(data.counts?.tactical || 0), checklistCount);
+          const planningCount = Number(data.counts?.tactical || 0);
           setCounts({
             data: data.counts?.data || 0,
             topics: data.counts?.topics || 0,
@@ -477,10 +451,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
               </Box>
 
               {portfolioUnits.map((unit) => {
-                const tacticalCount = Math.max(
-                  Number(unit.metrics?.tactical ?? 0),
-                  Number(unit.metrics?.checklist ?? 0),
-                );
+                const tacticalCount = Number(unit.metrics?.tactical ?? 0);
                 const summaryCount = tacticalCount || Number(unit.metrics?.sales ?? 0) || Number(unit.metrics?.data ?? 0);
 
                 return (

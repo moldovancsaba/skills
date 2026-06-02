@@ -89,29 +89,23 @@ export function buildCompanyReadModel(snapshot: SnapshotReadModelFields | null |
   const counts = projection?.counts
     ? {
         ...projection.counts,
-        tacticalCount: Math.max(projection.counts.tacticalCount, projection.counts.checklistCount),
+        tacticalCount: Number(projection.counts.tacticalCount || 0),
         pipelineJobs: Number(projection.counts.pipelineJobs ?? 0),
       }
     : EMPTY_COUNTS;
   const navCounts = projection?.navCounts
     ? {
         ...projection.navCounts,
-        checklist: Number(projection.navCounts.checklist ?? counts.checklistCount ?? 0),
-        tactical: Math.max(
-          Number(projection.navCounts.tactical ?? counts.tacticalCount ?? 0),
-          Number(projection.navCounts.checklist ?? counts.checklistCount ?? 0),
-        ),
+        checklist: Number(projection.navCounts.checklist ?? 0),
+        tactical: Number(projection.navCounts.tactical ?? 0),
         pipeline: Number(projection.navCounts.pipeline ?? counts.pipelineJobs ?? 0),
       }
     : EMPTY_NAV_COUNTS;
   const planningSummary = projection?.planningSummary
     ? {
         ...projection.planningSummary,
-        tacticalCount: Math.max(
-          Number(projection.planningSummary.tacticalCount ?? counts.tacticalCount ?? 0),
-          Number(projection.planningSummary.checklistCount ?? counts.checklistCount ?? 0),
-        ),
-        checklistCount: Number(projection.planningSummary.checklistCount ?? counts.checklistCount ?? 0),
+        tacticalCount: Number(projection.planningSummary.tacticalCount ?? 0),
+        checklistCount: Number(projection.planningSummary.checklistCount ?? 0),
       }
     : EMPTY_PLANNING_SUMMARY;
 
@@ -120,13 +114,13 @@ export function buildCompanyReadModel(snapshot: SnapshotReadModelFields | null |
     projectionFreshness,
     counts: {
       ...counts,
-      tacticalCount: Math.max(Number(counts.tacticalCount ?? 0), Number(counts.checklistCount ?? 0)),
+      tacticalCount: Number(counts.tacticalCount ?? 0),
       pipelineJobs: Number(counts.pipelineJobs ?? 0),
     },
     navCounts: {
       ...navCounts,
-      checklist: Number(navCounts.checklist ?? counts.checklistCount ?? 0),
-      tactical: Math.max(Number(navCounts.tactical ?? 0), Number(navCounts.checklist ?? 0)),
+      checklist: Number(navCounts.checklist ?? 0),
+      tactical: Number(navCounts.tactical ?? 0),
       pipeline: Number(navCounts.pipeline ?? counts.pipelineJobs ?? 0),
     },
     planningSummary,

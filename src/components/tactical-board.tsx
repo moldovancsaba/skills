@@ -337,7 +337,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
         <PipelineAccentHeader activeKey="tactical" title="Tactical Board" icon={Target} />
         <Group gap="sm" mb="md">
           <Badge size="sm" variant="light" color="tactical">
-            Planning {Math.max(Number(planningSummary?.tacticalCount || 0), Number(planningSummary?.checklistCount || 0))}
+            Planning {Number(planningSummary?.tacticalCount || 0)}
           </Badge>
           <Badge size="sm" variant="light" color="checklist">
             Checklist {Number(planningSummary?.checklistCount || 0)}

@@ -45,10 +45,7 @@ export async function GET(
       company,
       planningSummary: {
         ...readModel.planningSummary,
-        tacticalCount: Math.max(
-          Number(readModel.planningSummary.tacticalCount || 0),
-          Number(readModel.planningSummary.checklistCount || 0),
-        ),
+        tacticalCount: Number(readModel.planningSummary.tacticalCount || 0),
       },
       projection: {
         ...buildProjectionMetadata(readModel.projection),

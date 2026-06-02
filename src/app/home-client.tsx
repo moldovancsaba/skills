@@ -14,6 +14,7 @@ import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 import { useI18n } from "@/lib/ui-i18n";
 import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
 import type { UnitModuleKey } from "@/lib/intelligence-unit-capabilities";
+import { resolveEnabledLegacyModules } from "@/lib/module-capability-utils";
 
 type HomeCompany = {
   id: string;
@@ -332,10 +333,11 @@ export default function Home({
             {Array.isArray(companies) &&
               companies.map((c: any) => {
                 const checklistMetric = Number(c.metrics?.checklist ?? 0);
-                const planningMetric = Math.max(Number(c.metrics?.tactical ?? 0), checklistMetric);
-                const enabledModules = Array.isArray(c.enabledModules)
-                  ? c.enabledModules.filter((key: unknown): key is UnitModuleKey => typeof key === "string")
-                  : [];
+                const planningMetric = Number(c.metrics?.tactical ?? 0);
+                const enabledModules: UnitModuleKey[] = resolveEnabledLegacyModules({
+                  enabledModules: c.enabledModules,
+                  enabledBlocks: c.enabledBlocks,
+                });
                 const isModuleEnabled = (moduleKey: UnitModuleKey) => enabledModules.includes(moduleKey);
                 const routeCards = [
                   {

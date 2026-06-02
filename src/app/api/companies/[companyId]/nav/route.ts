@@ -74,7 +74,7 @@ export async function GET(
         ...readModel.navCounts,
         classscout: classScoutInstance ? Number(readModel.projection?.miniapps.classscout?.attentionCount ?? 0) : 0,
         compare: compareInstance ? Number(readModel.projection?.miniapps.compare?.attentionCount ?? 0) : 0,
-        tactical: Math.max(Number(readModel.navCounts.tactical || 0), Number(readModel.navCounts.checklist || 0)),
+        tactical: Number(readModel.navCounts.tactical || 0),
       },
       projection: {
         ...buildProjectionMetadata(readModel.projection),

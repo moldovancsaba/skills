@@ -353,7 +353,7 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
   const salesSummary: ProjectionSalesSummary = {
     ...EMPTY_SALES_SUMMARY,
     salesKnowledgeCount: Number(salesSummaryValue.salesKnowledgeCount || 0),
-    opportunitycards: Number(salesSummaryValue.opportunitycards || counts.sales || 0),
+    opportunitycards: Number(salesSummaryValue.opportunitycards || 0),
     acceptedOpportunitycards: Number(salesSummaryValue.acceptedOpportunitycards || 0),
     readyOpportunitycards: Number(salesSummaryValue.readyOpportunitycards || 0),
     searchQueued: Number(salesSummaryValue.searchQueued || 0),
@@ -374,7 +374,7 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
   const resolvedCounts = {
     ...EMPTY_COUNTS,
     ...counts,
-    tacticalCount: Math.max(counts.tacticalCount, counts.checklistCount),
+    tacticalCount: Number(counts.tacticalCount || 0),
   };
 
   return {
@@ -406,11 +406,8 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
         TODO: Number(laneCountsValue.TODO || 0),
         CHECKLIST: Number(laneCountsValue.CHECKLIST || 0),
       },
-      tacticalCount: Math.max(
-        Number(planningSummaryValue.tacticalCount || resolvedCounts.tacticalCount),
-        Number(planningSummaryValue.checklistCount || resolvedCounts.checklistCount),
-      ),
-      checklistCount: Number(planningSummaryValue.checklistCount || resolvedCounts.checklistCount),
+      tacticalCount: Number(planningSummaryValue.tacticalCount || 0),
+      checklistCount: Number(planningSummaryValue.checklistCount || 0),
     },
     navCounts: {
       data: resolvedCounts.sources,
@@ -426,7 +423,7 @@ export function normalizeWebappProjection(value: unknown): WebappProjection | nu
     topTasks,
     salesSummary: {
       ...salesSummary,
-      opportunitycards: Math.max(Number(salesSummary.opportunitycards || 0), Number(resolvedCounts.sales || 0)),
+      opportunitycards: Number(salesSummary.opportunitycards || 0),
     },
     miniapps,
   };

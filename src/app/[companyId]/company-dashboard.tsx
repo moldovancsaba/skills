@@ -33,6 +33,7 @@ import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
 import type { DashboardInitialData } from "@/lib/server-company-page-data";
 import { buildAcceptedTaskPatch, buildArchivedTaskPatch, buildDeliveredTaskPatch } from "@/lib/candidate-lifecycle";
 import type { UnitModuleKey } from "@/lib/intelligence-unit-capabilities";
+import { resolveEnabledLegacyModules } from "@/lib/module-capability-utils";
 
 type ChecklistTask = {
   id: string;
@@ -99,11 +100,10 @@ export default function CompanyDashboard({
   const [chartData, setChartData] = useState<any[]>(() => initialData?.analytics ?? []);
   const [scoreHealth, setScoreHealth] = useState<CompanyScoreHealth | null>(() => initialData?.scoreHealth ?? null);
   const [projectionFreshness, setProjectionFreshness] = useState<ProjectionFreshness | null>(() => initialData?.projectionFreshness ?? null);
-  const [enabledModules, setEnabledModules] = useState<UnitModuleKey[]>(() =>
-    Array.isArray(initialData?.enabledModules)
-      ? initialData.enabledModules.filter((key): key is UnitModuleKey => typeof key === "string")
-      : [],
-  );
+  const [enabledModules, setEnabledModules] = useState<UnitModuleKey[]>(() => resolveEnabledLegacyModules({
+    enabledModules: initialData?.enabledModules,
+    enabledBlocks: initialData?.enabledBlocks,
+  }));
 
   const isModuleEnabled = useCallback((moduleKey: UnitModuleKey) => {
     return enabledModules.includes(moduleKey);
@@ -146,11 +146,10 @@ export default function CompanyDashboard({
       setChartData(data.analytics);
       setScoreHealth(data.metrics?.scoreHealth ?? null);
       setProjectionFreshness(data.projection?.freshness ?? null);
-      setEnabledModules(
-        Array.isArray(data.webapp?.enabledModules)
-          ? data.webapp.enabledModules.filter((key: unknown): key is UnitModuleKey => typeof key === "string")
-          : [],
-      );
+      setEnabledModules(resolveEnabledLegacyModules({
+        enabledModules: data.webapp?.enabledModules,
+        enabledBlocks: data.webapp?.enabledBlocks,
+      }));
       setIsOwner(data.viewerRole === "OWNER" || data.viewerRole === "SUPERADMIN");
     } catch (err) {
       console.error("[DASHBOARD] Sync failure:", err);
@@ -306,7 +305,7 @@ export default function CompanyDashboard({
   const priorityBandShare = scoreHealth?.taskcards.priorityHealth?.dominantPriorityBand?.share ?? 0;
   const dominantTupleLabel = scoreHealth?.taskcards.dominantTuple?.label ?? "-";
   const topScoreAlert = scoreHealth?.alerts[0] ?? null;
-  const planningCount = Math.max(Number(counts.tacticalCount || 0), Number(counts.checklistCount || 0));
+  const planningCount = Number(counts.tacticalCount || 0);
   const projectionFreshnessLabel =
     projectionFreshness?.status === "FRESH"
       ? `Projection fresh${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`

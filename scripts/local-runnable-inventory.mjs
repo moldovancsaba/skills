@@ -106,6 +106,8 @@ const EXPLICIT = new Map([
   ["api:/api/commands", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: true, risk: RISK.HIGH }],
   ["api:/api/bridge/ingress", { lane: LANE.PLAYLIST, mutatesBusinessContent: true, mutatesRuntimeHealth: false, risk: RISK.HIGH }],
   ["api:/api/local-ai/lane-events", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
+  ["api:/api/miniapps/:miniappKey/intelligence-contract", { lane: LANE.FORBIDDEN_BYPASS, mutatesBusinessContent: true, mutatesRuntimeHealth: false, risk: RISK.HIGH, migrationTarget: "Convert miniapp contract mutations to queue-owned Playlist jobs or read-only contract projection." }],
+  ["api:/api/miniapps/:miniappKey/ops/actions", { lane: LANE.FORBIDDEN_BYPASS, mutatesBusinessContent: true, mutatesRuntimeHealth: true, risk: RISK.HIGH, migrationTarget: "Convert direct miniapp ops execution to persisted Playlist jobs or Human-Approved Burst child jobs." }],
   ["api:/api/pipeline-jobs", { lane: LANE.PLAYLIST, mutatesBusinessContent: true, mutatesRuntimeHealth: true, risk: RISK.HIGH }],
   ["bin:check-local-foreground-worker", { lane: LANE.PLAYLIST, mutatesBusinessContent: true, mutatesRuntimeHealth: true, risk: RISK.HIGH }],
   ["bin:check-local-snapshot-worker", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: true, risk: RISK.MEDIUM }],

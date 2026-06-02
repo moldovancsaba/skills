@@ -211,6 +211,29 @@ The module key set is:
 
 ## 6. Data contracts
 
+### 6.0 Delivered refactor contract slice
+
+The current implementation supports two compatibility layers at the same time:
+
+- v3 Block-first runtime capabilities through `src/lib/check-foundation/capabilities-v3.ts`
+- v2 legacy webapp profile/module projection through `src/lib/intelligence-unit-capabilities.ts`
+
+Delivery rules:
+
+- `profile` and legacy `webappProfile` must both normalize into the same `UnitWebappProfile` contract
+- invalid module override values must return validation errors instead of silently resolving to defaults
+- `/api/companies/[companyId]/settings` and `/api/companies/[companyId]/nav` must expose the same normalized profile/module contract
+- route and nav consumers must use normalized capabilities, never raw `company.workerConfig`
+- package validation must reject Blocks that are not allowed by the selected Unit package before UI or Local operations consume the configuration
+
+Relevant verification:
+
+- `npm run test:unit-capability-v2`
+- `npm run test:capability-transaction`
+- `npm run test:intelligence-unit-refactor`
+- `npm run test:check-foundation-packages`
+- `npm run build`
+
 ### 6.1 Persisted worker config contract
 Stored in `company.workerConfig` as JSON:
 
@@ -312,13 +335,21 @@ Source for `initialData`:
 ### 7.2 Module gated navigation flow
 - `ClientNav` fetches `/api/companies/{companyId}/nav`.
 - `webapp.profile` and `webapp.modules` come back from nav API.
+- `webapp.route` is the resolved dedicated profile route or `null`.
+- `webapp.routeTargets.classscout` is owned by `src/lib/classscout-routes.ts` and resolves:
+  - `/{companyId}/classscout` as the ClassScout landing route
+  - `/{companyId}/review` as generic review infrastructure
+  - `/{companyId}/review?tab=ops` as generic review ops infrastructure
+  - `/{companyId}/observability` as generic mission-control infrastructure
 - `webapp` profile route rendered if available.
 - Module list filtered to `moduleCapabilities[key] !== false`.
 - Deep-link not required to exist in nav to navigate currently; route should still recover gracefully.
 
 ### 7.3 Settings flow
 - `GET /api/companies/{companyId}/settings` returns `unitCapabilities`.
-- `PATCH /api/companies/{companyId}/settings` writes normalized capabilities if provided.
+- `GET /api/companies/{companyId}/settings` also returns `unitCapabilitiesV2`, `capabilitiesVersion`, and `webapp.profile/modules/profileLabel`.
+- `PATCH /api/companies/{companyId}/settings` accepts `unitCapabilitiesV2` for compatibility-safe profile/module writes and persists a normalized v2 envelope.
+- `PATCH /api/companies/{companyId}/settings` rejects legacy `unitCapabilities` mutations with `409`; full Block/Miniapp governance must use the capability transaction API.
 - Settings UI persists immediately per toggle and route.
 - Event emission:
   - `UNIT_SURFACE_UPDATE` interaction event
@@ -411,12 +442,15 @@ The contract reports:
 
 ### 8.1 `/api/companies/[companyId]/settings`
 - `GET` response:
-  - `id`, `name`, `allowedLanguages`, `unitCapabilities`.
+  - `id`, `name`, `allowedLanguages`, `unitCapabilities`, `unitCapabilitiesV2`.
+  - `capabilitiesVersion`, `capabilitiesSource`, `capabilitiesEnvelopeVersion`.
+  - `webapp.profile`, `webapp.modules`, `webapp.profileLabel`.
 - `PATCH` request:
   - `allowedLanguages?: string[]`
-  - `unitCapabilities?: { webappProfile, modules }`
+  - `unitCapabilitiesV2?: { webappProfile, modules } | { schemaVersion: 2, payload: { v: 2, profile, modules } }`
+  - `unitCapabilities` is intentionally rejected with `409 capability_transaction_required`.
 - `PATCH` response:
-  - updated company record + normalized `unitCapabilities`.
+  - updated company record + normalized `unitCapabilities`, `unitCapabilitiesV2`, and `webapp` contract.
 - Auth:
   - membership required, admin role for modifications.
 
@@ -424,10 +458,39 @@ The contract reports:
 - `GET` response:
   - `company`
   - `counts` + `features`
-  - `webapp.profile`, `webapp.modules`, `webapp.profileLabel`
+  - `webapp.profile`, `webapp.modules`, `webapp.profileLabel`, `webapp.route`
+  - `webapp.routeTargets.classscout`
   - `normalizedCapabilities`
 - Auth:
   - membership required.
+
+### 8.5 `/api/classscout/landing`
+- `GET` query:
+  - `companyId`
+- Response:
+  - `destinationKey: "classscout"`
+  - `companyId`
+  - `liveListings.total/needsReview/published`
+  - `reviewPackets.total/pending/approved/rejected`
+  - `learning.packets/published/failed/replayCandidates`
+  - `missionControl.activeRuns/failedRuns/retryBacklog`
+  - `routeTargets.review/ops/observability`
+  - `fetchHealth.degraded` and source-level health rows
+- The legacy `/api/classscout/landing-summary` route remains available for existing UI consumers.
+- Partial source failures must return degraded source health instead of crashing the whole landing surface.
+
+### 8.6 `/api/classscout/refresh-lane`
+- `POST /api/classscout/refresh-lane/sync`
+  - request: `companyId`, optional `limit`
+  - returns refresh candidates with `id`, `targetType`, `targetId`, `reason`, `freshnessScore`, `refreshAttempts`, `nextEligibleAt`, and `idempotencyKey`
+- `POST /api/classscout/refresh-lane/tick`
+  - request: `companyId`, optional `limit`
+  - publishes approved ClassScout revision packets and drafts refresh revisions for eligible stale live listings
+  - admin membership required
+- Refresh lane ownership:
+  - candidate selection is non-destructive
+  - live records are not overwritten by the lane; refreshes create draft/revision packets for review and publish verification
+  - failures return explicit status/error payloads and leave original live cards unchanged
 
 ### 8.4 `/api/companies/[companyId]/capabilities/transaction`
 - `POST` request:

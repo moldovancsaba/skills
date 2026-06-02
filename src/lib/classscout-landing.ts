@@ -6,6 +6,7 @@ import { isClassScoutBridgeConfigured, listClassScoutLiveListings } from "@/lib/
 import { getDestinationLearningSummary, getDestinationReplayCandidates } from "@/lib/destination-learning";
 import { getDestinationMissionControlSummary } from "@/lib/destination-workflow-runtime";
 import { getActiveDestinationInstance } from "@/lib/destination-workflows";
+import { resolveClassScoutRoutes, type ClassScoutRouteContract } from "@/lib/classscout-routes";
 
 const UNIT_PROJECT_BOARD_KEY = "UNIT_PROJECT";
 
@@ -15,6 +16,41 @@ export type ClassScoutLandingSummary = {
   generatedAt: string;
   companyId: string;
   destinationKey: "classscout";
+  liveListings: {
+    total: number;
+    needsReview: number;
+    published: number;
+  };
+  reviewPackets: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+  };
+  learning: {
+    packets: number;
+    published: number;
+    failed: number;
+    replayCandidates: number;
+  };
+  missionControl: {
+    activeRuns: number;
+    failedRuns: number;
+    retryBacklog: number;
+  };
+  routeTargets: Pick<ClassScoutRouteContract, "reviewRoute" | "opsRoute" | "observabilityRoute"> & {
+    review: string;
+    ops: string;
+    observability: string;
+  };
+  fetchHealth: {
+    degraded: boolean;
+    sources: Array<{
+      key: "liveListings" | "reviewPackets" | "learning" | "missionControl" | "projectBoard";
+      status: "ok" | "degraded" | "failed";
+      message?: string;
+    }>;
+  };
   state: "ready" | "empty" | "partial" | "fatal";
   configured: boolean;
   bridgeConfigured: boolean;
@@ -164,11 +200,73 @@ export async function getClassScoutLandingSummary(companyId: string): Promise<Cl
     activeRuns: mission?.activeRuns ?? 0,
     staleRuns: mission?.staleRuns.length ?? 0,
   };
+  const routes = resolveClassScoutRoutes(companyId);
+  const reviewPackets = {
+    total: summary.workflowPackets,
+    pending: summary.reviewRequired,
+    approved: summary.publishedOutcomes,
+    rejected: 0,
+  };
+  const fetchHealth: ClassScoutLandingSummary["fetchHealth"] = {
+    degraded: unavailableSections.length > 0,
+    sources: [
+      {
+        key: "liveListings",
+        status: unavailableSections.some((item) => item.key === "liveQueue") ? "failed" : "ok",
+        message: unavailableSections.find((item) => item.key === "liveQueue")?.message,
+      },
+      {
+        key: "reviewPackets",
+        status: unavailableSections.some((item) => item.key === "learning") ? "degraded" : "ok",
+        message: unavailableSections.find((item) => item.key === "learning")?.message,
+      },
+      {
+        key: "learning",
+        status: unavailableSections.some((item) => item.key === "learning") ? "degraded" : "ok",
+        message: unavailableSections.find((item) => item.key === "learning")?.message,
+      },
+      {
+        key: "missionControl",
+        status: unavailableSections.some((item) => item.key === "missionControl") ? "failed" : "ok",
+        message: unavailableSections.find((item) => item.key === "missionControl")?.message,
+      },
+      {
+        key: "projectBoard",
+        status: "ok",
+      },
+    ],
+  };
 
   return {
     generatedAt: new Date().toISOString(),
     companyId,
     destinationKey: "classscout",
+    liveListings: {
+      total: summary.liveListings,
+      needsReview: summary.reviewRequired,
+      published: Math.max(0, summary.liveListings - summary.reviewRequired),
+    },
+    reviewPackets,
+    learning: {
+      packets: summary.workflowPackets,
+      published: summary.publishedOutcomes,
+      failed: summary.failedWorkflows,
+      replayCandidates: summary.replayCandidates,
+    },
+    missionControl: {
+      activeRuns: summary.activeRuns,
+      failedRuns: summary.staleRuns,
+      retryBacklog: summary.failedWorkflows,
+    },
+    routeTargets: {
+      reviewRoute: routes.reviewRoute,
+      opsRoute: routes.opsRoute,
+      observabilityRoute: routes.observabilityRoute,
+      review: routes.reviewRoute,
+      ops: routes.opsRoute,
+      observability: routes.observabilityRoute,
+    },
+    fetchHealth,
     state: classifyClassScoutLandingState({
       configured: Boolean(destinationInstance),
       unavailableSections,
@@ -183,14 +281,14 @@ export async function getClassScoutLandingSummary(companyId: string): Promise<Cl
         key: "content-ops",
         title: "Content Ops",
         description: "Review cards, approve outcomes, and work the human decision queue.",
-        href: `/${companyId}/review?tab=review`,
+        href: routes.reviewRoute,
         tone: "review",
       },
       {
         key: "live-queue",
         title: "Live Catalog Queue",
         description: "Inspect live listings and open destination revisions that need attention.",
-        href: `/${companyId}/review?tab=ops`,
+        href: routes.opsRoute,
         tone: "knowmore",
       },
       {
@@ -204,7 +302,7 @@ export async function getClassScoutLandingSummary(companyId: string): Promise<Cl
         key: "mission-control",
         title: "Mission Control",
         description: "Monitor runtime health, stale runs, and destination workflow recovery actions.",
-        href: `/${companyId}/observability`,
+        href: routes.observabilityRoute,
         tone: "strategy",
       },
       {

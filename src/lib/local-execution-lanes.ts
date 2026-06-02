@@ -36,6 +36,33 @@ export type MutationAuthorityContext = {
   parentBurstId?: string;
 };
 
+export type PlaylistMutationCategory =
+  | "CARD_CONTENT"
+  | "MINIAPP_CONTENT"
+  | "OPPORTUNITYCARD"
+  | "RESEARCH_EVIDENCE"
+  | "DESTINATION_MISSION"
+  | "QUEUE_STATE"
+  | "UNIT_CONFIGURATION";
+
+export type PlaylistMutationPolicy = {
+  category: PlaylistMutationCategory;
+  requiresQueueJob: boolean;
+  allowedLanes: MutationAuthorityContext["lane"][];
+  idempotencyRequired: boolean;
+  timeoutMs: number;
+  retryLimit: number;
+  rollbackMode: "REPLAY_JOB" | "PARK_AND_REVIEW" | "REVERT_CONFIG" | "REBUILD_PROJECTION";
+};
+
+export type QueuedMutationResponse = {
+  queued: true;
+  jobId: string;
+  lane: "PLAYLIST";
+  category: PlaylistMutationCategory;
+  message: string;
+};
+
 export type HumanApprovedBurstRequest = {
   approvedBy: string;
   reason: string;
@@ -51,6 +78,72 @@ export type HumanApprovedBurstRequest = {
     moduleKey?: string;
   };
   rollbackMode: "REWORK_CHILD_OUTPUTS" | "PARK_CHILD_JOBS";
+};
+
+export const PLAYLIST_MUTATION_POLICIES: Record<PlaylistMutationCategory, PlaylistMutationPolicy> = {
+  CARD_CONTENT: {
+    category: "CARD_CONTENT",
+    requiresQueueJob: true,
+    allowedLanes: ["PLAYLIST", "HUMAN_APPROVED_BURST_CHILD"],
+    idempotencyRequired: true,
+    timeoutMs: 10 * 60 * 1000,
+    retryLimit: 4,
+    rollbackMode: "REPLAY_JOB",
+  },
+  MINIAPP_CONTENT: {
+    category: "MINIAPP_CONTENT",
+    requiresQueueJob: true,
+    allowedLanes: ["PLAYLIST", "HUMAN_APPROVED_BURST_CHILD"],
+    idempotencyRequired: true,
+    timeoutMs: 15 * 60 * 1000,
+    retryLimit: 4,
+    rollbackMode: "PARK_AND_REVIEW",
+  },
+  OPPORTUNITYCARD: {
+    category: "OPPORTUNITYCARD",
+    requiresQueueJob: true,
+    allowedLanes: ["PLAYLIST", "HUMAN_APPROVED_BURST_CHILD"],
+    idempotencyRequired: true,
+    timeoutMs: 10 * 60 * 1000,
+    retryLimit: 4,
+    rollbackMode: "REPLAY_JOB",
+  },
+  RESEARCH_EVIDENCE: {
+    category: "RESEARCH_EVIDENCE",
+    requiresQueueJob: true,
+    allowedLanes: ["PLAYLIST", "HUMAN_APPROVED_BURST_CHILD"],
+    idempotencyRequired: true,
+    timeoutMs: 20 * 60 * 1000,
+    retryLimit: 4,
+    rollbackMode: "PARK_AND_REVIEW",
+  },
+  DESTINATION_MISSION: {
+    category: "DESTINATION_MISSION",
+    requiresQueueJob: true,
+    allowedLanes: ["PLAYLIST", "HUMAN_APPROVED_BURST_CHILD"],
+    idempotencyRequired: true,
+    timeoutMs: 20 * 60 * 1000,
+    retryLimit: 4,
+    rollbackMode: "PARK_AND_REVIEW",
+  },
+  QUEUE_STATE: {
+    category: "QUEUE_STATE",
+    requiresQueueJob: true,
+    allowedLanes: ["PLAYLIST"],
+    idempotencyRequired: true,
+    timeoutMs: 60 * 1000,
+    retryLimit: 3,
+    rollbackMode: "REBUILD_PROJECTION",
+  },
+  UNIT_CONFIGURATION: {
+    category: "UNIT_CONFIGURATION",
+    requiresQueueJob: true,
+    allowedLanes: ["PLAYLIST"],
+    idempotencyRequired: true,
+    timeoutMs: 2 * 60 * 1000,
+    retryLimit: 3,
+    rollbackMode: "REVERT_CONFIG",
+  },
 };
 
 export class LocalExecutionLaneError extends Error {
@@ -105,6 +198,43 @@ export function assertPlaylistMutationAuthority(context: MutationAuthorityContex
   if (context.lane === "HUMAN_APPROVED_BURST_CHILD" && !context.parentBurstId?.trim()) {
     throw new LocalExecutionLaneError("BURST_CHILD_PARENT_REQUIRED", "Burst child mutation requires a parent burst id.");
   }
+}
+
+export function assertPlaylistMutationPolicy(
+  category: PlaylistMutationCategory,
+  context: MutationAuthorityContext | null | undefined,
+): asserts context is MutationAuthorityContext {
+  const policy = PLAYLIST_MUTATION_POLICIES[category];
+  if (!policy) {
+    throw new LocalExecutionLaneError("MUTATION_CATEGORY_INVALID", `Unsupported mutation category: ${category}`);
+  }
+  assertPlaylistMutationAuthority(context);
+  if (!policy.allowedLanes.includes(context.lane)) {
+    throw new LocalExecutionLaneError(
+      "MUTATION_CATEGORY_LANE_INVALID",
+      `Mutation category ${category} cannot run under ${context.lane}.`,
+    );
+  }
+}
+
+export function buildQueuedMutationResponse(input: {
+  jobId: string;
+  category: PlaylistMutationCategory;
+  message?: string;
+}): QueuedMutationResponse {
+  if (!input.jobId?.trim()) {
+    throw new LocalExecutionLaneError("MUTATION_JOB_REQUIRED", "Queued mutation response requires a persisted queue job id.");
+  }
+  if (!PLAYLIST_MUTATION_POLICIES[input.category]) {
+    throw new LocalExecutionLaneError("MUTATION_CATEGORY_INVALID", `Unsupported mutation category: ${input.category}`);
+  }
+  return {
+    queued: true,
+    jobId: input.jobId,
+    lane: "PLAYLIST",
+    category: input.category,
+    message: input.message || "Work was queued for CHECK Local.",
+  };
 }
 
 export function assertHumanApprovedBurstRequest(request: HumanApprovedBurstRequest) {

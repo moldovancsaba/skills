@@ -69,6 +69,34 @@ Runnable inventory:
 - lane events are also mirrored into the local audit database as `OutcomeEvent` records when `LOCAL_DATABASE_URL` is available; the `SystemSetting` ring buffer is the quick dashboard cache, not the long-term ledger
 - Human-Approved Burst recovery uses `PATCH /api/local-ai/bursts` with `STOP_REQUESTED`, `ROLLBACK_PARK_CHILD_JOBS`, or `ROLLBACK_REWORK_CHILD_OUTPUTS`; recovery parks child shards, records the operator reason, and emits a lane event
 
+Current inventory evidence:
+
+- the audit currently classifies package scripts, local runners, top-level scripts, and API routes into the three lanes or `FORBIDDEN_BYPASS`
+- the remaining explicit forbidden bypasses are:
+  - `/api/miniapps/[miniappKey]/intelligence-contract`
+  - `/api/miniapps/[miniappKey]/ops/actions`
+- those routes must be converted to queue-owned Playlist jobs, Human-Approved Burst child jobs, or read-only contract projection before they can be considered production-safe direct execution paths
+
+Playlist mutation authority contract:
+
+- business mutations must carry `MutationAuthorityContext` with `lane`, `jobId`, `actor`, and optional Unit/destination scope
+- supported mutation categories are `CARD_CONTENT`, `MINIAPP_CONTENT`, `OPPORTUNITYCARD`, `RESEARCH_EVIDENCE`, `DESTINATION_MISSION`, `QUEUE_STATE`, and `UNIT_CONFIGURATION`
+- `PLAYLIST_MUTATION_POLICIES` defines timeout, retry, idempotency, allowed lane, and rollback behavior per category
+- direct web/API responses for queued product work must use the queued response shape:
+
+```json
+{
+  "queued": true,
+  "jobId": "pipeline-job-id",
+  "lane": "PLAYLIST",
+  "category": "MINIAPP_CONTENT",
+  "message": "Work was queued for CHECK Local."
+}
+```
+
+- endpoints must not silently fall back to direct mutation when enqueue fails
+- Human-Approved Burst child work may mutate only in categories that explicitly allow `HUMAN_APPROVED_BURST_CHILD`
+
 ## 2. Foreground loop
 
 The foreground loop is the main mutation loop.

@@ -5,6 +5,9 @@ import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/aud
 import { canonicalizeAllowedLanguagesForStorage } from "@/lib/language-catalog";
 import {
   UNIT_CAPABILITIES_SCHEMA_VERSION,
+  formatCapabilityPayload,
+  getWebappProfileLabel,
+  normalizeUnitCapabilitiesPayloadForWrite,
   resolveUnitCapabilities,
 } from "@/lib/intelligence-unit-capabilities";
 
@@ -63,9 +66,18 @@ export async function GET(
     return NextResponse.json({
       ...company,
       unitCapabilities: capabilities.normalized,
+      unitCapabilitiesV2: {
+        schemaVersion: capabilities.schemaVersion,
+        payload: capabilities.normalized,
+      },
       capabilitiesVersion: capabilities.schemaVersion,
       capabilitiesSource: capabilities.source,
       capabilitiesEnvelopeVersion: capabilities.sourceEnvelopeVersion,
+      webapp: {
+        profile: capabilities.profile,
+        modules: capabilities.modules,
+        profileLabel: getWebappProfileLabel(capabilities.profile),
+      },
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(company.allowedLanguages ?? []),
     });
   } catch (error) {
@@ -121,6 +133,7 @@ export async function PATCH(
     // Validate allowedLanguages is an array of strings
     const hasLanguageUpdate = Array.isArray(data.allowedLanguages);
     const hasCapabilityUpdate = Boolean(data.unitCapabilities);
+    const hasCapabilityV2Update = Boolean(data.unitCapabilitiesV2);
     if (hasCapabilityUpdate) {
       await recordInteractionEventFromRequest(request, {
         companyId,
@@ -143,6 +156,18 @@ export async function PATCH(
         { status: 409 },
       );
     }
+    const capabilityV2Validation = hasCapabilityV2Update
+      ? normalizeUnitCapabilitiesPayloadForWrite(data.unitCapabilitiesV2)
+      : null;
+    if (capabilityV2Validation && !capabilityV2Validation.validation.isValid) {
+      return NextResponse.json(
+        {
+          error: "Invalid unitCapabilitiesV2 payload",
+          capabilitiesValidation: capabilityV2Validation.validation,
+        },
+        { status: 422 },
+      );
+    }
 
     if (hasLanguageUpdate && (!data.allowedLanguages.every((l: unknown) => typeof l === "string"))) {
       return NextResponse.json({ error: "Invalid allowedLanguages format" }, { status: 400 });
@@ -151,11 +176,26 @@ export async function PATCH(
     const normalizedAllowedLanguages = data.allowedLanguages
       ? canonicalizeAllowedLanguagesForStorage(data.allowedLanguages as string[])
       : undefined;
+    const existingWorkerConfig =
+      existing?.workerConfig && typeof existing.workerConfig === "object" && !Array.isArray(existing.workerConfig)
+        ? existing.workerConfig as Record<string, unknown>
+        : {};
+    const nextWorkerConfig = capabilityV2Validation
+      ? {
+          ...existingWorkerConfig,
+          unitCapabilities: formatCapabilityPayload({
+            profile: capabilityV2Validation.payload.profile,
+            modules: capabilityV2Validation.payload.modules,
+          }),
+          updatedBy: "settings-unit-capabilities-v2",
+        }
+      : undefined;
 
       const updated = await prisma.company.update({
       where: { id: companyId },
       data: {
         allowedLanguages: normalizedAllowedLanguages,
+        ...(nextWorkerConfig ? { workerConfig: nextWorkerConfig } : {}),
       },
     });
 
@@ -205,9 +245,20 @@ export async function PATCH(
     return NextResponse.json({
       ...updated,
       unitCapabilities: nextCapabilities.normalized,
+      unitCapabilitiesV2: {
+        schemaVersion: nextCapabilities.schemaVersion,
+        payload: nextCapabilities.normalized,
+      },
       capabilitiesVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
+      capabilitiesSource: nextCapabilities.source,
+      capabilitiesEnvelopeVersion: nextCapabilities.sourceEnvelopeVersion,
+      webapp: {
+        profile: nextCapabilities.profile,
+        modules: nextCapabilities.modules,
+        profileLabel: getWebappProfileLabel(nextCapabilities.profile),
+      },
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(updated.allowedLanguages ?? []),
-      capabilitiesValidation: null,
+      capabilitiesValidation: capabilityV2Validation?.validation ?? null,
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

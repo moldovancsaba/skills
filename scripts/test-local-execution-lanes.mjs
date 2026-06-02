@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import {
   assertHumanApprovedBurstRequest,
   assertPlaylistMutationAuthority,
+  assertPlaylistMutationPolicy,
+  buildQueuedMutationResponse,
+  PLAYLIST_MUTATION_POLICIES,
   assertSystemHealthAction,
   splitBurstIntoShardCounts,
 } from "../src/lib/local-execution-lanes.ts";
@@ -38,6 +41,41 @@ assert.doesNotThrow(() =>
 );
 
 assert.throws(() => assertPlaylistMutationAuthority(undefined), (error) => error?.code === "MUTATION_AUTHORITY_REQUIRED");
+
+assert.equal(PLAYLIST_MUTATION_POLICIES.MINIAPP_CONTENT.rollbackMode, "PARK_AND_REVIEW");
+
+assert.doesNotThrow(() =>
+  assertPlaylistMutationPolicy("CARD_CONTENT", {
+    lane: "PLAYLIST",
+    jobId: "job_123",
+    actor: "local-worker",
+  }),
+);
+
+assert.throws(
+  () =>
+    assertPlaylistMutationPolicy("QUEUE_STATE", {
+      lane: "HUMAN_APPROVED_BURST_CHILD",
+      jobId: "job_123",
+      actor: "burst-controller",
+      parentBurstId: "burst_1",
+    }),
+  (error) => error?.code === "MUTATION_CATEGORY_LANE_INVALID",
+);
+
+assert.deepEqual(
+  buildQueuedMutationResponse({
+    jobId: "job_queued",
+    category: "MINIAPP_CONTENT",
+  }),
+  {
+    queued: true,
+    jobId: "job_queued",
+    lane: "PLAYLIST",
+    category: "MINIAPP_CONTENT",
+    message: "Work was queued for CHECK Local.",
+  },
+);
 
 assert.doesNotThrow(() =>
   assertHumanApprovedBurstRequest({

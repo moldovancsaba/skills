@@ -30,6 +30,7 @@ export type UnitWebappProfile = "NONE" | "CLASSSCOUT" | "COMPARE";
 
 export type RawWorkerUnitCapabilities = {
   webappProfile?: string;
+  profile?: string;
   modules?: Partial<Record<UnitModuleKey, boolean>>;
   v?: number;
   payload?: unknown;
@@ -325,6 +326,7 @@ function parseUnitCapabilitiesEnvelope(
     profile: normalizedProfile,
     modules: buildMergedModules(normalizedProfile, normalizedModules),
   };
+  validation.isValid = validation.errors.length === 0;
   if (!validation.isValid) {
     return null;
   }
@@ -618,7 +620,7 @@ export function resolveUnitCapabilities(input: {
   if (typeof workerCapabilitiesRaw === "object" && workerCapabilitiesRaw !== null && Object.prototype.hasOwnProperty.call(workerCapabilitiesRaw, "v")) {
     const legacyWithVersion = workerCapabilitiesRaw as RawWorkerUnitCapabilities;
     if (legacyWithVersion.v && legacyWithVersion.v >= 1 && !Object.prototype.hasOwnProperty.call(legacyWithVersion, "payload")) {
-      const normalized = normalizeStoredPayload(legacyWithVersion.webappProfile, legacyWithVersion.modules);
+      const normalized = normalizeStoredPayload(legacyWithVersion.profile ?? legacyWithVersion.webappProfile, legacyWithVersion.modules);
       return {
         profile: normalized.profile,
         modules: normalized.modules,
@@ -631,11 +633,12 @@ export function resolveUnitCapabilities(input: {
   }
 
   const hasExplicitProfile = Object.prototype.hasOwnProperty.call(workerCapabilitiesRaw ?? {}, "webappProfile");
+  const hasExplicitV2Profile = Object.prototype.hasOwnProperty.call(workerCapabilitiesRaw ?? {}, "profile");
   const hasExplicitModules = Object.prototype.hasOwnProperty.call(workerCapabilitiesRaw ?? {}, "modules");
   const normalizedModules = normalizeModuleOverrides(hasExplicitModules ? workerCapabilitiesRaw?.modules : {});
   const hasAnyModuleOverride = Object.keys(normalizedModules).length > 0;
   const legacyFallbackPayload = normalizeStoredPayload(
-    hasExplicitProfile ? workerCapabilitiesRaw?.webappProfile : resolvedAutoProfile,
+    hasExplicitV2Profile ? workerCapabilitiesRaw?.profile : hasExplicitProfile ? workerCapabilitiesRaw?.webappProfile : resolvedAutoProfile,
     hasExplicitModules ? normalizedModules : {},
   );
 
@@ -650,12 +653,16 @@ export function resolveUnitCapabilities(input: {
     };
   }
 
-  const profile = hasExplicitProfile ? normalizeRawProfile(workerCapabilitiesRaw?.webappProfile) : resolvedAutoProfile;
+  const profile = hasExplicitV2Profile
+    ? normalizeRawProfile(workerCapabilitiesRaw?.profile)
+    : hasExplicitProfile
+      ? normalizeRawProfile(workerCapabilitiesRaw?.webappProfile)
+      : resolvedAutoProfile;
 
   return {
     profile,
     modules: buildMergedModules(profile, normalizedModules),
-    source: hasExplicitProfile || hasAnyModuleOverride ? "custom" : "auto",
+    source: hasExplicitProfile || hasExplicitV2Profile || hasAnyModuleOverride ? "custom" : "auto",
     sourceEnvelopeVersion: 1,
     schemaVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
     normalized: legacyFallbackPayload,
@@ -698,8 +705,13 @@ export function normalizeUnitCapabilitiesPayloadForWrite(raw: unknown): {
     };
   }
 
-  const normalized = normalizeStoredPayload(asLegacy.webappProfile, asLegacy.modules, validation);
+  const normalized = normalizeStoredPayload(asLegacy.profile ?? asLegacy.webappProfile, asLegacy.modules, validation);
+  validation.isValid = validation.errors.length === 0;
+  if (!validation.isValid) {
+    return { payload: normalized, validation };
+  }
   const hasExplicitProfile = Object.prototype.hasOwnProperty.call(asLegacy, "webappProfile");
+  const hasExplicitV2Profile = Object.prototype.hasOwnProperty.call(asLegacy, "profile");
   const hasExplicitModules = Object.prototype.hasOwnProperty.call(asLegacy, "modules");
   const hasExplicitPayload = Object.prototype.hasOwnProperty.call(asLegacy, "payload");
 
@@ -735,6 +747,16 @@ export function normalizeUnitCapabilitiesPayloadForWrite(raw: unknown): {
       ),
     );
   }
+  if (hasExplicitV2Profile && asLegacy.profile === undefined) {
+    validation.warnings.push(
+      validateIssue(
+        "missing-field",
+        "unitCapabilities.profile",
+        "profile key was present but undefined; defaulted to profile from payload",
+        asLegacy.profile,
+      ),
+    );
+  }
 
   if (!hasExplicitProfile && !hasExplicitModules && asLegacy.v && asLegacy.v !== UNIT_CAPABILITY_PAYLOAD_VERSION) {
     validation.warnings.push(
@@ -763,7 +785,7 @@ export function normalizeUnitCapabilitiesPayload(raw: unknown): {
 
   if (raw && typeof raw === "object" && Object.prototype.hasOwnProperty.call(raw, "v")) {
     const rawPayload = raw as RawWorkerUnitCapabilities;
-    const normalized = normalizeStoredPayload(rawPayload.webappProfile, rawPayload.modules);
+    const normalized = normalizeStoredPayload(rawPayload.profile ?? rawPayload.webappProfile, rawPayload.modules);
     return {
       profile: normalized.profile,
       modules: normalized.modules,
@@ -780,8 +802,13 @@ export function normalizeUnitCapabilitiesPayload(raw: unknown): {
   }
   const payload = raw as RawWorkerUnitCapabilities;
   const hasExplicitProfile = Object.prototype.hasOwnProperty.call(payload, "webappProfile");
+  const hasExplicitV2Profile = Object.prototype.hasOwnProperty.call(payload, "profile");
   const hasExplicitModules = Object.prototype.hasOwnProperty.call(payload, "modules");
-  const resolvedProfile = hasExplicitProfile ? normalizeRawProfile(payload.webappProfile) : ROUTER_DEFAULT_WEBAPP_PROFILE;
+  const resolvedProfile = hasExplicitV2Profile
+    ? normalizeRawProfile(payload.profile)
+    : hasExplicitProfile
+      ? normalizeRawProfile(payload.webappProfile)
+      : ROUTER_DEFAULT_WEBAPP_PROFILE;
   const modules = buildMergedModules(resolvedProfile, hasExplicitModules ? normalizeModuleOverrides(payload.modules) : {});
   return { profile: resolvedProfile, modules, v: UNIT_CAPABILITY_PAYLOAD_VERSION };
 }

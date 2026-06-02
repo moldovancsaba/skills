@@ -27,6 +27,23 @@ export type EffectiveUnitPackage = {
   setupRequired: string[];
 };
 
+export type UnitPackageValidationIssue = {
+  code: string;
+  field: string;
+  message: string;
+  value?: unknown;
+};
+
+export type UnitPackageValidationResult = {
+  isValid: boolean;
+  packageKey: UnitPackageKey;
+  allowedBlocks: BlockKey[];
+  requestedBlocks: BlockKey[];
+  effectiveBlocks: BlockKey[];
+  rejectedBlocks: UnitPackageValidationIssue[];
+  setupRequired: string[];
+};
+
 type UnitPackageRegistry = {
   schemaVersion: typeof CHECK_FOUNDATION_UNIT_PACKAGES_SCHEMA_VERSION;
   packages: UnitPackageDefinition[];
@@ -43,11 +60,21 @@ function isUnitPackageKey(value: string): value is UnitPackageKey {
   return UNIT_PACKAGE_KEYS.includes(value as UnitPackageKey);
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
 function normalizeUnitPackageKey(workerConfig: unknown): UnitPackageKey {
   if (!workerConfig || typeof workerConfig !== "object") return "core";
   const raw = (workerConfig as Record<string, unknown>).unitPackageKey;
   if (typeof raw !== "string") return "core";
   return isUnitPackageKey(raw) ? raw : "core";
+}
+
+function normalizeRequestedBlocks(value: unknown): BlockKey[] {
+  if (!Array.isArray(value)) return [];
+  const requested = value.filter((item): item is BlockKey => typeof item === "string" && BLOCK_KEYS.includes(item as BlockKey));
+  return BLOCK_KEYS.filter((blockKey) => requested.includes(blockKey));
 }
 
 function buildVisibleWebappAreas(blocks: BlockKey[], effective: EffectiveUnitCapabilities) {
@@ -154,6 +181,65 @@ export function resolveEffectiveUnitPackage(input: {
     allowedCardTypes,
     visibleWebappAreas: buildVisibleWebappAreas(defaultedBlocks, effective),
     allowedOperations: buildAllowedOperations(defaultedBlocks),
+    setupRequired,
+  };
+}
+
+export function validateUnitPackageChange(input: {
+  workerConfig?: unknown;
+  packageKey?: unknown;
+  enabledBlocks?: unknown;
+  effectiveCapabilities?: EffectiveUnitCapabilities;
+  hasClassScoutDestination?: boolean;
+  hasCompareDestination?: boolean;
+}): UnitPackageValidationResult {
+  const requestedPackageKey = typeof input.packageKey === "string" && isUnitPackageKey(input.packageKey)
+    ? input.packageKey
+    : normalizeUnitPackageKey(input.workerConfig);
+  const packageDefinition = getUnitPackageDefinition(requestedPackageKey);
+  const requestedBlocks = normalizeRequestedBlocks(input.enabledBlocks);
+  const fallbackCapabilities = input.effectiveCapabilities ?? resolveEffectiveUnitCapabilities({
+    workerConfig: input.workerConfig,
+    hasClassScoutDestination: input.hasClassScoutDestination,
+    hasCompareDestination: input.hasCompareDestination,
+    defaultBlocks: packageDefinition.defaultEnabledBlocks,
+  });
+  const configRecord = asRecord(input.workerConfig);
+  const rawUnitCapabilities = asRecord(configRecord?.unitCapabilities);
+  const rawBlocks = asRecord(rawUnitCapabilities?.blocks);
+  const requestedFromCapabilities = normalizeRequestedBlocks(
+    rawBlocks
+      ? Object.entries(rawBlocks)
+          .filter(([, blockConfig]) => asRecord(blockConfig)?.enabled === true)
+          .map(([blockKey]) => blockKey)
+      : fallbackCapabilities.enabledBlocks,
+  );
+  const selectedBlocks = requestedBlocks.length > 0 ? requestedBlocks : requestedFromCapabilities;
+  const allowedSet = new Set<BlockKey>(packageDefinition.allowedBlocks);
+  const rejectedBlocks = selectedBlocks
+    .filter((blockKey) => !allowedSet.has(blockKey))
+    .map<UnitPackageValidationIssue>((blockKey) => ({
+      code: "block-not-allowed-by-package",
+      field: "enabledBlocks",
+      message: `Block ${blockKey} is not allowed by package ${requestedPackageKey}.`,
+      value: blockKey,
+    }));
+  const effectiveBlocks = BLOCK_KEYS.filter((blockKey) => allowedSet.has(blockKey) && selectedBlocks.includes(blockKey));
+  const defaultedBlocks = effectiveBlocks.length > 0
+    ? effectiveBlocks
+    : packageDefinition.defaultEnabledBlocks.filter((blockKey) => allowedSet.has(blockKey));
+  const setupRequired: string[] = [];
+  if (defaultedBlocks.includes("miniapp") && fallbackCapabilities.enabledMiniapps.length === 0) {
+    setupRequired.push("Enable at least one Miniapp instance (ClassScout or Compare).");
+  }
+
+  return {
+    isValid: rejectedBlocks.length === 0,
+    packageKey: requestedPackageKey,
+    allowedBlocks: [...packageDefinition.allowedBlocks],
+    requestedBlocks: selectedBlocks,
+    effectiveBlocks: defaultedBlocks,
+    rejectedBlocks,
     setupRequired,
   };
 }

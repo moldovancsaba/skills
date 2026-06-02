@@ -13,6 +13,18 @@ type MaintenanceDefaults = {
   meetupStaleDays: number;
 };
 
+export type ClassScoutRefreshCandidate = {
+  id: string;
+  targetType: "provider" | "meetupGroup";
+  targetId: string;
+  title: string;
+  reason: "stale" | "feedback-declined" | "image-dup" | "low-confidence" | "schema-drift";
+  freshnessScore: number;
+  refreshAttempts: number;
+  nextEligibleAt: string;
+  idempotencyKey: string;
+};
+
 const ACTIVE_PACKET_STATES = new Set([
   "AWAITING_REVIEW",
   "REVIEW_REQUIRED",
@@ -68,6 +80,73 @@ function stalePriority(item: ClassScoutLiveListingSummary, nowMs: number) {
   const parsed = parseIso(freshnessReference);
   if (parsed === null) return Number.NEGATIVE_INFINITY;
   return parsed - nowMs;
+}
+
+function buildRefreshCandidate(
+  item: ClassScoutLiveListingSummary,
+  defaults: MaintenanceDefaults,
+  nowMs: number,
+): ClassScoutRefreshCandidate {
+  const freshnessReference = item.revisionStatus.lastSubmittedAt ?? item.updatedAt ?? null;
+  const ageDays = ageDaysSince(freshnessReference, nowMs);
+  const threshold = item.type === "meetupGroup" ? defaults.meetupStaleDays : defaults.providerStaleDays;
+  const normalizedAge = ageDays === null ? threshold * 2 : Math.max(0, ageDays);
+  const freshnessScore = Math.max(0, Math.min(100, Math.round(100 - (normalizedAge / Math.max(1, threshold)) * 100)));
+  const nextEligibleAt = new Date(nowMs).toISOString();
+  return {
+    id: `classscout-refresh:${item.type}:${item.id}`,
+    targetType: item.type,
+    targetId: item.id,
+    title: item.title,
+    reason: "stale",
+    freshnessScore,
+    refreshAttempts: item.revisionStatus.packetId ? 1 : 0,
+    nextEligibleAt,
+    idempotencyKey: `classscout-refresh:${item.type}:${item.id}:${freshnessReference ?? "missing"}`,
+  };
+}
+
+export async function selectClassScoutRefreshCandidates(input: {
+  companyId: string;
+  limit?: number;
+}) {
+  const defaults = readClassScoutMaintenanceDefaults();
+  const limit = Math.max(1, Math.min(input.limit ?? defaults.maxRevisionIntakes, 50));
+  const listingResult = await listClassScoutLiveListings({
+    companyId: input.companyId,
+    listingType: "all",
+  });
+  if (!listingResult.ok) {
+    return {
+      ok: false as const,
+      status: listingResult.status,
+      error: listingResult.error ?? "Failed to list ClassScout live listings.",
+      candidates: [] as ClassScoutRefreshCandidate[],
+      reasonBreakdown: {} as Record<ClassScoutRefreshCandidate["reason"], number>,
+    };
+  }
+
+  const nowMs = Date.now();
+  const candidates = (Array.isArray(listingResult.items) ? listingResult.items : [])
+    .filter((item) => isStaleListing(item, defaults, nowMs))
+    .sort((left, right) => stalePriority(left, nowMs) - stalePriority(right, nowMs) || left.title.localeCompare(right.title))
+    .slice(0, limit)
+    .map((item) => buildRefreshCandidate(item, defaults, nowMs));
+
+  return {
+    ok: true as const,
+    candidates,
+    reasonBreakdown: candidates.reduce<Record<ClassScoutRefreshCandidate["reason"], number>>((acc, candidate) => {
+      acc[candidate.reason] += 1;
+      return acc;
+    }, {
+      stale: 0,
+      "feedback-declined": 0,
+      "image-dup": 0,
+      "low-confidence": 0,
+      "schema-drift": 0,
+    }),
+  };
 }
 
 export async function publishApprovedClassScoutRevisionPackets(input: {
@@ -126,17 +205,12 @@ export async function sweepStaleClassScoutListings(input: {
   companyId: string;
   limit?: number;
 }) {
-  const defaults = readClassScoutMaintenanceDefaults();
-  const limit = Math.max(1, Math.min(input.limit ?? defaults.maxRevisionIntakes, 20));
-  const listingResult = await listClassScoutLiveListings({
-    companyId: input.companyId,
-    listingType: "all",
-  });
-  if (!listingResult.ok) {
+  const candidateResult = await selectClassScoutRefreshCandidates(input);
+  if (!candidateResult.ok) {
     return {
       ok: false as const,
-      status: listingResult.status,
-      error: listingResult.error ?? "Failed to list ClassScout live listings.",
+      status: candidateResult.status,
+      error: candidateResult.error,
       processed: 0,
       created: 0,
       skipped: 0,
@@ -144,23 +218,18 @@ export async function sweepStaleClassScoutListings(input: {
     };
   }
 
-  const nowMs = Date.now();
-  const liveItems = Array.isArray(listingResult.items) ? listingResult.items : [];
-  const staleItems = liveItems
-    .filter((item) => isStaleListing(item, defaults, nowMs))
-    .sort((left, right) => stalePriority(left, nowMs) - stalePriority(right, nowMs) || left.title.localeCompare(right.title))
-    .slice(0, limit);
-
   const items = [];
-  for (const item of staleItems) {
+  for (const item of candidateResult.candidates) {
     const result = await createClassScoutLiveRevision({
       companyId: input.companyId,
-      listingId: item.id,
-      listingType: item.type,
+      listingId: item.targetId,
+      listingType: item.targetType,
     });
     items.push({
-      listingId: item.id,
-      listingType: item.type,
+      candidateId: item.id,
+      idempotencyKey: item.idempotencyKey,
+      listingId: item.targetId,
+      listingType: item.targetType,
       title: item.title,
       result,
     });
@@ -168,9 +237,33 @@ export async function sweepStaleClassScoutListings(input: {
 
   return {
     ok: true as const,
-    processed: staleItems.length,
+    processed: candidateResult.candidates.length,
     created: items.filter((item) => item.result.ok).length,
     skipped: items.filter((item) => !item.result.ok).length,
     items,
+  };
+}
+
+export async function runClassScoutRefreshLaneTick(input: {
+  companyId: string;
+  actorId: string;
+  limit?: number;
+}) {
+  const [publishResult, refreshResult] = await Promise.all([
+    publishApprovedClassScoutRevisionPackets({
+      companyId: input.companyId,
+      actorId: input.actorId,
+    }),
+    sweepStaleClassScoutListings({
+      companyId: input.companyId,
+      limit: input.limit,
+    }),
+  ]);
+
+  return {
+    ok: refreshResult.ok,
+    publishedApprovedPackets: publishResult.processed,
+    refresh: refreshResult,
+    generatedAt: new Date().toISOString(),
   };
 }

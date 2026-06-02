@@ -6,6 +6,7 @@ import { buildCompanyReadModel } from "@/lib/company-read-model";
 import { buildProjectionMetadata } from "@/lib/webapp-projection";
 import { getWebappProfileLabel, resolveUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
 import { resolveEffectiveUnitCapabilities } from "@/lib/check-foundation";
+import { resolveClassScoutRoutes } from "@/lib/classscout-routes";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,7 @@ export async function GET(
       hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
+    const classScoutRoutes = resolveClassScoutRoutes(companyId);
 
     const response = NextResponse.json({
       company,
@@ -88,6 +90,14 @@ export async function GET(
         profile: capabilities.profile,
         modules: capabilities.modules,
         profileLabel: getWebappProfileLabel(capabilities.profile),
+        route: capabilities.profile === "CLASSSCOUT"
+          ? classScoutRoutes.landingRoute
+          : capabilities.profile === "COMPARE"
+            ? `/${encodeURIComponent(companyId)}/compare`
+            : null,
+        routeTargets: {
+          classscout: classScoutRoutes,
+        },
         enabledBlocks: effectiveCapabilities.enabledBlocks,
         enabledModules: effectiveCapabilities.enabledModules,
         enabledMiniapps: effectiveCapabilities.enabledMiniapps,

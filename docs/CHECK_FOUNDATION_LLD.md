@@ -178,7 +178,7 @@ Rules:
 
 ## 6. Unit Capability Contract
 
-The Unit capability payload should move from Block-first thinking to Block-first thinking.
+The Unit capability payload should move from legacy profile/module thinking to Block-first thinking.
 
 Current implementation may still store `webappProfile` and `modules`.
 
@@ -213,6 +213,31 @@ Migration rule:
 - write path should persist v3 only after compatibility adapters are present
 - Webapp route guards should consume normalized effective capabilities, not raw storage
 - Local job creation should consume Block enablement before Module availability
+
+## 6.1 Unit Package Contract
+
+Unit package resolution turns product packaging into deterministic runtime behavior.
+
+Current package keys:
+
+- `core`
+- `sales-only`
+- `project-only`
+- `miniapp-ops`
+- `full`
+
+Package rules:
+
+- `resolveEffectiveUnitPackage` derives enabled Blocks, required Modules, allowed Card types, visible Webapp areas, allowed operations, and setup-required states
+- `validateUnitPackageChange` rejects requested Blocks that are not allowed by the selected package
+- package validation must run before Webapp controls or Local operations assume a Block is available
+- Miniapp packages must surface setup-required state when no active Miniapp instance is enabled
+- invalid package changes should explain the rejected Block instead of hiding or silently enabling it
+
+Verification:
+
+- `npm run test:check-foundation-packages`
+- `npm run test:intelligence-unit-refactor`
 
 ## 7. Webapp Contract
 

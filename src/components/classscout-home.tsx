@@ -30,9 +30,15 @@ function pct(value: number) {
   return `${Math.round(Number(value || 0) * 100)}%`;
 }
 
-export function ClassScoutHome({ companyId }: { companyId: string }) {
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState<ClassScoutLandingSummary | null>(null);
+export function ClassScoutHome({
+  companyId,
+  initialSummary = null,
+}: {
+  companyId: string;
+  initialSummary?: ClassScoutLandingSummary | null;
+}) {
+  const [loading, setLoading] = useState(!initialSummary);
+  const [summary, setSummary] = useState<ClassScoutLandingSummary | null>(initialSummary);
   const [loadError, setLoadError] = useState<string | null>(null);
   const lastLoggedState = useRef<string | null>(null);
 
@@ -40,12 +46,12 @@ export function ClassScoutHome({ companyId }: { companyId: string }) {
     setLoading(true);
     setLoadError(null);
     try {
-      const response = await fetch(`/api/classscout/landing-summary?companyId=${encodeURIComponent(companyId)}`);
+      const response = await fetch(`/api/classscout/landing?companyId=${encodeURIComponent(companyId)}`);
       const payload = response.ok ? await response.json() : null;
-      if (!response.ok || !payload?.summary) {
+      if (!response.ok || !payload?.destinationKey) {
         throw new Error(String(payload?.error || "ClassScout landing summary unavailable."));
       }
-      setSummary(payload.summary);
+      setSummary(payload as ClassScoutLandingSummary);
     } catch (error) {
       setSummary(null);
       setLoadError(error instanceof Error ? error.message : "ClassScout landing summary unavailable.");
@@ -55,11 +61,12 @@ export function ClassScoutHome({ companyId }: { companyId: string }) {
   }, [companyId]);
 
   useEffect(() => {
+    if (initialSummary) return undefined;
     const timer = window.setTimeout(() => {
       void load();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [load]);
+  }, [initialSummary, load]);
 
   useEffect(() => {
     if (loading) return;
@@ -75,6 +82,7 @@ export function ClassScoutHome({ companyId }: { companyId: string }) {
       payload: {
         state,
         unavailableSections: summary?.unavailableSections.map((item) => item.key) ?? [],
+        degradedSources: summary?.fetchHealth.sources.filter((item) => item.status !== "ok").map((item) => item.key) ?? [],
       },
       teachingWeight: 25,
     });
@@ -161,7 +169,10 @@ export function ClassScoutHome({ companyId }: { companyId: string }) {
 
         {summary.state === "partial" ? (
           <Notice title="ClassScout home is partially degraded" icon={Activity}>
-            {summary.unavailableSections.map((item) => item.key).join(", ")} data is temporarily unavailable. Launch actions remain available.
+            {summary.fetchHealth.sources
+              .filter((source) => source.status !== "ok")
+              .map((source) => source.key)
+              .join(", ")} data is temporarily unavailable. Launch actions remain available.
           </Notice>
         ) : null}
 
@@ -193,10 +204,10 @@ export function ClassScoutHome({ companyId }: { companyId: string }) {
         ) : null}
 
         <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
-          <MetricCard icon={History} color="review" label="Workflow Cards" value={summary.summary.workflowPackets} detail={`${summary.summary.reviewRequired} require attention`} />
-          <MetricCard icon={Book} color="knowmore" label="Live Listings" value={summary.summary.liveListings} detail={`${summary.summary.replayCandidates} replay candidates`} />
-          <MetricCard icon={Kanban} color="tactical" label="Project Cards" value={summary.summary.projectCards} detail={`${summary.summary.publishedOutcomes} published outcomes`} />
-          <MetricCard icon={Radar} color="strategy" label="Mission Pressure" value={summary.summary.activeRuns} detail={`${summary.summary.staleRuns} stale · ${summary.summary.failedWorkflows} failed`} />
+          <MetricCard icon={History} color="review" label="Review Cards" value={summary.reviewPackets.total} detail={`${summary.reviewPackets.pending} pending review`} />
+          <MetricCard icon={Book} color="knowmore" label="Live Listings" value={summary.liveListings.total} detail={`${summary.liveListings.needsReview} need revision`} />
+          <MetricCard icon={Kanban} color="tactical" label="Published Outcomes" value={summary.learning.published} detail={`${summary.learning.replayCandidates} replay candidates`} />
+          <MetricCard icon={Radar} color="strategy" label="Mission Pressure" value={summary.missionControl.activeRuns} detail={`${summary.missionControl.failedRuns} failed · ${summary.missionControl.retryBacklog} retries`} />
         </SimpleGrid>
 
         <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }}>
@@ -225,24 +236,33 @@ export function ClassScoutHome({ companyId }: { companyId: string }) {
                 <UnifiedCardSection tone="review">
                   <Group justify="space-between">
                     <Text fw={600}>Content Ops</Text>
-                    <MetaText>{summary.sections.learning?.packetCount ?? 0} cards</MetaText>
+                    <MetaText>{summary.reviewPackets.total} review cards</MetaText>
                   </Group>
-                  <BodyText>First-pass approval {pct(summary.sections.learning?.firstPassApprovalRate ?? 0)}.</BodyText>
+                  <BodyText>{summary.reviewPackets.pending} review cards are waiting for operator action. First-pass approval {pct(summary.sections.learning?.firstPassApprovalRate ?? 0)}.</BodyText>
                 </UnifiedCardSection>
                 <UnifiedCardSection tone="review">
                   <Group justify="space-between">
                     <Text fw={600}>Live Catalog</Text>
-                    <MetaText>{summary.sections.liveQueue?.listingCount ?? 0} listings</MetaText>
+                    <MetaText>{summary.liveListings.total} listings</MetaText>
                   </Group>
-                  <BodyText>{summary.sections.liveQueue?.reviewRequiredCount ?? 0} listings currently require review-oriented follow-up.</BodyText>
+                  <BodyText>{summary.liveListings.needsReview} listings currently require review-oriented follow-up.</BodyText>
                 </UnifiedCardSection>
                 <UnifiedCardSection tone="review">
                   <Group justify="space-between">
                     <Text fw={600}>Mission Control</Text>
-                    <MetaText>{summary.sections.missionControl?.activeRuns ?? 0} active runs</MetaText>
+                    <MetaText>{summary.missionControl.activeRuns} active runs</MetaText>
                   </Group>
-                  <BodyText>{summary.sections.missionControl?.retryBacklog ?? 0} workflow retries and {summary.sections.missionControl?.callbackFailureCount ?? 0} callback failures are visible.</BodyText>
+                  <BodyText>{summary.missionControl.retryBacklog} workflow retries and {summary.sections.missionControl?.callbackFailureCount ?? 0} callback failures are visible.</BodyText>
                 </UnifiedCardSection>
+                {summary.fetchHealth.sources.filter((source) => source.status !== "ok").map((source) => (
+                  <UnifiedCardSection key={source.key} tone="review">
+                    <Group justify="space-between">
+                      <Text fw={600}>{source.key}</Text>
+                      <Badge variant="light" color="review">{source.status}</Badge>
+                    </Group>
+                    <BodyText>{source.message || "This source is degraded. Other ClassScout actions remain available."}</BodyText>
+                  </UnifiedCardSection>
+                ))}
               </Stack>
             </UnifiedCardBody>
           </UnifiedCard>

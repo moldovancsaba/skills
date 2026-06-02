@@ -344,6 +344,9 @@ Source for `initialData`:
 - `webapp` profile route rendered if available.
 - Module list filtered to `moduleCapabilities[key] !== false`.
 - Deep-link not required to exist in nav to navigate currently; route should still recover gracefully.
+- ClassScout renders with stable sidebar key `classscout`; Compare renders with stable sidebar key `compare`.
+- ClassScout badge counts come from the nav read model when available; badge absence must not hide the item.
+- ClassScout active state covers `/{companyId}/classscout` and grouped descendant routes.
 
 ### 7.3 Settings flow
 - `GET /api/companies/{companyId}/settings` returns `unitCapabilities`.
@@ -354,6 +357,14 @@ Source for `initialData`:
 - Event emission:
   - `UNIT_SURFACE_UPDATE` interaction event
   - optional follow-up outcome events by operation
+- Profile migration requests use `profileMigration: { fromProfile?, toProfile, modules?, dryRun }`.
+  - `dryRun: true` returns a profile migration diff without persistence.
+  - `dryRun: false` persists a normalized v2 compatibility payload.
+  - incompatible modules are surfaced as explicit blockers and module-level diffs.
+- The settings Module Matrix is derived from the check-foundation registry and server preview response.
+  - required modules are locked with plain-language lock reasons.
+  - optional modules remain editable.
+  - pending diffs appear after preview when server-effective modules differ from the draft.
 
 ### 7.5 Capability transaction flow (canonical)
 1. Client sends `POST /api/companies/{companyId}/capabilities/transaction` with:
@@ -471,13 +482,15 @@ The contract reports:
   - `destinationKey: "classscout"`
   - `companyId`
   - `liveListings.total/needsReview/published`
-  - `reviewPackets.total/pending/approved/rejected`
-  - `learning.packets/published/failed/replayCandidates`
+  - `reviewCards.total/pending/approved/rejected`
+  - `learning.cards/published/failed/replayCandidates`
   - `missionControl.activeRuns/failedRuns/retryBacklog`
   - `routeTargets.review/ops/observability`
   - `fetchHealth.degraded` and source-level health rows
 - The legacy `/api/classscout/landing-summary` route remains available for existing UI consumers.
 - Partial source failures must return degraded source health instead of crashing the whole landing surface.
+- `/{companyId}/classscout` server-loads this summary and passes it to the GDS-only ClassScout operator home.
+- Client refresh uses this canonical endpoint and keeps degraded-source detail visible.
 
 ### 8.6 `/api/classscout/refresh-lane`
 - `POST /api/classscout/refresh-lane/sync`
@@ -485,12 +498,36 @@ The contract reports:
   - returns refresh candidates with `id`, `targetType`, `targetId`, `reason`, `freshnessScore`, `refreshAttempts`, `nextEligibleAt`, and `idempotencyKey`
 - `POST /api/classscout/refresh-lane/tick`
   - request: `companyId`, optional `limit`
-  - publishes approved ClassScout revision packets and drafts refresh revisions for eligible stale live listings
+  - publishes approved ClassScout revision cards and drafts refresh revisions for eligible stale live listings
   - admin membership required
 - Refresh lane ownership:
   - candidate selection is non-destructive
-  - live records are not overwritten by the lane; refreshes create draft/revision packets for review and publish verification
+  - live records are not overwritten by the lane; refreshes create draft/revision cards for review and publish verification
   - failures return explicit status/error payloads and leave original live cards unchanged
+
+### 8.7 `/api/destination-missions/runs/[id]/verification-tick`
+- `POST` request:
+  - `companyId`
+  - `destinationKey: "classscout"`
+  - optional `targetListingId`
+  - optional `targetListingType: "provider" | "meetupGroup"`
+  - optional `expectedTitle`
+  - optional `expectedImageUrl`
+  - optional `attemptsMax`
+- Runtime behavior:
+  - polls ClassScout public listings through the existing live-listings bridge
+  - persists `publishVerification` and bounded `publishVerificationHistory` in mission metadata
+  - moves a run to `PUBLISHED_VERIFIED` only after positive public evidence
+  - marks unresolved, schema-mismatched, or image-invalid verification as `FAILED_RECOVERABLE`
+- Status values:
+  - `queued`
+  - `verified`
+  - `not_found`
+  - `schema_mismatch`
+  - `image_invalid`
+  - `timeout`
+- Auth:
+  - admin membership required
 
 ### 8.4 `/api/companies/[companyId]/capabilities/transaction`
 - `POST` request:

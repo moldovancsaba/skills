@@ -6,6 +6,9 @@ const files = {
   routes: readFileSync(join(ROOT, "src/lib/classscout-routes.ts"), "utf8"),
   landing: readFileSync(join(ROOT, "src/lib/classscout-landing.ts"), "utf8"),
   landingApi: readFileSync(join(ROOT, "src/app/api/classscout/landing/route.ts"), "utf8"),
+  classscoutPage: readFileSync(join(ROOT, "src/app/[companyId]/classscout/page.tsx"), "utf8"),
+  classscoutHome: readFileSync(join(ROOT, "src/components/classscout-home.tsx"), "utf8"),
+  clientNav: readFileSync(join(ROOT, "src/app/client-nav.tsx"), "utf8"),
   refreshSync: readFileSync(join(ROOT, "src/app/api/classscout/refresh-lane/sync/route.ts"), "utf8"),
   refreshTick: readFileSync(join(ROOT, "src/app/api/classscout/refresh-lane/tick/route.ts"), "utf8"),
   maintenance: readFileSync(join(ROOT, "src/lib/destination-classscout-maintenance.ts"), "utf8"),
@@ -30,6 +33,12 @@ for (const field of ["liveListings", "reviewPackets", "learning", "missionContro
 assert(/Promise\.all/.test(files.landing), "ClassScout landing read model must compose sources in parallel");
 assert(/unavailableSections/.test(files.landing), "ClassScout landing read model must preserve partial-failure visibility");
 assert(/getClassScoutLandingSummary/.test(files.landingApi), "canonical landing API must use the shared landing summary builder");
+assert(/getClassScoutLandingSummary/.test(files.classscoutPage), "ClassScout route must server-load the landing summary");
+assert(/initialSummary/.test(files.classscoutHome), "ClassScout home must accept server-loaded initial summary");
+assert(/\/api\/classscout\/landing/.test(files.classscoutHome), "ClassScout home refresh must use the canonical landing API");
+assert(/fetchHealth/.test(files.classscoutHome), "ClassScout home must render canonical degraded-source health");
+assert(/key:\s*webappProfile === "CLASSSCOUT" \? "classscout"/.test(files.clientNav), "sidebar item key must be profile-specific for ClassScout");
+assert(/classscout:\s*data\.counts\?\.classscout/.test(files.clientNav), "sidebar must carry optional ClassScout badge count");
 
 assert(/type\s+ClassScoutRefreshCandidate/.test(files.maintenance), "refresh lane must define candidate contract");
 assert(/idempotencyKey/.test(files.maintenance), "refresh candidates must expose idempotency keys");
@@ -47,4 +56,3 @@ if (failures.length > 0) {
 }
 
 console.log("ClassScout surface contract passed.");
-

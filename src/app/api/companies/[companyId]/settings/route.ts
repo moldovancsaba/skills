@@ -8,6 +8,8 @@ import {
   formatCapabilityPayload,
   getWebappProfileLabel,
   normalizeUnitCapabilitiesPayloadForWrite,
+  previewUnitProfileMigration,
+  UNIT_PROFILE_COMPATIBILITY,
   resolveUnitCapabilities,
 } from "@/lib/intelligence-unit-capabilities";
 
@@ -78,6 +80,7 @@ export async function GET(
         modules: capabilities.modules,
         profileLabel: getWebappProfileLabel(capabilities.profile),
       },
+      profileCompatibility: UNIT_PROFILE_COMPATIBILITY,
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(company.allowedLanguages ?? []),
     });
   } catch (error) {
@@ -134,6 +137,10 @@ export async function PATCH(
     const hasLanguageUpdate = Array.isArray(data.allowedLanguages);
     const hasCapabilityUpdate = Boolean(data.unitCapabilities);
     const hasCapabilityV2Update = Boolean(data.unitCapabilitiesV2);
+    const profileMigrationRequest =
+      data.profileMigration && typeof data.profileMigration === "object" && !Array.isArray(data.profileMigration)
+        ? data.profileMigration as Record<string, unknown>
+        : null;
     if (hasCapabilityUpdate) {
       await recordInteractionEventFromRequest(request, {
         companyId,
@@ -168,6 +175,41 @@ export async function PATCH(
         { status: 422 },
       );
     }
+    const currentCapabilities = resolveUnitCapabilities({
+      workerConfig: existing?.workerConfig,
+      hasClassScoutDestination: Boolean(classScoutInstance),
+      hasCompareDestination: Boolean(compareInstance),
+    });
+    const profileMigration = profileMigrationRequest
+      ? previewUnitProfileMigration({
+          fromProfile: profileMigrationRequest.fromProfile ?? currentCapabilities.profile,
+          toProfile: profileMigrationRequest.toProfile,
+          modules: profileMigrationRequest.modules ?? currentCapabilities.modules,
+          dryRun: profileMigrationRequest.dryRun !== false,
+        })
+      : null;
+    if (profileMigration?.dryRun) {
+      return NextResponse.json({
+        id: existing?.id ?? companyId,
+        unitCapabilities: currentCapabilities.normalized,
+        unitCapabilitiesV2: {
+          schemaVersion: currentCapabilities.schemaVersion,
+          payload: currentCapabilities.normalized,
+        },
+        capabilitiesVersion: UNIT_CAPABILITIES_SCHEMA_VERSION,
+        capabilitiesSource: currentCapabilities.source,
+        capabilitiesEnvelopeVersion: currentCapabilities.sourceEnvelopeVersion,
+        webapp: {
+          profile: currentCapabilities.profile,
+          modules: currentCapabilities.modules,
+          profileLabel: getWebappProfileLabel(currentCapabilities.profile),
+        },
+        profileCompatibility: UNIT_PROFILE_COMPATIBILITY,
+        profileMigration,
+        capabilitiesValidation: null,
+        allowedLanguages: canonicalizeAllowedLanguagesForStorage(existing?.allowedLanguages ?? []),
+      });
+    }
 
     if (hasLanguageUpdate && (!data.allowedLanguages.every((l: unknown) => typeof l === "string"))) {
       return NextResponse.json({ error: "Invalid allowedLanguages format" }, { status: 400 });
@@ -184,11 +226,20 @@ export async function PATCH(
       ? {
           ...existingWorkerConfig,
           unitCapabilities: formatCapabilityPayload({
-            profile: capabilityV2Validation.payload.profile,
-            modules: capabilityV2Validation.payload.modules,
+            profile: profileMigration?.payload.profile ?? capabilityV2Validation.payload.profile,
+            modules: profileMigration?.payload.modules ?? capabilityV2Validation.payload.modules,
           }),
           updatedBy: "settings-unit-capabilities-v2",
         }
+      : profileMigration
+        ? {
+            ...existingWorkerConfig,
+            unitCapabilities: formatCapabilityPayload({
+              profile: profileMigration.payload.profile,
+              modules: profileMigration.payload.modules,
+            }),
+            updatedBy: "settings-profile-migration",
+          }
       : undefined;
 
       const updated = await prisma.company.update({
@@ -257,6 +308,8 @@ export async function PATCH(
         modules: nextCapabilities.modules,
         profileLabel: getWebappProfileLabel(nextCapabilities.profile),
       },
+      profileCompatibility: UNIT_PROFILE_COMPATIBILITY,
+      profileMigration,
       allowedLanguages: canonicalizeAllowedLanguagesForStorage(updated.allowedLanguages ?? []),
       capabilitiesValidation: capabilityV2Validation?.validation ?? null,
     });

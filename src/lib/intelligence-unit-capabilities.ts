@@ -262,6 +262,51 @@ const UNIT_MODULE_PRESET_BY_WEBAPP: Record<UnitWebappProfile, Record<UnitModuleK
   },
 };
 
+export type UnitProfileCompatibilityRow = {
+  profile: UnitWebappProfile;
+  defaults: Record<UnitModuleKey, boolean>;
+  deniedModules: UnitModuleKey[];
+};
+
+export type UnitProfileMigrationResult = {
+  fromProfile: UnitWebappProfile;
+  toProfile: UnitWebappProfile;
+  dryRun: boolean;
+  allowed: boolean;
+  blockers: UnitCapabilityValidationIssue[];
+  moduleDiff: Array<{
+    moduleKey: UnitModuleKey;
+    fromEnabled: boolean;
+    toEnabled: boolean;
+    source: "profile-default" | "operator-preserved" | "profile-denied";
+  }>;
+  payload: UnitCapabilityPayloadV2;
+};
+
+const DENIED_MODULES_BY_WEBAPP_PROFILE: Record<UnitWebappProfile, UnitModuleKey[]> = {
+  NONE: ["content"],
+  CLASSSCOUT: [],
+  COMPARE: ["sales", "goals", "topics", "tactical"],
+};
+
+export const UNIT_PROFILE_COMPATIBILITY: Record<UnitWebappProfile, UnitProfileCompatibilityRow> = {
+  NONE: {
+    profile: "NONE",
+    defaults: UNIT_MODULE_PRESET_BY_WEBAPP.NONE,
+    deniedModules: DENIED_MODULES_BY_WEBAPP_PROFILE.NONE,
+  },
+  CLASSSCOUT: {
+    profile: "CLASSSCOUT",
+    defaults: UNIT_MODULE_PRESET_BY_WEBAPP.CLASSSCOUT,
+    deniedModules: DENIED_MODULES_BY_WEBAPP_PROFILE.CLASSSCOUT,
+  },
+  COMPARE: {
+    profile: "COMPARE",
+    defaults: UNIT_MODULE_PRESET_BY_WEBAPP.COMPARE,
+    deniedModules: DENIED_MODULES_BY_WEBAPP_PROFILE.COMPARE,
+  },
+};
+
 const ROUTER_DEFAULT_WEBAPP_PROFILE: UnitWebappProfile = "NONE";
 
 const CANONICAL_MODULE_TO_LEGACY: Partial<Record<CanonicalModuleKey, UnitModuleKey>> = {
@@ -567,14 +612,66 @@ function normalizeModuleOverrides(
 
 function buildMergedModules(profile: UnitWebappProfile, rawModules: Partial<Record<UnitModuleKey, boolean>>) {
   const preset = UNIT_MODULE_PRESET_BY_WEBAPP[profile];
+  const denied = new Set(DENIED_MODULES_BY_WEBAPP_PROFILE[profile]);
   return UNIT_MODULE_KEYS.reduce<Record<UnitModuleKey, boolean>>((acc, key) => {
-    if (Object.prototype.hasOwnProperty.call(rawModules, key)) {
+    if (denied.has(key)) {
+      acc[key] = false;
+    } else if (Object.prototype.hasOwnProperty.call(rawModules, key)) {
       acc[key] = Boolean(rawModules[key]);
     } else {
       acc[key] = preset[key];
     }
     return acc;
   }, {} as Record<UnitModuleKey, boolean>);
+}
+
+export function previewUnitProfileMigration(input: {
+  fromProfile?: unknown;
+  toProfile: unknown;
+  modules?: unknown;
+  dryRun?: boolean;
+}): UnitProfileMigrationResult {
+  const validation: UnitCapabilityValidation = {
+    isValid: true,
+    errors: [],
+    warnings: [],
+  };
+  const fromProfile = normalizeRawProfile(input.fromProfile, validation);
+  const toProfile = normalizeRawProfile(input.toProfile, validation);
+  const currentModules = buildMergedModules(fromProfile, normalizeModuleOverrides(input.modules, validation));
+  const deniedSet = new Set(DENIED_MODULES_BY_WEBAPP_PROFILE[toProfile]);
+  const nextModuleOverrides = UNIT_MODULE_KEYS.reduce<Partial<Record<UnitModuleKey, boolean>>>((acc, key) => {
+    acc[key] = deniedSet.has(key) ? false : currentModules[key];
+    return acc;
+  }, {});
+  const payload = normalizeStoredPayload(toProfile, nextModuleOverrides, validation);
+  const blockers = UNIT_MODULE_KEYS
+    .filter((key) => deniedSet.has(key) && currentModules[key])
+    .map((key) => validateIssue(
+      "module-denied-by-profile",
+      `modules.${key}`,
+      `Module ${key} cannot remain enabled for profile ${toProfile}.`,
+      key,
+    ));
+
+  return {
+    fromProfile,
+    toProfile,
+    dryRun: input.dryRun !== false,
+    allowed: validation.errors.length === 0,
+    blockers,
+    moduleDiff: UNIT_MODULE_KEYS.map((moduleKey) => ({
+      moduleKey,
+      fromEnabled: currentModules[moduleKey],
+      toEnabled: payload.modules[moduleKey],
+      source: deniedSet.has(moduleKey)
+        ? "profile-denied"
+        : currentModules[moduleKey] === payload.modules[moduleKey]
+          ? "operator-preserved"
+          : "profile-default",
+    })),
+    payload,
+  };
 }
 
 export function resolveUnitCapabilities(input: {

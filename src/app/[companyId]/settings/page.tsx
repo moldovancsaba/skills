@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { IconBell as Bell, IconShieldCheck as ShieldCheck, IconKey as Key, IconSettings as SettingsIcon, IconCopy as Copy, IconRefresh as RefreshCcw, IconEye as Eye, IconEyeOff as EyeOff, IconDeviceMobile as Smartphone, IconGlobe as Globe, IconLanguage as Languages } from "@tabler/icons-react";
 import { 
@@ -72,6 +72,19 @@ type CapabilityDraft = {
   blocks: Record<BlockKey, boolean>;
   modules: Record<ModuleKey, boolean>;
   miniapps: Record<string, boolean>;
+};
+
+type ModuleMatrixRow = {
+  moduleKey: ModuleKey;
+  label: string;
+  description: string;
+  requiredBy: string[];
+  optionalBy: string[];
+  enabled: boolean;
+  locked: boolean;
+  lockReason?: string;
+  source: "block-required" | "operator-override" | "system-default";
+  previewEnabled: boolean | null;
 };
 
 type DestinationDaemonLimitKey =
@@ -208,6 +221,37 @@ function toCapabilityPayload(draft: CapabilityDraft) {
       Object.entries(draft.miniapps).map(([key, enabled]) => [key, { enabled: Boolean(enabled) }]),
     ),
   };
+}
+
+function buildModuleMatrixRows(
+  draft: CapabilityDraft,
+  preview: CapabilityTransactionResponse | null,
+): ModuleMatrixRow[] {
+  const enabledBlocks = BLOCK_DEFINITIONS.filter((block) => draft.blocks[block.key]);
+  const previewEnabledModules = new Set(preview?.effective?.enabledModules ?? []);
+
+  return MODULE_DEFINITIONS.map((moduleDefinition) => {
+    const requiredBy = enabledBlocks
+      .filter((block) => block.requiredModules.includes(moduleDefinition.key))
+      .map((block) => block.displayName);
+    const optionalBy = enabledBlocks
+      .filter((block) => block.optionalModules.includes(moduleDefinition.key))
+      .map((block) => block.displayName);
+    const locked = requiredBy.length > 0;
+    const enabled = locked || Boolean(draft.modules[moduleDefinition.key]);
+    return {
+      moduleKey: moduleDefinition.key,
+      label: moduleDefinition.displayName,
+      description: moduleDefinition.description,
+      requiredBy,
+      optionalBy,
+      enabled,
+      locked,
+      lockReason: locked ? `Required by ${requiredBy.join(", ")}.` : undefined,
+      source: locked ? "block-required" : draft.modules[moduleDefinition.key] ? "operator-override" : "system-default",
+      previewEnabled: preview ? previewEnabledModules.has(moduleDefinition.key) : null,
+    };
+  });
 }
 
 export default function SettingsPage() {
@@ -554,6 +598,12 @@ export default function SettingsPage() {
     notifications.show({ title: t("common.copied"), message: t("settings.copied") });
   };
 
+  const moduleMatrixRows = useMemo(
+    () => buildModuleMatrixRows(capabilityDraft, capabilityPreview),
+    [capabilityDraft, capabilityPreview],
+  );
+  const pendingModuleDiff = moduleMatrixRows.filter((row) => row.previewEnabled !== null && row.previewEnabled !== row.enabled);
+
   if (loading) return <Box p="xl" ta="center"><Text>{t("settings.loading")}</Text></Box>;
   if (!settings) return <Box p="xl" ta="center"><Text c="review">{t("settings.missing")}</Text></Box>;
 
@@ -561,9 +611,9 @@ export default function SettingsPage() {
     ? showSecret
       ? settings.bridgeSecret
       : "•".repeat(Math.max(settings.bridgeSecret.length, 24))
-    : settings.bridgeSecretConfigured
-      ? t("settings.bridgeSecretStored")
-      : t("settings.bridgeSecretMissing");
+      : settings.bridgeSecretConfigured
+        ? t("settings.bridgeSecretStored")
+        : t("settings.bridgeSecretMissing");
 
   return (
     <PageShell width="lg">
@@ -763,16 +813,27 @@ export default function SettingsPage() {
               <UnifiedCardSection tone="review">
                 <Stack gap="sm">
                   <SectionTitle>Module matrix</SectionTitle>
-                  {MODULE_DEFINITIONS.map((definition) => (
-                    <Group key={definition.key} justify="space-between" align="flex-start" wrap="nowrap">
+                  <MetaText>Required modules are locked by enabled Blocks. Optional modules can be changed and previewed before apply.</MetaText>
+                  {moduleMatrixRows.map((row) => (
+                    <Group key={row.moduleKey} justify="space-between" align="flex-start" wrap="nowrap">
                       <Box>
-                        <BodyText>{definition.displayName}</BodyText>
-                        <MetaText>{definition.description}</MetaText>
+                        <Group gap="xs">
+                          <BodyText>{row.label}</BodyText>
+                          {row.locked ? <Badge color="review" variant="light">Locked</Badge> : null}
+                          {row.requiredBy.length > 0 ? <Badge color="tactical" variant="light">Required</Badge> : <Badge color="gray" variant="light">Optional</Badge>}
+                          {row.previewEnabled !== null && row.previewEnabled !== row.enabled ? <Badge color="strategy" variant="light">Pending diff</Badge> : null}
+                        </Group>
+                        <MetaText>{row.description}</MetaText>
+                        {row.lockReason ? <MetaText>{row.lockReason}</MetaText> : null}
+                        {row.optionalBy.length > 0 && !row.locked ? (
+                          <MetaText>{`Optional for ${row.optionalBy.join(", ")}.`}</MetaText>
+                        ) : null}
                       </Box>
                       <Switch
                         size="md"
-                        checked={Boolean(capabilityDraft.modules[definition.key])}
-                        disabled={saving}
+                        checked={row.enabled}
+                        disabled={saving || row.locked}
+                        aria-label={`${row.label} module ${row.locked ? "locked" : "toggle"}`}
                         onChange={(event) => {
                           const enabled = event.currentTarget.checked;
                           setCapabilityPreview(null);
@@ -782,7 +843,7 @@ export default function SettingsPage() {
                             ...prev,
                             modules: {
                               ...prev.modules,
-                              [definition.key]: enabled,
+                              [row.moduleKey]: enabled,
                             },
                           }));
                         }}
@@ -791,6 +852,22 @@ export default function SettingsPage() {
                   ))}
                 </Stack>
               </UnifiedCardSection>
+
+              {pendingModuleDiff.length > 0 ? (
+                <UnifiedCardSection tone="strategy">
+                  <Stack gap="xs">
+                    <SectionTitle>Pending module diff</SectionTitle>
+                    {pendingModuleDiff.map((row) => (
+                      <Group key={`pending-${row.moduleKey}`} justify="space-between">
+                        <MetaText>{row.label}</MetaText>
+                        <Badge color="strategy" variant="light">
+                          {row.previewEnabled ? "Server will enable" : "Server will disable"}
+                        </Badge>
+                      </Group>
+                    ))}
+                  </Stack>
+                </UnifiedCardSection>
+              ) : null}
 
               {capabilityWarnings.length > 0 ? (
                 <UnifiedCardSection tone="review">

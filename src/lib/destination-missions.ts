@@ -9,6 +9,7 @@ import {
   type DestinationMissionDefinitionConfig,
   type DestinationMissionKind,
   type DestinationRulebookPolicySnapshot,
+  DESTINATION_MISSION_TERMINAL_STATES,
   getDefaultRulebookPolicyForDestination,
   normalizeMissionDefinitionConfig,
   normalizeRulebookPolicySnapshot,
@@ -65,9 +66,7 @@ function derivePolicyFromMissionDefinition(
   };
 }
 
-function canTransitionMissionState(current: DestinationMissionState, next: DestinationMissionState) {
-  if (current === next) return true;
-  const allowed: Record<DestinationMissionState, DestinationMissionState[]> = {
+export const DESTINATION_MISSION_TRANSITION_MAP: Record<DestinationMissionState, DestinationMissionState[]> = {
     QUEUED: ["CATALOG_INSPECTED", "DISCOVERING", "PAUSED", "FAILED_RECOVERABLE", "FAILED_TERMINAL"],
     CATALOG_INSPECTED: ["DISCOVERING", "EXHAUSTED", "PAUSED", "FAILED_RECOVERABLE", "FAILED_TERMINAL"],
     DISCOVERING: ["CANDIDATE_IN_REVIEW", "PUBLISHING", "EXHAUSTED", "PAUSED", "FAILED_RECOVERABLE", "FAILED_TERMINAL"],
@@ -79,7 +78,74 @@ function canTransitionMissionState(current: DestinationMissionState, next: Desti
     EXHAUSTED: [],
     PAUSED: ["DISCOVERING", "CATALOG_INSPECTED", "FAILED_RECOVERABLE", "FAILED_TERMINAL"],
   };
-  return allowed[current]?.includes(next) ?? false;
+export const DESTINATION_MISSION_TERMINAL_STATE_SET = new Set<string>(DESTINATION_MISSION_TERMINAL_STATES);
+
+function canTransitionMissionState(current: DestinationMissionState, next: DestinationMissionState) {
+  if (current === next) return true;
+  return DESTINATION_MISSION_TRANSITION_MAP[current]?.includes(next) ?? false;
+}
+
+function missionRecoveryHint(input: {
+  state: DestinationMissionState;
+  failureCode?: string | null;
+  failureDetail?: string | null;
+}) {
+  if (input.state === DestinationMissionState.FAILED_RECOVERABLE) {
+    return {
+      recoveryHint: "retry_or_pause",
+      nextAction: "retry",
+      operatorMessage:
+        input.failureDetail ??
+        "The mission stopped in a recoverable state. Retry from mission control or pause it before policy changes.",
+    };
+  }
+  if (input.state === DestinationMissionState.PAUSED) {
+    return {
+      recoveryHint: "resume_or_cancel",
+      nextAction: "resume",
+      operatorMessage: "The mission is paused and waiting for an operator decision.",
+    };
+  }
+  if (input.state === DestinationMissionState.EXHAUSTED) {
+    return {
+      recoveryHint: "expand_policy_or_start_new_run",
+      nextAction: "reselect_policy",
+      operatorMessage:
+        input.failureDetail ??
+        "The mission exhausted its candidate budget. Expand the policy or start a new run with new sources.",
+    };
+  }
+  if (input.state === DestinationMissionState.FAILED_TERMINAL) {
+    return {
+      recoveryHint: "manual_reconcile",
+      nextAction: "manual_force_stop",
+      operatorMessage:
+        input.failureDetail ??
+        "The mission reached a terminal failure and needs manual reconciliation before another run.",
+    };
+  }
+  if (input.state === DestinationMissionState.PUBLISHED_VERIFIED) {
+    return {
+      recoveryHint: "none",
+      nextAction: "none",
+      operatorMessage: "The mission is complete and public verification succeeded.",
+    };
+  }
+  return {
+    recoveryHint: "continue",
+    nextAction: "continue",
+    operatorMessage: "The mission can continue through its normal runtime flow.",
+  };
+}
+
+function appendMissionTransitionAudit(
+  metadata: Record<string, unknown>,
+  event: Record<string, unknown>,
+) {
+  const previous = Array.isArray(metadata.missionTransitionAudit)
+    ? metadata.missionTransitionAudit.filter((item) => item && typeof item === "object")
+    : [];
+  return [...previous.slice(-19), event];
 }
 
 export async function startDestinationMissionRun(input: {
@@ -253,6 +319,23 @@ export async function transitionDestinationMissionState(input: {
     ...((mission.metadata as Record<string, unknown> | null) ?? {}),
     ...((input.metadata as Record<string, unknown> | null) ?? {}),
   };
+  const recovery = missionRecoveryHint({
+    state: nextState,
+    failureCode: input.failureCode ?? mission.failureCode,
+    failureDetail: input.failureDetail ?? mission.failureDetail,
+  });
+  const transitionAudit = appendMissionTransitionAudit(mergedMetadata, {
+    fromState: mission.state,
+    toState: nextState,
+    failureCode: input.failureCode ?? mission.failureCode ?? null,
+    recoveryHint: recovery.recoveryHint,
+    nextAction: recovery.nextAction,
+    transitionedAt: new Date().toISOString(),
+    source:
+      typeof mergedMetadata.source === "string"
+        ? mergedMetadata.source
+        : "transitionDestinationMissionState",
+  });
 
   return prisma.destinationMissionRun.update({
     where: { id: mission.id },
@@ -260,7 +343,12 @@ export async function transitionDestinationMissionState(input: {
       state: nextState,
       failureCode: input.failureCode ?? mission.failureCode,
       failureDetail: input.failureDetail ?? mission.failureDetail,
-      metadata: asJson(mergedMetadata),
+      metadata: asJson({
+        ...mergedMetadata,
+        ...recovery,
+        terminal: DESTINATION_MISSION_TERMINAL_STATE_SET.has(nextState),
+        missionTransitionAudit: transitionAudit,
+      }),
     },
     include: {
       policySnapshot: true,
@@ -362,6 +450,20 @@ export async function advanceDestinationMissionAttempt(input: {
       ...((input.metadata as Record<string, unknown> | null) ?? {}),
       ...(input.outcome ? { outcome: input.outcome } : {}),
     };
+    const outcomeCode =
+      input.outcome?.outcomeCode ??
+      (input.outcome?.terminalKind === "published_verified"
+        ? "accepted"
+        : input.outcome?.terminalKind === "publish_failed"
+          ? "verify_failed"
+          : input.outcome?.rejectionCode === "missing_discovery_artifact" ||
+              input.outcome?.rejectionCode === "extraction_missing_facts"
+            ? "blocked_by_missing_evidence"
+            : input.outcome?.rejectionCode?.includes("image")
+              ? "image_blocked"
+              : input.outcome?.terminalKind === "rejected"
+                ? "rejected_with_feedback"
+                : undefined);
 
     if (currentAttempt) {
       await tx.destinationMissionAttempt.update({
@@ -375,7 +477,15 @@ export async function advanceDestinationMissionAttempt(input: {
           workflowRunId: input.workflowRunId ?? currentAttempt.workflowRunId,
           candidateFingerprint: input.candidateFingerprint ?? currentAttempt.candidateFingerprint,
           completedAt: new Date(),
-          metadata: asJson(mergedMetadata),
+          metadata: asJson({
+            ...mergedMetadata,
+            outcomeCode: outcomeCode ?? null,
+            recoveryHint:
+              input.outcome?.terminalKind === "retryable_failure" ||
+              input.outcome?.terminalKind === "publish_failed"
+                ? "retry_or_pause"
+                : "continue",
+          }),
         },
       });
     }
@@ -390,6 +500,10 @@ export async function advanceDestinationMissionAttempt(input: {
           metadata: asJson({
             ...((mission.metadata as Record<string, unknown> | null) ?? {}),
             terminalOutcome: "published_verified",
+            ...missionRecoveryHint({
+              state: DestinationMissionState.PUBLISHED_VERIFIED,
+            }),
+            terminal: true,
           }),
         },
         include: {
@@ -402,7 +516,58 @@ export async function advanceDestinationMissionAttempt(input: {
     }
 
     const nextOrdinal = (currentAttempt?.ordinal ?? 0) + 1;
+    if (
+      input.outcome?.terminalKind === "publish_failed" ||
+      input.outcome?.outcomeCode === "verify_failed" ||
+      input.outcome?.outcomeCode === "publish_partial"
+    ) {
+      const recovery = missionRecoveryHint({
+        state: DestinationMissionState.FAILED_RECOVERABLE,
+        failureCode: input.outcome.rejectionCode ?? "publish_verification_failed",
+        failureDetail: input.outcome.rejectionDetail,
+      });
+      return tx.destinationMissionRun.update({
+        where: { id: mission.id },
+        data: {
+          state: DestinationMissionState.FAILED_RECOVERABLE,
+          failureCode: input.outcome.rejectionCode ?? "publish_verification_failed",
+          failureDetail:
+            input.outcome.rejectionDetail ??
+            "Publish completed without a verified public listing.",
+          metadata: asJson({
+            ...((mission.metadata as Record<string, unknown> | null) ?? {}),
+            terminalOutcome: "publish_recovery_required",
+            ...recovery,
+            terminal: false,
+            missionTransitionAudit: appendMissionTransitionAudit(
+              (mission.metadata as Record<string, unknown> | null) ?? {},
+              {
+                fromState: mission.state,
+                toState: DestinationMissionState.FAILED_RECOVERABLE,
+                failureCode: input.outcome.rejectionCode ?? "publish_verification_failed",
+                recoveryHint: recovery.recoveryHint,
+                nextAction: recovery.nextAction,
+                transitionedAt: new Date().toISOString(),
+                source: "advanceDestinationMissionAttempt",
+              },
+            ),
+          }),
+        },
+        include: {
+          policySnapshot: true,
+          missionDefinition: true,
+          missionDefinitionRevision: true,
+          attempts: { orderBy: { ordinal: "asc" } },
+        },
+      });
+    }
+
     if (nextOrdinal > policy.maxCandidatesPerMission) {
+      const recovery = missionRecoveryHint({
+        state: DestinationMissionState.EXHAUSTED,
+        failureCode: input.outcome?.rejectionCode ?? "max_candidates_exhausted",
+        failureDetail: input.outcome?.rejectionDetail,
+      });
       return tx.destinationMissionRun.update({
         where: { id: mission.id },
         data: {
@@ -412,6 +577,20 @@ export async function advanceDestinationMissionAttempt(input: {
           metadata: asJson({
             ...((mission.metadata as Record<string, unknown> | null) ?? {}),
             terminalOutcome: "exhausted",
+            ...recovery,
+            terminal: true,
+            missionTransitionAudit: appendMissionTransitionAudit(
+              (mission.metadata as Record<string, unknown> | null) ?? {},
+              {
+                fromState: mission.state,
+                toState: DestinationMissionState.EXHAUSTED,
+                failureCode: input.outcome?.rejectionCode ?? "max_candidates_exhausted",
+                recoveryHint: recovery.recoveryHint,
+                nextAction: recovery.nextAction,
+                transitionedAt: new Date().toISOString(),
+                source: "advanceDestinationMissionAttempt",
+              },
+            ),
           }),
         },
         include: {

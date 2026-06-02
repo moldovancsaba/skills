@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     if (auth.error) return auth.error;
 
     const candidateKind = typeof body.candidateKind === "string" ? body.candidateKind : "";
-    if (candidateKind === "review-packet") {
+    if (candidateKind === "review-card") {
       const reviewPacketId = typeof body.reviewPacketId === "string" ? body.reviewPacketId : "";
       if (!reviewPacketId) {
         return NextResponse.json({ ok: false, error: "reviewPacketId is required" }, { status: 400 });

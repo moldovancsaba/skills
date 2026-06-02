@@ -9,6 +9,12 @@ function asJson(value: Record<string, unknown> | null | undefined): Prisma.Input
   return ((value && Object.keys(value).length > 0 ? value : {}) as Prisma.InputJsonValue);
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
 function stageToState(stage: string): DestinationWorkflowState {
   switch (stage) {
     case "QUEUE_REVIEW":
@@ -299,7 +305,7 @@ export async function setDestinationWorkflowReviewState(input: {
 
 export async function getDestinationMissionControlSummary(companyId: string, destinationKey?: DestinationKey) {
   const now = Date.now();
-  const [runs, packets, outcomes] = await Promise.all([
+  const [runs, packets, outcomes, missionRuns] = await Promise.all([
     prisma.destinationWorkflowRun.findMany({
       where: {
         companyId,
@@ -348,6 +354,17 @@ export async function getDestinationMissionControlSummary(companyId: string, des
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
+    prisma.destinationMissionRun.findMany({
+      where: {
+        companyId,
+        ...(destinationKey ? { destinationKey } : {}),
+      },
+      include: {
+        attempts: { orderBy: { ordinal: "desc" }, take: 1 },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 200,
+    }),
   ]);
 
   const staleRuns = runs.filter((run) => now - run.updatedAt.getTime() > DEFAULT_STAGE_TIMEOUT_MS);
@@ -365,6 +382,58 @@ export async function getDestinationMissionControlSummary(companyId: string, des
     .map(([code, count]) => ({ code, count }));
 
   const packetAges = packets.map((packet) => now - packet.submittedAt.getTime());
+  const verificationRuns = missionRuns
+    .map((run) => {
+      const metadata = asRecord(run.metadata as Record<string, unknown> | null);
+      const verification = asRecord(metadata.publishVerification);
+      return {
+        runId: run.id,
+        state: run.state,
+        destinationKey: run.destinationKey,
+        failureCode: run.failureCode,
+        recoveryHint: typeof metadata.recoveryHint === "string" ? metadata.recoveryHint : null,
+        nextAction: typeof metadata.nextAction === "string" ? metadata.nextAction : null,
+        verificationStatus:
+          typeof verification?.status === "string"
+            ? verification.status
+            : run.state === "PUBLISHED_VERIFIED"
+              ? "verified"
+              : run.failureCode?.startsWith("publish_verification_")
+                ? run.failureCode.replace("publish_verification_", "")
+                : null,
+        verificationAttempt:
+          typeof verification?.attempt === "number"
+            ? verification.attempt
+            : null,
+        verificationAttemptMax:
+          typeof verification?.attemptMax === "number"
+            ? verification.attemptMax
+            : null,
+        checkedAt:
+          typeof verification?.checkedAt === "string"
+            ? verification.checkedAt
+            : run.updatedAt.toISOString(),
+      };
+    })
+    .filter((run) => run.verificationStatus || run.state === "PUBLISHING" || run.failureCode?.startsWith("publish"));
+  const verificationCounts = verificationRuns.reduce<Record<string, number>>((acc, run) => {
+    const key = run.verificationStatus ?? "pending";
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+  const nextRetryAction = missionRuns
+    .map((run) => {
+      const metadata = asRecord(run.metadata as Record<string, unknown> | null);
+      return {
+        runId: run.id,
+        state: run.state,
+        failureCode: run.failureCode,
+        recoveryHint: typeof metadata.recoveryHint === "string" ? metadata.recoveryHint : null,
+        nextAction: typeof metadata.nextAction === "string" ? metadata.nextAction : null,
+        updatedAt: run.updatedAt.toISOString(),
+      };
+    })
+    .find((run) => run.state === "FAILED_RECOVERABLE" || run.state === "PAUSED" || run.state === "EXHAUSTED") ?? null;
 
   return {
     activeRuns: runs.filter(
@@ -383,6 +452,27 @@ export async function getDestinationMissionControlSummary(companyId: string, des
     },
     callbackFailureCount,
     topFailureCodes,
+    verificationHealth: {
+      total: verificationRuns.length,
+      verified: verificationCounts.verified ?? 0,
+      retrying:
+        (verificationCounts.queued ?? 0) +
+        (verificationCounts.not_found ?? 0) +
+        (verificationCounts.timeout ?? 0),
+      failed:
+        (verificationCounts.schema_mismatch ?? 0) +
+        (verificationCounts.image_invalid ?? 0),
+      counts: verificationCounts,
+      recent: verificationRuns.slice(0, 10),
+    },
+    trackHealth: {
+      missionRuns: missionRuns.length,
+      blocked: missionRuns.filter((run) => run.state === "FAILED_RECOVERABLE" || run.state === "PAUSED").length,
+      terminal: missionRuns.filter((run) =>
+        run.state === "PUBLISHED_VERIFIED" || run.state === "FAILED_TERMINAL" || run.state === "EXHAUSTED",
+      ).length,
+    },
+    nextRetryAction,
     generatedAt: new Date().toISOString(),
   };
 }

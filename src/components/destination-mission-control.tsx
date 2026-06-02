@@ -15,6 +15,38 @@ type MissionSummary = {
   reviewQueueAging: { openPackets: number; oldestPacketAgeMs: number };
   callbackFailureCount: number;
   topFailureCodes: Array<{ code: string; count: number }>;
+  verificationHealth: {
+    total: number;
+    verified: number;
+    retrying: number;
+    failed: number;
+    counts: Record<string, number>;
+    recent: Array<{
+      runId: string;
+      state: string;
+      destinationKey: string;
+      failureCode: string | null;
+      recoveryHint: string | null;
+      nextAction: string | null;
+      verificationStatus: string | null;
+      verificationAttempt: number | null;
+      verificationAttemptMax: number | null;
+      checkedAt: string;
+    }>;
+  };
+  trackHealth: {
+    missionRuns: number;
+    blocked: number;
+    terminal: number;
+  };
+  nextRetryAction: {
+    runId: string;
+    state: string;
+    failureCode: string | null;
+    recoveryHint: string | null;
+    nextAction: string | null;
+    updatedAt: string;
+  } | null;
   generatedAt: string;
 };
 
@@ -189,6 +221,8 @@ export function DestinationMissionControl({
         <MetricCard icon={IconStethoscope} color="strategy" label="Stale Runs" value={summary.staleRuns.length} detail="past timeout threshold" />
         <MetricCard icon={IconRotateClockwise2} color="checklist" label="Retry Backlog" value={summary.retryBacklog} detail="failed runs awaiting recovery" />
         <MetricCard icon={Refresh} color="knowmore" label="Open Review Cards" value={summary.reviewQueueAging.openPackets} detail={`${Math.round(summary.reviewQueueAging.oldestPacketAgeMs / 60000)} min oldest`} />
+        <MetricCard icon={IconStethoscope} color="strategy" label="Verified Publishes" value={summary.verificationHealth.verified} detail={`${summary.verificationHealth.retrying} retrying · ${summary.verificationHealth.failed} failed`} />
+        <MetricCard icon={IconActivity} color="tactical" label="Blocked Tracks" value={summary.trackHealth.blocked} detail={`${summary.trackHealth.terminal} terminal mission runs`} />
       </SimpleGrid>
 
       {summary.callbackFailureCount > 0 ? (
@@ -196,6 +230,51 @@ export function DestinationMissionControl({
           {summary.callbackFailureCount} callback-related failure event{summary.callbackFailureCount === 1 ? "" : "s"} were recorded recently.
         </Notice>
       ) : null}
+
+      {summary.nextRetryAction ? (
+        <Notice title="Next mission recovery action" icon={IconRotateClockwise2}>
+          {summary.nextRetryAction.nextAction ?? "retry"} for run {summary.nextRetryAction.runId}
+          {summary.nextRetryAction.failureCode ? ` after ${summary.nextRetryAction.failureCode}` : ""}.
+        </Notice>
+      ) : null}
+
+      <UnifiedCard tone="strategy">
+        <UnifiedCardHeader
+          title="Publish verification health"
+          supporting={<Badge variant="light" color="strategy">{summary.verificationHealth.total}</Badge>}
+        />
+        <UnifiedCardBody>
+          <Stack gap="sm" aria-live="polite">
+            {summary.verificationHealth.recent.length === 0 ? (
+              <BodyText>No publish verification records are available yet.</BodyText>
+            ) : (
+              summary.verificationHealth.recent.map((item) => (
+                <UnifiedCardSection key={item.runId} tone="strategy">
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="center">
+                      <Group gap="xs">
+                        <Text fw={600}>{item.runId}</Text>
+                        <Badge variant="light" color={item.verificationStatus === "verified" ? "strategy" : item.verificationStatus === "schema_mismatch" || item.verificationStatus === "image_invalid" ? "review" : "tactical"}>
+                          {item.verificationStatus ?? "pending"}
+                        </Badge>
+                      </Group>
+                      <MetaText>{new Date(item.checkedAt).toLocaleString()}</MetaText>
+                    </Group>
+                    <MetaText>
+                      {item.destinationKey} · {item.state}
+                      {item.verificationAttempt ? ` · attempt ${item.verificationAttempt}/${item.verificationAttemptMax ?? "?"}` : ""}
+                    </MetaText>
+                    <MetaText>
+                      {item.nextAction ?? "continue"}
+                      {item.failureCode ? ` · ${item.failureCode}` : ""}
+                    </MetaText>
+                  </Stack>
+                </UnifiedCardSection>
+              ))
+            )}
+          </Stack>
+        </UnifiedCardBody>
+      </UnifiedCard>
 
       <UnifiedCard tone="tactical">
         <UnifiedCardHeader

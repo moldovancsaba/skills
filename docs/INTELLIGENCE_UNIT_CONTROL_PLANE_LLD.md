@@ -853,6 +853,41 @@ Implemented in this iteration:
   - non-lossy create/update/move/archive error handling with visible sync-state
 - quota persistence classification broadened to reduce false 500 behavior and improve incident detection
 
+### Mission State Hardening
+
+ClassScout and Compare mission runs now use an explicit transition map plus JSON metadata audit rather than ad hoc state writes. Each transition records:
+- `missionTransitionAudit`
+- `recoveryHint`
+- `nextAction`
+- `operatorMessage`
+- `terminal`
+
+Terminal states are `PUBLISHED_VERIFIED`, `FAILED_TERMINAL`, and `EXHAUSTED`. Recoverable states must expose an operator action such as `retry`, `resume`, `reselect_policy`, or `manual_force_stop`.
+
+Remote mission steps are bounded by runtime timeouts:
+- soft timeout: 45 seconds
+- hard timeout: 90 seconds
+
+Timeouts classify as recoverable `504` step failures and flow through the same attempt advancement and retry-budget rules as extraction, scoring, or preparation failures.
+
+### Publish Verification And Catalog Orchestration
+
+Mission control summary includes `verificationHealth`, `trackHealth`, and `nextRetryAction`. Publish is not considered complete until public verification is classified. Verification records are surfaced from mission metadata and failure codes, including:
+- `verified`
+- `queued`
+- `not_found`
+- `schema_mismatch`
+- `image_invalid`
+- `timeout`
+
+The GDS-only mission control surface renders publish verification health, recent verification records, and a single next recovery action with non-color-only status text and polite live-region updates.
+
+### Correction-To-Policy Loop
+
+The destination learning summary now emits approval-required `policySuggestions` from review decisions and outcome memories. Suggestions are generated from repeated signals such as image failures, missing evidence, scarcity threshold misses, and publish verification failures.
+
+Policy suggestions are advisory until an operator approves them; raw review decisions and outcome memories remain immutable learning evidence.
+
 ## 22. Reference file map
 
 - `/src/lib/intelligence-unit-capabilities.ts`
@@ -870,9 +905,16 @@ Implemented in this iteration:
 - `/src/lib/audit-ledger.ts`
 - `/src/app/[companyId]/observability/page.tsx`
 - `/src/lib/miniapp-intelligence-health.ts`
+- `/src/lib/destination-missions.ts`
+- `/src/lib/destination-mission-runner.ts`
+- `/src/lib/destination-workflow-runtime.ts`
+- `/src/lib/destination-learning.ts`
+- `/src/components/destination-mission-control.tsx`
+- `/src/components/destination-learning-panel.tsx`
 - `/src/app/api/companies/[companyId]/miniapp-health/route.ts`
 - `/scripts/test-capability-transaction-contract.mjs`
 - `/scripts/test-miniapp-health-contract.mjs`
+- `/scripts/test-classscout-runtime-quality-contract.mjs`
 - `/scripts/refresh-company-intelligence-snapshot.mjs`
 - `/scripts/backfill-destination-mission-lineage.mjs`
 - `/scripts/bootstrap-compare-local-proof.mjs`

@@ -73,6 +73,8 @@ const DESTINATION_ADAPTERS: Record<SupportedDestinationKey, DestinationAdapter> 
 export const SUPPORTED_DESTINATION_MISSION_KEYS = Object.freeze(
   Object.keys(DESTINATION_ADAPTERS) as SupportedDestinationKey[],
 );
+export const DESTINATION_MISSION_SOFT_TIMEOUT_MS = 45_000;
+export const DESTINATION_MISSION_HARD_TIMEOUT_MS = 90_000;
 
 function asRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -84,6 +86,26 @@ function asArray<T>(value: unknown) {
 
 function asStringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+async function withMissionStepTimeout<T>(
+  step: string,
+  promise: Promise<T>,
+  timeoutMs = DESTINATION_MISSION_HARD_TIMEOUT_MS,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`${step}_timeout_after_${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function artifactText(artifact: Record<string, unknown>) {
@@ -213,10 +235,17 @@ async function discoverMissionCandidates(input: {
   maxCandidates?: number;
 }) {
   const adapter = DESTINATION_ADAPTERS[input.destinationKey];
-  const discovery = await adapter.discover({
-    maxTargets: input.maxTargets,
-    maxCandidates: input.maxCandidates,
-  });
+  const discovery = await withMissionStepTimeout(
+    "candidate_discovery",
+    adapter.discover({
+      maxTargets: input.maxTargets,
+      maxCandidates: input.maxCandidates,
+    }),
+  ).catch((error) => ({
+    ok: false as const,
+    error: error instanceof Error ? error.message : String(error),
+    status: 504,
+  }));
   if (!discovery.ok) {
     return {
       ok: false as const,
@@ -499,7 +528,14 @@ export async function executeDestinationMissionNextAttempt(input: {
     let mediaRequest: Record<string, unknown> | null = null;
 
     if (!normalizedListing || !evidenceMap) {
-      const extraction = await adapter.extract({ discoveryArtifact });
+      const extraction = await withMissionStepTimeout(
+        "candidate_extract",
+        adapter.extract({ discoveryArtifact }),
+      ).catch((error) => ({
+        ok: false as const,
+        error: error instanceof Error ? error.message : String(error),
+        status: 504,
+      }));
       if (!extraction.ok) {
         const nextRun = await advanceDestinationMissionAttempt({
           companyId: input.companyId,
@@ -582,7 +618,15 @@ export async function executeDestinationMissionNextAttempt(input: {
       trail.push({ step: "extract", destinationKey: adapter.key, candidateId: candidate.id });
     }
 
-    const scoreResult = await adapter.score({ normalizedListing: normalizedListing as Record<string, unknown> });
+    const scoreResult = await withMissionStepTimeout(
+      "candidate_score",
+      adapter.score({ normalizedListing: normalizedListing as Record<string, unknown> }),
+      DESTINATION_MISSION_SOFT_TIMEOUT_MS,
+    ).catch((error) => ({
+      ok: false as const,
+      error: error instanceof Error ? error.message : String(error),
+      status: 504,
+    }));
     if (!scoreResult.ok) {
       const nextRun = await advanceDestinationMissionAttempt({
         companyId: input.companyId,
@@ -684,22 +728,29 @@ export async function executeDestinationMissionNextAttempt(input: {
     }
 
     const draftId = `draft-${randomUUID()}`;
-    const prepare = await adapter.prepare({
-      normalizedListing: normalizedListing as Record<string, unknown>,
-      draftId,
-      evidenceSummary: buildEvidenceSummary(candidate, evidenceMap as Record<string, unknown>),
-      workflowMetadata: {
-        checklistCompanyId: input.companyId,
-        workflowRunId: mission.id,
-        candidateId: candidate.id,
-        bridgeVersion: "v1",
-      },
-      mediaRequest,
-      metadata: {
-        preparedFrom: "mission-auto-runner",
-        actorId: input.actorId,
-      },
-    });
+    const prepare = await withMissionStepTimeout(
+      "draft_prepare",
+      adapter.prepare({
+        normalizedListing: normalizedListing as Record<string, unknown>,
+        draftId,
+        evidenceSummary: buildEvidenceSummary(candidate, evidenceMap as Record<string, unknown>),
+        workflowMetadata: {
+          checklistCompanyId: input.companyId,
+          workflowRunId: mission.id,
+          candidateId: candidate.id,
+          bridgeVersion: "v1",
+        },
+        mediaRequest,
+        metadata: {
+          preparedFrom: "mission-auto-runner",
+          actorId: input.actorId,
+        },
+      }),
+    ).catch((error) => ({
+      ok: false as const,
+      error: error instanceof Error ? error.message : String(error),
+      status: 504,
+    }));
 
     if (!prepare.ok) {
       const nextRun = await advanceDestinationMissionAttempt({

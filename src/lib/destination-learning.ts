@@ -39,6 +39,43 @@ function inferLearningLabel(input: {
   return "PENDING";
 }
 
+function policySuggestionForReason(input: {
+  destinationKey: DestinationKey;
+  reason: string;
+  count: number;
+}) {
+  const reason = input.reason.trim() || "UNKNOWN";
+  const lower = reason.toLowerCase();
+  let suggestedAction = "review_rulebook_policy";
+  let confidence = Math.min(0.95, 0.45 + input.count * 0.08);
+  let rationale = `${input.count} recent signal(s) mention ${reason}.`;
+
+  if (lower.includes("image") || lower.includes("imgbb")) {
+    suggestedAction = "tighten_image_requirement";
+    rationale = "Image-related failures should adjust media sourcing, fallback images, or publication gating.";
+  } else if (lower.includes("scarcity") || lower.includes("low_confidence")) {
+    suggestedAction = "adjust_scarcity_threshold";
+    rationale = "Scarcity and confidence failures should be reviewed against the active threshold before more candidates are rejected.";
+  } else if (lower.includes("evidence") || lower.includes("source") || lower.includes("artifact")) {
+    suggestedAction = "require_better_sources";
+    rationale = "Evidence failures should strengthen official-source requirements or source extraction prompts.";
+  } else if (lower.includes("verify") || lower.includes("publish")) {
+    suggestedAction = "review_publish_verification_policy";
+    confidence = Math.min(0.98, confidence + 0.1);
+    rationale = "Publish and verification failures should tune retry windows, manual review triggers, or destination bridge checks.";
+  }
+
+  return {
+    destinationKey: input.destinationKey,
+    reasonCode: reason,
+    signalCount: input.count,
+    suggestedAction,
+    confidence,
+    requiresApproval: true,
+    rationale,
+  };
+}
+
 export async function getDestinationLearningSummary(input: {
   companyId: string;
   destinationKey: DestinationKey;
@@ -93,6 +130,25 @@ export async function getDestinationLearningSummary(input: {
   const completedRuns = runs.filter((run) => run.state === DestinationWorkflowState.PUBLISHED).length;
   const failedRuns = runs.filter((run) => run.state === DestinationWorkflowState.FAILED).length;
 
+  const decisionReasonCounts = topCounts(decisions.map((item) => item.decisionReasonCode));
+  const outcomeReasonCounts = topCounts(outcomes.map((item) => item.reasonCode));
+  const failureStageCounts = topCounts(
+    stageEvents
+      .filter((item) => /FAIL|REJECT|ERROR/i.test(item.status) || item.errorCode || item.errorMessage)
+      .map((item) => item.stage),
+  );
+  const policySuggestions = [...decisionReasonCounts, ...outcomeReasonCounts]
+    .filter((item) => item.key !== "UNKNOWN")
+    .map((item) =>
+      policySuggestionForReason({
+        destinationKey: input.destinationKey,
+        reason: item.key,
+        count: item.count,
+      }),
+    )
+    .sort((left, right) => right.confidence - left.confidence || right.signalCount - left.signalCount)
+    .slice(0, 8);
+
   return {
     generatedAt: new Date().toISOString(),
     destinationKey: input.destinationKey,
@@ -119,18 +175,15 @@ export async function getDestinationLearningSummary(input: {
       workflowCompletionRate: runs.length ? completedRuns / runs.length : 0,
       workflowFailureRate: runs.length ? failedRuns / runs.length : 0,
     },
-    topDecisionReasons: topCounts(decisions.map((item) => item.decisionReasonCode)),
-    topOutcomeReasons: topCounts(outcomes.map((item) => item.reasonCode)),
+    topDecisionReasons: decisionReasonCounts,
+    topOutcomeReasons: outcomeReasonCounts,
     topOutcomeEvents: topCounts(outcomes.map((item) => item.eventType)),
-    topFailureStages: topCounts(
-      stageEvents
-        .filter((item) => /FAIL|REJECT|ERROR/i.test(item.status) || item.errorCode || item.errorMessage)
-        .map((item) => item.stage),
-    ),
+    topFailureStages: failureStageCounts,
     adapterVersions: topCounts(
       drafts.map((item) => item.adapterVersion),
       10,
     ),
+    policySuggestions,
   };
 }
 
@@ -174,7 +227,7 @@ export async function getDestinationReplayCandidates(input: {
       const hasSuccessfulPublish = packet.outcomeMemories.some((item) => item.eventType === "publish_completed");
       if (hasSuccessfulPublish) return null;
       return {
-        kind: "review-packet",
+        kind: "review-card",
         id: packet.id,
         workflowRunId: packet.workflowRunId,
         candidateId: packet.candidateId,
@@ -190,10 +243,10 @@ export async function getDestinationReplayCandidates(input: {
               : "INSPECT_REJECTION",
         rationale:
           packet.packetState === "APPROVED"
-            ? "Approved packet is not yet published."
+            ? "Approved review card is not yet published."
             : packet.packetState === "REWORK_REQUESTED"
               ? "Reviewer requested rework."
-              : "Rejected packet remains available for operator inspection.",
+              : "Rejected review card remains available for operator inspection.",
         updatedAt: packet.updatedAt.toISOString(),
       };
     })

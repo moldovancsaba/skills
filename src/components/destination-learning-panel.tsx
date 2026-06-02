@@ -24,10 +24,19 @@ type LearningSummary = {
   topDecisionReasons: Array<{ key: string; count: number }>;
   topOutcomeReasons: Array<{ key: string; count: number }>;
   topFailureStages: Array<{ key: string; count: number }>;
+  policySuggestions: Array<{
+    destinationKey: string;
+    reasonCode: string;
+    signalCount: number;
+    suggestedAction: string;
+    confidence: number;
+    requiresApproval: boolean;
+    rationale: string;
+  }>;
 };
 
 type ReplayCandidate = {
-  kind: "review-packet" | "workflow-run";
+  kind: "review-card" | "workflow-run";
   id: string;
   workflowRunId: string;
   currentState: string;
@@ -82,7 +91,7 @@ export function DestinationLearningPanel({ companyId, destinationKey }: { compan
             companyId,
             destinationKey,
             candidateKind: candidate.kind,
-            reviewPacketId: candidate.kind === "review-packet" ? candidate.id : undefined,
+            reviewPacketId: candidate.kind === "review-card" ? candidate.id : undefined,
             workflowRunId: candidate.kind === "workflow-run" ? candidate.workflowRunId : undefined,
             reason: "operator-replay-from-learning-panel",
           }),
@@ -184,6 +193,42 @@ export function DestinationLearningPanel({ companyId, destinationKey }: { compan
           </UnifiedCardBody>
         </UnifiedCard>
       </SimpleGrid>
+
+      <UnifiedCard tone="tactical">
+        <UnifiedCardHeader
+          title="Policy Suggestions"
+          supporting={<Badge variant="light" color="tactical">{summary.policySuggestions.length}</Badge>}
+        />
+        <UnifiedCardBody>
+          <Stack gap="sm" aria-live="polite">
+            {summary.policySuggestions.length === 0 ? (
+              <BodyText>No policy suggestions are ready yet.</BodyText>
+            ) : (
+              summary.policySuggestions.map((item) => (
+                <UnifiedCardSection key={`${item.destinationKey}-${item.reasonCode}-${item.suggestedAction}`} tone="tactical">
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="center">
+                      <Group gap="xs">
+                        <Text fw={600}>{item.suggestedAction}</Text>
+                        <Badge variant="light" color="tactical">
+                          {Math.round(item.confidence * 100)}%
+                        </Badge>
+                      </Group>
+                      <Badge variant="outline" color="gray">
+                        approval required
+                      </Badge>
+                    </Group>
+                    <BodyText>{item.rationale}</BodyText>
+                    <MetaText>
+                      {item.reasonCode} · {item.signalCount} signal{item.signalCount === 1 ? "" : "s"}
+                    </MetaText>
+                  </Stack>
+                </UnifiedCardSection>
+              ))
+            )}
+          </Stack>
+        </UnifiedCardBody>
+      </UnifiedCard>
 
       <UnifiedCard tone="review">
         <UnifiedCardHeader

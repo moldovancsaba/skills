@@ -17,6 +17,31 @@ export const DESTINATION_MISSION_STATES = [
 
 export type DestinationMissionState = (typeof DESTINATION_MISSION_STATES)[number];
 
+export const DESTINATION_MISSION_TERMINAL_STATES = [
+  "PUBLISHED_VERIFIED",
+  "FAILED_TERMINAL",
+  "EXHAUSTED",
+] as const;
+
+export type DestinationMissionTerminalState = (typeof DESTINATION_MISSION_TERMINAL_STATES)[number];
+
+export const DESTINATION_MISSION_RECOVERABLE_STATES = [
+  "FAILED_RECOVERABLE",
+  "PAUSED",
+] as const;
+
+export const DESTINATION_MISSION_ATTEMPT_OUTCOME_CODES = [
+  "accepted",
+  "rejected_with_feedback",
+  "blocked_by_missing_evidence",
+  "image_blocked",
+  "publish_partial",
+  "verify_failed",
+] as const;
+
+export type DestinationMissionAttemptOutcomeCode =
+  (typeof DESTINATION_MISSION_ATTEMPT_OUTCOME_CODES)[number];
+
 export type DestinationRulebookPolicySnapshot = {
   version: string;
   executionMode: "manual" | "guarded" | "autopilot";
@@ -51,6 +76,7 @@ export type DestinationMissionDefinitionConfig = {
 
 export type DestinationMissionAttemptOutcome = {
   terminalKind: "rejected" | "retryable_failure" | "review_ready" | "published_verified" | "publish_failed";
+  outcomeCode?: DestinationMissionAttemptOutcomeCode;
   rejectionCode?: string;
   rejectionDetail?: string;
   retryAfterMs?: number;

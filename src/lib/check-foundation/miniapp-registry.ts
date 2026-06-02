@@ -18,8 +18,8 @@ export type MiniappDefinition = {
   description: string;
 };
 
-export type MiniappContentPacket = {
-  packetId: string;
+export type MiniappContentCard = {
+  cardId: string;
   unitId: string;
   miniappId: MiniappId;
   contentType: string;
@@ -30,7 +30,7 @@ export type MiniappContentPacket = {
 };
 
 export type MiniappPublishResult = {
-  packetId: string;
+  cardId: string;
   externalId?: string;
   status: "published" | "failed" | "retryable_failed";
   message?: string;
@@ -46,10 +46,10 @@ export type MiniappAdapterStatus = {
 export type MiniappAdapter = {
   key: string;
   miniappId: MiniappId;
-  publishPacket(input: {
+  publishCard(input: {
     unitId: string;
     actorId: string;
-    packet: MiniappContentPacket;
+    card: MiniappContentCard;
   }): Promise<MiniappPublishResult>;
   getStatus(input: { unitId: string }): Promise<MiniappAdapterStatus>;
 };
@@ -89,11 +89,11 @@ const classScoutAdapter: MiniappAdapter = {
       reason: configured ? undefined : "ClassScout bridge credentials are missing.",
     };
   },
-  async publishPacket(input) {
-    const reviewPacketId = String(input.packet.payload.reviewPacketId || "").trim();
+  async publishCard(input) {
+    const reviewPacketId = String(input.card.payload.reviewPacketId || "").trim();
     if (!reviewPacketId) {
       return {
-        packetId: input.packet.packetId,
+        cardId: input.card.cardId,
         status: "failed",
         message: "reviewPacketId is required for ClassScout publishing.",
       };
@@ -107,14 +107,14 @@ const classScoutAdapter: MiniappAdapter = {
 
     if (!result.ok) {
       return {
-        packetId: input.packet.packetId,
+        cardId: input.card.cardId,
         status: result.status >= 500 ? "retryable_failed" : "failed",
         message: typeof result.error === "string" ? result.error : `ClassScout publish failed with status ${result.status}`,
       };
     }
 
     return {
-      packetId: input.packet.packetId,
+      cardId: input.card.cardId,
       status: "published",
       externalId: reviewPacketId,
       message: "Published through ClassScout review-publish bridge.",
@@ -134,11 +134,11 @@ const compareAdapter: MiniappAdapter = {
       reason: configured ? undefined : "Compare bridge credentials are missing.",
     };
   },
-  async publishPacket(input) {
-    const reviewPacketId = String(input.packet.payload.reviewPacketId || "").trim();
+  async publishCard(input) {
+    const reviewPacketId = String(input.card.payload.reviewPacketId || "").trim();
     if (!reviewPacketId) {
       return {
-        packetId: input.packet.packetId,
+        cardId: input.card.cardId,
         status: "failed",
         message: "reviewPacketId is required for Compare publishing.",
       };
@@ -152,14 +152,14 @@ const compareAdapter: MiniappAdapter = {
 
     if (!result.ok) {
       return {
-        packetId: input.packet.packetId,
+        cardId: input.card.cardId,
         status: result.status >= 500 ? "retryable_failed" : "failed",
         message: typeof result.error === "string" ? result.error : `Compare publish failed with status ${result.status}`,
       };
     }
 
     return {
-      packetId: input.packet.packetId,
+      cardId: input.card.cardId,
       status: "published",
       externalId: reviewPacketId,
       message: "Published through Compare review-publish bridge.",
@@ -202,13 +202,13 @@ export function getMiniappAdapter(miniappId: MiniappId): MiniappAdapter {
   return adapter;
 }
 
-export async function publishMiniappPacket(input: {
+export async function publishMiniappCard(input: {
   unitId: string;
   actorId: string;
-  packet: MiniappContentPacket;
+  card: MiniappContentCard;
 }): Promise<MiniappPublishResult> {
-  const adapter = getMiniappAdapter(input.packet.miniappId);
-  return adapter.publishPacket(input);
+  const adapter = getMiniappAdapter(input.card.miniappId);
+  return adapter.publishCard(input);
 }
 
 export async function getMiniappStatus(input: {

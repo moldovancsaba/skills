@@ -8,6 +8,32 @@ import { resolveEffectiveUnitCapabilities } from "@/lib/check-foundation";
 
 export const dynamic = "force-dynamic";
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function readProjectionCount(value: unknown, keys: string[]) {
+  let current: unknown = value;
+  for (const key of keys) {
+    const record = asRecord(current);
+    if (!record) return 0;
+    current = record[key];
+  }
+  return Number(current || 0);
+}
+
+function readMiniappAttentionCount(snapshot: { webappProjection?: unknown; observabilitySummary?: unknown } | null | undefined, miniappKey: "classscout" | "compare") {
+  const webappProjection = snapshot?.webappProjection;
+  return Math.max(
+    readProjectionCount(webappProjection, ["navCounts", miniappKey]),
+    readProjectionCount(webappProjection, ["counts", miniappKey]),
+    readProjectionCount(webappProjection, ["miniapps", miniappKey, "reviewPressureCount"]),
+    readProjectionCount(webappProjection, ["miniapps", miniappKey, "attentionCount"]),
+    readProjectionCount(snapshot?.observabilitySummary, ["miniapps", miniappKey, "reviewPressureCount"]),
+    readProjectionCount(snapshot?.observabilitySummary, ["miniapps", miniappKey, "attentionCount"]),
+  );
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ companyId: string }> },
@@ -22,7 +48,7 @@ export async function GET(
   if (auth.error) return auth.error;
 
   try {
-    const [company, snapshot, classScoutInstance, compareInstance, classScoutAttentionCount, compareAttentionCount] = await profiler.measure("loadNavModels", () => Promise.all([
+    const [company, snapshot, classScoutInstance, compareInstance] = await profiler.measure("loadNavModels", () => Promise.all([
       prisma.company.findUnique({
         where: { id: companyId },
         select: { id: true, name: true, workerConfig: true },
@@ -57,28 +83,6 @@ export async function GET(
         },
         select: { id: true },
       }),
-      prisma.destinationReviewPacket.count({
-        where: {
-          companyId,
-          destinationInstance: {
-            destinationKey: "classscout",
-          },
-          packetState: {
-            in: ["AWAITING_REVIEW", "APPROVED", "REWORK_REQUESTED"],
-          },
-        },
-      }),
-      prisma.destinationReviewPacket.count({
-        where: {
-          companyId,
-          destinationInstance: {
-            destinationKey: "compare",
-          },
-          packetState: {
-            in: ["AWAITING_REVIEW", "APPROVED", "REWORK_REQUESTED"],
-          },
-        },
-      }),
     ]));
 
     if (!company) {
@@ -101,8 +105,8 @@ export async function GET(
       company,
       counts: {
         ...readModel.navCounts,
-        classscout: classScoutInstance ? classScoutAttentionCount : 0,
-        compare: compareInstance ? compareAttentionCount : 0,
+        classscout: classScoutInstance ? readMiniappAttentionCount(snapshot, "classscout") : 0,
+        compare: compareInstance ? readMiniappAttentionCount(snapshot, "compare") : 0,
         tactical: Math.max(Number(readModel.navCounts.tactical || 0), Number(readModel.navCounts.checklist || 0)),
       },
       features: {

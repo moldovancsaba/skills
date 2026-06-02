@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readConfiguredDaemonCompanyIds } from "@/lib/destination-mission-daemon";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
 import { verifyBackgroundJobSecret } from "@/lib/ingest-auth";
 import { prisma } from "@/lib/db";
@@ -17,7 +16,9 @@ function parseCompanyIds(request: NextRequest) {
     .map((value) => value.trim())
     .filter(Boolean);
 
-  return explicitIds.length ? Array.from(new Set(explicitIds)) : readConfiguredDaemonCompanyIds();
+  return explicitIds.length
+    ? Array.from(new Set(explicitIds))
+    : Array.from(new Set((process.env.DESTINATION_MISSION_DAEMON_COMPANY_IDS ?? "").split(",").map((value) => value.trim()).filter(Boolean)));
 }
 
 export async function GET(request: NextRequest) {

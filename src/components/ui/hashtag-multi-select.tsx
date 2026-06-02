@@ -87,20 +87,20 @@ export function HashtagMultiSelect({
       
       <Box
         pos="relative"
+        mih={rem(42)}
+        display="flex"
+        p="4px 12px"
         onClick={() => {
           setIsOpen(true);
           inputRef.current?.focus();
         }}
         style={{
-          minHeight: rem(42),
-          borderRadius: 'var(--mantine-radius-md)',
+          borderRadius: "var(--mantine-radius-md)",
           ...getSemanticInsetStyle(isOpen ? "ingress" : "neutral"),
           borderColor: error ? "var(--module-review-color)" : isOpen ? "var(--module-ingress-color)" : "var(--surface-section-border)",
-          padding: '4px 12px',
-          display: 'flex',
-          flexWrap: 'wrap',
+          flexWrap: "wrap",
           gap: rem(6),
-          alignItems: 'center'
+          alignItems: "center"
         }}
       >
         <Group gap={6}>
@@ -153,16 +153,16 @@ export function HashtagMultiSelect({
 
         {isOpen && (filteredSuggestions.length > 0 || showAddNew) && (
           <Box
+            pos="absolute"
+            top="100%"
+            left={0}
+            right={0}
+            mt="sm"
+            p={rem(4)}
             style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              right: 0,
               zIndex: 1000,
-              marginTop: rem(8),
-              borderRadius: 'var(--mantine-radius-lg)',
+              borderRadius: "var(--mantine-radius-lg)",
               ...getSemanticSurfaceStyle("neutral", { elevated: true }),
-              padding: rem(4)
             }}
           >
               <ScrollArea.Autosize mah={240}>

@@ -85,7 +85,7 @@ function actionPermissionForItem(input: {
 }): UnitPermission {
   if (input.source === "miniapp_publish") {
     if (input.action === "rollback") return "miniapp.publish.rollback";
-    return "miniapp.packet.publish";
+    return "miniapp.card.publish";
   }
   return "local.job.retry";
 }
@@ -139,7 +139,7 @@ export async function POST(
       companyId,
       role: auth.membership.role,
       permission,
-      targetType: item.source === "local_job" ? "local_job" : item.source === "miniapp_publish" ? "miniapp_packet" : "unit",
+      targetType: item.source === "local_job" ? "local_job" : item.source === "miniapp_publish" ? "miniappcard" : "unit",
       targetId: item.itemId,
       actorId: auth.membership.id,
       actorEmail: auth.session.email,

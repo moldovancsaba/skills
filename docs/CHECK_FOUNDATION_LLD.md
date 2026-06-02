@@ -448,8 +448,8 @@ Current implementation note:
   - `POST /api/units/{unitId}/miniapps/{miniappId}/missions`
   - `GET /api/units/{unitId}/miniapps/{miniappId}/missions`
   - `GET /api/units/{unitId}/miniapps/{miniappId}/candidates`
-  - `POST /api/units/{unitId}/miniapps/{miniappId}/packets/{packetId}/approve`
-  - `POST /api/units/{unitId}/miniapps/{miniappId}/packets/{packetId}/publish`
+  - `POST /api/units/{unitId}/miniapps/{miniappId}/cards/{cardId}/approve`
+  - `POST /api/units/{unitId}/miniapps/{miniappId}/cards/{cardId}/publish`
   - `POST /api/units/{unitId}/miniapps/{miniappId}/content/{contentId}/refresh`
 - `GET /api/visitor/{visitorKey}/candidates`
   - returns a public-safe projection by default and only includes raw/internal runtime fields when `includeInternal=true` or `mode=internal`

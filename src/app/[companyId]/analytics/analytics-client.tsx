@@ -8,6 +8,7 @@ import { IconActivity as Activity, IconChartBar as ChartBar, IconClockHour4 as C
 import { EmptyState, MetricCard, MetricGrid, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
+import { SEMANTIC_CHART_BAR_RADIUS_COMPACT, SEMANTIC_CHART_GRID_STROKE } from "@/lib/semantic-theme";
 
 type WindowKey = "7d" | "30d" | "90d";
 
@@ -183,15 +184,15 @@ export default function CompanyAnalyticsPage({ companyId }: CompanyAnalyticsPage
                 <Text size="sm">Created, accepted, declined, and delivered task events over the selected window.</Text>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={data.throughputSeries}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={SEMANTIC_CHART_GRID_STROKE} />
                     <XAxis dataKey="date" tick={<AxisTick />} interval="preserveStartEnd" minTickGap={24} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="created" fill="var(--mantine-color-strategy-6)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="accepted" fill="var(--mantine-color-review-6)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="declined" fill="var(--mantine-color-knowmore-6)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="delivered" fill="var(--mantine-color-checklist-6)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="created" fill="var(--mantine-color-strategy-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
+                    <Bar dataKey="accepted" fill="var(--mantine-color-review-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
+                    <Bar dataKey="declined" fill="var(--mantine-color-knowmore-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
+                    <Bar dataKey="delivered" fill="var(--mantine-color-checklist-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
                   </BarChart>
                 </ResponsiveContainer>
               </Stack>
@@ -205,11 +206,11 @@ export default function CompanyAnalyticsPage({ companyId }: CompanyAnalyticsPage
                 <Text size="sm">Current active planning load by lane.</Text>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={data.laneCounts}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={SEMANTIC_CHART_GRID_STROKE} />
                     <XAxis dataKey="name" />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Bar dataKey="value" fill="var(--mantine-color-tactical-6)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" fill="var(--mantine-color-tactical-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
                   </BarChart>
                 </ResponsiveContainer>
               </Stack>
@@ -223,11 +224,11 @@ export default function CompanyAnalyticsPage({ companyId }: CompanyAnalyticsPage
                 <Text size="sm">Current active task population by canonical lifecycle state.</Text>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={data.lifecycleCounts}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={SEMANTIC_CHART_GRID_STROKE} />
                     <XAxis dataKey="name" />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Bar dataKey="value" fill="var(--mantine-color-review-6)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" fill="var(--mantine-color-review-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
                   </BarChart>
                 </ResponsiveContainer>
               </Stack>
@@ -241,11 +242,11 @@ export default function CompanyAnalyticsPage({ companyId }: CompanyAnalyticsPage
                 <Text size="sm">Current active task distribution by ICE band.</Text>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={data.scoreBuckets}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={SEMANTIC_CHART_GRID_STROKE} />
                     <XAxis dataKey="name" />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Bar dataKey="value" fill="var(--mantine-color-knowmore-6)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="value" fill="var(--mantine-color-knowmore-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
                   </BarChart>
                 </ResponsiveContainer>
               </Stack>

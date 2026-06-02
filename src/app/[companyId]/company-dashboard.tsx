@@ -32,6 +32,7 @@ import type { ProjectionFreshness } from "@/lib/webapp-projection";
 import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
 import type { DashboardInitialData } from "@/lib/server-company-page-data";
 import { buildAcceptedTaskPatch, buildArchivedTaskPatch, buildDeliveredTaskPatch } from "@/lib/candidate-lifecycle";
+import type { UnitModuleKey } from "@/lib/intelligence-unit-capabilities";
 
 type ChecklistTask = {
   id: string;
@@ -98,6 +99,15 @@ export default function CompanyDashboard({
   const [chartData, setChartData] = useState<any[]>(() => initialData?.analytics ?? []);
   const [scoreHealth, setScoreHealth] = useState<CompanyScoreHealth | null>(() => initialData?.scoreHealth ?? null);
   const [projectionFreshness, setProjectionFreshness] = useState<ProjectionFreshness | null>(() => initialData?.projectionFreshness ?? null);
+  const [enabledModules, setEnabledModules] = useState<UnitModuleKey[]>(() =>
+    Array.isArray(initialData?.enabledModules)
+      ? initialData.enabledModules.filter((key): key is UnitModuleKey => typeof key === "string")
+      : [],
+  );
+
+  const isModuleEnabled = useCallback((moduleKey: UnitModuleKey) => {
+    return enabledModules.includes(moduleKey);
+  }, [enabledModules]);
 
   useEffect(() => {
     if (!initialData) return;
@@ -136,6 +146,11 @@ export default function CompanyDashboard({
       setChartData(data.analytics);
       setScoreHealth(data.metrics?.scoreHealth ?? null);
       setProjectionFreshness(data.projection?.freshness ?? null);
+      setEnabledModules(
+        Array.isArray(data.webapp?.enabledModules)
+          ? data.webapp.enabledModules.filter((key: unknown): key is UnitModuleKey => typeof key === "string")
+          : [],
+      );
       setIsOwner(data.viewerRole === "OWNER" || data.viewerRole === "SUPERADMIN");
     } catch (err) {
       console.error("[DASHBOARD] Sync failure:", err);
@@ -300,6 +315,118 @@ export default function CompanyDashboard({
         : projectionFreshness?.status === "STALE"
           ? `Projection stale${projectionFreshness.ageMinutes != null ? ` · ${projectionFreshness.ageMinutes}m` : ""}`
           : "Projection missing";
+  const routeCards = [
+    {
+      moduleKey: "data" as UnitModuleKey,
+      href: `/${companyId}/data`,
+      icon: Database,
+      variant: "ingress" as const,
+      metric: counts.sources,
+      title: t("dashboard.data"),
+      chartData: chartSeries("sources", "dataIngress"),
+    },
+    {
+      moduleKey: "topics" as UnitModuleKey,
+      href: `/${companyId}/topics`,
+      icon: Layers,
+      variant: "synthesis" as const,
+      metric: counts.topics,
+      title: t("dashboard.topics"),
+      chartData: chartSeries("topics", "topicSynthesis"),
+    },
+    {
+      moduleKey: "goals" as UnitModuleKey,
+      href: `/${companyId}/goals`,
+      icon: Target,
+      variant: "strategy" as const,
+      metric: counts.goals,
+      title: t("dashboard.goals"),
+      chartData: chartSeries("goals", "strategicGoals", "checklist", "nba"),
+    },
+    {
+      moduleKey: "review" as UnitModuleKey,
+      href: `/${companyId}/review`,
+      icon: History,
+      variant: "review" as const,
+      metric: counts.reviewCount,
+      title: t("dashboard.review"),
+      chartData: chartSeries("reviewGateway", "checklist", "nba"),
+    },
+    {
+      moduleKey: "knowmore" as UnitModuleKey,
+      href: `/${companyId}/knowmore`,
+      icon: Sparkles,
+      variant: "knowmore" as const,
+      metric: counts.flashcards,
+      title: t("dashboard.knowmore"),
+      chartData: chartSeries("flashcards", "knowmore"),
+    },
+    {
+      moduleKey: "sales" as UnitModuleKey,
+      href: `/${companyId}/sales`,
+      icon: Briefcase,
+      variant: "strategy" as const,
+      metric: counts.sales,
+      title: t("nav.sales"),
+    },
+    {
+      moduleKey: "tactical" as UnitModuleKey,
+      href: `/${companyId}/tactical`,
+      icon: LayoutDashboard,
+      variant: "tactical" as const,
+      metric: planningCount,
+      title: t("dashboard.tactical"),
+      chartData: chartSeries("tacticalBoard", "tacticalCount", "checklistTasks", "nba"),
+    },
+    {
+      moduleKey: "checklist" as UnitModuleKey,
+      href: `/${companyId}/checklist`,
+      icon: ListCheck,
+      variant: "checklist" as const,
+      metric: counts.checklistCount,
+      title: t("dashboard.checklist"),
+      chartData: chartSeries("checklist", "nba"),
+    },
+    {
+      moduleKey: "pipeline" as UnitModuleKey,
+      href: `/${companyId}/pipeline`,
+      icon: HardHat,
+      variant: "neutral" as const,
+      metric: counts.pipelineJobs,
+      title: t("dashboard.aiQueue"),
+      chartData: chartSeries("pipelineJobs", "reviewGateway"),
+    },
+  ].filter((card) => isModuleEnabled(card.moduleKey));
+
+  const utilityCards = [
+    isModuleEnabled("knowmore")
+      ? {
+          href: `/${companyId}/search`,
+          icon: Search,
+          variant: "knowmore" as const,
+          title: t("dashboard.searchAnswers"),
+          description: t("dashboard.searchDescription"),
+        }
+      : null,
+    isModuleEnabled("review") || isModuleEnabled("pipeline")
+      ? {
+          href: `/${companyId}/workflows`,
+          icon: GitBranch,
+          variant: "review" as const,
+          title: t("dashboard.workflows"),
+          description: t("dashboard.workflowsDescription"),
+        }
+      : null,
+    isModuleEnabled("analytics") || isModuleEnabled("pipeline")
+      ? {
+          href: `/${companyId}/observability`,
+          icon: Radar,
+          variant: "strategy" as const,
+          title: t("dashboard.observability"),
+          description: t("dashboard.observabilityDescription"),
+        }
+      : null,
+  ].filter((card): card is NonNullable<typeof card> => Boolean(card));
 
   return (
     <PageShell width="full">
@@ -318,117 +445,41 @@ export default function CompanyDashboard({
           {projectionFreshnessLabel}
         </Badge>
       </Group>
-      <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }} mb="xl">
-        <LinkCard
-          href={`/${companyId}/data`}
-          icon={Database}
-          variant="ingress"
-          metric={counts.sources}
-          title={t("dashboard.data")}
-          chartData={chartSeries("sources", "dataIngress")}
-          density="compact"
-        />
-        <LinkCard
-          href={`/${companyId}/topics`}
-          icon={Layers}
-          variant="synthesis"
-          metric={counts.topics}
-          title={t("dashboard.topics")}
-          chartData={chartSeries("topics", "topicSynthesis")}
-          density="compact"
-        />
-        <LinkCard
-          href={`/${companyId}/goals`}
-          icon={Target}
-          variant="strategy"
-          metric={counts.goals}
-          title={t("dashboard.goals")}
-          chartData={chartSeries("goals", "strategicGoals", "checklist", "nba")}
-          density="compact"
-        />
-        <LinkCard
-          href={`/${companyId}/review`}
-          icon={History}
-          variant="review"
-          metric={counts.reviewCount}
-          title={t("dashboard.review")}
-          chartData={chartSeries("reviewGateway", "checklist", "nba")}
-          density="compact"
-        />
-        <LinkCard
-          href={`/${companyId}/knowmore`}
-          icon={Sparkles}
-          variant="knowmore"
-          metric={counts.flashcards}
-          title={t("dashboard.knowmore")}
-          chartData={chartSeries("flashcards", "knowmore")}
-          density="compact"
-        />
-        <LinkCard
-          href={`/${companyId}/sales`}
-          icon={Briefcase}
-          variant="strategy"
-          metric={counts.sales}
-          title={t("nav.sales")}
-          density="compact"
-        />
-        <LinkCard
-          href={`/${companyId}/tactical`}
-          icon={LayoutDashboard}
-          variant="tactical"
-          metric={planningCount}
-          title={t("dashboard.tactical")}
-          chartData={chartSeries("tacticalBoard", "tacticalCount", "checklistTasks", "nba")}
-          density="compact"
-        />
-        <LinkCard
-          href={`/${companyId}/checklist`}
-          icon={ListCheck}
-          variant="checklist"
-          metric={counts.checklistCount}
-          title={t("dashboard.checklist")}
-          chartData={chartSeries("checklist", "nba")}
-          density="compact"
-        />
-        <LinkCard
-          href={`/${companyId}/pipeline`}
-          icon={HardHat}
-          variant="neutral"
-          metric={counts.pipelineJobs}
-          title={t("dashboard.aiQueue")}
-          chartData={chartSeries("pipelineJobs", "reviewGateway")}
-          density="compact"
-        />
-      </RouteCardGrid>
+      {routeCards.length > 0 && (
+        <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }} mb="xl">
+          {routeCards.map((card) => (
+            <LinkCard
+              key={card.moduleKey}
+              href={card.href}
+              icon={card.icon}
+              variant={card.variant}
+              metric={card.metric}
+              title={card.title}
+              chartData={card.chartData}
+              density="compact"
+            />
+          ))}
+        </RouteCardGrid>
+      )}
 
-      <RouteCardGrid cols={{ base: 1, md: 3 }} mb="xl">
-        <LinkCard
-          href={`/${companyId}/search`}
-          icon={Search}
-          variant="knowmore"
-          title={t("dashboard.searchAnswers")}
-          description={t("dashboard.searchDescription")}
-          density="compact"
-        />
-        <LinkCard
-          href={`/${companyId}/workflows`}
-          icon={GitBranch}
-          variant="review"
-          title={t("dashboard.workflows")}
-          description={t("dashboard.workflowsDescription")}
-          density="compact"
-        />
-        <LinkCard
-          href={`/${companyId}/observability`}
-          icon={Radar}
-          variant="strategy"
-          title={t("dashboard.observability")}
-          description={t("dashboard.observabilityDescription")}
-          density="compact"
-        />
-      </RouteCardGrid>
+      {utilityCards.length > 0 && (
+        <RouteCardGrid cols={{ base: 1, md: 3 }} mb="xl">
+          {utilityCards.map((card) => (
+            <LinkCard
+              key={card.href}
+              href={card.href}
+              icon={card.icon}
+              variant={card.variant}
+              title={card.title}
+              description={card.description}
+              density="compact"
+            />
+          ))}
+        </RouteCardGrid>
+      )}
 
       <Stack gap={rem(60)}>
+        {isModuleEnabled("analytics") && (
         <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
             <Box>
@@ -491,7 +542,9 @@ export default function CompanyDashboard({
             />
           </MetricGrid>
         </Stack>
+        )}
 
+        {isModuleEnabled("checklist") && (
         <Stack gap="xl">
           <Group justify="space-between" align="flex-end">
             <Box>
@@ -539,9 +592,11 @@ export default function CompanyDashboard({
             <MemberList companyId={companyId} isOwner={isOwner} />
           </SimpleGrid>
         </Stack>
+        )}
       </Stack>
 
-      <Box style={{ position: "fixed", bottom: rem(40), right: rem(40), zIndex: 100 }}>
+      {isModuleEnabled("data") && (
+      <Box pos="fixed" bottom={rem(40)} right={rem(40)} style={{ zIndex: 100 }}>
         <Button
           onClick={() => router.push(`/${companyId}/data`)}
           size="lg"
@@ -552,6 +607,7 @@ export default function CompanyDashboard({
           {t("dashboard.addIntelligence")}
         </Button>
       </Box>
+      )}
     </PageShell>
   );
 }

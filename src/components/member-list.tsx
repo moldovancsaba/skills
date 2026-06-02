@@ -127,7 +127,7 @@ export function MemberList({
             <form onSubmit={handleInvite}>
               <Stack gap="xs">
                 <Group gap="xs" align="flex-end">
-                  <Box style={{ flex: 1 }}>
+                  <Box flex={1}>
                     <FormInput
                       placeholder="operator@checklist.os"
                       value={email}
@@ -158,11 +158,11 @@ export function MemberList({
                 tone={member.role === "OWNER" ? "strategy" : "neutral"}
               >
                 <Group justify="space-between" wrap="nowrap">
-                  <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
+                  <Group gap="sm" wrap="nowrap" flex={1}>
                     <Avatar color={member.role === 'OWNER' ? 'strategy' : 'ingress'}>
                       {member.email[0].toUpperCase()}
                     </Avatar>
-                    <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Box flex={1} miw={0}>
                       <LabelText truncate>{member.email}</LabelText>
                       <Group gap="xs">
                         <Group gap={4}>

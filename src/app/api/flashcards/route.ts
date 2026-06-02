@@ -4,9 +4,14 @@ import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEv
 import { prisma } from "@/lib/db";
 import { listCompanyFlashcards } from "@/lib/flashcards";
 import { verifyMembership } from "@/lib/permissions";
-import { normalizeKnowledgeScores } from "@/lib/scoring-contract";
 
 export const dynamic = "force-dynamic";
+
+function sanitizeScoreInput(value: unknown, fallback: number | null | undefined) {
+  const parsed = Number(value ?? fallback ?? 0);
+  if (!Number.isFinite(parsed)) return Number(fallback ?? 0);
+  return Math.max(0, Math.min(100, parsed));
+}
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
@@ -46,24 +51,21 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
     }
     const data = payload as any;
-    const normalizedScores = normalizeKnowledgeScores({
-      impact: data.impact ?? existing.impact,
-      confidence: data.confidenceScore ?? data.confidence ?? existing.confidenceScore ?? existing.confidence,
-      weight: data.weight ?? existing.weight,
-    });
+    const nextImpact = sanitizeScoreInput(data.impact, existing.impact);
+    const nextConfidence = sanitizeScoreInput(data.confidenceScore ?? data.confidence, existing.confidenceScore ?? existing.confidence);
+    const nextWeight = sanitizeScoreInput(data.weight, existing.weight);
 
     const updated = await prisma.flashcard.update({
       where: { id },
       data: {
         title: data.title ?? existing.title,
         body: data.body ?? existing.body,
-        confidence: normalizedScores.confidence,
-        confidenceScore: normalizedScores.confidenceScore,
-        impact: normalizedScores.impact,
-        weight: normalizedScores.weight,
-        iceScore: normalizedScores.iceScore,
+        confidence: nextConfidence,
+        confidenceScore: nextConfidence,
+        impact: nextImpact,
+        weight: nextWeight,
         processingStatus: data.processingStatus ?? existing.processingStatus,
-        activityState: data.activityState ?? existing.activityState,
+        activityState: data.activityState ?? "STALE",
         updatedAt: new Date(),
       },
     });

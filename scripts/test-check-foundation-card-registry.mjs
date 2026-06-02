@@ -16,7 +16,7 @@ const expectedCardTypes = [
   "opportunitycard",
   "projectcard",
   "logiccard",
-  "miniappPacket",
+  "miniappcard",
 ];
 
 const expectedModules = [

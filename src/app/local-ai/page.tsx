@@ -10,6 +10,7 @@ import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
 import { useI18n, type UiLanguage } from "@/lib/ui-i18n";
 import { getPipelineJobLabel, translatePipelineReason } from "@/lib/pipeline-ui-i18n";
+import { SEMANTIC_CHART_BAR_RADIUS, SEMANTIC_CHART_GRID_STROKE, getSemanticListItemStyle } from "@/lib/semantic-theme";
 
 const STATUS_API_URL = "http://127.0.0.1:10006/api/status";
 const RAW_HEALTH_URL = "http://127.0.0.1:10005/health";
@@ -269,7 +270,7 @@ function ChartFrame({ height, children }: ChartFrameProps) {
   }, []);
 
   return (
-    <Box ref={hostRef} h={height} w="100%" style={{ minWidth: 0 }}>
+    <Box ref={hostRef} h={height} w="100%" miw={0}>
       {isReady ? children : null}
     </Box>
   );
@@ -525,11 +526,7 @@ export default function LocalAiMissionControlPage() {
                       justify="space-between"
                       align="flex-start"
                       p="sm"
-                      style={{
-                        border: "1px solid var(--border-primary)",
-                        borderRadius: "12px",
-                        background: "rgba(255,255,255,0.02)",
-                      }}
+                      style={getSemanticListItemStyle("neutral")}
                     >
                       <Stack gap={2} flex={1}>
                         <Group gap="xs">
@@ -599,11 +596,11 @@ export default function LocalAiMissionControlPage() {
                 <ChartFrame height={320}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={cardCountChartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
-                      <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
+                      <CartesianGrid vertical={false} strokeDasharray="4 4" stroke={SEMANTIC_CHART_GRID_STROKE} />
                       <XAxis dataKey="family" tickLine={false} axisLine={false} />
                       <YAxis tickLine={false} axisLine={false} />
                       <Tooltip formatter={(value) => chartTooltipFormatter(value)} />
-                      <Bar dataKey="count" fill="var(--mantine-color-orange-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} />
+                      <Bar dataKey="count" fill="var(--mantine-color-orange-6)" radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartFrame>
@@ -620,11 +617,11 @@ export default function LocalAiMissionControlPage() {
                   <ChartFrame height={320}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={inventoryDeltaChartData} margin={{ top: 8, right: 16, left: -20, bottom: 8 }}>
-                        <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
+                        <CartesianGrid vertical={false} strokeDasharray="4 4" stroke={SEMANTIC_CHART_GRID_STROKE} />
                         <XAxis dataKey="hour" tickLine={false} axisLine={false} minTickGap={24} />
                         <YAxis tickLine={false} axisLine={false} />
                         <Tooltip formatter={(value) => deltaTooltipFormatter(value)} labelFormatter={(value) => `Hour: ${value}`} />
-                        <Bar dataKey="totalCardsDelta" fill="var(--mantine-color-orange-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} name="Total cards" />
+                        <Bar dataKey="totalCardsDelta" fill="var(--mantine-color-orange-6)" radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} name="Total cards" />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartFrame>
@@ -641,11 +638,11 @@ export default function LocalAiMissionControlPage() {
                   <ChartFrame height={320}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={queueByCompanyChartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
-                        <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
+                        <CartesianGrid vertical={false} strokeDasharray="4 4" stroke={SEMANTIC_CHART_GRID_STROKE} />
                         <XAxis dataKey="company" tickLine={false} axisLine={false} interval={0} angle={-15} textAnchor="end" height={72} />
                         <YAxis tickLine={false} axisLine={false} />
                         <Tooltip formatter={(value) => chartTooltipFormatter(value)} />
-                        <Bar dataKey="jobs" fill="var(--mantine-color-cyan-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} />
+                        <Bar dataKey="jobs" fill="var(--mantine-color-cyan-6)" radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartFrame>
@@ -1024,14 +1021,14 @@ export default function LocalAiMissionControlPage() {
                     <ChartFrame height={220}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={inventoryDeltaChartData} margin={{ top: 8, right: 8, left: -24, bottom: 8 }}>
-                          <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
+                          <CartesianGrid vertical={false} strokeDasharray="4 4" stroke={SEMANTIC_CHART_GRID_STROKE} />
                           <XAxis dataKey="hour" tickLine={false} axisLine={false} minTickGap={24} />
                           <YAxis tickLine={false} axisLine={false} />
                           <Tooltip formatter={(value) => deltaTooltipFormatter(value)} labelFormatter={(value) => `Hour: ${value}`} />
                           <Bar
                             dataKey={`${entry.key}Delta`}
                             fill={entry.color}
-                            radius={[10, 10, 0, 0]}
+                            radius={SEMANTIC_CHART_BAR_RADIUS}
                             isAnimationActive={false}
                             name={entry.label}
                           />

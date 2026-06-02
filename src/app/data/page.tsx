@@ -4,10 +4,10 @@ import { Title } from "@/components/ui/typography";
 import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { usePathname, useRouter } from "next/navigation";
-import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconFileText as ScrollText, IconInfoCircle as Info, IconFileText as FileText, IconTrash as Trash2, IconPencil as Edit2 } from "@tabler/icons-react";
+import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconInfoCircle as Info, IconFileText as FileText, IconTrash as Trash2, IconPencil as Edit2 } from "@tabler/icons-react";
 import { 
   Stack, Group, Button, Box, ThemeIcon, Badge, Textarea, FileInput, rem, Center, Loader, Divider, ActionIcon, Tooltip } from "@mantine/core";
-import { EmptyState, MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
+import { EmptyState, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 import { HashtagInput } from "@/components/ui/hashtag-input";
 import { SourceDataCard } from "@/components/source-data-card";
@@ -320,11 +320,6 @@ export default function GlobalDataCollectionPage() {
             {errorMessage}
           </Notice>
         )}
-
-        <MetricGrid cols={{ base: 1, sm: 2 }}>
-          <MetricCard icon={ScrollText} label="Ingested Units" value={sources.length} color="ingress" />
-          <MetricCard icon={FileUp} label="Contextual Files" value={items.filter(i => i.type === "file").length} color="tactical" />
-        </MetricGrid>
 
         <Stack gap="md">
           <Group justify="space-between" align="center">

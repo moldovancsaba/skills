@@ -8,11 +8,11 @@ export type UnitPermission =
   | "card.create"
   | "card.update"
   | "local.job.retry"
-  | "miniapp.packet.approve"
-  | "miniapp.packet.publish"
+  | "miniapp.card.approve"
+  | "miniapp.card.publish"
   | "miniapp.publish.rollback";
 
-export type UnitAuditTargetType = "unit" | "block" | "module" | "card" | "local_job" | "miniapp_packet";
+export type UnitAuditTargetType = "unit" | "block" | "module" | "card" | "local_job" | "miniappcard";
 
 type PermissionCheckContext = {
   companyId: string;
@@ -33,8 +33,8 @@ const ROLE_PERMISSION_MATRIX: Record<Role, UnitPermission[]> = {
     "card.create",
     "card.update",
     "local.job.retry",
-    "miniapp.packet.approve",
-    "miniapp.packet.publish",
+    "miniapp.card.approve",
+    "miniapp.card.publish",
     "miniapp.publish.rollback",
   ],
   OWNER: [
@@ -43,16 +43,16 @@ const ROLE_PERMISSION_MATRIX: Record<Role, UnitPermission[]> = {
     "card.create",
     "card.update",
     "local.job.retry",
-    "miniapp.packet.approve",
-    "miniapp.packet.publish",
+    "miniapp.card.approve",
+    "miniapp.card.publish",
     "miniapp.publish.rollback",
   ],
   ADMIN: [
     "card.create",
     "card.update",
     "local.job.retry",
-    "miniapp.packet.approve",
-    "miniapp.packet.publish",
+    "miniapp.card.approve",
+    "miniapp.card.publish",
   ],
   MEMBER: [
     "card.create",

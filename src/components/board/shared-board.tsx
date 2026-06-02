@@ -246,14 +246,14 @@ export function SharedBoard<T extends BoardCardRecord>({
         setBoardItems(items);
       }}
     >
-      <Box style={{ width: "100%", maxWidth: "100%", overflowX: "auto", overflowY: "hidden" }}>
+      <Box w="100%" maw="100%" style={{ overflowX: "auto", overflowY: "hidden" }}>
         <Group
           wrap="nowrap"
           align="flex-start"
           gap="lg"
           h="100%"
           pt="md"
-          style={{ minWidth: "max-content" }}
+          miw="max-content"
         >
           {columns.map((column) => {
             const columnItems = getColumnItems(effectiveItems, column.key);

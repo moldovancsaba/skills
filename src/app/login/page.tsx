@@ -27,7 +27,7 @@ function LoginContent() {
 
   return (
     <PageShell width="xl">
-      <Center style={{ minHeight: "calc(100vh - 200px)" }}>
+      <Center mih="calc(100vh - 200px)">
         <Container size="xs" w="100%">
           <Stack gap="xl">
             <Box ta="center">

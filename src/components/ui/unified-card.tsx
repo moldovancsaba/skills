@@ -156,7 +156,7 @@ export function UnifiedCardHeader({
   return (
     <Stack gap="md" mb="md">
       <Group justify="space-between" align="flex-start" wrap="nowrap">
-        <Stack gap="sm" style={{ flex: 1 }}>
+        <Stack gap="sm" flex={1}>
           {supporting && <Group gap="xs" wrap="wrap">{supporting}</Group>}
           {(title || description) && (
             <Stack gap={4}>

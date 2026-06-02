@@ -29,7 +29,6 @@ import { MemberList } from "@/components/member-list";
 import { ExpertTipCard } from "@/components/expert-tip-card";
 import { getDashboardExpertTip } from "@/content/help";
 import { parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
-import { calculateKnowledgeIceScore } from "@/lib/scoring-contract";
 import { getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 import React from "react";
 import type { KnowmoreInitialData } from "@/lib/server-knowmore-page-data";
@@ -370,28 +369,6 @@ export default function KnowmoreClient({
 
   const filteredFlashcards = flashcards;
 
-  const summary = useMemo(() => {
-    const visibleCards = intelligenceFilter === "ALL"
-      ? flashcards
-      : flashcards.filter((f) => f.intelligenceType === intelligenceFilter);
-    if (visibleCards.length === 0) return { total: 0, reviewed: 0, avgConfidence: 0, avgIceScore: 0, avgEase: 0 };
-
-    const totals = visibleCards.reduce((acc, fc) => {
-      acc.confidence += fc.confidenceScore;
-      acc.impact += fc.impact;
-      acc.weight += fc.weight;
-      if (["ACCEPTED", "DECLINED"].includes(fc.processingStatus)) acc.reviewed += 1;
-      return acc;
-    }, { confidence: 0, impact: 0, weight: 0, reviewed: 0 });
-
-    return {
-      total: visibleCards.length,
-      reviewed: totals.reviewed,
-      avgConfidence: Math.round(totals.confidence / visibleCards.length),
-      avgIceScore: Math.round(visibleCards.reduce((sum, f) => sum + calculateKnowledgeIceScore(f), 0) / visibleCards.length),
-      avgEase: Math.round(totals.weight / visibleCards.length),
-    };
-  }, [flashcards, intelligenceFilter]);
   const selectedFlashcard = flashcards.find((card) => card.id === selectedFlashcardId) ?? null;
 
   const handleActionSubmit = useCallback(async (flashcardId: string) => {
@@ -587,11 +564,11 @@ export default function KnowmoreClient({
         ) : null}
 
         <MetricGrid>
-          <MetricCard icon={Sparkles} color="knowmore" label="Knowledge Units" value={snapshot?.knowmoreCount ?? summary.total} detail="Derived evidence" />
+          <MetricCard icon={Sparkles} color="knowmore" label="Knowledge Units" value={snapshot?.knowmoreCount ?? 0} detail="Derived evidence" />
           <MetricCard icon={TrendingUp} color="review" label="Feedback Yield" value={`${snapshot?.synthesisYield ?? 85}%`} detail="Calibrated units" />
-          <MetricCard icon={ShieldCheck} color="strategy" label="Confidence" value={`${snapshot?.confidenceAvg ?? summary.avgConfidence}%`} detail="System certainty" />
-          <MetricCard icon={Target} color="knowmore" label="Avg ICE" value={snapshot?.iceScoreAvg ?? summary.avgIceScore} detail="Strategic priority" />
-          <MetricCard icon={Bolt} color="checklist" label="Avg Ease" value={snapshot?.easeScoreAvg ?? summary.avgEase} detail="Implementation path" />
+          <MetricCard icon={ShieldCheck} color="strategy" label="Confidence" value={`${snapshot?.confidenceAvg ?? 0}%`} detail="System certainty" />
+          <MetricCard icon={Target} color="knowmore" label="Avg ICE" value={snapshot?.iceScoreAvg ?? 0} detail="Strategic priority" />
+          <MetricCard icon={Bolt} color="checklist" label="Avg Ease" value={snapshot?.easeScoreAvg ?? 0} detail="Implementation path" />
         </MetricGrid>
 
         <Group gap="sm">

@@ -4,6 +4,8 @@ import { verifyMembership } from "@/lib/permissions";
 import { APP_VERSION, BRAIN_VERSION } from "@/lib/release";
 import { createRequestProfiler } from "@/lib/request-profile";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
+import { resolveUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
+import { resolveEffectiveUnitCapabilities } from "@/lib/check-foundation";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,7 @@ export async function GET(
 
   try {
     const cid = companyId;
-    const [company, members, snapshot] = await profiler.measure("loadDashboardModels", () => Promise.all([
+    const [company, members, snapshot, classScoutInstance, compareInstance] = await profiler.measure("loadDashboardModels", () => Promise.all([
       prisma.company.findUnique({ where: { id: cid } }),
       prisma.user.findMany({
         where: { companyId: cid },
@@ -40,10 +42,36 @@ export async function GET(
         },
       }),
       prisma.intelligenceSnapshot.findUnique({ where: { companyId: cid } }),
+      prisma.destinationInstance.findFirst({
+        where: {
+          companyId: cid,
+          destinationKey: "classscout",
+          isActive: true,
+        },
+        select: { id: true },
+      }),
+      prisma.destinationInstance.findFirst({
+        where: {
+          companyId: cid,
+          destinationKey: "compare",
+          isActive: true,
+        },
+        select: { id: true },
+      }),
     ]));
 
     const scoreHealth = snapshot?.scoreHealth && typeof snapshot.scoreHealth === "object" ? snapshot.scoreHealth : null;
     const readModel = buildCompanyReadModel(snapshot);
+    const capabilities = resolveUnitCapabilities({
+      workerConfig: company?.workerConfig,
+      hasClassScoutDestination: Boolean(classScoutInstance),
+      hasCompareDestination: Boolean(compareInstance),
+    });
+    const effectiveCapabilities = resolveEffectiveUnitCapabilities({
+      workerConfig: company?.workerConfig,
+      hasClassScoutDestination: Boolean(classScoutInstance),
+      hasCompareDestination: Boolean(compareInstance),
+    });
 
     const response = NextResponse.json({
       company,
@@ -75,6 +103,15 @@ export async function GET(
         activeTask: snapshot?.activeTask || "Scanning...",
         stage: snapshot?.stage || "STANDBY",
         updatedAt: snapshot?.updatedAt
+      },
+      webapp: {
+        profile: capabilities.profile,
+        modules: capabilities.modules,
+        enabledBlocks: effectiveCapabilities.enabledBlocks,
+        enabledModules: effectiveCapabilities.enabledModules,
+        enabledMiniapps: effectiveCapabilities.enabledMiniapps,
+        effectiveSource: effectiveCapabilities.source,
+        effectiveWarnings: effectiveCapabilities.warnings,
       },
       viewerRole: auth.membership.role,
       ...(profiler.enabled ? { profile: profiler.getSummary() } : {}),

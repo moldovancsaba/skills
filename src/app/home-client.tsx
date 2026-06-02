@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 import { useI18n } from "@/lib/ui-i18n";
 import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
+import type { UnitModuleKey } from "@/lib/intelligence-unit-capabilities";
 
 type HomeCompany = {
   id: string;
@@ -30,6 +31,9 @@ type HomeCompany = {
     generatedAt: string | null;
   };
   charts?: Record<string, Array<{ date: string; value: number }>>;
+  enabledModules?: string[];
+  enabledBlocks?: string[];
+  enabledMiniapps?: string[];
 };
 
 type HomeSession = {
@@ -329,6 +333,83 @@ export default function Home({
               companies.map((c: any) => {
                 const checklistMetric = Number(c.metrics?.checklist ?? 0);
                 const planningMetric = Math.max(Number(c.metrics?.tactical ?? 0), checklistMetric);
+                const enabledModules = Array.isArray(c.enabledModules)
+                  ? c.enabledModules.filter((key: unknown): key is UnitModuleKey => typeof key === "string")
+                  : [];
+                const isModuleEnabled = (moduleKey: UnitModuleKey) => enabledModules.includes(moduleKey);
+                const routeCards = [
+                  {
+                    moduleKey: "data" as UnitModuleKey,
+                    href: `/${c.id}/data`,
+                    icon: Database,
+                    variant: "ingress" as const,
+                    metric: c.metrics?.data ?? 0,
+                    title: t("nav.data"),
+                    chartData: c.charts?.data ?? [],
+                  },
+                  {
+                    moduleKey: "topics" as UnitModuleKey,
+                    href: `/${c.id}/topics`,
+                    icon: Layers,
+                    variant: "synthesis" as const,
+                    metric: c.metrics?.topics ?? 0,
+                    title: t("nav.topics"),
+                    chartData: c.charts?.topics ?? [],
+                  },
+                  {
+                    moduleKey: "goals" as UnitModuleKey,
+                    href: `/${c.id}/goals`,
+                    icon: Target,
+                    variant: "strategy" as const,
+                    metric: c.metrics?.goals ?? 0,
+                    title: t("nav.goals"),
+                    chartData: c.charts?.goals ?? [],
+                  },
+                  {
+                    moduleKey: "review" as UnitModuleKey,
+                    href: `/${c.id}/review`,
+                    icon: History,
+                    variant: "review" as const,
+                    metric: c.metrics?.review ?? 0,
+                    title: t("nav.review"),
+                    chartData: c.charts?.review ?? [],
+                  },
+                  {
+                    moduleKey: "knowmore" as UnitModuleKey,
+                    href: `/${c.id}/knowmore`,
+                    icon: Sparkles,
+                    variant: "knowmore" as const,
+                    metric: c.metrics?.knowmore ?? 0,
+                    title: t("nav.knowmore"),
+                    chartData: c.charts?.knowmore ?? [],
+                  },
+                  {
+                    moduleKey: "sales" as UnitModuleKey,
+                    href: `/${c.id}/sales`,
+                    icon: Briefcase,
+                    variant: "strategy" as const,
+                    metric: c.metrics?.sales ?? 0,
+                    title: t("nav.sales"),
+                  },
+                  {
+                    moduleKey: "tactical" as UnitModuleKey,
+                    href: `/${c.id}/tactical`,
+                    icon: LayoutDashboard,
+                    variant: "tactical" as const,
+                    metric: planningMetric,
+                    title: t("nav.tactical"),
+                    chartData: c.charts?.tactical ?? [],
+                  },
+                  {
+                    moduleKey: "checklist" as UnitModuleKey,
+                    href: `/${c.id}/checklist`,
+                    icon: ListCheck,
+                    variant: "checklist" as const,
+                    metric: checklistMetric,
+                    title: t("nav.checklist"),
+                    chartData: c.charts?.checklist ?? [],
+                  },
+                ].filter((card) => isModuleEnabled(card.moduleKey));
 
                 return (
                   <Box key={c.id}>
@@ -368,79 +449,22 @@ export default function Home({
                     </Group>
                     <Divider mb="md" />
 
-                    <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }}>
-                      <LinkCard
-                        href={`/${c.id}/data`}
-                        icon={Database}
-                        variant="ingress"
-                        metric={c.metrics?.data ?? 0}
-                        title={t("nav.data")}
-                        chartData={c.charts?.data ?? []}
-                        density="compact"
-                      />
-                      <LinkCard
-                        href={`/${c.id}/topics`}
-                        icon={Layers}
-                        variant="synthesis"
-                        metric={c.metrics?.topics ?? 0}
-                        title={t("nav.topics")}
-                        chartData={c.charts?.topics ?? []}
-                        density="compact"
-                      />
-                      <LinkCard
-                        href={`/${c.id}/goals`}
-                        icon={Target}
-                        variant="strategy"
-                        metric={c.metrics?.goals ?? 0}
-                        title={t("nav.goals")}
-                        chartData={c.charts?.goals ?? []}
-                        density="compact"
-                      />
-                      <LinkCard
-                        href={`/${c.id}/review`}
-                        icon={History}
-                        variant="review"
-                        metric={c.metrics?.review ?? 0}
-                        title={t("nav.review")}
-                        chartData={c.charts?.review ?? []}
-                        density="compact"
-                      />
-                      <LinkCard
-                        href={`/${c.id}/knowmore`}
-                        icon={Sparkles}
-                        variant="knowmore"
-                        metric={c.metrics?.knowmore ?? 0}
-                        title={t("nav.knowmore")}
-                        chartData={c.charts?.knowmore ?? []}
-                        density="compact"
-                      />
-                      <LinkCard
-                        href={`/${c.id}/sales`}
-                        icon={Briefcase}
-                        variant="strategy"
-                        metric={c.metrics?.sales ?? 0}
-                        title={t("nav.sales")}
-                        density="compact"
-                      />
-                      <LinkCard
-                        href={`/${c.id}/tactical`}
-                        icon={LayoutDashboard}
-                        variant="tactical"
-                        metric={planningMetric}
-                        title={t("nav.tactical")}
-                        chartData={c.charts?.tactical ?? []}
-                        density="compact"
-                      />
-                      <LinkCard
-                        href={`/${c.id}/checklist`}
-                        icon={ListCheck}
-                        variant="checklist"
-                        metric={checklistMetric}
-                        title={t("nav.checklist")}
-                        chartData={c.charts?.checklist ?? []}
-                        density="compact"
-                      />
-                    </RouteCardGrid>
+                    {routeCards.length > 0 && (
+                      <RouteCardGrid cols={{ base: 1, sm: 2, xl: 4 }}>
+                        {routeCards.map((card) => (
+                          <LinkCard
+                            key={card.moduleKey}
+                            href={card.href}
+                            icon={card.icon}
+                            variant={card.variant}
+                            metric={card.metric}
+                            title={card.title}
+                            chartData={card.chartData}
+                            density="compact"
+                          />
+                        ))}
+                      </RouteCardGrid>
+                    )}
                   </Box>
                 );
               })}

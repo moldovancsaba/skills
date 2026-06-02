@@ -110,8 +110,8 @@
       "accessibleDescription": "Logiccard for AI queue orchestration and workflow state."
     },
     {
-      "cardType": "miniappPacket",
-      "displayName": "Miniapp Packet",
+      "cardType": "miniappcard",
+      "displayName": "Miniappcard",
       "owningBlock": "miniapp",
       "owningModule": "miniapp",
       "lifecycleStates": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "PUBLISHING", "PUBLISHED", "FAILED", "ARCHIVED"],
@@ -119,7 +119,7 @@
       "evidenceRequired": true,
       "lineageRequired": true,
       "allowedBoards": ["miniapp", "review"],
-      "accessibleDescription": "Miniapp packet card for publish-ready public service content."
+      "accessibleDescription": "Miniappcard for publish-ready public service content."
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMembership } from "@/lib/permissions";
-import { extractVisitorCandidate } from "@/lib/visitor-candidate-pipeline";
+import { queueVisitorLocalIntent } from "@/lib/visitor-intent-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,12 @@ export async function POST(
   if (auth.error) return auth.error;
 
   const { visitorKey, id } = await params;
-  const facts = await extractVisitorCandidate(companyId, visitorKey, id);
-  if (!facts) return NextResponse.json({ ok: false, error: "Candidate not found" }, { status: 404 });
-  return NextResponse.json({ ok: true, visitorKey, candidateId: id, facts });
+  const receipt = await queueVisitorLocalIntent({
+    companyId,
+    visitorKey,
+    intentKind: "candidate.extract",
+    candidateId: id,
+    destinationKey: typeof body.destinationKey === "string" ? body.destinationKey.trim() : null,
+  });
+  return NextResponse.json(receipt, { status: 202 });
 }

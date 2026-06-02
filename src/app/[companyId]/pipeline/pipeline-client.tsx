@@ -453,7 +453,7 @@ export default function PipelineQueuePage({ companyId }: PipelineQueuePageProps)
                                     <UnifiedCardHeader
                                       clampTitle={false}
                                       supporting={
-                                        <Group justify="space-between" wrap="nowrap" style={{ width: "100%" }}>
+                                        <Group justify="space-between" wrap="nowrap" w="100%">
                                           <Group gap="xs">
                                             <ThemeIcon color={column.tone}>
                                               <Icon size={15} />

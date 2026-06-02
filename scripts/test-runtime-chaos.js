@@ -50,6 +50,16 @@ function main() {
       entityType: "PIPELINE_SLICE",
       metadata: { parentJobId: "parent-1", executionOptions: { selectionOffset: 1 } },
     },
+    {
+      id: "burst-child-1",
+      entityType: "PIPELINE_SLICE",
+      sourceSignal: "human-approved-burst:burst-1",
+      metadata: {
+        lane: "HUMAN_APPROVED_BURST_CHILD",
+        parentBurstId: "burst-1",
+        executionOptions: { selectionOffset: 0 },
+      },
+    },
   ]);
   assert.equal(
     anomalies.some((entry) => entry.type === "ORPHAN_CHILD"),
@@ -60,6 +70,11 @@ function main() {
     anomalies.some((entry) => entry.type === "DUPLICATE_CHILD_OFFSET"),
     true,
     "chaos drill must catch duplicate child offsets under one parent",
+  );
+  assert.equal(
+    anomalies.some((entry) => entry.jobId === "burst-child-1"),
+    false,
+    "human-approved burst child shards must not be treated as low-memory decomposition orphans",
   );
 
   const mismatchReport = buildRuntimeVerificationReport({

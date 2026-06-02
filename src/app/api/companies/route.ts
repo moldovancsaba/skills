@@ -8,6 +8,7 @@ import { validateCompanyProfile } from "@/lib/profile-validation";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
 import { createRequestProfiler } from "@/lib/request-profile";
 import { provisionCompany } from "@/lib/check-lifecycle/provisioning-engine";
+import { resolveEffectiveUnitCapabilities } from "@/lib/check-foundation";
 
 export const dynamic = 'force-dynamic';
 
@@ -49,9 +50,19 @@ export async function GET(request: NextRequest) {
         description: true,
         targetMarket: true,
         mainGoal: true,
+        workerConfig: true,
         intelligenceSnapshot: {
           select: {
             webappProjection: true,
+          },
+        },
+        destinationInstances: {
+          where: {
+            isActive: true,
+            destinationKey: { in: ["classscout", "compare"] },
+          },
+          select: {
+            destinationKey: true,
           },
         },
       },
@@ -61,6 +72,12 @@ export async function GET(request: NextRequest) {
     const enrichedCompanies = companies.map((company) => {
       const snapshot = company.intelligenceSnapshot;
       const readModel = buildCompanyReadModel(snapshot);
+      const destinationKeys = new Set(company.destinationInstances.map((instance) => instance.destinationKey));
+      const effectiveCapabilities = resolveEffectiveUnitCapabilities({
+        workerConfig: company.workerConfig,
+        hasClassScoutDestination: destinationKeys.has("classscout"),
+        hasCompareDestination: destinationKeys.has("compare"),
+      });
       return {
         ...company,
         metrics: {
@@ -87,6 +104,9 @@ export async function GET(request: NextRequest) {
           tactical: [],
           checklist: [],
         },
+        enabledModules: effectiveCapabilities.enabledModules,
+        enabledBlocks: effectiveCapabilities.enabledBlocks,
+        enabledMiniapps: effectiveCapabilities.enabledMiniapps,
       };
     });
 

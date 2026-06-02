@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from "react";
-import { Badge, Group, Stack } from "@mantine/core";
+import { Badge, Center, Group, Loader, Stack } from "@mantine/core";
 import { SharedBoard } from "@/components/board/shared-board";
 import { OpportunityReviewCard, type Opportunitycard, type OpportunitycardActionMode } from "@/components/opportunity-review-card";
 import { UnifiedCardBody } from "@/components/ui/unified-card";
@@ -23,6 +23,7 @@ type SalesBoardReorderPayload = {
 };
 
 type Props = {
+  companyId: string;
   items: SalesOpportunitycard[];
   onAction: (itemId: string, action: string, payload?: Record<string, unknown>) => Promise<void> | void;
   onReorder: (payload: SalesBoardReorderPayload) => void | Promise<void>;
@@ -50,8 +51,10 @@ function createDraft(item: SalesOpportunitycard): DraftState {
   };
 }
 
-export function SalesBoard({ items, onAction, onReorder }: Props) {
+export function SalesBoard({ companyId, items, onAction, onReorder }: Props) {
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailItem, setDetailItem] = useState<SalesOpportunitycard | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [actionCardId, setActionCardId] = useState<string | null>(null);
   const [actionMode, setActionMode] = useState<OpportunitycardActionMode | null>(null);
   const [annotation, setAnnotation] = useState("");
@@ -78,11 +81,6 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
     [items],
   );
 
-  const detailItem = useMemo(
-    () => (detailId ? items.find((item) => item.id === detailId) || null : null),
-    [detailId, items],
-  );
-
   const resetActionState = useCallback(() => {
     setActionCardId(null);
     setActionMode(null);
@@ -97,6 +95,24 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
     setDeclineReason("BAD_FIT");
     setDraft(createDraft(item));
   }, []);
+
+  const openDetail = useCallback(async (item: SalesOpportunitycard) => {
+    setDetailId(item.id);
+    setDetailItem(null);
+    setDetailLoading(true);
+    resetActionState();
+    try {
+      const response = await fetch(`/api/opportunitycards?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(item.id)}`);
+      if (!response.ok) {
+        setDetailItem(item);
+        return;
+      }
+      const data = await response.json();
+      setDetailItem(data);
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [companyId, resetActionState]);
 
   const handleSubmit = useCallback(async (itemId: string, mode: OpportunitycardActionMode) => {
     setBusyActionId(itemId);
@@ -113,6 +129,7 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
       resetActionState();
       if ((mode === "DECLINE" || mode === "ARCHIVE") && detailId === itemId) {
         setDetailId(null);
+        setDetailItem(null);
       }
     } finally {
       setBusyActionId(null);
@@ -122,9 +139,10 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
   return (
     <>
       <UnifiedCardModal
-        opened={Boolean(detailItem)}
+        opened={Boolean(detailId)}
         onClose={() => {
           setDetailId(null);
+          setDetailItem(null);
           resetActionState();
         }}
         tone={detailItem ? getOpportunityLaneMeta(detailItem.kanbanColumn).tone : "neutral"}
@@ -133,7 +151,11 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
         badge={detailItem ? `ICE ${Math.round(detailItem.iceScore)}` : undefined}
         size="xl"
       >
-        {detailItem ? (
+        {detailLoading ? (
+          <Center py="xl">
+            <Loader color="strategy" />
+          </Center>
+        ) : detailItem ? (
           <OpportunityReviewCard
             item={detailItem}
             detailMode
@@ -169,14 +191,14 @@ export function SalesBoard({ items, onAction, onReorder }: Props) {
         getCardTone={(item) => getOpportunityLaneMeta(item.kanbanColumn).tone}
         renderCard={(item) => (
           <UnifiedCardBody>
-            <Stack gap="xs" onClick={() => setDetailId(item.id)}>
+            <Stack gap="xs" onClick={() => void openDetail(item)}>
               <Text size="xs" lineClamp={2}>{item.companyName}</Text>
               <Text size="xs" c="dimmed" lineClamp={2}>{item.title}</Text>
               <Group justify="space-between" wrap="nowrap">
                 <Badge size="xs" variant="light" color={item.processingStatus === "ACCEPTED" ? "checklist" : "strategy"}>
                   {item.opportunityType}
                 </Badge>
-                <Text size="xs" c="strategy" style={{ fontVariantNumeric: "tabular-nums" }}>
+                <Text size="xs" c="strategy" ff="monospace">
                   ICE {Math.round(item.iceScore)}
                 </Text>
               </Group>

@@ -843,7 +843,7 @@ export function UnitProjectBoardClient({
         <Stack gap="sm">
           <Group align="flex-end" gap="sm" wrap="wrap">
             <TextInput
-              style={{ minWidth: 260 }}
+              miw={260}
               label="Search cards"
               placeholder="Title, assignee, notes..."
               value={searchQuery}
@@ -851,7 +851,7 @@ export function UnitProjectBoardClient({
             />
             <Select
               label="Priority"
-              style={{ minWidth: 190 }}
+              miw={190}
               data={PRIORITY_OPTIONS}
               value={boardFilter.priority}
               onChange={(value) => {
@@ -862,7 +862,7 @@ export function UnitProjectBoardClient({
             />
             <Select
               label="Source type"
-              style={{ minWidth: 200 }}
+              miw={200}
               data={SOURCE_TYPE_OPTIONS}
               value={boardFilter.sourceType}
               onChange={(value) => {

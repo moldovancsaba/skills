@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMembership } from "@/lib/permissions";
-import { runMiniappBurstUntilTarget } from "@/lib/miniapp-burst-controller";
+import { queueVisitorLocalIntent } from "@/lib/visitor-intent-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -23,17 +23,11 @@ export async function POST(
   if (auth.error) return auth.error;
 
   const { visitorKey } = await params;
-  try {
-    const result = await runMiniappBurstUntilTarget({
-      companyId,
-      visitorKey,
-      destinationKeyHint: asString(body.destinationKey) || undefined,
-      targetVisibleCards: Number(body.targetVisibleCards) || 100,
-      maxCycles: Number(body.maxCycles) || 1,
-      tasksPerCycle: Number(body.tasksPerCycle) || 3,
-    });
-    return NextResponse.json(result);
-  } catch (error) {
-    return NextResponse.json({ ok: false, error: String(error) }, { status: 400 });
-  }
+  const receipt = await queueVisitorLocalIntent({
+    companyId,
+    visitorKey,
+    intentKind: "research.burst",
+    destinationKey: asString(body.destinationKey) || null,
+  });
+  return NextResponse.json(receipt, { status: 202 });
 }

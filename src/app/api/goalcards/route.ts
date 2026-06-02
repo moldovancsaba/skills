@@ -3,7 +3,12 @@ import { recordDecisionEvent, recordInteractionEventFromRequest, recordOutcomeEv
 import { prisma } from "@/lib/db";
 import { decorateWithBoardState, SURFACE_BOARD_CONFIG, updateBoardEntityState } from "@/lib/board-state";
 import { verifyMembership } from "@/lib/permissions";
-import { normalizeGoalScores } from "@/lib/scoring-contract";
+
+function sanitizeScoreInput(value: unknown, fallback: number | null | undefined) {
+  const parsed = Number(value ?? fallback ?? 0);
+  if (!Number.isFinite(parsed)) return Number(fallback ?? 0);
+  return Math.max(0, Math.min(100, parsed));
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -57,17 +62,17 @@ export async function GET(req: NextRequest) {
       intelligenceType: true,
       iceScore: true,
     },
-    ...(safeLimit ? { skip: safeOffset, take: safeLimit } : {}),
+    ...(safeLimit ? { skip: safeOffset, take: safeLimit + 1 } : {}),
   });
 
-  const decorated = await decorateWithBoardState(companyId, SURFACE_BOARD_CONFIG.goals, goalcards);
+  const pageGoalcards = safeLimit ? goalcards.slice(0, safeLimit) : goalcards;
+  const decorated = await decorateWithBoardState(companyId, SURFACE_BOARD_CONFIG.goals, pageGoalcards);
 
   if (safeLimit) {
-    const total = await prisma.goalcard.count({ where: baseWhere });
     return NextResponse.json({
       items: decorated,
-      total,
-      hasMore: safeOffset + decorated.length < total,
+      total: null,
+      hasMore: goalcards.length > safeLimit,
     });
   }
 
@@ -86,11 +91,9 @@ export async function POST(req: NextRequest) {
     const auth = await verifyMembership(req, companyId);
     if (auth.error) return auth.error;
 
-    const normalizedScores = normalizeGoalScores({
-      impact: body.impact ?? 5,
-      confidence: body.confidenceScore ?? body.confidence ?? 5,
-      weight: body.weight ?? 5,
-    });
+    const confidenceScore = sanitizeScoreInput(body.confidenceScore ?? body.confidence, 5);
+    const impact = sanitizeScoreInput(body.impact, 5);
+    const weight = sanitizeScoreInput(body.weight, 5);
 
     const goalcard = await prisma.goalcard.create({
       data: {
@@ -99,12 +102,13 @@ export async function POST(req: NextRequest) {
         body: content || "",
         hashtags: hashtags || [],
         intelligenceType: intelligenceType || "INTERNAL",
-        confidence: normalizedScores.confidence,
-        confidenceScore: normalizedScores.confidenceScore,
-        impact: normalizedScores.impact,
-        weight: normalizedScores.weight,
-        iceScore: normalizedScores.iceScore,
-        processingStatus: "ACCEPTED",
+        confidence: confidenceScore,
+        confidenceScore,
+        impact,
+        weight,
+        iceScore: sanitizeScoreInput(iceScore, 0),
+        processingStatus: "REVIEW",
+        activityState: "STALE",
         kind: "GOAL",
       }
     });
@@ -169,11 +173,9 @@ export async function PATCH(req: NextRequest) {
       });
     }
 
-    const normalizedScores = normalizeGoalScores({
-      impact: body.impact ?? existing.impact,
-      confidence: body.confidenceScore ?? body.confidence ?? existing.confidenceScore ?? existing.confidence,
-      weight: body.weight ?? existing.weight,
-    });
+    const confidenceScore = sanitizeScoreInput(body.confidenceScore ?? body.confidence, existing.confidenceScore ?? existing.confidence);
+    const impact = sanitizeScoreInput(body.impact, existing.impact);
+    const weight = sanitizeScoreInput(body.weight, existing.weight);
 
     const updated = await prisma.goalcard.update({
       where: { id },
@@ -182,13 +184,12 @@ export async function PATCH(req: NextRequest) {
         body: body.content || body.body,
         hashtags: body.hashtags,
         intelligenceType: body.intelligenceType,
-        confidence: normalizedScores.confidence,
-        confidenceScore: normalizedScores.confidenceScore,
-        impact: normalizedScores.impact,
-        weight: normalizedScores.weight,
-        iceScore: normalizedScores.iceScore,
+        confidence: confidenceScore,
+        confidenceScore,
+        impact,
+        weight,
         processingStatus: body.processingStatus,
-        activityState: body.activityState,
+        activityState: body.activityState ?? "STALE",
       }
     });
 

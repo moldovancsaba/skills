@@ -10,6 +10,7 @@ const {
 } = require("./planner-contract");
 const {
   deriveOpportunityLane,
+  isScrapedPageEvidenceNoise,
   normalizeOpportunityPayload,
   normalizeOpportunityType,
   opportunityTypeHashtag,
@@ -73,6 +74,12 @@ function assignOpportunityLanes(items, now = new Date()) {
     if (floorColumn) {
       assignments.set(item.id, floorColumn);
       laneCounts[floorColumn] += 1;
+      continue;
+    }
+    if (item.manualLaneOverrideAt && item.kanbanColumn) {
+      const manualColumn = normalizeLane(item.kanbanColumn);
+      assignments.set(item.id, manualColumn);
+      laneCounts[manualColumn] += 1;
       continue;
     }
 
@@ -302,6 +309,13 @@ function looksCompanyLikeName(value) {
   return true;
 }
 
+function isWeakSingleWordPageCandidate(value) {
+  const normalized = canonicalizeCandidateName(value);
+  if (!normalized) return false;
+  if (!/^[A-Za-z0-9]{2,24}$/.test(normalized)) return false;
+  return !COMPANY_NAME_SUFFIX_RE.test(normalized);
+}
+
 function parseUrl(value) {
   if (!value) return null;
   try {
@@ -334,15 +348,21 @@ function deriveCompanyNameFromSocialProfile(urlValue) {
   return looksCompanyLikeName(title) ? title : null;
 }
 
-function resolveCandidateCompanyName(record, host, website) {
-  const candidates = [
+function resolveCandidateCompanyName(record, host, website, sourceText = "") {
+  const pageIdentityCandidates = [
     record?.companyName,
     record?.entityTag,
     record?.title,
     record?.sourceName,
+  ];
+  const domainIdentityCandidates = [
     deriveCompanyNameFromSocialProfile(website),
     deriveCompanyNameFromHost(host),
   ];
+  const candidates = isScrapedPageEvidenceNoise(sourceText)
+    && pageIdentityCandidates.some((candidate) => isWeakSingleWordPageCandidate(candidate))
+    ? [...domainIdentityCandidates, ...pageIdentityCandidates]
+    : [...pageIdentityCandidates, ...domainIdentityCandidates];
 
   for (const candidate of candidates) {
     const normalized = canonicalizeCandidateName(candidate);
@@ -588,7 +608,7 @@ function buildOpportunitySeedFromRecord(record, company) {
       return null;
     }
   }
-  const companyName = resolveCandidateCompanyName(record, host, website);
+  const companyName = resolveCandidateCompanyName(record, host, website, sourceText);
   if (!companyName || normalizeText(companyName)?.toLowerCase() === normalizeText(company?.name)?.toLowerCase()) {
     return null;
   }

@@ -41,7 +41,7 @@
       "requiredModules": ["data", "knowmore", "analytics", "aiQueue", "miniapp"],
       "optionalModules": ["review"],
       "defaultRoute": "classscout",
-      "cardTypes": ["datacard", "reviewcard", "logiccard", "miniappPacket"],
+      "cardTypes": ["datacard", "reviewcard", "logiccard", "miniappcard"],
       "publicService": true,
       "accessibleDescription": "Miniapp Block for operating public Miniapps through the Webapp."
     }
@@ -149,8 +149,8 @@
     {
       "key": "miniapp",
       "displayName": "Miniapp Module",
-      "description": "Miniapp registry, content packets, adapter state, publish status, and public-service operations.",
-      "cardTypes": ["miniappPacket", "reviewcard", "logiccard"],
+      "description": "Miniapp registry, content cards, adapter state, publish status, and public-service operations.",
+      "cardTypes": ["miniappcard", "reviewcard", "logiccard"],
       "runtimeOwner": "shared",
       "defaultRoute": "classscout",
       "accessibleDescription": "Miniapp Module for public Miniapp operations and publishing state."

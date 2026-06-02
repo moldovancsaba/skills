@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
-import { getMiniappBurstControllerState } from "@/lib/miniapp-burst-controller";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,12 @@ export async function GET(
   if (auth.error) return auth.error;
 
   const { visitorKey } = await params;
-  const state = await getMiniappBurstControllerState(companyId, visitorKey);
+  const row = await prisma.globalSetting.findUnique({
+    where: { key: `miniapp_burst_controller:${companyId}:${visitorKey.trim().toLowerCase()}` },
+    select: { value: true, updatedAt: true },
+  });
+  const state = row?.value && typeof row.value === "object" && !Array.isArray(row.value)
+    ? row.value
+    : {};
   return NextResponse.json({ ok: true, visitorKey, state });
 }

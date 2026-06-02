@@ -6,6 +6,7 @@ import { APP_SESSION_COOKIE, readAppSessionToken } from "@/lib/auth";
 import { isSuperAdminEmail } from "@/lib/permissions";
 import { type ProjectionFreshness } from "@/lib/webapp-projection";
 import { buildCompanyReadModel } from "@/lib/company-read-model";
+import { resolveEffectiveUnitCapabilities } from "@/lib/check-foundation";
 
 type HomeInitialCompany = {
   id: string;
@@ -35,6 +36,9 @@ type HomeInitialCompany = {
     tactical: Array<{ date: string; value: number }>;
     checklist: Array<{ date: string; value: number }>;
   };
+  enabledModules: string[];
+  enabledBlocks: string[];
+  enabledMiniapps: string[];
 };
 
 export type HomeInitialSession = {
@@ -92,9 +96,19 @@ export async function getHomeInitialData(): Promise<HomeInitialData> {
         name: true,
         industries: true,
         industry: true,
+        workerConfig: true,
         intelligenceSnapshot: {
           select: {
             webappProjection: true,
+          },
+        },
+        destinationInstances: {
+          where: {
+            isActive: true,
+            destinationKey: { in: ["classscout", "compare"] },
+          },
+          select: {
+            destinationKey: true,
           },
         },
       },
@@ -116,6 +130,12 @@ export async function getHomeInitialData(): Promise<HomeInitialData> {
 
   const normalizedCompanies: HomeInitialCompany[] = companies.map((company) => {
     const readModel = buildCompanyReadModel(company.intelligenceSnapshot);
+    const destinationKeys = new Set(company.destinationInstances.map((instance) => instance.destinationKey));
+    const effectiveCapabilities = resolveEffectiveUnitCapabilities({
+      workerConfig: company.workerConfig,
+      hasClassScoutDestination: destinationKeys.has("classscout"),
+      hasCompareDestination: destinationKeys.has("compare"),
+    });
 
     for (const tag of company.industries || []) {
       if (tag) industrySuggestions.add(tag);
@@ -155,6 +175,9 @@ export async function getHomeInitialData(): Promise<HomeInitialData> {
         tactical: [],
         checklist: [],
       },
+      enabledModules: effectiveCapabilities.enabledModules,
+      enabledBlocks: effectiveCapabilities.enabledBlocks,
+      enabledMiniapps: effectiveCapabilities.enabledMiniapps,
     };
   });
 

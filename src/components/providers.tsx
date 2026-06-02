@@ -75,7 +75,7 @@ export const theme = createTheme({
         },
         label: {
           fontWeight: 600,
-          letterSpacing: "-0.01em",
+          letterSpacing: 0,
         },
         description: {
           color: "var(--text-secondary)",
@@ -124,7 +124,7 @@ export const theme = createTheme({
       },
       styles: {
         root: {
-          letterSpacing: "-0.01em",
+          letterSpacing: 0,
           borderWidth: rem(1),
           boxShadow: "var(--surface-icon-shadow)",
         },
@@ -174,7 +174,7 @@ export const theme = createTheme({
       styles: {
         root: {
           color: "var(--text-primary)",
-          letterSpacing: "-0.03em",
+          letterSpacing: 0,
         },
       },
     },

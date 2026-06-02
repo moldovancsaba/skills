@@ -578,7 +578,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
                         <Avatar src={session.picture} size="sm" color="ingress">
                           {session.name?.[0]}
                         </Avatar>
-                        <Box flex={1} style={{ overflow: 'hidden' }}>
+                        <Box flex={1} style={{ overflow: "hidden" }}>
                           <LabelText truncate>{session.name}</LabelText>
                         </Box>
                       </Group>

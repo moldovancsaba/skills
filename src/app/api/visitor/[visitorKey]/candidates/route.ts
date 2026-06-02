@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
-import { listVisitorCandidates } from "@/lib/visitor-candidate-pipeline";
-import { evaluateCompareProjectionGate } from "@/lib/visitor-public-projection-gate";
 import { resolveDestinationKeyForVisitorWithHint } from "@/lib/visitor-blueprints";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +12,16 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function asStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [] as string[];
+  return value.map((entry) => asString(entry)).filter(Boolean);
+}
+
+function asNumber(value: unknown) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
 }
 
 function isTruthy(value: string | null) {
@@ -33,6 +42,16 @@ function toBoolean(value: string | null) {
   if (!value) return false;
   const normalized = value.trim().toLowerCase();
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+function readCandidateState(metadata: unknown) {
+  return asString(asRecord(metadata)?.visitorCandidateState).toUpperCase() || "DISCOVERED";
+}
+
+function isProjectionBlocked(metadata: unknown) {
+  const record = asRecord(metadata);
+  const gate = asRecord(record?.publicProjectionGate) ?? asRecord(record?.projectionGate);
+  return gate?.blocked === true;
 }
 
 function mapPublicCandidate(candidate: {
@@ -86,21 +105,46 @@ export async function GET(
     const includeBlocked = toBoolean(request.nextUrl.searchParams.get("includeBlocked"));
     const shouldExposeBlocked = includeInternal || includeBlocked;
     const resolvedDestinationKey = destinationKey ?? resolveDestinationKeyForVisitorWithHint(visitorKey, undefined);
-    const isCompareVisitor = resolvedDestinationKey === "compare";
+    if (!resolvedDestinationKey) {
+      return NextResponse.json({ ok: true, visitorKey, blockedCount: 0, candidates: [], totalCandidates: 0 });
+    }
 
-    const candidates = await listVisitorCandidates(companyId, visitorKey, destinationKey);
+    const instance = await prisma.destinationInstance.findFirst({
+      where: { companyId, destinationKey: resolvedDestinationKey, isActive: true },
+      select: { id: true },
+    });
+    if (!instance) {
+      return NextResponse.json({ ok: true, visitorKey, blockedCount: 0, candidates: [], totalCandidates: 0 });
+    }
+    const candidates = await prisma.destinationCandidate.findMany({
+      where: {
+        companyId,
+        destinationInstanceId: instance.id,
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 500,
+    });
     // Keep internal routes explicit; public callers get the reduced projection.
     const rows: Array<Record<string, unknown>> = [];
     let blockedCount = 0;
-    for (const candidate of candidates) {
-      const projectionGate = isCompareVisitor
-        ? evaluateCompareProjectionGate({
-            metadata: candidate.metadata,
-            normalizedListing: asRecord(candidate.extractedFacts),
-          })
-        : { blocked: false, blockedReasons: [] };
+    for (const row of candidates) {
+      const metadata = asRecord(row.metadata) ?? {};
+      const candidate = {
+        id: row.id,
+        visitorKey,
+        status: readCandidateState(metadata),
+        canonicalSourceUrl: row.canonicalSourceUrl,
+        proposedType: row.proposedType,
+        extractedFacts: asRecord(metadata.extractedFacts) ?? {},
+        classification: asRecord(metadata.classification) ?? null,
+        qualityScore: asNumber(metadata.qualityScore) || null,
+        uncertaintyReasons: asStringArray(metadata.uncertaintyReasons),
+        metadata,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+      };
 
-      if (projectionGate.blocked) {
+      if (isProjectionBlocked(candidate.metadata)) {
         blockedCount += 1;
         if (!shouldExposeBlocked) continue;
       }

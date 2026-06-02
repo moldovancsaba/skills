@@ -6,6 +6,9 @@ const {
   rebalanceOpportunitycardBoard,
   looksCompanyLikeName,
 } = require("../../src/lib/opportunitycards-runtime");
+const {
+  isScrapedPageEvidenceNoise,
+} = require("../../src/lib/opportunitycard-contract");
 
 function buildAfterWhere(baseWhere, lastRecord) {
   if (!lastRecord) return baseWhere;
@@ -23,6 +26,22 @@ function buildAfterWhere(baseWhere, lastRecord) {
 
 function compareOpportunityRepair(normalized, card) {
   return (
+    normalized.companyName !== card.companyName ||
+    normalized.title !== card.title ||
+    normalized.body !== card.body ||
+    normalized.website !== card.website ||
+    normalized.linkedinUrl !== card.linkedinUrl ||
+    normalized.instagramUrl !== card.instagramUrl ||
+    normalized.facebookUrl !== card.facebookUrl ||
+    normalized.xUrl !== card.xUrl ||
+    normalized.location !== card.location ||
+    normalized.coreOffer !== card.coreOffer ||
+    normalized.financialBackground !== card.financialBackground ||
+    normalized.fitRationale !== card.fitRationale ||
+    normalized.opportunityType !== card.opportunityType ||
+    JSON.stringify(normalized.hashtags || []) !== JSON.stringify(card.hashtags || []) ||
+    JSON.stringify(normalized.salesGeographies || []) !== JSON.stringify(card.salesGeographies || []) ||
+    JSON.stringify(normalized.contactInfo || {}) !== JSON.stringify(card.contactInfo || {}) ||
     normalized.confidence !== card.confidence ||
     normalized.confidenceScore !== card.confidenceScore ||
     normalized.impact !== card.impact ||
@@ -33,6 +52,64 @@ function compareOpportunityRepair(normalized, card) {
     normalized.fingerprint !== card.fingerprint ||
     JSON.stringify(card.scoreProfile || null) !== JSON.stringify(normalized.scoreProfile || null)
   );
+}
+
+function normalizeText(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/\s+/g, " ");
+  return normalized.length > 0 ? normalized : null;
+}
+
+function deriveCompanyNameFromUrl(value) {
+  const normalized = normalizeText(value);
+  if (!normalized) return null;
+  try {
+    const url = new URL(normalized.startsWith("http") ? normalized : `https://${normalized}`);
+    const label = url.hostname.replace(/^www\./i, "").split(".")[0] || "";
+    const cleaned = label
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!cleaned) return null;
+    return cleaned
+      .split(" ")
+      .map((part) => {
+        const upper = part.toUpperCase();
+        return upper.length <= 4 ? upper : part.charAt(0).toUpperCase() + part.slice(1);
+      })
+      .join(" ");
+  } catch {
+    return null;
+  }
+}
+
+function isWeakSingleWordIdentity(value) {
+  const normalized = normalizeText(value);
+  if (!normalized) return false;
+  return /^[A-Za-z0-9]{2,24}$/.test(normalized);
+}
+
+function repairOpportunityIdentity(card) {
+  const sourceEvidenceIsNoisy = isScrapedPageEvidenceNoise(card.body) || isScrapedPageEvidenceNoise(card.coreOffer);
+  if (!sourceEvidenceIsNoisy) {
+    return {
+      companyName: card.companyName,
+      title: card.title,
+    };
+  }
+
+  const fallbackName = deriveCompanyNameFromUrl(card.website);
+  if (!fallbackName) {
+    return {
+      companyName: card.companyName,
+      title: card.title,
+    };
+  }
+
+  return {
+    companyName: isWeakSingleWordIdentity(card.companyName) ? fallbackName : card.companyName,
+    title: isWeakSingleWordIdentity(card.title) ? fallbackName : card.title,
+  };
 }
 
 function shouldArchiveOpportunitycard(card) {
@@ -97,6 +174,7 @@ async function repairOpportunitycards(prisma, options = {}) {
         scoreProfile: true,
         fingerprint: true,
         kanbanColumn: true,
+        processingStatus: true,
         activityState: true,
         manualLaneOverrideAt: true,
       },
@@ -112,9 +190,10 @@ async function repairOpportunitycards(prisma, options = {}) {
 
     for (const card of cards) {
       processed += 1;
+      const repairedIdentity = repairOpportunityIdentity(card);
       const normalized = normalizeOpportunityPayload({
-        companyName: card.companyName,
-        title: card.title,
+        companyName: repairedIdentity.companyName,
+        title: repairedIdentity.title,
         body: card.body,
         website: card.website,
         linkedinUrl: card.linkedinUrl,

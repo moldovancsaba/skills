@@ -46,13 +46,34 @@ function normalizeOpportunityContactInfo(value) {
   return value;
 }
 
+function isScrapedPageEvidenceNoise(value) {
+  const normalized = normalizeText(value);
+  if (!normalized) return false;
+  if (/\bPage Evidence:\s*Status:\s*(?:401|403|404|429|500|502|503)\b/i.test(normalized)) return true;
+  if (/\bStatus:\s*(?:401|403|404|429|500|502|503)\b/i.test(normalized) && /\bSource:\s*https?:\/\//i.test(normalized)) return true;
+  return false;
+}
+
+function cleanOpportunityDescription(value) {
+  const normalized = normalizeText(value);
+  if (!normalized || isScrapedPageEvidenceNoise(normalized)) return null;
+  return normalized
+    .replace(/\bPage Evidence:\s*Status:\s*\d{3}\b.*$/i, "")
+    .replace(/\bSource:\s*https?:\/\/\S+.*$/i, "")
+    .trim() || null;
+}
+
 function normalizeOpportunityPayload(input = {}) {
   const title = normalizeText(input.title) || normalizeText(input.companyName) || "Opportunitycard";
   const companyName = normalizeText(input.companyName) || title;
-  const coreOffer = normalizeText(input.coreOffer);
+  const inputBodyIsNoisy = isScrapedPageEvidenceNoise(input.body);
+  const coreOffer = inputBodyIsNoisy ? null : cleanOpportunityDescription(input.coreOffer);
   const fitRationale = normalizeText(input.fitRationale);
+  const professionalDescription = cleanOpportunityDescription(input.professionalDescription)
+    || cleanOpportunityDescription(input.body)
+    || cleanOpportunityDescription(coreOffer);
   const body =
-    normalizeText(input.body) ||
+    professionalDescription ||
     [coreOffer, fitRationale].filter(Boolean).join("\n\n") ||
     "Sales opportunity candidate.";
   const opportunityType = normalizeOpportunityType(input.opportunityType);
@@ -106,4 +127,6 @@ module.exports = {
   normalizeOpportunityType,
   normalizeOpportunityContactInfo,
   opportunityTypeHashtag,
+  cleanOpportunityDescription,
+  isScrapedPageEvidenceNoise,
 };

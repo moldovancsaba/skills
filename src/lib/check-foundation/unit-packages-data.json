@@ -27,7 +27,7 @@
       "displayName": "Miniapp Ops Unit",
       "allowedBlocks": ["miniapp", "project"],
       "defaultEnabledBlocks": ["miniapp"],
-      "requiredPermissions": ["miniapp.packet.approve", "miniapp.packet.publish"]
+      "requiredPermissions": ["miniapp.card.approve", "miniapp.card.publish"]
     },
     {
       "key": "full",
@@ -40,8 +40,8 @@
         "card.create",
         "card.update",
         "local.job.retry",
-        "miniapp.packet.approve",
-        "miniapp.packet.publish"
+        "miniapp.card.approve",
+        "miniapp.card.publish"
       ]
     }
   ]

@@ -14,7 +14,7 @@ export const CARD_TYPES = [
   "opportunitycard",
   "projectcard",
   "logiccard",
-  "miniappPacket",
+  "miniappcard",
 ] as const;
 
 export type CardType = (typeof CARD_TYPES)[number];

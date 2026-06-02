@@ -111,8 +111,8 @@ Miniapp canonical workflow APIs:
 
 - [src/app/api/units/[unitId]/miniapps/[miniappId]/missions/route.ts](/Users/Shared/Projects/checklist/src/app/api/units/[unitId]/miniapps/[miniappId]/missions/route.ts)
 - [src/app/api/units/[unitId]/miniapps/[miniappId]/candidates/route.ts](/Users/Shared/Projects/checklist/src/app/api/units/[unitId]/miniapps/[miniappId]/candidates/route.ts)
-- [src/app/api/units/[unitId]/miniapps/[miniappId]/packets/[packetId]/approve/route.ts](/Users/Shared/Projects/checklist/src/app/api/units/[unitId]/miniapps/[miniappId]/packets/[packetId]/approve/route.ts)
-- [src/app/api/units/[unitId]/miniapps/[miniappId]/packets/[packetId]/publish/route.ts](/Users/Shared/Projects/checklist/src/app/api/units/[unitId]/miniapps/[miniappId]/packets/[packetId]/publish/route.ts)
+- [src/app/api/units/[unitId]/miniapps/[miniappId]/cards/[cardId]/approve/route.ts](/Users/Shared/Projects/checklist/src/app/api/units/[unitId]/miniapps/[miniappId]/cards/[cardId]/approve/route.ts)
+- [src/app/api/units/[unitId]/miniapps/[miniappId]/cards/[cardId]/publish/route.ts](/Users/Shared/Projects/checklist/src/app/api/units/[unitId]/miniapps/[miniappId]/cards/[cardId]/publish/route.ts)
 - [src/app/api/units/[unitId]/miniapps/[miniappId]/content/[contentId]/refresh/route.ts](/Users/Shared/Projects/checklist/src/app/api/units/[unitId]/miniapps/[miniappId]/content/[contentId]/refresh/route.ts)
 
 ClassScout and Compare landing APIs:
@@ -132,8 +132,8 @@ Permission model:
 
 - membership verification is mandatory on unit-scoped APIs
 - canonical miniapp APIs use:
-  - `miniapp.packet.approve`
-  - `miniapp.packet.publish`
+  - `miniapp.card.approve`
+  - `miniapp.card.publish`
 
 Retry/timeout behavior:
 
@@ -852,7 +852,7 @@ Updated:
 
 - `POST /api/units/:unitId/miniapps/:miniappId/missions`
 - `POST /api/units/:unitId/miniapps/:miniappId/content/:contentId/refresh`
-- `POST /api/units/:unitId/miniapps/:miniappId/packets/:packetId/approve`
+- `POST /api/units/:unitId/miniapps/:miniappId/cards/:cardId/approve`
 
 All now normalize parsed request payload shape before field access:
 
@@ -1113,8 +1113,8 @@ This pass focuses on canonical miniapp/public-destination flows and aligns body-
 - `POST` now rejects non-object payloads (when payload is present) with `JSON object body is required`.
 - Keeps optional-body behavior (`{}` fallback) for existing callers.
 
-### 2) Miniapp packet approval route
-- File: `src/app/api/units/[unitId]/miniapps/[miniappId]/packets/[packetId]/approve/route.ts`
+### 2) Miniapp card approval route
+- File: `src/app/api/units/[unitId]/miniapps/[miniappId]/cards/[cardId]/approve/route.ts`
 - `POST` now rejects non-object payloads (when payload is present).
 - Preserves existing optional-body semantics for backward compatibility.
 

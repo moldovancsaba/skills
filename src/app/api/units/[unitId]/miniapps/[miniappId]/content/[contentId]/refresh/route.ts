@@ -25,8 +25,8 @@ export async function POST(
       actorId: guard.context.membership.id,
       actorEmail: guard.context.sessionEmail,
       role: guard.context.membership.role,
-      permission: "miniapp.packet.publish",
-      targetType: "miniapp_packet",
+      permission: "miniapp.card.publish",
+      targetType: "miniappcard",
       targetId: contentId,
       reason: "Miniapp content refresh via canonical units API.",
       payload: {

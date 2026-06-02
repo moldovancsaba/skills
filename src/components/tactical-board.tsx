@@ -306,7 +306,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
   }
 
   return (
-    <Box h="100vh" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <Box h="100vh" display="flex" style={{ flexDirection: "column", overflow: "hidden" }}>
       <TacticalCardModal
         item={detailId ? items.find((item) => item.id === detailId) ?? null : null}
         opened={modalOpened}
@@ -333,7 +333,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
         onConvert={handleConvert}
       />
 
-      <Box style={{ flex: 1, overflowX: "hidden", overflowY: "auto" }} p="xl">
+      <Box flex={1} p="xl" style={{ overflowX: "hidden", overflowY: "auto" }}>
         <PipelineAccentHeader activeKey="tactical" title="Tactical Board" icon={Target} />
         <Group gap="sm" mb="md">
           <Badge size="sm" variant="light" color="tactical">
@@ -382,7 +382,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
               <UnifiedCardBody>
                 <Stack gap="xs" onClick={() => { setDetailId(item.id); openModal(); }}>
                   <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm">
-                    <Text size="xs" lineClamp={2} style={{ flex: 1 }}>
+                    <Text size="xs" lineClamp={2} flex={1}>
                       {stripTechnicalMetadata(item.title)}
                     </Text>
                     <UnifiedCardFreshnessBadge freshness={freshness} />
@@ -398,7 +398,7 @@ export function TacticalBoard({ companyId }: { companyId: string }) {
                     </Badge>
                     <Group gap={4}>
                       <MetaText>{item.priorityProfile ? "PRIORITY" : "ICE"}</MetaText>
-                      <Text size="xs" c="tactical" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      <Text size="xs" c="tactical" ff="monospace">
                         {Math.round(item.priorityProfile?.score ?? item.iceScore)}
                       </Text>
                     </Group>

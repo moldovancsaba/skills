@@ -83,7 +83,8 @@ export function PageHeader({
               component={Link} 
               href={backHref}
               c="dimmed"
-              style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+              display="inline-flex"
+              style={{ alignItems: "center", gap: 4 }}
             >
               <ArrowLeft size={12} />
               {backLabel ?? t("common.back")}

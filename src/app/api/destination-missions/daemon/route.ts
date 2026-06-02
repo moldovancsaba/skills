@@ -1,14 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeDestinationMissionDaemonForCompany, readConfiguredDaemonCompanyIds, readDaemonDefaults } from "@/lib/destination-mission-daemon";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
 import { verifyIngestSecret } from "@/lib/ingest-auth";
 import { verifyMembership } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { escalateCompanyPipelineJob } from "@/lib/pipeline-queue";
-import { assertPlaylistMutationAuthority, LocalExecutionLaneError } from "@/lib/local-execution-lanes";
-import { classifyPersistenceFailure } from "@/lib/persistence-failures";
 
 export const dynamic = "force-dynamic";
+
+function readConfiguredDaemonCompanyIds() {
+  return Array.from(new Set((process.env.DESTINATION_MISSION_DAEMON_COMPANY_IDS ?? "").split(",").map((value) => value.trim()).filter(Boolean)));
+}
+
+function readApiSafeDaemonDefaults() {
+  const maxRuns = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_RUNS ?? 5);
+  const maxPasses = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_PASSES ?? 3);
+  const maxAutoRejections = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_AUTO_REJECTIONS ?? 5);
+  const maxRevisionIntakes = Number(process.env.DESTINATION_MAINTENANCE_MAX_REVISION_INTAKES ?? 10);
+  const maxApprovedPublishes = Number(process.env.DESTINATION_MAINTENANCE_MAX_APPROVED_PUBLISHES ?? 10);
+
+  return {
+    maxRuns: Number.isFinite(maxRuns) ? Math.max(1, Math.min(Math.round(maxRuns), 20)) : 5,
+    maxPasses: Number.isFinite(maxPasses) ? Math.max(1, Math.min(Math.round(maxPasses), 8)) : 3,
+    maxAutoRejections: Number.isFinite(maxAutoRejections) ? Math.max(1, Math.min(Math.round(maxAutoRejections), 10)) : 5,
+    maxRevisionIntakes: Number.isFinite(maxRevisionIntakes) ? Math.max(1, Math.min(Math.round(maxRevisionIntakes), 20)) : 10,
+    maxApprovedPublishes: Number.isFinite(maxApprovedPublishes) ? Math.max(1, Math.min(Math.round(maxApprovedPublishes), 20)) : 10,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,9 +40,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
     }
     const destinationKey = normalizeDestinationKey(destinationKeyRaw);
-    const mutationAuthority = body.mutationAuthority && typeof body.mutationAuthority === "object" && !Array.isArray(body.mutationAuthority)
-      ? body.mutationAuthority as Parameters<typeof assertPlaylistMutationAuthority>[0]
-      : null;
     const configuredCompanyIds = readConfiguredDaemonCompanyIds();
     const companyIds = explicitCompanyId ? [explicitCompanyId] : configuredCompanyIds;
     if (!companyIds.length) return NextResponse.json({ error: "companyId is required" }, { status: 400 });
@@ -39,7 +53,7 @@ export async function POST(request: NextRequest) {
       return membership.error;
     }
 
-    const defaults = readDaemonDefaults();
+    const defaults = readApiSafeDaemonDefaults();
     const maxRuns = typeof body.maxRuns === "number"
       ? Math.max(1, Math.min(body.maxRuns, 20))
       : undefined;
@@ -55,65 +69,6 @@ export async function POST(request: NextRequest) {
     const maxApprovedPublishes = typeof body.maxApprovedPublishes === "number"
       ? Math.max(1, Math.min(body.maxApprovedPublishes, 20))
       : undefined;
-
-    if (mutationAuthority) {
-      try {
-        assertPlaylistMutationAuthority(mutationAuthority);
-      } catch (error) {
-        if (error instanceof LocalExecutionLaneError) {
-          return NextResponse.json({ error: error.message, code: error.code }, { status: 403 });
-        }
-        throw error;
-      }
-
-      const results = [];
-      const failures = [];
-      for (const companyId of companyIds) {
-        try {
-          results.push(
-            await executeDestinationMissionDaemonForCompany({
-              companyId,
-              destinationKey: destinationKey ?? undefined,
-              maxRuns,
-              maxPasses,
-              maxAutoRejections,
-              maxRevisionIntakes,
-              maxApprovedPublishes,
-            }),
-          );
-        } catch (error) {
-          const classified = classifyPersistenceFailure(error);
-          if (!classified) throw error;
-          failures.push({ companyId, ...classified });
-        }
-      }
-
-      if (failures.length > 0) {
-        const status = failures.some((failure) => failure.status !== 503) ? 500 : 503;
-        return NextResponse.json({
-          ok: false,
-          lane: "PLAYLIST",
-          companyIds,
-          destinationScope: destinationKey ?? null,
-          processedCompanies: results.length,
-          results,
-          failures,
-          retryable: failures.every((failure) => failure.retryable),
-          retryAfterMs: Math.max(...failures.map((failure) => failure.retryAfterMs)),
-          reasonCode: failures[0]?.reasonCode ?? "destination_mission_daemon_failed",
-          summary: failures[0]?.summary ?? "Destination mission daemon failed.",
-        }, { status });
-      }
-
-      return NextResponse.json({
-        ok: true,
-        lane: "PLAYLIST",
-        companyIds,
-        destinationScope: destinationKey ?? null,
-        processedCompanies: results.length,
-        results,
-      });
-    }
 
     const queued = [];
     for (const companyId of companyIds) {

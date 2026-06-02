@@ -3,7 +3,6 @@ import type { FlashcardSourceType, IntelligenceType } from "@prisma/client";
 import { recordDecisionEvent, recordInteractionEvent, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
-import { normalizeKnowledgeScores, normalizeTaskScores } from "@/lib/scoring-contract";
 
 type ConvertibleSourceType = "FLASHCARD" | "GOALCARD" | "TASKCARD" | "SOURCE" | "FILE";
 type ConvertibleTargetType = "FLASHCARD" | "GOALCARD" | "TASKCARD";
@@ -56,6 +55,12 @@ function deriveSourceTitle(source: Pick<ConvertibleRecord, "title" | "content" |
 
 function normalizeIntelligenceType(value: unknown): IntelligenceType {
   return value === "COMPETITOR" ? "COMPETITOR" : "INTERNAL";
+}
+
+function sanitizeScoreInput(value: unknown, fallback: number | null | undefined) {
+  const parsed = Number(value ?? fallback ?? 0);
+  if (!Number.isFinite(parsed)) return Number(fallback ?? 0);
+  return Math.max(0, Math.min(100, parsed));
 }
 
 function buildBaseData(sourceType: ConvertibleSourceType, sourceData: ConvertibleRecord) {
@@ -189,30 +194,32 @@ export async function POST(req: NextRequest) {
     }
 
     if (targetType === "FLASHCARD") {
-      const normalizedScores = normalizeKnowledgeScores(baseData);
+      const confidenceScore = sanitizeScoreInput(baseData.confidence, 5);
       createdItem = await prisma.flashcard.create({
         data: {
           ...baseData,
-          confidence: normalizedScores.confidence,
-          confidenceScore: normalizedScores.confidenceScore,
-          impact: normalizedScores.impact,
-          weight: normalizedScores.weight,
-          iceScore: normalizedScores.iceScore,
-          processingStatus: "ACCEPTED",
+          confidence: confidenceScore,
+          confidenceScore,
+          impact: sanitizeScoreInput(baseData.impact, 5),
+          weight: sanitizeScoreInput(baseData.weight, 5),
+          iceScore: 0,
+          processingStatus: "REVIEW",
+          activityState: "STALE",
           kind: "SUMMARY",
         }
       });
     } else if (targetType === "GOALCARD") {
-      const normalizedScores = normalizeKnowledgeScores(baseData);
+      const confidenceScore = sanitizeScoreInput(baseData.confidence, 5);
       createdItem = await prisma.goalcard.create({
         data: {
           ...baseData,
-          confidence: normalizedScores.confidence,
-          confidenceScore: normalizedScores.confidenceScore,
-          impact: normalizedScores.impact,
-          weight: normalizedScores.weight,
-          iceScore: normalizedScores.iceScore,
-          processingStatus: "ACCEPTED",
+          confidence: confidenceScore,
+          confidenceScore,
+          impact: sanitizeScoreInput(baseData.impact, 5),
+          weight: sanitizeScoreInput(baseData.weight, 5),
+          iceScore: 0,
+          processingStatus: "REVIEW",
+          activityState: "STALE",
           kind: "GOAL",
         }
       });
@@ -222,18 +229,20 @@ export async function POST(req: NextRequest) {
         : Array.isArray(sourceData.generatedFromIds)
           ? sourceData.generatedFromIds
           : [];
-      const normalizedScores = normalizeTaskScores(baseData);
+      const confidenceScore = sanitizeScoreInput(baseData.confidence, 5);
       createdItem = await prisma.checklistTask.create({
         data: {
           companyId: baseData.companyId,
           title: baseData.title,
           description: baseData.body,
           status: "PENDING",
-          confidence: normalizedScores.confidence,
-          confidenceScore: normalizedScores.confidenceScore,
-          impact: normalizedScores.impact,
-          ease: normalizedScores.ease,
-          iceScore: normalizedScores.iceScore,
+          confidence: confidenceScore,
+          confidenceScore,
+          impact: sanitizeScoreInput(baseData.impact, 5),
+          ease: sanitizeScoreInput(baseData.weight, 5),
+          iceScore: 0,
+          processingStatus: "REVIEW",
+          activityState: "STALE",
           hashtags: baseData.hashtags,
           generatedFromIds: generatedFromIds,
         }

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { verifyMembership } from "@/lib/permissions";
-import { readDaemonDefaults } from "@/lib/destination-mission-daemon";
 import {
   applyDestinationDaemonPolicyPatchToWorkerConfig,
   resolveDestinationDaemonPolicy,
+  type DestinationDaemonLimits,
   type DestinationDaemonPolicyPatch,
 } from "@/lib/check-foundation/destination-daemon-policy";
 
@@ -14,6 +14,22 @@ export const dynamic = "force-dynamic";
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
+}
+
+function readApiSafeDaemonDefaults(): DestinationDaemonLimits {
+  const maxRuns = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_RUNS ?? 5);
+  const maxPasses = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_PASSES ?? 3);
+  const maxAutoRejections = Number(process.env.DESTINATION_MISSION_DAEMON_MAX_AUTO_REJECTIONS ?? 5);
+  const maxRevisionIntakes = Number(process.env.DESTINATION_MAINTENANCE_MAX_REVISION_INTAKES ?? 10);
+  const maxApprovedPublishes = Number(process.env.DESTINATION_MAINTENANCE_MAX_APPROVED_PUBLISHES ?? 10);
+
+  return {
+    maxRuns: Number.isFinite(maxRuns) ? Math.max(1, Math.min(Math.round(maxRuns), 20)) : 5,
+    maxPasses: Number.isFinite(maxPasses) ? Math.max(1, Math.min(Math.round(maxPasses), 8)) : 3,
+    maxAutoRejections: Number.isFinite(maxAutoRejections) ? Math.max(1, Math.min(Math.round(maxAutoRejections), 10)) : 5,
+    maxRevisionIntakes: Number.isFinite(maxRevisionIntakes) ? Math.max(1, Math.min(Math.round(maxRevisionIntakes), 20)) : 10,
+    maxApprovedPublishes: Number.isFinite(maxApprovedPublishes) ? Math.max(1, Math.min(Math.round(maxApprovedPublishes), 20)) : 10,
+  };
 }
 
 function normalizePatchPayload(input: unknown): { patch: DestinationDaemonPolicyPatch } | { error: string } {
@@ -75,7 +91,7 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const defaults = readDaemonDefaults();
+    const defaults = readApiSafeDaemonDefaults();
     const resolved = resolveDestinationDaemonPolicy({
       workerConfig: company.workerConfig,
       fallbackDefaults: defaults,
@@ -128,7 +144,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const defaults = readDaemonDefaults();
+    const defaults = readApiSafeDaemonDefaults();
     const next = applyDestinationDaemonPolicyPatchToWorkerConfig({
       workerConfig: company.workerConfig,
       patch: patchResult.patch,

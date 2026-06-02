@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMembership } from "@/lib/permissions";
-import { promoteMiniappEvidenceToOpportunities } from "@/lib/miniapp-opportunity-lifecycle";
+import { queueVisitorLocalIntent } from "@/lib/visitor-intent-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -23,15 +23,11 @@ export async function POST(
   if (auth.error) return auth.error;
 
   const { visitorKey } = await params;
-  try {
-    const result = await promoteMiniappEvidenceToOpportunities({
-      companyId,
-      visitorKey,
-      destinationKeyHint: asString(body.destinationKey) || undefined,
-      limit: Number(body.limit) || 25,
-    });
-    return NextResponse.json(result);
-  } catch (error) {
-    return NextResponse.json({ ok: false, error: String(error) }, { status: 400 });
-  }
+  const receipt = await queueVisitorLocalIntent({
+    companyId,
+    visitorKey,
+    intentKind: "research.opportunities.promote",
+    destinationKey: asString(body.destinationKey) || null,
+  });
+  return NextResponse.json(receipt, { status: 202 });
 }

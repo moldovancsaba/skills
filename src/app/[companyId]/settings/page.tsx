@@ -1046,7 +1046,7 @@ export default function SettingsPage() {
             
             <UnifiedCardSection tone="tactical">
               <Group justify="space-between">
-                <Text  size="sm" style={{ wordBreak: "break-all" }}>
+                <Text size="sm" style={{ wordBreak: "break-all" }}>
                   {bridgeSecretDisplay}
                 </Text>
                 <Group gap="xs">

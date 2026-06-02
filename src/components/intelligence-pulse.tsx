@@ -199,7 +199,7 @@ export function IntelligencePulse() {
           </Group>
 
           {data.metrics.cycleHistory && data.metrics.cycleHistory.length > 0 ? (
-            <Group align="flex-end" gap={4} wrap="nowrap" style={{ flex: 1, minHeight: rem(60) }}>
+            <Group align="flex-end" gap={4} wrap="nowrap" flex={1} mih={rem(60)}>
               {data.metrics.cycleHistory.slice(-10).map((cycle, i) => {
                 const height = Math.max(10, Math.min(100, (cycle.ops / 10) * 100));
                 const fail = parseFloat(cycle.failRate);
@@ -212,10 +212,10 @@ export function IntelligencePulse() {
                     withArrow
                   >
                     <Box
+                      flex={1}
+                      h={`${height}%`}
                       style={{
-                        flex: 1,
-                        height: `${height}%`,
-                        cursor: 'pointer',
+                        cursor: "pointer",
                         ...getSemanticIndicatorStyle(tone, {
                           active: true,
                           shape: "bar",

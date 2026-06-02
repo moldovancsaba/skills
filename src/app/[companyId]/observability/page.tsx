@@ -12,6 +12,7 @@ import { DestinationLearningPanel } from "@/components/destination-learning-pane
 import { DestinationMissionControl } from "@/components/destination-mission-control";
 import { normalizeDestinationKey, resolveDestinationLabel } from "@/lib/destination-scope";
 import { DESTINATION_KEYS } from "@/lib/destination-workflow-contract";
+import { SEMANTIC_CHART_BAR_RADIUS, SEMANTIC_CHART_GRID_STROKE, getSemanticListItemStyle } from "@/lib/semantic-theme";
 
 const QUEUE_COLUMN_RANK: Record<string, number> = {
   NOW: 0,
@@ -72,6 +73,7 @@ export default function ObservabilityPage() {
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [accessChecked, setAccessChecked] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -84,11 +86,27 @@ export default function ObservabilityPage() {
   }, [companyId]);
 
   useEffect(() => {
+    let cancelled = false;
     const timer = window.setTimeout(() => {
-      void loadData();
+      void (async () => {
+        const response = await fetch(`/api/companies/${companyId}/nav`);
+        const payload = await response.json().catch(() => null);
+        const enabledModules = Array.isArray(payload?.webapp?.enabledModules) ? payload.webapp.enabledModules : [];
+        const allowed = enabledModules.includes("analytics") || enabledModules.includes("aiQueue");
+        if (cancelled) return;
+        if (!allowed) {
+          router.replace(`/${companyId}`);
+          return;
+        }
+        setAccessChecked(true);
+        await loadData();
+      })();
     }, 0);
-    return () => window.clearTimeout(timer);
-  }, [loadData]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [companyId, loadData, router]);
 
   const runAction = useCallback(async (action: string) => {
     setActionLoading(action);
@@ -116,7 +134,7 @@ export default function ObservabilityPage() {
     router.replace(`/${companyId}/observability${queryString ? `?${queryString}` : ""}`);
   }, [companyId, router, searchParams]);
 
-  if (loading) {
+  if (!accessChecked || loading) {
     return (
       <PageShell width="full">
         <Stack align="center" py="xl">
@@ -381,7 +399,7 @@ export default function ObservabilityPage() {
                     <Stack gap="xs">
                       <Group justify="space-between" align="flex-start">
                         <Stack gap={2}>
-                          <Box style={{ fontWeight: 700 }}>
+                          <Box fw={700}>
                             <BodyText>{currentJob.jobType}</BodyText>
                           </Box>
                           <MetaText>{currentJob.reason || "Worker is actively processing this pipeline job."}</MetaText>
@@ -400,7 +418,7 @@ export default function ObservabilityPage() {
 
               <Stack gap="xs">
                 <Group justify="space-between">
-                  <Box style={{ fontWeight: 700 }}>
+                  <Box fw={700}>
                     <BodyText>Queue Next</BodyText>
                   </Box>
                   <MetaText>Next {upcomingJobs.length} jobs headed to the agent</MetaText>
@@ -412,18 +430,14 @@ export default function ObservabilityPage() {
                       justify="space-between"
                       align="flex-start"
                       p="sm"
-                      style={{
-                        border: "1px solid var(--border-primary)",
-                        borderRadius: "12px",
-                        background: "rgba(255,255,255,0.02)",
-                      }}
+                      style={getSemanticListItemStyle("neutral")}
                     >
                       <Stack gap={2} flex={1}>
                         <Group gap="xs">
                           <Badge variant="light" color={job.queueColumn === "NOW" ? "checklist" : job.queueColumn === "SOON" ? "tactical" : job.queueColumn === "LATER" ? "strategy" : "gray"}>
                             #{index + 1}
                           </Badge>
-                          <Box style={{ fontWeight: 600 }}>
+                          <Box fw={600}>
                             <BodyText>{job.jobType}</BodyText>
                           </Box>
                         </Group>
@@ -449,11 +463,11 @@ export default function ObservabilityPage() {
             <Box h={320}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={cardHealthChartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
+                  <CartesianGrid vertical={false} strokeDasharray="4 4" stroke={SEMANTIC_CHART_GRID_STROKE} />
                   <XAxis dataKey="family" tickLine={false} axisLine={false} />
                   <YAxis domain={[0, 100]} tickLine={false} axisLine={false} />
                   <Tooltip formatter={(value) => chartTooltipFormatter(value)} />
-                  <Bar dataKey="aggregate" fill="var(--mantine-color-cyan-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} />
+                  <Bar dataKey="aggregate" fill="var(--mantine-color-cyan-6)" radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </Box>
@@ -466,11 +480,11 @@ export default function ObservabilityPage() {
             <Box h={320}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={cardCountChartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="rgba(255,255,255,0.08)" />
+                  <CartesianGrid vertical={false} strokeDasharray="4 4" stroke={SEMANTIC_CHART_GRID_STROKE} />
                   <XAxis dataKey="family" tickLine={false} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} />
                   <Tooltip formatter={(value) => chartTooltipFormatter(value)} />
-                  <Bar dataKey="count" fill="var(--mantine-color-orange-6)" radius={[10, 10, 0, 0]} isAnimationActive={false} />
+                  <Bar dataKey="count" fill="var(--mantine-color-orange-6)" radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </Box>

@@ -52,20 +52,20 @@ export function TraceViewer({
 
   return (
     <Box
+      pos="fixed"
+      top={0}
+      bottom={0}
+      right={0}
+      w={rem(400)}
+      display="flex"
+      p="xl"
       style={{
-        position: 'fixed',
-        top: 0,
-        bottom: 0,
-        right: 0,
-        width: rem(400),
         ...getSemanticSurfaceStyle("neutral", { elevated: true }),
         ...getSemanticOverlayShadowStyle("neutral"),
-        borderLeft: '1px solid var(--border-primary)',
+        borderLeft: "1px solid var(--border-primary)",
         zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
+        flexDirection: "column",
       }}
-      p="xl"
     >
       <Stack gap="xl" h="100%">
         <Group justify="space-between" align="center">
@@ -80,11 +80,11 @@ export function TraceViewer({
           </ActionIcon>
         </Group>
 
-        <Box style={{ flex: 1, position: 'relative' }}>
+        <Box flex={1} pos="relative">
           {/* Vertical connecting line */}
           <Box 
             style={{ 
-              position: 'absolute', 
+              position: "absolute",
               left: 17, 
               top: 20, 
               bottom: 20, 
@@ -99,7 +99,7 @@ export function TraceViewer({
                   <Loader variant="bars" color="ingress" size="lg" />
                 </Center>
               ) : nodes.map((node) => (
-                <Group key={node.id} wrap="nowrap" align="flex-start" gap="lg" style={{ position: 'relative', zIndex: 1 }}>
+                <Group key={node.id} wrap="nowrap" align="flex-start" gap="lg" pos="relative" style={{ zIndex: 1 }}>
                   <ThemeIcon 
                     variant="filled" 
                     color={node.type === 'SOURCE' ? 'gray' : node.type === 'FLASHCARD' ? 'knowmore' : 'checklist'} 
@@ -124,7 +124,7 @@ export function TraceViewer({
         <Box 
           p="md" 
           style={{ 
-            borderRadius: 'var(--mantine-radius-md)',
+            borderRadius: "var(--mantine-radius-md)",
             ...getSemanticInsetStyle("neutral"),
           }}
         >

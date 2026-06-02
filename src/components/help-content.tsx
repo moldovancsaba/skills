@@ -83,11 +83,7 @@ export function ManualPageContent() {
         <Stack gap="xl">
           {manualSections.map((section) => (
             <UnifiedCard key={section.id} tone="neutral" relative>
-              <Badge 
-                color="ingress" 
-                size="xs" 
-                style={{ position: 'absolute', top: -10, left: 20 }}
-              >
+              <Badge color="ingress" size="xs" pos="absolute" top={-10} left={20}>
                 {section.title}
               </Badge>
               <Stack gap="lg" mt="sm">
@@ -152,7 +148,7 @@ export function FaqPageContent() {
           <UnifiedCardBody>
           <Accordion variant="separated" >
             {faqItems.map((item) => (
-              <Accordion.Item key={item.id} value={item.id} style={{ border: 'none', marginBottom: rem(12) }}>
+              <Accordion.Item key={item.id} value={item.id} bd={0} mb="sm">
                 <Accordion.Control>
                   <BodyText c="var(--text-primary)">{item.question}</BodyText>
                 </Accordion.Control>

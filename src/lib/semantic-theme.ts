@@ -123,6 +123,19 @@ export function getSemanticInsetStyle(tone: ModuleTone = "neutral"): CSSProperti
   };
 }
 
+export const SEMANTIC_CHART_GRID_STROKE = "var(--surface-section-border)";
+
+export const SEMANTIC_CHART_BAR_RADIUS: [number, number, number, number] = [8, 8, 0, 0];
+
+export const SEMANTIC_CHART_BAR_RADIUS_COMPACT: [number, number, number, number] = [4, 4, 0, 0];
+
+export function getSemanticListItemStyle(tone: ModuleTone = "neutral"): CSSProperties {
+  return {
+    borderRadius: "var(--mantine-radius-md)",
+    ...getSemanticInsetStyle(tone),
+  };
+}
+
 export function getSemanticCalloutStyle(tone: ModuleTone = "neutral"): CSSProperties {
   const toneTheme = getModuleTheme(tone);
 

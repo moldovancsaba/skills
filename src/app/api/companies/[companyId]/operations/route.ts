@@ -74,14 +74,29 @@ function actionsFromOperationalStatus(status: OperationalStatus): OperationalAct
   return ["acknowledge"];
 }
 
-function computeReviewPressureCount(input: Array<{ packetState: string; _count: { _all: number } }>) {
-  return input.reduce((acc, entry) => {
-    const state = String(entry.packetState || "");
-    if (state === "AWAITING_REVIEW" || state === "REVIEW_REQUIRED" || state === "APPROVED") {
-      return acc + Number(entry._count._all || 0);
-    }
-    return acc;
-  }, 0);
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function readProjectionCount(value: unknown, keys: string[]) {
+  let current: unknown = value;
+  for (const key of keys) {
+    const record = asRecord(current);
+    if (!record) return 0;
+    current = record[key];
+  }
+  return Number(current || 0);
+}
+
+function readMiniappReviewPressureCount(snapshot: { webappProjection?: unknown; observabilitySummary?: unknown } | null | undefined, miniappKey: SupportedDestinationKey) {
+  const webappProjection = snapshot?.webappProjection;
+  return Math.max(
+    readProjectionCount(webappProjection, ["miniapps", miniappKey, "reviewPressureCount"]),
+    readProjectionCount(webappProjection, ["miniapps", miniappKey, "attentionCount"]),
+    readProjectionCount(webappProjection, ["operations", "miniapps", miniappKey, "reviewPressureCount"]),
+    readProjectionCount(snapshot?.observabilitySummary, ["miniapps", miniappKey, "reviewPressureCount"]),
+    readProjectionCount(snapshot?.observabilitySummary, ["miniapps", miniappKey, "attentionCount"]),
+  );
 }
 
 function destinationLabel(destinationKey: SupportedDestinationKey) {
@@ -156,36 +171,13 @@ export async function GET(
   const destinationKeyScope = normalizeDestinationKey(destinationKeyRaw);
 
   try {
-    const [pipelineJobs, snapshot, classScoutReviewCounts, compareReviewCounts, destinationDefinitions, destinationRuns] = await Promise.all([
+    const [pipelineJobs, snapshot, destinationDefinitions, destinationRuns] = await Promise.all([
       listPersistedCompanyPipelineJobs(prisma, companyId),
       prisma.intelligenceSnapshot.findUnique({
         where: { companyId },
         select: {
           webappProjection: true,
-        },
-      }),
-      prisma.destinationReviewPacket.groupBy({
-        by: ["packetState"],
-        where: {
-          companyId,
-          destinationInstance: {
-            destinationKey: "classscout",
-          },
-        },
-        _count: {
-          _all: true,
-        },
-      }),
-      prisma.destinationReviewPacket.groupBy({
-        by: ["packetState"],
-        where: {
-          companyId,
-          destinationInstance: {
-            destinationKey: "compare",
-          },
-        },
-        _count: {
-          _all: true,
+          observabilitySummary: true,
         },
       }),
       prisma.destinationMissionDefinition.findMany({
@@ -273,7 +265,7 @@ export async function GET(
       });
     }
 
-    const classScoutReviewPressureCount = computeReviewPressureCount(classScoutReviewCounts);
+    const classScoutReviewPressureCount = readMiniappReviewPressureCount(snapshot, "classscout");
     if (classScoutReviewPressureCount > 0) {
       items.push({
         id: "miniapp-publish:classscout-review-pressure",
@@ -293,7 +285,7 @@ export async function GET(
       });
     }
 
-    const compareReviewPressureCount = computeReviewPressureCount(compareReviewCounts);
+    const compareReviewPressureCount = readMiniappReviewPressureCount(snapshot, "compare");
     if (compareReviewPressureCount > 0) {
       items.push({
         id: "miniapp-publish:compare-review-pressure",

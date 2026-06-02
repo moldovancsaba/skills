@@ -89,7 +89,7 @@ export default function SalesPage({ companyId }: SalesPageProps) {
 
   const load = useCallback(async () => {
     const [opportunityRes, knowmoreRes, salesSummaryRes] = await Promise.all([
-      fetch(`/api/opportunitycards?companyId=${encodeURIComponent(companyId)}&departmentKey=SALES`),
+      fetch(`/api/opportunitycards?companyId=${encodeURIComponent(companyId)}&departmentKey=SALES&view=board`),
       fetch(`/api/knowmore?companyId=${encodeURIComponent(companyId)}&departmentKey=SALES&includeCompetitor=true&limit=24&offset=0`),
       fetch(`/api/companies/${encodeURIComponent(companyId)}/sales-summary`),
     ]);
@@ -222,10 +222,10 @@ export default function SalesPage({ companyId }: SalesPageProps) {
   }, [load]);
 
   const counts = useMemo(() => ({
-    total: Number(salesSummary?.opportunitycards || opportunitycards.filter((item) => item.activityState !== "ARCHIVED").length),
-    accepted: Number(salesSummary?.acceptedOpportunitycards || opportunitycards.filter((item) => item.processingStatus === "ACCEPTED").length),
-    ready: Number(salesSummary?.readyOpportunitycards || opportunitycards.filter((item) => item.iceScore >= 80).length),
-    salesKnowledge: Number(salesSummary?.salesKnowledgeCount || flashcards.length),
+    total: Number(salesSummary?.opportunitycards ?? 0),
+    accepted: Number(salesSummary?.acceptedOpportunitycards ?? 0),
+    ready: Number(salesSummary?.readyOpportunitycards ?? 0),
+    salesKnowledge: Number(salesSummary?.salesKnowledgeCount ?? 0),
     searchQueued: Number(salesSummary?.searchQueued || 0),
     searchRunning: Number(salesSummary?.searchRunning || 0),
     mineQueued: Number(salesSummary?.mineQueued || 0),
@@ -278,6 +278,7 @@ export default function SalesPage({ companyId }: SalesPageProps) {
             />
           ) : (
             <SalesBoard
+              companyId={companyId}
               items={opportunitycards}
               onAction={handleAction}
               onReorder={handleReorder}

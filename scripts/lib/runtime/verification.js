@@ -52,7 +52,13 @@ function detectStaleRunningJobs(jobs = [], now = Date.now(), timeoutMs = PIPELIN
 
 function findDecompositionAnomalies(jobs = []) {
   const byId = new Map(jobs.map((job) => [job.id, job]));
-  const childJobs = jobs.filter((job) => String(job.entityType || "") === "PIPELINE_SLICE");
+  const childJobs = jobs.filter((job) => {
+    if (String(job.entityType || "") !== "PIPELINE_SLICE") return false;
+    const metadata = job?.metadata || {};
+    if (typeof metadata.parentJobId === "string" && metadata.parentJobId) return true;
+    if (String(job.sourceSignal || "").startsWith("decomp:")) return true;
+    return metadata?.decomposition?.state === "ACTIVE_CHILD";
+  });
   const parentJobs = jobs.filter((job) => job?.metadata?.decomposition?.state === "DECOMPOSED");
   const anomalies = [];
 

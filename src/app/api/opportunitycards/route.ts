@@ -13,64 +13,9 @@ import { buildNormalizedRanks, computeServerBoardRank, needsBoardRebalance } fro
 
 export const dynamic = "force-dynamic";
 
-function normalizeEvidenceRecord(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
-}
-
-function buildOpportunitySearchFeedbackInput(card: {
-  website?: string | null;
-  companyName?: string | null;
-  title?: string | null;
-  hashtags?: string[] | null;
-  fitRationale?: string | null;
-  evidence?: Prisma.JsonValue | null;
-}, action: string) {
-  const evidence = normalizeEvidenceRecord(card.evidence);
-  const leadDiscovery = normalizeEvidenceRecord(evidence?.leadDiscovery);
-  const terms = [
-    card.companyName,
-    card.title,
-    card.fitRationale,
-    ...(Array.isArray(card.hashtags) ? card.hashtags : []),
-  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
-  return {
-    action,
-    query: typeof leadDiscovery?.query === "string" ? leadDiscovery.query : null,
-    domain: typeof leadDiscovery?.searchDomain === "string"
-      ? leadDiscovery.searchDomain
-      : typeof card.website === "string"
-        ? card.website
-        : null,
-    terms,
-  };
-}
-
-async function recordOpportunitySearchFeedbackFromAction(card: {
-  companyId: string;
-  website?: string | null;
-  companyName?: string | null;
-  title?: string | null;
-  hashtags?: string[] | null;
-  fitRationale?: string | null;
-  evidence?: Prisma.JsonValue | null;
-}, action: string) {
-  if (action !== "ACCEPT" && action !== "DECLINE") return;
-  const searchLearning = await import("../../../../scripts/lib/opportunity-search.js");
-  const recordOpportunitySearchFeedback = searchLearning.recordOpportunitySearchFeedback
-    ?? searchLearning.default?.recordOpportunitySearchFeedback;
-  if (typeof recordOpportunitySearchFeedback !== "function") {
-    throw new Error("recordOpportunitySearchFeedback is unavailable");
-  }
-  await recordOpportunitySearchFeedback(prisma, card.companyId, buildOpportunitySearchFeedbackInput(card, action));
-}
-
-async function rebalanceOpportunitycardsForCompany(companyId: string) {
-  const runtime = await import("@/lib/opportunitycards-runtime.js");
-  const rebalanceOpportunitycardBoard = runtime.rebalanceOpportunitycardBoard;
-  if (typeof rebalanceOpportunitycardBoard !== "function") {
-    throw new Error("rebalanceOpportunitycardBoard is unavailable");
-  }
-  await rebalanceOpportunitycardBoard(prisma as never, companyId);
+async function queueOpportunitycardProjectionRefresh(companyId: string, reason: string, jobType: "REFRESH_OPPORTUNITYCARDS" | "MINE_OPPORTUNITYCARDS" | "SEARCH_OPPORTUNITYCARDS" = "REFRESH_OPPORTUNITYCARDS") {
+  await markCompanyPipelineTopologyDirty(prisma, companyId, reason);
+  await escalateCompanyPipelineJob(prisma as never, companyId, jobType);
 }
 
 function buildManualLaneOverrideData(column: ChecklistKanbanColumn, actorId: string, now = new Date()) {
@@ -133,6 +78,7 @@ async function ensureOpportunityColumnRanks(companyId: string, departmentKey: De
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("companyId");
+  const id = request.nextUrl.searchParams.get("id");
   const showAll = request.nextUrl.searchParams.get("all") === "true";
   const kanbanColumn = request.nextUrl.searchParams.get("kanbanColumn") ?? request.nextUrl.searchParams.get("column");
   const departmentKey = (request.nextUrl.searchParams.get("departmentKey") || SALES_DEPARTMENT_KEY) as DepartmentKey;
@@ -143,6 +89,49 @@ export async function GET(request: NextRequest) {
   if (auth.error) return auth.error;
 
   try {
+    if (id) {
+      const item = await prisma.opportunitycard.findFirst({
+        where: {
+          id,
+          companyId: companyId as string,
+        },
+        include: {
+          feedback: {
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          },
+        },
+      });
+      if (!item) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      const linkedFlashcardIds = Array.from(
+        new Set([
+          ...(Array.isArray(item.sourceFlashcardIds) ? item.sourceFlashcardIds : []),
+          ...(Array.isArray(item.generatedFromIds) ? item.generatedFromIds : []),
+        ]),
+      );
+      const linkedFlashcards = linkedFlashcardIds.length > 0
+        ? await prisma.flashcard.findMany({
+            where: {
+              companyId: companyId as string,
+              id: { in: linkedFlashcardIds },
+            },
+            select: {
+              id: true,
+              publicId: true,
+              title: true,
+              departmentKey: true,
+              intelligenceType: true,
+            },
+          })
+        : [];
+      return NextResponse.json({
+        ...item,
+        linkedFlashcards,
+      });
+    }
+
     const where: Prisma.OpportunitycardWhereInput = { companyId: companyId as string };
     if (departmentKey) {
       where.departmentKey = departmentKey;
@@ -156,62 +145,38 @@ export async function GET(request: NextRequest) {
 
     const items = await prisma.opportunitycard.findMany({
       where,
-      orderBy: showAll || Boolean(kanbanColumn)
-        ? [
-            { sortOrder: "asc" },
-            { iceScore: "desc" },
-            { confidenceScore: "desc" },
-            { publicId: "asc" },
-          ]
-        : [
-            { iceScore: "desc" },
-            { confidenceScore: "desc" },
-            { updatedAt: "desc" },
-            { publicId: "asc" },
-          ],
-      include: {
-        feedback: {
-          orderBy: { createdAt: "desc" },
-          take: 5,
-        },
+      orderBy: [
+        { kanbanColumn: "asc" },
+        { sortOrder: "asc" },
+        { iceScore: "desc" },
+        { publicId: "asc" },
+      ],
+      select: {
+        id: true,
+        publicId: true,
+        companyName: true,
+        title: true,
+        opportunityType: true,
+        iceScore: true,
+        processingStatus: true,
+        activityState: true,
+        kanbanColumn: true,
+        sortOrder: true,
+        updatedAt: true,
       },
     });
-    const linkedFlashcardIds = Array.from(
-      new Set(
-        items.flatMap((item) => [
-          ...(Array.isArray(item.sourceFlashcardIds) ? item.sourceFlashcardIds : []),
-          ...(Array.isArray(item.generatedFromIds) ? item.generatedFromIds : []),
-        ]),
-      ),
-    );
-    const linkedFlashcards = linkedFlashcardIds.length > 0
-      ? await prisma.flashcard.findMany({
-          where: {
-            companyId: companyId as string,
-            id: { in: linkedFlashcardIds },
-          },
-          select: {
-            id: true,
-            publicId: true,
-            title: true,
-            departmentKey: true,
-            intelligenceType: true,
-          },
-        })
-      : [];
-    const linkedFlashcardMap = new Map(linkedFlashcards.map((flashcard) => [flashcard.id, flashcard]));
 
-    return NextResponse.json(
-      items.map((item) => ({
+    return NextResponse.json({
+      items: items.map((item) => ({
         ...item,
-        linkedFlashcards: [
-          ...(Array.isArray(item.sourceFlashcardIds) ? item.sourceFlashcardIds : []),
-          ...(Array.isArray(item.generatedFromIds) ? item.generatedFromIds : []),
-        ]
-          .map((id) => linkedFlashcardMap.get(id))
-          .filter(Boolean),
+        body: "",
+        hashtags: [],
+        confidenceScore: 0,
+        impact: 0,
+        weight: 0,
       })),
-    );
+      payload: "board-summary",
+    });
   } catch (error) {
     console.error("[API:OPPORTUNITYCARDS] GET failure:", error);
     return NextResponse.json([]);
@@ -341,8 +306,7 @@ export async function POST(request: NextRequest) {
         },
       });
     }, TRANSACTION_SETTINGS);
-    await rebalanceOpportunitycardsForCompany(companyId);
-    await markCompanyPipelineTopologyDirty(prisma, companyId, "opportunitycard-create");
+    await queueOpportunitycardProjectionRefresh(companyId, "opportunitycard-create");
 
     await recordInteractionEventFromRequest(request, {
       companyId,
@@ -418,8 +382,7 @@ export async function PATCH(request: NextRequest) {
       }, TRANSACTION_SETTINGS);
 
       const updated = await prisma.opportunitycard.findUnique({ where: { id } });
-      await rebalanceOpportunitycardsForCompany(existing.companyId);
-      await markCompanyPipelineTopologyDirty(prisma, existing.companyId, "opportunitycard-reorder");
+      await queueOpportunitycardProjectionRefresh(existing.companyId, "opportunitycard-reorder");
       return NextResponse.json(updated);
     }
 
@@ -457,8 +420,7 @@ export async function PATCH(request: NextRequest) {
           ...buildManualLaneOverrideData(destinationColumn, actorId),
         },
       });
-      await rebalanceOpportunitycardsForCompany(existing.companyId);
-      await markCompanyPipelineTopologyDirty(prisma, existing.companyId, "opportunitycard-reorder");
+      await queueOpportunitycardProjectionRefresh(existing.companyId, "opportunitycard-reorder");
       return NextResponse.json(updated);
     }
 
@@ -573,9 +535,7 @@ export async function PATCH(request: NextRequest) {
         where: { id },
         data: nextData,
       });
-      await recordOpportunitySearchFeedbackFromAction(existing, action);
-      await rebalanceOpportunitycardsForCompany(existing.companyId);
-      await markCompanyPipelineTopologyDirty(prisma, existing.companyId, `opportunitycard-action:${action.toLowerCase()}`);
+      await queueOpportunitycardProjectionRefresh(existing.companyId, `opportunitycard-action:${action.toLowerCase()}`);
       if (action === "DECLINE" || action === "MODIFY" || action === "REQUEST_REFRESH") {
         await escalateCompanyPipelineJob(prisma as never, existing.companyId, "REFRESH_OPPORTUNITYCARDS");
       }
@@ -657,8 +617,7 @@ export async function PATCH(request: NextRequest) {
         refreshedAt: new Date(),
       },
     });
-    await rebalanceOpportunitycardsForCompany(existing.companyId);
-    await markCompanyPipelineTopologyDirty(prisma, existing.companyId, "opportunitycard-update");
+    await queueOpportunitycardProjectionRefresh(existing.companyId, "opportunitycard-update");
     return NextResponse.json(updated);
   } catch (error) {
     console.error("[API:OPPORTUNITYCARDS] PATCH failure:", error);

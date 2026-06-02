@@ -135,18 +135,18 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         updatedAt: true,
       },
-      ...(safeLimit ? { skip: safeOffset, take: safeLimit } : {}),
+      ...(safeLimit ? { skip: safeOffset, take: safeLimit + 1 } : {}),
     });
-    const normalized = files.map((file) => ({
+    const pageFiles = safeLimit ? files.slice(0, safeLimit) : files;
+    const normalized = pageFiles.map((file) => ({
       ...file,
       body: decodeUploadedFileBody(file),
     }));
     if (safeLimit) {
-      const total = await prisma.uploadedSourceFile.count({ where: { companyId: companyId as string } });
       return NextResponse.json({
         items: normalized,
-        total,
-        hasMore: safeOffset + normalized.length < total,
+        total: null,
+        hasMore: files.length > safeLimit,
       });
     }
     return NextResponse.json(normalized);

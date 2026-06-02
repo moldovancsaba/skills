@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMembership } from "@/lib/permissions";
-import { discoverVisitorCandidates } from "@/lib/visitor-candidate-pipeline";
+import { queueVisitorLocalIntent } from "@/lib/visitor-intent-queue";
 
 export const dynamic = "force-dynamic";
 
-function asNumber(value: unknown, fallback: number) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : fallback;
-}
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -24,15 +20,11 @@ export async function POST(
   if (auth.error) return auth.error;
 
   const { visitorKey } = await params;
-  try {
-    const result = await discoverVisitorCandidates(
-      companyId,
-      visitorKey,
-      Math.max(1, Math.min(200, asNumber(body.limit, 50))),
-      asString(body.destinationKey) || undefined,
-    );
-    return NextResponse.json({ ok: true, visitorKey, ...result });
-  } catch (error) {
-    return NextResponse.json({ ok: false, error: String(error) }, { status: 400 });
-  }
+  const receipt = await queueVisitorLocalIntent({
+    companyId,
+    visitorKey,
+    intentKind: "candidate.discover",
+    destinationKey: asString(body.destinationKey) || null,
+  });
+  return NextResponse.json(receipt, { status: 202 });
 }

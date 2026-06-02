@@ -57,7 +57,7 @@ export function CookieBanner() {
 
   return (
     <Affix position={{ bottom: 0, left: 0, right: 0 }} zIndex={1000}>
-      <Container fluid px="md" style={{ paddingLeft: 'var(--app-shell-navbar-offset, 280px)' }}>
+      <Container fluid px="md" pl="var(--app-shell-navbar-offset, 280px)">
         <Box py="md">
           <Box maw={1200} mx="auto">
             <UnifiedCard tone="neutral">

@@ -215,7 +215,7 @@ export default function CompanyTopicsClient({
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="e.g., market landscape analysis, pricing strategy..."
-                style={{ flex: 1 }}
+                flex={1}
               />
               <Button 
                 onClick={() => void addTopic()}
@@ -241,7 +241,7 @@ export default function CompanyTopicsClient({
         <UnifiedGrid>
           {orderedTopics.map((topic, index) => {
             const supportingBadge = (
-              <Group gap={6} justify="space-between" wrap="nowrap" style={{ width: "100%" }}>
+              <Group gap={6} justify="space-between" wrap="nowrap" w="100%">
                 <Group gap={6}>
                   <MantineBadge variant="outline" color="gray" size="xs">
                     {index + 1}
@@ -304,7 +304,7 @@ export default function CompanyTopicsClient({
                           size="md"
                           color="synthesis"
                         />
-                        <Box style={{ flex: 1 }}>
+                        <Box flex={1}>
                           <Text size="xs" c="dimmed">Research Status</Text>
                           <Text size="sm" c={topic.active ? "white" : "dimmed"}>
                             {topic.active ? "Actively harvesting strategic intelligence" : "Research focus suspended"}

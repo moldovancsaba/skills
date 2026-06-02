@@ -45,6 +45,7 @@ export default function EvaluationsPage() {
   const [publishing, setPublishing] = useState(false);
   const [publishingRunId, setPublishingRunId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [accessChecked, setAccessChecked] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -122,13 +123,29 @@ export default function EvaluationsPage() {
   }, [companyId, loadData]);
 
   useEffect(() => {
+    let cancelled = false;
     const timer = window.setTimeout(() => {
-      void loadData();
+      void (async () => {
+        const response = await fetch(`/api/companies/${companyId}/nav`);
+        const payload = await response.json().catch(() => null);
+        const enabledModules = Array.isArray(payload?.webapp?.enabledModules) ? payload.webapp.enabledModules : [];
+        const allowed = enabledModules.includes("analytics") || enabledModules.includes("aiQueue");
+        if (cancelled) return;
+        if (!allowed) {
+          router.replace(`/${companyId}`);
+          return;
+        }
+        setAccessChecked(true);
+        await loadData();
+      })();
     }, 0);
-    return () => window.clearTimeout(timer);
-  }, [loadData]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [companyId, loadData, router]);
 
-  if (loading) {
+  if (!accessChecked || loading) {
     return (
       <PageShell width="full">
         <Stack align="center" py="xl">

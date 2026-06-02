@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDestinationMissionRun } from "@/lib/destination-missions";
-import { executeDestinationMissionUntilBlocked } from "@/lib/destination-mission-runner";
+import { prisma } from "@/lib/db";
+import { escalateCompanyPipelineJob } from "@/lib/pipeline-queue";
 import { verifyMembership } from "@/lib/permissions";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
 
@@ -29,20 +30,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Mission run not found" }, { status: 404 });
     }
   }
-  const result = await executeDestinationMissionUntilBlocked({
+  const job = await escalateCompanyPipelineJob(prisma, companyId, "DESTINATION_MISSION_DAEMON", "DESTINATION_MISSION_RUN", id);
+
+  return NextResponse.json({
+    ok: true,
+    queued: true,
+    lane: "PLAYLIST",
+    jobType: "DESTINATION_MISSION_DAEMON",
+    jobId: job?.id ?? null,
     companyId,
     missionId: id,
+    destinationScope: destinationKey ?? null,
     actorId: auth.session.email,
-    maxPasses: typeof body.maxPasses === "number" ? body.maxPasses : undefined,
-    maxAutoRejections: typeof body.maxAutoRejections === "number" ? body.maxAutoRejections : undefined,
-  });
-
-  if (!result.ok) {
-    return NextResponse.json(
-      { error: result.error ?? "Mission execution failed", status: result.status ?? 500, passes: result.passes ?? [] },
-      { status: result.status ?? 500 },
-    );
-  }
-
-  return NextResponse.json(result);
+    message: "Destination mission run was queued for CHECK Local instead of executing directly.",
+  }, { status: 202 });
 }

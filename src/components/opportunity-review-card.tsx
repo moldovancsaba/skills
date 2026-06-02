@@ -138,6 +138,28 @@ function toDisplayUrl(value: string) {
   }
 }
 
+function displayNameFromUrl(value: string | null | undefined) {
+  const normalized = normalizeText(value);
+  if (!normalized) return "";
+  try {
+    const host = new URL(toHref(normalized)).hostname.replace(/^www\./i, "");
+    return host
+      .split(".")
+      .filter(Boolean)
+      .slice(0, -1)
+      .join(".")
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  } catch {
+    return "";
+  }
+}
+
+function isGenericPageTitle(value: string | null | undefined) {
+  const normalized = normalizeText(value).toLowerCase();
+  return /^(?:home|homepage|index|welcome)$/.test(normalized);
+}
+
 function normalizeCompare(value: string | null | undefined) {
   return normalizeText(value).replace(/^https?:\/\//i, "").replace(/^www\./i, "").toLowerCase();
 }
@@ -153,8 +175,32 @@ function isMeaningfulBody(body: string, banned: string[]) {
   const normalized = normalizeText(body);
   if (!normalized) return false;
   if (looksLikeUrl(normalized)) return false;
+  if (looksLikeScrapedPageNoise(normalized)) return false;
   if (normalized.length < 24) return false;
   return isMeaningfulField(normalized, banned);
+}
+
+function looksLikeScrapedPageNoise(value: string | null | undefined) {
+  const normalized = normalizeText(value);
+  if (!normalized) return false;
+  if (/\bPage Evidence:\s*Status:\s*(?:401|403|404|429|500|502|503)\b/i.test(normalized)) return true;
+  if (/\bStatus:\s*(?:401|403|404|429|500|502|503)\b/i.test(normalized) && /\bSource:\s*https?:\/\//i.test(normalized)) return true;
+  return false;
+}
+
+function isWeakOneWordPageTitle(value: string | null | undefined) {
+  const normalized = normalizeText(value);
+  if (!normalized) return false;
+  return !looksLikeUrl(normalized) && /^[\p{L}\p{N}]{2,24}$/u.test(normalized);
+}
+
+function cleanOpportunityText(value: string | null | undefined) {
+  const normalized = normalizeText(value);
+  if (!normalized || looksLikeScrapedPageNoise(normalized)) return "";
+  return normalized
+    .replace(/\bPage Evidence:\s*Status:\s*\d{3}\b.*$/i, "")
+    .replace(/\bSource:\s*https?:\/\/\S+.*$/i, "")
+    .trim();
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -164,14 +210,27 @@ function formatDateTime(value: string | null | undefined) {
   return parsed.toLocaleString();
 }
 
-function stringifyStructuredValue(value: unknown) {
-  if (value === null || value === undefined) return null;
-  if (typeof value === "string") return normalizeText(value);
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
+function readContactValue(contactInfo: Record<string, unknown> | null | undefined, keys: string[]) {
+  if (!contactInfo || typeof contactInfo !== "object") return "";
+  for (const key of keys) {
+    const value = contactInfo[key];
+    if (typeof value === "string") {
+      const normalized = normalizeText(value);
+      if (normalized) return normalized;
+    }
   }
+  return "";
+}
+
+function buildContactRows(item: Opportunitycard) {
+  const contactInfo = item.contactInfo;
+  return [
+    readContactValue(contactInfo, ["contactName", "name", "person", "fullName"]) ? { label: "Contact", value: readContactValue(contactInfo, ["contactName", "name", "person", "fullName"]) } : null,
+    readContactValue(contactInfo, ["email", "emailAddress"]) ? { label: "Email", value: readContactValue(contactInfo, ["email", "emailAddress"]) } : null,
+    readContactValue(contactInfo, ["phone", "phoneNumber", "telephone"]) ? { label: "Phone", value: readContactValue(contactInfo, ["phone", "phoneNumber", "telephone"]) } : null,
+    readContactValue(contactInfo, ["address", "streetAddress"]) ? { label: "Address", value: readContactValue(contactInfo, ["address", "streetAddress"]) } : null,
+    isMeaningfulField(item.location, [item.companyName, item.title]) ? { label: "Location", value: normalizeText(item.location) } : null,
+  ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
 }
 
 export function OpportunityReviewCard({
@@ -204,7 +263,18 @@ export function OpportunityReviewCard({
   });
   const titleText = normalizeText(item.title);
   const companyName = normalizeText(item.companyName);
-  const primaryTitle = looksLikeUrl(companyName) && !looksLikeUrl(titleText) ? titleText : companyName || titleText;
+  const fallbackCompanyName = displayNameFromUrl(item.website);
+  const sourceEvidenceIsNoisy = looksLikeScrapedPageNoise(item.body) || looksLikeScrapedPageNoise(item.coreOffer);
+  const shouldUseWebsiteName =
+    Boolean(fallbackCompanyName)
+    && sourceEvidenceIsNoisy
+    && (isGenericPageTitle(companyName) || isWeakOneWordPageTitle(companyName));
+  const primaryTitle =
+    shouldUseWebsiteName
+      ? fallbackCompanyName || titleText
+      : looksLikeUrl(companyName) && !looksLikeUrl(titleText)
+        ? titleText
+        : companyName || titleText || fallbackCompanyName;
   const duplicateBlockers = [
     companyName,
     titleText,
@@ -222,9 +292,13 @@ export function OpportunityReviewCard({
     item.xUrl ? { label: "X", value: item.xUrl } : null,
   ].filter((entry): entry is { label: string; value: string } => Boolean(entry?.value));
   const bodyIsUseful = isMeaningfulBody(item.body, duplicateBlockers);
+  const professionalTitle = !isGenericPageTitle(titleText) && isMeaningfulField(titleText, [companyName]) ? titleText : "";
+  const professionalDescription = bodyIsUseful
+    ? cleanOpportunityText(item.body)
+    : (sourceEvidenceIsNoisy ? "" : cleanOpportunityText(item.coreOffer)) || cleanOpportunityText(item.fitRationale);
+  const contactRows = buildContactRows(item);
   const infoRows = [
-    isMeaningfulField(item.location, duplicateBlockers) ? { label: "Location", value: normalizeText(item.location) } : null,
-    isMeaningfulField(item.coreOffer, duplicateBlockers) ? { label: "Core Offer", value: normalizeText(item.coreOffer) } : null,
+    !sourceEvidenceIsNoisy && isMeaningfulField(item.coreOffer, duplicateBlockers) ? { label: "Core Offer", value: normalizeText(item.coreOffer) } : null,
     isMeaningfulField(item.financialBackground, duplicateBlockers) ? { label: "Financial Background", value: normalizeText(item.financialBackground) } : null,
     isMeaningfulField(item.fitRationale, duplicateBlockers) ? { label: "Fit Rationale", value: normalizeText(item.fitRationale) } : null,
   ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
@@ -237,10 +311,7 @@ export function OpportunityReviewCard({
     { label: "Accepted", value: String(Number(item.acceptanceCount || 0)) },
     { label: "Declined", value: String(Number(item.declineCount || 0)) },
   ];
-  const workflowRows = [
-    { label: "Lane", value: item.kanbanColumn },
-    { label: "Processing Status", value: item.processingStatus },
-    { label: "Activity State", value: item.activityState },
+  const qualificationRows = [
     { label: "Opportunity Type", value: item.opportunityType },
     item.evaluationReason ? { label: "Evaluation Reason", value: normalizeText(item.evaluationReason) } : null,
   ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
@@ -249,24 +320,6 @@ export function OpportunityReviewCard({
     item.duplicateClusterId ? { label: "Duplicate Cluster", value: item.duplicateClusterId } : null,
     item.refinedFromId ? { label: "Refined From", value: item.refinedFromId } : null,
   ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
-  const metadataRows = [
-    item.publicId != null ? { label: "Public ID", value: String(item.publicId) } : null,
-    item.createdBy ? { label: "Created By", value: item.createdBy } : null,
-    item.generatedAt ? { label: "Generated At", value: formatDateTime(item.generatedAt) || item.generatedAt } : null,
-    item.refreshedAt ? { label: "Refreshed At", value: formatDateTime(item.refreshedAt) || item.refreshedAt } : null,
-    item.lastActionAt ? { label: "Last Action", value: formatDateTime(item.lastActionAt) || item.lastActionAt } : null,
-    item.rottenAt ? { label: "Rotten At", value: formatDateTime(item.rottenAt) || item.rottenAt } : null,
-    item.promptName ? { label: "Prompt", value: item.promptName } : null,
-    item.promptVersion ? { label: "Prompt Version", value: item.promptVersion } : null,
-    item.modelName ? { label: "Model", value: item.modelName } : null,
-    item.modelVersion ? { label: "Model Version", value: item.modelVersion } : null,
-    item.temperature != null ? { label: "Temperature", value: String(item.temperature) } : null,
-  ].filter((entry): entry is { label: string; value: string } => Boolean(entry));
-  const structuredPayloads = [
-    { label: "Contact Info", value: item.contactInfo },
-    { label: "Score Profile", value: item.scoreProfile },
-    { label: "Evidence", value: item.evidence },
-  ].filter((entry) => entry.value && (typeof entry.value !== "object" || Object.keys(entry.value as Record<string, unknown>).length > 0));
   const displayableComment = getDisplayableHumanComment(item.userAnnotation);
   const visibleHashtags = detailMode ? item.hashtags : item.hashtags.slice(0, 5);
 
@@ -281,13 +334,13 @@ export function OpportunityReviewCard({
         clampTitle={!detailMode}
         supporting={
           <Group justify="space-between" align="flex-start" wrap="nowrap" w="100%">
-            <Group gap="xs" wrap="wrap" style={{ flex: 1, minWidth: 0 }}>
+            <Group gap="xs" wrap="wrap" flex={1} miw={0}>
               <Badge color="dark">{item.processingStatus}</Badge>
               <Badge color={getOpportunityToneColor(tone)} variant="light">Opportunitycard</Badge>
               <Badge color="ingress" variant="light">#{item.opportunityType}</Badge>
               <UnifiedCardFreshnessBadge freshness={freshness} />
             </Group>
-            <Badge color={getIceBadgeColor(item.iceScore)} style={{ flexShrink: 0 }}>
+            <Badge color={getIceBadgeColor(item.iceScore)} flex="0 0 auto">
               ICE {Math.round(item.iceScore)}
             </Badge>
           </Group>
@@ -296,7 +349,7 @@ export function OpportunityReviewCard({
       />
 
       <UnifiedCardBody>
-        {bodyIsUseful ? (
+        {!detailMode && bodyIsUseful ? (
           <UnifiedCardText disablePreview={detailMode} previewLength={detailMode ? 240 : 120} markdown>
             {item.body}
           </UnifiedCardText>
@@ -312,7 +365,29 @@ export function OpportunityReviewCard({
           </Group>
         ) : null}
 
-        {detailMode && (socialLinks.length > 0 || infoRows.length > 0 || (item.salesGeographies?.length ?? 0) > 0) ? (
+        {detailMode ? (
+          <UnifiedCardSection tone={tone}>
+            <Stack gap="sm">
+              {professionalTitle ? (
+                <Stack gap={2}>
+                  <MetaText>Professional Title</MetaText>
+                  <Text size="sm">{professionalTitle}</Text>
+                </Stack>
+              ) : null}
+              {professionalDescription ? (
+                <Stack gap={2}>
+                  <MetaText>Professional Description</MetaText>
+                  <Text size="sm">{professionalDescription}</Text>
+                </Stack>
+              ) : null}
+              {!professionalTitle && !professionalDescription ? (
+                <Text size="sm" c="dimmed">This opportunity needs a clean professional description before outreach.</Text>
+              ) : null}
+            </Stack>
+          </UnifiedCardSection>
+        ) : null}
+
+        {detailMode && (socialLinks.length > 0 || contactRows.length > 0 || infoRows.length > 0 || (item.salesGeographies?.length ?? 0) > 0) ? (
           <UnifiedCardSection tone={tone}>
             <Stack gap="sm">
               {socialLinks.length > 0 ? (
@@ -332,6 +407,18 @@ export function OpportunityReviewCard({
                     </Badge>
                   ))}
                 </Group>
+              ) : null}
+
+              {contactRows.length > 0 ? (
+                <Stack gap="xs">
+                  <MetaText>Contact Information</MetaText>
+                  {contactRows.map((row) => (
+                    <Group key={row.label} justify="space-between" gap="md" wrap="nowrap">
+                      <MetaText>{row.label}</MetaText>
+                      <BodyText ta="right">{row.value}</BodyText>
+                    </Group>
+                  ))}
+                </Stack>
               ) : null}
 
               {infoRows.map((row) => (
@@ -360,8 +447,8 @@ export function OpportunityReviewCard({
         {detailMode ? (
           <UnifiedCardSection tone="review">
             <Stack gap="sm">
-              <MetaText>Workflow</MetaText>
-              {workflowRows.map((row) => (
+              <MetaText>Qualification</MetaText>
+              {qualificationRows.map((row) => (
                 <Group key={row.label} justify="space-between" gap="md" wrap="nowrap">
                   <MetaText>{row.label}</MetaText>
                   <BodyText ta="right">{row.value}</BodyText>
@@ -418,7 +505,7 @@ export function OpportunityReviewCard({
         {detailMode && ((item.sourceFlashcardIds?.length ?? 0) > 0 || (item.generatedFromIds?.length ?? 0) > 0 || lineageRows.length > 0) ? (
           <UnifiedCardSection tone="ingress">
             <Stack gap="sm">
-              <MetaText>Lineage</MetaText>
+              <MetaText>Supporting Sources</MetaText>
               {lineageRows.map((row) => (
                 <Stack key={row.label} gap={2}>
                   <MetaText>{row.label}</MetaText>
@@ -459,40 +546,6 @@ export function OpportunityReviewCard({
                   </Badge>
                 ))}
               </Group>
-            </Stack>
-          </UnifiedCardSection>
-        ) : null}
-
-        {detailMode && metadataRows.length > 0 ? (
-          <UnifiedCardSection tone="neutral">
-            <Stack gap="sm">
-              <MetaText>Generation Metadata</MetaText>
-              {metadataRows.map((row) => (
-                <Group key={row.label} justify="space-between" gap="md" wrap="nowrap">
-                  <MetaText>{row.label}</MetaText>
-                  <BodyText ta="right">{row.value}</BodyText>
-                </Group>
-              ))}
-            </Stack>
-          </UnifiedCardSection>
-        ) : null}
-
-        {detailMode && structuredPayloads.length > 0 ? (
-          <UnifiedCardSection tone="neutral">
-            <Stack gap="sm">
-              <MetaText>Persisted Structured Fields</MetaText>
-              {structuredPayloads.map((entry) => {
-                const serialized = stringifyStructuredValue(entry.value);
-                if (!serialized) return null;
-                return (
-                  <Stack key={entry.label} gap={2}>
-                    <MetaText>{entry.label}</MetaText>
-                    <Text size="sm" ff="monospace" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                      {serialized}
-                    </Text>
-                  </Stack>
-                );
-              })}
             </Stack>
           </UnifiedCardSection>
         ) : null}

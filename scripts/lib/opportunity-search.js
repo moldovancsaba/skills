@@ -499,7 +499,8 @@ async function persistHarvestedSources(prisma, company, results) {
     const snippet = normalizeText(result.snippet || "");
     const fetched = result.fetched || null;
     const title = normalizeText(result.title || fetched?.title || "Lead research");
-    const pageContent = normalizeText(fetched?.content || "");
+    const fetchedStatus = Number(fetched?.status || 0);
+    const pageContent = fetchedStatus === 200 ? normalizeText(fetched?.content || "") : "";
     const content = [title, snippet, pageContent ? `Page Evidence: ${pageContent}` : null, `Source: ${result.url}`]
       .filter(Boolean)
       .join("\n\n");

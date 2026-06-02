@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMembership } from "@/lib/permissions";
-import { classifyVisitorCandidate } from "@/lib/visitor-candidate-pipeline";
+import { queueVisitorLocalIntent } from "@/lib/visitor-intent-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +10,6 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function asNumber(value: unknown) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : undefined;
 }
 
 export async function POST(
@@ -28,12 +23,12 @@ export async function POST(
   if (auth.error) return auth.error;
 
   const { visitorKey, id } = await params;
-  const classification = await classifyVisitorCandidate(companyId, visitorKey, id, {
-    contentType: asString(body.contentType) || undefined,
-    confidence: asNumber(body.confidence),
-    forbidden: body.forbidden === true,
-    reasons: Array.isArray(body.reasons) ? body.reasons.map((value) => asString(value)).filter(Boolean) : undefined,
+  const receipt = await queueVisitorLocalIntent({
+    companyId,
+    visitorKey,
+    intentKind: "candidate.classify",
+    candidateId: id,
+    destinationKey: asString(body.destinationKey) || null,
   });
-  if (!classification) return NextResponse.json({ ok: false, error: "Candidate not found" }, { status: 404 });
-  return NextResponse.json({ ok: true, visitorKey, candidateId: id, classification });
+  return NextResponse.json(receipt, { status: 202 });
 }

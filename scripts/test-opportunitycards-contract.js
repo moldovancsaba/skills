@@ -40,6 +40,40 @@ async function main() {
   assert.equal(deriveOpportunityLane(normalized.iceScore), "CHECKLIST", "lane placement should derive from canonical normalized ICE");
   assert.equal(normalizeOpportunityType("reseller"), "RESELLER", "type normalization should preserve supported variants");
 
+  const scrapedPageNormalized = normalizeOpportunityPayload({
+    companyName: "Accueil",
+    title: "Accueil",
+    body: "myCANAL - Accueil | myCANAL Une nouvelle façon de regarder la télé. Page Evidence: Status: 403 Source: https://www.mycanal.fr/",
+    coreOffer: "Accueil Regarder les meilleurs programmes, films, séries, sports en streaming direct ou en replay.",
+    fitRationale: "Possible fit for enterprise teams.",
+    website: "https://www.canalplus.com/",
+  });
+  assert.equal(
+    scrapedPageNormalized.body,
+    "Possible fit for enterprise teams.",
+    "access-denied page evidence must not become the professional description",
+  );
+  assert.equal(scrapedPageNormalized.coreOffer, null, "derived page copy must not persist as core offer when the source body is failed scrape evidence");
+
+  const validFrenchNormalized = normalizeOpportunityPayload({
+    companyName: "Studio Lumiere",
+    title: "Studio Lumiere",
+    body: "Studio francais de production video pour les marques et les equipes marketing.",
+    coreOffer: "Production video, montage et direction creative.",
+    fitRationale: "Possible fit for marketing teams.",
+    website: "https://studio-lumiere.example.com/",
+  });
+  assert.equal(
+    validFrenchNormalized.body,
+    "Studio francais de production video pour les marques et les equipes marketing.",
+    "French opportunity descriptions must remain valid when the source is clean",
+  );
+  assert.equal(
+    validFrenchNormalized.coreOffer,
+    "Production video, montage et direction creative.",
+    "French core offers must remain valid when the source is clean",
+  );
+
   const company = {
     name: "Checklist OS",
     industry: "B2B SaaS",
@@ -108,6 +142,39 @@ async function main() {
   assert.equal(Boolean(instagramSeed?.website), true, "social profile records should remain usable evidence when the profile URL is present");
   assert.equal(instagramSeed?.companyName, "Tsoccer Training Academy", "social platform brand names must not replace the actual company/profile identity");
   assert.equal(instagramSeed?.title, "Tsoccer Training Academy", "social profile slug should drive the displayed company title");
+
+  const singleWordCompanySeed = buildOpportunitySeedFromRecord(
+    {
+      title: "CNN",
+      body: "CNN operates a global media and news business with a recognizable single-word brand.",
+      provenance: "https://www.cnn.com/",
+      website: "https://www.cnn.com/",
+    },
+    company,
+  );
+  assert.equal(singleWordCompanySeed?.companyName, "CNN", "single-word company names must remain valid lead titles");
+
+  const cleanFrenchSingleWordSeed = buildOpportunitySeedFromRecord(
+    {
+      title: "Accueil",
+      body: "Accueil fournit une plateforme B2B pour aider les equipes commerciales a gerer les demandes entrantes.",
+      provenance: "https://accueil.example.com/",
+      website: "https://accueil.example.com/",
+    },
+    company,
+  );
+  assert.equal(cleanFrenchSingleWordSeed?.companyName, "Accueil", "French single-word company names must remain valid when the source is clean");
+
+  const genericPageTitleSeed = buildOpportunitySeedFromRecord(
+    {
+      title: "Accueil",
+      body: "Accueil Regarder les meilleurs programmes. Page Evidence: Status: 403 Source: https://www.canalplus.com/",
+      provenance: "https://www.canalplus.com/",
+      website: "https://www.canalplus.com/",
+    },
+    company,
+  );
+  assert.equal(genericPageTitleSeed?.companyName, "Canalplus", "weak single-word page titles from failed scrape evidence should fall back to the company domain");
 
   const bareInstagramSeed = buildOpportunitySeedFromRecord(
     {

@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { resolveMiniappRouteContext } from "@/lib/check-foundation/miniapp-route-guard";
-import {
-  deriveCompareQualitySignals,
-  evaluateCompareCandidate,
-  scoreCompareCandidate,
-} from "@/lib/destination-compare-quality";
-import { evaluateCompareProjectionGate } from "@/lib/visitor-public-projection-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +22,28 @@ function pickStringArray(record: Record<string, unknown> | null, key: string) {
   return value.map((entry) => String(entry || "").trim()).filter(Boolean);
 }
 
+function pickNumber(record: Record<string, unknown> | null, key: string) {
+  const numeric = Number(record?.[key]);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function pickBoolean(record: Record<string, unknown> | null, key: string) {
+  return record?.[key] === true;
+}
+
 function isTruthy(value: string | null) {
   if (!value) return false;
   const normalized = value.trim().toLowerCase();
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+function readProjectionGate(metadata: Record<string, unknown> | null) {
+  const gate = asRecord(metadata?.publicProjectionGate) ?? asRecord(metadata?.projectionGate);
+  const blockedReasons = pickStringArray(gate, "blockedReasons");
+  return {
+    blocked: gate?.blocked === true,
+    blockedReasons,
+  };
 }
 
 function normalizeContractStatus(rawStatus: string): CompareCandidateContractStatus {
@@ -60,7 +72,6 @@ export async function GET(
     const includeInternal = isTruthy(request.nextUrl.searchParams.get("includeInternal")) || request.nextUrl.searchParams.get("mode") === "internal";
     const includeBlocked = isTruthy(request.nextUrl.searchParams.get("includeBlocked"));
     const shouldExposeBlocked = includeInternal || includeBlocked;
-    const isCompareMiniapp = miniappId === "compare";
 
     const candidates = await prisma.destinationCandidate.findMany({
       where: {
@@ -88,18 +99,10 @@ export async function GET(
     let blockedCount = 0;
     for (const candidate of candidates) {
       const metadata = asRecord(candidate.metadata);
-      const qualitySignals = deriveCompareQualitySignals(metadata);
-      const qualityScore = scoreCompareCandidate(qualitySignals);
-      const projectionGate = isCompareMiniapp
-        ? evaluateCompareProjectionGate({
-            metadata,
-          })
-        : { blocked: false, blockedReasons: [] };
-      const qualityEvaluation = evaluateCompareCandidate({
-        qualityScore,
-        eligibilityFlags: qualitySignals.eligibilityFlags,
-        metadata,
-      });
+      const projectionGate = readProjectionGate(metadata);
+      const eligibilityFlags = pickStringArray(metadata, "eligibilityFlags");
+      const qualityScore = pickNumber(metadata, "qualityScore");
+      const requiresReview = pickBoolean(metadata, "requiresReview");
       const sourceUrls = pickStringArray(metadata, "sourceUrls");
       const latestPacket = candidate.reviewPackets[0] ?? null;
       const normalizedStatus = projectionGate.blocked
@@ -115,17 +118,17 @@ export async function GET(
         season: pickString(metadata, "season"),
         provider: pickString(metadata, "provider"),
         sourceUrls: sourceUrls.length > 0 ? sourceUrls : [candidate.canonicalSourceUrl],
-        evidenceScore: qualitySignals.evidenceScore,
-        freshnessScore: qualitySignals.freshnessScore,
-        eligibilityFlags: qualitySignals.eligibilityFlags,
+        evidenceScore: pickNumber(metadata, "evidenceScore"),
+        freshnessScore: pickNumber(metadata, "freshnessScore"),
+        eligibilityFlags,
         isProjectionBlocked: projectionGate.blocked,
-        isReviewRecommended: qualityEvaluation.requiresReview,
+        isReviewRecommended: requiresReview,
         projectionConfidence:
-          qualitySignals.regionConfidence !== null || qualitySignals.seasonConfidence !== null || qualitySignals.providerConfidence !== null
+          metadata?.regionConfidence !== undefined || metadata?.seasonConfidence !== undefined || metadata?.providerConfidence !== undefined
             ? {
-                region: qualitySignals.regionConfidence,
-                season: qualitySignals.seasonConfidence,
-                provider: qualitySignals.providerConfidence,
+                region: metadata?.regionConfidence ?? null,
+                season: metadata?.seasonConfidence ?? null,
+                provider: metadata?.providerConfidence ?? null,
               }
             : null,
         scoreMinimumMet: qualityScore >= 55,
@@ -150,14 +153,14 @@ export async function GET(
               compareQuality: {
                 qualityScore,
                 minimumQualityScore: 55,
-                acceptable: qualityEvaluation.acceptable,
-                requiresReview: qualityEvaluation.requiresReview,
-                reasons: qualityEvaluation.reasons,
+                acceptable: pickBoolean(metadata, "qualityAcceptable"),
+                requiresReview,
+                reasons: pickStringArray(metadata, "qualityReasons"),
                 projectionBlocked: projectionGate.blocked,
                 projectionBlockedReasons: projectionGate.blockedReasons,
-                regionConfidence: qualitySignals.regionConfidence,
-                seasonConfidence: qualitySignals.seasonConfidence,
-                providerConfidence: qualitySignals.providerConfidence,
+                regionConfidence: metadata?.regionConfidence ?? null,
+                seasonConfidence: metadata?.seasonConfidence ?? null,
+                providerConfidence: metadata?.providerConfidence ?? null,
               },
             },
           }

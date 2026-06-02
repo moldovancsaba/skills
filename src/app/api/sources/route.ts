@@ -50,9 +50,10 @@ export async function GET(request: NextRequest) {
         processingStatus: true,
         intelligenceType: true,
       },
-      ...(safeLimit ? { skip: safeOffset, take: safeLimit } : {}),
+      ...(safeLimit ? { skip: safeOffset, take: safeLimit + 1 } : {}),
     });
-    const normalized = sources.map((source) => ({
+    const pageSources = safeLimit ? sources.slice(0, safeLimit) : sources;
+    const normalized = pageSources.map((source) => ({
         ...source,
         hashtags: normalizeHashtagList(source.hashtags),
         aiClusters: normalizeHashtagList(source.aiClusters),
@@ -61,11 +62,10 @@ export async function GET(request: NextRequest) {
     const decorated = await decorateWithBoardState(companyId, SURFACE_BOARD_CONFIG.data, normalized);
 
     if (safeLimit) {
-      const total = await prisma.source.count({ where: { companyId } });
       return NextResponse.json({
         items: decorated,
-        total,
-        hasMore: safeOffset + decorated.length < total,
+        total: null,
+        hasMore: sources.length > safeLimit,
       });
     }
 

@@ -231,7 +231,7 @@ export default function SalesPage({ companyId }: SalesPageProps) {
     mineQueued: Number(salesSummary?.mineQueued || 0),
     mineRunning: Number(salesSummary?.mineRunning || 0),
     searchRuns: Number(salesSummary?.searchRuns || 0),
-  }), [flashcards.length, opportunitycards, salesSummary]);
+  }), [salesSummary]);
 
   if (loading) {
     return (

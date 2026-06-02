@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Button, Group, Loader, ScrollArea, Stack, Table, Tabs, TextInput, Tooltip } from "@mantine/core";
+import { Badge, Box, Button, Group, Loader, ScrollArea, Stack, Table, Tabs, TextInput, Tooltip } from "@mantine/core";
 import {
   IconBan,
   IconBolt,
@@ -78,10 +78,10 @@ function text(value: unknown) {
 
 function stateColor(state: string) {
   const normalized = state.toLowerCase();
-  if (normalized.includes("complete") || normalized.includes("passed") || normalized.includes("found")) return "green";
-  if (normalized.includes("blocked") || normalized.includes("failed") || normalized.includes("exhausted") || normalized.includes("rework")) return "red";
-  if (normalized.includes("running") || normalized.includes("active") || normalized.includes("queued")) return "blue";
-  if (normalized.includes("paused")) return "orange";
+  if (normalized.includes("complete") || normalized.includes("passed") || normalized.includes("found")) return "knowmore";
+  if (normalized.includes("blocked") || normalized.includes("failed") || normalized.includes("exhausted") || normalized.includes("rework")) return "review";
+  if (normalized.includes("running") || normalized.includes("active") || normalized.includes("queued")) return "tactical";
+  if (normalized.includes("paused")) return "strategy";
   return "gray";
 }
 
@@ -216,10 +216,10 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }
           )}
         />
 
-        <div aria-live="polite">
+        <Box aria-live="polite">
           {error ? <Notice title="Miniapp ops error" variant="destructive">{error}</Notice> : null}
           {actionMessage ? <Notice title="Operator action complete">{actionMessage}</Notice> : null}
-        </div>
+        </Box>
 
         {loading && !snapshot ? <Loader aria-label="Loading miniapp operations snapshot" /> : null}
 
@@ -227,9 +227,9 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }
           <Stack gap="lg">
             <Group gap="xs" wrap="wrap">
               <Badge color={stateColor(snapshot.lifecycleState)} variant="light">{snapshot.lifecycleState}</Badge>
-              <Badge color={snapshot.contract.valid ? "green" : "red"} variant="light">{snapshot.contract.key}</Badge>
+              <Badge color={snapshot.contract.valid ? "knowmore" : "review"} variant="light">{snapshot.contract.key}</Badge>
               <Badge color="gray" variant="outline">{snapshot.contract.successMetric}</Badge>
-              <Badge color="red" variant="light">SOURCE inventory is not success</Badge>
+              <Badge color="review" variant="light">SOURCE inventory is not success</Badge>
             </Group>
 
             <MetricGrid cols={{ base: 1, sm: 2, xl: 4 }}>
@@ -254,7 +254,7 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }
                   {snapshot.paused ? (
                     <Button leftSection={<IconPlayerPlay size={14} />} loading={acting === "resume_burst"} onClick={() => void runAction("resume_burst")}>Resume</Button>
                   ) : (
-                    <Button leftSection={<IconPlayerPause size={14} />} loading={acting === "pause_burst"} color="orange" onClick={() => void runAction("pause_burst")}>Pause</Button>
+                    <Button leftSection={<IconPlayerPause size={14} />} loading={acting === "pause_burst"} color="strategy" onClick={() => void runAction("pause_burst")}>Pause</Button>
                   )}
                   <Button
                     leftSection={<IconRotateClockwise size={14} />}
@@ -268,7 +268,7 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }
                     leftSection={<IconBan size={14} />}
                     loading={acting === "suppress_domain"}
                     disabled={!primaryBlocker}
-                    color="red"
+                    color="review"
                     onClick={() => void runAction("suppress_domain", { sourceTerm: primaryBlocker?.code, reason: primaryBlocker?.recommendedAction })}
                   >
                     Suppress Blocker

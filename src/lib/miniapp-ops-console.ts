@@ -11,6 +11,7 @@ import { listMiniappOpportunityCards, promoteMiniappEvidenceToOpportunities } fr
 import { evaluateMiniappPromotionGates } from "@/lib/miniapp-promotion-gates";
 import { getMiniappBurstControllerState, runMiniappBurstUntilTarget } from "@/lib/miniapp-burst-controller";
 import { listMiniappLearningMemory, syncMiniappLearningMemory, upsertMiniappLearningRules } from "@/lib/miniapp-learning-memory";
+import { runVisitorPipelineOnce } from "@/lib/visitor-pipeline-runner";
 
 export type MiniappOpsAction =
   | "replan"
@@ -20,6 +21,7 @@ export type MiniappOpsAction =
   | "evaluate_gates"
   | "sync_learning"
   | "retry_task"
+  | "run_human_lane"
   | "pause_burst"
   | "resume_burst"
   | "suppress_domain"
@@ -39,6 +41,10 @@ type ActionInput = OpsInput & {
   targetVisibleCards?: number;
   maxCycles?: number;
   tasksPerCycle?: number;
+  discoverLimit?: number;
+  processLimit?: number;
+  autoApprove?: boolean;
+  autoPublish?: boolean;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -259,6 +265,7 @@ export async function getMiniappOpsSnapshot(input: OpsInput) {
       canRunBurst: !paused,
       canReplan: !paused,
       canRetry: !paused,
+      canRunHumanLane: !paused,
     },
     diagnostics: {
       stale: false,
@@ -329,6 +336,16 @@ export async function executeMiniappOpsAction(input: ActionInput) {
     result = await evaluateMiniappPromotionGates({ companyId: input.companyId, visitorKey, destinationKeyHint: destinationKey, limit: 50 });
   } else if (input.action === "sync_learning") {
     result = await syncMiniappLearningMemory({ companyId: input.companyId, visitorKey, destinationKeyHint: destinationKey, limit: 100 });
+  } else if (input.action === "run_human_lane") {
+    result = await runVisitorPipelineOnce({
+      companyId: input.companyId,
+      visitorKey,
+      destinationKey,
+      discoverLimit: input.discoverLimit || 30,
+      processLimit: input.processLimit || 30,
+      autoApprove: input.autoApprove === true,
+      autoPublish: input.autoPublish === true,
+    });
   } else if (input.action === "retry_task") {
     if (!input.taskId) throw new Error("taskId is required");
     const taskRow = await prisma.destinationSourceDocument.findFirst({

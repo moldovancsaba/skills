@@ -23,6 +23,7 @@ const ACTION_ICON = {
   "live-queue": Book,
   "project-board": Kanban,
   "mission-control": Radar,
+  "visitor-ops": Rocket,
 } as const;
 
 function pct(value: number) {

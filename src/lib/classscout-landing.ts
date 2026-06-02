@@ -207,6 +207,13 @@ export async function getClassScoutLandingSummary(companyId: string): Promise<Cl
         href: `/${companyId}/observability`,
         tone: "strategy",
       },
+      {
+        key: "visitor-ops",
+        title: "Visitor Ops",
+        description: "Drive research planning, evidence, and gating workflows in one operator console.",
+        href: `/${companyId}/classscout/visitor-ops`,
+        tone: "strategy",
+      },
     ],
     sections: {
       liveQueue: livePayload?.ok

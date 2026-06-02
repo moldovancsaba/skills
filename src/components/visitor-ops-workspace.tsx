@@ -2,7 +2,21 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Box, Button, Group, Loader, ScrollArea, Stack, Table, Tabs, TextInput, Tooltip } from "@mantine/core";
+import {
+  Badge,
+  Box,
+  Button,
+  Checkbox,
+  Group,
+  Loader,
+  NumberInput,
+  ScrollArea,
+  Stack,
+  Table,
+  Tabs,
+  TextInput,
+  Tooltip,
+} from "@mantine/core";
 import {
   IconBan,
   IconBolt,
@@ -54,6 +68,7 @@ type OpsSnapshot = {
     canRunBurst: boolean;
     canReplan: boolean;
     canRetry: boolean;
+    canRunHumanLane: boolean;
   };
 };
 
@@ -67,13 +82,20 @@ type ActionName =
   | "retry_task"
   | "pause_burst"
   | "resume_burst"
-  | "suppress_domain";
+  | "suppress_domain"
+  | "run_human_lane";
 
 function text(value: unknown) {
   if (value === null || value === undefined || value === "") return "-";
   if (Array.isArray(value)) return value.join(", ") || "-";
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+function clampToPositiveInt(value: unknown, fallback: number, max = 200) {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(max, parsed);
 }
 
 function stateColor(state: string) {
@@ -135,6 +157,10 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<OpsSnapshot | null>(null);
+  const [discoverLimit, setDiscoverLimit] = useState(30);
+  const [processLimit, setProcessLimit] = useState(30);
+  const [autoApprove, setAutoApprove] = useState(false);
+  const [autoPublish, setAutoPublish] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -172,22 +198,34 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }
         body: JSON.stringify({
           companyId,
           action,
-          targetVisibleCards: 100,
-          maxCycles: 1,
-          tasksPerCycle: 3,
+          targetVisibleCards: action === "run_human_lane" ? undefined : 100,
+          maxCycles: action === "run_human_lane" ? undefined : 1,
+          tasksPerCycle: action === "run_human_lane" ? undefined : 3,
+          discoverLimit: action === "run_human_lane" ? discoverLimit : undefined,
+          processLimit: action === "run_human_lane" ? processLimit : undefined,
+          autoApprove: action === "run_human_lane" ? autoApprove : undefined,
+          autoPublish: action === "run_human_lane" ? autoPublish : undefined,
           ...extra,
         }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.ok) throw new Error(String(payload?.error || payload?.code || "Miniapp action failed"));
-      setActionMessage(`${action.replace(/_/g, " ")} completed.`);
+      if (action === "run_human_lane" && payload?.result) {
+        const runResult = payload.result as Record<string, unknown>;
+        const discovered = Number(runResult.discovered);
+        const processed = Number(runResult.processed);
+        const failures = Number(runResult.failures);
+        setActionMessage(`Human lane complete: discovered ${Number.isFinite(discovered) ? discovered : 0}, processed ${Number.isFinite(processed) ? processed : 0}, failures ${Number.isFinite(failures) ? failures : 0}.`);
+      } else {
+        setActionMessage(`${action.replace(/_/g, " ")} completed.`);
+      }
       await load();
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : "Miniapp action failed");
     } finally {
       setActing(null);
     }
-  }, [companyId, load, miniappKey]);
+  }, [autoApprove, autoPublish, companyId, discoverLimit, load, miniappKey, processLimit]);
 
   const firstRetryableTask = useMemo(() => {
     return snapshot?.researchTasks.find((task) => ["FAILED", "NO_RESULTS", "EXHAUSTED"].includes(String(task.status))) ?? null;
@@ -245,6 +283,47 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }
                 description="Actions are bounded by the sovereign contract and return structured failure states."
               />
               <UnifiedCardBody>
+                <Group gap="sm" wrap="wrap">
+                  <NumberInput
+                    label="Discover limit"
+                    min={1}
+                    max={200}
+                    value={discoverLimit}
+                    onChange={(value) => setDiscoverLimit(clampToPositiveInt(value, discoverLimit, 200))}
+                  />
+                  <NumberInput
+                    label="Process limit"
+                    min={1}
+                    max={100}
+                    value={processLimit}
+                    onChange={(value) => setProcessLimit(clampToPositiveInt(value, processLimit, 100))}
+                  />
+                  <Checkbox
+                    mt={26}
+                    checked={autoApprove}
+                    onChange={(event) => {
+                      const checked = event.currentTarget.checked;
+                      setAutoApprove(checked);
+                      if (!checked) setAutoPublish(false);
+                    }}
+                    label="Auto approve"
+                  />
+                  <Checkbox
+                    mt={26}
+                    checked={autoPublish}
+                    onChange={(event) => setAutoPublish(event.currentTarget.checked)}
+                    disabled={!autoApprove}
+                    label="Auto publish"
+                  />
+                  <Button
+                    leftSection={<IconBrain size={14} />}
+                    loading={acting === "run_human_lane"}
+                    disabled={!snapshot.actions.canRunHumanLane}
+                    onClick={() => void runAction("run_human_lane")}
+                  >
+                    Run Human Lane
+                  </Button>
+                </Group>
                 <Group gap="sm" wrap="wrap">
                   <Button leftSection={<IconSearch size={14} />} loading={acting === "replan"} disabled={!snapshot.actions.canReplan} onClick={() => void runAction("replan")}>Re-plan</Button>
                   <Button leftSection={<IconBolt size={14} />} loading={acting === "run_burst"} disabled={!snapshot.actions.canRunBurst} onClick={() => void runAction("run_burst")}>Run Burst Cycle</Button>

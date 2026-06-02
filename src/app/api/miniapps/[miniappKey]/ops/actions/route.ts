@@ -12,6 +12,10 @@ function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function asBoolean(value: unknown) {
+  return value === true;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ miniappKey: string }> },
@@ -35,6 +39,10 @@ export async function POST(
       targetVisibleCards: Number(body.targetVisibleCards) || undefined,
       maxCycles: Number(body.maxCycles) || undefined,
       tasksPerCycle: Number(body.tasksPerCycle) || undefined,
+      discoverLimit: Number(body.discoverLimit) || undefined,
+      processLimit: Number(body.processLimit) || undefined,
+      autoApprove: asBoolean(body.autoApprove),
+      autoPublish: asBoolean(body.autoPublish),
     });
     return NextResponse.json(result, { status: result.ok ? 200 : 409 });
   } catch (error) {

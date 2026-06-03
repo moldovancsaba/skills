@@ -445,6 +445,34 @@ const PIPELINE_JOB_WEIGHT_CLASS = Object.freeze({
   WORKFLOW_BLUEPRINT: JOB_WEIGHT_CLASSES.BURST,
 });
 
+const PIPELINE_JOB_MUTATION_CATEGORY = Object.freeze({
+  FEEDBACK_RECONCILIATION: "CARD_CONTENT",
+  CARD_RESCORING: "CARD_CONTENT",
+  FRONTIER_RECOMPUTE: "CARD_CONTENT",
+  DESTINATION_MISSION_DAEMON: "DESTINATION_MISSION",
+  SCORE_ALERT_REPAIR: "CARD_CONTENT",
+  ENSURE_FLASHCARD_MINIMUM: "CARD_CONTENT",
+  RESEARCH_BACKFILL: "RESEARCH_EVIDENCE",
+  ENSURE_IDEABANK_MINIMUM: "CARD_CONTENT",
+  ENSURE_ROADMAP_MINIMUM: "CARD_CONTENT",
+  ENSURE_BACKLOG_MINIMUM: "CARD_CONTENT",
+  ENSURE_TODO_MINIMUM: "CARD_CONTENT",
+  ENSURE_CHECKLIST_MINIMUM: "CARD_CONTENT",
+  MINE_FLASHCARD_OPPORTUNITIES: "OPPORTUNITYCARD",
+  MINE_TASK_OPPORTUNITIES: "OPPORTUNITYCARD",
+  MINE_OPPORTUNITYCARDS: "OPPORTUNITYCARD",
+  SEARCH_OPPORTUNITYCARDS: "OPPORTUNITYCARD",
+  FEEDBACK_PRESSURE_REGENERATION: "CARD_CONTENT",
+  REFRESH_FLASHCARDS: "CARD_CONTENT",
+  REFRESH_TASKS: "CARD_CONTENT",
+  REFRESH_OPPORTUNITYCARDS: "OPPORTUNITYCARD",
+  REFRESH_DATACARDS: "CARD_CONTENT",
+  REFRESH_GOALS: "CARD_CONTENT",
+  COMPANY_SYNTHESIS: "CARD_CONTENT",
+  FULL_MAINTENANCE: "UNIT_CONFIGURATION",
+  WORKFLOW_BLUEPRINT: "UNIT_CONFIGURATION",
+});
+
 function createPipelineDeferredError(message, retryAfterMs) {
   const error = new Error(message);
   error.pipelineClass = "LOW_MEMORY_SKIP";
@@ -463,9 +491,22 @@ function buildPlaylistMutationAuthority(job) {
   };
 }
 
-function assertPipelineMutationAuthority(context) {
+function resolvePipelineJobMutationCategory(jobType) {
+  const category = PIPELINE_JOB_MUTATION_CATEGORY[jobType];
+  if (!category) {
+    throw createPipelineContractError(`Unsupported pipeline job type for mutation policy: ${jobType}`);
+  }
+  return category;
+}
+
+function assertPipelineMutationAuthority(context, jobType) {
   if (!context || context.lane !== "PLAYLIST" || !context.jobId) {
     throw createPipelineContractError("Pipeline job execution requires Playlist mutation authority.");
+  }
+
+  const category = resolvePipelineJobMutationCategory(jobType);
+  if (category === "UNIT_CONFIGURATION" && context.lane !== "PLAYLIST") {
+    throw createPipelineContractError("UNIT_CONFIGURATION mutations require Playlist mutation authority.");
   }
 }
 
@@ -668,7 +709,7 @@ async function runPlannerQualityJob(prisma, company, jobType, executionOptions =
 }
 
 async function executePipelineJob(prisma, job, executionOptions = {}) {
-  assertPipelineMutationAuthority(executionOptions.mutationAuthority);
+  assertPipelineMutationAuthority(executionOptions.mutationAuthority, job.jobType);
   const company = job.company ?? await prisma.company.findUnique({ where: { id: job.companyId } });
   if (!company) {
     throw new Error(`Pipeline job ${job.id} has no company`);

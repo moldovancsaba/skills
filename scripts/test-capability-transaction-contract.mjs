@@ -35,6 +35,9 @@ expectRouteContains(/CAPABILITY_TRANSACTION_CONFLICT/, "route must record confli
 expectRouteContains(/CAPABILITY_TRANSACTION_VALIDATION_FAILED/, "route must record validation interaction telemetry");
 expectRouteContains(/CAPABILITY_TRANSACTION_APPLY/, "route must record apply interaction telemetry");
 expectRouteContains(/UNIT_CAPABILITIES_UPDATED/, "route must record capability update outcome telemetry");
+expectRouteContains(/validateUnitPackageChange/, "route must call validateUnitPackageChange");
+expectRouteContains(/rejectedBlocks|validateUnitPackageChange/, "route must surface package block rejection errors");
+expectRouteContains(/packageKey:/, "route must preserve packageKey context in validation telemetry");
 
 expectDocContains(/\/api\/companies\/\[companyId\]\/capabilities\/transaction/, "control-plane LLD must document the capability transaction endpoint");
 expectDocContains(/Validation response:\s*[\s\S]*422/, "control-plane LLD must document 422 validation behavior");

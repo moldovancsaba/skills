@@ -7,7 +7,10 @@ import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/aud
 import { resolveEffectiveUnitCapabilities, normalizeUnitCapabilitiesForStorage } from "@/lib/check-foundation/capabilities-v3";
 import { isMiniappId, type MiniappId } from "@/lib/check-foundation/miniapp-registry";
 import { BLOCK_KEYS, getRequiredModulesForBlocks, isBlockKey, isModuleKey, type BlockKey, type ModuleKey } from "@/lib/check-foundation/registry";
-import { resolveEffectiveUnitPackage } from "@/lib/check-foundation/unit-packages";
+import {
+  resolveEffectiveUnitPackage,
+  validateUnitPackageChange,
+} from "@/lib/check-foundation/unit-packages";
 import { ensureProvisionedDestination, type ProvisionStepResult } from "@/lib/check-lifecycle/provisioning-engine";
 import { prisma } from "@/lib/db";
 import { markCompanyPipelineTopologyDirty, syncCompanyPipelineJobs } from "@/lib/pipeline-queue";
@@ -640,6 +643,52 @@ export async function POST(
       hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
+    const packageValidation = validateUnitPackageChange({
+      workerConfig: nextWorkerConfig,
+      packageKey: currentPackage.packageKey,
+      effectiveCapabilities: nextEffective,
+      hasClassScoutDestination: Boolean(classScoutInstance),
+      hasCompareDestination: Boolean(compareInstance),
+    });
+    if (!packageValidation.isValid) {
+      const packageErrors = packageValidation.rejectedBlocks.map((issue) => ({
+        field: issue.field,
+        code: issue.code,
+        message: issue.message,
+      }));
+      const validationFailureResult: CapabilityMutationResult = {
+        ok: false,
+        mode: mode === "preview" || mode === "apply" ? mode : "preview",
+        version: currentVersion,
+        effective: {
+          enabledBlocks: currentEffective.enabledBlocks,
+          enabledModules: currentEffective.enabledModules,
+          enabledMiniapps: currentEffective.enabledMiniapps,
+          source: currentEffective.source,
+        },
+        warnings: [...normalizedPayload.warnings, ...packageValidation.setupRequired],
+        errors: [...combinedValidationErrors, ...packageErrors],
+        impact: {
+          hiddenRoutes: [],
+          blockedOperations: [],
+          affectedMiniapps: [],
+        },
+      };
+      await recordInteractionEventFromRequest(request, {
+        companyId,
+        surface: "settings-capabilities",
+        interactionType: "CAPABILITY_TRANSACTION_VALIDATION_FAILED",
+        entityType: "COMPANY",
+        entityId: companyId,
+        payload: {
+          mode,
+          errors: [...combinedValidationErrors, ...packageErrors],
+          packageKey: currentPackage.packageKey,
+        },
+        teachingWeight: 85,
+      });
+      return NextResponse.json(validationFailureResult, { status: 422 });
+    }
     const nextPackage = resolveEffectiveUnitPackage({
       unitId: company.id,
       workerConfig: nextWorkerConfig,
@@ -656,7 +705,11 @@ export async function POST(
       currentEffective.enabledMiniapps,
       nextEffective.enabledMiniapps,
     );
-    const nextWarnings = [...normalizedPayload.warnings, ...nextEffective.warnings];
+    const nextWarnings = [
+      ...normalizedPayload.warnings,
+      ...nextEffective.warnings,
+      ...packageValidation.setupRequired,
+    ];
 
     if (mode === "preview") {
       await recordInteractionEventFromRequest(request, {

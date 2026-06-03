@@ -225,6 +225,8 @@ Delivery rules:
 - `/api/companies/[companyId]/settings` and `/api/companies/[companyId]/nav` must expose the same normalized profile/module contract
 - route and nav consumers must use normalized capabilities, never raw `company.workerConfig`
 - package validation must reject Blocks that are not allowed by the selected Unit package before UI or Local operations consume the configuration
+- `POST /api/companies/[companyId]/capabilities/transaction` must reject package-incompatible capability payloads with `422` and
+  `block-not-allowed-by-package` errors from `validateUnitPackageChange` when a proposed Block set is outside the selected package.
 
 Relevant verification:
 

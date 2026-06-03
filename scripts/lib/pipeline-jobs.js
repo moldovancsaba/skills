@@ -5,6 +5,7 @@ const {
   failPipelineJob,
   classifyPipelineJobError,
   PIPELINE_FAILURE_CLASSES,
+  buildNoProgressTimeoutMessage,
   PLANNER_BOOTSTRAP_JOB_TYPES,
   PLANNER_QUALITY_JOB_TYPES,
   PLANNER_MAINTENANCE_JOB_TYPES,
@@ -881,7 +882,26 @@ function startRunningJobHeartbeat(prisma, job, companyName, entityLabel) {
 }
 
 async function runPipelineQueueBatch(prisma, limit = 1) {
-  await recoverStaleRunningPipelineJobs(prisma);
+  const staleRecovery = await recoverStaleRunningPipelineJobs(prisma);
+  const staleJobs = Array.isArray(staleRecovery?.jobs) ? staleRecovery.jobs : [];
+  for (const staleJob of staleJobs) {
+    await safeRecordLocalLaneEvent(prisma, {
+      lane: "PLAYLIST",
+      eventType: "TIMEOUT",
+      actor: "local-worker",
+      companyId: staleJob.companyId || null,
+      jobId: staleJob.id,
+      destinationKey: staleJob?.metadata?.executionOptions?.mutationAuthority?.destinationKey || null,
+      summary: `${staleJob.jobType} exceeded no-progress timeout and was marked failed.`,
+      metadata: {
+        jobType: staleJob.jobType,
+        reason: buildNoProgressTimeoutMessage(),
+        queueColumn: staleJob.queueColumn || null,
+        entityType: staleJob.entityType || null,
+        lastTriedAt: staleJob.lastTriedAt || null,
+      },
+    });
+  }
   const targetExecutions = 1;
   const maxClaims = targetExecutions + 3;
   let claimed = await claimNextPipelineJobs(prisma, 1);
@@ -987,18 +1007,23 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
       }
       console.error(`[PIPELINE QUEUE] ${job.jobType} failed for ${job.company?.name ?? job.companyId}:`, error.message);
       const classification = classifyPipelineJobError(error);
+      const eventType = classification.class === PIPELINE_FAILURE_CLASSES.MODEL_TIMEOUT ? "TIMEOUT" : (classification.retryable ? "RETRY" : "FAILED");
+      const timeout = classification.class === PIPELINE_FAILURE_CLASSES.MODEL_TIMEOUT;
       await safeRecordLocalLaneEvent(prisma, {
         lane: "PLAYLIST",
-        eventType: classification.retryable ? "RETRY" : "FAILED",
+        eventType,
         actor: "local-worker",
         companyId: job.companyId,
         jobId: job.id,
         destinationKey: resolvePipelineJobExecutionPlan(job).executionOptions?.mutationAuthority?.destinationKey,
-        summary: `${job.jobType} ${classification.retryable ? "will retry" : "failed"}: ${error.message}`,
+        summary: timeout
+          ? `${job.jobType} timed out${classification.retryable ? " and will retry" : ""}: ${error.message}`
+          : `${job.jobType} ${classification.retryable ? "will retry" : "failed"}: ${error.message}`,
         metadata: {
           failureClass: classification.class,
           retryable: classification.retryable,
           runtimeMs: Date.now() - startedAt,
+          timeout,
         },
       });
       if (shouldDecomposeLowMemoryPipelineJob(job, classification)) {

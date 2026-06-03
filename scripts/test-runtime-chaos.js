@@ -167,6 +167,92 @@ function main() {
     "mismatch drill must catch multi-running queue state",
   );
 
+  const runnableInventoryReport = buildRuntimeVerificationReport({
+    workerHealth: {
+      progress: {
+        state: "running",
+        stage: "PIPELINE_QUEUE",
+        activeTask: "Refresh flashcards for Alpha",
+        currentCompany: "Alpha",
+      },
+      settings: {
+        buildIdentity: {
+          gitSha: "local-sha",
+          matchesOriginMain: true,
+          gitDirty: false,
+        },
+      },
+    },
+    statusPayload: {
+      worker: {
+        stage: "PIPELINE_QUEUE",
+        activeTask: "Running queue jobs",
+        currentCompany: "Alpha",
+        settings: {
+          buildIdentity: {
+            gitSha: "local-sha",
+            matchesOriginMain: true,
+            gitDirty: false,
+          },
+        },
+      },
+      backgroundWorker: {
+        settings: {
+          buildIdentity: {
+            gitSha: "local-sha",
+            matchesOriginMain: true,
+            gitDirty: false,
+          },
+        },
+      },
+      queue: {
+        runningJobs: 0,
+        totalActiveJobs: 1,
+        failedJobs: 0,
+        pausedJobs: 0,
+      },
+    },
+    snapshotHealth: {
+      progress: {
+        state: "running",
+        stage: "PIPELINE_QUEUE",
+        settings: {
+          buildIdentity: {
+            gitSha: "local-sha",
+            matchesOriginMain: true,
+            gitDirty: false,
+          },
+        },
+      },
+    },
+    heartbeat: {
+      lastHealthAt: "2026-05-18T12:00:00.000Z",
+    },
+    queueJobs: [],
+    localRunnableInventory: {
+      isValid: false,
+      hasForbiddenBypass: true,
+      inventoryCount: 3,
+      failures: ["api:/api/cron/destination-missions is forbidden bypass"],
+      laneCounts: {
+        SYSTEM_HEALTH: 1,
+        FORBIDDEN_BYPASS: 1,
+      },
+      forbidden: [{ id: "api:/api/cron/destination-missions", migrationTarget: "Queue all production writes." }],
+    },
+  });
+
+  assert.equal(
+    runnableInventoryReport.failingCheckIds.includes("local-runnable-inventory-valid"),
+    true,
+    "runtime verification must flag invalid local runnable inventory",
+  );
+  assert.equal(
+    runnableInventoryReport.failingCheckIds.includes("local-runnable-no-forbidden-bypass"),
+    true,
+    "runtime verification must flag forbidden bypass runnables",
+  );
+
   console.log("Runtime chaos drills passed.");
 }
 

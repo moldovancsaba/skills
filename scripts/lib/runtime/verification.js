@@ -3,6 +3,58 @@
 const path = require("path");
 const fs = require("fs");
 const { PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS } = require("../../../src/lib/pipeline-queue");
+const { pathToFileURL } = require("url");
+
+let localRunnableInventoryLoader = null;
+
+async function loadLocalRunnableInventoryModule() {
+  if (localRunnableInventoryLoader) {
+    return localRunnableInventoryLoader;
+  }
+
+  const modulePath = path.resolve(__dirname, "..", "..", "local-runnable-inventory.mjs");
+  localRunnableInventoryLoader = import(pathToFileURL(modulePath).href);
+  return localRunnableInventoryLoader;
+}
+
+async function collectLocalRunnableAudit() {
+  try {
+    const module = await loadLocalRunnableInventoryModule();
+    const inventory = module.buildLocalRunnableInventory();
+    const failures = module.validateLocalRunnableInventory(inventory);
+    const laneCounts = inventory.reduce((accumulator, item) => {
+      const lane = item.lane || "UNKNOWN";
+      return {
+        ...accumulator,
+        [lane]: (accumulator[lane] || 0) + 1,
+      };
+    }, {});
+    const forbidden = inventory
+      .filter((item) => item.lane === "FORBIDDEN_BYPASS")
+      .map((item) => ({ id: item.id, migrationTarget: item.migrationTarget }));
+    return {
+      ok: failures.length === 0 && forbidden.length === 0,
+      inventoryCount: inventory.length,
+      failures,
+      laneCounts,
+      forbidden,
+      hasForbiddenBypass: forbidden.length > 0,
+      isValid: failures.length === 0,
+      timeoutAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      inventoryCount: 0,
+      failures: [`local-runnable-inventory audit failed to run: ${error?.message || String(error)}`],
+      laneCounts: {},
+      forbidden: [],
+      hasForbiddenBypass: false,
+      isValid: false,
+      timeoutAt: new Date().toISOString(),
+    };
+  }
+}
 
 const RUNTIME_VERIFICATION_STATE_KEY = "local_ai_runtime_verification_last_run";
 const RUNTIME_VERIFICATION_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -114,6 +166,13 @@ function buildRuntimeVerificationReport({
   snapshotHealth,
   heartbeat,
   queueJobs = [],
+  localRunnableInventory = {
+    isValid: true,
+    hasForbiddenBypass: false,
+    failures: [],
+    forbidden: [],
+    inventoryCount: 0,
+  },
 }) {
   const checks = [];
   const workerProgress = workerHealth?.progress || {};
@@ -251,6 +310,30 @@ function buildRuntimeVerificationReport({
     ),
   );
 
+  checks.push(
+    buildVerificationCheck(
+      "local-runnable-inventory-valid",
+      localRunnableInventory?.isValid === true,
+      "All local runnables must pass lane contract checks.",
+      {
+        inventoryCount: localRunnableInventory?.inventoryCount || 0,
+        failures: localRunnableInventory?.failures || [],
+      },
+    ),
+  );
+
+  checks.push(
+    buildVerificationCheck(
+      "local-runnable-no-forbidden-bypass",
+      localRunnableInventory?.hasForbiddenBypass === false,
+      "No local runnables may remain in forbidden bypass mode.",
+      {
+        forbiddenCount: localRunnableInventory?.forbidden?.length || 0,
+        forbidden: localRunnableInventory?.forbidden || [],
+      },
+    ),
+  );
+
   const summary = summarizeVerificationChecks(checks);
   return {
     mode: "live",
@@ -281,7 +364,7 @@ function buildRuntimeVerificationReport({
 }
 
 async function collectRuntimeVerificationInputs(prisma) {
-  const [workerHealth, statusPayload, snapshotHealth, heartbeat, queueJobs] = await Promise.all([
+  const [workerHealth, statusPayload, snapshotHealth, heartbeat, queueJobs, localRunnableInventory] = await Promise.all([
     fetchJson(WORKER_HEALTH_URL),
     fetchJson(STATUS_API_URL),
     fetchJson(SNAPSHOT_HEALTH_URL),
@@ -298,6 +381,7 @@ async function collectRuntimeVerificationInputs(prisma) {
         metadata: true,
       },
     }),
+    collectLocalRunnableAudit(),
   ]);
 
   return {
@@ -306,6 +390,7 @@ async function collectRuntimeVerificationInputs(prisma) {
     snapshotHealth,
     heartbeat,
     queueJobs,
+    localRunnableInventory,
   };
 }
 

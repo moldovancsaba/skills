@@ -1804,7 +1804,7 @@ async function syncAllCompanyPipelineJobsIfDue(prisma, options = {}) {
 
 async function recoverStaleRunningPipelineJobs(prisma) {
   const cutoff = new Date(Date.now() - PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS);
-  return prisma.pipelineJob.updateMany({
+  const staleJobs = await prisma.pipelineJob.findMany({
     where: {
       status: "RUNNING",
       OR: [
@@ -1812,12 +1812,40 @@ async function recoverStaleRunningPipelineJobs(prisma) {
         { lastTriedAt: null },
       ],
     },
+    select: {
+      id: true,
+      jobType: true,
+      companyId: true,
+      entityType: true,
+      queueColumn: true,
+      metadata: true,
+      lastTriedAt: true,
+      lastError: true,
+    },
+  });
+
+  if (staleJobs.length === 0) {
+    return {
+      count: 0,
+      jobs: [],
+    };
+  }
+
+  const recoveryResult = await prisma.pipelineJob.updateMany({
+    where: {
+      id: { in: staleJobs.map((job) => job.id) },
+    },
     data: {
       status: "FAILED",
       updatedAt: new Date(),
       lastError: buildNoProgressTimeoutMessage(),
     },
   });
+
+  return {
+    count: recoveryResult.count,
+    jobs: staleJobs,
+  };
 }
 
 async function recoverOrphanedRunningPipelineJobs(prisma) {

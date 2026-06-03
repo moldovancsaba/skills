@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const daemonRoute = readFileSync("src/app/api/destination-missions/daemon/route.ts", "utf8");
 const cronRoute = readFileSync("src/app/api/cron/destination-missions/route.ts", "utf8");
 const commandsRoute = readFileSync("src/app/api/commands/route.ts", "utf8");
+const systemCommands = readFileSync("scripts/lib/system-commands.js", "utf8");
 const pipelineJobs = readFileSync("scripts/lib/pipeline-jobs.js", "utf8");
 const burstRoute = readFileSync("src/app/api/local-ai/bursts/route.ts", "utf8");
 const laneEventsRoute = readFileSync("src/app/api/local-ai/lane-events/route.ts", "utf8");
@@ -33,6 +34,10 @@ assert.match(cronRoute, /lane:\s*"PLAYLIST"/, "cron destination route must repor
 assert.match(commandsRoute, /QUEUE_CONTROL_COMMANDS/, "system command route must use explicit command allowlist");
 assert.match(commandsRoute, /assertSystemHealthAction/, "system command route must validate System Health commands");
 assert.match(commandsRoute, /Unsupported command/, "system command route must reject unsupported commands");
+assert.match(systemCommands, /safeRecordLocalLaneEvent/, "system command worker must emit local lane events");
+assert.match(systemCommands, new RegExp("recordCommandLaneEvent\\(prisma, context, cmd\\.command, \"STARTED\""), "system command worker must emit started lane event");
+assert.match(systemCommands, new RegExp("recordCommandLaneEvent\\(prisma, context, cmd\\.command, \"COMPLETED\""), "system command worker must emit completed lane event");
+assert.match(systemCommands, new RegExp("recordCommandLaneEvent\\(prisma, context, cmd\\.command, \"FAILED\""), "system command worker must emit failed lane event");
 
 assert.match(pipelineJobs, /buildPlaylistMutationAuthority/, "pipeline worker must build Playlist mutation authority");
 assert.match(pipelineJobs, /assertPipelineMutationAuthority/, "pipeline worker must assert mutation authority before job execution");

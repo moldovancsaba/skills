@@ -5,6 +5,43 @@ const {
   escalateCompanyPipelineJob,
   recoverFailedCompanyPipelineJobs,
 } = require("../../src/lib/pipeline-queue");
+const { safeRecordLocalLaneEvent } = require("./runtime/lane-events");
+
+const SYSTEM_HEALTH_COMMANDS = new Map([
+  ["SYNC_PIPELINE_JOBS", "QUEUE_TOPOLOGY_REPAIR"],
+  ["RECOVER_FAILED_PIPELINE_JOBS", "STALE_JOB_RECOVERY"],
+  ["REFRESH_INTELLIGENCE_SNAPSHOTS", "PROJECTION_TRUTH_REPAIR"],
+]);
+
+function resolveSystemCommandContext(command, payload = {}) {
+  const healthAction = SYSTEM_HEALTH_COMMANDS.get(command);
+  return {
+    lane: healthAction ? "SYSTEM_HEALTH" : "PLAYLIST",
+    healthAction: healthAction || null,
+    companyId: typeof payload.companyId === "string" && payload.companyId ? payload.companyId : null,
+  };
+}
+
+function safeSummary(value) {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, 180);
+}
+
+async function recordCommandLaneEvent(prisma, context, command, eventType, details = {}) {
+  const { lane, companyId, healthAction } = context;
+  return safeRecordLocalLaneEvent(prisma, {
+    lane,
+    eventType,
+    actor: "local-worker",
+    companyId,
+    summary: safeSummary(`${command} ${eventType.toLowerCase()} in local execution lane (${lane}).`),
+    metadata: {
+      command,
+      healthAction,
+      ...details,
+    },
+  });
+}
 
 async function processPendingWorkerCommands(prisma, refreshAllIntelligenceSnapshots) {
   const commands = await prisma.systemCommand.findMany({
@@ -23,14 +60,22 @@ async function processPendingWorkerCommands(prisma, refreshAllIntelligenceSnapsh
   });
 
   for (const cmd of commands) {
+    const payload = cmd.payload && typeof cmd.payload === "object" ? cmd.payload : {};
+    const context = resolveSystemCommandContext(cmd.command, payload);
+    const startedAt = Date.now();
+    const reason = typeof payload.reason === "string" && payload.reason.trim()
+      ? payload.reason.trim()
+      : null;
     await prisma.systemCommand.update({
       where: { id: cmd.id },
       data: { status: "PROCESSING", updatedAt: new Date(), error: null },
     });
+    await recordCommandLaneEvent(prisma, context, cmd.command, "STARTED", {
+      reason,
+      commandId: cmd.id,
+    });
 
     try {
-      const payload = cmd.payload && typeof cmd.payload === "object" ? cmd.payload : {};
-
       switch (cmd.command) {
         case "SYNC_PIPELINE_JOBS":
           if (typeof payload.companyId !== "string" || !payload.companyId) {
@@ -66,11 +111,21 @@ async function processPendingWorkerCommands(prisma, refreshAllIntelligenceSnapsh
           throw new Error(`Unsupported worker command: ${cmd.command}`);
       }
 
+      await recordCommandLaneEvent(prisma, context, cmd.command, "COMPLETED", {
+        commandId: cmd.id,
+        runtimeMs: Date.now() - startedAt,
+      });
+
       await prisma.systemCommand.update({
         where: { id: cmd.id },
         data: { status: "DONE", updatedAt: new Date(), error: null },
       });
     } catch (error) {
+      await recordCommandLaneEvent(prisma, context, cmd.command, "FAILED", {
+        commandId: cmd.id,
+        runtimeMs: Date.now() - startedAt,
+        error: String(error?.message ?? error ?? "unknown worker command failure"),
+      });
       await prisma.systemCommand.update({
         where: { id: cmd.id },
         data: {

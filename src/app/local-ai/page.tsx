@@ -685,45 +685,47 @@ export default function LocalAiMissionControlPage() {
                 {laneEventsError ? (
                   <Notice title="Lane history unavailable">{laneEventsError}</Notice>
                 ) : laneEvents.length ? (
-                      <Table highlightOnHover>
-                        <caption style={{ display: "none" }}>Execution lane events timeline</caption>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th>When</Table.Th>
-                            <Table.Th>Lane</Table.Th>
-                            <Table.Th>Event</Table.Th>
-                            <Table.Th>Summary</Table.Th>
-                            <Table.Th>Recovery</Table.Th>
+                  <Table highlightOnHover>
+                    <caption style={{ display: "none" }}>Execution lane events timeline</caption>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>When</Table.Th>
+                        <Table.Th>Lane</Table.Th>
+                        <Table.Th>Event</Table.Th>
+                        <Table.Th>Summary</Table.Th>
+                        <Table.Th>Recovery</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {laneEvents.slice(0, 12).map((event: any) => {
+                        const retryWindow = formatRetryWindow(event);
+                        const recovery = formatLaneRecovery(event);
+                        return (
+                          <Table.Tr key={event.id}>
+                            <Table.Td>{formatTimestamp(event.createdAt)}</Table.Td>
+                            <Table.Td>
+                              <Badge variant="light" color={getLaneEventTone(event)}>
+                                {String(event.lane || "—").replace(/_/g, " ")}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>{String(event.eventType || "—").replace(/_/g, " ")}</Table.Td>
+                            <Table.Td>
+                              <Stack gap={2}>
+                                <BodyText>{event.summary || "—"}</BodyText>
+                                {retryWindow ? <MetaText>{retryWindow}</MetaText> : null}
+                                <MetaText>
+                                  {event.companyId ? `Unit ${event.companyId}` : "Global"}
+                                  {event.destinationKey ? ` · Miniapp ${event.destinationKey}` : ""}
+                                  {event.jobId ? ` · Job ${event.jobId}` : ""}
+                                  {event.burstId ? ` · Burst ${event.burstId}` : ""}
+                                </MetaText>
+                                {recovery ? <MetaText>{recovery}</MetaText> : null}
+                              </Stack>
+                            </Table.Td>
+                            <Table.Td>{recovery ? recovery : "—"}</Table.Td>
                           </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          {laneEvents.slice(0, 12).map((event: any) => (
-                            <Table.Tr key={event.id}>
-                          <Table.Td>{formatTimestamp(event.createdAt)}</Table.Td>
-                          <Table.Td>
-                            <Badge variant="light" color={getLaneEventTone(event)}>
-                              {String(event.lane || "—").replace(/_/g, " ")}
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td>{String(event.eventType || "—").replace(/_/g, " ")}</Table.Td>
-                          <Table.Td>
-                            <Stack gap={2}>
-                              <BodyText>{event.summary || "—"}</BodyText>
-                              {formatRetryWindow(event) ? <MetaText>{formatRetryWindow(event)}</MetaText> : null}
-                              <MetaText>
-                                {event.companyId ? `Unit ${event.companyId}` : "Global"}
-                                {event.destinationKey ? ` · Miniapp ${event.destinationKey}` : ""}
-                                {event.jobId ? ` · Job ${event.jobId}` : ""}
-                                {event.burstId ? ` · Burst ${event.burstId}` : ""}
-                              </MetaText>
-                              {formatLaneRecovery(event) ? <MetaText>{formatLaneRecovery(event)}</MetaText> : null}
-                            </Stack>
-                          </Table.Td>
-                          <Table.Td>
-                            {formatLaneRecovery(event) ? formatLaneRecovery(event) : "—"}
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
+                        );
+                      })}
                     </Table.Tbody>
                   </Table>
                 ) : (

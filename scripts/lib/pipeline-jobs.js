@@ -885,6 +885,7 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
   const staleRecovery = await recoverStaleRunningPipelineJobs(prisma);
   const staleJobs = Array.isArray(staleRecovery?.jobs) ? staleRecovery.jobs : [];
   for (const staleJob of staleJobs) {
+    const startedAt = Date.now();
     await safeRecordLocalLaneEvent(prisma, {
       lane: "PLAYLIST",
       eventType: "TIMEOUT",
@@ -894,6 +895,10 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
       destinationKey: staleJob?.metadata?.executionOptions?.mutationAuthority?.destinationKey || null,
       summary: `${staleJob.jobType} exceeded no-progress timeout and was marked failed.`,
       metadata: {
+        eventClass: "NO_PROGRESS_RECOVERY",
+        recoveryState: "marked_failed_for_retry_or_review",
+        recoveryAction: "retry_or_manual_review",
+        eventAt: new Date(startedAt).toISOString(),
         jobType: staleJob.jobType,
         reason: buildNoProgressTimeoutMessage(),
         queueColumn: staleJob.queueColumn || null,
@@ -1007,6 +1012,8 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
       }
       console.error(`[PIPELINE QUEUE] ${job.jobType} failed for ${job.company?.name ?? job.companyId}:`, error.message);
       const classification = classifyPipelineJobError(error);
+      const retryAfterMs = Number.isFinite(classification.retryAfterMs) ? classification.retryAfterMs : null;
+      const nextRetryAt = retryAfterMs ? new Date(Date.now() + retryAfterMs).toISOString() : null;
       const eventType = classification.class === PIPELINE_FAILURE_CLASSES.MODEL_TIMEOUT ? "TIMEOUT" : (classification.retryable ? "RETRY" : "FAILED");
       const timeout = classification.class === PIPELINE_FAILURE_CLASSES.MODEL_TIMEOUT;
       await safeRecordLocalLaneEvent(prisma, {
@@ -1020,8 +1027,12 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
           ? `${job.jobType} timed out${classification.retryable ? " and will retry" : ""}: ${error.message}`
           : `${job.jobType} ${classification.retryable ? "will retry" : "failed"}: ${error.message}`,
         metadata: {
+          eventClass: "JOBS_FAILURE",
           failureClass: classification.class,
           retryable: classification.retryable,
+          retryAfterMs,
+          nextRetryAt,
+          queueColumn: job.queueColumn || null,
           runtimeMs: Date.now() - startedAt,
           timeout,
         },

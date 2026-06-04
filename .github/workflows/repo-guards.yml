@@ -32,6 +32,9 @@ jobs:
       - name: Semantic audit
         run: npm run audit:semantic
 
+      - name: Local runnable enforcement
+        run: npm run test:local-runnable-enforcement
+
       - name: Lint
         run: npm run lint
 

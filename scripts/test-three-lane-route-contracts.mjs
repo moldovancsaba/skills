@@ -42,6 +42,8 @@ assert.match(systemCommands, new RegExp("recordCommandLaneEvent\\(prisma, contex
 assert.match(pipelineJobs, /buildPlaylistMutationAuthority/, "pipeline worker must build Playlist mutation authority");
 assert.match(pipelineJobs, /assertPipelineMutationAuthority/, "pipeline worker must assert mutation authority before job execution");
 assert.match(pipelineJobs, /mutationAuthority:\s*buildPlaylistMutationAuthority/, "execution options must carry mutation authority");
+assert.match(pipelineJobs, /retryAfterMs/, "playlist worker must include retry timing metadata for retry events");
+assert.match(pipelineJobs, /nextRetryAt/, "playlist worker must include retry schedule metadata for retry events");
 
 assert.match(burstRoute, /verifyMembership\(request,\s*companyId,\s*"ADMIN"\)/, "burst route must require admin membership");
 assert.match(burstRoute, /assertHumanApprovedBurstRequest/, "burst route must validate human-approved burst request contract");
@@ -50,6 +52,8 @@ assert.match(burstRoute, /lane:\s*"HUMAN_APPROVED_BURST"/, "burst route must rep
 assert.match(burstRoute, /safeRecordLocalLaneEvent/, "burst route must emit best-effort lane events");
 assert.match(burstRoute, /eventType:\s*"APPROVED"/, "burst route must record approval event");
 assert.match(burstRoute, /eventType:\s*"CHILDREN_CREATED"/, "burst route must record child shard creation event");
+assert.match(burstRoute, /recoveryState:/, "burst recovery events should carry operator-visible recovery state");
+assert.match(burstRoute, /recoveryMode:/, "burst recovery events should carry recovery mode metadata");
 assert.match(burstRoute, /export async function PATCH/, "burst route must expose recovery actions");
 assert.match(burstRoute, /STOP_REQUESTED/, "burst route must support operator stop requests");
 assert.match(burstRoute, /ROLLBACK_PARK_CHILD_JOBS/, "burst route must support parking rollback");

@@ -185,7 +185,9 @@ export async function PATCH(request: NextRequest) {
     const eventType = action === "STOP_REQUESTED" ? "STOP_REQUESTED" : "ROLLBACK";
     const queueColumn = "PARKED";
     const status = "PAUSED";
+    const actionLabel = action.toLowerCase().replace(/_/g, " ");
     const childIds: string[] = [];
+    const requestedAt = new Date().toISOString();
 
     for (const job of childJobs) {
       childIds.push(job.id);
@@ -200,7 +202,7 @@ export async function PATCH(request: NextRequest) {
           metadata: mergeJobMetadata(job, {
             action,
             reason,
-            requestedAt: recoveryAt,
+            requestedAt,
             requestedBy: auth.membership?.email || auth.session?.email || "unknown-operator",
           }),
           updatedAt: new Date(),
@@ -214,10 +216,14 @@ export async function PATCH(request: NextRequest) {
       actor: "operator",
       companyId,
       burstId: parentBurstId,
-      summary: `${action.replace(/_/g, " ")} applied to ${childJobs.length} child job(s): ${reason}`,
+      summary: `${actionLabel} applied to ${childJobs.length} child job(s): ${reason}`,
       metadata: {
         action,
         reason,
+        requestedAt,
+        recoveryMode: action === "STOP_REQUESTED" ? "stopped" : "rollback",
+        recoveryScope: "child_jobs",
+        recoveryState: action === "STOP_REQUESTED" ? "paused_for_operator_review" : "parked_for_rework_or_requeue",
         childJobIds: childIds,
       },
     });

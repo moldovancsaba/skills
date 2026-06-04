@@ -62,12 +62,13 @@ Runnable inventory:
 - system commands must be allowlisted and stamped with lane metadata before the local worker processes them
 - Human-Approved Burst work is planned by `src/lib/human-approved-burst.ts`; approved requests decompose into `PIPELINE_SLICE` child jobs with parent burst metadata, requested output count, memory threshold, timeout, rollback mode, and approval details
 - `POST /api/local-ai/bursts` is the operator API for creating Human-Approved Burst child jobs; it requires Admin membership, validates the burst contract, and writes child jobs into the Playlist queue instead of executing work inline
-- Local lane events are compactly stored in `SystemSetting.local_ai_lane_events`; Playlist execution and Human-Approved Burst creation must emit approval, child-shard creation, start, retry, completion, and failure events; `GET /api/local-ai/lane-events` exposes the recent event ring buffer to Superadmins
+- Local lane events are compactly stored in `SystemSetting.local_ai_lane_events`; Playlist execution and Human-Approved Burst creation must emit approval, child-shard creation, start, retry, completion, timeout, stop, rollback, and failure events; `GET /api/local-ai/lane-events` exposes the recent event ring buffer to Superadmins
+- lane events must include recovery metadata when applicable (`retryAfterMs`, `nextRetryAt`, `eventClass`, and `recoveryState`) so operators can see next retry and recovery posture without reading raw logs
 - lane event writes are best-effort observability; a transient event-ledger write failure must never stop Playlist content creation or Burst child-job creation
 - lane event payloads must be human-readable, bounded, and secret-redacted before storage
 - `/local-ai` renders the recent lane history so operators can see what the System Health, Playlist, and Human-Approved Burst lanes actually did without reading raw logs
 - lane events are also mirrored into the local audit database as `OutcomeEvent` records when `LOCAL_DATABASE_URL` is available; the `SystemSetting` ring buffer is the quick dashboard cache, not the long-term ledger
-- Human-Approved Burst recovery uses `PATCH /api/local-ai/bursts` with `STOP_REQUESTED`, `ROLLBACK_PARK_CHILD_JOBS`, or `ROLLBACK_REWORK_CHILD_OUTPUTS`; recovery parks child shards, records the operator reason, and emits a lane event
+- Human-Approved Burst recovery uses `PATCH /api/local-ai/bursts` with `STOP_REQUESTED`, `ROLLBACK_PARK_CHILD_JOBS`, or `ROLLBACK_REWORK_CHILD_OUTPUTS`; recovery parks child shards, records the operator reason, includes operator-visible `recoveryMode`, and emits a lane event
 
 Current inventory evidence:
 

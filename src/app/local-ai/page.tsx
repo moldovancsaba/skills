@@ -221,6 +221,28 @@ function formatSignedValue(value: number | null | undefined) {
   return `${sign}${resolved}`;
 }
 
+function formatRetryWindow(event: any) {
+  const nextRetryAt = event?.metadata?.nextRetryAt;
+  const retryAfterMs = event?.metadata?.retryAfterMs;
+  if (nextRetryAt) {
+    const asDate = new Date(String(nextRetryAt));
+    if (!Number.isNaN(asDate.getTime())) {
+      return `Retry scheduled for ${formatTimestamp(nextRetryAt)}`;
+    }
+  }
+  if (Number.isFinite(Number(retryAfterMs))) {
+    const retrySeconds = Math.round(Math.max(0, Number(retryAfterMs)) / 1000);
+    if (retrySeconds > 0) return `Retry in ${retrySeconds}s`;
+  }
+  return null;
+}
+
+function formatLaneRecovery(event: any) {
+  const recoveryState = event?.metadata?.recoveryState;
+  const recoveryMode = event?.metadata?.recoveryMode;
+  return [recoveryState, recoveryMode].filter(Boolean).join(" · ") || null;
+}
+
 function getLaneEventTone(event: any) {
   switch (String(event?.eventType || "")) {
     case "FAILED":
@@ -663,18 +685,20 @@ export default function LocalAiMissionControlPage() {
                 {laneEventsError ? (
                   <Notice title="Lane history unavailable">{laneEventsError}</Notice>
                 ) : laneEvents.length ? (
-                  <Table highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>When</Table.Th>
-                        <Table.Th>Lane</Table.Th>
-                        <Table.Th>Event</Table.Th>
-                        <Table.Th>Summary</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {laneEvents.slice(0, 12).map((event: any) => (
-                        <Table.Tr key={event.id}>
+                      <Table highlightOnHover>
+                        <caption style={{ display: "none" }}>Execution lane events timeline</caption>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>When</Table.Th>
+                            <Table.Th>Lane</Table.Th>
+                            <Table.Th>Event</Table.Th>
+                            <Table.Th>Summary</Table.Th>
+                            <Table.Th>Recovery</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {laneEvents.slice(0, 12).map((event: any) => (
+                            <Table.Tr key={event.id}>
                           <Table.Td>{formatTimestamp(event.createdAt)}</Table.Td>
                           <Table.Td>
                             <Badge variant="light" color={getLaneEventTone(event)}>
@@ -685,13 +709,18 @@ export default function LocalAiMissionControlPage() {
                           <Table.Td>
                             <Stack gap={2}>
                               <BodyText>{event.summary || "—"}</BodyText>
+                              {formatRetryWindow(event) ? <MetaText>{formatRetryWindow(event)}</MetaText> : null}
                               <MetaText>
                                 {event.companyId ? `Unit ${event.companyId}` : "Global"}
                                 {event.destinationKey ? ` · Miniapp ${event.destinationKey}` : ""}
                                 {event.jobId ? ` · Job ${event.jobId}` : ""}
                                 {event.burstId ? ` · Burst ${event.burstId}` : ""}
                               </MetaText>
+                              {formatLaneRecovery(event) ? <MetaText>{formatLaneRecovery(event)}</MetaText> : null}
                             </Stack>
+                          </Table.Td>
+                          <Table.Td>
+                            {formatLaneRecovery(event) ? formatLaneRecovery(event) : "—"}
                           </Table.Td>
                         </Table.Tr>
                       ))}

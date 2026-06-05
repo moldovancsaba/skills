@@ -6,6 +6,7 @@ import { listPersistedCompanyPipelineJobs } from "@/lib/pipeline-queue";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
 import { DESTINATION_KEYS, type DestinationKey } from "@/lib/destination-workflow-contract";
 import { buildProjectionMetadata, normalizeWebappProjection } from "@/lib/webapp-projection";
+import { buildRecoveryActionView } from "@/lib/check-lifecycle/lifecycle-spine";
 
 export const dynamic = "force-dynamic";
 
@@ -317,6 +318,10 @@ export async function GET(
     const scopedItems = destinationKeyScope
       ? sorted.filter((item) => item.source !== "miniapp_publish" || item.meta?.destinationKey === destinationKeyScope)
       : sorted;
+    const scopedItemsWithRecovery = scopedItems.map((item) => ({
+      ...item,
+      recoveryActionView: buildRecoveryActionView(item),
+    }));
     const scopedDestinationDaemon = destinationKeyScope
       ? destinationDaemon.filter((lane) => lane.destinationKey === destinationKeyScope)
       : destinationDaemon;
@@ -329,7 +334,7 @@ export async function GET(
         ...projectionMetadata,
         available: Boolean(projection),
       },
-      items: scopedItems,
+      items: scopedItemsWithRecovery,
       destinationDaemon: {
         byDestination: scopedDestinationDaemon,
         summary: {
@@ -345,6 +350,9 @@ export async function GET(
         critical: scopedItems.filter((item) => item.severity === "critical").length,
         warning: scopedItems.filter((item) => item.severity === "warning").length,
         info: scopedItems.filter((item) => item.severity === "info").length,
+        recoveryActions: scopedItemsWithRecovery.filter((item) =>
+          Array.isArray(item.recoveryActionView.safeActions) && item.recoveryActionView.safeActions.length > 0
+        ).length,
       },
     });
   } catch (error) {

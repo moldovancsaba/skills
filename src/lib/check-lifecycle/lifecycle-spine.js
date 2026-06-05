@@ -24,6 +24,24 @@ const VISITOR_CONTENT_STATES = Object.freeze({
   PUBLISHED_VERIFIED: "published_verified",
 });
 
+const PUBLIC_VERIFICATION_STATES = Object.freeze({
+  PENDING: "pending",
+  VERIFIED: "verified",
+  DRIFT_DETECTED: "drift_detected",
+  ROLLBACK_PENDING: "rollback_pending",
+  ROLLED_BACK: "rolled_back",
+  BLOCKED: "blocked",
+});
+
+const MIGRATION_ACTION_STATUSES = Object.freeze({
+  WOULD_CREATE: "would_create",
+  CREATED: "created",
+  REPAIRED: "repaired",
+  QUARANTINED: "quarantined",
+  BLOCKED: "blocked",
+  SKIPPED: "skipped",
+});
+
 const FEEDBACK_SEVERITY_ORDER = Object.freeze({
   warn: 1,
   require_review: 2,
@@ -349,15 +367,326 @@ function buildLifecycleTelemetry(event, payload = {}) {
   };
 }
 
+function comparePublishedItems(localItems = [], publicItems = []) {
+  const publicById = new Map(publicItems.map((item) => [String(item.id || item.localId || item.slug || ""), item]));
+  const localById = new Map(localItems.map((item) => [String(item.id || item.localId || item.slug || ""), item]));
+  const comparisons = [];
+
+  for (const local of localItems) {
+    const id = String(local.id || local.localId || local.slug || "");
+    const publicItem = publicById.get(id);
+    const failedReasons = [];
+    if (!publicItem) failedReasons.push("missing_public_item");
+    if (local.hasSourceEvidence === false) failedReasons.push("missing_source_evidence");
+    if (local.fakeOrPlaceholder === true) failedReasons.push("fake_or_placeholder_content");
+    if (local.forbiddenCategory === true) failedReasons.push("forbidden_category");
+    if (publicItem && local.category && publicItem.category && local.category !== publicItem.category) {
+      failedReasons.push("wrong_category");
+    }
+    if (publicItem && local.updatedAt && publicItem.updatedAt && new Date(publicItem.updatedAt).getTime() < new Date(local.updatedAt).getTime()) {
+      failedReasons.push("stale_public_item");
+    }
+
+    comparisons.push({
+      id,
+      title: local.title || publicItem?.title || id,
+      publicUrl: publicItem?.publicUrl || null,
+      localEvidenceId: local.evidenceId || null,
+      state: failedReasons.length ? "failed" : "matched",
+      failedReasons,
+      correctionAction: failedReasons.some((reason) =>
+        reason === "fake_or_placeholder_content" || reason === "forbidden_category" || reason === "missing_source_evidence"
+      )
+        ? "rollback_or_unpublish"
+        : failedReasons.length
+          ? "refresh_public_projection"
+          : "none",
+    });
+  }
+
+  for (const publicItem of publicItems) {
+    const id = String(publicItem.id || publicItem.localId || publicItem.slug || "");
+    if (!localById.has(id)) {
+      comparisons.push({
+        id,
+        title: publicItem.title || id,
+        publicUrl: publicItem.publicUrl || null,
+        localEvidenceId: null,
+        state: "failed",
+        failedReasons: ["public_item_missing_local_proof"],
+        correctionAction: "rollback_or_unpublish",
+      });
+    }
+  }
+
+  return comparisons;
+}
+
+function buildPublicVerificationProof(input = {}) {
+  const comparisons = comparePublishedItems(input.localItems || [], input.publicItems || []);
+  const readModelFresh = input.readModelFresh !== false;
+  const publicAvailable = input.publicAvailable !== false;
+  const failedComparisons = comparisons.filter((comparison) => comparison.failedReasons.length > 0);
+  const criticalFailures = failedComparisons.filter((comparison) => comparison.correctionAction === "rollback_or_unpublish");
+  const rollbackActions = criticalFailures.map((comparison) => ({
+    id: `rollback:${comparison.id}`,
+    itemId: comparison.id,
+    action: input.autopilotRollback === true ? "unpublish_now" : "queue_operator_confirmation",
+    reasonCodes: comparison.failedReasons,
+    publicUrl: comparison.publicUrl,
+    retryable: true,
+  }));
+
+  const state = !publicAvailable
+    ? PUBLIC_VERIFICATION_STATES.BLOCKED
+    : !readModelFresh
+      ? PUBLIC_VERIFICATION_STATES.PENDING
+      : criticalFailures.length > 0
+        ? PUBLIC_VERIFICATION_STATES.ROLLBACK_PENDING
+        : failedComparisons.length > 0
+          ? PUBLIC_VERIFICATION_STATES.DRIFT_DETECTED
+          : PUBLIC_VERIFICATION_STATES.VERIFIED;
+
+  return {
+    schemaVersion: LIFECYCLE_SPINE_VERSION,
+    state,
+    checkedAt: input.checkedAt || new Date().toISOString(),
+    readModelFresh,
+    publicAvailable,
+    comparedItemCount: comparisons.length,
+    failedItemCount: failedComparisons.length,
+    rollbackActionCount: rollbackActions.length,
+    comparisons,
+    rollbackActions,
+    reasonCodes: unique(failedComparisons.flatMap((comparison) => comparison.failedReasons)),
+    operatorMessage: state === PUBLIC_VERIFICATION_STATES.VERIFIED
+      ? "Public Visitor content matches Local proof."
+      : state === PUBLIC_VERIFICATION_STATES.PENDING
+        ? "Read model is stale or pending; refresh before public verification can pass."
+        : state === PUBLIC_VERIFICATION_STATES.BLOCKED
+          ? "Public Visitor app is unavailable or verification is blocked."
+          : "Public Visitor content drift requires repair or rollback.",
+  };
+}
+
+function buildLifecycleControlCenterView(input = {}) {
+  const lifecycleHealth = input.lifecycleHealth || {};
+  const daemonLane = input.daemonLane || {};
+  const publicVerification = input.publicVerification || {};
+  const operations = Array.isArray(input.operations) ? input.operations : [];
+  const blocks = unique(input.blocks);
+  const modules = unique(input.modules);
+  const miniapps = unique(input.miniapps);
+  const failedOperations = operations.filter((item) => item.severity === "critical" || item.status === "failed" || item.status === "dead_lettered");
+  const state = failedOperations.length > 0 || lifecycleHealth.state === "blocked"
+    ? "failed"
+    : lifecycleHealth.state === "repairing" || publicVerification.state === PUBLIC_VERIFICATION_STATES.DRIFT_DETECTED
+      ? "degraded"
+      : lifecycleHealth.state === "paused_low_memory"
+        ? "disabled"
+        : "healthy";
+
+  return {
+    schemaVersion: LIFECYCLE_SPINE_VERSION,
+    state,
+    unit: {
+      companyId: input.companyId || null,
+      blocks,
+      modules,
+      miniapps,
+    },
+    cards: [
+      {
+        id: "unit-capabilities",
+        title: "Unit, Blocks, Modules, Miniapps",
+        state: blocks.length || modules.length || miniapps.length ? "healthy" : "empty",
+        summary: `${blocks.length} block(s), ${modules.length} module(s), ${miniapps.length} miniapp(s) enabled.`,
+      },
+      {
+        id: "daemon-lane",
+        title: "Destination daemon lane",
+        state: daemonLane.metadata?.destinationKeys?.length ? "healthy" : "empty",
+        summary: daemonLane.metadata?.sourceSignal || "No destination daemon lane is active.",
+      },
+      {
+        id: "maintenance",
+        title: "Lifecycle maintenance",
+        state: lifecycleHealth.state || "unknown",
+        summary: lifecycleHealth.operatorMessage || "Lifecycle maintenance state is unavailable.",
+      },
+      {
+        id: "public-verification",
+        title: "Public verification",
+        state: publicVerification.state || "pending",
+        summary: publicVerification.operatorMessage || "Public verification has not run yet.",
+      },
+      {
+        id: "recovery-actions",
+        title: "Recovery actions",
+        state: failedOperations.length ? "action_required" : "healthy",
+        summary: failedOperations.length
+          ? `${failedOperations.length} operation(s) need retry, replay, rollback, or acknowledgement.`
+          : "No critical recovery actions are pending.",
+      },
+    ],
+    uxStates: ["loading", "empty", "healthy", "running", "degraded", "failed", "disabled", "permission-denied"],
+    accessibility: {
+      liveRegion: "polite",
+      keyboardOperable: true,
+      visibleFocusRequired: true,
+      gdsOnly: true,
+    },
+  };
+}
+
+function buildLifecycleMigrationReport(input = {}) {
+  const diff = buildMaintenanceDiff(input);
+  const dryRun = input.apply !== true;
+  const actions = [
+    ...diff.safeRepairs.map((repair) => ({
+      id: `${repair.operation}:${repair.metadata?.jobType || repair.metadata?.missionKind || "unknown"}`,
+      status: dryRun ? MIGRATION_ACTION_STATUSES.WOULD_CREATE : MIGRATION_ACTION_STATUSES.REPAIRED,
+      severity: "safe",
+      reasonCode: repair.reasonCode,
+      summary: repair.summary,
+      rollback: "rerun_lifecycle_maintenance_or_restore_previous_state_from_report",
+      metadata: repair.metadata || {},
+    })),
+    ...diff.heavyRepairs.map((repair) => ({
+      id: `${repair.operation}:${repair.metadata?.contentId || "unknown"}`,
+      status: dryRun ? MIGRATION_ACTION_STATUSES.WOULD_CREATE : MIGRATION_ACTION_STATUSES.REPAIRED,
+      severity: "heavy",
+      reasonCode: repair.reasonCode,
+      summary: repair.summary,
+      rollback: "cancel_queued_verification_or_restore_previous_public_projection",
+      metadata: repair.metadata || {},
+    })),
+    ...unique(input.fakeOrTestContentIds).map((contentId) => ({
+      id: `quarantine:${contentId}`,
+      status: dryRun ? MIGRATION_ACTION_STATUSES.WOULD_CREATE : MIGRATION_ACTION_STATUSES.QUARANTINED,
+      severity: "critical",
+      reasonCode: "fake_or_test_content",
+      summary: "Quarantine fake/test Visitor public content instead of republishing it.",
+      rollback: "restore_from_quarantine_only_after_source_proof_is_attached",
+      metadata: { contentId },
+    })),
+  ];
+
+  return {
+    schemaVersion: LIFECYCLE_SPINE_VERSION,
+    dryRun,
+    generatedAt: input.generatedAt || new Date().toISOString(),
+    companyId: input.companyId || null,
+    destinationKeys: normalizeDestinationKeys(input.destinationKeys),
+    state: diff.failures.length ? "blocked" : actions.length ? "repairable" : "clean",
+    actions,
+    safeActions: actions.filter((action) => action.severity === "safe"),
+    blockedActions: diff.failures,
+    summary: {
+      totalActions: actions.length,
+      safeActionCount: actions.filter((action) => action.severity === "safe").length,
+      quarantineCount: actions.filter((action) => action.status === MIGRATION_ACTION_STATUSES.QUARANTINED || action.reasonCode === "fake_or_test_content").length,
+      blockedCount: diff.failures.length,
+    },
+  };
+}
+
+function buildLifecycleVerificationReport(input = {}) {
+  const checks = [];
+  const requiredJobs = unique(input.requiredPipelineJobs);
+  const existingJobs = toSet(input.existingPipelineJobs);
+  for (const jobType of requiredJobs) {
+    checks.push({
+      id: "active-unit-has-core-jobs",
+      severity: "error",
+      passed: existingJobs.has(jobType),
+      expected: jobType,
+      actual: existingJobs.has(jobType) ? jobType : "missing",
+      remediation: "Run npm run maintenance:lifecycle or sync pipeline jobs for this Unit.",
+    });
+  }
+
+  const daemonLane = input.daemonLane || {};
+  for (const destinationKey of normalizeDestinationKeys(input.destinationKeys)) {
+    const hasDestination = Array.isArray(daemonLane.metadata?.destinationKeys)
+      && daemonLane.metadata.destinationKeys.includes(destinationKey);
+    checks.push({
+      id: "active-destination-has-daemon",
+      severity: "error",
+      passed: hasDestination,
+      expected: destinationKey,
+      actual: daemonLane.metadata?.destinationKeys || [],
+      remediation: "Run lifecycle migration/backfill, then rerun daemon sync.",
+    });
+  }
+
+  const schedulable = new Set(unique(input.schedulableMissionKinds));
+  for (const missionKind of unique(input.activeMissionKinds)) {
+    checks.push({
+      id: "mission-kind-schedulable",
+      severity: "error",
+      passed: schedulable.has(missionKind),
+      expected: "schedulable mission kind",
+      actual: missionKind,
+      remediation: "Migrate unsupported mission kind before enabling the daemon.",
+    });
+  }
+
+  const proof = input.publicVerification || {};
+  if (proof.comparedItemCount || proof.failedItemCount) {
+    checks.push({
+      id: "public-content-source-backed",
+      severity: "error",
+      passed: proof.failedItemCount === 0 && proof.state === PUBLIC_VERIFICATION_STATES.VERIFIED,
+      expected: PUBLIC_VERIFICATION_STATES.VERIFIED,
+      actual: proof.state || "missing",
+      remediation: "Run public verification and rollback or repair failed proof items.",
+    });
+  }
+
+  return {
+    schemaVersion: LIFECYCLE_SPINE_VERSION,
+    ok: checks.every((check) => check.passed || check.severity !== "error"),
+    generatedAt: input.generatedAt || new Date().toISOString(),
+    companyId: input.companyId || null,
+    destinationKeys: normalizeDestinationKeys(input.destinationKeys),
+    checks,
+    failedChecks: checks.filter((check) => !check.passed && check.severity === "error"),
+  };
+}
+
+function buildRecoveryActionView(item = {}) {
+  const safeActions = Array.isArray(item.safeActions) ? item.safeActions : [];
+  return {
+    id: item.id || "unknown",
+    source: item.source || "unknown",
+    status: item.status || "blocked",
+    severity: item.severity || "warning",
+    safeActions,
+    confirmationRequired: safeActions.includes("rollback") || safeActions.includes("cancel"),
+    idempotencyRequired: true,
+    auditRequired: true,
+    permissionRequired: item.source === "miniapp_publish" ? "miniapp.card.publish" : "local.job.retry",
+    operatorMessage: item.summary || "Recovery action is available for this operational item.",
+  };
+}
+
 module.exports = {
   FEEDBACK_SEVERITY_ORDER,
   LIFECYCLE_SPINE_VERSION,
   MAINTENANCE_REASON_CODES,
+  MIGRATION_ACTION_STATUSES,
+  PUBLIC_VERIFICATION_STATES,
   VISITOR_CONTENT_STATES,
   buildDestinationDaemonLane,
   buildLifecycleTelemetry,
+  buildLifecycleControlCenterView,
+  buildLifecycleMigrationReport,
+  buildLifecycleVerificationReport,
   buildMaintenanceDiff,
+  buildPublicVerificationProof,
   buildProvisioningPlan,
+  buildRecoveryActionView,
   evaluateVisitorFeedbackPolicy,
   normalizeVisitorFeedbackDecision,
   scoreVisitorContentHealth,

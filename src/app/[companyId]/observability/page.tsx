@@ -166,6 +166,7 @@ export default function ObservabilityPage() {
     latestApplyAt: null,
     recentApplies: [],
   };
+  const lifecycleControlCenter = data?.lifecycleControlCenter || null;
   const sortedQueueJobs = sortQueueJobs(queue.jobs || []);
   const currentJob = sortedQueueJobs[0] || null;
   const upcomingJobs = currentJob ? sortedQueueJobs.slice(1, 21) : sortedQueueJobs.slice(0, 20);
@@ -212,6 +213,47 @@ export default function ObservabilityPage() {
 
       <DestinationMissionControl companyId={companyId} destinationKey={destinationKey ?? undefined} />
       <DestinationLearningPanel companyId={companyId} destinationKey={destinationKey ?? undefined} />
+
+      {lifecycleControlCenter ? (
+        <UnifiedCard>
+          <UnifiedCardHeader
+            title="Lifecycle Control Center"
+            description="Unit lifecycle status across enabled Miniapps, daemon lanes, maintenance, public verification, and recovery actions."
+          />
+          <UnifiedCardBody>
+            <Stack gap="sm" role="status" aria-live="polite">
+              <Group gap="xs">
+                <Badge color={lifecycleControlCenter.state === "healthy" ? "green" : lifecycleControlCenter.state === "failed" ? "red" : "yellow"}>
+                  {String(lifecycleControlCenter.state || "unknown")}
+                </Badge>
+                <MetaText>
+                  {lifecycleControlCenter.unit?.miniapps?.length ?? 0} miniapp(s), {lifecycleControlCenter.unit?.modules?.length ?? 0} module(s)
+                </MetaText>
+              </Group>
+              <SimpleGrid cols={{ base: 1, md: 2, xl: 5 }} spacing="sm">
+                {(lifecycleControlCenter.cards || []).map((card: any) => (
+                  <Box key={card.id} style={getSemanticListItemStyle("strategy")}>
+                    <Stack gap={4}>
+                      <Group justify="space-between" align="start" gap="xs">
+                        <BodyText>{card.title}</BodyText>
+                        <Badge size="xs" variant="light">
+                          {String(card.state || "unknown")}
+                        </Badge>
+                      </Group>
+                      <MetaText>{card.summary}</MetaText>
+                    </Stack>
+                  </Box>
+                ))}
+              </SimpleGrid>
+              {lifecycleControlCenter.state !== "healthy" ? (
+                <Notice title="Lifecycle action may be required" icon={AlertTriangle} variant="default">
+                  Review failed or degraded lifecycle cards, then use the recovery actions exposed by Unit operations.
+                </Notice>
+              ) : null}
+            </Stack>
+          </UnifiedCardBody>
+        </UnifiedCard>
+      ) : null}
 
       <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="md">
         <MetricCard icon={Heartbeat} color="review" label="Guardian State" value={String(heartbeat.healthState || "unknown")} detail={String(heartbeat.healthStage || "—")} />

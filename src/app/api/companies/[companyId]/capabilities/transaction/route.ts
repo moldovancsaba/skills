@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { resolveEffectiveUnitCapabilities, normalizeUnitCapabilitiesForStorage } from "@/lib/check-foundation/capabilities-v3";
+import { resolveUnitCapabilities as resolveLegacyUnitCapabilities } from "@/lib/intelligence-unit-capabilities";
 import { isMiniappId, type MiniappId } from "@/lib/check-foundation/miniapp-registry";
 import { BLOCK_KEYS, getRequiredModulesForBlocks, isBlockKey, isModuleKey, type BlockKey, type ModuleKey } from "@/lib/check-foundation/registry";
 import {
@@ -46,6 +47,17 @@ type CapabilityMutationResult = {
   ok: boolean;
   mode: MutationMode;
   version: string;
+  resolutionSource: "auto" | "custom" | "legacy-auto" | "legacy-v2" | "legacy-v3" | "v3";
+  effectiveProfile: "NONE" | "CLASSSCOUT" | "COMPARE";
+  effectiveModules: string[];
+  changedBy?: {
+    actorId?: string;
+    actorEmail?: string;
+    source?: string;
+    intent?: string;
+    reason?: string;
+    notes?: string;
+  };
   effective: {
     enabledBlocks: BlockKey[];
     enabledModules: ModuleKey[];
@@ -134,6 +146,179 @@ function withTransactionLog(
   };
 }
 
+type UiIntent = {
+  source?: string;
+  intent?: string;
+  reason?: string;
+  notes?: string;
+  changedAt?: string;
+  requestedCapabilities?: {
+    blocks?: string[];
+    modules?: string[];
+    miniapps?: string[];
+  };
+};
+
+function normalizeUiIntent(input: unknown): UiIntent | null {
+  const record = asRecord(input);
+  if (!record) {
+    return null;
+  }
+
+  const uiIntent: UiIntent = {};
+
+  if (typeof record.source === "string" && record.source.trim()) {
+    uiIntent.source = record.source.trim();
+  }
+  if (typeof record.intent === "string" && record.intent.trim()) {
+    uiIntent.intent = record.intent.trim();
+  }
+  if (typeof record.reason === "string" && record.reason.trim()) {
+    uiIntent.reason = record.reason.trim();
+  }
+  if (typeof record.notes === "string" && record.notes.trim()) {
+    uiIntent.notes = record.notes.trim();
+  }
+
+  const requestedCapabilities = asRecord(record.requestedCapabilities);
+  if (requestedCapabilities) {
+    const blocksRaw = requestedCapabilities.blocks;
+    if (Array.isArray(blocksRaw)) {
+      uiIntent.requestedCapabilities = {
+        blocks: blocksRaw.filter((value): value is string => typeof value === "string"),
+      };
+    }
+
+    const modulesRaw = requestedCapabilities.modules;
+    if (Array.isArray(modulesRaw)) {
+      uiIntent.requestedCapabilities ??= {};
+      uiIntent.requestedCapabilities.modules = modulesRaw.filter((value): value is string => typeof value === "string");
+    }
+
+    const miniappsRaw = requestedCapabilities.miniapps;
+    if (Array.isArray(miniappsRaw)) {
+      uiIntent.requestedCapabilities ??= {};
+      uiIntent.requestedCapabilities.miniapps = miniappsRaw.filter((value): value is string => typeof value === "string");
+    }
+
+    if (!uiIntent.requestedCapabilities?.blocks?.length) {
+      delete uiIntent.requestedCapabilities?.blocks;
+    }
+    if (!uiIntent.requestedCapabilities?.modules?.length) {
+      delete uiIntent.requestedCapabilities?.modules;
+    }
+    if (!uiIntent.requestedCapabilities?.miniapps?.length) {
+      delete uiIntent.requestedCapabilities?.miniapps;
+    }
+    if (!uiIntent.requestedCapabilities?.blocks
+      && !uiIntent.requestedCapabilities?.modules
+      && !uiIntent.requestedCapabilities?.miniapps
+    ) {
+      delete uiIntent.requestedCapabilities;
+    }
+  }
+
+  if (typeof record.changedAt === "string" && record.changedAt.trim()) {
+    uiIntent.changedAt = record.changedAt.trim();
+  }
+
+  return Object.keys(uiIntent).length > 0 ? uiIntent : null;
+}
+
+type CapabilityResolutionSource = CapabilityMutationResult["resolutionSource"];
+
+function getLegacyCapabilityResolution(workerConfig: unknown, hasClassScoutDestination: boolean, hasCompareDestination: boolean) {
+  const resolved = resolveLegacyUnitCapabilities({
+    workerConfig,
+    hasClassScoutDestination,
+    hasCompareDestination,
+  });
+
+  const root = asRecord(workerConfig);
+  const workerUnitCapabilities = asRecord(root?.unitCapabilities);
+  const isCanonicalV3 = workerUnitCapabilities?.schemaVersion === 3 && asRecord(workerUnitCapabilities.payload)?.v === 3;
+
+  const effectiveModules = Object.entries(resolved.modules)
+    .filter(([, value]) => value === true)
+    .map(([key]) => key)
+    .sort((a, b) => a.localeCompare(b));
+
+  const resolutionSource: CapabilityResolutionSource = (() => {
+    if (resolved.source === "auto") {
+      return resolved.sourceEnvelopeVersion === 0 ? "auto" : "legacy-auto";
+    }
+    if (isCanonicalV3 && resolved.sourceEnvelopeVersion >= 3) {
+      return "v3";
+    }
+    if (resolved.sourceEnvelopeVersion >= 3) return "legacy-v3";
+    if (resolved.sourceEnvelopeVersion >= 2) return "legacy-v2";
+    return "legacy-v2";
+  })();
+
+  return {
+    resolutionSource,
+    effectiveProfile: resolved.profile,
+    effectiveModules,
+  };
+}
+
+function deriveChangedBy(session: { sub: string; email: string } | null, uiIntent: UiIntent | null, mode: MutationMode) {
+  if (!session && !uiIntent) {
+    return undefined;
+  }
+
+  const baseReason = mode === "apply" ? "Apply requested" : "Preview requested";
+  return {
+    actorId: session?.sub,
+    actorEmail: session?.email,
+    source: uiIntent?.source?.trim() || "settings-capabilities-ui",
+    intent: uiIntent?.intent?.trim() || `${mode}-capability-transaction`,
+    reason: uiIntent?.reason?.trim() || baseReason,
+    notes: uiIntent?.notes?.trim(),
+  } as CapabilityMutationResult["changedBy"];
+}
+
+function buildFailureResult(input: {
+  mode: MutationMode;
+  version: string;
+  resolutionSummary: {
+    resolutionSource: CapabilityResolutionSource;
+    effectiveProfile: "NONE" | "CLASSSCOUT" | "COMPARE";
+    effectiveModules: string[];
+  };
+  enabledBlocks: BlockKey[];
+  enabledModules: ModuleKey[];
+  enabledMiniapps: string[];
+  source: string;
+  warnings: string[];
+  errors: CapabilityError[];
+  impact?: CapabilityMutationImpact;
+  changedBy?: CapabilityMutationResult["changedBy"];
+}): CapabilityMutationResult {
+  return {
+    ok: false,
+    mode: input.mode,
+    version: input.version,
+    resolutionSource: input.resolutionSummary.resolutionSource,
+    effectiveProfile: input.resolutionSummary.effectiveProfile,
+    effectiveModules: input.resolutionSummary.effectiveModules,
+    ...(input.changedBy ? { changedBy: input.changedBy } : {}),
+    effective: {
+      enabledBlocks: input.enabledBlocks,
+      enabledModules: input.enabledModules,
+      enabledMiniapps: input.enabledMiniapps,
+      source: input.source,
+    },
+    warnings: input.warnings,
+    errors: input.errors,
+    impact: input.impact ?? {
+      hiddenRoutes: [],
+      blockedOperations: [],
+      affectedMiniapps: [],
+    },
+  };
+}
+
 function createImpact(
   currentAreas: string[],
   nextAreas: string[],
@@ -160,6 +345,17 @@ function createImpact(
 function buildSuccessResult(input: {
   mode: MutationMode;
   version: string;
+  resolutionSource: "auto" | "custom" | "legacy-auto" | "legacy-v2" | "legacy-v3" | "v3";
+  effectiveProfile: "NONE" | "CLASSSCOUT" | "COMPARE";
+  effectiveModules: string[];
+  changedBy?: {
+    actorId?: string;
+    actorEmail?: string;
+    source?: string;
+    intent?: string;
+    reason?: string;
+    notes?: string;
+  };
   enabledBlocks: BlockKey[];
   enabledModules: ModuleKey[];
   enabledMiniapps: string[];
@@ -173,6 +369,10 @@ function buildSuccessResult(input: {
     ok: true,
     mode: input.mode,
     version: input.version,
+    resolutionSource: input.resolutionSource,
+    effectiveProfile: input.effectiveProfile,
+    effectiveModules: input.effectiveModules,
+    ...(input.changedBy ? { changedBy: input.changedBy } : {}),
     effective: {
       enabledBlocks: input.enabledBlocks,
       enabledModules: input.enabledModules,
@@ -526,22 +726,35 @@ export async function POST(
       return NextResponse.json({ error: "JSON object body is required" }, { status: 400 });
     }
     const data = dataRaw as Record<string, unknown>;
-    const mode = data.mode;
+    const mode = data.mode === "preview" || data.mode === "apply"
+      ? data.mode
+      : undefined;
+    const operationMode: MutationMode = mode ?? "preview";
     const expectedVersion = typeof data.expectedVersion === "string" ? data.expectedVersion.trim() : "";
     const idempotencyKey =
       typeof data.idempotencyKey === "string" && data.idempotencyKey.trim().length > 0
         ? data.idempotencyKey.trim()
         : null;
+    const uiIntent = normalizeUiIntent(data.uiIntent);
+    const changedBy = deriveChangedBy(auth.session ?? null, uiIntent, operationMode);
+    const changedBySafe = {
+      actorId: changedBy?.actorId,
+      actorEmail: changedBy?.actorEmail,
+      source: changedBy?.source ?? "settings-capabilities-ui",
+      intent: changedBy?.intent,
+      reason: changedBy?.reason,
+      notes: changedBy?.notes,
+    } as CapabilityMutationResult["changedBy"];
 
     const validationErrors: CapabilityError[] = [];
-    if (mode !== "preview" && mode !== "apply") {
+    if (!mode) {
       validationErrors.push({
         field: "mode",
         code: "invalid-mode",
         message: "mode must be preview or apply.",
       });
     }
-    if (mode === "apply" && !expectedVersion) {
+    if (operationMode === "apply" && !expectedVersion) {
       validationErrors.push({
         field: "expectedVersion",
         code: "missing-expected-version",
@@ -580,6 +793,11 @@ export async function POST(
     }
 
     const currentVersion = buildVersionToken(company.updatedAt, company.workerConfig);
+    const currentResolutionSummary = getLegacyCapabilityResolution(
+      company.workerConfig,
+      Boolean(classScoutInstance),
+      Boolean(compareInstance),
+    );
     const currentEffective = resolveEffectiveUnitCapabilities({
       workerConfig: company.workerConfig,
       hasClassScoutDestination: Boolean(classScoutInstance),
@@ -596,24 +814,18 @@ export async function POST(
     const normalizedPayload = normalizeCapabilityPayload(data.payload);
     const combinedValidationErrors = [...validationErrors, ...normalizedPayload.errors];
     if (combinedValidationErrors.length > 0 || !normalizedPayload.normalized) {
-      const result: CapabilityMutationResult = {
-        ok: false,
-        mode: mode === "preview" || mode === "apply" ? mode : "preview",
+      const result = buildFailureResult({
+        mode: operationMode,
         version: currentVersion,
-        effective: {
-          enabledBlocks: currentEffective.enabledBlocks,
-          enabledModules: currentEffective.enabledModules,
-          enabledMiniapps: currentEffective.enabledMiniapps,
-          source: currentEffective.source,
-        },
+        resolutionSummary: currentResolutionSummary,
+        enabledBlocks: currentEffective.enabledBlocks,
+        enabledModules: currentEffective.enabledModules,
+        enabledMiniapps: currentEffective.enabledMiniapps,
+        source: currentEffective.source,
         warnings: normalizedPayload.warnings,
         errors: combinedValidationErrors,
-        impact: {
-          hiddenRoutes: [],
-          blockedOperations: [],
-          affectedMiniapps: [],
-        },
-      };
+        changedBy: changedBySafe,
+      });
       await recordInteractionEventFromRequest(request, {
         companyId,
         surface: "settings-capabilities",
@@ -621,8 +833,12 @@ export async function POST(
         entityType: "COMPANY",
         entityId: companyId,
         payload: {
-          mode,
+          mode: operationMode,
           errors: combinedValidationErrors,
+          changedBy: changedBySafe,
+          resolutionSource: currentResolutionSummary.resolutionSource,
+          effectiveProfile: currentResolutionSummary.effectiveProfile,
+          effectiveModules: currentResolutionSummary.effectiveModules,
         },
         teachingWeight: 85,
       });
@@ -643,6 +859,11 @@ export async function POST(
       hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
+    const nextResolutionSummary = getLegacyCapabilityResolution(
+      nextWorkerConfig,
+      Boolean(classScoutInstance),
+      Boolean(compareInstance),
+    );
     const packageValidation = validateUnitPackageChange({
       workerConfig: nextWorkerConfig,
       packageKey: currentPackage.packageKey,
@@ -656,24 +877,18 @@ export async function POST(
         code: issue.code,
         message: issue.message,
       }));
-      const validationFailureResult: CapabilityMutationResult = {
-        ok: false,
-        mode: mode === "preview" || mode === "apply" ? mode : "preview",
+      const validationFailureResult = buildFailureResult({
+        mode: operationMode,
         version: currentVersion,
-        effective: {
-          enabledBlocks: currentEffective.enabledBlocks,
-          enabledModules: currentEffective.enabledModules,
-          enabledMiniapps: currentEffective.enabledMiniapps,
-          source: currentEffective.source,
-        },
+        resolutionSummary: currentResolutionSummary,
+        enabledBlocks: currentEffective.enabledBlocks,
+        enabledModules: currentEffective.enabledModules,
+        enabledMiniapps: currentEffective.enabledMiniapps,
+        source: currentEffective.source,
         warnings: [...normalizedPayload.warnings, ...packageValidation.setupRequired],
         errors: [...combinedValidationErrors, ...packageErrors],
-        impact: {
-          hiddenRoutes: [],
-          blockedOperations: [],
-          affectedMiniapps: [],
-        },
-      };
+        changedBy: changedBySafe,
+      });
       await recordInteractionEventFromRequest(request, {
         companyId,
         surface: "settings-capabilities",
@@ -681,9 +896,13 @@ export async function POST(
         entityType: "COMPANY",
         entityId: companyId,
         payload: {
-          mode,
+          mode: operationMode,
           errors: [...combinedValidationErrors, ...packageErrors],
           packageKey: currentPackage.packageKey,
+          changedBy: changedBySafe,
+          resolutionSource: currentResolutionSummary.resolutionSource,
+          effectiveProfile: currentResolutionSummary.effectiveProfile,
+          effectiveModules: currentResolutionSummary.effectiveModules,
         },
         teachingWeight: 85,
       });
@@ -711,7 +930,7 @@ export async function POST(
       ...packageValidation.setupRequired,
     ];
 
-    if (mode === "preview") {
+    if (operationMode === "preview") {
       await recordInteractionEventFromRequest(request, {
         companyId,
         surface: "settings-capabilities",
@@ -722,18 +941,26 @@ export async function POST(
           version: currentVersion,
           warnings: nextWarnings,
           impact,
+          changedBy: changedBySafe,
+          resolutionSource: nextResolutionSummary.resolutionSource,
+          effectiveProfile: nextResolutionSummary.effectiveProfile,
+          effectiveModules: nextResolutionSummary.effectiveModules,
         },
         teachingWeight: 65,
       });
       return NextResponse.json(
         buildSuccessResult({
-          mode: "preview",
+          mode: operationMode,
           version: currentVersion,
           enabledBlocks: nextEffective.enabledBlocks,
           enabledModules: nextEffective.enabledModules,
           enabledMiniapps: nextEffective.enabledMiniapps,
           source: nextEffective.source,
           warnings: nextWarnings,
+          resolutionSource: nextResolutionSummary.resolutionSource,
+          effectiveProfile: nextResolutionSummary.effectiveProfile,
+          effectiveModules: nextResolutionSummary.effectiveModules,
+          changedBy: changedBySafe,
           impact,
         }),
       );
@@ -758,22 +985,24 @@ export async function POST(
             entityId: companyId,
             payload: {
               reason: "idempotency-key-reused",
-              mode: "apply",
+              mode: operationMode,
               expectedVersion,
+              changedBy: changedBySafe,
+              resolutionSource: currentResolutionSummary.resolutionSource,
+              effectiveProfile: currentResolutionSummary.effectiveProfile,
+              effectiveModules: currentResolutionSummary.effectiveModules,
             },
             teachingWeight: 85,
           });
           return NextResponse.json(
-            {
-              ok: false,
-              mode: "apply",
+            buildFailureResult({
+              mode: operationMode,
               version: currentVersion,
-              effective: {
-                enabledBlocks: currentEffective.enabledBlocks,
-                enabledModules: currentEffective.enabledModules,
-                enabledMiniapps: currentEffective.enabledMiniapps,
-                source: currentEffective.source,
-              },
+              resolutionSummary: currentResolutionSummary,
+              enabledBlocks: currentEffective.enabledBlocks,
+              enabledModules: currentEffective.enabledModules,
+              enabledMiniapps: currentEffective.enabledMiniapps,
+              source: currentEffective.source,
               warnings: [],
               errors: [
                 {
@@ -782,12 +1011,8 @@ export async function POST(
                   message: "idempotencyKey was already used with a different request payload.",
                 },
               ],
-              impact: {
-                hiddenRoutes: [],
-                blockedOperations: [],
-                affectedMiniapps: [],
-              },
-            } satisfies CapabilityMutationResult,
+              changedBy: changedBySafe,
+            }),
             { status: 409 },
           );
         }
@@ -803,22 +1028,24 @@ export async function POST(
             entityId: companyId,
             payload: {
               reason: "idempotency-replay-state-diverged",
-              mode: "apply",
+              mode: operationMode,
               expectedVersion,
+              changedBy: changedBySafe,
+              resolutionSource: currentResolutionSummary.resolutionSource,
+              effectiveProfile: currentResolutionSummary.effectiveProfile,
+              effectiveModules: currentResolutionSummary.effectiveModules,
             },
             teachingWeight: 85,
           });
           return NextResponse.json(
-            {
-              ok: false,
-              mode: "apply",
+            buildFailureResult({
+              mode: operationMode,
               version: currentVersion,
-              effective: {
-                enabledBlocks: currentEffective.enabledBlocks,
-                enabledModules: currentEffective.enabledModules,
-                enabledMiniapps: currentEffective.enabledMiniapps,
-                source: currentEffective.source,
-              },
+              resolutionSummary: currentResolutionSummary,
+              enabledBlocks: currentEffective.enabledBlocks,
+              enabledModules: currentEffective.enabledModules,
+              enabledMiniapps: currentEffective.enabledMiniapps,
+              source: currentEffective.source,
               warnings: [],
               errors: [
                 {
@@ -827,25 +1054,25 @@ export async function POST(
                   message: "idempotencyKey was used before, but Unit capability state has changed since then.",
                 },
               ],
-              impact: {
-                hiddenRoutes: [],
-                blockedOperations: [],
-                affectedMiniapps: [],
-              },
-            } satisfies CapabilityMutationResult,
+              changedBy: changedBySafe,
+            }),
             { status: 409 },
           );
         }
 
         return NextResponse.json(
           buildSuccessResult({
-            mode: "apply",
+            mode: operationMode,
             version: currentVersion,
             enabledBlocks: currentEffective.enabledBlocks,
             enabledModules: currentEffective.enabledModules,
             enabledMiniapps: currentEffective.enabledMiniapps,
             source: currentEffective.source,
             warnings: currentEffective.warnings,
+            resolutionSource: currentResolutionSummary.resolutionSource,
+            effectiveProfile: currentResolutionSummary.effectiveProfile,
+            effectiveModules: currentResolutionSummary.effectiveModules,
+            changedBy: changedBySafe,
             impact: {
               hiddenRoutes: [],
               blockedOperations: [],
@@ -866,23 +1093,25 @@ export async function POST(
         entityId: companyId,
         payload: {
           reason: "version-conflict",
-          mode: "apply",
+          mode: operationMode,
           expectedVersion,
           currentVersion,
+          changedBy: changedBySafe,
+          resolutionSource: currentResolutionSummary.resolutionSource,
+          effectiveProfile: currentResolutionSummary.effectiveProfile,
+          effectiveModules: currentResolutionSummary.effectiveModules,
         },
         teachingWeight: 85,
       });
       return NextResponse.json(
-        {
-          ok: false,
-          mode: "apply",
+        buildFailureResult({
+          mode: operationMode,
           version: currentVersion,
-          effective: {
-            enabledBlocks: currentEffective.enabledBlocks,
-            enabledModules: currentEffective.enabledModules,
-            enabledMiniapps: currentEffective.enabledMiniapps,
-            source: currentEffective.source,
-          },
+          resolutionSummary: currentResolutionSummary,
+          enabledBlocks: currentEffective.enabledBlocks,
+          enabledModules: currentEffective.enabledModules,
+          enabledMiniapps: currentEffective.enabledMiniapps,
+          source: currentEffective.source,
           warnings: [],
           errors: [
             {
@@ -891,12 +1120,8 @@ export async function POST(
               message: "Capability state changed. Refresh settings and retry.",
             },
           ],
-          impact: {
-            hiddenRoutes: [],
-            blockedOperations: [],
-            affectedMiniapps: [],
-          },
-        } satisfies CapabilityMutationResult,
+          changedBy: changedBySafe,
+        }),
         { status: 409 },
       );
     }
@@ -932,23 +1157,25 @@ export async function POST(
         entityId: companyId,
         payload: {
           reason: "write-conflict",
-          mode: "apply",
+          mode: operationMode,
           expectedVersion,
           currentVersion: freshVersion,
+          changedBy: changedBySafe,
+          resolutionSource: currentResolutionSummary.resolutionSource,
+          effectiveProfile: currentResolutionSummary.effectiveProfile,
+          effectiveModules: currentResolutionSummary.effectiveModules,
         },
         teachingWeight: 85,
       });
       return NextResponse.json(
-        {
-          ok: false,
-          mode: "apply",
+        buildFailureResult({
+          mode: operationMode,
           version: freshVersion,
-          effective: {
-            enabledBlocks: currentEffective.enabledBlocks,
-            enabledModules: currentEffective.enabledModules,
-            enabledMiniapps: currentEffective.enabledMiniapps,
-            source: currentEffective.source,
-          },
+          resolutionSummary: currentResolutionSummary,
+          enabledBlocks: currentEffective.enabledBlocks,
+          enabledModules: currentEffective.enabledModules,
+          enabledMiniapps: currentEffective.enabledMiniapps,
+          source: currentEffective.source,
           warnings: [],
           errors: [
             {
@@ -957,12 +1184,8 @@ export async function POST(
               message: "Capability state changed during apply. Refresh settings and retry.",
             },
           ],
-          impact: {
-            hiddenRoutes: [],
-            blockedOperations: [],
-            affectedMiniapps: [],
-          },
-        } satisfies CapabilityMutationResult,
+          changedBy: changedBySafe,
+        }),
         { status: 409 },
       );
     }
@@ -979,7 +1202,7 @@ export async function POST(
       companyId,
       currentEnabledMiniapps: currentEffective.enabledMiniapps,
       nextEnabledMiniapps: nextEffective.enabledMiniapps,
-      actorId: "capability-transaction-api",
+      actorId: auth.session?.sub ?? "capability-transaction-api",
     });
     const [appliedClassScoutInstance, appliedCompareInstance] = await Promise.all([
       prisma.destinationInstance.findFirst({
@@ -1011,6 +1234,11 @@ export async function POST(
       currentEffective.enabledMiniapps,
       appliedEffective.enabledMiniapps,
     );
+    const appliedResolutionSummary = getLegacyCapabilityResolution(
+      updatedCompany.workerConfig,
+      Boolean(appliedClassScoutInstance),
+      Boolean(appliedCompareInstance),
+    );
     const nextVersion = buildVersionToken(updatedCompany.updatedAt, updatedCompany.workerConfig);
 
     await recordInteractionEventFromRequest(request, {
@@ -1027,20 +1255,26 @@ export async function POST(
         version: nextVersion,
         capabilities: appliedEffective,
       },
-      payload: {
-        mode: "apply",
-        expectedVersion,
-        idempotencyKey: idempotencyKey ?? undefined,
-        warnings: nextWarnings,
-        impact: appliedImpact,
-        runtime: runtimeResult,
-      },
-      teachingWeight: 95,
-    });
+        payload: {
+          mode: operationMode,
+          expectedVersion,
+          idempotencyKey: idempotencyKey ?? undefined,
+          warnings: nextWarnings,
+          impact: appliedImpact,
+          runtime: runtimeResult,
+          changedBy: changedBySafe,
+          resolutionSource: appliedResolutionSummary.resolutionSource,
+          effectiveProfile: appliedResolutionSummary.effectiveProfile,
+          effectiveModules: appliedResolutionSummary.effectiveModules,
+        },
+        teachingWeight: 95,
+      });
 
     await recordOutcomeEvent({
       companyId,
       actorType: "HUMAN",
+      actorId: auth.session?.sub,
+      actorEmail: auth.session?.email,
       entityType: "COMPANY",
       entityId: companyId,
       outcomeType: "UNIT_CAPABILITIES_UPDATED",
@@ -1056,19 +1290,27 @@ export async function POST(
       payload: {
         idempotencyKey: idempotencyKey ?? undefined,
         runtime: runtimeResult,
+        changedBy: changedBySafe,
+        resolutionSource: appliedResolutionSummary.resolutionSource,
+        effectiveProfile: appliedResolutionSummary.effectiveProfile,
+        effectiveModules: appliedResolutionSummary.effectiveModules,
       },
       teachingWeight: 95,
     });
 
     return NextResponse.json(
       buildSuccessResult({
-        mode: "apply",
+        mode: operationMode,
         version: nextVersion,
         enabledBlocks: appliedEffective.enabledBlocks,
         enabledModules: appliedEffective.enabledModules,
         enabledMiniapps: appliedEffective.enabledMiniapps,
         source: appliedEffective.source,
+        resolutionSource: appliedResolutionSummary.resolutionSource,
+        effectiveProfile: appliedResolutionSummary.effectiveProfile,
+        effectiveModules: appliedResolutionSummary.effectiveModules,
         warnings: [...nextWarnings, ...appliedEffective.warnings],
+        changedBy: changedBySafe,
         impact: appliedImpact,
         runtime: runtimeResult,
       }),

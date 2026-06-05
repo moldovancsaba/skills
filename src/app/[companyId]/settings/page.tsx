@@ -52,6 +52,17 @@ type CapabilityTransactionResponse = {
   ok: boolean;
   mode: "preview" | "apply";
   version: string;
+  resolutionSource?: string;
+  effectiveProfile?: string;
+  effectiveModules?: string[];
+  changedBy?: {
+    actorId?: string;
+    actorEmail?: string;
+    source?: string;
+    intent?: string;
+    reason?: string;
+    notes?: string;
+  };
   warnings: string[];
   errors: CapabilityIssue[];
   effective: {
@@ -66,6 +77,18 @@ type CapabilityTransactionResponse = {
     affectedMiniapps: string[];
   };
   idempotentReplay?: boolean;
+};
+
+type CapabilityUiIntent = {
+  source: string;
+  intent: string;
+  reason: string;
+  notes?: string;
+  requestedCapabilities?: {
+    blocks?: string[];
+    modules?: string[];
+    miniapps?: string[];
+  };
 };
 
 type CapabilityDraft = {
@@ -209,6 +232,30 @@ function buildCapabilityDraftFromEffective(effective: {
   };
 }
 
+function buildCapabilityIntent(mode: "preview" | "apply", draft: CapabilityDraft): CapabilityUiIntent {
+  const requestedCapabilities = {
+    blocks: Object.entries(draft.blocks)
+      .filter(([, enabled]) => Boolean(enabled))
+      .map(([key]) => key),
+    modules: Object.entries(draft.modules)
+      .filter(([, enabled]) => Boolean(enabled))
+      .map(([key]) => key),
+    miniapps: Object.entries(draft.miniapps)
+      .filter(([, enabled]) => Boolean(enabled))
+      .map(([key]) => key),
+  };
+
+  return {
+    source: "settings-capabilities-ui",
+    intent: `${mode}-capability-transaction`,
+    reason: mode === "preview"
+      ? "Previewing capability draft from Unit Settings."
+      : "Applying capability draft from Unit Settings.",
+    notes: `Operator requested ${mode} for ${requestedCapabilities.blocks.length} blocks and ${requestedCapabilities.modules.length} modules.`,
+    requestedCapabilities,
+  };
+}
+
 function toCapabilityPayload(draft: CapabilityDraft) {
   return {
     blocks: Object.fromEntries(
@@ -318,6 +365,7 @@ export default function SettingsPage() {
           body: JSON.stringify({
             mode: "preview",
             payload: toCapabilityPayload(nextDraft),
+            uiIntent: buildCapabilityIntent("preview", nextDraft),
           }),
         });
         const previewData = await previewRes.json().catch(() => null) as CapabilityTransactionResponse | null;
@@ -339,6 +387,7 @@ export default function SettingsPage() {
     mode: "preview" | "apply";
     expectedVersion?: string;
     idempotencyKey?: string;
+    uiIntent?: CapabilityUiIntent;
   }) => {
     const response = await fetch(`/api/companies/${companyId}/capabilities/transaction`, {
       method: "POST",
@@ -348,6 +397,7 @@ export default function SettingsPage() {
         expectedVersion: input.expectedVersion,
         idempotencyKey: input.idempotencyKey,
         payload: toCapabilityPayload(capabilityDraft),
+        uiIntent: input.uiIntent,
       }),
     });
     const payload = await response.json().catch(() => null) as CapabilityTransactionResponse | null;
@@ -357,8 +407,12 @@ export default function SettingsPage() {
   const previewCapabilityDraft = useCallback(async () => {
     setSaving(true);
     try {
-      const { response, payload } = await runCapabilityTransaction({ mode: "preview" });
-      if (!payload || typeof payload !== "object") {
+      const previewIntent = buildCapabilityIntent("preview", capabilityDraft);
+      const { response: previewResponse, payload: previewPayload } = await runCapabilityTransaction({
+        mode: "preview",
+        uiIntent: previewIntent,
+      });
+      if (!previewPayload || typeof previewPayload !== "object") {
         notifications.show({
           title: t("common.error"),
           message: "Capability preview failed because the server response was invalid.",
@@ -367,12 +421,12 @@ export default function SettingsPage() {
         return;
       }
 
-      setCapabilityPreview(payload);
-      setCapabilityVersion(payload.version || "");
-      setCapabilityWarnings(Array.isArray(payload.warnings) ? payload.warnings : []);
-      setCapabilityErrors(Array.isArray(payload.errors) ? payload.errors : []);
+      setCapabilityPreview(previewPayload);
+      setCapabilityVersion(previewPayload.version || "");
+      setCapabilityWarnings(Array.isArray(previewPayload.warnings) ? previewPayload.warnings : []);
+      setCapabilityErrors(Array.isArray(previewPayload.errors) ? previewPayload.errors : []);
 
-      if (response.ok && payload.ok) {
+      if (previewResponse.ok && previewPayload.ok) {
         notifications.show({
           title: "Preview complete",
           message: "Capability preview is ready. Review impact before applying.",
@@ -394,14 +448,17 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
-  }, [runCapabilityTransaction, t]);
+  }, [capabilityDraft, runCapabilityTransaction, t]);
 
   const applyCapabilityDraft = useCallback(async () => {
     setSaving(true);
     try {
       let expectedVersion = capabilityVersion;
       if (!expectedVersion) {
-        const previewResult = await runCapabilityTransaction({ mode: "preview" });
+        const previewResult = await runCapabilityTransaction({
+          mode: "preview",
+          uiIntent: buildCapabilityIntent("preview", capabilityDraft),
+        });
         const previewPayload = previewResult.payload;
         if (!previewPayload || !previewResult.response.ok || !previewPayload.ok) {
           setCapabilityPreview(previewPayload);
@@ -422,11 +479,13 @@ export default function SettingsPage() {
       const idempotencyKey = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const applyIntent = buildCapabilityIntent("apply", capabilityDraft);
 
       const { response, payload } = await runCapabilityTransaction({
         mode: "apply",
         expectedVersion,
         idempotencyKey,
+        uiIntent: applyIntent,
       });
 
       if (!payload || typeof payload !== "object") {
@@ -471,7 +530,7 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
-  }, [capabilityVersion, runCapabilityTransaction, t]);
+  }, [capabilityDraft, capabilityVersion, runCapabilityTransaction, t]);
 
   useEffect(() => {
     if (!companyId) return;

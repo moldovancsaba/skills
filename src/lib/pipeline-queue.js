@@ -78,7 +78,7 @@ const PIPELINE_JOB_RETRY_LIMITS = Object.freeze({
   SCORE_ALERT_REPAIR: 6,
   CARD_RESCORING: 6,
   FRONTIER_RECOMPUTE: 4,
-  DESTINATION_MISSION_DAEMON: 4,
+  DESTINATION_MISSION_DAEMON: 24,
   FEEDBACK_RECONCILIATION: 5,
   ENSURE_FLASHCARD_MINIMUM: 4,
   RESEARCH_BACKFILL: 4,
@@ -105,6 +105,8 @@ const PIPELINE_FAILURE_CLASSES = Object.freeze({
   MODEL_TIMEOUT: "MODEL_TIMEOUT",
   LOW_MEMORY_SKIP: "LOW_MEMORY_SKIP",
   STORAGE_QUOTA_BLOCKED: "STORAGE_QUOTA_BLOCKED",
+  DESTINATION_SERVICE_UNAVAILABLE: "DESTINATION_SERVICE_UNAVAILABLE",
+  MUTATION_AUTHORITY: "MUTATION_AUTHORITY",
   PRISMA_VALIDATION: "PRISMA_VALIDATION",
   PRISMA_WRITE_CONFLICT: "PRISMA_WRITE_CONFLICT",
   NOT_FOUND: "NOT_FOUND",
@@ -228,11 +230,29 @@ function classifyPipelineJobError(error) {
     };
   }
 
+  if (/Destination mission daemon could not reach the internal daemon endpoint|internal daemon endpoint/i.test(message)) {
+    return {
+      class: PIPELINE_FAILURE_CLASSES.DESTINATION_SERVICE_UNAVAILABLE,
+      retryable: true,
+      retryAfterMs: retryAfterMs ?? 10 * 60 * 1000,
+      message,
+    };
+  }
+
   if (/low memory|memory pressure|PAUSED_LOW_MEMORY/i.test(message)) {
     return {
       class: PIPELINE_FAILURE_CLASSES.LOW_MEMORY_SKIP,
       retryable: true,
       retryAfterMs: retryAfterMs ?? 5 * 60 * 1000,
+      message,
+    };
+  }
+
+  if (/mutationAuthority|mutation authority|Playlist mutation authority|MISSING_MUTATION_AUTHORITY|Cannot read properties of null \(reading 'mutationAuthority'\)/i.test(message)) {
+    return {
+      class: PIPELINE_FAILURE_CLASSES.MUTATION_AUTHORITY,
+      retryable: false,
+      retryAfterMs: null,
       message,
     };
   }

@@ -46,9 +46,9 @@ const { getHumanMemoryPrompt, processMemoryUpdates } = require("./memory");
 const { markCompanyProjectionDirty } = require("./intelligence-snapshot");
 const { safeRecordLocalLaneEvent } = require("./runtime/lane-events");
 
-function createPipelineContractError(message) {
+function createPipelineContractError(message, pipelineClass = "INPUT_CONTRACT") {
   const error = new Error(message);
-  error.pipelineClass = "INPUT_CONTRACT";
+  error.pipelineClass = pipelineClass;
   error.retryable = false;
   return error;
 }
@@ -501,14 +501,24 @@ function resolvePipelineJobMutationCategory(jobType) {
 }
 
 function assertPipelineMutationAuthority(context, jobType) {
-  if (!context || context.lane !== "PLAYLIST" || !context.jobId) {
-    throw createPipelineContractError("Pipeline job execution requires Playlist mutation authority.");
+  if (!context || typeof context !== "object" || context.lane !== "PLAYLIST" || !context.jobId) {
+    throw createPipelineContractError(
+      `[MISSING_MUTATION_AUTHORITY] ${jobType} requires Playlist mutation authority before execution.`,
+      "MUTATION_AUTHORITY",
+    );
   }
 
   const category = resolvePipelineJobMutationCategory(jobType);
   if (category === "UNIT_CONFIGURATION" && context.lane !== "PLAYLIST") {
-    throw createPipelineContractError("UNIT_CONFIGURATION mutations require Playlist mutation authority.");
+    throw createPipelineContractError(
+      `[MISSING_MUTATION_AUTHORITY] UNIT_CONFIGURATION mutations require Playlist mutation authority.`,
+      "MUTATION_AUTHORITY",
+    );
   }
+}
+
+function resolveExecutionPlanDestinationKey(executionPlan) {
+  return executionPlan?.executionOptions?.mutationAuthority?.destinationKey || null;
 }
 
 function buildExecutionOptionsForJob(job, resourceBand) {
@@ -924,6 +934,7 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
     claimsAttempted += 1;
     const startedAt = Date.now();
     let stopHeartbeat = null;
+    let executionPlan = null;
     try {
       const companyName = job.company?.name
         || (job.companyId
@@ -940,14 +951,14 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         activeTask: buildActiveTaskString(job, companyName, entityLabel),
       });
       stopHeartbeat = startRunningJobHeartbeat(prisma, job, companyName, entityLabel);
-      const executionPlan = resolvePipelineJobExecutionPlan(job);
+      executionPlan = resolvePipelineJobExecutionPlan(job);
       await safeRecordLocalLaneEvent(prisma, {
         lane: "PLAYLIST",
         eventType: "STARTED",
         actor: "local-worker",
         companyId: job.companyId,
         jobId: job.id,
-        destinationKey: executionPlan.executionOptions?.mutationAuthority?.destinationKey,
+        destinationKey: resolveExecutionPlanDestinationKey(executionPlan),
         summary: `Started ${job.jobType} from ${job.queueColumn}.`,
         metadata: {
           jobType: job.jobType,
@@ -1022,7 +1033,7 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         actor: "local-worker",
         companyId: job.companyId,
         jobId: job.id,
-        destinationKey: resolvePipelineJobExecutionPlan(job).executionOptions?.mutationAuthority?.destinationKey,
+        destinationKey: resolveExecutionPlanDestinationKey(executionPlan),
         summary: timeout
           ? `${job.jobType} timed out${classification.retryable ? " and will retry" : ""}: ${error.message}`
           : `${job.jobType} ${classification.retryable ? "will retry" : "failed"}: ${error.message}`,

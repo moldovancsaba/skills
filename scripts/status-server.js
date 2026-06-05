@@ -444,6 +444,9 @@ async function buildStatusPayload() {
   const verification = isPlainObject(verificationSetting?.value) ? verificationSetting.value : null;
   const topologyState = isPlainObject(topologySetting?.value) ? topologySetting.value : {};
   const projectionState = isPlainObject(projectionSetting?.value) ? projectionSetting.value : {};
+  const projectionDirtyCompanies = Array.isArray(projectionState.dirtyCompanies) ? projectionState.dirtyCompanies : [];
+  const projectionRecentRefreshes = Array.isArray(projectionState.recentRefreshes) ? projectionState.recentRefreshes : [];
+  const projectionFailedRecentRefreshes = projectionRecentRefreshes.filter((entry) => entry?.status === "FAILED");
   const repairValue = isPlainObject(opportunitycardRepairSetting?.value) ? opportunitycardRepairSetting.value : {};
   const opportunitycardRepair = {
     version: Number(repairValue.version || 1),
@@ -484,9 +487,14 @@ async function buildStatusPayload() {
       recentSyncs: Array.isArray(topologyState.recentSyncs) ? topologyState.recentSyncs.slice(-8).reverse() : [],
     },
     projections: {
-      coverage: projectionCoverage,
-      dirtyCompanies: Array.isArray(projectionState.dirtyCompanies) ? projectionState.dirtyCompanies : [],
-      recentRefreshes: Array.isArray(projectionState.recentRefreshes) ? projectionState.recentRefreshes.slice(-8).reverse() : [],
+      coverage: {
+        ...projectionCoverage,
+        retryingDirtyCompanies: projectionDirtyCompanies.length,
+        failedRecentRefreshes: projectionFailedRecentRefreshes.length,
+      },
+      dirtyCompanies: projectionDirtyCompanies,
+      recentRefreshes: projectionRecentRefreshes.slice(-8).reverse(),
+      failedRecentRefreshes: projectionFailedRecentRefreshes.slice(-8).reverse(),
     },
     logTail,
     inventory,

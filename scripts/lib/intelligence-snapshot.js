@@ -20,6 +20,7 @@ const SNAPSHOT_REFRESH_META_KEY = "local_ai_snapshot_refresh_meta";
 const PROJECTION_REFRESH_STATE_KEY = "local_ai_webapp_projection_refresh_state";
 const PROJECTION_RECENT_REFRESH_LIMIT = 24;
 const WEBAPP_PROJECTION_VERSION = 1;
+const WEBAPP_PROJECTION_STALE_AFTER_MS = 60 * 60 * 1000;
 const MINIAPP_REVIEW_PRESSURE_PACKET_STATES = Object.freeze(["AWAITING_REVIEW", "REVIEW_REQUIRED", "APPROVED"]);
 const MINIAPP_REVIEW_KEYS = Object.freeze(["classscout", "compare"]);
 const KNOWMORE_PIPELINE_JOB_TYPES = Object.freeze([
@@ -143,13 +144,15 @@ function normalizeProjectionRefreshState(value) {
   };
 }
 
-function getProjectionBackfillStatus(webappProjection) {
+function getProjectionBackfillStatus(webappProjection, now = new Date()) {
   if (!isPlainObject(webappProjection)) return "MISSING";
   const version = Number(webappProjection.version || 0);
   if (version < WEBAPP_PROJECTION_VERSION) return "OUTDATED_VERSION";
   if (typeof webappProjection.generatedAt !== "string" || !webappProjection.generatedAt) return "MISSING";
   const generatedMs = new Date(webappProjection.generatedAt).getTime();
   if (!Number.isFinite(generatedMs)) return "MISSING";
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  if (Number.isFinite(nowMs) && nowMs - generatedMs > WEBAPP_PROJECTION_STALE_AFTER_MS) return "STALE";
   return "READY";
 }
 
@@ -1607,9 +1610,11 @@ async function refreshMissingProjectionSnapshots(prisma, options = {}) {
     },
   });
 
-  const candidates = companies.filter((company) => {
-    const status = getProjectionBackfillStatus(company.intelligenceSnapshot?.webappProjection);
-    return status !== "READY";
+  const candidates = companies.map((company) => ({
+    ...company,
+    projectionStatus: getProjectionBackfillStatus(company.intelligenceSnapshot?.webappProjection),
+  })).filter((company) => {
+    return company.projectionStatus !== "READY";
   });
 
   if (candidates.length === 0) {
@@ -1631,7 +1636,7 @@ async function refreshMissingProjectionSnapshots(prisma, options = {}) {
       nextState = recordProjectionRefreshResult(nextState, {
         companyId: company.id,
         companyName: company.name || null,
-        reason: "cold-start-backfill",
+        reason: company.projectionStatus === "STALE" ? "stale-projection-refresh" : "cold-start-backfill",
         status: "REFRESHED",
         trigger,
       });
@@ -1642,12 +1647,18 @@ async function refreshMissingProjectionSnapshots(prisma, options = {}) {
       nextState = recordProjectionRefreshResult(nextState, {
         companyId: company.id,
         companyName: company.name || null,
-        reason: "cold-start-backfill",
+        reason: company.projectionStatus === "STALE" ? "stale-projection-refresh" : "cold-start-backfill",
         status: "FAILED",
         trigger,
+        reasonCode: company.projectionStatus,
         error: error?.message || String(error),
       });
-      nextState = enqueueDirtyProjectionCompany(nextState, company.id, "cold-start-backfill", new Date());
+      nextState = enqueueDirtyProjectionCompany(
+        nextState,
+        company.id,
+        company.projectionStatus === "STALE" ? "stale-projection-refresh" : "cold-start-backfill",
+        new Date(),
+      );
     }
   }
 
@@ -1657,6 +1668,7 @@ async function refreshMissingProjectionSnapshots(prisma, options = {}) {
     refreshedCompanies,
     remainingCandidates: Math.max(0, candidates.length - refreshedCompanies),
     candidateIds: selected.map((company) => company.id),
+    candidateStatuses: Object.fromEntries(selected.map((company) => [company.id, company.projectionStatus])),
   };
 }
 

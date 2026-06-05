@@ -18,6 +18,9 @@ export function maintainCompanyLifecycle(prisma: unknown, input: string | {
   requiredMissionKinds?: string[];
   jobCount?: number;
   daemonJobs?: unknown[];
+  daemonLane?: unknown;
+  lifecycleHealth?: unknown;
+  telemetry?: unknown;
   steps: MaintenanceStepResult[];
 }>;
 

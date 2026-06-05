@@ -4,6 +4,11 @@ const {
   getUnitLifecycleRequirements,
   listLifecycleDestinationKeys,
 } = require("./topology-registry");
+const {
+  buildDestinationDaemonLane,
+  buildLifecycleTelemetry,
+  buildMaintenanceDiff,
+} = require("./lifecycle-spine");
 const { syncCompanyPipelineJobs } = require("../pipeline-queue");
 
 function getDefaultRulebookPolicyForDestination(destinationKey) {
@@ -293,6 +298,17 @@ async function maintainCompanyLifecycle(prisma, input) {
     select: { id: true, entityType: true, entityId: true, status: true, metadata: true },
   });
   const requirements = getUnitLifecycleRequirements({ destinationKeys });
+  const lifecycleHealth = buildMaintenanceDiff({
+    destinationKeys,
+    existingPipelineJobs: jobs.map((job) => job.jobType).filter(Boolean),
+    existingMissionKinds: requirements.requiredMissionKinds,
+  });
+  const daemonLane = buildDestinationDaemonLane({
+    destinationKeys,
+    activeDefinitionIds: steps
+      .map((step) => step.metadata && step.metadata.missionDefinitionId)
+      .filter(Boolean),
+  });
 
   return {
     ok: true,
@@ -303,6 +319,15 @@ async function maintainCompanyLifecycle(prisma, input) {
     requiredMissionKinds: requirements.requiredMissionKinds,
     jobCount: jobs.length,
     daemonJobs,
+    daemonLane,
+    lifecycleHealth,
+    telemetry: buildLifecycleTelemetry("LIFECYCLE_MAINTENANCE_RUN", {
+      companyId,
+      destinationKeys,
+      reasonCode: lifecycleHealth.reasonCode,
+      recovered: lifecycleHealth.metrics.repaired > 0,
+      metrics: lifecycleHealth.metrics,
+    }),
     steps,
   };
 }

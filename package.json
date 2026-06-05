@@ -68,6 +68,7 @@
     "test:sovereign-miniapp-proof-harness": "node scripts/test-sovereign-miniapp-proof-harness.mjs",
     "test:classscout-rulebook-workspace": "node scripts/test-classscout-rulebook-workspace-contract.mjs",
     "test:lifecycle-topology": "node scripts/test-lifecycle-topology.js",
+    "test:lifecycle-automation-spine": "node scripts/test-lifecycle-automation-spine.js",
     "test:local-execution-lanes": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-local-execution-lanes.mjs",
     "test:local-runnable-enforcement": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-local-runnable-enforcement.mjs",
     "test:local-lane-events": "NODE_ENV=production node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --experimental-specifier-resolution=node scripts/test-local-lane-events.mjs",

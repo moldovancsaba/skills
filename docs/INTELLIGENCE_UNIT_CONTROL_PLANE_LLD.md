@@ -218,6 +218,137 @@ The current implementation supports two compatibility layers at the same time:
 - v3 Block-first runtime capabilities through `src/lib/check-foundation/capabilities-v3.ts`
 - v2 legacy webapp profile/module projection through `src/lib/intelligence-unit-capabilities.ts`
 
+### 6.1 Board adapter registry contract
+
+The board control plane is centralized in `src/lib/board-adapters.ts`.
+No surface may hard-code board identity, entity type, status mapping, or write policy outside this registry.
+
+Registered surfaces:
+
+- `unitBoard` maps `unit-board` to `UNIT_PROJECT` / `BOARD_CARD` and is writable.
+- `aiQueue` maps `pipeline` to `PIPELINE_QUEUE` / `PIPELINE_JOB` and is projection read-only.
+- `goals` maps `goals` to `GOALS` / `GOALCARD` and is projection read-only.
+- `topics` maps `topics` to `TOPICS` / `TOPIC` and is projection read-only.
+- `data` maps `data` to `DATA_SOURCES` / `SOURCE` and is projection read-only.
+- `knowmore` maps `knowmore` to `KNOWMORE` / `KNOWMORE_PACKET` and is projection read-only.
+- `review` maps `review` to `REVIEW` / `REVIEW_ITEM` and is projection read-only.
+- `tactical` maps `tactical` to `TACTICAL` / `TACTICAL_TASK` and is projection read-only.
+- `sales` maps `sales` to `SALES` / `OPPORTUNITYCARD` and is projection read-only.
+
+Resolution order:
+
+1. `surface`
+2. `module`
+3. `boardKey`
+4. `entityType`
+5. legacy default
+6. read-only fallback
+
+Legacy default applies only when no selector is provided.
+Explicit unsupported combinations must not silently become writable.
+They recover to a read-only `UNIT_PROJECT` fallback with `adapter.diagnostics.reasonCode = "board-adapter-module-fallback"`.
+
+### 6.2 Board adapter runtime flow
+
+`GET /api/board-items` resolves an adapter before reading cards and states.
+The response preserves the existing `items`, `columns`, and `traceId` fields and adds:
+
+```json
+{
+  "adapter": {
+    "surface": "goals",
+    "module": "goals",
+    "boardKey": "GOALS",
+    "entityType": "GOALCARD",
+    "allowWrite": false,
+    "resolvedBy": "module",
+    "diagnostics": {
+      "reasonCode": "board-adapter-resolved",
+      "retryable": false,
+      "recovered": false,
+      "warnings": []
+    }
+  }
+}
+```
+
+`POST`, `PATCH`, and `DELETE` must reject read-only adapters before persistence.
+The error payload must include `adapter.diagnostics` so the caller can distinguish expected read-only projection behavior from a broken board.
+
+### 6.3 Status adapter and domain-row mapping
+
+All module surfaces normalize source states through `normalizeBoardTargetForModule(module, status)`.
+Known states map deterministically to board columns:
+
+- queued, ready, and todo map to `TODO`
+- active, running, processing, and in-progress map to `IN_PROGRESS`
+- blocked, failed, and retrying map to `BLOCKED`
+- done, complete, completed, and published map to `DONE`
+- missing or unknown states map to the first configured adapter column
+
+Domain records must pass through `adaptDomainRowToBoardCard(module, row)` before rendering in a board surface.
+The adapter stores source evidence in `metadata.sourceRow`, `metadata.sourceStatus`, and `metadata.sourceEntityType`.
+
+### 6.4 Observability, retries, and recovery
+
+Every adapter resolution can produce a `BOARD_ADAPTER_RESOLUTION` telemetry payload with:
+
+- `unitId`
+- `companyId`
+- `surface`
+- `module`
+- `boardKey`
+- `sourceProfile`
+- `targetProfile`
+- `capabilitiesVersion`
+- `reasonCode`
+- `retryable`
+- `recovered`
+- `warnings`
+
+Operational behavior:
+
+- `board-adapter-resolved` is normal and non-retryable.
+- `board-adapter-legacy-default` is recovered compatibility behavior and should be removed only after all callers provide selectors.
+- `board-adapter-module-fallback` is recovered, retryable configuration drift and must show an operator-visible fallback notice.
+- Read-only adapter writes are rejected without partial persistence.
+- Fallback writes are rejected before database mutation, making rollback a no-op.
+- Recovery is to send a supported `surface`, `module`, `boardKey`, or `entityType` selector.
+
+### 6.5 Capability control transaction contract
+
+Capability changes use the transaction route, not direct settings mutation.
+The response must expose:
+
+- `version`
+- `resolutionSource`
+- `effectiveProfile`
+- `effectiveModules`
+- `changedBy`
+- `effective`
+- `warnings`
+- `errors`
+- `impact`
+- optional `runtime`
+
+UI states must support loading, dirty, save success, save failure, validation blocked, and read-only.
+Critical disables must be presented as explicit operator intent and persisted through `uiIntent`.
+The telemetry event for surface mutation remains `UNIT_SURFACE_UPDATE`.
+
+### 6.6 Regression and release gate
+
+`npm run test:control-plane-board-adapters` is the source-level contract harness for issues #288 through #292.
+It verifies:
+
+- every required module adapter is registered
+- fallback diagnostics are explicit
+- board API responses expose `adapter.diagnostics`
+- write rejection paths include diagnostics
+- capability transaction responses carry operator-facing resolution metadata
+- this LLD documents telemetry and recovery behavior
+
+The harness is intentionally database-free so it can run in CI before integration fixtures exist.
+
 Delivery rules:
 
 - `profile` and legacy `webappProfile` must both normalize into the same `UnitWebappProfile` contract

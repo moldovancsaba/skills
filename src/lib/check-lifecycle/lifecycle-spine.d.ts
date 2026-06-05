@@ -21,6 +21,14 @@ export type VisitorContentState =
   | "retire_pending"
   | "published_verified";
 
+export type PublicVerificationState =
+  | "pending"
+  | "verified"
+  | "drift_detected"
+  | "rollback_pending"
+  | "rolled_back"
+  | "blocked";
+
 export function buildProvisioningPlan(input?: {
   companyId?: string;
   destinationKeys?: string[];
@@ -78,6 +86,60 @@ export function buildDestinationDaemonLane(input?: {
   };
 };
 
+export function buildPublicVerificationProof(input?: {
+  localItems?: Array<Record<string, unknown>>;
+  publicItems?: Array<Record<string, unknown>>;
+  readModelFresh?: boolean;
+  publicAvailable?: boolean;
+  autopilotRollback?: boolean;
+  checkedAt?: string;
+}): {
+  schemaVersion: number;
+  state: PublicVerificationState;
+  checkedAt: string;
+  readModelFresh: boolean;
+  publicAvailable: boolean;
+  comparedItemCount: number;
+  failedItemCount: number;
+  rollbackActionCount: number;
+  comparisons: Array<Record<string, unknown>>;
+  rollbackActions: Array<Record<string, unknown>>;
+  reasonCodes: string[];
+  operatorMessage: string;
+};
+
+export function buildLifecycleControlCenterView(input?: Record<string, unknown>): {
+  schemaVersion: number;
+  state: string;
+  unit: Record<string, unknown>;
+  cards: Array<Record<string, unknown>>;
+  uxStates: string[];
+  accessibility: Record<string, unknown>;
+};
+
+export function buildLifecycleMigrationReport(input?: Record<string, unknown>): {
+  schemaVersion: number;
+  dryRun: boolean;
+  generatedAt: string;
+  companyId: string | null;
+  destinationKeys: string[];
+  state: string;
+  actions: Array<Record<string, unknown>>;
+  safeActions: Array<Record<string, unknown>>;
+  blockedActions: unknown[];
+  summary: Record<string, number>;
+};
+
+export function buildLifecycleVerificationReport(input?: Record<string, unknown>): {
+  schemaVersion: number;
+  ok: boolean;
+  generatedAt: string;
+  companyId: string | null;
+  destinationKeys: string[];
+  checks: Array<Record<string, unknown>>;
+  failedChecks: Array<Record<string, unknown>>;
+};
+
 export function scoreVisitorContentHealth(input?: {
   sourceTrust?: number;
   freshness?: number;
@@ -100,6 +162,7 @@ export function scoreVisitorContentHealth(input?: {
 };
 
 export function normalizeVisitorFeedbackDecision(decision?: Record<string, unknown>): Record<string, unknown>;
+export function buildRecoveryActionView(item?: Record<string, unknown>): Record<string, unknown>;
 export function evaluateVisitorFeedbackPolicy(input?: {
   candidate?: Record<string, unknown>;
   rules?: Array<Record<string, unknown>>;

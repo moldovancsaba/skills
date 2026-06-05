@@ -7,8 +7,10 @@ import {
   getDestinationTopology,
   listSchedulableDestinationMissionKinds,
 } from "../src/lib/check-lifecycle/topology-registry.js";
+import lifecycleSpine from "../src/lib/check-lifecycle/lifecycle-spine.js";
 
 const { applyRunnerIdentity } = runnerRegistry;
+const { buildDestinationDaemonLane, buildLifecycleVerificationReport } = lifecycleSpine;
 const RUNNER = applyRunnerIdentity("check.local.lifecycle-verifier");
 const prisma = new PrismaClient();
 
@@ -107,10 +109,27 @@ async function verifyCompany(company) {
       definition,
     ));
   }
+  const lifecycleGate = buildLifecycleVerificationReport({
+    companyId: company.id,
+    destinationKeys: activeDestinations.map((destination) => destination.destinationKey),
+    requiredPipelineJobs: jobCount > 0 ? ["__any_core_job_present__"] : ["__any_core_job_present__"],
+    existingPipelineJobs: jobCount > 0 ? ["__any_core_job_present__"] : [],
+    daemonLane: buildDestinationDaemonLane({
+      destinationKeys: daemonJobs.flatMap((job) => {
+        const metadata = job.metadata && typeof job.metadata === "object" ? job.metadata : {};
+        if (Array.isArray(metadata.destinationKeys)) return metadata.destinationKeys;
+        if (Array.isArray(metadata.activeDestinationKeys)) return metadata.activeDestinationKeys;
+        return metadata.destinationKey ? [metadata.destinationKey] : [];
+      }),
+    }),
+    activeMissionKinds: activeDefinitions.map((definition) => definition.missionKind),
+    schedulableMissionKinds: listSchedulableDestinationMissionKinds(),
+  });
 
   return {
     company,
     checks,
+    lifecycleGate,
     passed: checks.every((item) => item.passed || item.severity !== "error"),
   };
 }

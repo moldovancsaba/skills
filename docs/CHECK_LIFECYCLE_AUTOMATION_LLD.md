@@ -266,6 +266,138 @@ Verify lifecycle health:
 npm run verify:lifecycle
 ```
 
+Run lifecycle migration/backfill dry-run:
+
+```bash
+npm run migration:lifecycle
+```
+
+Apply lifecycle migration/backfill repairs:
+
+```bash
+npm run migration:lifecycle:apply
+```
+
+Run downstream delivery gates:
+
+```bash
+npm run test:lifecycle-delivery-gates
+```
+
+## Public verification and rollback gate
+
+`buildPublicVerificationProof(input)` is the canonical proof contract for Visitor public output.
+
+It returns:
+
+- `state`: `pending`, `verified`, `drift_detected`, `rollback_pending`, `rolled_back`, or `blocked`
+- `readModelFresh`
+- `publicAvailable`
+- `comparedItemCount`
+- `failedItemCount`
+- `rollbackActionCount`
+- `comparisons`
+- `rollbackActions`
+- `reasonCodes`
+- `operatorMessage`
+
+Critical failures produce rollback actions:
+
+- fake or placeholder public content
+- forbidden category
+- missing source evidence
+- public item missing Local proof
+
+Non-critical drift queues projection refresh:
+
+- missing public item
+- stale public item
+- wrong category without a hard policy block
+
+## Lifecycle control center view model
+
+`buildLifecycleControlCenterView(input)` is the API-to-UI contract for the GDS lifecycle control center.
+
+It provides:
+
+- Unit summary for Blocks, Modules, and Miniapps
+- daemon lane card
+- maintenance card
+- public verification card
+- recovery actions card
+- mandatory UX states
+- accessibility requirements
+
+Mandatory UX states:
+
+- loading
+- empty
+- healthy
+- running
+- degraded
+- failed
+- disabled
+- permission-denied
+
+The Observability page renders this as `Lifecycle Control Center` using existing app UI primitives and a polite live region.
+
+## Migration/backfill report
+
+`buildLifecycleMigrationReport(input)` and `scripts/lifecycle-migration-backfill.mjs` provide idempotent migration reporting.
+
+Report statuses:
+
+- `would_create`
+- `created`
+- `repaired`
+- `quarantined`
+- `blocked`
+- `skipped`
+
+Dry-run is the default. Apply mode uses existing lifecycle maintenance execution and still writes a machine-readable report under `logs/lifecycle-migration`.
+
+Fake/test content is quarantined, not republished.
+
+## Lifecycle release gates
+
+`buildLifecycleVerificationReport(input)` is the pure invariant gate used by `verify:lifecycle`.
+
+Stable check ids:
+
+- `active-unit-has-core-jobs`
+- `active-destination-has-daemon`
+- `mission-kind-schedulable`
+- `public-content-source-backed`
+
+Every failed check includes:
+
+- `expected`
+- `actual`
+- `remediation`
+
+## Unit recovery center contract
+
+Operations items expose `recoveryActionView`.
+
+Each action view includes:
+
+- `safeActions`
+- `confirmationRequired`
+- `idempotencyRequired`
+- `auditRequired`
+- `permissionRequired`
+- `operatorMessage`
+
+Mutation endpoints remain:
+
+- `POST /api/companies/[companyId]/operations/[itemId]/retry`
+- `POST /api/companies/[companyId]/operations/[itemId]/cancel`
+- `POST /api/companies/[companyId]/operations/[itemId]/replay`
+- `POST /api/companies/[companyId]/operations/[itemId]/rollback`
+- `POST /api/companies/[companyId]/operations/[itemId]/acknowledge`
+
+All mutations are permission guarded and audit recorded.
+
 ## Known limitations
 
 - The pure spine is a contract layer; database-specific repair execution still lives in the existing provisioning, maintenance, queue, daemon, and Visitor modules.

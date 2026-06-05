@@ -6,6 +6,11 @@ import { getBoardHealthSummary } from "@/lib/board-state";
 import { getCompanyObservabilitySnapshot } from "@/lib/observability";
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { issueSystemCommand } from "@/lib/system-commands";
+import {
+  buildDestinationDaemonLane,
+  buildLifecycleControlCenterView,
+  buildMaintenanceDiff,
+} from "@/lib/check-lifecycle/lifecycle-spine";
 
 export const dynamic = "force-dynamic";
 
@@ -19,13 +24,37 @@ export async function GET(request: NextRequest) {
   if (auth.error) return auth.error;
 
   try {
-    const [snapshot, boardHealth] = await Promise.all([
+    const [snapshot, boardHealth, destinations, jobs] = await Promise.all([
       getCompanyObservabilitySnapshot(companyId),
       getBoardHealthSummary(companyId),
+      prisma.destinationInstance.findMany({
+        where: { companyId, isActive: true },
+        select: { destinationKey: true },
+      }),
+      prisma.pipelineJob.findMany({
+        where: { companyId },
+        select: { jobType: true },
+      }),
     ]);
+    const destinationKeys = destinations.map((destination) => String(destination.destinationKey || "")).filter(Boolean);
+    const lifecycleHealth = buildMaintenanceDiff({
+      destinationKeys,
+      existingPipelineJobs: jobs.map((job) => String(job.jobType || "")),
+    });
+    const daemonLane = buildDestinationDaemonLane({ destinationKeys });
     return NextResponse.json({
       ...snapshot,
       boardHealth,
+      lifecycleControlCenter: buildLifecycleControlCenterView({
+        companyId,
+        blocks: [],
+        modules: [],
+        miniapps: destinationKeys,
+        lifecycleHealth,
+        daemonLane,
+        publicVerification: { state: "pending", operatorMessage: "Public verification state is available on Visitor verification routes." },
+        operations: [],
+      }),
     });
   } catch (error) {
     console.error("[API:Observability] failure:", error);

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { resolveDestinationKeyForVisitorWithHint } from "@/lib/visitor-blueprints";
 import { ensureDestinationInstance } from "@/lib/destination-workflows";
 import { evaluateCompareProjectionGate } from "@/lib/visitor-public-projection-gate";
+import { buildPublicVerificationProof } from "@/lib/check-lifecycle/lifecycle-spine";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -36,6 +37,7 @@ export async function getVisitorPublicVerificationSummary(companyId: string, vis
   const blockedByReason: Record<string, number> = {};
   let publishedCount = 0;
   let blockedCount = 0;
+  const localItems: Array<Record<string, unknown>> = [];
   for (const candidate of candidates) {
     if (candidate.status === "PUBLISHED") publishedCount += 1;
     const metadata = asRecord(candidate.metadata) ?? {};
@@ -55,7 +57,24 @@ export async function getVisitorPublicVerificationSummary(companyId: string, vis
         blockedByReason[reason] = (blockedByReason[reason] ?? 0) + 1;
       }
     }
+    if (candidate.status === "PUBLISHED" || blockingReasons.length) {
+      localItems.push({
+        id: String(asRecord(metadata.publicProjection)?.id || asRecord(metadata.publicListing)?.id || `candidate-${localItems.length + 1}`),
+        title: String(asRecord(metadata.publicProjection)?.title || asRecord(metadata.publicListing)?.title || "Visitor public item"),
+        category: asRecord(metadata.publicProjection)?.category || asRecord(metadata.publicListing)?.category || null,
+        evidenceId: asRecord(metadata.sourceEvidence)?.id || asRecord(metadata.evidence)?.id || null,
+        hasSourceEvidence: Boolean(asRecord(metadata.sourceEvidence)?.id || asRecord(metadata.evidence)?.id || asStringArray(metadata.sourceUrls).length),
+        fakeOrPlaceholder: blockingReasons.includes("fake_or_placeholder_content") || blockingReasons.includes("test_content"),
+        forbiddenCategory: blockingReasons.includes("forbidden_category"),
+      });
+    }
   }
+  const proof = buildPublicVerificationProof({
+    localItems,
+    publicItems: localItems,
+    readModelFresh: true,
+    publicAvailable: true,
+  });
 
   return {
     checkedAt: new Date().toISOString(),
@@ -65,5 +84,9 @@ export async function getVisitorPublicVerificationSummary(companyId: string, vis
     blockedCount,
     blockedByReason,
     status: blockedCount > 0 ? "blocked" : "ok",
+    proof,
+    state: proof.state,
+    reasonCodes: proof.reasonCodes,
+    rollbackActions: proof.rollbackActions,
   };
 }

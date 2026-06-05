@@ -17,6 +17,7 @@ const {
 } = require("../src/lib/pipeline-queue");
 const {
   shouldAllowForegroundWork,
+  shouldAllowBackgroundSnapshotWork,
   FOREGROUND_HARD_PAUSE_MB,
 } = require("./lib/runtime/resource-bands");
 const {
@@ -34,6 +35,7 @@ const {
   evaluateMemoryGovernorPolicy,
 } = require("./lib/runtime/memory-governor");
 const {
+  executePipelineJob,
   resolvePipelineJobExecutionPlan,
   shouldDecomposeLowMemoryPipelineJob,
   shouldDelegateQueueRefresh,
@@ -104,6 +106,17 @@ async function main() {
   assert.equal(storageQuotaBlocked.retryable, true, "Atlas storage quota failures must stay retryable");
   assert.equal(storageQuotaBlocked.retryAfterMs, 30 * 60 * 1000, "Atlas quota failures must back off for a longer window");
 
+  const destinationServiceUnavailable = classifyPipelineJobError(
+    new Error("Destination mission daemon could not reach the internal daemon endpoint. http://127.0.0.1:3415 (ERR: fetch failed)"),
+  );
+  assert.equal(
+    destinationServiceUnavailable.class,
+    "DESTINATION_SERVICE_UNAVAILABLE",
+    "destination daemon endpoint outages must classify explicitly",
+  );
+  assert.equal(destinationServiceUnavailable.retryable, true, "destination endpoint outages must stay retryable");
+  assert.equal(destinationServiceUnavailable.retryAfterMs, 10 * 60 * 1000, "destination endpoint outages must use bounded backoff");
+
   const lowMemory = classifyPipelineJobError({
     message: "ENSURE_FLASHCARD_MINIMUM deferred because memory pressure is CONSTRAINED (900MB free).",
     pipelineClass: "LOW_MEMORY_SKIP",
@@ -113,8 +126,24 @@ async function main() {
   assert.equal(lowMemory.class, "LOW_MEMORY_SKIP", "explicit low-memory skips must keep their class");
   assert.equal(lowMemory.retryAfterMs, 180000, "explicit retry windows must survive classification");
 
+  const legacyMissingMutationAuthority = classifyPipelineJobError(
+    new TypeError("Cannot read properties of null (reading 'mutationAuthority')"),
+  );
+  assert.equal(
+    legacyMissingMutationAuthority.class,
+    "MUTATION_AUTHORITY",
+    "legacy null mutationAuthority failures must classify explicitly",
+  );
+  assert.equal(legacyMissingMutationAuthority.retryable, false, "missing mutation authority must not loop retries");
+
+  await assert.rejects(
+    () => executePipelineJob(null, { id: "job-1", jobType: "CARD_RESCORING", companyId: "company-1" }, {}),
+    /MISSING_MUTATION_AUTHORITY/,
+    "pipeline execution must fail before runtime mutation when authority is missing",
+  );
+
   assert.equal(getPipelineJobRetryLimit("ENSURE_FLASHCARD_MINIMUM"), 4, "bootstrap jobs must use bounded retry limits");
-  assert.equal(getPipelineJobRetryLimit("DESTINATION_MISSION_DAEMON"), 4, "destination service jobs must use bounded retry limits");
+  assert.equal(getPipelineJobRetryLimit("DESTINATION_MISSION_DAEMON"), 24, "destination service jobs must tolerate local endpoint outages without dead-letter flapping");
   assert.equal(getPipelineJobRetryLimit("WORKFLOW_BLUEPRINT"), 3, "workflow jobs must use tighter retry limits");
   assert.equal(getPipelineJobRetryLimit("UNKNOWN_JOB"), 3, "unknown jobs must fall back to the safe default retry limit");
 
@@ -142,6 +171,16 @@ async function main() {
     shouldAllowForegroundWork(203).allowed,
     false,
     "foreground worker must still pause when free memory drops below the hard floor",
+  );
+  assert.equal(
+    shouldAllowBackgroundSnapshotWork(1420).allowed,
+    true,
+    "snapshot worker should resume bounded background work under constrained memory",
+  );
+  assert.equal(
+    shouldAllowBackgroundSnapshotWork(760).allowed,
+    false,
+    "snapshot worker must still pause under degraded memory",
   );
 
   assert.equal(
@@ -389,7 +428,22 @@ async function main() {
   assert.equal(getProjectionBackfillStatus(null), "MISSING", "missing projections must be backfilled");
   assert.equal(getProjectionBackfillStatus({ version: 0, generatedAt: "2026-05-18T12:00:00.000Z" }), "OUTDATED_VERSION", "older projection versions must be backfilled");
   assert.equal(getProjectionBackfillStatus({ version: 1, generatedAt: "not-a-date" }), "MISSING", "invalid projection timestamps must be backfilled");
-  assert.equal(getProjectionBackfillStatus({ version: 1, generatedAt: "2026-05-18T12:00:00.000Z" }), "READY", "current projections with valid timestamps should not be backfilled");
+  assert.equal(
+    getProjectionBackfillStatus(
+      { version: 1, generatedAt: "2026-05-18T12:00:00.000Z" },
+      new Date("2026-05-18T12:30:00.000Z"),
+    ),
+    "READY",
+    "current projections with valid timestamps should not be backfilled",
+  );
+  assert.equal(
+    getProjectionBackfillStatus(
+      { version: 1, generatedAt: "2026-05-18T12:00:00.000Z" },
+      new Date("2026-05-18T13:01:00.000Z"),
+    ),
+    "STALE",
+    "stale projections must be picked up by snapshot-owned recovery",
+  );
 
   console.log("Runtime hardening tests passed.");
 }

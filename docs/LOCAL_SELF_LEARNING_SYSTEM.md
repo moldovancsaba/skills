@@ -282,6 +282,22 @@ npm run training:export -- --company <companyId>
 
 If `--company` is omitted, exports are generated for all companies with available learning signals.
 
+The canonical readiness command is:
+
+```bash
+npm run training:readiness
+npm run training:readiness -- --model <base-model> --prepare-dataset
+```
+
+Readiness mode is intentionally non-mutating for model lifecycle: it does not run MLX training, does not fuse adapters, does not call Ollama promotion, and does not register or promote a candidate. It resolves the latest timestamped export under `training/exports`, validates required export files, requires `--model <base-model>` or `MLX_BASE_MODEL`, validates `eval_cases.jsonl`, optionally prepares the MLX SFT dataset, and writes a reason-coded report.
+
+Readiness blocker classes:
+
+- `DATA_BLOCKED`: no export or required dataset file is missing
+- `MODEL_BLOCKED`: no base MLX model was provided
+- `EVAL_BLOCKED`: evaluation cases are missing
+- `DATASET_PREP_BLOCKED`: optional MLX dataset conversion failed
+
 The canonical Apple Silicon run-preparation command is:
 
 ```bash

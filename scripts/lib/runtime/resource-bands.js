@@ -7,6 +7,7 @@ const RESOURCE_BANDS = Object.freeze({
   CRITICAL: "CRITICAL",
 });
 const FOREGROUND_HARD_PAUSE_MB = 256;
+const BACKGROUND_SNAPSHOT_HARD_PAUSE_MB = 1000;
 
 function getFreeMemoryMb(osModule = require("os")) {
   return Math.round(osModule.freemem() / (1024 * 1024));
@@ -31,7 +32,7 @@ function shouldAllowForegroundWork(freeMemMb) {
 function shouldAllowBackgroundSnapshotWork(freeMemMb) {
   const band = getResourceBand(freeMemMb);
   return {
-    allowed: band === RESOURCE_BANDS.HEALTHY,
+    allowed: Number(freeMemMb || 0) >= BACKGROUND_SNAPSHOT_HARD_PAUSE_MB,
     band,
   };
 }
@@ -41,6 +42,7 @@ module.exports = {
   getFreeMemoryMb,
   getResourceBand,
   FOREGROUND_HARD_PAUSE_MB,
+  BACKGROUND_SNAPSHOT_HARD_PAUSE_MB,
   shouldAllowForegroundWork,
   shouldAllowBackgroundSnapshotWork,
 };

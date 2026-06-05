@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PrismaClient } from "@prisma/client";
+import { GoldenPathTargetError, resolveGoldenPathTarget } from "./lib/golden-path-targets.mjs";
 
 function parseArgs(argv) {
   const args = { companyId: "", outDir: "logs", strict: false, proofGateDir: "" };
@@ -119,13 +120,10 @@ function writeProofGateEvidence(args, report, input) {
 
 async function run() {
   const args = parseArgs(process.argv.slice(2));
-  if (!args.companyId) {
-    console.error("Usage: npm run verify:classscout-golden-path -- --companyId <companyId> [--strict] [--outDir logs]");
-    process.exit(1);
-  }
-
   const prisma = new PrismaClient();
   try {
+    const target = await resolveGoldenPathTarget(prisma, "classscout", args);
+    args.companyId = target.companyId;
     const classScoutInstance = await prisma.destinationInstance.findFirst({
       where: {
         companyId: args.companyId,
@@ -233,6 +231,7 @@ async function run() {
     const report = {
       runId: `classscout-golden-path:${Date.now()}`,
       companyId: args.companyId,
+      target,
       strict: args.strict,
       passed: strictPassed,
       createdAt: new Date().toISOString(),
@@ -268,6 +267,17 @@ async function run() {
 }
 
 run().catch((error) => {
+  if (error instanceof GoldenPathTargetError) {
+    console.error(JSON.stringify({
+      ok: false,
+      code: error.code,
+      visitorKey: error.visitorKey,
+      message: error.message,
+      usage: error.usage,
+      candidates: error.candidates,
+    }, null, 2));
+    process.exit(1);
+  }
   console.error("ClassScout golden-path verification failed:", error);
   process.exit(1);
 });

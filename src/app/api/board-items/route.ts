@@ -4,7 +4,11 @@ import { verifyMembership } from "@/lib/permissions";
 import { BOARD_RANK_STEP, PROJECT_BOARD_COLUMNS, sortBoardRecords } from "@/lib/board-system";
 import { buildNormalizedRanks, computeServerBoardRank, needsBoardRebalance } from "@/lib/board-rank";
 import { classifyPersistenceFailure } from "@/lib/persistence-failures";
-import { resolveBoardAdapter, type ResolvedBoardAdapter } from "@/lib/board-adapters";
+import {
+  buildBoardAdapterTelemetry,
+  resolveBoardAdapter,
+  type ResolvedBoardAdapter,
+} from "@/lib/board-adapters";
 
 export const dynamic = "force-dynamic";
 
@@ -303,9 +307,11 @@ export async function GET(request: NextRequest) {
       const activeCardCount = cards.length;
       const mismatchCount = allCards.length - activeCardCount;
       const withStateCount = items.length;
+      const adapterTelemetry = buildBoardAdapterTelemetry(adapter, { companyId });
       console.info(`[API:BOARD_ITEMS][${traceId}] GET`, {
         companyId,
         boardKey,
+        adapter: adapterTelemetry,
         durationMs: Date.now() - startedAt,
         requested: allCards.length,
         active: activeCardCount,
@@ -315,10 +321,23 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    if (adapter.diagnostics.warnings.length) {
+      console.warn("[API:BOARD_ITEMS] adapter fallback", buildBoardAdapterTelemetry(adapter, { companyId }));
+    }
+
     const response = NextResponse.json({
       items,
       columns: adapter.columns,
       traceId,
+      adapter: {
+        surface: adapter.surface,
+        module: adapter.module,
+        boardKey: adapter.boardKey,
+        entityType: adapter.config.entityType,
+        allowWrite: adapter.allowWrite,
+        resolvedBy: adapter.resolvedBy,
+        diagnostics: adapter.diagnostics,
+      },
     });
     withBoardTrace(response, traceId, debugTrace);
     return response;
@@ -351,7 +370,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "companyId and title are required" }, { status: 400 });
     }
     if (!adapter.allowWrite) {
-      return buildRequestErrorPayload("Board writes are disabled for this surface", "This board surface is read-only.", traceId);
+      return buildRequestErrorPayload("Board writes are disabled for this surface", adapter.diagnostics, traceId);
     }
 
     const actor = auth.membership.id || auth.session.email || "webapp-user";
@@ -428,7 +447,7 @@ export async function PATCH(request: NextRequest) {
     const traceId = getBoardTraceId(request);
     const debugTrace = shouldTraceBoardItems(request);
     if (!adapter.allowWrite) {
-      return buildRequestErrorPayload("Board writes are disabled for this surface", "This board surface is read-only.", traceId);
+      return buildRequestErrorPayload("Board writes are disabled for this surface", adapter.diagnostics, traceId);
     }
     const requestedPriority = normalizeBoardPriority(payload.priority);
     const requestedMetadata = extractMetadata(payload);
@@ -613,7 +632,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "companyId and id are required" }, { status: 400 });
     }
     if (!adapter.allowWrite) {
-      return buildRequestErrorPayload("Board writes are disabled for this surface", "This board surface is read-only.", traceId);
+      return buildRequestErrorPayload("Board writes are disabled for this surface", adapter.diagnostics, traceId);
     }
 
     const existing = await prisma.boardCard.findUnique({ where: { id } });

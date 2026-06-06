@@ -259,9 +259,9 @@ The work is not done until:
 - The failed board mutation was not an implementation failure. The blocker was GitHub GraphQL rate limiting: `API rate limit exceeded for user ID 2206999`.
 - Evidence to add or preserve on `#370`: miniapp ops actions now enqueue normal operator mutation requests through `src/lib/miniapp-ops-queue.ts`; only worker-secret calls execute `executeMiniappOpsAction` directly; visitor research actions are mapped into persisted `PipelineJob` payloads in `scripts/lib/pipeline-jobs.js`; route inventory classifies `/api/miniapps/:miniappKey/ops/actions` as mutating `PLAYLIST` and `/api/miniapps/:miniappKey/intelligence-contract` as read-only `SYSTEM_HEALTH`.
 
-## 2026-06-06 Pending GitHub Project Board Handover
+## 2026-06-06 GitHub Project Board Handover
 
-This section captures the GitHub repository project-board work that was interrupted by GitHub GraphQL rate limiting. Do not lose this state.
+This section captures the GitHub repository project-board work for the high-value reliability/product deliverables.
 
 Canonical issue-quality reference:
 
@@ -280,12 +280,13 @@ Active project board:
 - Status option id: `f75ad846`
 - Required board field update: set Status to `Todo (NEXT)` and set `Execution Order` to the sequence below.
 
-GitHub API blocker:
+GitHub API status:
 
 - GitHub GraphQL rate limit reached `remaining: 0`.
 - Observed reset: `2026-06-06T19:01:38Z`.
 - REST issue reads still worked; GraphQL project mutations did not.
-- If the rate limit is still exhausted, do not claim board completion. Continue local delivery and retry later.
+- GraphQL quota reset at `2026-06-06T19:02:23Z` with `remaining: 5000`.
+- Board mutations were applied after reset and verified from project item field values.
 
 Top-10 high-value reliability/product deliverables to keep represented on the board:
 
@@ -334,9 +335,10 @@ Known board mutation status:
 
 - The 10 issues above were added to project `3`.
 - Project item ids were resolved through low-cost per-issue GraphQL queries before the rate limit was exhausted.
-- One field edit likely completed for `#242`, but no final verification sweep ran.
-- Board field mutation is intentionally deferred until a later GitHub GraphQL window. Do not keep a local sleep/wait process running for this.
-- Next agent must reapply all 10 Status and Execution Order values idempotently, then verify from the project board before reporting board completion.
+- On `2026-06-06T19:02Z`, all 10 items were updated to `Status = Todo (NEXT)`.
+- On `2026-06-06T19:02Z`, all 10 items were updated to the execution order listed above.
+- Verification query confirmed every item had `Status = Todo (NEXT)` and the expected `Execution Order`.
+- Board completion is no longer deferred.
 
 Suggested GraphQL mutation shape after reset:
 

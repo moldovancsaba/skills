@@ -1,6 +1,6 @@
 # Customer Value Delivery User Guide
 
-Version: `customer-value-delivery@0.17.0`
+Version: `customer-value-delivery@0.17.1`
 
 ## Customer Operations
 

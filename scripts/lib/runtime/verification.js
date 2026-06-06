@@ -252,8 +252,10 @@ function buildRuntimeVerificationReport({
       "status-worker-truth-aligned",
       statusWorker?.stage === workerProgress?.stage
         && statusWorker?.activeTask === workerProgress?.activeTask
-        && (statusWorker?.currentCompany || null) === (workerProgress?.currentCompany || null),
-      "Status server agrees with foreground worker stage, active task, and current company.",
+        && (statusWorker?.currentCompany || null) === (workerProgress?.currentCompany || null)
+        && (statusWorker?.currentJobId || null) === (workerProgress?.currentJobId || null)
+        && (statusWorker?.currentJobType || null) === (workerProgress?.currentJobType || null),
+      "Status server agrees with foreground worker stage, active task, company, and current queue job.",
       {
         workerStage: workerProgress?.stage || null,
         workerTask: workerProgress?.activeTask || null,
@@ -261,6 +263,10 @@ function buildRuntimeVerificationReport({
         statusStage: statusWorker?.stage || null,
         statusTask: statusWorker?.activeTask || null,
         statusCompany: statusWorker?.currentCompany || null,
+        workerJobId: workerProgress?.currentJobId || null,
+        workerJobType: workerProgress?.currentJobType || null,
+        statusJobId: statusWorker?.currentJobId || null,
+        statusJobType: statusWorker?.currentJobType || null,
       },
     ),
   );
@@ -347,6 +353,8 @@ function buildRuntimeVerificationReport({
         stage: workerProgress?.stage || null,
         activeTask: workerProgress?.activeTask || null,
         currentCompany: workerProgress?.currentCompany || null,
+        currentJobId: workerProgress?.currentJobId || null,
+        currentJobType: workerProgress?.currentJobType || null,
       },
       backgroundWorker: {
         state: snapshotProgress?.state || null,

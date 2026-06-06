@@ -221,6 +221,21 @@ function formatSignedValue(value: number | null | undefined) {
   return `${sign}${resolved}`;
 }
 
+function formatWorkerJobLabel(language: UiLanguage, worker: any) {
+  const jobType = worker?.currentJobType;
+  if (!jobType) {
+    return String(worker?.activeTask || "Idle");
+  }
+  const label = getPipelineJobLabel(language, jobType) || getHumanJobLabel(jobType);
+  const company = worker?.currentCompany || "Unknown company";
+  const entity = worker?.currentEntityLabel || null;
+  const entityType = String(worker?.currentEntityType || "COMPANY").toUpperCase();
+  if (entity && entityType !== "COMPANY" && entity !== company) {
+    return `${label} for ${company}: ${entity}`;
+  }
+  return `${label} for ${company}`;
+}
+
 function formatRetryWindow(event: any) {
   const nextRetryAt = event?.metadata?.nextRetryAt;
   const retryAfterMs = event?.metadata?.retryAfterMs;
@@ -379,8 +394,12 @@ export default function LocalAiMissionControlPage() {
   const projections = data?.projections || {};
   const projectionCoverage = projections?.coverage || {};
   const buildIdentity = worker?.settings?.buildIdentity || {};
-  const actualCurrentTask = String(worker.activeTask || "Idle");
+  const actualCurrentTask = formatWorkerJobLabel(language, worker);
   const actualCurrentCompany = String(worker.currentCompany || "No company locked");
+  const workerCurrentJobId = String(worker.currentJobId || "").trim();
+  const workerCurrentJobType = String(worker.currentJobType || "").trim();
+  const workerCurrentProfile = getExecutionProfileLabel(worker.currentExecutionProfile || "full");
+  const workerJobRuntime = worker.jobStartedAt ? `started ${formatTimestamp(worker.jobStartedAt)}` : null;
   const topQueueJobLabel = currentJob ? formatJobLabel(language, currentJob) : "No queued job";
   const memoryGovernorEvents = Array.isArray(memoryGovernor.recentEvents) ? memoryGovernor.recentEvents : [];
   const latestGovernorEvaluation = memoryGovernor.latestEvaluation || {};
@@ -476,7 +495,17 @@ export default function LocalAiMissionControlPage() {
             <MetricCard icon={Heartbeat} color="review" label="Worker State" value={String(worker.state || "unknown")} detail={String(worker.stage || "—")} />
             <MetricCard icon={ListCheck} color="strategy" label="Execution Mode" value="LINEAR" detail="one foreground worker · one queue job" />
             <MetricCard icon={Brain} color="strategy" label="Current Company" value={actualCurrentCompany} detail={worker.currentCompany ? "Worker-locked company" : "No company locked right now"} />
-            <MetricCard icon={ListCheck} color="checklist" label="Current Task" value={actualCurrentTask} detail={worker.currentCompany ? "Worker runtime authority" : String(worker.stage || "—")} />
+            <MetricCard
+              icon={ListCheck}
+              color="checklist"
+              label="Current Task"
+              value={actualCurrentTask}
+              detail={
+                workerCurrentJobType
+                  ? `${workerCurrentJobType}${workerCurrentJobId ? ` · ${workerCurrentJobId.slice(0, 8)}` : ""}${worker.currentExecutionProfile ? ` · ${workerCurrentProfile}` : ""}${workerJobRuntime ? ` · ${workerJobRuntime}` : ""}`
+                  : String(worker.stage || "—")
+              }
+            />
             <MetricCard icon={Server} color="knowmore" label="Worker Build" value={String(buildIdentity.appVersion || "unknown")} detail={String(buildIdentity.gitSha || "—").slice(0, 12)} />
             <MetricCard icon={Server} color="strategy" label="Background State" value={String(backgroundWorker.state || "unknown")} detail="support lane only" />
             <MetricCard icon={Activity} color="review" label="Queue Depth" value={queue.totalActiveJobs ?? 0} detail={`${queue.runningJobs ?? 0} running · ${queue.failedJobs ?? 0} failed · ${queue.pausedJobs ?? 0} paused`} />

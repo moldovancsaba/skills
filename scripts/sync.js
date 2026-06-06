@@ -63,6 +63,19 @@ let recoveredOrphanedRunningJobs = false;
 const linearWorkerOwner = createLockOwner();
 let hasLinearWorkerLock = false;
 
+function clearForegroundQueueProgress() {
+  return {
+    currentCompany: null,
+    currentJobId: null,
+    currentJobType: null,
+    currentEntityType: null,
+    currentEntityLabel: null,
+    currentExecutionProfile: null,
+    currentExecutionResourceBand: null,
+    jobStartedAt: null,
+  };
+}
+
 async function ensureLinearWorkerLock() {
   if (hasLinearWorkerLock) {
     const renewed = await renewLinearWorkerLock(linearWorkerOwner, {
@@ -213,6 +226,7 @@ async function runOpportunitycardScoreRepairPass() {
   await updateProgress(prisma, {
     state: "running",
     stage: "STARTUP_OPPORTUNITYCARD_REPAIR",
+    ...clearForegroundQueueProgress(),
     currentCompany: null,
     activeTask: "Repairing historical opportunitycard score contract drift",
   });
@@ -294,6 +308,7 @@ async function runStartupIntegrityPass() {
   await updateProgress(prisma, {
     state: "running",
     stage: "STARTUP_MAINTENANCE",
+    ...clearForegroundQueueProgress(),
     currentCompany: null,
     activeTask: "Running startup integrity maintenance",
   });
@@ -332,6 +347,7 @@ async function runWorkerLoop() {
       await updateProgress(prisma, {
         state: "idle",
         stage: "PAUSED_LOW_MEMORY",
+        ...clearForegroundQueueProgress(),
         currentCompany: null,
         activeTask: `Foreground queue paused due to ${resourceBand} memory pressure (${freeMemMb}MB free)`,
         metrics: {
@@ -356,6 +372,7 @@ async function runWorkerLoop() {
     await updateProgress(prisma, {
       state: "running",
       stage: "SYSTEM_COMMANDS",
+      ...clearForegroundQueueProgress(),
       currentCompany: null,
       activeTask: "Processing worker system commands",
     });
@@ -363,6 +380,7 @@ async function runWorkerLoop() {
     await updateProgress(prisma, {
       state: "running",
       stage: "PIPELINE_QUEUE",
+      ...clearForegroundQueueProgress(),
       currentCompany: null,
       activeTask: "Scanning pipeline queue for runnable jobs",
       metrics: {
@@ -383,6 +401,7 @@ async function runWorkerLoop() {
     await updateProgress(prisma, {
       state: "idle",
       stage: "IDLE",
+      ...clearForegroundQueueProgress(),
       currentCompany: null,
       activeTask: shouldDelegateQueueRefresh(queueBatch)
         ? "Waiting for background queue sync after claim miss"
@@ -408,6 +427,7 @@ async function runWorkerLoop() {
     await updateProgress(prisma, {
       state: "idle",
       stage: "ERROR",
+      ...clearForegroundQueueProgress(),
       activeTask: "Worker loop failed",
       errorStats: {
         ...synthesisState.errorStats,
@@ -454,6 +474,13 @@ const server = http.createServer(async (req, res) => {
         pass: progress.pass,
         lastProgressAt: progress.lastProgressAt,
         currentCompany: progress.currentCompany,
+        currentJobId: progress.currentJobId,
+        currentJobType: progress.currentJobType,
+        currentEntityType: progress.currentEntityType,
+        currentEntityLabel: progress.currentEntityLabel,
+        currentExecutionProfile: progress.currentExecutionProfile,
+        currentExecutionResourceBand: progress.currentExecutionResourceBand,
+        jobStartedAt: progress.jobStartedAt,
         activeTask: progress.activeTask,
         activeModel: progress.activeModel,
         cycleCount: progress.cycleCount,

@@ -54,11 +54,11 @@ function verify() {
   assertIncludes("docs/CUSTOMER_VALUE_DELIVERY_API.md", "POST /api/opportunitycards/:id/outcome");
   assertIncludes("docs/CUSTOMER_VALUE_DELIVERY_LLD.md", "Rollback");
   assertIncludes("docs/CUSTOMER_VALUE_DELIVERY_USER_GUIDE.md", "Customer Operations");
-  assertIncludes("package.json", "\"version\": \"0.17.0\"");
+  assertIncludes("package.json", "\"version\": \"0.17.1\"");
 
   return {
     ok: true,
-    version: "customer-value-delivery@0.17.0",
+    version: "customer-value-delivery@0.17.1",
     deliverables: issueMatches.length,
     checkedFiles: requiredFiles.length,
   };

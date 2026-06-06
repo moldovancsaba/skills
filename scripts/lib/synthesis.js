@@ -59,6 +59,13 @@ var synthesisState = {
   lastProgressAt: new Date().toISOString(),
   currentCompany: null,
   activeTask: null,
+  currentJobId: null,
+  currentJobType: null,
+  currentEntityType: null,
+  currentEntityLabel: null,
+  currentExecutionProfile: null,
+  currentExecutionResourceBand: null,
+  jobStartedAt: null,
   activeModel: null,
   cycleCount: 0,
   metrics: {

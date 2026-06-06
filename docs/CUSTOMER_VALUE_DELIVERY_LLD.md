@@ -2,7 +2,7 @@
 
 Canonical quality and structure standard: https://github.com/sovereignsquad/general-design-system/issues/81
 
-Version: `customer-value-delivery@0.17.0`
+Version: `customer-value-delivery@0.17.1`
 
 ## Scope
 

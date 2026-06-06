@@ -84,6 +84,8 @@ function main() {
         stage: "PIPELINE_QUEUE",
         activeTask: "Refresh flashcards for Alpha",
         currentCompany: "Alpha",
+        currentJobId: "job-stale",
+        currentJobType: "REFRESH_FLASHCARDS",
       },
       settings: {
         buildIdentity: {
@@ -174,6 +176,8 @@ function main() {
         stage: "PIPELINE_QUEUE",
         activeTask: "Refresh flashcards for Alpha",
         currentCompany: "Alpha",
+        currentJobId: "job-live",
+        currentJobType: "REFRESH_FLASHCARDS",
       },
       settings: {
         buildIdentity: {
@@ -186,8 +190,10 @@ function main() {
     statusPayload: {
       worker: {
         stage: "PIPELINE_QUEUE",
-        activeTask: "Running queue jobs",
+        activeTask: "Refresh flashcards for Alpha",
         currentCompany: "Alpha",
+        currentJobId: "job-live",
+        currentJobType: "REFRESH_FLASHCARDS",
         settings: {
           buildIdentity: {
             gitSha: "local-sha",

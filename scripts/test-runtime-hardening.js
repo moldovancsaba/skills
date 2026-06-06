@@ -44,6 +44,7 @@ const {
   shouldDecomposeLowMemoryPipelineJob,
   shouldDelegateQueueRefresh,
 } = require("./lib/pipeline-jobs");
+const { getSynthesisProgress } = require("./lib/synthesis");
 
 async function main() {
   const taskPayload = buildTaskUpdatePayload({
@@ -190,6 +191,15 @@ async function main() {
     },
     "claim path must treat missing scheduledAt as runnable under Prisma Mongo",
   );
+
+  const synthesisProgress = getSynthesisProgress();
+  assert.equal(synthesisProgress.currentJobId, null, "synthesis progress must start with no explicit job id");
+  assert.equal(synthesisProgress.currentJobType, null, "synthesis progress must start with no explicit job type");
+  assert.equal(synthesisProgress.currentEntityType, null, "synthesis progress must start with no explicit entity context");
+  assert.equal(synthesisProgress.currentEntityLabel, null, "synthesis progress must start with no explicit entity label");
+  assert.equal(synthesisProgress.currentExecutionProfile, null, "synthesis progress must start with no execution profile");
+  assert.equal(synthesisProgress.currentExecutionResourceBand, null, "synthesis progress must start with no execution band");
+  assert.equal(synthesisProgress.jobStartedAt, null, "synthesis progress must start with no job-start timestamp");
 
   assert.equal(FOREGROUND_HARD_PAUSE_MB, 256, "foreground hard-pause threshold must stay explicit");
   assert.equal(

@@ -191,6 +191,17 @@ It should aggregate:
 - queue summary truth
 
 The status server must not infer activity that the worker has not explicitly claimed.
+The status surface must surface:
+
+- `worker.currentJobId`
+- `worker.currentJobType`
+- `worker.currentEntityType`
+- `worker.currentEntityLabel`
+- `worker.currentExecutionProfile`
+- `worker.currentExecutionResourceBand`
+- `worker.jobStartedAt`
+
+and must not derive current-job display from queue fallback values when the worker is idle.
 
 ### 4.4.1 Runtime verification and chaos recovery
 

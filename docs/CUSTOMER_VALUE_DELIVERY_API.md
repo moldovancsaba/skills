@@ -1,6 +1,6 @@
 # Customer Value Delivery API
 
-Version: `customer-value-delivery@0.17.0`
+Version: `customer-value-delivery@0.17.1`
 
 All company-scoped APIs require an authenticated session and company membership.
 

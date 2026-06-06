@@ -101,8 +101,10 @@ const EXPLICIT = new Map([
   ["package:status", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
   ["package:maintenance:lifecycle", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: true, risk: RISK.MEDIUM }],
   ["package:verify:lifecycle", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
+  ["api:/api/customer-value/delivery", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
   ["api:/api/cron/destination-missions", { lane: LANE.PLAYLIST, mutatesBusinessContent: true, mutatesRuntimeHealth: false, risk: RISK.HIGH }],
   ["api:/api/destination-missions/daemon", { lane: LANE.PLAYLIST, mutatesBusinessContent: true, mutatesRuntimeHealth: false, risk: RISK.HIGH }],
+  ["api:/api/destination-missions/daemon/health", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
   ["api:/api/commands", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: true, risk: RISK.HIGH }],
   ["api:/api/bridge/ingress", { lane: LANE.PLAYLIST, mutatesBusinessContent: true, mutatesRuntimeHealth: false, risk: RISK.HIGH }],
   ["api:/api/local-ai/lane-events", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
@@ -116,6 +118,7 @@ const EXPLICIT = new Map([
   ["bin:check-local-lifecycle-maintenance", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: true, risk: RISK.MEDIUM }],
   ["bin:check-local-lifecycle-verify", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
   ["script:scripts/sync.js", { lane: LANE.PLAYLIST, mutatesBusinessContent: true, mutatesRuntimeHealth: true, risk: RISK.HIGH }],
+  ["script:scripts/customer-value-delivery.mjs", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
   ["script:scripts/local-runnable-inventory.mjs", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
 ]);
 

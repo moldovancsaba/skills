@@ -141,6 +141,41 @@ function buildActiveTaskString(job, companyName, entityLabel) {
   return companyName ? `${jobLabel} for ${companyName}: ${entityLabel}` : `${jobLabel}: ${entityLabel}`;
 }
 
+function buildActivePipelineJobProgress(job, companyName, entityLabel, executionPlan, jobStartedAt) {
+  const normalizedCompany = companyName ? String(companyName) : null;
+  const normalizedEntityLabel = entityLabel ? String(entityLabel) : null;
+  const entityType = typeof job?.entityType === "string" ? String(job.entityType).trim() : null;
+  const profile = executionPlan?.executionOptions?.profile || "full";
+  const resourceBand = executionPlan?.resourceBand || null;
+
+  return {
+    state: "running",
+    stage: "PIPELINE_QUEUE",
+    currentCompany: normalizedCompany,
+    activeTask: buildActiveTaskString(job, normalizedCompany, normalizedEntityLabel),
+    currentJobId: job?.id || null,
+    currentJobType: job?.jobType || null,
+    currentEntityType: entityType,
+    currentEntityLabel: normalizedEntityLabel,
+    currentExecutionProfile: profile,
+    currentExecutionResourceBand: resourceBand,
+    jobStartedAt: jobStartedAt || null,
+  };
+}
+
+function clearActivePipelineJobProgress() {
+  return {
+    currentCompany: null,
+    currentJobId: null,
+    currentJobType: null,
+    currentEntityType: null,
+    currentEntityLabel: null,
+    currentExecutionProfile: null,
+    currentExecutionResourceBand: null,
+    jobStartedAt: null,
+  };
+}
+
 function getChecklistLocalRuntimeBridgeConfig() {
   const bearerToken = (process.env.CRON_SECRET || process.env.INGEST_SECRET || "").trim();
   if (!bearerToken) {
@@ -847,10 +882,17 @@ async function recordPipelineJobUsage(prisma, job, input) {
   });
 }
 
-function startRunningJobHeartbeat(prisma, job, companyName, entityLabel) {
+function startRunningJobHeartbeat(prisma, job, companyName, entityLabel, executionPlan, jobStartedAt) {
   let stopped = false;
   let inFlight = false;
   const heartbeatMs = 30000;
+  const heartbeatProgress = buildActivePipelineJobProgress(
+    job,
+    companyName,
+    entityLabel,
+    executionPlan,
+    jobStartedAt,
+  );
 
   const tick = async () => {
     if (stopped || inFlight) return;
@@ -858,12 +900,7 @@ function startRunningJobHeartbeat(prisma, job, companyName, entityLabel) {
     try {
       const now = new Date();
       await Promise.all([
-        updateProgress(prisma, {
-          state: "running",
-          stage: "PIPELINE_QUEUE",
-          currentCompany: companyName,
-          activeTask: buildActiveTaskString(job, companyName, entityLabel),
-        }),
+        updateProgress(prisma, heartbeatProgress),
         prisma.pipelineJob.updateMany({
           where: {
             id: job.id,
@@ -933,6 +970,7 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
     const [job] = claimed;
     claimsAttempted += 1;
     const startedAt = Date.now();
+    const jobStartedAt = new Date().toISOString();
     let stopHeartbeat = null;
     let executionPlan = null;
     try {
@@ -944,14 +982,19 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
             }))?.name || job.companyId
           : null);
       const entityLabel = await resolvePipelineEntityLabel(prisma, job);
-      await updateProgress(prisma, {
-        state: "running",
-        stage: "PIPELINE_QUEUE",
-        currentCompany: companyName,
-        activeTask: buildActiveTaskString(job, companyName, entityLabel),
-      });
-      stopHeartbeat = startRunningJobHeartbeat(prisma, job, companyName, entityLabel);
       executionPlan = resolvePipelineJobExecutionPlan(job);
+      await updateProgress(
+        prisma,
+        buildActivePipelineJobProgress(job, companyName, entityLabel, executionPlan, jobStartedAt),
+      );
+      stopHeartbeat = startRunningJobHeartbeat(
+        prisma,
+        job,
+        companyName,
+        entityLabel,
+        executionPlan,
+        jobStartedAt,
+      );
       await safeRecordLocalLaneEvent(prisma, {
         lane: "PLAYLIST",
         eventType: "STARTED",
@@ -969,10 +1012,6 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
         },
       });
       const result = await executePipelineJob(prisma, job, executionPlan.executionOptions);
-      if (stopHeartbeat) {
-        await stopHeartbeat();
-        stopHeartbeat = null;
-      }
       const workloadUnits = typeof result === "number" ? Math.max(1, result) : 1;
       await finalizeSuccessfulPipelineJob(
         prisma,
@@ -1017,10 +1056,6 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
       });
       executed += 1;
     } catch (error) {
-      if (stopHeartbeat) {
-        await stopHeartbeat();
-        stopHeartbeat = null;
-      }
       console.error(`[PIPELINE QUEUE] ${job.jobType} failed for ${job.company?.name ?? job.companyId}:`, error.message);
       const classification = classifyPipelineJobError(error);
       const retryAfterMs = Number.isFinite(classification.retryAfterMs) ? classification.retryAfterMs : null;
@@ -1075,6 +1110,12 @@ async function runPipelineQueueBatch(prisma, limit = 1) {
       if (classification.class !== PIPELINE_FAILURE_CLASSES.LOW_MEMORY_SKIP) {
         break;
       }
+    } finally {
+      if (stopHeartbeat) {
+        await stopHeartbeat();
+        stopHeartbeat = null;
+      }
+      await updateProgress(prisma, clearActivePipelineJobProgress());
     }
 
     claimed = executed < targetExecutions ? await claimNextPipelineJobs(prisma, 1) : [];

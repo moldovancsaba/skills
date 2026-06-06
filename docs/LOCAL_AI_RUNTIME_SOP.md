@@ -129,6 +129,11 @@ Sequence:
 11. if a job is claimed:
    - set `currentCompany`
    - set `activeTask`
+   - set `currentJobId`
+   - set `currentJobType`
+   - set `currentEntityType` + `currentEntityLabel`
+   - set `currentExecutionProfile` + `currentExecutionResourceBand`
+   - set `jobStartedAt`
    - start heartbeat
 12. resolve execution profile for the job from:
    - job type

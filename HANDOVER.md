@@ -258,6 +258,120 @@ The work is not done until:
 - The `#370` evidence comment already exists: `https://github.com/sovereignsquad/checklist/issues/370#issuecomment-4607616319`.
 - The failed board mutation was not an implementation failure. The blocker was GitHub GraphQL rate limiting: `API rate limit exceeded for user ID 2206999`.
 - Evidence to add or preserve on `#370`: miniapp ops actions now enqueue normal operator mutation requests through `src/lib/miniapp-ops-queue.ts`; only worker-secret calls execute `executeMiniappOpsAction` directly; visitor research actions are mapped into persisted `PipelineJob` payloads in `scripts/lib/pipeline-jobs.js`; route inventory classifies `/api/miniapps/:miniappKey/ops/actions` as mutating `PLAYLIST` and `/api/miniapps/:miniappKey/intelligence-contract` as read-only `SYSTEM_HEALTH`.
+
+## 2026-06-06 Pending GitHub Project Board Handover
+
+This section captures the GitHub repository project-board work that was interrupted by GitHub GraphQL rate limiting. Do not lose this state.
+
+Canonical issue-quality reference:
+
+- `sovereignsquad/general-design-system#81`
+- All UI, UX, and frontend work in these issues must use `sovereignsquad/general-design-system` only.
+- Accessibility is mandatory.
+- Issues must remain implementation-ready, not umbrella placeholders.
+
+Active project board:
+
+- Owner: `sovereignsquad`
+- Repository: `sovereignsquad/checklist`
+- Project: `{checklist} - From IDEA to LIVE`
+- Project number: `3`
+- Status field target: `Todo (NEXT)`
+- Status option id: `f75ad846`
+- Required board field update: set Status to `Todo (NEXT)` and set `Execution Order` to the sequence below.
+
+GitHub API blocker:
+
+- GitHub GraphQL rate limit reached `remaining: 0`.
+- Observed reset: `2026-06-06T19:01:38Z`.
+- REST issue reads still worked; GraphQL project mutations did not.
+- If the rate limit is still exhausted, do not claim board completion. Continue local delivery and retry later.
+
+Top-10 high-value reliability/product deliverables to keep represented on the board:
+
+1. `#450 Runtime: Worker Progress Contract - Explicit Active Job Telemetry`
+   - Project item id: `PVTI_lADOEEuBB84BToX-zgu65sU`
+   - Execution Order: `1`
+   - Rationale: fixes operator truth for active work and removes queue fallback inference.
+2. `#362 Local Runtime: Memory Steward process inventory - classify CHECK, dev, Ollama, database, and unknown processes`
+   - Project item id: `PVTI_lADOEEuBB84BToX-zguWy-M`
+   - Execution Order: `2`
+   - Rationale: creates read-only process ownership and memory visibility.
+3. `#363 Local Runtime: Memory Steward policy planner - memory bands, safe actions, and deterministic cleanup ordering`
+   - Project item id: `PVTI_lADOEEuBB84BToX-zguWzCI`
+   - Execution Order: `3`
+   - Rationale: converts inventory and pressure into explainable non-destructive plans.
+4. `#364 Local Runtime: Ollama lifecycle steward - single service policy, idle model unload, and generation-safe guards`
+   - Project item id: `PVTI_lADOEEuBB84BToX-zguWzHI`
+   - Execution Order: `4`
+   - Rationale: addresses high-memory local model risk without breaking active generation.
+5. `#365 Local Runtime: Guardian Memory Steward executor - guarded cleanup, recovery, and audit trail`
+   - Project item id: `PVTI_lADOEEuBB84BToX-zguWzKs`
+   - Execution Order: `5`
+   - Rationale: gives Guardian the only approved execution path for guarded cleanup.
+6. `#366 UI: Local Memory Steward operations surface - GDS-only memory, process, Ollama, and cleanup visibility`
+   - Project item id: `PVTI_lADOEEuBB84BToX-zguWzQM`
+   - Execution Order: `6`
+   - Rationale: makes memory pressure and safe actions visible to operators.
+7. `#367 Quality: Local Memory Steward verification - chaos tests, release gates, docs, and rollback proof`
+   - Project item id: `PVTI_lADOEEuBB84BToX-zguWzVc`
+   - Execution Order: `7`
+   - Rationale: makes steward delivery releasable with deterministic proof.
+8. `#318 Operations: Runtime Action Console - retry/replay/recover/rollback UI control surface`
+   - Project item id: `PVTI_lADOEEuBB84BToX-zguTP5M`
+   - Execution Order: `8`
+   - Rationale: gives customers and operators safer recovery controls for runtime work.
+9. `#242 Runtime: Workflow orchestration - ClassScout acquisition, drafting, and review job family`
+   - Project item id: `PVTI_lADOEEuBB84BToX-zgt243s`
+   - Execution Order: `9`
+   - Rationale: product-value path for durable destination workflow execution.
+10. `#254 Runtime: Candidate attempt loop - bounded reject, retry, and advance executor for rulebook missions`
+    - Project item id: `PVTI_lADOEEuBB84BToX-zgt4S_o`
+    - Execution Order: `10`
+    - Rationale: product-value path for autonomous mission progress after weak candidates.
+
+Known board mutation status:
+
+- The 10 issues above were added to project `3`.
+- Project item ids were resolved through low-cost per-issue GraphQL queries before the rate limit was exhausted.
+- One field edit likely completed for `#242`, but no final verification sweep ran.
+- Next agent must reapply all 10 Status and Execution Order values idempotently, then verify from the project board before reporting completion.
+
+Suggested GraphQL mutation shape after reset:
+
+```graphql
+mutation($projectId:ID!, $itemId:ID!, $fieldId:ID!, $optionId:String!) {
+  updateProjectV2ItemFieldValue(input:{
+    projectId:$projectId,
+    itemId:$itemId,
+    fieldId:$fieldId,
+    value:{singleSelectOptionId:$optionId}
+  }) {
+    projectV2Item { id }
+  }
+}
+```
+
+Use the analogous `number` value mutation for the `Execution Order` field. Resolve field ids again after the rate limit resets instead of guessing.
+
+Local delivery evidence already collected before this handover update:
+
+- `npm run test:runtime-hardening` passed.
+- `npm run test:runtime-chaos` passed.
+- `npm run lint` passed.
+- `npm run build` passed.
+- Final release commit: `97b751b Harden worker progress telemetry`.
+- Final app version: `0.17.1`.
+- Commit `97b751b` was pushed to `origin/main`.
+- Local foreground, snapshot, and status services were restarted after push.
+- Final `npm run verify:runtime` passed with `13/13` checks.
+- Local runnable inventory was cleaned to `Forbidden 0` by explicitly classifying:
+  - `api:/api/customer-value/delivery`
+  - `api:/api/destination-missions/daemon/health`
+  - `script:scripts/customer-value-delivery.mjs`
+- Local status API was reachable at `http://127.0.0.1:10006/api/status`.
+- CHECK local processes were observed running: `check-local-guardian`, `check-local-foreground`, `check-local-snapshot`, and `check-local-status`.
+- Memory Steward status was reachable and initially showed `resourceBand: CRITICAL` during the audit; after runtime restart/recovery it reported `resourceBand: HEALTHY` with about `3.1GB` free.
 - Evidence to add or preserve on `#372`: destination mission run action routes `discover-candidates`, `extract-candidate`, `score-candidate`, `prepare-candidate`, `execute-next-attempt`, and `execute-until-blocked` now return queued Playlist receipts through `src/lib/destination-mission-queue.ts`; direct ClassScout/Compare runtime helper imports are forbidden by `scripts/test-intent-api-no-execution.mjs` and `scripts/test-three-lane-route-contracts.mjs`.
 - Proof commands from this slice: `npm run audit:local-runnables`, `npm run test:intelligence-unit-refactor`, `npm run test:local-execution-lanes`, `npm run test:three-lane-routes`, `npm run test:miniapp-ops-console`, `npm run test:unit-capability-v2`, `npm run lint`, and `npm run build`.
 - Next issue candidate after `#370`: continue `#372 Direct execution migration` only with route-by-route evidence. Do not invent broad cleanup tickets; each follow-up must name the route, the mutation authority, the expected queue intent, retry/timeout behavior, recovery path, and contract test.

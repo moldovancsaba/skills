@@ -9,7 +9,7 @@ import { buildOpportunityLearningAnnotation } from "@/lib/opportunitycards";
 import { listPersistedCompanyPipelineJobs } from "@/lib/pipeline-queue";
 import { buildProjectionMetadata, normalizeWebappProjection } from "@/lib/webapp-projection";
 
-export const CUSTOMER_VALUE_DELIVERY_VERSION = "customer-value-delivery@0.17.0";
+export const CUSTOMER_VALUE_DELIVERY_VERSION = "customer-value-delivery@0.17.1";
 
 export type CustomerValueDeliverable = {
   issueNumber: number;

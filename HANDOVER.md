@@ -335,7 +335,8 @@ Known board mutation status:
 - The 10 issues above were added to project `3`.
 - Project item ids were resolved through low-cost per-issue GraphQL queries before the rate limit was exhausted.
 - One field edit likely completed for `#242`, but no final verification sweep ran.
-- Next agent must reapply all 10 Status and Execution Order values idempotently, then verify from the project board before reporting completion.
+- Board field mutation is intentionally deferred until a later GitHub GraphQL window. Do not keep a local sleep/wait process running for this.
+- Next agent must reapply all 10 Status and Execution Order values idempotently, then verify from the project board before reporting board completion.
 
 Suggested GraphQL mutation shape after reset:
 
@@ -360,9 +361,9 @@ Local delivery evidence already collected before this handover update:
 - `npm run test:runtime-chaos` passed.
 - `npm run lint` passed.
 - `npm run build` passed.
-- Final release commit: `97b751b Harden worker progress telemetry`.
+- Final release commit: `9df492f Harden worker progress telemetry`.
 - Final app version: `0.17.1`.
-- Commit `97b751b` was pushed to `origin/main`.
+- Commit `9df492f` was pushed to `origin/main`.
 - Local foreground, snapshot, and status services were restarted after push.
 - Final `npm run verify:runtime` passed with `13/13` checks.
 - Local runnable inventory was cleaned to `Forbidden 0` by explicitly classifying:

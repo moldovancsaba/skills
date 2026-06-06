@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sovereignsquad.check.local.destination-daemon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>exec -a check-destination-daemon /opt/homebrew/bin/npm run start</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/Shared/Projects/checklist</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>NODE_ENV</key>
+        <string>production</string>
+        <key>PORT</key>
+        <string>3000</string>
+        <key>CHECK_RUNNER_ID</key>
+        <string>check.destination.daemon</string>
+        <key>CHECK_RUNNER_NAME</key>
+        <string>Destination Mission Daemon</string>
+        <key>CHECK_RUNNER_KIND</key>
+        <string>continuous</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/Shared/Projects/checklist/logs/destination-daemon-launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/Shared/Projects/checklist/logs/destination-daemon-launchd-error.log</string>
+</dict>
+</plist>

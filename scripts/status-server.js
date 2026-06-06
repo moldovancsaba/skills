@@ -11,10 +11,20 @@ const http = require("http");
 const fs   = require("fs");
 const path = require("path");
 const { PrismaClient } = require("@prisma/client");
+const { execFile } = require("child_process");
 const {
   applyRunnerIdentity,
   listRunnerDefinitions,
 } = require("./lib/runtime/runner-registry");
+const { collectMemoryStewardSnapshot } = require("./lib/runtime/memory-steward");
+const {
+  MANAGED_SERVICE_STATE_KEY,
+  listManagedServiceDefinitions,
+  validateManagedServiceManifest,
+} = require("./lib/runtime/managed-services");
+const { collectManagedServiceObservations, buildManagedServiceReconciliationPlan } = require("./lib/runtime/service-reconciler");
+const { reduceRuntimeHealth } = require("./lib/runtime/health-model");
+const { buildLogPressure, DEFAULT_LOG_MAX_BYTES } = require("./lib/runtime/resource-accounting");
 const RUNNER = applyRunnerIdentity("check.local.status-server");
 const prisma = new PrismaClient();
 
@@ -27,9 +37,18 @@ const RUNTIME_VERIFICATION_STATE_KEY = "local_ai_runtime_verification_last_run";
 const PIPELINE_TOPOLOGY_STATE_KEY = "local_ai_pipeline_topology_state";
 const PROJECTION_REFRESH_STATE_KEY = "local_ai_webapp_projection_refresh_state";
 const OPPORTUNITYCARD_REPAIR_STATE_KEY = "opportunitycard_score_contract_repair_v1";
+const RUNTIME_ACTION_LOG_KEY = "local_ai_runtime_action_log";
+const RUNTIME_ACTION_LOG_LIMIT = 100;
+const QUEUE_CIRCUIT_BREAKER_STATE_KEY = "local_ai_queue_circuit_breakers";
 const WEBAPP_PROJECTION_VERSION = 1;
 const QUEUE_COLUMN_RANK = Object.freeze({ NOW: 0, SOON: 1, LATER: 2, PARKED: 3 });
 const STATUS_CACHE_TTL_MS = 5000;
+const LOG_PRESSURE_FILES = [
+  path.join(__dirname, "..", "logs", "guardian.log"),
+  path.join(__dirname, "..", "logs", "guardian-launchd.log"),
+  path.join(__dirname, "..", "logs", "destination-daemon-launchd.log"),
+  path.join(__dirname, "..", "logs", "destination-daemon-launchd-error.log"),
+];
 let statusPayloadCache = null;
 let statusPayloadGeneratedAt = 0;
 
@@ -37,8 +56,60 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function normalizeActionLog(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  return Array.isArray(value.events) ? value.events.filter((event) => event && typeof event === "object") : [];
+}
+
+async function recordRuntimeActionEvent(event) {
+  const now = new Date();
+  const current = await prisma.globalSetting.findUnique({ where: { key: RUNTIME_ACTION_LOG_KEY } });
+  const events = [
+    {
+      id: `${now.getTime()}-${Math.random().toString(16).slice(2)}`,
+      createdAt: now.toISOString(),
+      actor: "local-status-server",
+      ...event,
+    },
+    ...normalizeActionLog(current?.value),
+  ].slice(0, RUNTIME_ACTION_LOG_LIMIT);
+
+  await prisma.globalSetting.upsert({
+    where: { key: RUNTIME_ACTION_LOG_KEY },
+    create: { key: RUNTIME_ACTION_LOG_KEY, value: { events } },
+    update: { value: { events }, updatedAt: now },
+  });
+}
+
+function normalizeQueueCircuitBreakerState(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { active: [], recentEvents: [] };
+  return {
+    active: Array.isArray(value.active) ? value.active.filter((entry) => entry && typeof entry === "object") : [],
+    recentEvents: Array.isArray(value.recentEvents) ? value.recentEvents.filter((entry) => entry && typeof entry === "object") : [],
+  };
+}
+
 function getJobMetadata(job) {
   return isPlainObject(job?.metadata) ? job.metadata : {};
+}
+
+function summarizePipelineJob(job) {
+  if (!job) return null;
+  return {
+    id: job.id,
+    companyId: job.companyId,
+    jobType: job.jobType,
+    entityType: job.entityType,
+    entityId: job.entityId,
+    status: job.status,
+    queueColumn: job.queueColumn,
+    controlMode: job.controlMode,
+    attemptCount: job.attemptCount,
+    scheduledAt: job.scheduledAt ? new Date(job.scheduledAt).toISOString() : null,
+    lastTriedAt: job.lastTriedAt ? new Date(job.lastTriedAt).toISOString() : null,
+    lastError: job.lastError || null,
+    reason: job.reason || null,
+  };
 }
 
 function parsePlaylistAnchor(value) {
@@ -410,7 +481,7 @@ async function captureInventoryHistory(inventory) {
 }
 
 async function buildStatusPayload() {
-  const [setting, snapshotSetting, memoryGovernorSetting, verificationSetting, topologySetting, projectionSetting, opportunitycardRepairSetting, heartbeat, inventory, queue, projectionCoverage] = await Promise.all([
+  const [setting, snapshotSetting, memoryGovernorSetting, verificationSetting, topologySetting, projectionSetting, opportunitycardRepairSetting, runtimeActionLogSetting, managedServiceSetting, queueCircuitBreakerSetting, heartbeat, inventory, queue, projectionCoverage] = await Promise.all([
     prisma.globalSetting.findUnique({ where: { key: "core_synthesis_progress" } }),
     prisma.globalSetting.findUnique({ where: { key: "local_ai_snapshot_worker_progress" } }),
     prisma.globalSetting.findUnique({ where: { key: "local_ai_memory_governor_state" } }),
@@ -418,6 +489,9 @@ async function buildStatusPayload() {
     prisma.globalSetting.findUnique({ where: { key: PIPELINE_TOPOLOGY_STATE_KEY } }),
     prisma.globalSetting.findUnique({ where: { key: PROJECTION_REFRESH_STATE_KEY } }),
     prisma.globalSetting.findUnique({ where: { key: OPPORTUNITYCARD_REPAIR_STATE_KEY } }),
+    prisma.globalSetting.findUnique({ where: { key: RUNTIME_ACTION_LOG_KEY } }),
+    prisma.globalSetting.findUnique({ where: { key: MANAGED_SERVICE_STATE_KEY } }),
+    prisma.globalSetting.findUnique({ where: { key: QUEUE_CIRCUIT_BREAKER_STATE_KEY } }),
     Promise.resolve(readHeartbeat()),
     getGlobalInventory(),
     getGlobalQueueSnapshot(),
@@ -441,6 +515,8 @@ async function buildStatusPayload() {
   }
 
   const memoryGovernor = isPlainObject(memoryGovernorSetting?.value) ? memoryGovernorSetting.value : {};
+  const runtimeActionLog = normalizeActionLog(runtimeActionLogSetting?.value);
+  const queueCircuitBreakers = normalizeQueueCircuitBreakerState(queueCircuitBreakerSetting?.value);
   const verification = isPlainObject(verificationSetting?.value) ? verificationSetting.value : null;
   const topologyState = isPlainObject(topologySetting?.value) ? topologySetting.value : {};
   const projectionState = isPlainObject(projectionSetting?.value) ? projectionSetting.value : {};
@@ -464,6 +540,36 @@ async function buildStatusPayload() {
     stateUpdatedAt: opportunitycardRepairSetting?.updatedAt ? new Date(opportunitycardRepairSetting.updatedAt).toISOString() : null,
   };
 
+  const memorySteward = await collectMemoryStewardSnapshot({ worker, queue }).catch((error) => ({
+    ok: false,
+    generatedAt: new Date().toISOString(),
+    error: error instanceof Error ? error.message : String(error),
+  }));
+  const manifest = validateManagedServiceManifest();
+  const managedServiceDefinitions = listManagedServiceDefinitions();
+  const managedServiceObserved = await collectManagedServiceObservations(managedServiceDefinitions).catch(() => ({}));
+  const managedServicePlan = buildManagedServiceReconciliationPlan({
+    definitions: managedServiceDefinitions,
+    observed: managedServiceObserved,
+    priorState: managedServiceSetting?.value,
+  });
+  const managedServices = {
+    policyVersion: managedServicePlan.policyVersion,
+    generatedAt: managedServicePlan.generatedAt,
+    manifest,
+    services: Object.values(managedServicePlan.services),
+    serviceMap: managedServicePlan.services,
+    recentEvents: managedServicePlan.recentEvents.slice(-20).reverse(),
+  };
+  const logPressure = buildLogPressure(LOG_PRESSURE_FILES, { maxBytes: Number(process.env.CHECK_LOCAL_LOG_MAX_BYTES || DEFAULT_LOG_MAX_BYTES) });
+  const runtimeHealth = reduceRuntimeHealth({
+    managedServices,
+    queueCircuitBreakers,
+    memorySteward,
+    queue,
+    worker,
+  });
+
   return {
     ts: new Date().toISOString(),
     runner: RUNNER,
@@ -479,6 +585,14 @@ async function buildStatusPayload() {
       latestEvaluation: memoryGovernor.latestEvaluation ?? heartbeat?.memoryGovernor?.latestEvaluation ?? null,
       counters: isPlainObject(memoryGovernor.counters) ? memoryGovernor.counters : {},
       recentEvents: Array.isArray(memoryGovernor.recentEvents) ? memoryGovernor.recentEvents.slice(-8).reverse() : [],
+    },
+    memorySteward,
+    logPressure,
+    managedServices,
+    queueCircuitBreakers,
+    runtimeHealth,
+    runtimeActions: {
+      recentEvents: runtimeActionLog.slice(0, 20),
     },
     verification,
     opportunitycardRepair,
@@ -522,6 +636,302 @@ async function getStatusPayload({ force = false } = {}) {
 }
 
 // API endpoints
+
+function sendJson(res, statusCode, payload) {
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Cache-Control": "no-store",
+  });
+  res.end(JSON.stringify(payload));
+}
+
+function readJsonBody(req, limitBytes = 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (Buffer.byteLength(body, "utf8") > limitBytes) {
+        reject(new Error("REQUEST_BODY_TOO_LARGE"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      if (!body.trim()) return resolve({});
+      try {
+        resolve(JSON.parse(body));
+      } catch {
+        reject(new Error("INVALID_JSON"));
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
+function normalizeRuntimeJobId(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return raw
+    .replace(/^local-job:/i, "")
+    .replace(/^pipeline-job:/i, "")
+    .trim();
+}
+
+function normalizeRuntimeAction(value) {
+  const action = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (action === "fail" || action === "failed" || action === "stop_retry" || action === "stop_retries") return "fail";
+  if (action === "park" || action === "cancel" || action === "pause") return "park";
+  if (action === "retry" || action === "recover" || action === "resume") return "retry";
+  if (action === "ack" || action === "acknowledge") return "acknowledge";
+  return action;
+}
+
+function normalizeServiceAction(value) {
+  const action = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (action === "restart" || action === "reignite") return "restart";
+  if (action === "wake" || action === "force") return "wake";
+  if (action === "ack" || action === "acknowledge") return "acknowledge";
+  return action;
+}
+
+function postLocal(pathname, port) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ hostname: "127.0.0.1", port, path: pathname, method: "POST", timeout: 3000 }, (response) => {
+      response.resume();
+      resolve({ statusCode: response.statusCode });
+    });
+    req.on("error", reject);
+    req.on("timeout", () => {
+      req.destroy(new Error(`Timed out calling ${port}${pathname}`));
+    });
+    req.end();
+  });
+}
+
+function killProcessTitle(processTitle) {
+  return new Promise((resolve, reject) => {
+    execFile("pkill", ["-TERM", "-f", `^${processTitle} `], { timeout: 3000 }, (error) => {
+      if (error && error.code !== 1) reject(error);
+      else resolve({ ok: true });
+    });
+  });
+}
+
+function kickstartLaunchdService(label) {
+  const domain = `gui/${process.getuid()}/${label}`;
+  return new Promise((resolve, reject) => {
+    execFile("launchctl", ["kickstart", "-k", domain], { timeout: 5000 }, (error, stdout, stderr) => {
+      if (error) reject(new Error(stderr || stdout || error.message));
+      else resolve({ ok: true, domain });
+    });
+  });
+}
+
+async function findPipelineJobForRuntimeAction(jobId) {
+  const normalizedId = normalizeRuntimeJobId(jobId);
+  if (!normalizedId) return { job: null, searchedIds: [] };
+
+  const searchedIds = Array.from(new Set([String(jobId || "").trim(), normalizedId].filter(Boolean)));
+  for (const candidateId of searchedIds) {
+    const job = await prisma.pipelineJob.findUnique({ where: { id: candidateId } });
+    if (job) return { job, searchedIds };
+  }
+  return { job: null, searchedIds };
+}
+
+async function handleServiceAction(req, res) {
+  try {
+    const input = await readJsonBody(req);
+    const serviceId = String(input.serviceId || "").trim();
+    const action = normalizeServiceAction(input.action);
+    const reason = String(input.reason || "").trim();
+    const confirmed = input.confirm === true || input.confirmed === true;
+    const service = listManagedServiceDefinitions().find((definition) => definition.id === serviceId);
+    if (!service) return sendJson(res, 404, { ok: false, error: "SERVICE_NOT_FOUND" });
+    if (!new Set(["restart", "wake", "acknowledge"]).has(action)) {
+      return sendJson(res, 400, { ok: false, error: "INVALID_SERVICE_ACTION", allowedActions: ["restart", "wake", "acknowledge"] });
+    }
+    if (action === "restart" && (!confirmed || !reason)) {
+      return sendJson(res, confirmed ? 400 : 409, {
+        ok: false,
+        error: confirmed ? "REASON_REQUIRED" : "CONFIRMATION_REQUIRED",
+        action,
+      });
+    }
+
+    let result = { acknowledged: true };
+    if (action === "wake") {
+      if (serviceId === "check-local-foreground") result = await postLocal("/force", 10005);
+      else if (serviceId === "check-local-snapshot") result = await postLocal("/force", 10007);
+      else return sendJson(res, 409, { ok: false, error: "WAKE_NOT_SUPPORTED", serviceId });
+    } else if (action === "restart") {
+      if (serviceId === "check-local-foreground") result = await killProcessTitle("check-local-foreground");
+      else if (serviceId === "check-local-snapshot") result = await killProcessTitle("check-local-snapshot");
+      else if (serviceId === "check-local-status") result = await killProcessTitle("check-local-status");
+      else if (serviceId === "destination-daemon") result = await kickstartLaunchdService("com.sovereignsquad.check.local.destination-daemon");
+      else return sendJson(res, 409, { ok: false, error: "RESTART_NOT_SUPPORTED_BY_STATUS_SERVER", serviceId });
+    }
+
+    await recordRuntimeActionEvent({
+      action: `service:${action}`,
+      serviceId,
+      reason: reason || null,
+      result,
+    });
+    statusPayloadCache = null;
+    statusPayloadGeneratedAt = 0;
+    return sendJson(res, 200, { ok: true, serviceId, action, result });
+  } catch (error) {
+    return sendJson(res, 500, { ok: false, error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function handleJobAction(req, res) {
+  try {
+    const input = await readJsonBody(req);
+    const action = normalizeRuntimeAction(input.action);
+    const reason = String(input.reason || "").trim();
+    const confirmed = input.confirm === true || input.confirmed === true;
+    const allowedActions = new Set(["fail", "park", "retry", "acknowledge"]);
+
+    if (!allowedActions.has(action)) {
+      return sendJson(res, 400, { ok: false, error: "INVALID_ACTION", allowedActions: Array.from(allowedActions) });
+    }
+
+    if (!input.jobId) {
+      return sendJson(res, 400, { ok: false, error: "MISSING_JOB_ID" });
+    }
+
+    if ((action === "fail" || action === "park") && !confirmed) {
+      return sendJson(res, 409, { ok: false, error: "CONFIRMATION_REQUIRED", action });
+    }
+
+    if ((action === "fail" || action === "park") && !reason) {
+      return sendJson(res, 400, { ok: false, error: "REASON_REQUIRED", action });
+    }
+
+    const { job, searchedIds } = await findPipelineJobForRuntimeAction(input.jobId);
+    if (!job) {
+      return sendJson(res, 404, { ok: false, error: "JOB_NOT_FOUND", searchedIds });
+    }
+
+    const now = new Date();
+    const before = summarizePipelineJob(job);
+    const metadata = getJobMetadata(job);
+    const defaultReason = `Runtime action ${action} requested from local status server.`;
+    let updated;
+
+    if (action === "fail") {
+      updated = await prisma.pipelineJob.update({
+        where: { id: job.id },
+        data: {
+          status: "FAILED",
+          queueColumn: "PARKED",
+          scheduledAt: { unset: true },
+          lastError: `Operator marked failed: ${reason}`,
+          reason: `Operator marked failed from local status server: ${reason}`,
+          updatedAt: now,
+        },
+      });
+    } else if (action === "park") {
+      updated = await prisma.pipelineJob.update({
+        where: { id: job.id },
+        data: {
+          status: "PAUSED",
+          queueColumn: "PARKED",
+          scheduledAt: { unset: true },
+          reason: `Operator parked from local status server: ${reason}`,
+          updatedAt: now,
+        },
+      });
+    } else if (action === "retry") {
+      updated = await prisma.pipelineJob.update({
+        where: { id: job.id },
+        data: {
+          status: "ACTIVE",
+          queueColumn: "NOW",
+          controlMode: "AI_ONLY",
+          scheduledAt: { unset: true },
+          lastError: null,
+          reason: reason || defaultReason,
+          updatedAt: now,
+        },
+      });
+    } else {
+      updated = await prisma.pipelineJob.update({
+        where: { id: job.id },
+        data: {
+          metadata: {
+            ...metadata,
+            runtimeAction: {
+              ...(isPlainObject(metadata.runtimeAction) ? metadata.runtimeAction : {}),
+              acknowledged: true,
+              acknowledgedAt: now.toISOString(),
+              acknowledgedReason: reason || null,
+              acknowledgedBy: "local-status-server",
+            },
+          },
+          updatedAt: now,
+        },
+      });
+    }
+
+    const after = summarizePipelineJob(updated);
+    await recordRuntimeActionEvent({
+      action,
+      jobId: job.id,
+      requestedJobId: input.jobId,
+      companyId: job.companyId,
+      reason: reason || null,
+      before,
+      after,
+    });
+
+    statusPayloadCache = null;
+    statusPayloadGeneratedAt = 0;
+    return sendJson(res, 200, { ok: true, action, job: after });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const statusCode = message === "INVALID_JSON" ? 400 : message === "REQUEST_BODY_TOO_LARGE" ? 413 : 500;
+    return sendJson(res, statusCode, { ok: false, error: message });
+  }
+}
+
+async function handleCircuitBreakerAction(req, res) {
+  try {
+    const input = await readJsonBody(req);
+    const breakerId = String(input.breakerId || "").trim();
+    const action = normalizeRuntimeAction(input.action);
+    const reason = String(input.reason || "").trim();
+    const confirmed = input.confirm === true || input.confirmed === true;
+    if (!breakerId) return sendJson(res, 400, { ok: false, error: "MISSING_BREAKER_ID" });
+    if (!new Set(["retry", "acknowledge"]).has(action)) return sendJson(res, 400, { ok: false, error: "INVALID_BREAKER_ACTION" });
+    if (action === "retry" && (!confirmed || !reason)) {
+      return sendJson(res, confirmed ? 400 : 409, { ok: false, error: confirmed ? "REASON_REQUIRED" : "CONFIRMATION_REQUIRED" });
+    }
+    const current = await prisma.globalSetting.findUnique({ where: { key: QUEUE_CIRCUIT_BREAKER_STATE_KEY } });
+    const state = normalizeQueueCircuitBreakerState(current?.value);
+    const now = new Date().toISOString();
+    const active = action === "retry"
+      ? state.active.filter((breaker) => breaker.id !== breakerId)
+      : state.active.map((breaker) => breaker.id === breakerId ? { ...breaker, acknowledgedAt: now, acknowledgedReason: reason || null } : breaker);
+    const event = { ts: now, breakerId, action, reason: reason || null, actor: "local-status-server" };
+    const nextValue = { active, recentEvents: [...state.recentEvents, event].slice(-50) };
+    await prisma.globalSetting.upsert({
+      where: { key: QUEUE_CIRCUIT_BREAKER_STATE_KEY },
+      create: { key: QUEUE_CIRCUIT_BREAKER_STATE_KEY, value: nextValue },
+      update: { value: nextValue, updatedAt: new Date() },
+    });
+    await recordRuntimeActionEvent({ action: `breaker:${action}`, breakerId, reason: reason || null });
+    statusPayloadCache = null;
+    statusPayloadGeneratedAt = 0;
+    return sendJson(res, 200, { ok: true, breakerId, action });
+  } catch (error) {
+    return sendJson(res, 500, { ok: false, error: error instanceof Error ? error.message : String(error) });
+  }
+}
 
 async function handleApi(req, res) {
   const payload = await getStatusPayload();
@@ -643,11 +1053,33 @@ const HTML = `<!DOCTYPE html>
     }
     .status-badge.online { background: rgba(64, 192, 87, 0.1); color: var(--green); }
     .status-badge.offline { background: rgba(250, 82, 82, 0.1); color: var(--red); }
+    .status-badge.warning { background: rgba(250, 176, 5, 0.12); color: var(--amber); }
 
     /* Grid */
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
     .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: var(--shadow); }
     .card-title { font-size: 14px; font-weight: 700; margin-bottom: 20px; }
+    .runtime-list { display: flex; flex-direction: column; gap: 10px; }
+    .runtime-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center;
+      border: 1px solid var(--border); border-radius: 8px; padding: 14px;
+    }
+    .runtime-row-main { min-width: 0; }
+    .runtime-row-title { font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .runtime-row-meta { margin-top: 6px; color: var(--text-dimmed); font-size: 11px; line-height: 1.4; }
+    .runtime-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .btn-small { height: 30px; padding: 0 10px; border-radius: 6px; font-size: 11px; }
+    .btn-danger { background: rgba(250, 82, 82, 0.12); color: var(--red); border: 1px solid rgba(250, 82, 82, 0.35); }
+    .btn-warning { background: rgba(250, 176, 5, 0.12); color: var(--amber); border: 1px solid rgba(250, 176, 5, 0.35); }
+    .btn-success { background: rgba(64, 192, 87, 0.12); color: var(--green); border: 1px solid rgba(64, 192, 87, 0.35); }
+    .metric-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .metric { border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+    .metric-value { font-size: 24px; font-weight: 900; line-height: 1; }
+    @media (max-width: 860px) {
+      .grid, .metric-strip { grid-template-columns: 1fr; }
+      .runtime-row { grid-template-columns: 1fr; }
+      .runtime-actions { justify-content: flex-start; }
+    }
 
     /* Logs */
     .log-stream {
@@ -688,6 +1120,10 @@ const HTML = `<!DOCTYPE html>
         <div id="nav-dashboard" class="nav-item active" onclick="showPage('dashboard')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
           <span>Dashboard</span>
+        </div>
+        <div id="nav-runtime" class="nav-item" onclick="showPage('runtime')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          <span>Runtime</span>
         </div>
         <div id="nav-settings" class="nav-item" onclick="showPage('settings')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -749,6 +1185,52 @@ const HTML = `<!DOCTYPE html>
         </section>
       </div>
 
+      <div id="view-runtime" class="container" style="display: none">
+        <section class="metric-strip">
+          <div class="metric"><div class="label">Runtime State</div><div id="runtime-health-state" class="metric-value">--</div></div>
+          <div class="metric"><div class="label">Free Memory</div><div id="runtime-free-memory" class="metric-value">--</div></div>
+          <div class="metric"><div class="label">Active Jobs</div><div id="runtime-active-jobs" class="metric-value">--</div></div>
+          <div class="metric"><div class="label">Running Jobs</div><div id="runtime-running-jobs" class="metric-value">--</div></div>
+        </section>
+
+        <section class="card" style="margin-bottom: 24px">
+          <div class="card-title">Runtime Incidents</div>
+          <div id="runtime-health-incidents" class="runtime-list"></div>
+        </section>
+
+        <section class="grid">
+          <div class="card">
+            <div class="card-title">Managed Services</div>
+            <div id="runtime-service-list" class="runtime-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Circuit Breakers</div>
+            <div id="runtime-breaker-list" class="runtime-list"></div>
+          </div>
+        </section>
+
+        <section class="grid">
+          <div class="card">
+            <div class="card-title">Memory Steward</div>
+            <div id="runtime-memory-actions" class="runtime-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Log Pressure</div>
+            <div id="runtime-log-pressure" class="runtime-list"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-title">Queue Actions</div>
+          <div id="runtime-job-list" class="runtime-list"></div>
+        </section>
+
+        <section class="card" style="margin-top: 24px">
+          <div class="card-title">Action Log</div>
+          <div id="runtime-action-log" class="runtime-list"></div>
+        </section>
+      </div>
+
       <div id="view-settings" class="container" style="display: none">
         <section class="card" style="max-width: 600px">
           <div class="card-title">Engine Parameters</div>
@@ -789,8 +1271,10 @@ const HTML = `<!DOCTYPE html>
 
     function showPage(p) {
       document.getElementById("view-dashboard").style.display = p==='dashboard'?'block':'none';
+      document.getElementById("view-runtime").style.display = p==='runtime'?'block':'none';
       document.getElementById("view-settings").style.display = p==='settings'?'block':'none';
       document.getElementById("nav-dashboard").classList.toggle("active", p==='dashboard');
+      document.getElementById("nav-runtime").classList.toggle("active", p==='runtime');
       document.getElementById("nav-settings").classList.toggle("active", p==='settings');
     }
 
@@ -806,6 +1290,193 @@ const HTML = `<!DOCTYPE html>
     async function reanimate() {
       try { await fetch("/api/reanimate", { method: "POST" }); refresh(); } catch(e){}
     }
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
+        return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[ch];
+      });
+    }
+
+    function formatJobTitle(job) {
+      return [job.jobType, job.companyName].filter(Boolean).join(" · ") || job.id;
+    }
+
+    function renderRuntime(data) {
+      const memory = data.memorySteward || {};
+      const plan = memory.plan || {};
+      const queue = data.queue || {};
+      const jobs = [queue.currentJob].concat(queue.nextJobs || []).filter(Boolean).slice(0, 12);
+      const actionEvents = (data.runtimeActions && data.runtimeActions.recentEvents) || [];
+      const runtimeHealth = data.runtimeHealth || {};
+      const services = (data.managedServices && data.managedServices.services) || [];
+      const breakers = (data.queueCircuitBreakers && data.queueCircuitBreakers.active) || [];
+      const logFiles = Array.isArray(data.logPressure) ? data.logPressure : ((data.logPressure && data.logPressure.files) || []);
+
+      document.getElementById("runtime-health-state").innerText = runtimeHealth.state || memory.resourceBand || "--";
+      document.getElementById("runtime-free-memory").innerText = Number.isFinite(memory.freeMemMb) ? memory.freeMemMb + " MB" : "--";
+      document.getElementById("runtime-active-jobs").innerText = queue.totalActiveJobs == null ? "--" : queue.totalActiveJobs;
+      document.getElementById("runtime-running-jobs").innerText = queue.runningJobs == null ? "--" : queue.runningJobs;
+
+      document.getElementById("runtime-health-incidents").innerHTML = (runtimeHealth.incidents || []).slice(0, 8).map(function(incident) {
+        const badgeClass = incident.severity === "critical" ? "offline" : "warning";
+        return "<div class='runtime-row'><div class='runtime-row-main'>"
+          + "<div class='runtime-row-title'>" + escapeHtml(incident.code || incident.id) + "</div>"
+          + "<div class='runtime-row-meta'>" + escapeHtml(incident.summary || "") + "</div>"
+          + "<div class='runtime-row-meta'>Next action: " + escapeHtml(incident.nextAction || "") + "</div></div>"
+          + "<div class='status-badge " + badgeClass + "'>" + escapeHtml(incident.severity || "warning").toUpperCase() + "</div></div>";
+      }).join("") || "<div class='runtime-row'><div class='runtime-row-main'><div class='runtime-row-title'>No active incidents</div></div><div class='status-badge online'>HEALTHY</div></div>";
+
+      document.getElementById("runtime-service-list").innerHTML = services.map(function(service) {
+        const healthy = service.state === "healthy";
+        const recovering = service.state === "recovering";
+        const badgeClass = healthy ? "online" : recovering ? "warning" : "offline";
+        const restartDisabled = service.serviceId === "ollama" || service.serviceId === "check-local-guardian";
+        const wakeDisabled = !(service.serviceId === "check-local-foreground" || service.serviceId === "check-local-snapshot");
+        return "<div class='runtime-row'><div class='runtime-row-main'>"
+          + "<div class='runtime-row-title'>" + escapeHtml(service.displayName || service.serviceId) + "</div>"
+          + "<div class='runtime-row-meta'>" + escapeHtml(service.serviceId) + " · pid " + escapeHtml(service.pid || "--") + " · " + escapeHtml(service.lastError || "no errors") + "</div>"
+          + "</div><div class='runtime-actions'>"
+          + "<span class='status-badge " + badgeClass + "'>" + escapeHtml(service.state || "unknown").toUpperCase() + "</span>"
+          + "<button class='btn-outline btn-small' data-service-action='wake' data-service-id='" + escapeHtml(service.serviceId) + "'" + (wakeDisabled ? " disabled" : "") + ">Wake</button>"
+          + "<button class='btn-outline btn-small btn-warning' data-service-action='restart' data-service-id='" + escapeHtml(service.serviceId) + "'" + (restartDisabled ? " disabled" : "") + ">Restart</button>"
+          + "<button class='btn-outline btn-small' data-service-action='acknowledge' data-service-id='" + escapeHtml(service.serviceId) + "'>Ack</button>"
+          + "</div></div>";
+      }).join("") || "<div class='runtime-row'><div class='runtime-row-main'><div class='runtime-row-title'>No managed services reported</div></div></div>";
+
+      document.getElementById("runtime-breaker-list").innerHTML = breakers.map(function(breaker) {
+        return "<div class='runtime-row'><div class='runtime-row-main'>"
+          + "<div class='runtime-row-title'>" + escapeHtml(breaker.id) + "</div>"
+          + "<div class='runtime-row-meta'>" + escapeHtml(breaker.reason || "") + "</div>"
+          + "<div class='runtime-row-meta'>Retry at " + escapeHtml(breaker.nextRetryAt || "--") + " · affected " + escapeHtml(breaker.affectedCount || 0) + "</div>"
+          + "</div><div class='runtime-actions'>"
+          + "<span class='status-badge warning'>" + escapeHtml(breaker.state || "open").toUpperCase() + "</span>"
+          + "<button class='btn-outline btn-small btn-success' data-breaker-action='retry' data-breaker-id='" + escapeHtml(breaker.id) + "'>Retry</button>"
+          + "<button class='btn-outline btn-small' data-breaker-action='acknowledge' data-breaker-id='" + escapeHtml(breaker.id) + "'>Ack</button>"
+          + "</div></div>";
+      }).join("") || "<div class='runtime-row'><div class='runtime-row-main'><div class='runtime-row-title'>No active circuit breakers</div></div><div class='status-badge online'>CLOSED</div></div>";
+
+      document.getElementById("runtime-log-pressure").innerHTML = logFiles.map(function(file) {
+        const badgeClass = file.needsRotation ? "warning" : "online";
+        return "<div class='runtime-row'><div class='runtime-row-main'>"
+          + "<div class='runtime-row-title'>" + escapeHtml(file.name || file.path) + "</div>"
+          + "<div class='runtime-row-meta'>" + escapeHtml(file.sizeMb) + " MB · " + escapeHtml(file.path || "") + "</div></div>"
+          + "<div class='status-badge " + badgeClass + "'>" + (file.needsRotation ? "ROTATE" : "OK") + "</div></div>";
+      }).join("") || "<div class='runtime-row'><div class='runtime-row-main'><div class='runtime-row-title'>No log pressure data</div></div></div>";
+
+      document.getElementById("runtime-memory-actions").innerHTML = (plan.actions || []).map(function(action) {
+        const badgeClass = action.allowed ? "online" : "offline";
+        return "<div class='runtime-row'><div class='runtime-row-main'>"
+          + "<div class='runtime-row-title'>" + escapeHtml(action.type) + "</div>"
+          + "<div class='runtime-row-meta'>" + escapeHtml(action.reason || "") + "</div></div>"
+          + "<div class='status-badge " + badgeClass + "'>" + (action.allowed ? "ALLOWED" : "BLOCKED") + "</div></div>";
+      }).join("") || "<div class='runtime-row'><div class='runtime-row-main'><div class='runtime-row-title'>No policy actions</div></div></div>";
+
+      document.getElementById("runtime-action-log").innerHTML = actionEvents.slice(0, 6).map(function(event) {
+        return "<div class='runtime-row'><div class='runtime-row-main'>"
+          + "<div class='runtime-row-title'>" + escapeHtml(event.action || "action") + " · " + escapeHtml(event.jobId || "") + "</div>"
+          + "<div class='runtime-row-meta'>" + escapeHtml(event.createdAt || "") + " · " + escapeHtml(event.reason || "") + "</div></div></div>";
+      }).join("") || "<div class='runtime-row'><div class='runtime-row-main'><div class='runtime-row-title'>No runtime actions recorded</div></div></div>";
+
+      document.getElementById("runtime-job-list").innerHTML = jobs.map(function(job) {
+        const disabledRetry = job.status === "ACTIVE" && job.queueColumn === "NOW" ? " disabled" : "";
+        return "<div class='runtime-row'><div class='runtime-row-main'>"
+          + "<div class='runtime-row-title'>" + escapeHtml(formatJobTitle(job)) + "</div>"
+          + "<div class='runtime-row-meta'>" + escapeHtml(job.id) + " · " + escapeHtml(job.status) + " · " + escapeHtml(job.queueColumn) + " · attempts " + escapeHtml(job.attemptCount || 0) + "</div>"
+          + (job.lastError ? "<div class='runtime-row-meta'>" + escapeHtml(job.lastError).slice(0, 180) + "</div>" : "")
+          + "</div><div class='runtime-actions'>"
+          + "<button class='btn-outline btn-small btn-success' data-job-action='retry' data-job-id='" + escapeHtml(job.id) + "'" + disabledRetry + ">Retry</button>"
+          + "<button class='btn-outline btn-small btn-warning' data-job-action='park' data-job-id='" + escapeHtml(job.id) + "'>Park</button>"
+          + "<button class='btn-outline btn-small btn-danger' data-job-action='fail' data-job-id='" + escapeHtml(job.id) + "'>Fail</button>"
+          + "<button class='btn-outline btn-small' data-job-action='acknowledge' data-job-id='" + escapeHtml(job.id) + "'>Ack</button>"
+          + "</div></div>";
+      }).join("") || "<div class='runtime-row'><div class='runtime-row-main'><div class='runtime-row-title'>No visible queue jobs</div></div></div>";
+    }
+
+    async function runJobAction(jobId, action) {
+      const destructive = action === "fail" || action === "park";
+      const reason = destructive
+        ? prompt("Reason for " + action + " on " + jobId + ":")
+        : prompt("Reason for " + action + " on " + jobId + ":", "");
+      if (reason === null) return;
+      if (destructive && !reason.trim()) {
+        alert("Reason required.");
+        return;
+      }
+      const response = await fetch("/api/jobs/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: jobId, action: action, reason: reason, confirm: destructive }),
+      });
+      const payload = await response.json().catch(function() { return {}; });
+      if (!response.ok) {
+        alert(payload.error || "Action failed");
+        return;
+      }
+      refresh();
+    }
+
+    async function runServiceAction(serviceId, action) {
+      const destructive = action === "restart";
+      const reason = destructive
+        ? prompt("Reason for restarting " + serviceId + ":")
+        : prompt("Reason for " + action + " on " + serviceId + ":", "");
+      if (reason === null) return;
+      if (destructive && !reason.trim()) {
+        alert("Reason required.");
+        return;
+      }
+      const response = await fetch("/api/services/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceId: serviceId, action: action, reason: reason, confirm: destructive }),
+      });
+      const payload = await response.json().catch(function() { return {}; });
+      if (!response.ok) {
+        alert(payload.error || "Service action failed");
+        return;
+      }
+      refresh();
+    }
+
+    async function runBreakerAction(breakerId, action) {
+      const destructive = action === "retry";
+      const reason = destructive
+        ? prompt("Reason for retrying " + breakerId + ":")
+        : prompt("Reason for " + action + " on " + breakerId + ":", "");
+      if (reason === null) return;
+      if (destructive && !reason.trim()) {
+        alert("Reason required.");
+        return;
+      }
+      const response = await fetch("/api/circuit-breakers/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ breakerId: breakerId, action: action, reason: reason, confirm: destructive }),
+      });
+      const payload = await response.json().catch(function() { return {}; });
+      if (!response.ok) {
+        alert(payload.error || "Circuit breaker action failed");
+        return;
+      }
+      refresh();
+    }
+
+    document.addEventListener("click", function(event) {
+      const jobButton = event.target.closest("[data-job-action][data-job-id]");
+      if (jobButton && !jobButton.disabled) {
+        runJobAction(jobButton.getAttribute("data-job-id"), jobButton.getAttribute("data-job-action"));
+        return;
+      }
+      const serviceButton = event.target.closest("[data-service-action][data-service-id]");
+      if (serviceButton && !serviceButton.disabled) {
+        runServiceAction(serviceButton.getAttribute("data-service-id"), serviceButton.getAttribute("data-service-action"));
+        return;
+      }
+      const breakerButton = event.target.closest("[data-breaker-action][data-breaker-id]");
+      if (breakerButton && !breakerButton.disabled) {
+        runBreakerAction(breakerButton.getAttribute("data-breaker-id"), breakerButton.getAttribute("data-breaker-action"));
+      }
+    });
 
     function render(data) {
       const { worker, guardian, inventory, logTail } = data;
@@ -837,6 +1508,7 @@ const HTML = `<!DOCTYPE html>
       const ls = document.getElementById("log-stream");
       ls.innerHTML = logTail.map(function(l) { return "<div style='margin-bottom:4px'>" + l.replace(/</g,'&lt;') + "</div>"; }).join("");
       ls.scrollTop = ls.scrollHeight;
+      renderRuntime(data);
     }
 
     async function refresh() {
@@ -849,6 +1521,9 @@ const HTML = `<!DOCTYPE html>
 </html>`;
 
 const server = http.createServer(async (req, res) => {
+  if (req.method === "OPTIONS") {
+    return sendJson(res, 204, {});
+  }
   if (req.url === "/health") {
     res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
     res.end(JSON.stringify({
@@ -862,6 +1537,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (req.url.startsWith("/api/status")) return handleApi(req, res);
+  if (req.url === "/api/jobs/action" && req.method === "POST") return handleJobAction(req, res);
+  if (req.url === "/api/services/action" && req.method === "POST") return handleServiceAction(req, res);
+  if (req.url === "/api/circuit-breakers/action" && req.method === "POST") return handleCircuitBreakerAction(req, res);
   if (req.url === "/api/settings" && req.method === "POST") return handleSaveSettings(req, res);
   if (req.url === "/api/reanimate" && req.method === "POST") return handleReanimate(res);
   res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });

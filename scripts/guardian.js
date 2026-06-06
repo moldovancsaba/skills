@@ -30,6 +30,19 @@ const {
   evaluateMemoryGovernorPolicy,
   buildMemoryGovernorEvent,
 } = require("./lib/runtime/memory-governor");
+const {
+  MANAGED_SERVICE_STATE_KEY,
+  listManagedServiceDefinitions,
+} = require("./lib/runtime/managed-services");
+const {
+  buildManagedServiceReconciliationPlan,
+  collectManagedServiceObservations,
+} = require("./lib/runtime/service-reconciler");
+const {
+  DEFAULT_LOG_MAX_BYTES,
+  DEFAULT_LOG_RETENTION,
+  rotateLogFile,
+} = require("./lib/runtime/resource-accounting");
 const RUNNER = applyRunnerIdentity("check.local.guardian");
 const WORKER_RUNNER_ID = "check.local.foreground-worker";
 const SNAPSHOT_RUNNER_ID = "check.local.snapshot-worker";
@@ -49,8 +62,11 @@ const STATUS_COMMAND   = path.join(LOCAL_BIN_DIR, "check-local-status-server");
 const SNAPSHOT_COMMAND = path.join(LOCAL_BIN_DIR, "check-local-snapshot-worker");
 const LOG_DIR          = path.join(__dirname, "..", "logs");
 const LOG_FILE         = path.join(LOG_DIR, "guardian.log");
+const LAUNCHD_LOG_FILE = path.join(LOG_DIR, "guardian-launchd.log");
 const HEARTBEAT_FILE   = path.join(LOG_DIR, "guardian-heartbeat.json");
 const MAX_LOG_LINES    = 10_000;
+const LOG_MAX_BYTES    = Number(process.env.CHECK_LOCAL_LOG_MAX_BYTES || DEFAULT_LOG_MAX_BYTES);
+const LOG_RETENTION    = Number(process.env.CHECK_LOCAL_LOG_RETENTION || DEFAULT_LOG_RETENTION);
 
 const HEALTH_PORT             = 10005;
 const SNAPSHOT_HEALTH_PORT    = 10007;
@@ -87,6 +103,7 @@ function writeLog(level, msg) {
   logBuffer.push(line);
   if (logBuffer.length > MAX_LOG_LINES) logBuffer.splice(0, logBuffer.length - MAX_LOG_LINES);
   try {
+    rotateLogFile(LOG_FILE, { maxBytes: LOG_MAX_BYTES, retention: LOG_RETENTION });
     fs.appendFileSync(LOG_FILE, line + "\n");
   } catch (_) {}
 }
@@ -124,6 +141,7 @@ let lastMemoryGovernorReason = null;
 let memoryGovernorPolicy = normalizeMemoryGovernorPolicy(DEFAULT_MEMORY_GOVERNOR_POLICY);
 let memoryGovernorObservedState = createMemoryGovernorObservedState();
 let latestMemoryGovernorEvaluation = null;
+let latestManagedServicePlan = null;
 
 // Command bridge supervision
 
@@ -235,6 +253,14 @@ function writeHeartbeat(extra = {}) {
         : null,
       latestEvaluation: latestMemoryGovernorEvaluation,
     },
+    managedServices: latestManagedServicePlan
+      ? {
+          policyVersion: latestManagedServicePlan.policyVersion,
+          generatedAt: latestManagedServicePlan.generatedAt,
+          actions: latestManagedServicePlan.actions.map((action) => ({ type: action.type, serviceId: action.serviceId })),
+          services: latestManagedServicePlan.services,
+        }
+      : null,
     ...extra,
   };
   try {
@@ -295,6 +321,13 @@ function checkResources() {
   
   if (freeMB < MEM_THRESHOLD_MB) {
     warn(`LOW MEMORY: ${freeMB}MB free. System may struggle.`);
+  }
+
+  try {
+    const rotation = rotateLogFile(LAUNCHD_LOG_FILE, { maxBytes: LOG_MAX_BYTES, retention: LOG_RETENTION, mode: "copytruncate" });
+    if (rotation.rotated) log(`[LOG ROTATION] Rotated ${LAUNCHD_LOG_FILE} to ${rotation.rotatedTo} (${Math.round(rotation.sizeBytes / (1024 * 1024))}MB).`);
+  } catch (error) {
+    warn(`[LOG ROTATION] Failed to rotate ${LAUNCHD_LOG_FILE}: ${error.message}`);
   }
 
   applyMemoryGovernor();
@@ -478,6 +511,49 @@ function applyMemoryGovernor() {
   lastMemoryGovernorReason = decision.reason;
   void persistMemoryGovernorState(event);
   forceWorkerWake(`memory-governor:${decision.reason}`);
+}
+
+async function persistManagedServicePlan(plan) {
+  await prisma.globalSetting.upsert({
+    where: { key: MANAGED_SERVICE_STATE_KEY },
+    create: { key: MANAGED_SERVICE_STATE_KEY, value: plan },
+    update: { value: plan, updatedAt: new Date() },
+  });
+}
+
+async function reconcileManagedServices() {
+  try {
+    const definitions = listManagedServiceDefinitions();
+    const [currentState, observed] = await Promise.all([
+      prisma.globalSetting.findUnique({
+        where: { key: MANAGED_SERVICE_STATE_KEY },
+        select: { value: true },
+      }),
+      collectManagedServiceObservations(definitions),
+    ]);
+    const plan = buildManagedServiceReconciliationPlan({
+      definitions,
+      observed,
+      priorState: currentState?.value,
+    });
+    latestManagedServicePlan = plan;
+    await persistManagedServicePlan(plan);
+
+    for (const action of plan.actions) {
+      if (action.serviceId === "check-local-foreground" && !workerProcess && !isShuttingDown) {
+        warn("[MANAGED SERVICES] Foreground worker missing from reconciliation plan. Delegating to Guardian start path.");
+        startWorker();
+      } else if (action.serviceId === "check-local-snapshot" && !snapshotProcess && !isShuttingDown) {
+        warn("[MANAGED SERVICES] Snapshot worker missing from reconciliation plan. Delegating to Guardian start path.");
+        startSnapshotWorker();
+      } else {
+        log(`[MANAGED SERVICES] Planned ${action.type} for ${action.serviceId}; existing owner remains authoritative.`);
+      }
+    }
+    writeHeartbeat();
+  } catch (error) {
+    warn(`[MANAGED SERVICES] Reconciliation failed: ${error.message}`);
+  }
 }
 
 function reclaimPort(port) {
@@ -911,11 +987,13 @@ function checkRestartSignal() {
 
   // Periodic command bridge check
   commandTimer = setInterval(pollCommands, 20_000); 
+  setInterval(reconcileManagedServices, HEALTH_INTERVAL);
 
   log("[GUARDIAN] Scheduler unification active: taxonomy audits and kanban recomputes are queue-owned, not watchdog-owned.");
 
   // Prime truth surfaces immediately instead of waiting for the first interval.
   checkResources();
+  await reconcileManagedServices();
   writeHeartbeat();
   setTimeout(pollHealth, 1_000);
   setTimeout(pollSnapshotWorkerHealth, 1_500);

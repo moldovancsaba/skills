@@ -72,8 +72,11 @@ const PIPELINE_JOB_STATUSES = Object.freeze(["ACTIVE", "RUNNING", "PAUSED", "FAI
 const PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS = 10 * 60 * 1000;
 const GLOBAL_PIPELINE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const PIPELINE_TOPOLOGY_STATE_KEY = "local_ai_pipeline_topology_state";
+const QUEUE_CIRCUIT_BREAKER_STATE_KEY = "local_ai_queue_circuit_breakers";
+const QUEUE_CIRCUIT_BREAKER_EVENT_LIMIT = 50;
 const PIPELINE_JOB_PLAYLIST_STATE_VERSION = 1;
 const PIPELINE_TOPOLOGY_RECENT_SYNC_LIMIT = 24;
+const DESTINATION_SERVICE_OUTAGE_COOLDOWN_MS = 30 * 60 * 1000;
 const PIPELINE_JOB_RETRY_LIMITS = Object.freeze({
   SCORE_ALERT_REPAIR: 6,
   CARD_RESCORING: 6,
@@ -289,6 +292,106 @@ function classifyPipelineJobError(error) {
     retryable: explicitRetryable !== null ? explicitRetryable : true,
     retryAfterMs: retryAfterMs ?? 2 * 60 * 1000,
     message,
+  };
+}
+
+function buildDestinationServiceOutageMaintenancePatch(now = new Date()) {
+  const nextRetryAt = new Date(now.getTime() + DESTINATION_SERVICE_OUTAGE_COOLDOWN_MS);
+  return {
+    status: "ACTIVE",
+    queueColumn: "LATER",
+    scheduledAt: nextRetryAt,
+    reason: `Destination mission daemon endpoint unavailable; lane cooled down until ${nextRetryAt.toISOString()}.`,
+    updatedAt: now,
+  };
+}
+
+function normalizeQueueCircuitBreakerState(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { active: [], recentEvents: [] };
+  return {
+    active: Array.isArray(value.active) ? value.active.filter((entry) => entry && typeof entry === "object") : [],
+    recentEvents: Array.isArray(value.recentEvents) ? value.recentEvents.filter((entry) => entry && typeof entry === "object") : [],
+  };
+}
+
+function buildDestinationServiceOutageBreaker(input) {
+  const now = input.now instanceof Date ? input.now : new Date();
+  const nextRetryAt = input.nextRetryAt instanceof Date ? input.nextRetryAt : new Date(now.getTime() + DESTINATION_SERVICE_OUTAGE_COOLDOWN_MS);
+  return {
+    id: "destination-service-unavailable",
+    state: "open",
+    failureClass: PIPELINE_FAILURE_CLASSES.DESTINATION_SERVICE_UNAVAILABLE,
+    affectedJobTypes: ["DESTINATION_MISSION_DAEMON"],
+    affectedCount: Number(input.affectedCount || 0),
+    openedAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    nextRetryAt: nextRetryAt.toISOString(),
+    reason: `Destination mission daemon endpoint unavailable; daemon lane cooled down until ${nextRetryAt.toISOString()}.`,
+    nextAction: "Keep non-destination queue lanes running. Retry after the destination daemon health endpoint is healthy.",
+  };
+}
+
+async function recordQueueCircuitBreaker(prisma, breaker, now = new Date()) {
+  if (!breaker?.id) return null;
+  const current = await prisma.globalSetting.findUnique({
+    where: { key: QUEUE_CIRCUIT_BREAKER_STATE_KEY },
+    select: { value: true },
+  });
+  const state = normalizeQueueCircuitBreakerState(current?.value);
+  const active = [
+    breaker,
+    ...state.active.filter((entry) => entry.id !== breaker.id),
+  ];
+  const event = {
+    ts: now.toISOString(),
+    breakerId: breaker.id,
+    action: breaker.state === "closed" ? "closed" : "opened",
+    failureClass: breaker.failureClass || null,
+    affectedJobTypes: breaker.affectedJobTypes || [],
+    affectedCount: breaker.affectedCount || 0,
+    reason: breaker.reason || null,
+  };
+  const value = {
+    active,
+    recentEvents: [...state.recentEvents, event].slice(-QUEUE_CIRCUIT_BREAKER_EVENT_LIMIT),
+  };
+  await prisma.globalSetting.upsert({
+    where: { key: QUEUE_CIRCUIT_BREAKER_STATE_KEY },
+    create: { key: QUEUE_CIRCUIT_BREAKER_STATE_KEY, value },
+    update: { value, updatedAt: now },
+  });
+  return value;
+}
+
+async function maintainDestinationServiceOutageQueue(prisma, failedJob, classification, now = new Date()) {
+  if (failedJob?.jobType !== "DESTINATION_MISSION_DAEMON") return { maintained: 0, nextRetryAt: null };
+  if (classification?.class !== PIPELINE_FAILURE_CLASSES.DESTINATION_SERVICE_UNAVAILABLE) return { maintained: 0, nextRetryAt: null };
+
+  const patch = buildDestinationServiceOutageMaintenancePatch(now);
+  const result = await prisma.pipelineJob.updateMany({
+    where: {
+      jobType: "DESTINATION_MISSION_DAEMON",
+      status: "ACTIVE",
+      queueColumn: { not: "PARKED" },
+      id: { not: failedJob.id },
+    },
+    data: {
+      ...patch,
+      lastError: classification.message,
+    },
+  });
+  const maintained = Number(result?.count || 0);
+  const breaker = buildDestinationServiceOutageBreaker({
+    now,
+    nextRetryAt: patch.scheduledAt,
+    affectedCount: maintained + 1,
+  });
+  await recordQueueCircuitBreaker(prisma, breaker, now);
+
+  return {
+    maintained,
+    nextRetryAt: patch.scheduledAt,
+    breaker,
   };
 }
 
@@ -2224,8 +2327,14 @@ async function failPipelineJob(prisma, job, error) {
   const attempts = Number(job.attemptCount || 0);
   const shouldDeadLetter = !classification.retryable || attempts >= retryLimit;
   const now = new Date();
+  const serviceOutagePatch =
+    classification.class === PIPELINE_FAILURE_CLASSES.DESTINATION_SERVICE_UNAVAILABLE
+      ? buildDestinationServiceOutageMaintenancePatch(now)
+      : null;
   const retryDelayMs = shouldDeadLetter
     ? null
+    : serviceOutagePatch
+      ? DESTINATION_SERVICE_OUTAGE_COOLDOWN_MS
     : Math.max(
         30_000,
         classification.retryAfterMs ?? Math.min(10 * 60 * 1000, 60_000 * Math.max(1, attempts)),
@@ -2235,15 +2344,17 @@ async function failPipelineJob(prisma, job, error) {
     where: { id: job.id },
     data: {
       status: shouldDeadLetter ? "FAILED" : "ACTIVE",
-      queueColumn: shouldDeadLetter ? "PARKED" : (job.queueColumn === "NOW" ? "SOON" : job.queueColumn),
+      queueColumn: shouldDeadLetter ? "PARKED" : (serviceOutagePatch?.queueColumn ?? (job.queueColumn === "NOW" ? "SOON" : job.queueColumn)),
       lastError: buildPipelineFailureMessage(classification),
       reason: shouldDeadLetter
         ? `${job.jobType} dead-lettered after ${attempts}/${retryLimit} attempts (${classification.class}).`
-        : `${job.jobType} cooled down for ${Math.round(retryDelayMs / 1000)}s after ${classification.class}.`,
+        : serviceOutagePatch?.reason ?? `${job.jobType} cooled down for ${Math.round(retryDelayMs / 1000)}s after ${classification.class}.`,
       scheduledAt: shouldDeadLetter ? { unset: true } : new Date(now.getTime() + retryDelayMs),
       updatedAt: now,
     },
   });
+
+  await maintainDestinationServiceOutageQueue(prisma, job, classification, now);
 
   if (isDecomposedPipelineJob(job) && shouldDeadLetter) {
     const parentJobId = getDecompositionParentJobId(job);
@@ -2391,6 +2502,9 @@ module.exports = {
   PIPELINE_JOB_STATUSES,
   PIPELINE_JOB_NO_PROGRESS_TIMEOUT_MS,
   GLOBAL_PIPELINE_SYNC_INTERVAL_MS,
+  QUEUE_CIRCUIT_BREAKER_STATE_KEY,
+  QUEUE_CIRCUIT_BREAKER_EVENT_LIMIT,
+  DESTINATION_SERVICE_OUTAGE_COOLDOWN_MS,
   PIPELINE_JOB_RETRY_LIMITS,
   PIPELINE_FAILURE_CLASSES,
   getPipelineJobLabel,
@@ -2398,6 +2512,11 @@ module.exports = {
   buildNoProgressTimeoutMessage,
   getPipelineJobRetryLimit,
   classifyPipelineJobError,
+  buildDestinationServiceOutageMaintenancePatch,
+  buildDestinationServiceOutageBreaker,
+  normalizeQueueCircuitBreakerState,
+  recordQueueCircuitBreaker,
+  maintainDestinationServiceOutageQueue,
   buildRunnablePipelineJobWhere,
   buildAutoJobProfile,
   shouldRunGlobalPipelineSync,

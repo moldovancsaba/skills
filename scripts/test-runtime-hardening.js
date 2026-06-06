@@ -8,6 +8,10 @@ const {
 const {
   classifyPipelineJobError,
   getPipelineJobRetryLimit,
+  DESTINATION_SERVICE_OUTAGE_COOLDOWN_MS,
+  buildDestinationServiceOutageMaintenancePatch,
+  buildDestinationServiceOutageBreaker,
+  normalizeQueueCircuitBreakerState,
   buildRunnablePipelineJobWhere,
   buildLowMemoryDecompositionChildPlans,
   enqueueDirtyPipelineTopologyCompany,
@@ -116,6 +120,32 @@ async function main() {
   );
   assert.equal(destinationServiceUnavailable.retryable, true, "destination endpoint outages must stay retryable");
   assert.equal(destinationServiceUnavailable.retryAfterMs, 10 * 60 * 1000, "destination endpoint outages must use bounded backoff");
+  const outagePatch = buildDestinationServiceOutageMaintenancePatch(new Date("2026-05-18T12:00:00.000Z"));
+  assert.equal(
+    DESTINATION_SERVICE_OUTAGE_COOLDOWN_MS,
+    30 * 60 * 1000,
+    "destination endpoint outages must cool down the daemon lane long enough to avoid queue hammering",
+  );
+  assert.equal(outagePatch.queueColumn, "LATER", "destination endpoint outage maintenance must move daemon work behind healthy work");
+  assert.equal(
+    outagePatch.scheduledAt.toISOString(),
+    "2026-05-18T12:30:00.000Z",
+    "destination endpoint outage maintenance must schedule a cohort retry window",
+  );
+  const outageBreaker = buildDestinationServiceOutageBreaker({
+    now: new Date("2026-05-18T12:00:00.000Z"),
+    nextRetryAt: outagePatch.scheduledAt,
+    affectedCount: 44,
+  });
+  assert.equal(outageBreaker.id, "destination-service-unavailable", "destination outage breaker id must stay stable");
+  assert.equal(outageBreaker.state, "open", "destination outage breaker must open during endpoint outage maintenance");
+  assert.deepEqual(outageBreaker.affectedJobTypes, ["DESTINATION_MISSION_DAEMON"], "destination outage breaker must identify the daemon lane");
+  assert.equal(outageBreaker.nextRetryAt, "2026-05-18T12:30:00.000Z", "destination outage breaker must expose next retry time");
+  assert.equal(
+    normalizeQueueCircuitBreakerState({ active: [outageBreaker], recentEvents: [{ action: "opened" }] }).active.length,
+    1,
+    "queue circuit breaker state must normalize active breakers",
+  );
 
   const lowMemory = classifyPipelineJobError({
     message: "ENSURE_FLASHCARD_MINIMUM deferred because memory pressure is CONSTRAINED (900MB free).",

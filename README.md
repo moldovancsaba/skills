@@ -81,6 +81,7 @@ Those ideas may exist as research or future opportunities, but they belong in `I
 This repository has one non-negotiable rule:
 
 - if the system contract changes, the documentation contract must change in the same work
+- customer-value release slices must maintain [docs/CUSTOMER_VALUE_DELIVERY_LLD.md](/Users/Shared/Projects/checklist/docs/CUSTOMER_VALUE_DELIVERY_LLD.md), [docs/CUSTOMER_VALUE_DELIVERY_API.md](/Users/Shared/Projects/checklist/docs/CUSTOMER_VALUE_DELIVERY_API.md), and [docs/CUSTOMER_VALUE_DELIVERY_USER_GUIDE.md](/Users/Shared/Projects/checklist/docs/CUSTOMER_VALUE_DELIVERY_USER_GUIDE.md)
 
 Future-function rule:
 

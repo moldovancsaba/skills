@@ -46,9 +46,12 @@ Primary layers:
 - Local autonomous AI loop
 - background snapshot worker
 - product read-model projection layer
+- customer-value delivery read model
 - local self-learning export and Apple-Silicon training workspace
 - shared product UI system
 - persisted pipeline queue and scheduler contract
+
+Customer-value delivery is defined in [docs/CUSTOMER_VALUE_DELIVERY_LLD.md](/Users/Shared/Projects/checklist/docs/CUSTOMER_VALUE_DELIVERY_LLD.md). It binds issue-numbered customer deliverables to the customer operations cockpit, opportunity outcome learning, notification readiness, and runtime recovery links.
 
 ### 1.1 Runtime entrypoints
 

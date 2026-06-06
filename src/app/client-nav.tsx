@@ -1,7 +1,7 @@
 'use client';
 
 import { AppShellNavbar, AppShellSection, NavLink, Stack, Group, Box, Avatar, Menu, rem, UnstyledButton, ScrollArea, ThemeIcon, Badge, Divider, Button, Anchor } from "@mantine/core";
-import { IconActivity as Activity, IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconChartBar as ChartBar, IconBuilding as Building } from "@tabler/icons-react";
+import { IconActivity as Activity, IconActivityHeartbeat as ActivityHeartbeat, IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconChartBar as ChartBar, IconBuilding as Building } from "@tabler/icons-react";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
@@ -18,6 +18,14 @@ import { getWebappProfileLabel, getWebappRoute, UNIT_MODULE_DEFINITIONS } from "
 import { resolveEnabledLegacyModules } from "@/lib/module-capability-utils";
 
 const staticModuleNavItems: PipelineItem[] = [
+  {
+    key: "customer-operations",
+    href: (companyId: string) => `/${companyId}/customer-operations`,
+    label: "Customer Ops",
+    icon: ActivityHeartbeat,
+    color: "strategy",
+    tone: "strategy",
+  },
   {
     key: "unit-board",
     href: (companyId: string) => `/${companyId}/unit-board`,
@@ -365,7 +373,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
                     continue;
                   }
                   const definition = UNIT_MODULE_DEFINITIONS.find((moduleDefinition) => moduleDefinition.key === item.key);
-                  if (!definition?.route) {
+                  if (item.key !== "customer-operations" && !definition?.route) {
                     continue;
                   }
                   items.push(item);

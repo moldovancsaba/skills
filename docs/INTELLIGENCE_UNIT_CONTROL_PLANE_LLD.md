@@ -37,6 +37,12 @@ This design gives us one strict control plane with these guarantees:
 
 The result is predictable production behavior and faster cross-surface onboarding for new units.
 
+Customer-value delivery note:
+
+- `/:companyId/customer-operations` is a membership-gated operator cockpit that intentionally does not require an additional capability flag.
+- The route composes Sales, Miniapp, runtime, read-model, learning-memory, and notification readiness into one customer operations surface.
+- Its detailed contract is [CUSTOMER_VALUE_DELIVERY_LLD.md](./CUSTOMER_VALUE_DELIVERY_LLD.md).
+
 ## 2. Canonical architecture map
 
 ```mermaid

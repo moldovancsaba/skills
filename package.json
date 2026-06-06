@@ -1,6 +1,6 @@
 {
   "name": "checklist-os",
-  "version": "0.16.1",
+  "version": "0.17.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -31,6 +31,7 @@
     "test:opportunitycard-repair": "node scripts/test-opportunitycard-repair.js",
     "test:research-policy": "node scripts/test-research-policy.js",
     "test:opportunity-search": "node scripts/test-opportunity-search.js",
+    "test:customer-value-delivery": "node scripts/customer-value-delivery.mjs verify",
     "test:board-system": "node scripts/test-board-system.js",
     "test:check-foundation-registry": "node scripts/test-check-foundation-registry.mjs",
     "test:check-foundation-cards": "node scripts/test-check-foundation-card-registry.mjs",
@@ -111,6 +112,7 @@
     "verify:check-foundation": "node scripts/verify-check-foundation.mjs",
     "verify:sovereign-miniapp-intelligence": "node scripts/verify-sovereign-miniapp-intelligence.mjs",
     "verify:lifecycle": "./bin/check-local-lifecycle-verify --strict",
+    "verify:customer-value": "node scripts/customer-value-delivery.mjs verify",
     "maintenance:lifecycle": "./bin/check-local-lifecycle-maintenance",
     "refresh:intelligence-snapshot": "node scripts/refresh-company-intelligence-snapshot.mjs",
     "backfill:destination-mission-lineage": "node scripts/backfill-destination-mission-lineage.mjs",
@@ -124,6 +126,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@doneisbetter/gds": "^3.0.7",
     "@hello-pangea/dnd": "^18.0.1",
     "@mantine/core": "^7.17.8",
     "@mantine/hooks": "^7.17.8",

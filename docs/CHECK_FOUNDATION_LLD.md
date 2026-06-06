@@ -22,6 +22,9 @@ The purpose of this design is to make the system rock solid by separating:
 - Webapp reads from Local computation
 - public Miniapps from Webapp operator surfaces
 - reusable card/board technology from product-specific business logic
+- customer-value delivery orchestration from the underlying Block implementations
+
+Customer-value delivery for the top 10 customer-facing deliverables is defined in [CUSTOMER_VALUE_DELIVERY_LLD.md](/Users/Shared/Projects/checklist/docs/CUSTOMER_VALUE_DELIVERY_LLD.md). It is an orchestration/read-model layer over the foundation, not a new Block.
 
 ## 2. Canonical Product Model
 

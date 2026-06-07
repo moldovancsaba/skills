@@ -28,13 +28,19 @@ This pass adds a special operator dashboard for `moldovancsaba@gmail.com`.
 - Added stacked bar charts for new created content and updated cards/feedback/action activity.
 - Added a sidebar `System Activity` link visible only to the requested operator email.
 - Included task, strategic, opportunity, action, correction, hashtag, interaction, decision, and outcome signals.
+- Hardened timezone handling so invalid timezone input falls back to `Europe/Budapest`.
+- Added `10s` Atlas `maxTimeMS` bounds and `Cache-Control: no-store` API responses for predictable operator behavior.
+- Expanded chart series coverage to include board cards, review packets, files, and hashtag feedback families.
 
 ### Validation result
 
 - `npm run test:operator-content-health-contract`
+- `npm run audit:gds-boundary`
+- `npm run audit:docs`
 - `npx tsc --noEmit`
 - `npm run lint`
 - `npm run build`
+- `npm run verify:runtime`
 - Signed-session API smoke for `moldovancsaba@gmail.com`
 
 ## 2026-06-07 — Surface projection read-model foundation

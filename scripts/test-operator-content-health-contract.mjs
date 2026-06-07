@@ -15,9 +15,13 @@ assert.match(route, /CONTENT_HEALTH_OPERATOR_EMAIL/, "operator API must allow th
 assert.match(route, /isSuperAdminEmail/, "operator API must also allow SUPERADMIN recovery access");
 assert.match(route, /Unauthorized/, "operator API must reject unauthenticated access");
 assert.match(route, /Forbidden/, "operator API must reject unrelated authenticated users");
+assert.match(route, /Cache-Control": "no-store"/, "operator API responses must not be cached");
+assert.match(route, /Dashboard unavailable/, "operator API must return a controlled failure payload");
 
 assert.match(lib, /CONTENT_HEALTH_DEFAULT_TIMEZONE = "Europe\/Budapest"/, "dashboard must default to the operator timezone");
 assert.match(lib, /CONTENT_HEALTH_MAX_HOURS = 168/, "dashboard must bound expensive query windows");
+assert.match(lib, /CONTENT_HEALTH_AGGREGATION_MAX_TIME_MS = 10_000/, "dashboard aggregations must have a bounded Atlas runtime");
+assert.match(lib, /resolveTimezone/, "dashboard must validate timezone input");
 assert.match(lib, /CREATED_SOURCES/, "dashboard must define created content sources");
 assert.match(lib, /UPDATED_SOURCES/, "dashboard must define updated and feedback sources");
 assert.match(lib, /mongoDate/, "raw Mongo aggregation must use extended JSON date literals");
@@ -34,6 +38,9 @@ assert.match(page, /Updated Cards And Feedback/, "page must render the updated a
 assert.match(page, /stackId="activity"/, "charts must be stacked bar charts");
 assert.match(page, /aria-live="polite"/, "dashboard status must be announced accessibly");
 assert.match(page, /window\.setInterval\(loadDashboard, 60_000\)/, "dashboard must refresh periodically");
+assert.match(page, /Board cards/, "page must chart board-card activity");
+assert.match(page, /Review packets/, "page must chart review-packet activity");
+assert.match(page, /Hashtag feedback/, "page must chart hashtag feedback activity");
 
 assert.match(nav, /System Activity/, "operator nav must expose the dashboard");
 assert.match(nav, /moldovancsaba@gmail\.com/, "operator nav must scope the link to the requested email");

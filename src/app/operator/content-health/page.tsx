@@ -45,20 +45,25 @@ const CREATED_SERIES = [
   { key: "goals", name: "Goals", color: "var(--mantine-color-violet-6)" },
   { key: "tasks", name: "Tasks", color: "var(--mantine-color-orange-6)" },
   { key: "opportunities", name: "Opportunities", color: "var(--mantine-color-pink-6)" },
+  { key: "boardCards", name: "Board cards", color: "var(--mantine-color-indigo-6)" },
   { key: "destinationCandidates", name: "Candidates", color: "var(--mantine-color-teal-6)" },
   { key: "destinationDrafts", name: "Drafts", color: "var(--mantine-color-grape-6)" },
+  { key: "reviewPackets", name: "Review packets", color: "var(--mantine-color-red-6)" },
 ] as const;
 
 const UPDATED_SERIES = [
   { key: "datacards", name: "Datacards", color: "var(--mantine-color-cyan-6)" },
+  { key: "files", name: "Files", color: "var(--mantine-color-blue-6)" },
   { key: "flashcards", name: "Flashcards", color: "var(--mantine-color-lime-6)" },
   { key: "goals", name: "Goals", color: "var(--mantine-color-violet-6)" },
   { key: "tasks", name: "Tasks", color: "var(--mantine-color-orange-6)" },
   { key: "opportunities", name: "Opportunities", color: "var(--mantine-color-pink-6)" },
+  { key: "boardCards", name: "Board cards", color: "var(--mantine-color-indigo-6)" },
   { key: "feedback", name: "Feedback", color: "var(--mantine-color-yellow-6)" },
-  { key: "actions", name: "Actions", color: "var(--mantine-color-blue-6)" },
+  { key: "actions", name: "Actions", color: "var(--mantine-color-dark-5)" },
   { key: "corrections", name: "Corrections", color: "var(--mantine-color-red-6)" },
   { key: "auditEvents", name: "Audit events", color: "var(--mantine-color-teal-6)" },
+  { key: "hashtagEvents", name: "Hashtag feedback", color: "var(--mantine-color-grape-6)" },
 ] as const;
 
 const WINDOW_OPTIONS = [
@@ -142,6 +147,9 @@ export default function OperatorContentHealthPage() {
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || `Request failed with ${response.status}`);
+      }
+      if (!payload?.dashboard) {
+        throw new Error("Dashboard response was incomplete");
       }
       setDashboard(payload.dashboard);
       setError(null);

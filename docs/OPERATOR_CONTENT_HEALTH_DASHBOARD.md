@@ -33,7 +33,7 @@ API:
 Query params:
 
 - `hours`: 1 to 168, default 24.
-- `timezone`: optional, default `Europe/Budapest`.
+- `timezone`: optional, default `Europe/Budapest`. Invalid timezone input falls back to `Europe/Budapest`.
 
 Response:
 
@@ -69,7 +69,9 @@ Updated/activity signal includes:
 ## Operational Notes
 
 - Aggregation runs server-side against Atlas with hourly `$dateTrunc` buckets.
+- Each Atlas aggregation command has a `10s` `maxTimeMS` bound so the dashboard cannot pin the database indefinitely.
 - Raw Mongo commands use extended JSON date literals because Prisma `$runCommandRaw` does not serialize JavaScript `Date` values as Mongo dates.
+- API responses use `Cache-Control: no-store`; the dashboard should always reflect current operational health.
 - The frontend refreshes every 60 seconds and renders only GDS primitives/charts.
 - Browser users see current totals, active-hour counts, top source families, and recent samples.
 
@@ -81,4 +83,3 @@ Required checks:
 - `npx tsc --noEmit`
 - `npm run lint`
 - `npm run build`
-

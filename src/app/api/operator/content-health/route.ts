@@ -25,10 +25,19 @@ export async function GET(request: NextRequest) {
 
   const hours = Number(request.nextUrl.searchParams.get("hours") || "");
   const timezone = request.nextUrl.searchParams.get("timezone");
-  const dashboard = await buildOperatorContentHealth({ hours, timezone });
+  try {
+    const dashboard = await buildOperatorContentHealth({ hours, timezone });
 
-  return NextResponse.json({
-    ok: true,
-    dashboard,
-  });
+    return NextResponse.json({
+      ok: true,
+      dashboard,
+    }, {
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error) {
+    console.error("Failed to build operator content health dashboard", error);
+    return NextResponse.json({ error: "Dashboard unavailable" }, { status: 500 });
+  }
 }

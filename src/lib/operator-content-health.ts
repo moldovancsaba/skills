@@ -4,6 +4,7 @@ export const CONTENT_HEALTH_OPERATOR_EMAIL = "moldovancsaba@gmail.com";
 export const CONTENT_HEALTH_DEFAULT_TIMEZONE = "Europe/Budapest";
 export const CONTENT_HEALTH_DEFAULT_HOURS = 24;
 export const CONTENT_HEALTH_MAX_HOURS = 168;
+export const CONTENT_HEALTH_AGGREGATION_MAX_TIME_MS = 10_000;
 
 type SeriesKey =
   | "datacards"
@@ -91,6 +92,16 @@ function clampHours(input: number | null | undefined) {
   return Math.max(1, Math.min(CONTENT_HEALTH_MAX_HOURS, Math.round(hours)));
 }
 
+function resolveTimezone(input: string | null | undefined) {
+  const timezone = input?.trim() || CONTENT_HEALTH_DEFAULT_TIMEZONE;
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone: timezone }).format(new Date());
+    return timezone;
+  } catch {
+    return CONTENT_HEALTH_DEFAULT_TIMEZONE;
+  }
+}
+
 function hourKey(date: Date | string) {
   return new Date(date).toISOString();
 }
@@ -113,13 +124,13 @@ function normalizeMongoDate(value: Date | string | { $date?: string } | null | u
   return null;
 }
 
-function makeEmptyBuckets(start: Date, hours: number) {
+function makeEmptyBuckets(start: Date, hours: number, timezone: string) {
   return Array.from({ length: hours + 1 }, (_, index) => {
     const hour = new Date(start.getTime() + index * 60 * 60 * 1000);
     return {
       hour: hour.toISOString(),
       label: new Intl.DateTimeFormat("en-GB", {
-        timeZone: CONTENT_HEALTH_DEFAULT_TIMEZONE,
+        timeZone: timezone,
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
@@ -164,6 +175,7 @@ async function aggregateSource(source: ActivitySource, start: Date, end: Date, t
       { $sort: { _id: 1 } },
     ],
     cursor: {},
+    maxTimeMS: CONTENT_HEALTH_AGGREGATION_MAX_TIME_MS,
   };
   const result = await prisma.$runCommandRaw(command as any) as { cursor?: { firstBatch?: RawBucket[] } };
 
@@ -230,6 +242,7 @@ async function readRecentSamples(start: Date, end: Date) {
         },
       ],
       cursor: {},
+      maxTimeMS: CONTENT_HEALTH_AGGREGATION_MAX_TIME_MS,
     };
     const result = await prisma.$runCommandRaw(command as any) as { cursor?: { firstBatch?: RawSample[] } };
 
@@ -253,7 +266,7 @@ export async function buildOperatorContentHealth(input: {
   now?: Date;
 }) {
   const hours = clampHours(input.hours);
-  const timezone = input.timezone?.trim() || CONTENT_HEALTH_DEFAULT_TIMEZONE;
+  const timezone = resolveTimezone(input.timezone);
   const end = input.now || new Date();
   const start = new Date(end.getTime() - hours * 60 * 60 * 1000);
   start.setUTCMinutes(0, 0, 0);
@@ -264,8 +277,8 @@ export async function buildOperatorContentHealth(input: {
     readRecentSamples(start, end),
   ]);
 
-  const createdBuckets = makeEmptyBuckets(start, hours);
-  const updatedBuckets = makeEmptyBuckets(start, hours);
+  const createdBuckets = makeEmptyBuckets(start, hours, timezone);
+  const updatedBuckets = makeEmptyBuckets(start, hours, timezone);
 
   for (const bucket of createdBuckets) {
     Object.assign(bucket, created.byHour.get(String(bucket.hour)) || {});

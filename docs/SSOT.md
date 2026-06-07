@@ -8,9 +8,9 @@ For design, UI, and UX governance, `/Users/Shared/Projects/general-design-system
 
 Current GDS alignment:
 
-- consumed GDS version: `2.4.0`
-- GDS last updated: `2026-05-25`
-- shared package install path: not adopted yet in this repo; target end state is direct package consumption through `@gds/theme`, `@gds/core`, and `@gds/admin`
+- consumed GDS version/package: `@doneisbetter/gds@3.4.3`
+- GDS package published: `2026-06-06T23:01:58.666Z`
+- shared package install path: adopted through direct npm consumption of `@doneisbetter/gds`, which brings `@doneisbetter/gds-theme`, `@doneisbetter/gds-core`, and `@doneisbetter/gds-admin`
 
 Foundation and future-function delivery rules are further defined in [docs/CHECK_FOUNDATION_LLD.md](/Users/Shared/Projects/checklist/docs/CHECK_FOUNDATION_LLD.md) and [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md).
 

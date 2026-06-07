@@ -17,7 +17,7 @@ function warnFallbackOnce(message) {
   }
 
   global.__checklistAuditFallbackWarningIssued = true;
-  console.warn(message);
+  console.log(message);
 }
 
 async function writeAuditRecord(primaryPrisma, modelName, data) {

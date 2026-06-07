@@ -1,19 +1,55 @@
 const { getLocalAuditPrisma } = require("./local-audit-db");
 
+const LOCAL_AUDIT_UNSUPPORTED_PATTERN = /Transactions are not supported by this deployment|Transaction failed/i;
+
 function normalizeTeachingWeight(weight) {
   const numeric = Number.isFinite(weight) ? Number(weight) : 30;
   return Math.max(30, Math.min(100, Math.round(numeric)));
 }
 
-async function recordDecisionEvent(_prisma, input) {
-  try {
-    const prisma = getLocalAuditPrisma();
-    if (!prisma) {
-      return;
-    }
+function isWriteUnsupported(error) {
+  return LOCAL_AUDIT_UNSUPPORTED_PATTERN.test(error?.message || "");
+}
 
-    await prisma.decisionEvent.create({
-      data: {
+function warnFallbackOnce(message) {
+  if (global.__checklistAuditFallbackWarningIssued) {
+    return;
+  }
+
+  global.__checklistAuditFallbackWarningIssued = true;
+  console.warn(message);
+}
+
+async function writeAuditRecord(primaryPrisma, modelName, data) {
+  const localAuditPrisma = getLocalAuditPrisma();
+  if (localAuditPrisma) {
+    try {
+      await localAuditPrisma[modelName].create({ data });
+      return;
+    } catch (error) {
+      if (!isWriteUnsupported(error) || !primaryPrisma?.[modelName]) {
+        throw error;
+      }
+
+      warnFallbackOnce(
+        "[AUDIT] Local audit datasource does not support required writes; falling back to primary Prisma client for audit persistence.",
+      );
+    }
+  }
+
+  if (!primaryPrisma?.[modelName]) {
+    return;
+  }
+
+  await primaryPrisma[modelName].create({ data });
+}
+
+async function recordDecisionEvent(prisma, input) {
+  try {
+    await writeAuditRecord(
+      prisma,
+      "decisionEvent",
+      {
         companyId: input.companyId,
         decisionMaker: input.decisionMaker,
         decisionType: input.decisionType,
@@ -28,21 +64,18 @@ async function recordDecisionEvent(_prisma, input) {
         teachingWeight: normalizeTeachingWeight(input.teachingWeight),
         cycleRunId: input.cycleRunId || undefined,
       },
-    });
+    );
   } catch (error) {
     console.error("[AUDIT] Worker failed to record decision event:", error.message);
   }
 }
 
-async function recordGenerationEvent(_prisma, input) {
+async function recordGenerationEvent(prisma, input) {
   try {
-    const prisma = getLocalAuditPrisma();
-    if (!prisma) {
-      return;
-    }
-
-    await prisma.generationEvent.create({
-      data: {
+    await writeAuditRecord(
+      prisma,
+      "generationEvent",
+      {
         companyId: input.companyId,
         entityType: input.entityType,
         entityId: input.entityId || undefined,
@@ -62,21 +95,18 @@ async function recordGenerationEvent(_prisma, input) {
         teachingWeight: normalizeTeachingWeight(input.teachingWeight),
         cycleRunId: input.cycleRunId || undefined,
       },
-    });
+    );
   } catch (error) {
     console.error("[AUDIT] Worker failed to record generation event:", error.message);
   }
 }
 
-async function recordOutcomeEvent(_prisma, input) {
+async function recordOutcomeEvent(prisma, input) {
   try {
-    const prisma = getLocalAuditPrisma();
-    if (!prisma) {
-      return;
-    }
-
-    await prisma.outcomeEvent.create({
-      data: {
+    await writeAuditRecord(
+      prisma,
+      "outcomeEvent",
+      {
         companyId: input.companyId,
         actorType: input.actorType,
         actorId: input.actorId || undefined,
@@ -94,7 +124,7 @@ async function recordOutcomeEvent(_prisma, input) {
         teachingWeight: normalizeTeachingWeight(input.teachingWeight),
         cycleRunId: input.cycleRunId || undefined,
       },
-    });
+    );
   } catch (error) {
     console.error("[AUDIT] Worker failed to record outcome event:", error.message);
   }

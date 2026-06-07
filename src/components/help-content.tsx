@@ -1,9 +1,9 @@
 "use client";
 
-import { IconBook as BookOpen, IconHelpCircle as CircleHelp, IconBulb as Lightbulb, IconArrowLeft as ArrowLeft, IconHelpCircle as HelpCircle, IconFileText as FileText } from "@tabler/icons-react";
+import { IconBook as BookOpen, IconHelpCircle as CircleHelp, IconBulb as Lightbulb, IconArrowLeft as ArrowLeft, IconHelpCircle as HelpCircle, IconFileText as FileText } from "@/components/gds/icons";
 import { faqItems, manualSections } from "@/content/help";
 import { 
-  Accordion, Badge, Button, Stack, Group, ThemeIcon, rem, SimpleGrid, Box, Anchor } from "@mantine/core";
+  Accordion, Badge, Button, Stack, Group, ThemeIcon, rem, SimpleGrid, Box, Anchor } from "@/components/gds/primitives";
 import { Notice, PageShell } from "@/components/ui/app-shell";
 import { BodyText, CardTitle, MetaText, PageTitle } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardSection } from "@/components/ui/unified-card";

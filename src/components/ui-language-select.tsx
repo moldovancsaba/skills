@@ -1,7 +1,7 @@
 'use client';
 
-import { Select, Stack } from "@mantine/core";
-import { IconLanguage as LanguageIcon } from "@tabler/icons-react";
+import { Select, Stack } from "@/components/gds/primitives";
+import { IconLanguage as LanguageIcon } from "@/components/gds/icons";
 import { UI_LANGUAGE_OPTIONS, useI18n, type UiLanguage } from "@/lib/ui-i18n";
 import { MetaText } from "@/components/ui/typography";
 

@@ -1,8 +1,8 @@
 'use client';
 
-import { ActionIcon, Tooltip } from "@mantine/core";
-import { useClipboard } from "@mantine/hooks";
-import { IconCheck as Check, IconShare as Share } from "@tabler/icons-react";
+import { ActionIcon, Tooltip } from "@/components/gds/primitives";
+import { useClipboard } from "@/components/gds/hooks";
+import { IconCheck as Check, IconShare as Share } from "@/components/gds/icons";
 import { buildCardShareUrl } from "@/lib/card-share";
 
 type CardShareActionProps = {

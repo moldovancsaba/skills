@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Badge, Button, Group, Loader, Progress, SimpleGrid, Stack, Table } from "@mantine/core";
+import { Badge, Button, Group, Loader, Progress, SimpleGrid, Stack, Table } from "@/components/gds/primitives";
 import {
   IconAlertTriangle as AlertTriangle,
   IconArrowUpRight as ArrowUpRight,
@@ -12,7 +12,7 @@ import {
   IconRefresh as Refresh,
   IconShieldCheck as ShieldCheck,
   IconUpload as Upload,
-} from "@tabler/icons-react";
+} from "@/components/gds/icons";
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";

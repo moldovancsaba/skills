@@ -9,9 +9,9 @@ import { Text } from "@/components/ui/typography";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { IconDatabase as Database, IconSearch as Search, IconSparkles as Sparkles, IconTarget as Target, IconBolt as Bolt, IconFilter as Filter, IconLayoutList as LayoutList, IconTrendingUp as TrendingUp, IconShieldCheck as ShieldCheck, IconRefresh as RefreshIcon, IconStethoscope as Stethoscope, IconAlertTriangle as AlertTriangle } from "@tabler/icons-react";
+import { IconDatabase as Database, IconSearch as Search, IconSparkles as Sparkles, IconTarget as Target, IconBolt as Bolt, IconFilter as Filter, IconLayoutList as LayoutList, IconTrendingUp as TrendingUp, IconShieldCheck as ShieldCheck, IconRefresh as RefreshIcon, IconStethoscope as Stethoscope, IconAlertTriangle as AlertTriangle } from "@/components/gds/icons";
 import { 
-  Badge, Button, Group, TextInput, Box, Stack, Skeleton, Loader, Center, ActionIcon, Card, rem, ThemeIcon } from "@mantine/core";
+  Badge, Button, Group, TextInput, Box, Stack, Skeleton, Loader, Center, ActionIcon, Card, rem, ThemeIcon } from "@/components/gds/primitives";
 import {
   EmptyState,
   MetricCard,

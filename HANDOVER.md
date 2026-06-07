@@ -15,9 +15,14 @@ Professional operating rule:
 
 Current GDS alignment:
 
+- app version after GDS runtime hardening: `0.17.2`
 - consumed GDS version/package: `@doneisbetter/gds@3.4.3`
 - GDS package published: `2026-06-06T23:01:58.666Z`
 - shared package install path: adopted through direct npm consumption of `@doneisbetter/gds`, which brings `@doneisbetter/gds-theme`, `@doneisbetter/gds-core`, and `@doneisbetter/gds-admin`
+- root UI runtime: `src/components/providers.tsx` uses package-native `GdsProvider` plus GDS telemetry, confirmation, toast, notification, command, and overlay providers
+- frontend import boundary: product code must import Mantine, Tabler, Recharts, and drag/drop peers only through `src/components/gds/*`
+- drift gate: run `npm run audit:gds-boundary` before trusting UI changes; direct peer UI imports outside `src/components/gds/*` are forbidden
+- frontend load reduction: `next.config.js` enables `experimental.optimizePackageImports` for GDS, Mantine, Tabler, and Recharts packages
 
 Read first:
 
@@ -47,10 +52,11 @@ Prisma hygiene:
 - `Local` means the local AI service
 - `Checklist` is an optional Block, not the platform name
 - a Unit can run Sales without Checklist, Project without intelligence automation, and Miniapp Ops without treating the Miniapp as a Webapp screen
-- Mantine is the only approved product UI framework
+- the Sovereign Squad General Design System is the only approved product UI framework
 - the shared app shell owns persisted UI language selection for `English`, `Hungarian`, `Spanish`, `Arabic`, and `Hebrew`
 - visible UI language and company AI `allowedLanguages` policy are separate contracts and must not be conflated
-- Mantine `Card` is the base card primitive
+- Mantine is an implementation peer only through GDS-owned provider/theme and `src/components/gds/*` compatibility modules
+- `UnifiedCard` remains the only approved feature-level product card API while legacy surfaces are migrated to package-native GDS primitives
 - `UnifiedCard` is the only approved feature-level product card API
 - `UnifiedCardModal` is the only approved modal content shell for card content
 - DS-owned `Text` and `Title` wrappers in `src/components/ui/typography.tsx` are the only approved general-purpose typography bridge for feature code

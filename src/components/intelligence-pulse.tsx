@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCircleCheck as CheckCircle2, IconGauge as Gauge, IconTimeline as Timeline, IconBolt as Zap } from "@tabler/icons-react";
+import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCircleCheck as CheckCircle2, IconGauge as Gauge, IconTimeline as Timeline, IconBolt as Zap } from "@/components/gds/icons";
 import { 
-  Stack, Group, Badge, Box, SimpleGrid, ThemeIcon, rem, Progress, Tooltip, Center, Loader } from "@mantine/core";
+  Stack, Group, Badge, Box, SimpleGrid, ThemeIcon, rem, Progress, Tooltip, Center, Loader } from "@/components/gds/primitives";
 import { formatDistanceToNow } from 'date-fns';
 import { getSemanticIndicatorStyle } from "@/lib/semantic-theme";
 import { resolveStateTone } from "@/lib/ui-state";

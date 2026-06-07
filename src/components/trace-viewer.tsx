@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { IconGitBranch as GitBranch, IconFileText as FileText, IconBulb as Lightbulb, IconSquareCheck as CheckSquare, IconX as X } from "@tabler/icons-react";
+import { IconGitBranch as GitBranch, IconFileText as FileText, IconBulb as Lightbulb, IconSquareCheck as CheckSquare, IconX as X } from "@/components/gds/icons";
 import { 
-  Box, Stack, Group, ActionIcon, ThemeIcon, Loader, Center, rem, ScrollArea } from "@mantine/core";
+  Box, Stack, Group, ActionIcon, ThemeIcon, Loader, Center, rem, ScrollArea } from "@/components/gds/primitives";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import {
   getSemanticHaloStyle,

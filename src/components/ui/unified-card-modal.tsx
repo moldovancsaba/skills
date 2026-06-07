@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from "react";
-import { Modal, Group, Badge, Stack } from "@mantine/core";
+import { Modal, Group, Badge, Stack } from "@/components/gds/primitives";
 import {
   getModuleTheme,
   getSemanticOverlayShadowStyle,

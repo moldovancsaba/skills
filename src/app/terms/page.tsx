@@ -1,6 +1,6 @@
 import { Metadata } from "next";
-import { Container, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
-import { IconShieldCheck as ShieldCheck, IconFileText as FileText, IconCpu as Cpu, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconRefresh as RefreshCw } from "@tabler/icons-react";
+import { Container, Stack, Box, Divider, Group, ThemeIcon, rem } from "@/components/gds/primitives";
+import { IconShieldCheck as ShieldCheck, IconFileText as FileText, IconCpu as Cpu, IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconRefresh as RefreshCw } from "@/components/gds/icons";
 import { SectionTitle, Text, Title } from "@/components/ui/typography";
 import { LEGAL_PROTOCOL_LABEL } from "@/lib/release";
 

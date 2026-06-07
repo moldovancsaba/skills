@@ -1,7 +1,7 @@
 'use client';
 
-import { Stack, Tabs } from "@mantine/core";
-import { IconActivity, IconChecklist, IconSettings, IconStack2 } from "@tabler/icons-react";
+import { Stack, Tabs } from "@/components/gds/primitives";
+import { IconActivity, IconChecklist, IconSettings, IconStack2 } from "@/components/gds/icons";
 import { useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/ui/app-shell";
 import { PipelineAccentHeader } from "@/components/ui/app-shell";

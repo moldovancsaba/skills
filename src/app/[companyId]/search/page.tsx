@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
-import { Badge, Button, Checkbox, Group, Loader, SimpleGrid, Stack, TextInput } from "@mantine/core";
-import { IconSearch as SearchIcon, IconSparkles as Sparkles } from "@tabler/icons-react";
+import { Badge, Button, Checkbox, Group, Loader, SimpleGrid, Stack, TextInput } from "@/components/gds/primitives";
+import { IconSearch as SearchIcon, IconSparkles as Sparkles } from "@/components/gds/icons";
 import { Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";

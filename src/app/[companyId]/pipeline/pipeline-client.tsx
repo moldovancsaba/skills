@@ -3,9 +3,9 @@ import { Text } from "@/components/ui/typography";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  DragDropContext, Draggable, Droppable, type DropResult, } from "@hello-pangea/dnd";
+  DragDropContext, Draggable, Droppable, type DropResult, } from "@/components/gds/drag-legacy";
 import {
-  Badge, Box, Button, Center, Divider, Group, Loader, SimpleGrid, Stack, ThemeIcon, rem } from "@mantine/core";
+  Badge, Box, Button, Center, Divider, Group, Loader, SimpleGrid, Stack, ThemeIcon, rem } from "@/components/gds/primitives";
 import {
   IconAlertTriangle as AlertTriangle,
   IconArrowBackUp as ResetIcon,
@@ -17,7 +17,7 @@ import {
   IconLayersIntersect as Layers,
   IconListCheck as ListCheck,
   IconRefresh as RefreshIcon,
-} from "@tabler/icons-react";
+} from "@/components/gds/icons";
 import { Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
 import type { PipelineJobRecord, PipelineQueueColumn } from "@/lib/pipeline-queue";

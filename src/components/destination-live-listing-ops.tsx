@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
-import { Badge, Button, Group, Loader, Select, SimpleGrid, Stack, TextInput } from "@mantine/core";
-import { IconRefresh as Refresh, IconSend as Send } from "@tabler/icons-react";
+import { Badge, Button, Group, Loader, Select, SimpleGrid, Stack, TextInput } from "@/components/gds/primitives";
+import { IconRefresh as Refresh, IconSend as Send } from "@/components/gds/icons";
 import { EmptyState } from "@/components/ui/app-shell";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";

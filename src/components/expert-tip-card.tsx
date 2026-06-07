@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconRoute as Route } from "@tabler/icons-react";
-import { Badge, Button, Group, Stack, Box, ThemeIcon, Alert } from "@mantine/core";
+import { IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconRoute as Route } from "@/components/gds/icons";
+import { Badge, Button, Group, Stack, Box, ThemeIcon, Alert } from "@/components/gds/primitives";
 import { getSemanticInsetStyle } from "@/lib/semantic-theme";
 import { BodyText, MetaText } from "@/components/ui/typography";
 

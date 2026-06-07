@@ -12,14 +12,14 @@ import {
   Stack,
   Textarea,
   UnstyledButton,
-} from "@mantine/core";
+} from "@/components/gds/primitives";
 import {
   IconChecklist as ChecklistIcon,
   IconEye as Eye,
   IconExternalLink as ExternalLink,
   IconRefresh as Refresh,
   IconSend as Send,
-} from "@tabler/icons-react";
+} from "@/components/gds/icons";
 import { EmptyState, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";

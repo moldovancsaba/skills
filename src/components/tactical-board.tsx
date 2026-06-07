@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Box, Button, Center, Divider, Group, Loader, Modal, Select, SimpleGrid, Stack } from "@mantine/core";
-import { IconDownload as Download, IconLayersIntersect as Layers, IconRefresh as RefreshCw, IconTarget as Target, IconTrash as Trash2 } from "@tabler/icons-react";
-import { useDisclosure } from "@mantine/hooks";
+import { Badge, Box, Button, Center, Divider, Group, Loader, Modal, Select, SimpleGrid, Stack } from "@/components/gds/primitives";
+import { IconDownload as Download, IconLayersIntersect as Layers, IconRefresh as RefreshCw, IconTarget as Target, IconTrash as Trash2 } from "@/components/gds/icons";
+import { useDisclosure } from "@/components/gds/hooks";
 import { SharedBoard } from "@/components/board/shared-board";
 import { CardShareAction } from "@/components/ui/card-share-action";
 import { PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";

@@ -1,6 +1,6 @@
 {
   "name": "checklist-os",
-  "version": "0.17.1",
+  "version": "0.17.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,6 +17,7 @@
     "audit:local-runnables": "node scripts/audit-local-runnables.mjs",
     "audit:terminology": "node scripts/audit-terminology.mjs",
     "audit:semantic": "node scripts/semantic-audit.mjs",
+    "audit:gds-boundary": "node scripts/audit-gds-boundary.mjs",
     "audit:webapp-boundary": "node scripts/audit-webapp-boundary.mjs",
     "audit:score-health": "node scripts/audit-score-health.js",
     "test:planner": "node scripts/test-planner-contract.js",

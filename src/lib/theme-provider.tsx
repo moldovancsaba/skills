@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext } from "react";
-import { useComputedColorScheme, useMantineColorScheme } from "@mantine/core";
+import { useComputedColorScheme, useMantineColorScheme } from "@/components/gds/primitives";
 
 type ThemeContextType = {
   isDark: boolean;

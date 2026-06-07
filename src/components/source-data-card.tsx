@@ -1,5 +1,5 @@
-import { IconFileUpload as FileUp, IconPencil as Pencil, IconFileText as ScrollText, IconTrash as Trash2 } from "@tabler/icons-react";
-import { Badge, Button, Group, Stack, Divider } from "@mantine/core";
+import { IconFileUpload as FileUp, IconPencil as Pencil, IconFileText as ScrollText, IconTrash as Trash2 } from "@/components/gds/icons";
+import { Badge, Button, Group, Stack, Divider } from "@/components/gds/primitives";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getDataCardFreshness } from "@/lib/card-freshness";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";

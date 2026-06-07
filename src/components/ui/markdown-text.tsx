@@ -3,7 +3,7 @@ import { Text } from "@/components/ui/typography";
 
 import type { ReactNode } from "react";
 import { Fragment } from "react";
-import { Box, List } from "@mantine/core";
+import { Box, List } from "@/components/gds/primitives";
 import { getSemanticPillStyle } from "@/lib/semantic-theme";
 
 type MarkdownTextProps = {

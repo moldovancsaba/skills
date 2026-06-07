@@ -16,7 +16,7 @@ import {
   Tabs,
   TextInput,
   Tooltip,
-} from "@mantine/core";
+} from "@/components/gds/primitives";
 import {
   IconBan,
   IconBolt,
@@ -29,7 +29,7 @@ import {
   IconSearch,
   IconShieldCheck,
   IconTargetArrow,
-} from "@tabler/icons-react";
+} from "@/components/gds/icons";
 import { EmptyState, MetricCard, MetricGrid, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
 import { BodyText, MetaText } from "@/components/ui/typography";

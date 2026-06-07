@@ -1,7 +1,7 @@
 "use client";
 
-import { TagsInput, rem } from "@mantine/core";
-import { IconHash as Hash } from "@tabler/icons-react";
+import { TagsInput, rem } from "@/components/gds/primitives";
+import { IconHash as Hash } from "@/components/gds/icons";
 import { normalizeHashtag } from "@/lib/hashtags";
 
 type HashtagInputProps = {

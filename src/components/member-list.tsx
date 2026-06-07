@@ -1,12 +1,12 @@
 'use client';
 
-import { Stack, Group, Avatar, ActionIcon, Tooltip, Badge, Box, ThemeIcon, Loader, rem } from "@mantine/core";
+import { Stack, Group, Avatar, ActionIcon, Tooltip, Badge, Box, ThemeIcon, Loader, rem } from "@/components/gds/primitives";
 import { 
   UnifiedCard, UnifiedCardHeader, UnifiedCardBody, UnifiedCardSection, } from "@/components/ui/unified-card";
 import { BodyText, LabelText, MetaText, Text } from "@/components/ui/typography";
 import { FormInput } from "@/components/ui/form-fields";
-import { Button } from "@mantine/core";
-import { IconUsers as Users, IconUserPlus as UserPlus, IconTrash as Trash2, IconShield as Shield, IconUser as UserIcon, IconMail as Mail } from "@tabler/icons-react";
+import { Button } from "@/components/gds/primitives";
+import { IconUsers as Users, IconUserPlus as UserPlus, IconTrash as Trash2, IconShield as Shield, IconUser as UserIcon, IconMail as Mail } from "@/components/gds/icons";
 import { useState, useEffect, useCallback } from "react";
 import { resolveMantineColor } from "@/lib/semantic-theme";
 

@@ -1,4 +1,4 @@
-import { Group, Stack, ThemeIcon } from "@mantine/core";
+import { Group, Stack, ThemeIcon } from "@/components/gds/primitives";
 import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 import { LabelText, MetaText, SectionTitle } from "@/components/ui/typography";
 import { resolveStateTextColor } from "@/lib/ui-state";

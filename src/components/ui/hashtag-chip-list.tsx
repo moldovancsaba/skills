@@ -1,7 +1,7 @@
 "use client";
 
-import { IconHash as Hash, IconX as X } from "@tabler/icons-react";
-import { Badge, Group, ActionIcon, UnstyledButton } from "@mantine/core";
+import { IconHash as Hash, IconX as X } from "@/components/gds/icons";
+import { Badge, Group, ActionIcon, UnstyledButton } from "@/components/gds/primitives";
 import { displayHashtag, normalizeHashtagList } from "@/lib/hashtags";
 
 type Props = {

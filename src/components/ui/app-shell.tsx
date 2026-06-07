@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { IconArrowLeft as ArrowLeft, IconArrowRight as ArrowRight } from "@tabler/icons-react";
+import { IconArrowLeft as ArrowLeft, IconArrowRight as ArrowRight } from "@/components/gds/icons";
 import { 
   Container, 
   Group, 
@@ -18,7 +18,7 @@ import {
   Alert,
   SimpleGridProps,
   rem
-} from "@mantine/core";
+} from "@/components/gds/primitives";
 
 import { DashboardChart } from "@/components/dashboard-chart";
 import { BodyText, CardTitle, LabelText, MetaText, PageTitle, SectionTitle } from "@/components/ui/typography";

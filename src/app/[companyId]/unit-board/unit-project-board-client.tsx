@@ -14,9 +14,9 @@ import {
   Stack,
   TextInput,
   Textarea,
-} from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import { IconChecklist as ChecklistIcon, IconPlus as Plus, IconRefresh as Refresh } from "@tabler/icons-react";
+} from "@/components/gds/primitives";
+import { notifications } from "@/components/gds/notifications";
+import { IconChecklist as ChecklistIcon, IconPlus as Plus, IconRefresh as Refresh } from "@/components/gds/icons";
 import { SharedBoard } from "@/components/board/shared-board";
 import { Notice, PageHeader, PageShell, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCardBody } from "@/components/ui/unified-card";

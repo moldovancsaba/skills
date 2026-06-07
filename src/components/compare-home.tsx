@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Button, Group, SimpleGrid, Stack } from "@mantine/core";
+import { Badge, Button, Group, SimpleGrid, Stack } from "@/components/gds/primitives";
 import {
   IconCheck as Check,
   IconCircleDashed as CircleDashed,
@@ -11,7 +11,7 @@ import {
   IconRefresh as Refresh,
   IconRocket as Rocket,
   IconSparkles as Sparkles,
-} from "@tabler/icons-react";
+} from "@/components/gds/icons";
 import { EmptyState, LinkCard, MetricCard, Notice, PageHeader, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
 import { MetaText } from "@/components/ui/typography";
 import { type UnitModuleKey } from "@/lib/intelligence-unit-capabilities";

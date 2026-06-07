@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Badge, Button, Group, Loader, Stack, Center } from "@mantine/core";
-import { IconBriefcase as Briefcase, IconRefresh as RefreshCw, IconSparkles as Sparkles } from "@tabler/icons-react";
+import { Badge, Button, Group, Loader, Stack, Center } from "@/components/gds/primitives";
+import { IconBriefcase as Briefcase, IconRefresh as RefreshCw, IconSparkles as Sparkles } from "@/components/gds/icons";
 import { EmptyState, MetricCard, MetricGrid, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
 import { KnowledgeReviewCard } from "@/components/knowledge-review-card";
 import { Text } from "@/components/ui/typography";

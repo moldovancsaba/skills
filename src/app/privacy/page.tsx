@@ -1,6 +1,6 @@
 import { Metadata } from "next";
-import { Container, Stack, Box, Divider, Group, ThemeIcon, rem } from "@mantine/core";
-import { IconShield as Shield, IconDatabase as Database, IconLock as Lock, IconEye as Eye, IconMail as Mail } from "@tabler/icons-react";
+import { Container, Stack, Box, Divider, Group, ThemeIcon, rem } from "@/components/gds/primitives";
+import { IconShield as Shield, IconDatabase as Database, IconLock as Lock, IconEye as Eye, IconMail as Mail } from "@/components/gds/icons";
 import { SectionTitle, Text, Title } from "@/components/ui/typography";
 import { LEGAL_PROTOCOL_LABEL } from "@/lib/release";
 

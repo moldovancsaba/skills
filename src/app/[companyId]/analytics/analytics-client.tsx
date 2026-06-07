@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Button, Group, Loader, SimpleGrid, Stack, Center } from "@mantine/core";
-import { IconActivity as Activity, IconChartBar as ChartBar, IconClockHour4 as Clock, IconListCheck as ListCheck, IconRefresh as RefreshIcon } from "@tabler/icons-react";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "@/components/gds/charts";
+import { Button, Group, Loader, SimpleGrid, Stack, Center } from "@/components/gds/primitives";
+import { IconActivity as Activity, IconChartBar as ChartBar, IconClockHour4 as Clock, IconListCheck as ListCheck, IconRefresh as RefreshIcon } from "@/components/gds/icons";
 import { EmptyState, MetricCard, MetricGrid, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";

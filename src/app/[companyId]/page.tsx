@@ -1,7 +1,7 @@
 import CompanyDashboard from "./company-dashboard";
 import { ClassScoutHome } from "@/components/classscout-home";
 import { CompareHome } from "@/components/compare-home";
-import { Center, Loader, Stack } from "@mantine/core";
+import { Center, Loader, Stack } from "@/components/gds/primitives";
 import { Text } from "@/components/ui/typography";
 import { getDashboardInitialData } from "@/lib/server-company-page-data";
 import { resolveFirstSupportedDestinationKey } from "@/lib/destination-scope";

@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Button, Group, Loader, SimpleGrid, Stack } from "@mantine/core";
-import { IconCopy, IconPlayerPause, IconRefresh, IconRosetteDiscountCheck, IconSettings } from "@tabler/icons-react";
+import { Badge, Button, Group, Loader, SimpleGrid, Stack } from "@/components/gds/primitives";
+import { IconCopy, IconPlayerPause, IconRefresh, IconRosetteDiscountCheck, IconSettings } from "@/components/gds/icons";
 import { FormCheckbox, FormInput, FormSelect, FormTextarea } from "@/components/ui/form-fields";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";

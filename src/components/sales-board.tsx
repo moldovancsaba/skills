@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from "react";
-import { Badge, Center, Group, Loader, Stack } from "@mantine/core";
+import { Badge, Center, Group, Loader, Stack } from "@/components/gds/primitives";
 import { SharedBoard } from "@/components/board/shared-board";
 import { OpportunityReviewCard, type Opportunitycard, type OpportunitycardActionMode } from "@/components/opportunity-review-card";
 import { UnifiedCardBody } from "@/components/ui/unified-card";

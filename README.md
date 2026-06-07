@@ -14,21 +14,24 @@ Core product language:
 - `Webapp`: the B2B UI for operating `check`
 - `Local`: the local AI service
 
-`check` is built on a strict Mantine-only product UI and a recurrent Local AI pipeline.
+`check` is built on the Sovereign Squad General Design System and a recurrent Local AI pipeline.
 
 `/Users/Shared/Projects/general-design-system` is the current checked-out General Design System source of truth for design, UI, and UX, and the governed upstream repository is `sovereignsquad/general-design-system`. Project-local files describe only implementation adapter details, migration state, validation commands, and approved exceptions.
 
 GDS alignment:
 
-- consumed GDS version: `2.4.0`
-- GDS last updated: `2026-05-25`
-- local theme/provider path: `src/components/providers.tsx`
+- consumed GDS version/package: `@doneisbetter/gds@3.4.3`
+- GDS package published: `2026-06-06T23:01:58.666Z`
+- local theme/provider path: `src/components/providers.tsx` using package-native `GdsProvider`
+- local GDS compatibility boundary: `src/components/gds/*`
+- drift gate: `npm run audit:gds-boundary`
+- frontend load optimization: `next.config.js` `experimental.optimizePackageImports`
 - local wrapper contract paths:
   - shell and page header: `src/components/ui/app-shell.tsx`
   - product card and modal shell: `src/components/ui/unified-card.tsx`, `src/components/ui/unified-card-modal.tsx`
   - typography bridge: `src/components/ui/typography.tsx`
   - semantic surface/state adapters: `src/lib/semantic-theme.ts`, `src/lib/ui-state.ts`, `src/lib/ui-interactions.ts`
-- shared package install path: not adopted yet in this repo; target end state is direct package consumption through `@gds/theme`, `@gds/core`, and `@gds/admin`
+- shared package install path: adopted through direct npm consumption of `@doneisbetter/gds`, which brings `@doneisbetter/gds-theme`, `@doneisbetter/gds-core`, and `@doneisbetter/gds-admin`
 
 ## Product Boundary
 

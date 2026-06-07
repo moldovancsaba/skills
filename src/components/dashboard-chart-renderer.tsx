@@ -1,7 +1,7 @@
 "use client";
 
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Box, useMantineTheme } from "@mantine/core";
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "@/components/gds/charts";
+import { Box, useMantineTheme } from "@/components/gds/primitives";
 import { UnifiedCardSection } from "@/components/ui/unified-card";
 import { MetaText } from "@/components/ui/typography";
 

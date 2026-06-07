@@ -13,16 +13,16 @@ import {
   useDroppable,
   useSensor,
   useSensors,
-} from "@dnd-kit/core";
+} from "@/components/gds/drag-core";
 import {
   SortableContext,
   arrayMove,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { Badge, Box, Group, ScrollArea, Stack } from "@mantine/core";
+} from "@/components/gds/drag-sortable";
+import { CSS } from "@/components/gds/drag-utilities";
+import { Badge, Box, Group, ScrollArea, Stack } from "@/components/gds/primitives";
 import { UnifiedCard } from "@/components/ui/unified-card";
 import { Text } from "@/components/ui/typography";
 import { getModuleTheme, getSemanticDropzoneStyle } from "@/lib/semantic-theme";

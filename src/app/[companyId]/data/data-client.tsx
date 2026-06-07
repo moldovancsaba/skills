@@ -5,8 +5,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter, usePathname } from "next/navigation";
 import { 
-  Stack, Group, SegmentedControl, FileButton, ScrollArea, Box, Divider, Button, Badge, rem, Center, Loader, ThemeIcon, Tooltip, ActionIcon, Select } from "@mantine/core";
-import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconFileText as ScrollText, IconFilter as ListFilter, IconSortAscending as SortAsc, IconUsers as Users, IconPencil as Edit2, IconInfoCircle as Info, IconDatabase as Database } from "@tabler/icons-react";
+  Stack, Group, SegmentedControl, FileButton, ScrollArea, Box, Divider, Button, Badge, rem, Center, Loader, ThemeIcon, Tooltip, ActionIcon, Select } from "@/components/gds/primitives";
+import { IconFileUpload as FileUp, IconPlus as Plus, IconCircleCheck as CheckCircle, IconFileText as ScrollText, IconFilter as ListFilter, IconSortAscending as SortAsc, IconUsers as Users, IconPencil as Edit2, IconInfoCircle as Info, IconDatabase as Database } from "@/components/gds/icons";
 import { MetricCard, MetricGrid, Notice, PageHeader, PageShell, PipelineAccentHeader, UnifiedGrid } from "@/components/ui/app-shell";
 import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 import { UnifiedCardModal } from "@/components/ui/unified-card-modal";

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Badge, Group, Loader, SegmentedControl, SimpleGrid, Stack, Switch, Table } from "@mantine/core";
-import { IconGitBranch as GitBranch, IconWand as Wand } from "@tabler/icons-react";
+import { Badge, Group, Loader, SegmentedControl, SimpleGrid, Stack, Switch, Table } from "@/components/gds/primitives";
+import { IconGitBranch as GitBranch, IconWand as Wand } from "@/components/gds/icons";
 import { Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";

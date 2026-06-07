@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode, CSSProperties, KeyboardEvent, MouseEvent } from "react";
-import { Card, Stack, Group, Box, Badge, rem } from "@mantine/core";
+import { Card, Stack, Group, Box, Badge, rem } from "@/components/gds/primitives";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { getSemanticAccentBandStyle, getSemanticHoverStyle, getSemanticInsetStyle, getSemanticMutedStyle, getSemanticPillStyle, getSemanticSurfaceStyle, type ModuleTone } from "@/lib/semantic-theme";
 import type { CardFreshnessState } from "@/lib/card-freshness";

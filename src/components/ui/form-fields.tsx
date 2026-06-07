@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { TextInput, Textarea, Select, Checkbox, Stack, rem } from "@mantine/core";
+import { TextInput, Textarea, Select, Checkbox, Stack, rem } from "@/components/gds/primitives";
 
 // UNIFIED INPUT
 interface FormInputProps extends React.ComponentPropsWithoutRef<typeof TextInput> {}

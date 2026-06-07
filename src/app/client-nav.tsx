@@ -1,7 +1,7 @@
 'use client';
 
-import { AppShellNavbar, AppShellSection, NavLink, Stack, Group, Box, Avatar, Menu, rem, UnstyledButton, ScrollArea, ThemeIcon, Badge, Divider, Button, Anchor } from "@mantine/core";
-import { IconActivity as Activity, IconActivityHeartbeat as ActivityHeartbeat, IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconChartBar as ChartBar, IconBuilding as Building } from "@tabler/icons-react";
+import { AppShellNavbar, AppShellSection, NavLink, Stack, Group, Box, Avatar, Menu, rem, UnstyledButton, ScrollArea, ThemeIcon, Badge, Divider, Button, Anchor } from "@/components/gds/primitives";
+import { IconActivity as Activity, IconActivityHeartbeat as ActivityHeartbeat, IconChevronRight as ChevronRight, IconSun as Sun, IconMoon as Moon, IconLogout as LogOut, IconUser as UserIcon, IconSettings as SettingsIcon, IconLayoutDashboard as LayoutDashboard, IconDatabase as Database, IconListCheck as ListCheck, IconTarget as Target, IconSparkles as Sparkles, IconChevronDown as ChevronDown, IconHelmet as HardHat, IconLayersIntersect as Layers, IconHistory as History, IconChartBar as ChartBar, IconBuilding as Building } from "@/components/gds/icons";
 import { Logo } from "@/components/ui/logo";
 import { useState, useEffect } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";

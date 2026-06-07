@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Badge, Box, Group, Loader, SimpleGrid, Stack, Table, Anchor } from "@mantine/core";
-import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconBrain as Brain, IconHeartbeat as Heartbeat, IconHierarchy as Hierarchy, IconListCheck as ListCheck, IconServer as Server } from "@tabler/icons-react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Badge, Box, Group, Loader, SimpleGrid, Stack, Table, Anchor } from "@/components/gds/primitives";
+import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconBrain as Brain, IconHeartbeat as Heartbeat, IconHierarchy as Hierarchy, IconListCheck as ListCheck, IconServer as Server } from "@/components/gds/icons";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "@/components/gds/charts";
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";

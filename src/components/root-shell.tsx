@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { AppShell, AppShellMain } from "@mantine/core";
+import { AppShell, AppShellMain } from "@/components/gds/primitives";
 import { ClientNav } from "@/app/client-nav";
 import { CookieBanner } from "@/lib/cookie-consent";
 

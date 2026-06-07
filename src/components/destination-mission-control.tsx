@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
-import { Badge, Button, Group, Loader, SimpleGrid, Stack } from "@mantine/core";
-import { IconActivity, IconRefresh as Refresh, IconRotateClockwise2, IconStethoscope } from "@tabler/icons-react";
+import { Badge, Button, Group, Loader, SimpleGrid, Stack } from "@/components/gds/primitives";
+import { IconActivity, IconRefresh as Refresh, IconRotateClockwise2, IconStethoscope } from "@/components/gds/icons";
 import { MetricCard, Notice } from "@/components/ui/app-shell";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";

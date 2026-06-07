@@ -8,7 +8,7 @@
 import { Text } from "@/components/ui/typography";
 
 import dynamic from "next/dynamic";
-import { Center, Loader, Stack } from "@mantine/core";
+import { Center, Loader, Stack } from "@/components/gds/primitives";
 
 const TacticalBoard = dynamic(
   () => import("@/components/tactical-board").then(m => ({ default: m.TacticalBoard })),

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button, Center, Group, Loader, SimpleGrid, Stack } from "@mantine/core";
+import { Badge, Button, Center, Group, Loader, SimpleGrid, Stack } from "@/components/gds/primitives";
 import {
   IconActivity as Activity,
   IconBook2 as Book,
@@ -11,7 +11,7 @@ import {
   IconRefresh as Refresh,
   IconRadar2 as Radar,
   IconRocket as Rocket,
-} from "@tabler/icons-react";
+} from "@/components/gds/icons";
 import { EmptyState, LinkCard, MetricCard, Notice, PageHeader, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
 import { BodyText, MetaText, SectionTitle, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader, UnifiedCardSection } from "@/components/ui/unified-card";

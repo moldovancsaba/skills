@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { 
-  Stack, Group, Button, Badge, TextInput, rem, ActionIcon, Tooltip, SimpleGrid, Loader, Center, Select } from "@mantine/core";
+  Stack, Group, Button, Badge, TextInput, rem, ActionIcon, Tooltip, SimpleGrid, Loader, Center, Select } from "@/components/gds/primitives";
 import { 
   IconDatabase as Database, 
   IconSearch as Search, 
@@ -13,7 +13,7 @@ import {
   IconTrendingUp as TrendingUp, 
   IconTarget as Target, 
   IconPlus as Plus 
-} from "@tabler/icons-react";
+} from "@/components/gds/icons";
 import { 
   EmptyState,
   MetricCard, 

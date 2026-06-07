@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Group, Stack } from "@mantine/core";
+import { Group, Stack } from "@/components/gds/primitives";
 import { 
   UnifiedCard, 
   UnifiedCardHeader, 

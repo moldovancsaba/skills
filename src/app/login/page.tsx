@@ -1,7 +1,7 @@
 'use client';
 import { Text, Title } from "@/components/ui/typography";
 
-import { Center, Box, Stack, Button, Container, rem, Anchor, Group, Loader } from "@mantine/core";
+import { Center, Box, Stack, Button, Container, rem, Anchor, Group, Loader } from "@/components/gds/primitives";
 import Link from "next/link";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";

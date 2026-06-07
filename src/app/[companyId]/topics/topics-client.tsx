@@ -12,8 +12,8 @@ import { useRouter } from "next/navigation";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import { 
-  Stack, Group, Card, Badge as MantineBadge, ActionIcon, Tooltip, Button, Checkbox, TextInput, rem, Center, Loader, Box, Divider, ThemeIcon, Select } from "@mantine/core";
-import { IconGripVertical as GripVertical, IconPlus as Plus, IconTrash as Trash2, IconArrowUp as ArrowUp, IconArrowDown as ArrowDown, IconInfoCircle as Info, IconLayoutList as LayoutList, IconLayersIntersect as Layers } from "@tabler/icons-react";
+  Stack, Group, Card, Badge as MantineBadge, ActionIcon, Tooltip, Button, Checkbox, TextInput, rem, Center, Loader, Box, Divider, ThemeIcon, Select } from "@/components/gds/primitives";
+import { IconGripVertical as GripVertical, IconPlus as Plus, IconTrash as Trash2, IconArrowUp as ArrowUp, IconArrowDown as ArrowDown, IconInfoCircle as Info, IconLayoutList as LayoutList, IconLayersIntersect as Layers } from "@/components/gds/icons";
 import { EmptyState, Notice, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { 
   UnifiedCard, 

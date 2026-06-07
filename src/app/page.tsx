@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import HomeClient from "./home-client";
-import { Center, Loader, Stack } from "@mantine/core";
+import { Center, Loader, Stack } from "@/components/gds/primitives";
 import { Text } from "@/components/ui/typography";
 import { getHomeInitialData } from "@/lib/server-home-page-data";
 

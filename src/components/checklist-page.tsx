@@ -12,12 +12,12 @@ import { useStore } from "@/lib/store";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
-  Group, Loader, Stack, Button, ActionIcon, Tooltip, rem, Box, Divider, Center } from "@mantine/core";
+  Group, Loader, Stack, Button, ActionIcon, Tooltip, rem, Box, Divider, Center } from "@/components/gds/primitives";
 import { EmptyState, PageHeader, PageShell, UnifiedGrid, PipelineAccentHeader } from "@/components/ui/app-shell";
 import { UnifiedCardModal } from "@/components/ui/unified-card-modal";
 import { matchesAllHashtags, parseHashtagFilterParam, stringifyHashtagFilterParam } from "@/lib/hashtags";
 import { TaskReviewCard } from "@/components/task-review-card";
-import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowLeft as ArrowLeft, IconListCheck as ListCheck, IconDownload as Download } from "@tabler/icons-react";
+import { IconArchive as Archive, IconSparkles as Sparkles, IconRefresh as RefreshCw, IconArrowLeft as ArrowLeft, IconListCheck as ListCheck, IconDownload as Download } from "@/components/gds/icons";
 import { stripTechnicalMetadata } from "@/lib/ui-utils";
 import type { ProjectionFreshness } from "@/lib/webapp-projection";
 import { buildAcceptedTaskPatch, buildArchivedTaskPatch, buildDeliveredTaskPatch } from "@/lib/candidate-lifecycle";

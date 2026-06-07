@@ -104,9 +104,11 @@ Approved application stack:
 Approved product UI implementation lane:
 
 - Sovereign Squad General Design System only
-- Mantine only as the approved implementation substrate where it is GDS-themed, wrapped, or explicitly allowed
-- Mantine theme only through the approved GDS/local adapter contract
-- Mantine `Card` as the only approved base card primitive
+- Mantine only as the approved GDS implementation peer through `GdsProvider` and `src/components/gds/*`
+- Mantine theme only through package-native GDS theme creation in `src/components/providers.tsx`
+- direct Mantine, Tabler, Recharts, or drag/drop imports are forbidden outside `src/components/gds/*`
+- `npm run audit:gds-boundary` is mandatory before UI delivery is considered complete
+- package-native GDS primitives are preferred for all new UI; compatibility wrappers exist only to keep legacy surfaces stable during migration
 - `UnifiedCard` as the only approved feature-level product card API
 - `UnifiedCardModal` as the only approved modal content shell for product cards
 - DS-owned `Text` and `Title` wrappers in `src/components/ui/typography.tsx` are the only approved general-purpose typography escape hatches

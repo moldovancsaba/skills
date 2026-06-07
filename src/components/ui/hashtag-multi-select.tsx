@@ -3,10 +3,10 @@ import { Text } from "@/components/ui/typography";
 
 import * as React from "react";
 import { useState, useRef } from "react";
-import { IconX as X, IconPlus as Plus, IconSearch as Search, IconCheck as Check, IconHash as Hash } from "@tabler/icons-react";
+import { IconX as X, IconPlus as Plus, IconSearch as Search, IconCheck as Check, IconHash as Hash } from "@/components/gds/icons";
 import { 
-  Stack, Box, Badge, Group, ActionIcon, ScrollArea, UnstyledButton, InputBase, rem, ThemeIcon } from "@mantine/core";
-import { useClickOutside } from "@mantine/hooks";
+  Stack, Box, Badge, Group, ActionIcon, ScrollArea, UnstyledButton, InputBase, rem, ThemeIcon } from "@/components/gds/primitives";
+import { useClickOutside } from "@/components/gds/hooks";
 import { normalizeHashtag } from "@/lib/hashtags";
 import { getSemanticHoverStyle, getSemanticInsetStyle, getSemanticSurfaceStyle } from "@/lib/semantic-theme";
 

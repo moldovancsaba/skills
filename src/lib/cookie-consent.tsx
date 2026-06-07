@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import { IconCheck as Check } from "@tabler/icons-react";
+import { IconCheck as Check } from "@/components/gds/icons";
 import { Text } from "@/components/ui/typography";
 
 type ConsentSettings = {
@@ -45,7 +45,7 @@ export function useCookieConsent() {
   return { showBanner, settings, acceptAll, acceptSelected, close };
 }
 
-import { Affix, Group, Button, Checkbox, Stack, Box, rem, Container } from "@mantine/core";
+import { Affix, Group, Button, Checkbox, Stack, Box, rem, Container } from "@/components/gds/primitives";
 import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 
 export function CookieBanner() {

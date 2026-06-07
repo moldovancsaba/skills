@@ -5,7 +5,7 @@
  * across checklist, goals, review, and planning surfaces.
  */
 import { useState } from "react";
-import { IconCalendar as CalendarIcon, IconCheck as Check, IconChecks as CheckCheck, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconHistory as History, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@tabler/icons-react";
+import { IconCalendar as CalendarIcon, IconCheck as Check, IconChecks as CheckCheck, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconHistory as History, IconPin as Pin, IconRefresh as RefreshCw, IconArchive as Archive } from "@/components/gds/icons";
 import { 
   Badge, 
   Button, 
@@ -20,7 +20,7 @@ import {
   Box,
   Loader,
   ThemeIcon
-} from "@mantine/core";
+} from "@/components/gds/primitives";
 import { HashtagChipList } from "@/components/ui/hashtag-chip-list";
 import { TraceViewer } from "@/components/trace-viewer";
 import { CardShareAction } from "@/components/ui/card-share-action";

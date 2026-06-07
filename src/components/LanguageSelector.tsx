@@ -2,8 +2,8 @@
 import { Text } from "@/components/ui/typography";
 
 import React from "react";
-import { MultiSelect, Group, Stack } from "@mantine/core";
-import { IconGlobe as Globe, IconCheck as Check } from "@tabler/icons-react";
+import { MultiSelect, Group, Stack } from "@/components/gds/primitives";
+import { IconGlobe as Globe, IconCheck as Check } from "@/components/gds/icons";
 import { LANGUAGE_DEFINITIONS } from "@/lib/language-catalog";
 
 export type Language = {

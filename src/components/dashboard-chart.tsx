@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Box } from "@mantine/core";
+import { Box } from "@/components/gds/primitives";
 import { useEffect, useRef, useState } from "react";
 
 type ChartData = {

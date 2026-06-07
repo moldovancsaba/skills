@@ -1,8 +1,8 @@
 "use client";
 import { Text } from "@/components/ui/typography";
 
-import { Group, ThemeIcon, Anchor } from "@mantine/core";
-import { IconCheckbox as LogoIcon } from "@tabler/icons-react";
+import { Group, ThemeIcon, Anchor } from "@/components/gds/primitives";
+import { IconCheckbox as LogoIcon } from "@/components/gds/icons";
 import Link from "next/link";
 
 export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {

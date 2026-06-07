@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import {
   Text as MantineText,
   Title as MantineTitle,
-} from "@mantine/core";
+} from "@/components/gds/primitives";
 
 type MantineTextFacadeProps = {
   children?: ReactNode;

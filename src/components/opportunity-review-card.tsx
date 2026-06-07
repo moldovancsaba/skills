@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Badge, Button, Group, Select, Stack, TextInput, Textarea, ThemeIcon } from "@mantine/core";
-import { IconArchive as Archive, IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconRefresh as RefreshCw, IconX as X, IconPin as Pin } from "@tabler/icons-react";
+import { Badge, Button, Group, Select, Stack, TextInput, Textarea, ThemeIcon } from "@/components/gds/primitives";
+import { IconArchive as Archive, IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconRefresh as RefreshCw, IconX as X, IconPin as Pin } from "@/components/gds/icons";
 import { CardShareAction } from "@/components/ui/card-share-action";
 import { BodyText, MetaText, Text } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardActions, UnifiedCardBody, UnifiedCardFooter, UnifiedCardFreshnessBadge, UnifiedCardHeader, UnifiedCardSection, UnifiedCardText } from "@/components/ui/unified-card";

@@ -1,5 +1,5 @@
-import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconSparkles as Sparkles, IconArchive as Archive, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconEyeOff as EyeOff, IconAlertTriangle as AlertTriangle, IconBan as Ban } from "@tabler/icons-react";
-import { Badge, Button, Group, Stack, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader, ThemeIcon } from "@mantine/core";
+import { IconCheck as Check, IconMessage2 as MessageSquare, IconPencil as PencilLine, IconX as X, IconPin as Pin, IconRefresh as RefreshCw, IconSparkles as Sparkles, IconArchive as Archive, IconTarget as Target, IconLayoutDashboard as LayoutDashboard, IconEyeOff as EyeOff, IconAlertTriangle as AlertTriangle, IconBan as Ban } from "@/components/gds/icons";
+import { Badge, Button, Group, Stack, Divider, Box, TextInput, Textarea, Tooltip, rem, Loader, ThemeIcon } from "@/components/gds/primitives";
 import { getIceBadgeColor } from "@/lib/ice-colors";
 import { getKnowledgeCardFreshness } from "@/lib/card-freshness";
 import { getDisplayableHumanComment, stripTechnicalMetadata } from "@/lib/ui-utils";

@@ -1,8 +1,8 @@
 'use client';
 import { Text, Title } from "@/components/ui/typography";
 
-import { Stack, Group, ActionIcon, Tooltip, Divider, Box, Loader, Alert, ThemeIcon, Button, Badge, Center } from "@mantine/core";
-import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListCheck, IconLayoutDashboard as LayoutDashboard, IconLayersIntersect as Layers, IconHistory as History, IconBriefcase as Briefcase } from "@tabler/icons-react";
+import { Stack, Group, ActionIcon, Tooltip, Divider, Box, Loader, Alert, ThemeIcon, Button, Badge, Center } from "@/components/gds/primitives";
+import { IconPlus as Plus, IconSparkles as Sparkles, IconPencil as Edit, IconTrash as Trash2, IconHelpCircle as HelpCircle, IconLogin as LogIn, IconAlertCircle as AlertCircle, IconDatabase as Database, IconTarget as Target, IconListCheck as ListCheck, IconLayoutDashboard as LayoutDashboard, IconLayersIntersect as Layers, IconHistory as History, IconBriefcase as Briefcase } from "@/components/gds/icons";
 import { FormInput } from "@/components/ui/form-fields";
 import { HashtagMultiSelect } from "@/components/ui/hashtag-multi-select";
 import { EmptyState, LinkCard, Notice, PageShell, RouteCardGrid } from "@/components/ui/app-shell";

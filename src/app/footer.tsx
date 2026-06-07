@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Container, Group, Anchor, rem } from "@mantine/core";
+import { Box, Container, Group, Anchor, rem } from "@/components/gds/primitives";
 import { APP_VERSION } from "@/lib/release";
 import Link from "next/link";
 import { getSemanticFooterStyle, getSemanticPillStyle } from "@/lib/semantic-theme";

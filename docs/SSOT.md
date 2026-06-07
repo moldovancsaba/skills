@@ -11,6 +11,10 @@ Current GDS alignment:
 - consumed GDS version/package: `@doneisbetter/gds@3.4.3`
 - GDS package published: `2026-06-06T23:01:58.666Z`
 - shared package install path: adopted through direct npm consumption of `@doneisbetter/gds`, which brings `@doneisbetter/gds-theme`, `@doneisbetter/gds-core`, and `@doneisbetter/gds-admin`
+- root UI runtime is package-native: `src/components/providers.tsx` mounts `GdsProvider` and GDS runtime providers
+- compatibility imports for Mantine, Tabler, Recharts, and drag/drop packages are centralized in `src/components/gds/*`
+- `npm run audit:gds-boundary` is the mandatory drift gate for GDS-only frontend operation
+- `next.config.js` enables package import optimization for GDS and heavy frontend peer packages to reduce client import cost
 
 Foundation and future-function delivery rules are further defined in [docs/CHECK_FOUNDATION_LLD.md](/Users/Shared/Projects/checklist/docs/CHECK_FOUNDATION_LLD.md) and [docs/IMPLEMENTATION_RULEBOOK.md](/Users/Shared/Projects/checklist/docs/IMPLEMENTATION_RULEBOOK.md).
 

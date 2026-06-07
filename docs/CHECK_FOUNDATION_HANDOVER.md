@@ -8,6 +8,35 @@ Purpose:
 - keep Unit/Block/Module/Card/Miniapp boundaries explicit
 - keep delivery predictable as new Blocks and Miniapps are added
 
+## 2026-06-07 — Operator content health dashboard
+
+This pass adds a special operator dashboard for `moldovancsaba@gmail.com`.
+
+### Files updated
+
+- `src/lib/operator-content-health.ts`
+- `src/app/api/operator/content-health/route.ts`
+- `src/app/operator/content-health/page.tsx`
+- `src/app/client-nav.tsx`
+- `docs/OPERATOR_CONTENT_HEALTH_DASHBOARD.md`
+- `scripts/test-operator-content-health-contract.mjs`
+
+### What changed
+
+- Added `/operator/content-health` with exact-email access plus SUPERADMIN recovery access.
+- Added `GET /api/operator/content-health` for server-side hourly Atlas aggregation.
+- Added stacked bar charts for new created content and updated cards/feedback/action activity.
+- Added a sidebar `System Activity` link visible only to the requested operator email.
+- Included task, strategic, opportunity, action, correction, hashtag, interaction, decision, and outcome signals.
+
+### Validation result
+
+- `npm run test:operator-content-health-contract`
+- `npx tsc --noEmit`
+- `npm run lint`
+- `npm run build`
+- Signed-session API smoke for `moldovancsaba@gmail.com`
+
 ## 2026-06-07 — Surface projection read-model foundation
 
 This pass starts the frontend offload and Atlas read-model implementation for the project-board scope created from the GDS issue #81 quality standard.

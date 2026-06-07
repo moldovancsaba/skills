@@ -17,6 +17,8 @@ import { WEBAPP_SUMMARY_CLIENT_POLL_MS } from "@/lib/webapp-projection";
 import { getWebappProfileLabel, getWebappRoute, UNIT_MODULE_DEFINITIONS } from "@/lib/intelligence-unit-capabilities";
 import { resolveEnabledLegacyModules } from "@/lib/module-capability-utils";
 
+const CONTENT_HEALTH_OPERATOR_EMAIL = "moldovancsaba@gmail.com";
+
 const staticModuleNavItems: PipelineItem[] = [
   {
     key: "customer-operations",
@@ -296,6 +298,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
     ? resolvedCompany
     : (company?.id === companyIdFromUrl ? company : resolvedCompany || company);
   const activeCompanyId = companyIdFromUrl || company?.id;
+  const canViewContentHealth = String(session?.email || "").trim().toLowerCase() === CONTENT_HEALTH_OPERATOR_EMAIL;
 
   useEffect(() => {
     if (!activeCompanyId || !pathname || pathname === "/") return;
@@ -514,6 +517,41 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
               </MetaText>
             </Box>
           )}
+
+          {canViewContentHealth ? (
+            <Stack gap="xs">
+              <Divider my="md" />
+              <NavLink
+                label="System Activity"
+                description="Created and updated content by hour"
+                leftSection={
+                  <ThemeIcon color="tactical">
+                    <ChartBar size={14} />
+                  </ThemeIcon>
+                }
+                onClick={() => router.push("/operator/content-health")}
+                active={pathname === "/operator/content-health"}
+                variant="subtle"
+                color="tactical"
+                styles={{
+                  root: {
+                    borderLeft: "2px solid transparent",
+                    ...(pathname === "/operator/content-health" ? getSidebarActiveStyle("tactical") : {}),
+                    ...(pathname !== "/operator/content-health"
+                      ? {
+                          "&:hover": getSidebarHoverStyle("tactical"),
+                        }
+                      : {}),
+                  },
+                  label: {
+                    color: pathname === "/operator/content-health" ? "var(--nav-link-active)" : "var(--nav-link-inactive)",
+                    fontWeight: 500,
+                  },
+                  description: { color: "var(--nav-company-description)" },
+                }}
+              />
+            </Stack>
+          ) : null}
 
           <Divider my="md" />
           <Stack gap="xs">

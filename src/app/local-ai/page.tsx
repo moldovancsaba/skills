@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { cloneElement, isValidElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import Link from "next/link";
 import { Badge, Box, Group, Loader, SimpleGrid, Stack, Table, Anchor } from "@/components/gds/primitives";
 import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconBrain as Brain, IconHeartbeat as Heartbeat, IconHierarchy as Hierarchy, IconListCheck as ListCheck, IconServer as Server } from "@/components/gds/icons";
@@ -12,11 +12,10 @@ import { useI18n, type UiLanguage } from "@/lib/ui-i18n";
 import { getPipelineJobLabel, translatePipelineReason } from "@/lib/pipeline-ui-i18n";
 import { SEMANTIC_CHART_BAR_RADIUS, SEMANTIC_CHART_GRID_STROKE, getSemanticListItemStyle } from "@/lib/semantic-theme";
 
-const STATUS_API_URL = "http://127.0.0.1:10006/api/status";
+const STATUS_API_URL = "/api/local-ai/command-center?limit=40";
 const RAW_HEALTH_URL = "http://127.0.0.1:10005/health";
 const RAW_SNAPSHOT_HEALTH_URL = "http://127.0.0.1:10007/health";
 const RAW_COMMAND_CENTER_URL = "http://127.0.0.1:10006";
-const LANE_EVENTS_URL = "/api/local-ai/lane-events?limit=40";
 const PAGE_TEXT: Record<UiLanguage, Record<string, string>> = {
   en: {
     title: "Local AI Mission Control",
@@ -289,14 +288,17 @@ type ChartFrameProps = {
 
 function ChartFrame({ height, children }: ChartFrameProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     const node = hostRef.current;
     if (!node) return;
 
     const updateReady = () => {
-      setIsReady(node.clientWidth > 0 && node.clientHeight > 0);
+      const rect = node.getBoundingClientRect();
+      const width = Math.floor(rect.width);
+      const resolvedHeight = Math.floor(rect.height);
+      setDimensions(width > 0 && resolvedHeight > 0 ? { width, height: resolvedHeight } : null);
     };
 
     updateReady();
@@ -306,9 +308,13 @@ function ChartFrame({ height, children }: ChartFrameProps) {
     return () => observer.disconnect();
   }, []);
 
+  const chart = isValidElement(children) && dimensions
+    ? cloneElement(children as ReactElement<{ width?: number; height?: number }>, dimensions)
+    : null;
+
   return (
-    <Box ref={hostRef} h={height} w="100%" miw={0}>
-      {isReady ? children : null}
+    <Box ref={hostRef} h={height} w="100%" miw={1} style={{ minHeight: height }}>
+      {chart}
     </Box>
   );
 }
@@ -333,7 +339,9 @@ export default function LocalAiMissionControlPage() {
         }
         const payload = await response.json();
         if (cancelled) return;
-        setData(payload);
+        setData(payload?.compat?.statusPayload ?? payload);
+        setLaneEvents(Array.isArray(payload?.compat?.laneEvents) ? payload.compat.laneEvents : []);
+        setLaneEventsError(null);
         setError(null);
       } catch (err) {
         if (cancelled) return;
@@ -345,33 +353,6 @@ export default function LocalAiMissionControlPage() {
 
     void load();
     const timer = window.setInterval(load, 5000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadLaneEvents() {
-      try {
-        const response = await fetch(LANE_EVENTS_URL, { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(`Lane events returned ${response.status}`);
-        }
-        const payload = await response.json();
-        if (cancelled) return;
-        setLaneEvents(Array.isArray(payload?.events) ? payload.events : []);
-        setLaneEventsError(null);
-      } catch (err) {
-        if (cancelled) return;
-        setLaneEventsError(err instanceof Error ? err.message : String(err));
-      }
-    }
-
-    void loadLaneEvents();
-    const timer = window.setInterval(loadLaneEvents, 5000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);

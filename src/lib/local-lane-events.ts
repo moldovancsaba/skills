@@ -66,6 +66,14 @@ function asJsonSafe(value: unknown) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function getSettingStore(prisma: any) {
+  const settingStore = prisma?.systemSetting ?? prisma?.globalSetting;
+  if (!settingStore) {
+    throw new Error("Local lane events require a Prisma settings store");
+  }
+  return settingStore;
+}
+
 function getLaneAuditPrisma() {
   const datasourceUrl = process.env.LOCAL_DATABASE_URL?.trim();
   if (!datasourceUrl) return null;
@@ -97,9 +105,10 @@ export async function recordLocalLaneEvent(prisma: any, input: Omit<LocalLaneEve
     metadata: sanitizeMetadata(input.metadata),
   };
 
-  const current = await prisma.systemSetting.findUnique({ where: { key: LOCAL_LANE_EVENTS_SETTING_KEY } });
+  const settingStore = getSettingStore(prisma);
+  const current = await settingStore.findUnique({ where: { key: LOCAL_LANE_EVENTS_SETTING_KEY } });
   const events = [event, ...normalizeExistingEvents(current?.value)].slice(0, MAX_EVENTS);
-  await prisma.systemSetting.upsert({
+  await settingStore.upsert({
     where: { key: LOCAL_LANE_EVENTS_SETTING_KEY },
     create: { key: LOCAL_LANE_EVENTS_SETTING_KEY, value: { events } },
     update: { value: { events }, updatedAt: new Date() },
@@ -142,7 +151,8 @@ export async function safeRecordLocalLaneEvent(prisma: any, input: Omit<LocalLan
 }
 
 export async function listLocalLaneEvents(prisma: any, input: { lane?: LocalLane | null; limit?: number } = {}) {
-  const current = await prisma.systemSetting.findUnique({ where: { key: LOCAL_LANE_EVENTS_SETTING_KEY } });
+  const settingStore = getSettingStore(prisma);
+  const current = await settingStore.findUnique({ where: { key: LOCAL_LANE_EVENTS_SETTING_KEY } });
   const limit = Math.max(1, Math.min(Number(input.limit || 50), 250));
   return normalizeExistingEvents(current?.value)
     .filter((event) => (input.lane ? event.lane === input.lane : true))

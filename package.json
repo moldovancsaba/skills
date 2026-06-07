@@ -1,6 +1,6 @@
 {
   "name": "checklist-os",
-  "version": "0.17.2",
+  "version": "0.17.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -57,6 +57,7 @@
     "test:gds-style-contract": "node scripts/test-gds-style-contract.mjs",
     "test:webapp-boundary": "node scripts/test-webapp-boundary.mjs",
     "test:projection-contract": "node scripts/test-projection-contract.mjs",
+    "test:surface-projection-contract": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-surface-projection-contract.mjs",
     "test:board-lean-payloads": "node scripts/test-board-lean-payloads.mjs",
     "test:intent-api-no-execution": "node scripts/test-intent-api-no-execution.mjs",
     "test:count-single-source": "node scripts/test-count-single-source.mjs",

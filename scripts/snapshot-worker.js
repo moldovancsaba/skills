@@ -7,6 +7,7 @@ const {
   refreshDirtyCompanyIntelligenceSnapshots,
   refreshIntelligenceSnapshotSlice,
 } = require("./lib/intelligence-snapshot");
+const { refreshDirtyCompanySurfaceProjections } = require("./lib/surface-projections");
 const { syncAllCompanyPipelineJobsIfDue, syncDirtyCompanyPipelineJobs } = require("../src/lib/pipeline-queue");
 const { maintainLifecycleShard } = require("../src/lib/check-lifecycle/maintenance-engine");
 const {
@@ -187,6 +188,10 @@ async function runSnapshotLoop() {
       trigger: "snapshot-worker",
       limit: SNAPSHOT_BATCH_SIZE,
     });
+    const surfaceProjectionResult = await refreshDirtyCompanySurfaceProjections(prisma, {
+      trigger: "snapshot-worker",
+      limit: SNAPSHOT_BATCH_SIZE,
+    });
 
     const snapshotResult = await refreshIntelligenceSnapshotSlice(prisma, {
       batchSize: SNAPSHOT_BATCH_SIZE,
@@ -213,6 +218,9 @@ async function runSnapshotLoop() {
         missingProjectionCompaniesRemaining: projectionBackfillResult.remainingCandidates,
         targetedProjectionRefreshes: targetedProjectionResult.refreshedCompanies,
         dirtyProjectionCompaniesRemaining: targetedProjectionResult.dirtyCompaniesRemaining,
+        surfaceProjectionRefreshes: surfaceProjectionResult.refreshedSurfaces,
+        surfaceProjectionFailures: surfaceProjectionResult.failedSurfaces,
+        dirtySurfaceProjectionsRemaining: surfaceProjectionResult.dirtySurfacesRemaining,
         didSyncQueue,
         refreshedCompanies: snapshotResult.refreshedCompanies,
         wrapped: snapshotResult.wrapped,

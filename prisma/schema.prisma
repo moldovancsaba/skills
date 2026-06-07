@@ -64,6 +64,8 @@ model Company {
   destinationMissionAttempts        DestinationMissionAttempt[]
   boardCards            BoardCard[]
   boardItemStates       BoardItemState[]
+  surfaceProjections     CompanySurfaceProjection[]
+  surfaceItemProjections CompanySurfaceItemProjection[]
   
   // Profile Validation Fields
   website             String?
@@ -722,6 +724,48 @@ model BoardItemState {
 
   @@unique([companyId, boardKey, entityType, entityId])
   @@index([companyId, boardKey, columnKey, orderRank])
+}
+
+model CompanySurfaceProjection {
+  id              String   @id @default(uuid()) @map("_id")
+  companyId       String
+  surfaceKey      String
+  contractVersion Int
+  generatedAt     DateTime
+  inputWatermark  String?
+  checksum        String?
+  freshness       String   @default("FRESH")
+  payload         Json
+  itemCount       Int      @default(0)
+  staleAt         DateTime?
+  lastError       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, surfaceKey, contractVersion])
+  @@index([companyId, surfaceKey, updatedAt])
+  @@index([surfaceKey, freshness, staleAt])
+}
+
+model CompanySurfaceItemProjection {
+  id              String   @id @default(uuid()) @map("_id")
+  companyId       String
+  surfaceKey      String
+  itemId          String
+  columnKey       String?
+  orderRank       Float?
+  searchText      String?
+  filterKeys      String[] @default([])
+  payload         Json
+  payloadChecksum String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, surfaceKey, itemId])
+  @@index([companyId, surfaceKey, columnKey, orderRank])
+  @@index([companyId, surfaceKey, updatedAt])
 }
 
 model PublicIdCounter {

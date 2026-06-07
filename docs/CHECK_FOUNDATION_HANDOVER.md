@@ -8,6 +8,54 @@ Purpose:
 - keep Unit/Block/Module/Card/Miniapp boundaries explicit
 - keep delivery predictable as new Blocks and Miniapps are added
 
+## 2026-06-07 — Surface projection read-model foundation
+
+This pass starts the frontend offload and Atlas read-model implementation for the project-board scope created from the GDS issue #81 quality standard.
+
+### Files updated
+
+- `prisma/schema.prisma`
+- `src/lib/surface-projections.ts`
+- `scripts/lib/surface-projections.js`
+- `scripts/snapshot-worker.js`
+- `src/app/api/companies/[companyId]/surfaces/[surfaceKey]/route.ts`
+- `src/app/api/companies/[companyId]/surfaces/[surfaceKey]/actions/route.ts`
+- `src/app/api/local-ai/command-center/route.ts`
+- `src/app/local-ai/page.tsx`
+- `src/proxy.ts`
+- `src/lib/local-lane-events.ts`
+- `docs/SURFACE_PROJECTION_READ_MODELS_LLD.md`
+
+### What changed
+
+- Added durable Unit surface projection and item projection models for Atlas-backed frontend read models.
+- Added deterministic DTO contracts, checksums, freshness metadata, dirty queueing, retry state, and read helpers.
+- Added runtime builder registry support with `company.dashboardSummary` as the first registered builder.
+- Connected CHECK Local snapshot worker maintenance to drain dirty surface projection work.
+- Added generic authenticated surface read/action APIs with action receipts and revision conflict handling.
+- Added a server-composed Local AI command-center endpoint and reduced the Local AI page from two polling loops to one.
+- Exempted localhost `/api/local-ai/*` from Webapp auth proxy redirects so local operator surfaces work outside logged-in browser state.
+- Aligned local lane event storage with the existing `GlobalSetting` model while preserving test compatibility.
+
+### Validation result
+
+- `npm run test:surface-projection-contract`
+- `npm run test:local-lane-events`
+- `npm run audit:gds-boundary`
+- `npm run audit:docs`
+- `npx tsc --noEmit`
+- `npm run lint`
+- `npm run test:runtime-hardening`
+- `npm run test:runtime-chaos`
+- `npm run build`
+- Browser smoke for `/local-ai` and `/api/local-ai/command-center`
+
+### Operational notes
+
+- `prisma db push` is still blocked by existing duplicate legacy `ChecklistTask.publicId` data, not by this implementation.
+- The new Atlas projection indexes were created and verified directly.
+- Remaining project-board issues continue from the same foundation: broaden builders, migrate more frontend surfaces, and remove compatibility-only frontend logic after surfaces are stable.
+
 ## 1. Canonical Product Language
 
 Use these terms in product, docs, issues, and API naming:

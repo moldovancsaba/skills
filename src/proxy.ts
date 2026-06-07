@@ -50,6 +50,7 @@ export function proxy(req: NextRequest) {
   ];
   if (localOperatorHost) {
     publicPaths.push("/local-ai");
+    publicPaths.push("/api/local-ai");
   }
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 

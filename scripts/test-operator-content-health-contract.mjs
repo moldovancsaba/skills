@@ -11,6 +11,7 @@ const cronRoute = read("src/app/api/cron/operator-content-health/route.ts");
 const page = read("src/app/operator/content-health/page.tsx");
 const nav = read("src/app/client-nav.tsx");
 const proxy = read("src/proxy.ts");
+const runnableInventory = read("scripts/local-runnable-inventory.mjs");
 
 assert.match(lib, /moldovancsaba@gmail\.com/, "operator library must define the requested special operator email");
 assert.match(route, /CONTENT_HEALTH_OPERATOR_EMAIL/, "operator API must allow the configured special operator email");
@@ -58,8 +59,10 @@ assert.match(nav, /System Activity/, "operator nav must expose the dashboard");
 assert.match(nav, /moldovancsaba@gmail\.com/, "operator nav must scope the link to the requested email");
 
 assert.match(cronRoute, /verifyBackgroundJobSecret/, "cron route must require background job authentication");
+assert.match(cronRoute, /lane:\s*"SYSTEM_HEALTH"/, "cron route must report System Health lane ownership");
 assert.match(cronRoute, /CONTENT_HEALTH_MAX_HOURS/, "cron route must refresh the full bounded snapshot window by default");
 assert.match(cronRoute, /Operator content health snapshots refreshed/, "cron route must return an operational refresh message");
 assert.match(proxy, /\/api\/cron\/operator-content-health/, "cron route must bypass session proxy and rely on bearer auth");
+assert.match(runnableInventory, /api:\/api\/cron\/operator-content-health", \{ lane: LANE\.SYSTEM_HEALTH/, "cron route must be classified as a System Health runnable");
 
 console.log("Operator content health contract passed.");

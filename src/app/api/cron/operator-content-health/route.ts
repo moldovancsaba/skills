@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       cron: true,
+      lane: "SYSTEM_HEALTH",
       generatedAt: dashboard.generatedAt,
       status: dashboard.health.status,
       alert: dashboard.health.alert,

@@ -103,6 +103,7 @@ const EXPLICIT = new Map([
   ["package:verify:lifecycle", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
   ["api:/api/customer-value/delivery", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
   ["api:/api/cron/destination-missions", { lane: LANE.PLAYLIST, mutatesBusinessContent: true, mutatesRuntimeHealth: false, risk: RISK.HIGH }],
+  ["api:/api/cron/operator-content-health", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: true, risk: RISK.MEDIUM }],
   ["api:/api/destination-missions/daemon", { lane: LANE.PLAYLIST, mutatesBusinessContent: true, mutatesRuntimeHealth: false, risk: RISK.HIGH }],
   ["api:/api/destination-missions/daemon/health", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: false, risk: RISK.LOW }],
   ["api:/api/commands", { lane: LANE.SYSTEM_HEALTH, mutatesBusinessContent: false, mutatesRuntimeHealth: true, risk: RISK.HIGH }],

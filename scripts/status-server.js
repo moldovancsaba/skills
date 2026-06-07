@@ -338,6 +338,51 @@ function readHeartbeat() {
   catch { return null; }
 }
 
+function fetchLocalJson(pathname, port, timeoutMs = 1000) {
+  return new Promise((resolve) => {
+    const req = http.request({ hostname: "127.0.0.1", port, path: pathname, method: "GET", timeout: timeoutMs }, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        body += chunk;
+        if (body.length > 1024 * 1024) {
+          req.destroy(new Error(`Response from ${port}${pathname} exceeded 1MB`));
+        }
+      });
+      response.on("end", () => {
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          resolve(null);
+          return;
+        }
+        try {
+          resolve(JSON.parse(body));
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(null);
+    });
+    req.end();
+  });
+}
+
+function mergeLiveWorkerHealth(persistedWorker, health) {
+  const progress = isPlainObject(health?.progress) ? health.progress : null;
+  if (!progress) return persistedWorker;
+  const settings = isPlainObject(health?.settings) ? health.settings : progress.settings;
+  return {
+    ...persistedWorker,
+    ...progress,
+    online: true,
+    settings: isPlainObject(settings) ? settings : persistedWorker?.settings ?? null,
+    processTitle: typeof health?.processTitle === "string" ? health.processTitle : persistedWorker?.processTitle ?? null,
+  };
+}
+
 function readLogTail(n = 80) {
   try {
     return fs.readFileSync(LOG_FILE, "utf8")
@@ -497,6 +542,10 @@ async function buildStatusPayload() {
     getGlobalQueueSnapshot(),
     getProjectionCoverageSummary(),
   ]);
+  const [foregroundHealth, snapshotHealth] = await Promise.all([
+    fetchLocalJson("/health", 10005),
+    fetchLocalJson("/health", 10007),
+  ]);
   const inventoryHistory = await captureInventoryHistory(inventory);
 
   const logTail = readLogTail(80);
@@ -513,6 +562,8 @@ async function buildStatusPayload() {
     const lastUpdate = new Date(snapshotSetting.updatedAt).getTime();
     backgroundWorker = { online: (Date.now() - lastUpdate) < 10 * 60 * 1000, ...data };
   }
+  worker = mergeLiveWorkerHealth(worker, foregroundHealth);
+  backgroundWorker = mergeLiveWorkerHealth(backgroundWorker, snapshotHealth);
 
   const memoryGovernor = isPlainObject(memoryGovernorSetting?.value) ? memoryGovernorSetting.value : {};
   const runtimeActionLog = normalizeActionLog(runtimeActionLogSetting?.value);

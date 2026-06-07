@@ -34,6 +34,7 @@ This pass adds a special operator dashboard for `moldovancsaba@gmail.com`.
 - Added persisted hourly snapshots in `OperatorContentHealthSnapshot` with 30-day retention.
 - Added 7-day same-local-hour baseline comparison, same-hour-yesterday trend output, anomaly detection, and alert-ready API payloads.
 - Added `/api/cron/operator-content-health` so background automation can refresh the bounded 168-hour snapshot window without a browser session.
+- Scheduled `/api/cron/operator-content-health` hourly in `vercel.json` for production baseline learning.
 - Added operator UI sections for health status, baseline trend, and anomaly detection.
 
 ### Validation result

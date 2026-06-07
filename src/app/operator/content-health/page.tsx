@@ -114,7 +114,7 @@ const UPDATED_SERIES = [
   { key: "opportunities", name: "Opportunities", color: "var(--mantine-color-pink-6)" },
   { key: "boardCards", name: "Board cards", color: "var(--mantine-color-indigo-6)" },
   { key: "feedback", name: "Feedback", color: "var(--mantine-color-yellow-6)" },
-  { key: "actions", name: "Actions", color: "var(--mantine-color-dark-5)" },
+  { key: "actions", name: "Actions", color: "var(--module-neutral-color)" },
   { key: "corrections", name: "Corrections", color: "var(--mantine-color-red-6)" },
   { key: "auditEvents", name: "Audit events", color: "var(--mantine-color-teal-6)" },
   { key: "hashtagEvents", name: "Hashtag feedback", color: "var(--mantine-color-grape-6)" },

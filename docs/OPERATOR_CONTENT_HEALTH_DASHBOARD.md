@@ -1,6 +1,6 @@
 # Operator Content Health Dashboard
 
-Status: implemented in `0.17.4`.
+Status: implemented and scheduled in `0.17.7`.
 
 ## Access
 
@@ -50,6 +50,7 @@ Background refresh:
 
 - `GET /api/cron/operator-content-health`
 - Requires the normal background bearer secret (`CRON_SECRET`, falling back to `INGEST_SECRET`).
+- Scheduled in `vercel.json` as `0 * * * *` so production refreshes hourly.
 - Defaults to the full bounded 168-hour window so baseline data keeps learning even when the operator page is not open.
 - Classified as a `SYSTEM_HEALTH` runnable because it mutates only runtime health telemetry, not business or public content.
 

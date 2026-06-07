@@ -12,6 +12,7 @@ const page = read("src/app/operator/content-health/page.tsx");
 const nav = read("src/app/client-nav.tsx");
 const proxy = read("src/proxy.ts");
 const runnableInventory = read("scripts/local-runnable-inventory.mjs");
+const vercel = read("vercel.json");
 
 assert.match(lib, /moldovancsaba@gmail\.com/, "operator library must define the requested special operator email");
 assert.match(route, /CONTENT_HEALTH_OPERATOR_EMAIL/, "operator API must allow the configured special operator email");
@@ -64,5 +65,6 @@ assert.match(cronRoute, /CONTENT_HEALTH_MAX_HOURS/, "cron route must refresh the
 assert.match(cronRoute, /Operator content health snapshots refreshed/, "cron route must return an operational refresh message");
 assert.match(proxy, /\/api\/cron\/operator-content-health/, "cron route must bypass session proxy and rely on bearer auth");
 assert.match(runnableInventory, /api:\/api\/cron\/operator-content-health", \{ lane: LANE\.SYSTEM_HEALTH/, "cron route must be classified as a System Health runnable");
+assert.match(vercel, /"path": "\/api\/cron\/operator-content-health"[\s\S]*"schedule": "0 \* \* \* \*"/, "operator content health snapshots must refresh hourly in production");
 
 console.log("Operator content health contract passed.");

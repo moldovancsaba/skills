@@ -160,6 +160,13 @@ function findDecompositionAnomalies(jobs = []) {
   return anomalies;
 }
 
+function normalizeRuntimeActiveTask(stage, activeTask) {
+  if (stage === "IDLE" && /Waiting for the next planner cycle/i.test(String(activeTask || ""))) {
+    return null;
+  }
+  return activeTask || null;
+}
+
 function buildRuntimeVerificationReport({
   workerHealth,
   statusPayload,
@@ -186,6 +193,8 @@ function buildRuntimeVerificationReport({
   const now = Date.now();
   const staleRunningJobs = detectStaleRunningJobs(queueJobs, now);
   const decompositionAnomalies = findDecompositionAnomalies(queueJobs);
+  const normalizedWorkerTask = normalizeRuntimeActiveTask(workerProgress?.stage, workerProgress?.activeTask);
+  const normalizedStatusTask = normalizeRuntimeActiveTask(statusWorker?.stage, statusWorker?.activeTask);
 
   checks.push(
     buildVerificationCheck(
@@ -251,17 +260,17 @@ function buildRuntimeVerificationReport({
     buildVerificationCheck(
       "status-worker-truth-aligned",
       statusWorker?.stage === workerProgress?.stage
-        && statusWorker?.activeTask === workerProgress?.activeTask
+        && normalizedStatusTask === normalizedWorkerTask
         && (statusWorker?.currentCompany || null) === (workerProgress?.currentCompany || null)
         && (statusWorker?.currentJobId || null) === (workerProgress?.currentJobId || null)
         && (statusWorker?.currentJobType || null) === (workerProgress?.currentJobType || null),
       "Status server agrees with foreground worker stage, active task, company, and current queue job.",
       {
         workerStage: workerProgress?.stage || null,
-        workerTask: workerProgress?.activeTask || null,
+        workerTask: normalizedWorkerTask,
         workerCompany: workerProgress?.currentCompany || null,
         statusStage: statusWorker?.stage || null,
-        statusTask: statusWorker?.activeTask || null,
+        statusTask: normalizedStatusTask,
         statusCompany: statusWorker?.currentCompany || null,
         workerJobId: workerProgress?.currentJobId || null,
         workerJobType: workerProgress?.currentJobType || null,

@@ -24,6 +24,8 @@ It has two stacked bar charts:
 - `New Created Content`: newly created content/cards by family.
 - `Updated Cards And Feedback`: post-creation card touches plus feedback, actions, corrections, comments/interactions, decisions, and outcomes.
 
+It also persists hourly snapshots and evaluates whether the current operating hour is normal against recent baseline history.
+
 ## Data Contract
 
 API:
@@ -41,6 +43,14 @@ Response:
 - `dashboard.created`: total, hourly buckets, source totals.
 - `dashboard.updated`: total, hourly buckets, source totals.
 - `dashboard.recentSamples`: latest cards/outcomes for quick inspection.
+- `dashboard.health`: operator status, anomalies, same-hour baseline trend, and alert-ready payload.
+- `dashboard.snapshots`: snapshot write metadata and retention information.
+
+Background refresh:
+
+- `GET /api/cron/operator-content-health`
+- Requires the normal background bearer secret (`CRON_SECRET`, falling back to `INGEST_SECRET`).
+- Defaults to the full bounded 168-hour window so baseline data keeps learning even when the operator page is not open.
 
 ## Included Sources
 
@@ -69,11 +79,15 @@ Updated/activity signal includes:
 ## Operational Notes
 
 - Aggregation runs server-side against Atlas with hourly `$dateTrunc` buckets.
+- Hourly dashboard buckets are upserted into `OperatorContentHealthSnapshot`.
+- Snapshot retention is 30 days.
+- Health evaluation uses the last completed hour, same-hour-yesterday data when present, and the available 7-day same-local-hour average.
+- Alert payloads are returned under `dashboard.health.alert` and are ready for future Slack/email routing.
 - Each Atlas aggregation command has a `10s` `maxTimeMS` bound so the dashboard cannot pin the database indefinitely.
 - Raw Mongo commands use extended JSON date literals because Prisma `$runCommandRaw` does not serialize JavaScript `Date` values as Mongo dates.
 - API responses use `Cache-Control: no-store`; the dashboard should always reflect current operational health.
 - The frontend refreshes every 60 seconds and renders only GDS primitives/charts.
-- Browser users see current totals, active-hour counts, top source families, and recent samples.
+- Browser users see current totals, active-hour counts, operator health, anomaly rows, baseline trend, top source families, and recent samples.
 
 ## Verification
 
@@ -83,3 +97,5 @@ Required checks:
 - `npx tsc --noEmit`
 - `npm run lint`
 - `npm run build`
+- signed-session API smoke for `/api/operator/content-health`
+- background-secret API smoke for `/api/cron/operator-content-health`

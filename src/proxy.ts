@@ -45,6 +45,7 @@ export function proxy(req: NextRequest) {
     "/api/destination-review/live-listing-status",
     "/api/destination-missions/daemon",
     "/api/cron/destination-missions",
+    "/api/cron/operator-content-health",
     "/api/destination-workflows/intake",
     "/api/destination-workflows/live-revisions",
   ];

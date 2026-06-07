@@ -31,6 +31,10 @@ This pass adds a special operator dashboard for `moldovancsaba@gmail.com`.
 - Hardened timezone handling so invalid timezone input falls back to `Europe/Budapest`.
 - Added `10s` Atlas `maxTimeMS` bounds and `Cache-Control: no-store` API responses for predictable operator behavior.
 - Expanded chart series coverage to include board cards, review packets, files, and hashtag feedback families.
+- Added persisted hourly snapshots in `OperatorContentHealthSnapshot` with 30-day retention.
+- Added 7-day same-local-hour baseline comparison, same-hour-yesterday trend output, anomaly detection, and alert-ready API payloads.
+- Added `/api/cron/operator-content-health` so background automation can refresh the bounded 168-hour snapshot window without a browser session.
+- Added operator UI sections for health status, baseline trend, and anomaly detection.
 
 ### Validation result
 
@@ -42,6 +46,7 @@ This pass adds a special operator dashboard for `moldovancsaba@gmail.com`.
 - `npm run build`
 - `npm run verify:runtime`
 - Signed-session API smoke for `moldovancsaba@gmail.com`
+- Background-secret cron smoke for `/api/cron/operator-content-health`
 
 ## 2026-06-07 — Surface projection read-model foundation
 

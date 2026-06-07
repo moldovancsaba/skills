@@ -36,6 +36,60 @@ type DashboardPayload = {
     createdAt: string | null;
     updatedAt: string | null;
   }>;
+  health: {
+    status: "healthy" | "degraded" | "needs_attention";
+    evaluatedHour: string;
+    summary: string;
+    anomalies: Array<{
+      id: string;
+      severity: "info" | "warning" | "critical";
+      title: string;
+      detail: string;
+      observed: number;
+      baseline: number | null;
+      metric: string;
+      hour: string;
+    }>;
+    trend: {
+      baselineDays: number;
+      baselineSnapshotCount: number;
+      historySnapshotCount: number;
+      current: {
+        hour: string;
+        localHour: number;
+        createdTotal: number;
+        updatedTotal: number;
+        feedbackTotal: number;
+      };
+      sameHourYesterday: {
+        hour: string;
+        createdTotal: number;
+        updatedTotal: number;
+        feedbackTotal: number;
+      } | null;
+      sevenDayAverage: {
+        createdTotal: number | null;
+        updatedTotal: number | null;
+        feedbackTotal: number | null;
+      };
+    };
+    alert: {
+      ready: boolean;
+      shouldNotify: boolean;
+      status: string;
+      severity: "info" | "warning" | "critical";
+      title: string;
+      message: string;
+      channels: string[];
+    };
+  };
+  snapshots: {
+    persisted: number;
+    modified?: number;
+    upserted?: number;
+    collection: string;
+    retentionDays: number;
+  };
 };
 
 const CREATED_SERIES = [
@@ -87,6 +141,29 @@ function tooltipFormatter(value: unknown, name: unknown) {
 
 function totalActiveHours(buckets: Array<Record<string, string | number>>) {
   return buckets.filter((bucket) => Number(bucket.total || 0) > 0).length;
+}
+
+function formatStatus(status: DashboardPayload["health"]["status"]) {
+  if (status === "needs_attention") return "Needs attention";
+  if (status === "degraded") return "Degraded";
+  return "Healthy";
+}
+
+function statusColor(status: DashboardPayload["health"]["status"]) {
+  if (status === "needs_attention") return "red";
+  if (status === "degraded") return "yellow";
+  return "green";
+}
+
+function severityColor(severity: "info" | "warning" | "critical") {
+  if (severity === "critical") return "red";
+  if (severity === "warning") return "yellow";
+  return "blue";
+}
+
+function formatBaseline(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "learning";
+  return value.toFixed(value >= 10 ? 0 : 1);
 }
 
 function HealthChart({
@@ -219,10 +296,81 @@ export default function OperatorContentHealthPage() {
       {dashboard ? (
         <Stack gap="lg" aria-live="polite">
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
+            <MetricCard icon={Stethoscope} color="review" label="Health status" value={formatStatus(dashboard.health.status)} detail={dashboard.health.alert.shouldNotify ? "alert-ready" : "no alert needed"} />
             <MetricCard icon={Activity} color="strategy" label="Created content" value={dashboard.created.total} detail={`${totalActiveHours(dashboard.created.buckets)} active hour(s)`} />
             <MetricCard icon={Stethoscope} color="tactical" label="Updated activity" value={dashboard.updated.total} detail={`${totalActiveHours(dashboard.updated.buckets)} active hour(s)`} />
-            <MetricCard icon={Activity} color="knowmore" label="Recent samples" value={dashboard.recentSamples.length} detail="latest cards and outcomes" />
             <MetricCard icon={Stethoscope} color="review" label="Generated at" value={formatDateTime(dashboard.generatedAt)} detail={dashboard.range.timezone} />
+          </SimpleGrid>
+
+          <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
+            <UnifiedCard>
+              <UnifiedCardHeader
+                title="Operator Health"
+                supporting={<Badge variant="light" color={statusColor(dashboard.health.status)}>{formatStatus(dashboard.health.status)}</Badge>}
+              />
+              <UnifiedCardBody>
+                <Stack gap="sm">
+                  <BodyText>{dashboard.health.summary}</BodyText>
+                  <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+                    <Box p="sm" style={{ border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}>
+                      <MetaText>Evaluated hour</MetaText>
+                      <BodyText>{formatDateTime(dashboard.health.evaluatedHour)}</BodyText>
+                    </Box>
+                    <Box p="sm" style={{ border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}>
+                      <MetaText>Baseline snapshots</MetaText>
+                      <BodyText>{dashboard.health.trend.baselineSnapshotCount} / {dashboard.health.trend.baselineDays} days</BodyText>
+                    </Box>
+                    <Box p="sm" style={{ border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}>
+                      <MetaText>Snapshot writes</MetaText>
+                      <BodyText>{dashboard.snapshots.persisted}</BodyText>
+                    </Box>
+                  </SimpleGrid>
+                  {dashboard.health.alert.shouldNotify ? (
+                    <Notice title={dashboard.health.alert.title} variant={dashboard.health.alert.severity === "critical" ? "destructive" : "default"}>
+                      {dashboard.health.alert.message}
+                    </Notice>
+                  ) : null}
+                </Stack>
+              </UnifiedCardBody>
+            </UnifiedCard>
+
+            <UnifiedCard>
+              <UnifiedCardHeader title="Baseline Trend" supporting={<Badge variant="light" color="tactical">same hour</Badge>} />
+              <UnifiedCardBody>
+                <Table.ScrollContainer minWidth={560}>
+                  <Table verticalSpacing="xs">
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Metric</Table.Th>
+                        <Table.Th style={{ textAlign: "right" }}>Current</Table.Th>
+                        <Table.Th style={{ textAlign: "right" }}>Yesterday</Table.Th>
+                        <Table.Th style={{ textAlign: "right" }}>7 day avg</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      <Table.Tr>
+                        <Table.Td>Created</Table.Td>
+                        <Table.Td style={{ textAlign: "right" }}>{dashboard.health.trend.current.createdTotal}</Table.Td>
+                        <Table.Td style={{ textAlign: "right" }}>{dashboard.health.trend.sameHourYesterday?.createdTotal ?? "learning"}</Table.Td>
+                        <Table.Td style={{ textAlign: "right" }}>{formatBaseline(dashboard.health.trend.sevenDayAverage.createdTotal)}</Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td>Updated</Table.Td>
+                        <Table.Td style={{ textAlign: "right" }}>{dashboard.health.trend.current.updatedTotal}</Table.Td>
+                        <Table.Td style={{ textAlign: "right" }}>{dashboard.health.trend.sameHourYesterday?.updatedTotal ?? "learning"}</Table.Td>
+                        <Table.Td style={{ textAlign: "right" }}>{formatBaseline(dashboard.health.trend.sevenDayAverage.updatedTotal)}</Table.Td>
+                      </Table.Tr>
+                      <Table.Tr>
+                        <Table.Td>Feedback</Table.Td>
+                        <Table.Td style={{ textAlign: "right" }}>{dashboard.health.trend.current.feedbackTotal}</Table.Td>
+                        <Table.Td style={{ textAlign: "right" }}>{dashboard.health.trend.sameHourYesterday?.feedbackTotal ?? "learning"}</Table.Td>
+                        <Table.Td style={{ textAlign: "right" }}>{formatBaseline(dashboard.health.trend.sevenDayAverage.feedbackTotal)}</Table.Td>
+                      </Table.Tr>
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              </UnifiedCardBody>
+            </UnifiedCard>
           </SimpleGrid>
 
           <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
@@ -241,6 +389,43 @@ export default function OperatorContentHealthPage() {
           </SimpleGrid>
 
           <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
+            <UnifiedCard>
+              <UnifiedCardHeader title="Anomaly Detection" supporting={<Badge variant="light" color={statusColor(dashboard.health.status)}>alert-ready</Badge>} />
+              <UnifiedCardBody>
+                {dashboard.health.anomalies.length ? (
+                  <Table.ScrollContainer minWidth={680}>
+                    <Table verticalSpacing="xs">
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Severity</Table.Th>
+                          <Table.Th>Signal</Table.Th>
+                          <Table.Th style={{ textAlign: "right" }}>Observed</Table.Th>
+                          <Table.Th style={{ textAlign: "right" }}>Baseline</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {dashboard.health.anomalies.map((anomaly) => (
+                          <Table.Tr key={anomaly.id}>
+                            <Table.Td><Badge variant="light" color={severityColor(anomaly.severity)}>{anomaly.severity}</Badge></Table.Td>
+                            <Table.Td>
+                              <Stack gap={2}>
+                                <BodyText>{anomaly.title}</BodyText>
+                                <MetaText>{anomaly.detail}</MetaText>
+                              </Stack>
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right" }}>{anomaly.observed}</Table.Td>
+                            <Table.Td style={{ textAlign: "right" }}>{formatBaseline(anomaly.baseline)}</Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </Table.ScrollContainer>
+                ) : (
+                  <Notice title="No anomalies">The evaluated hour is inside the available activity baseline.</Notice>
+                )}
+              </UnifiedCardBody>
+            </UnifiedCard>
+
             <UnifiedCard>
               <UnifiedCardHeader title="Top Activity Sources" supporting={<Badge variant="light" color="strategy">ranked</Badge>} />
               <UnifiedCardBody>

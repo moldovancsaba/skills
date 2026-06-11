@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { resolveMiniappRouteContext } from "@/lib/check-foundation/miniapp-route-guard";
+import { MINIAPP_DEFAULT_MINIMUM_CONTENT_QUALITY_SCORE, readContentQualityScore } from "@/lib/miniapp-content-quality";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,7 @@ export async function GET(
       const projectionGate = readProjectionGate(metadata);
       const eligibilityFlags = pickStringArray(metadata, "eligibilityFlags");
       const qualityScore = pickNumber(metadata, "qualityScore");
+      const contentQualityScore = readContentQualityScore({ metadata });
       const requiresReview = pickBoolean(metadata, "requiresReview");
       const sourceUrls = pickStringArray(metadata, "sourceUrls");
       const latestPacket = candidate.reviewPackets[0] ?? null;
@@ -131,7 +133,7 @@ export async function GET(
                 provider: metadata?.providerConfidence ?? null,
               }
             : null,
-        scoreMinimumMet: qualityScore >= 55,
+        scoreMinimumMet: contentQualityScore >= MINIAPP_DEFAULT_MINIMUM_CONTENT_QUALITY_SCORE,
       };
 
       if (projectionGate.blocked) {
@@ -152,7 +154,8 @@ export async function GET(
               latestReviewPacketState: latestPacket?.packetState ?? null,
               compareQuality: {
                 qualityScore,
-                minimumQualityScore: 55,
+                contentQualityScore,
+                minimumContentQualityScore: MINIAPP_DEFAULT_MINIMUM_CONTENT_QUALITY_SCORE,
                 acceptable: pickBoolean(metadata, "qualityAcceptable"),
                 requiresReview,
                 reasons: pickStringArray(metadata, "qualityReasons"),

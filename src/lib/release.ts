@@ -3,7 +3,7 @@
  * Hardened version - Client Safe
  */
 
-export const APP_VERSION = "0.17.1";
+export const APP_VERSION = "0.17.12";
 export const BRAIN_VERSION = `local-brain@${APP_VERSION}`;
 export const FLASHCARD_PROMPT_VERSION = `flashcard-policy@${APP_VERSION}`;
 export const CHECKLIST_PROMPT_VERSION = `checklist-policy@${APP_VERSION}`;

@@ -42,7 +42,7 @@ Each miniapp declares:
 - `domainProfile`: title, description, allowed content types, forbidden signals.
 - `coverageGoals`: target public visible-card counts by category/geography.
 - `researchPolicy`: free search providers, official-source requirement, crawl limits, timeouts.
-- `promotionPolicy`: evidence and authority thresholds, public verification requirement.
+- `promotionPolicy`: evidence, authority, candidate, and `0..1000` content-quality thresholds, public verification requirement.
 - `failurePolicy`: retryable, terminal, and learning-memory codes.
 - `verificationPolicy`: public API and visible-card counting rules.
 
@@ -70,6 +70,7 @@ Implementation reference:
 
 - `promotionPolicy.successMetric` must be `verified_public_visible_cards`.
 - `promotionPolicy.sourceCardInventoryIsSuccess` must be `false`.
+- `promotionPolicy.minimumContentQualityScore` must be at least `500` for production publishing; candidates below this score stay in research/rework.
 - `verificationPolicy.countDuplicateUpdatesAsNewCards` must be `false`.
 - Retryable and terminal failure codes must not overlap.
 - Invalid contracts fail closed with a `422` API response.
@@ -215,9 +216,9 @@ It promotes strong `miniapp_evidence_artifact` records into miniapp opportunityc
 
 Promotion behavior:
 
-- Evidence must satisfy the active contract's `minimumEvidenceScore`, `minimumSourceAuthorityScore`, and `minimumCandidateScore`.
+- Evidence must satisfy the active contract's `minimumEvidenceScore`, `minimumSourceAuthorityScore`, `minimumCandidateScore`, and `minimumContentQualityScore`.
 - Solid evidence becomes a destination candidate with `visitorCandidateState: "OPPORTUNITY_CANDIDATE"`.
-- Weak evidence is marked `REWORK_REQUIRED` on the evidence artifact, with blocking reasons preserved for learning and replanning.
+- Weak evidence is marked `REWORK_REQUIRED` on the evidence artifact, with blocking reasons such as `content_quality_below_contract` preserved for learning and replanning.
 - Candidate metadata carries the sovereign contract key, quality gate scores, classification seed, and `sourceCardInventoryIsSuccess: false`.
 - New candidates enter the destination workflow as `DISCOVERED`; extraction, scoring, review, publish, and public verification remain separate gates.
 
@@ -234,12 +235,24 @@ They validate miniapp opportunity candidates before review preparation or publis
 
 Gate behavior:
 
-- Enforces contract evidence, source authority, and candidate score thresholds.
+- Enforces contract evidence, source authority, candidate score, and `0..1000` content-quality thresholds.
 - Enforces contract forbidden signals.
 - Runs the Compare public projection gate for Compare visitor candidates.
 - Writes `NEEDS_REVIEW` only when blocking reasons are empty.
 - Writes `REWORK_REQUIRED` when a candidate is weak, source-only, fake/static, missing required public projection assets, or otherwise blocked.
 - Records review-preparation gaps such as `facts_snapshot_needed` and `draft_payload_needed` without treating them as publish success.
+
+## Publish Quality Gate
+
+The content loop is:
+
+1. Research new website opportunities such as camps, classes, courses, drop-ins, events, and provider profiles.
+2. Promote strong evidence to destination candidates.
+3. Improve or rework candidates until the `contentQualityScore` reaches the active contract threshold.
+4. Prepare review cards only for candidates that meet the threshold.
+5. Publish approved review cards only when `contentQualityScore >= minimumContentQualityScore`.
+
+For ClassScout and the other sovereign miniapps, the default production floor is `500/1000`. The publish bridge re-checks this threshold immediately before sending content to the website and returns `content_quality_below_contract` with status `422` when the score is too low.
 
 Gate API:
 

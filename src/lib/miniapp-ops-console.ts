@@ -238,6 +238,7 @@ export async function getMiniappOpsSnapshot(input: OpsInput) {
     title: opportunity.title,
     sourceUrl: opportunity.sourceUrl,
     candidateScore: opportunity.candidateScore,
+    contentQualityScore: asNumber(opportunity.contentQualityScore),
     blockingReasons: opportunity.blockingReasons,
     nextAction: opportunity.status === "CANDIDATE" ? "Evaluate promotion gate" : "Loop through learning memory and re-plan",
   }));

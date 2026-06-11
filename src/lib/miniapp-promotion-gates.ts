@@ -6,6 +6,7 @@ import { ensureDestinationInstance } from "@/lib/destination-workflows";
 import { resolveDestinationKeyForVisitorWithHint } from "@/lib/visitor-blueprints";
 import { assertMiniappIntelligenceContract } from "@/lib/miniapp-intelligence-contracts";
 import { evaluateCompareProjectionGate } from "@/lib/visitor-public-projection-gate";
+import { readContentQualityScore } from "@/lib/miniapp-content-quality";
 
 export type MiniappPromotionGateResult = {
   candidateId: string;
@@ -86,6 +87,10 @@ export async function evaluateMiniappPromotionGates(input: GateInput) {
     const evidenceScore = asNumber(opportunity.evidenceScore);
     const sourceAuthorityScore = asNumber(opportunity.sourceAuthorityScore);
     const candidateScore = asNumber(opportunity.candidateScore);
+    const contentQualityScore = readContentQualityScore({
+      metadata,
+      fallbackCandidateScore: candidateScore,
+    });
     const sourceUrl = asString(opportunity.sourceUrl) || candidate.canonicalSourceUrl;
     const title = asString(opportunity.title);
     const text = [
@@ -101,6 +106,7 @@ export async function evaluateMiniappPromotionGates(input: GateInput) {
     if (evidenceScore < contract.promotionPolicy.minimumEvidenceScore) blockingReasons.push("evidence_score_below_contract");
     if (sourceAuthorityScore < contract.promotionPolicy.minimumSourceAuthorityScore) blockingReasons.push("source_authority_below_contract");
     if (candidateScore < contract.promotionPolicy.minimumCandidateScore) blockingReasons.push("candidate_score_below_contract");
+    if (contentQualityScore < contract.promotionPolicy.minimumContentQualityScore) blockingReasons.push("content_quality_below_contract");
     const forbiddenSignals = includesForbiddenSignal(text, contract.domainProfile.forbiddenSignals);
     for (const signal of forbiddenSignals) blockingReasons.push(`forbidden_signal:${signal}`);
 
@@ -139,6 +145,8 @@ export async function evaluateMiniappPromotionGates(input: GateInput) {
             evidenceScore,
             sourceAuthorityScore,
             candidateScore,
+            contentQualityScore,
+            minimumContentQualityScore: contract.promotionPolicy.minimumContentQualityScore,
           },
           sourceCardInventoryIsSuccess: false,
           successMetric: contract.promotionPolicy.successMetric,

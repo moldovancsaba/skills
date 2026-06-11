@@ -1,16 +1,16 @@
 # Graph Report - checklist  (2026-06-11)
 
 ## Corpus Check
-- 894 files · ~696,092 words
+- 895 files · ~696,852 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 9140 nodes · 16880 edges · 516 communities (461 shown, 55 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 212 edges (avg confidence: 0.8)
+- 9152 nodes · 16926 edges · 515 communities (460 shown, 55 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 213 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `09b29a82`
+- Built from commit: `3a7fdbc6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -339,6 +339,7 @@
 - [[_COMMUNITY_Community 321|Community 321]]
 - [[_COMMUNITY_Community 322|Community 322]]
 - [[_COMMUNITY_Community 323|Community 323]]
+- [[_COMMUNITY_Community 324|Community 324]]
 - [[_COMMUNITY_Community 325|Community 325]]
 - [[_COMMUNITY_Community 326|Community 326]]
 - [[_COMMUNITY_Community 327|Community 327]]
@@ -370,6 +371,7 @@
 - [[_COMMUNITY_Community 353|Community 353]]
 - [[_COMMUNITY_Community 354|Community 354]]
 - [[_COMMUNITY_Community 355|Community 355]]
+- [[_COMMUNITY_Community 356|Community 356]]
 - [[_COMMUNITY_Community 357|Community 357]]
 - [[_COMMUNITY_Community 358|Community 358]]
 - [[_COMMUNITY_Community 359|Community 359]]
@@ -413,8 +415,8 @@
 - [[_COMMUNITY_Community 397|Community 397]]
 - [[_COMMUNITY_Community 398|Community 398]]
 - [[_COMMUNITY_Community 399|Community 399]]
+- [[_COMMUNITY_Community 400|Community 400]]
 - [[_COMMUNITY_Community 401|Community 401]]
-- [[_COMMUNITY_Community 402|Community 402]]
 - [[_COMMUNITY_Community 403|Community 403]]
 - [[_COMMUNITY_Community 404|Community 404]]
 - [[_COMMUNITY_Community 405|Community 405]]
@@ -513,11 +515,8 @@
 - [[_COMMUNITY_Community 504|Community 504]]
 - [[_COMMUNITY_Community 505|Community 505]]
 - [[_COMMUNITY_Community 506|Community 506]]
-- [[_COMMUNITY_Community 513|Community 513]]
 - [[_COMMUNITY_Community 515|Community 515]]
 - [[_COMMUNITY_Community 517|Community 517]]
-- [[_COMMUNITY_Community 518|Community 518]]
-- [[_COMMUNITY_Community 519|Community 519]]
 - [[_COMMUNITY_Community 522|Community 522]]
 
 ## God Nodes (most connected - your core abstractions)
@@ -533,14 +532,14 @@
 10. `resolveDestinationKeyForVisitorWithHint()` - 54 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `executeDestinationMaintenanceAdapters()` --calls--> `adapter`  [INFERRED]
-  src/lib/destination-maintenance-adapters.ts → scripts/test-gds-public-miniapp-shell.mjs
 - `computeFrontierScore()` --calls--> `computeBlendedPriorityProfile()`  [EXTRACTED]
   scripts/lib/frontier.js → src/lib/scoring-contract.js
 - `processPendingWorkerCommands()` --calls--> `escalateCompanyPipelineJob()`  [INFERRED]
   scripts/lib/system-commands.js → src/lib/pipeline-queue.js
 - `processPendingWorkerCommands()` --calls--> `syncCompanyPipelineJobs()`  [INFERRED]
   scripts/lib/system-commands.js → src/lib/pipeline-queue.js
+- `executeDestinationMaintenanceAdapters()` --calls--> `adapter`  [INFERRED]
+  src/lib/destination-maintenance-adapters.ts → scripts/test-gds-public-miniapp-shell.mjs
 - `main()` --calls--> `recomputeFrontier()`  [EXTRACTED]
   scratch-frontier.js → scripts/lib/frontier.js
 
@@ -548,7 +547,7 @@
 - 1-file cycle: `src/app/api/nba/trace/route.ts -> src/app/api/nba/trace/route.ts`
 - 1-file cycle: `src/lib/planner-contract.ts -> src/lib/planner-contract.ts`
 
-## Communities (516 total, 55 thin omitted)
+## Communities (515 total, 55 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.01
@@ -563,69 +562,60 @@ Cohesion: 0.01
 Nodes (135): scripts, audit:comments, audit:docs, audit:gds-boundary, audit:local-runnables, audit:score-health, audit:semantic, audit:terminology (+127 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.06
-Nodes (64): VALID_ACTIONS, ensureBoardRanks(), buildManualLaneOverrideData(), DELETE(), ensureChecklistColumnRanks(), GET(), PATCH(), POST() (+56 more)
+Cohesion: 0.05
+Nodes (65): ensureBoardRanks(), buildLifecycleControlCenterView(), buildManualLaneOverrideData(), DELETE(), ensureChecklistColumnRanks(), GET(), PATCH(), POST() (+57 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.05
-Nodes (76): iconForEntity(), SharedCard, SharedCardPage(), ActionMode, ChecklistTask, ACTION_ICON, ClassScoutHome(), pct() (+68 more)
+Cohesion: 0.06
+Nodes (50): iconForEntity(), SharedCard, SharedCardPage(), ACTION_ICON, LearningSummary, LiveListingSummary, DestinationLearningPanel(), LearningSummary (+42 more)
 
 ### Community 5 - "Community 5"
 Cohesion: 0.04
-Nodes (79): buildEvidenceBatches(), { buildSourceLifecycleData }, crypto, { deriveDataCardScoreProfile }, { ensureCitationSnapshotForSource }, ingestEvidenceUnit(), selectEvidenceForGeneration(), getServerTime() (+71 more)
+Nodes (81): buildEvidenceBatches(), selectEvidenceForGeneration(), { auditCheckedFlashCard }, buildLegacyMemoryPrompt(), buildLessonContent(), classifyLesson(), determineScope(), distillContextSignals() (+73 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.04
-Nodes (57): Language, LANGUAGES, LanguageSelector(), LanguageSelectorProps, UiLanguageSelect(), UiLanguageSelectProps, getPipelineJobLabel(), getPipelineSourceSignalLabel() (+49 more)
+Cohesion: 0.05
+Nodes (41): GdsRuntimeProviders(), UiLanguageSelect(), UiLanguageSelectProps, getPipelineJobLabel(), getPipelineSourceSignalLabel(), JOB_LABELS, resolveLanguage(), SOURCE_SIGNAL_LABELS (+33 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.04
-Nodes (104): callOllama(), callOllamaJson(), callOllamaWithFailover(), extractJsonCandidate(), http, normalizeText(), { 
-  OLLAMA_HOST, 
-  OLLAMA_MODEL,
-  GLOBAL_OLLAMA_TIMEOUT_MS, 
-  STAGE_MODELS, 
-  DRAFT_STAGE_TIMEOUT_MS,
-  WRITE_STAGE_TIMEOUT_MS,
-  JUDGE_STAGE_TIMEOUT_MS,
-  queueAiInference 
-}, runLocalAiPass() (+96 more)
+Cohesion: 0.07
+Nodes (75): callOllamaWithFailover(), auditCardTaxonomy(), getCompanyStrategicContext(), { humanReadableAllowedLanguages, getLanguagePolicyPrompt }, { truncate }, getStageModels(), draftFlashcardsFromEvidenceBatch(), draftTaskcardFromFlashCard() (+67 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.02
 Nodes (96): it, calculator.browseTraining, calculator.decrease, calculator.increase, calculator.openSaved, calculator.remove, common.fallbackAll, common.language (+88 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.06
-Nodes (90): calculateChecklistIceScore(), normalizeChecklistMetrics(), effectiveConfidence(), effectiveWeight(), applyPlanningHitlScoreAdjustment(), ChecklistKanbanColumn, COLUMN_INDEX, derivePlanningHitlScoreAdjustment() (+82 more)
+Cohesion: 0.07
+Nodes (82): calculateChecklistIceScore(), normalizeChecklistMetrics(), effectiveConfidence(), effectiveWeight(), applyPlanningHitlScoreAdjustment(), ChecklistKanbanColumn, COLUMN_INDEX, derivePlanningHitlScoreAdjustment() (+74 more)
 
 ### Community 10 - "Community 10"
 Cohesion: 0.04
-Nodes (61): auditCheckedFlashCard(), { callOllamaWithFailover }, { CandidateState, ReworkRoute, toEvaluated, toRework, toSuppressed, toArchived }, computeFreshnessScore(), computeQualityScore(), computeRelativeDominance(), computeUrgencyScore(), DISPOSITION (+53 more)
+Nodes (71): { applyFeedbackPressure }, { CandidateState, ReworkRoute, toRework, toSuppressed, toArchived, toDelivered }, DECLINE_ROUTING, handleAccept(), handleDecline(), handleDeliver(), processFeedbackEvents(), suppressTaskFamily() (+63 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.03
-Nodes (77): ActionMode, ChecklistItem, ChecklistPage(), ChecklistPageProps, ActionMode, Flashcard, FlashcardAction, FlashcardCorrection (+69 more)
+Cohesion: 0.05
+Nodes (56): ActionMode, Flashcard, FlashcardAction, FlashcardCorrection, FlashcardSource, IntelligenceType, KnowledgeReviewCard(), Props (+48 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.07
-Nodes (51): getLegacyDestinationDaemonJobIdentities(), applyLocalAiFocusToPipelineJobWrite(), buildAutoJobProfile(), buildDecompositionSourceSignal(), buildDestinationLaneProfile(), buildLowMemoryDecompositionChildPlans(), buildNoProgressTimeoutMessage(), buildPlannerLaneProfile() (+43 more)
+Cohesion: 0.05
+Nodes (77): getDestinationDaemonJobIdentity(), getLegacyDestinationDaemonJobIdentities(), appendPipelineTopologySyncResult(), applyLocalAiFocusToPipelineJobWrite(), applyManualPipelineQueueMove(), buildAutoJobProfile(), buildDecompositionSourceSignal(), buildDestinationLaneProfile() (+69 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.05
-Nodes (38): ClientNav(), ClientNavProps, EffectiveBlockKey, ModuleCapabilityState, PipelineItem, PortfolioUnit, staticModuleNavItems, fontBody (+30 more)
+Cohesion: 0.04
+Nodes (40): HomeCompany, HomeProps, HomeSession, fontBody, fontDisplay, metadata, RootLayout(), CompareHome() (+32 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.10
-Nodes (36): asRecord(), burstStateKey(), getMiniappBurstControllerState(), MiniappBurstControllerInput, MiniappBurstCycleResult, runMiniappBurstCycle(), runMiniappBurstUntilTarget(), writeBurstState() (+28 more)
+Cohesion: 0.08
+Nodes (49): asRecord(), burstStateKey(), getMiniappBurstControllerState(), MiniappBurstControllerInput, MiniappBurstCycleResult, runMiniappBurstCycle(), runMiniappBurstUntilTarget(), writeBurstState() (+41 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.08
 Nodes (67): buildDecisionBody(), buildEvidenceText(), buildNewsText(), buildSearchText(), buildStockText(), callLocalSummarizer(), canonicalizeUrl(), chooseEntityName() (+59 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.05
-Nodes (51): POST(), GET(), removeTag(), GET(), PATCH(), sanitizeScoreInput(), hashBridgeSecret(), isHashedBridgeSecret() (+43 more)
+Cohesion: 0.06
+Nodes (39): POST(), asRecord(), asString(), GET(), PATCH(), removeTag(), GET(), PATCH() (+31 more)
 
 ### Community 17 - "Community 17"
 Cohesion: 0.06
@@ -640,118 +630,127 @@ Nodes (63): rotateLogFile(), buildRunnerEnvironment(), applyMemoryGovernor(), {
 
 ### Community 18 - "Community 18"
 Cohesion: 0.04
-Nodes (73): Home(), resolveEffectiveUnitCapabilities(), COMPANY_MAIN_GOALS, CompanyMainGoal, DELETE(), GET(), isCompanyMainGoal(), PATCH() (+65 more)
+Nodes (61): BlockKey, buildRecoveryActionView(), GET(), AthleteIQEntryPointClassification, AthleteIQEntryPointIntent, AthleteIQRouteContract, resolveAthleteIQEntryPoint(), resolveAthleteIQRoutes() (+53 more)
 
 ### Community 19 - "Community 19"
 Cohesion: 0.03
 Nodes (63): 10. Rollout Order (Execution Sequence), 11. Edge Cases That Must Stay Covered, 12. Security and Privacy Baseline, 13. Future Issue-Writing Rule, 14. Known Current Limitations, 1. Canonical Product Language, 2. Mandatory UI Rule, 3. Foundation Boundaries (+55 more)
 
 ### Community 20 - "Community 20"
-Cohesion: 0.06
-Nodes (58): rescorePeriodicCards(), rescorePeriodicUpstreamCards(), runPlannerMaintenanceJob(), asArray(), buildFlashcardJudgeUpdatePayload(), buildFlashcardRefineUpdatePayload(), buildTaskUpdatePayload(), withDefinedEntries() (+50 more)
+Cohesion: 0.05
+Nodes (73): fetchUrlContent(), http, https, { normalizeText, truncate }, rescorePeriodicCards(), rescorePeriodicUpstreamCards(), runPlannerMaintenanceJob(), asArray() (+65 more)
 
 ### Community 21 - "Community 21"
-Cohesion: 0.05
-Nodes (58): getCurrentSurfaceProjection(), handleUnitBoardProjectAction(), readBoardCardId(), readBoardMetadata(), readColumnKey(), readEffort(), readJsonBody(), readNullableString() (+50 more)
+Cohesion: 0.12
+Nodes (25): buildMissingSurfaceReadModel(), getCompanySurfaceReadModel(), normalizeSurfaceReadModel(), ProjectionFreshnessStatus, SurfaceProjectionDirtyEntry, SurfaceProjectionFreshness, SurfaceProjectionItemInput, SurfaceProjectionPayload (+17 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.06
-Nodes (56): {
+Cohesion: 0.05
+Nodes (60): applyRunnerIdentity(), getRunnerDefinition(), listRunnerDefinitions(), RUNNER_DEFINITIONS, {
   applyRunnerIdentity,
   listRunnerDefinitions,
-}, buildInventoryHistoryPoint(), { buildLogPressure, DEFAULT_LOG_MAX_BYTES }, buildSourceLabel(), buildStatusPayload(), captureInventoryHistory(), { collectManagedServiceObservations, buildManagedServiceReconciliationPlan }, { collectMemoryStewardSnapshot } (+48 more)
+}, buildInventoryHistoryPoint(), { buildLogPressure, DEFAULT_LOG_MAX_BYTES }, buildSourceLabel() (+52 more)
 
 ### Community 23 - "Community 23"
 Cohesion: 0.10
-Nodes (25): CompanyAnalyticsPageRoute(), CompanyChecklistPage(), ClassScoutPage(), stateColor(), text(), VisitorOpsWorkspace(), CustomerOperationsPage(), getWebappRoute() (+17 more)
+Nodes (24): CompanyAnalyticsPageRoute(), CompanyChecklistPage(), stateColor(), text(), VisitorOpsWorkspace(), CustomerOperationsPage(), getWebappRoute(), isAuthorizedProfile() (+16 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.05
-Nodes (57): buildAnalyticsHistory(), buildBudgetSummary(), buildFeedbackAnalytics(), buildHashtagAnalytics(), buildKnowmoreHealth(), buildObservabilitySummary(), buildProjectionHomeCharts(), checksumProjectionPayload() (+49 more)
+Cohesion: 0.06
+Nodes (60): buildAnalyticsHistory(), buildBudgetSummary(), buildFeedbackAnalytics(), buildHashtagAnalytics(), buildKnowmoreHealth(), buildObservabilitySummary(), buildProjectionHomeCharts(), checksumProjectionPayload() (+52 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.09
-Nodes (34): RUNTIME_HEALTH_STATES, BIN_DIR, cloneDefinition(), getManagedServiceDefinition(), listManagedServiceDefinitions(), MANAGED_SERVICE_DEFINITIONS, path, ROOT (+26 more)
+Cohesion: 0.08
+Nodes (41): buildIncident(), collectBreakerIncidents(), collectMemoryIncident(), collectQueueIncident(), collectServiceIncidents(), reduceRuntimeHealth(), { RESOURCE_BANDS }, RUNTIME_HEALTH_STATES (+33 more)
 
 ### Community 26 - "Community 26"
-Cohesion: 0.07
-Nodes (23): HomeCompany, HomeProps, HomeSession, HealthData, IntelligencePulse(), MetricCard(), MetricCardProps, getReleaseMetadata() (+15 more)
+Cohesion: 0.09
+Nodes (38): ClientNav(), ClientNavProps, EffectiveBlockKey, ModuleCapabilityState, PipelineItem, PortfolioUnit, staticModuleNavItems, Footer() (+30 more)
 
 ### Community 27 - "Community 27"
-Cohesion: 0.04
-Nodes (79): buildLocalAiFocusBlockMessage(), collectStringSet(), filterDestinationKeysForLocalAiFocus(), getLocalAiJobDestinationKeys(), isPipelineJobAllowedByLocalAiFocus(), isPlainObject(), readLocalAiFocusPolicy(), splitCsv() (+71 more)
+Cohesion: 0.05
+Nodes (73): buildLocalAiFocusBlockMessage(), collectStringSet(), filterDestinationKeysForLocalAiFocus(), getLocalAiJobDestinationKeys(), isPipelineJobAllowedByLocalAiFocus(), isPlainObject(), readLocalAiFocusPolicy(), splitCsv() (+65 more)
 
 ### Community 28 - "Community 28"
 Cohesion: 0.09
-Nodes (46): asRecord(), GET(), POST(), PUT(), asRecord(), POST(), asRecord(), POST() (+38 more)
+Nodes (48): asRecord(), GET(), POST(), PUT(), asRecord(), POST(), asRecord(), POST() (+40 more)
 
 ### Community 29 - "Community 29"
 Cohesion: 0.06
-Nodes (53): envFlag(), shouldDelegateQueueRefresh(), recoverOrphanedRunningPipelineJobs(), collectGlobalWorkerSettings(), updateProgress(), acquireLinearWorkerLock(), buildLockPayload(), createLockOwner() (+45 more)
+Nodes (51): shouldDelegateQueueRefresh(), recoverOrphanedRunningPipelineJobs(), acquireLinearWorkerLock(), buildLockPayload(), createLockOwner(), crypto, ensureLockDir(), fs (+43 more)
 
 ### Community 30 - "Community 30"
 Cohesion: 0.20
 Nodes (27): asNumber(), asRecord(), asString(), asStringArray(), classifyVisitorCandidate(), discoverVisitorCandidates(), extractVisitorCandidate(), fingerprintFromSource() (+19 more)
 
 ### Community 31 - "Community 31"
-Cohesion: 0.12
-Nodes (22): applyModuleOverrides(), asRecord(), convertLegacyModuleOverrides(), EffectiveUnitCapabilities, LEGACY_MODULE_TO_CANONICAL, LEGACY_PROFILE_BLOCK_MAP, LEGACY_PROFILE_MINIAPP_MAP, LegacyModuleKey (+14 more)
+Cohesion: 0.07
+Nodes (46): asAttemptOutcome(), asRecord(), POST(), cleanStringArray(), DEFAULT_COMPARE_RULEBOOK_POLICY, DEFAULT_DESTINATION_MISSION_DEFINITION, DEFAULT_DESTINATION_RULEBOOK_POLICY, DESTINATION_MISSION_ATTEMPT_OUTCOME_CODES (+38 more)
 
 ### Community 32 - "Community 32"
 Cohesion: 0.13
 Nodes (26): IntelligenceSnapshot, buildSurfaceAlerts(), computeCompanyScoreHealth(), { computePriorityCohortProfiles }, computePriorityHealthMetrics(), computeScoreHealthMetrics(), createDefaultPrismaClient(), defaultPrisma (+18 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.28
-Nodes (6): buildExcerpt(), ensureCitationSnapshotForSource(), NEGATIVE_MARKERS, normalizeCitationUrl(), overlapCount(), POSITIVE_MARKERS
+Cohesion: 0.06
+Nodes (33): buildExcerpt(), detectEvidenceConflict(), ensureCitationSnapshotForSource(), ensureCitationSnapshotsForEvidenceBatch(), NEGATIVE_MARKERS, normalizeCitationUrl(), overlapCount(), POSITIVE_MARKERS (+25 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.04
 Nodes (48): App Shell and Global, Feature Components, Hardcoded Style Audit, Highest-Risk Findings, Other App Files, Route Pages, Scope, Shared Theme and Libraries (+40 more)
 
 ### Community 35 - "Community 35"
-Cohesion: 0.07
-Nodes (57): POST(), DestinationTopology, POST(), POST(), isEqual(), isRecord(), JsonLike, summarizeDraftCorrections() (+49 more)
+Cohesion: 0.09
+Nodes (44): POST(), GET(), parseCompanyIds(), POST(), POST(), POST(), asRecord(), POST() (+36 more)
 
 ### Community 36 - "Community 36"
-Cohesion: 0.20
-Nodes (16): ACTIVE_PACKET_STATES, ageDaysSince(), buildRefreshCandidate(), hasActiveRevision(), isStaleListing(), MaintenanceDefaults, parseIso(), publishApprovedTrainersRevisionPackets() (+8 more)
+Cohesion: 0.08
+Nodes (40): asRecord(), createTrainersLiveRevision(), discoverTrainersCandidates(), extractTrainersCandidate(), getTrainersBridgeConfig(), isTrainersBridgeConfigured(), listTrainersLiveListings(), ACTIVE_PACKET_STATES (+32 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.11
-Nodes (32): discoverCompareCandidates(), extractCompareCandidate(), getCompareBridgeConfig(), isCompareBridgeConfigured(), prepareCompareCandidateReview(), scoreCompareCandidate(), AdapterOutcome, artifactText() (+24 more)
+Cohesion: 0.08
+Nodes (45): asRecord(), AthleteIQDiscoveryArtifact, AthleteIQListingKind, AthleteIQLiveListingSummary, AthleteIQNormalizedListingInput, discoverAthleteIQCandidates(), extractAthleteIQCandidate(), getAthleteIQBridgeConfig() (+37 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.05
-Nodes (86): collapseWhitespace(), enrichUploadedFile(), extractText(), FileAnalysis, FileExtraction, parseDelimitedToText(), parseJsonToText(), previewLines() (+78 more)
+Cohesion: 0.07
+Nodes (36): applyFeedbackDeltas(), assertNever(), BaseSourceRecord, CompetitorSource, CustomerSource, draftSourceEntries(), FileSource, flashcardActionDelta() (+28 more)
 
 ### Community 39 - "Community 39"
-Cohesion: 0.13
-Nodes (19): { callOllamaWithFailover }, decodeHtmlEntities(), DEFAULT_HEADERS, fetchText(), generateResearchQueries(), generateStrategicKeywords(), harvestResearch(), harvestSingleQuery() (+11 more)
+Cohesion: 0.05
+Nodes (44): callOllama(), callOllamaJson(), extractJsonCandidate(), http, normalizeText(), { 
+  OLLAMA_HOST, 
+  OLLAMA_MODEL,
+  GLOBAL_OLLAMA_TIMEOUT_MS, 
+  STAGE_MODELS, 
+  DRAFT_STAGE_TIMEOUT_MS,
+  WRITE_STAGE_TIMEOUT_MS,
+  JUDGE_STAGE_TIMEOUT_MS,
+  queueAiInference 
+}, runLocalAiPass(), tokenizeText() (+36 more)
 
 ### Community 40 - "Community 40"
 Cohesion: 0.09
-Nodes (44): applyOpportunitySearchFeedback(), buildCanonicalContentHash(), buildSearchQueries(), clampScore(), collectFlashcardTerms(), crypto, extractFeedbackTerms(), extractTitleTerms() (+36 more)
+Nodes (47): applyOpportunitySearchFeedback(), buildCanonicalContentHash(), buildSearchQueries(), clampScore(), collectFlashcardTerms(), crypto, extractFeedbackTerms(), extractTitleTerms() (+39 more)
 
 ### Community 41 - "Community 41"
 Cohesion: 0.04
 Nodes (44): 10.1 Win-Loss Metrics, 10.2 Process Metrics, 10.3 Reporting Cadence, 10. Metrics and Reporting, 11.1 Forecasting, 11.2 Pipeline Management, 11.3 Enablement and Training, 11.4 Product and Marketing Feedback (+36 more)
 
 ### Community 42 - "Community 42"
-Cohesion: 0.08
-Nodes (36): POST(), POST(), GET(), POST(), POST(), cleanStringArray(), DEFAULT_COMPARE_RULEBOOK_POLICY, DEFAULT_DESTINATION_MISSION_DEFINITION (+28 more)
+Cohesion: 0.18
+Nodes (16): POST(), POST(), POST(), DestinationMissionDefinitionConfig, normalizeMissionDefinitionConfig(), activateDestinationMissionDefinition(), archiveDestinationMissionDefinition(), createDestinationMissionDefinition() (+8 more)
 
 ### Community 43 - "Community 43"
 Cohesion: 0.06
-Nodes (27): DroppableColumn(), findItemColumn(), getColumnItems(), resolveDropTarget(), SharedBoardProps, SortableBoardCard(), BoardCardRecord, BoardMoveRequest (+19 more)
+Nodes (34): DroppableColumn(), findItemColumn(), getColumnItems(), resolveDropTarget(), SharedBoard(), SharedBoardProps, SortableBoardCard(), ChecklistKanbanColumn (+26 more)
 
 ### Community 44 - "Community 44"
 Cohesion: 0.05
 Nodes (42): 1. General Technical Work, 2. Feature Development, 3. Bug Fix, 4. Infrastructure Change, 5. Documentation, 6. Release, 7. Incident Response, 8. Security Work (+34 more)
 
 ### Community 45 - "Community 45"
-Cohesion: 0.06
-Nodes (47): fetchUrlContent(), http, https, { normalizeText, truncate }, canonicalizeAllowedLanguages(), detector, DETECTOR_LANGUAGE_BY_CODE, enforceLanguagePolicy() (+39 more)
+Cohesion: 0.19
+Nodes (13): canonicalizeAllowedLanguages(), detector, DETECTOR_LANGUAGE_BY_CODE, enforceLanguagePolicy(), isLanguageAccepted(), LANGUAGE_LABELS, LanguageDetect, normalizeAllowedLanguages() (+5 more)
 
 ### Community 46 - "Community 46"
 Cohesion: 0.05
@@ -770,12 +769,12 @@ Cohesion: 0.05
 Nodes (39): 1. Report Overview, 2. Report Schedule, 3.10 Personal Notes and Blockers, 3.1 Header Information, 3.2 Pipeline Summary, 3.3 Forecast Summary, 3.4 Weekly Activity Metrics, 3.5 Conversion Rates (Weekly) (+31 more)
 
 ### Community 50 - "Community 50"
-Cohesion: 0.09
-Nodes (36): buildDestinationDaemonLane(), buildLifecycleControlCenterView(), buildLifecycleMigrationReport(), buildLifecycleVerificationReport(), buildMaintenanceDiff(), buildProvisioningPlan(), buildPublicVerificationProof(), comparePublishedItems() (+28 more)
+Cohesion: 0.06
+Nodes (50): buildDestinationDaemonLane(), buildLifecycleMigrationReport(), buildLifecycleVerificationReport(), buildMaintenanceDiff(), buildProvisioningPlan(), buildPublicVerificationProof(), comparePublishedItems(), evaluateVisitorFeedbackPolicy() (+42 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.17
-Nodes (18): ACTIVE_PACKET_STATES, ageDaysSince(), buildRefreshCandidate(), ClassScoutRefreshCandidate, hasActiveRevision(), isStaleListing(), MaintenanceDefaults, parseIso() (+10 more)
+Cohesion: 0.06
+Nodes (50): ClassScoutLiveListingSummary, ACTIVE_PACKET_STATES, ageDaysSince(), buildRefreshCandidate(), ClassScoutRefreshCandidate, hasActiveRevision(), isStaleListing(), MaintenanceDefaults (+42 more)
 
 ### Community 52 - "Community 52"
 Cohesion: 0.11
@@ -786,40 +785,49 @@ Cohesion: 0.05
 Nodes (37): 10.1 Self-Assessment Checklist, 10.2 Manager Verification, 10.3 Audit Process, 10. Compliance Verification, 1. Overview, 2.1 Stage Progression, 2.2 Activity Completion, 2.3 Information Requirements (+29 more)
 
 ### Community 54 - "Community 54"
-Cohesion: 0.06
-Nodes (51): actionPermissionForItem(), OperationalAction, OperationalStatus, ParsedOperationItem, parseOperationAction(), parseOperationItem(), POST(), asRecord() (+43 more)
+Cohesion: 0.12
+Nodes (23): actionPermissionForItem(), OperationalAction, OperationalStatus, ParsedOperationItem, parseOperationAction(), parseOperationItem(), POST(), asRecord() (+15 more)
 
 ### Community 55 - "Community 55"
-Cohesion: 0.17
-Nodes (20): asNumber(), asRecord(), asString(), asStringArray(), buildMiniappResearchTaskFingerprint(), clamp(), computePriority(), evidenceTypeForGoal() (+12 more)
+Cohesion: 0.10
+Nodes (31): COMMON_FAILURE_POLICY, CONTRACTS, MiniappContractValidation, MiniappEvidenceType, MiniappIntelligenceContract, normalizeKey(), ResolvedMiniappIntelligenceContract, unique() (+23 more)
 
 ### Community 56 - "Community 56"
 Cohesion: 0.06
 Nodes (35): 10.1 Product → Technology, 10.2 Technology → Customer, 10.3 Technology → Marketing, 10.4 Customer → Technology, 10. Cross-Functional Handoff Rules, 11.1 Code Quality, 11.2 Architecture Principles, 11.3 Security Standards (+27 more)
 
 ### Community 57 - "Community 57"
-Cohesion: 0.12
-Nodes (31): SharedBoard(), buildContactRows(), cleanOpportunityText(), DECLINE_OPTIONS, displayNameFromUrl(), isGenericPageTitle(), isMeaningfulBody(), isMeaningfulField() (+23 more)
+Cohesion: 0.13
+Nodes (30): buildContactRows(), cleanOpportunityText(), DECLINE_OPTIONS, displayNameFromUrl(), isGenericPageTitle(), isMeaningfulBody(), isMeaningfulField(), isWeakOneWordPageTitle() (+22 more)
 
 ### Community 58 - "Community 58"
-Cohesion: 0.09
-Nodes (33): defaultMissionDefinitionConfig(), ensureProvisionedDestination(), missionDefinitionName(), provisionCompany(), ProvisionCompanyInput, ProvisionStepStatus, uniqueDestinationKeys(), CORE_UNIT_PIPELINE_JOBS (+25 more)
+Cohesion: 0.06
+Nodes (51): buildLifecycleTelemetry(), {
+  buildDestinationDaemonLane,
+  buildLifecycleTelemetry,
+  buildMaintenanceDiff,
+}, defaultMissionConfig(), ensureDestinationInstance(), ensureMissionDefinition(), getDefaultRulebookPolicyForDestination(), {
+  getDestinationMissionKinds,
+  getDestinationTopology,
+  getUnitLifecycleRequirements,
+  listLifecycleDestinationKeys,
+}, inferActiveDestinationKeys() (+43 more)
 
 ### Community 59 - "Community 59"
 Cohesion: 0.11
 Nodes (26): asRecord(), asString(), POST(), asString(), POST(), POST(), queueVisitorLocalIntent(), VisitorIntentKind (+18 more)
 
 ### Community 60 - "Community 60"
-Cohesion: 0.06
-Nodes (44): DestinationContentOpsWorkspace(), DestinationLiveListingOps(), configToFormState(), DestinationMissionSetup(), formStateToConfig(), MissionDefinitionFormState, MissionDefinitionPayload, MissionDefinitionRecord (+36 more)
+Cohesion: 0.07
+Nodes (33): DestinationContentOpsWorkspace(), DestinationLiveListingOps(), configToFormState(), DestinationMissionSetup(), formStateToConfig(), MissionDefinitionFormState, MissionDefinitionPayload, MissionDefinitionRecord (+25 more)
 
 ### Community 61 - "Community 61"
-Cohesion: 0.12
-Nodes (28): failedCaseSummary(), GET(), POST(), clampUnit(), compareEvaluationVariants(), DEFAULT_RUBRIC_WEIGHTS, evaluateCase(), EVALUATION_SUITES (+20 more)
+Cohesion: 0.15
+Nodes (18): clampUnit(), DEFAULT_RUBRIC_WEIGHTS, evaluateCase(), EvaluationCase, EvaluationCaseKind, EvaluationComparison, EvaluationRubricKey, EvaluationRun (+10 more)
 
 ### Community 62 - "Community 62"
-Cohesion: 0.08
-Nodes (25): AnalyticsResponse, CompanyAnalyticsPageProps, WINDOW_OPTIONS, WindowKey, ChartData, DashboardChartRendererProps, CREATED_SERIES, DashboardPayload (+17 more)
+Cohesion: 0.10
+Nodes (19): ChartData, DashboardChartRendererProps, CREATED_SERIES, DashboardPayload, formatBaseline(), formatDateTime(), formatStatus(), OperatorContentHealthPage() (+11 more)
 
 ### Community 63 - "Community 63"
 Cohesion: 0.06
@@ -834,12 +842,12 @@ Cohesion: 0.15
 Nodes (30): args, asNumber(), asRecord(), asRecordArray(), asString(), asStringArray(), buildSafeDraftPayload(), buildVisitorSourceKey() (+22 more)
 
 ### Community 66 - "Community 66"
-Cohesion: 0.05
-Nodes (63): Footer(), Home(), CompanyDashboard(), ExpertTipCard(), TraceNode, TraceViewer(), getDashboardExpertTip(), CompanyDataClient() (+55 more)
+Cohesion: 0.04
+Nodes (87): AnalyticsResponse, CompanyAnalyticsPageProps, WINDOW_OPTIONS, WindowKey, Home(), ActionMode, ChecklistTask, CompanyDashboard() (+79 more)
 
 ### Community 67 - "Community 67"
-Cohesion: 0.14
-Nodes (19): buildRecoveryActionView(), applyManualPipelineQueueMove(), listPersistedCompanyPipelineJobs(), resetCompanyPipelineJobsToAiOnly(), actionsFromOperationalStatus(), buildDestinationDaemonHealth(), DestinationDaemonHealth, destinationLabel() (+11 more)
+Cohesion: 0.09
+Nodes (33): VALID_ACTIONS, GET(), POST(), VALID_CORRECTIONS, VALID_SOURCE_TYPES, POST(), readApiSafeDaemonDefaults(), readConfiguredDaemonCompanyIds() (+25 more)
 
 ### Community 68 - "Community 68"
 Cohesion: 0.11
@@ -862,12 +870,12 @@ Cohesion: 0.06
 Nodes (31): 10.1 Task state metadata, 10.2 Planner contract module, 10.3 Quality ceiling helper, 10. Data And State Changes, 11. Module Design, 12. Queue Integration, 13. Frontier Integration, 14. Observability (+23 more)
 
 ### Community 73 - "Community 73"
-Cohesion: 0.10
-Nodes (30): drainDirtyProjectionCompanies(), enqueueDirtyProjectionCompany(), markCompanyProjectionDirty(), normalizeProjectionRefreshState(), readProjectionRefreshState(), recordProjectionRefreshResult(), refreshDirtyCompanyIntelligenceSnapshots(), refreshMissingProjectionSnapshots() (+22 more)
+Cohesion: 0.11
+Nodes (23): collectSnapshotWorkerSettings(), getSnapshotWorkerProgress(), { getWorkerBuildIdentity }, snapshotWorkerState, updateSnapshotWorkerProgress(), getResourceBand(), shouldAllowBackgroundSnapshotWork(), { applyRunnerIdentity } (+15 more)
 
 ### Community 74 - "Community 74"
 Cohesion: 0.11
-Nodes (20): buildLocalJobEnvelopeFromPipelineJob(), isPlainObject(), normalizePipelineJobStatus(), PIPELINE_JOB_DEFAULT_BLOCK, PIPELINE_JOB_DEFAULT_MODULE, readJobMetadata(), resolvePipelineJobAttribution(), attribution (+12 more)
+Nodes (21): buildLocalJobEnvelopeFromPipelineJob(), isPlainObject(), normalizePipelineJobStatus(), PIPELINE_JOB_DEFAULT_BLOCK, PIPELINE_JOB_DEFAULT_MODULE, readJobMetadata(), resolvePipelineJobAttribution(), resolveJobAttribution() (+13 more)
 
 ### Community 75 - "Community 75"
 Cohesion: 0.10
@@ -883,7 +891,7 @@ Nodes (30): buildFlashcardHardInput(), buildFlashcardInput(), buildGroundedAnswe
 
 ### Community 78 - "Community 78"
 Cohesion: 0.09
-Nodes (27): DestinationClassScoutUnitPanel(), POST(), classifyClassScoutLandingState(), ClassScoutLandingSummary, getClassScoutLandingSummary(), LandingSectionFailureKey, ClassScoutEntryPointClassification, ClassScoutEntryPointIntent (+19 more)
+Nodes (27): ClassScoutPage(), ClassScoutHome(), pct(), DestinationClassScoutUnitPanel(), POST(), classifyClassScoutLandingState(), ClassScoutLandingSummary, getClassScoutLandingSummary() (+19 more)
 
 ### Community 79 - "Community 79"
 Cohesion: 0.20
@@ -894,8 +902,8 @@ Cohesion: 0.07
 Nodes (29): 1. Raw data ingestion, 2. Local enrichment, 3. Flashcard generation, 3b. Research harvest, 4. Delivery metrics, 4. NBA generation, Budget governor, Canonical flow (+21 more)
 
 ### Community 81 - "Community 81"
-Cohesion: 0.20
-Nodes (14): advanceDestinationWorkflowRun(), asJson(), getDestinationWorkflowRun(), recordDestinationWorkflowStageEvent(), replayDestinationWorkflowRun(), retryDestinationWorkflowStage(), stageToState(), startDestinationWorkflowRun() (+6 more)
+Cohesion: 0.23
+Nodes (14): advanceDestinationWorkflowRun(), asJson(), markDestinationWorkflowOutcome(), recordDestinationWorkflowStageEvent(), replayDestinationWorkflowRun(), retryDestinationWorkflowStage(), setDestinationWorkflowReviewState(), stageToState() (+6 more)
 
 ### Community 82 - "Community 82"
 Cohesion: 0.12
@@ -910,16 +918,16 @@ Cohesion: 0.07
 Nodes (28): 1.1 Strategic Documents, 1.2 Operational Documents, 1.3 Workflow Documents, 1. Required Marketing Documents, 2.1 Storage Location, 2.2 Folder Structure, 2.3 Naming Convention, 2. Document Storage (+20 more)
 
 ### Community 85 - "Community 85"
-Cohesion: 0.07
-Nodes (61): BoardCardMetadata, BoardItemsPayload, buildRequestErrorPayload(), DELETE(), extractMetadata(), GET(), getBoardTraceId(), handleBoardItemsError() (+53 more)
+Cohesion: 0.20
+Nodes (28): BoardCardMetadata, BoardItemsPayload, buildRequestErrorPayload(), DELETE(), extractMetadata(), GET(), getBoardTraceId(), handleBoardItemsError() (+20 more)
 
 ### Community 86 - "Community 86"
 Cohesion: 0.07
-Nodes (25): assertKnownMiniappId(), assertMiniappRegistryIntegrity(), athleteiqAdapter, CHECK_FOUNDATION_MINIAPP_REGISTRY_SCHEMA_VERSION, classScoutAdapter, compareAdapter, miniapps, schemaVersion (+17 more)
+Nodes (23): assertMiniappRegistryIntegrity(), athleteiqAdapter, CHECK_FOUNDATION_MINIAPP_REGISTRY_SCHEMA_VERSION, classScoutAdapter, compareAdapter, miniapps, schemaVersion, getMiniappAdapter() (+15 more)
 
 ### Community 87 - "Community 87"
-Cohesion: 0.14
-Nodes (25): ProvisionStepResult, asRecord(), buildFailureResult(), buildSuccessResult(), buildVersionToken(), CapabilityEnvelopeV3, CapabilityError, CapabilityMutationImpact (+17 more)
+Cohesion: 0.13
+Nodes (27): normalizeUnitCapabilitiesForStorage(), isMiniappId(), ProvisionStepResult, asRecord(), buildFailureResult(), buildSuccessResult(), buildVersionToken(), CapabilityEnvelopeV3 (+19 more)
 
 ### Community 88 - "Community 88"
 Cohesion: 0.08
@@ -946,8 +954,8 @@ Cohesion: 0.07
 Nodes (27): Communication Templates, Containment, Detection, Documentation (Within 48 hours), Escalation Contacts, First Communication, Follow-Up (Within 1 week), Immediate (Within 24 hours) (+19 more)
 
 ### Community 94 - "Community 94"
-Cohesion: 0.10
-Nodes (25): listCardDefinitions(), BLOCK_KEYS, listBlockDefinitions(), asRecord(), assertUnitPackageRegistryIntegrity(), buildAllowedOperations(), buildVisibleWebappAreas(), CHECK_FOUNDATION_UNIT_PACKAGES_SCHEMA_VERSION (+17 more)
+Cohesion: 0.11
+Nodes (24): listCardDefinitions(), listBlockDefinitions(), asRecord(), assertUnitPackageRegistryIntegrity(), buildAllowedOperations(), buildVisibleWebappAreas(), CHECK_FOUNDATION_UNIT_PACKAGES_SCHEMA_VERSION, packages (+16 more)
 
 ### Community 95 - "Community 95"
 Cohesion: 0.07
@@ -958,28 +966,28 @@ Cohesion: 0.15
 Nodes (23): ENV_TARGETS, GoldenPathTargetError, normalizeVisitorKey(), resolveGoldenPathTarget(), usageFor(), asRecord(), buildStep(), parseArgs() (+15 more)
 
 ### Community 97 - "Community 97"
-Cohesion: 0.11
-Nodes (30): resolveVisitorCapabilityForVisitorKey(), getVisitorOpsSnapshot(), asNumber(), asRecord(), assertInSet(), asString(), asStringArray(), clamp01() (+22 more)
+Cohesion: 0.08
+Nodes (44): asRecord(), asString(), POST(), asString(), CATEGORY_TO_GOAL_SLUG, CLASSSCOUT_LAUNCH_CATEGORIES, ClassScoutManhattanSourceLead, ClassScoutSourceImportDiagnostic (+36 more)
 
 ### Community 98 - "Community 98"
 Cohesion: 0.07
 Nodes (28): dependencies, date-fns, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @doneisbetter/gds, dotenv, framer-motion (+20 more)
 
 ### Community 99 - "Community 99"
-Cohesion: 0.14
-Nodes (24): ACTION_TYPES, buildMemoryPlan(), buildProcessInventory(), CHECK_CRITICAL_TITLES, classifyProcess(), { collectMacMemoryAccounting }, collectMemoryStewardSnapshot(), collectProcessInventory() (+16 more)
+Cohesion: 0.15
+Nodes (21): ACTION_TYPES, buildMemoryPlan(), buildProcessInventory(), CHECK_CRITICAL_TITLES, classifyProcess(), { collectMacMemoryAccounting }, collectMemoryStewardSnapshot(), collectProcessInventory() (+13 more)
 
 ### Community 100 - "Community 100"
 Cohesion: 0.07
 Nodes (26): 1. Handoff Trigger Criteria, 2.1 Contractual Documentation, 2.2 Solution Configuration Details, 2.3 Client Information, 2.4 Business Context, 2.5 Sales Process Artifacts, 2.6 Implementation Requirements, 2.7 Timeline and Milestones (+18 more)
 
 ### Community 101 - "Community 101"
-Cohesion: 0.08
-Nodes (23): allowedValueTypes, assertCardPropertyRegistryIntegrity(), assertKnownProperty(), assertPropertyList(), CARD_PROPERTY_VALUE_TYPES, CARD_PROPERTY_VISITOR_CONTENT_PRIMITIVES, CardPropertyDefinition, CardPropertyProfile (+15 more)
+Cohesion: 0.09
+Nodes (22): allowedValueTypes, assertCardPropertyRegistryIntegrity(), assertKnownProperty(), assertPropertyList(), CARD_PROPERTY_VALUE_TYPES, CARD_PROPERTY_VISITOR_CONTENT_PRIMITIVES, CardPropertyDefinition, CardPropertyProfile (+14 more)
 
 ### Community 102 - "Community 102"
-Cohesion: 0.12
-Nodes (24): asRecord(), asString(), blockedByTask(), buildTextSnippet(), decodeHtml(), extractDuckDuckGoLink(), fetchText(), hashValue() (+16 more)
+Cohesion: 0.13
+Nodes (23): asRecord(), asString(), blockedByTask(), buildTextSnippet(), decodeHtml(), extractDuckDuckGoLink(), fetchText(), hashValue() (+15 more)
 
 ### Community 103 - "Community 103"
 Cohesion: 0.08
@@ -990,12 +998,12 @@ Cohesion: 0.08
 Nodes (25): 1.1 Core Applications, 1.2 Data Systems, 1.3 Integration Services, 1. Production Systems, 2.1 Development Tools, 2.2 Build & Deployment, 2.3 Testing Tools, 2. Development & Build Systems (+17 more)
 
 ### Community 105 - "Community 105"
-Cohesion: 0.15
-Nodes (25): asRecord(), asString(), getVisitorTaxonomy(), asRecord(), asString(), asStringArray(), collectPublicPayloadIssues(), evaluateVisitorQualityGate() (+17 more)
+Cohesion: 0.17
+Nodes (21): asRecord(), asString(), asStringArray(), collectPublicPayloadIssues(), evaluateVisitorQualityGate(), hasValue(), isClassScoutLaunchGate(), isImgBbHttpsImageUrl() (+13 more)
 
 ### Community 106 - "Community 106"
-Cohesion: 0.18
-Nodes (15): POST(), readApiSafeDaemonDefaults(), readConfiguredDaemonCompanyIds(), GET(), parseCompanyIds(), POST(), asRecord(), POST() (+7 more)
+Cohesion: 0.08
+Nodes (40): asRecord(), GET(), POST(), DestinationTopology, POST(), isEqual(), isRecord(), JsonLike (+32 more)
 
 ### Community 107 - "Community 107"
 Cohesion: 0.14
@@ -1014,16 +1022,16 @@ Cohesion: 0.08
 Nodes (24): APIs, Architecture, CHECK Lifecycle Automation LLD, Contracts, Daemon lane metadata, Edge cases, Feedback policy, Known limitations (+16 more)
 
 ### Community 111 - "Community 111"
-Cohesion: 0.15
-Nodes (22): asRecord(), asString(), POST(), asString(), CATEGORY_TO_GOAL_SLUG, CLASSSCOUT_LAUNCH_CATEGORIES, ClassScoutManhattanSourceLead, ClassScoutSourceImportDiagnostic (+14 more)
+Cohesion: 0.11
+Nodes (25): Home(), COMPANY_MAIN_GOALS, CompanyMainGoal, DELETE(), GET(), isCompanyMainGoal(), PATCH(), POST() (+17 more)
 
 ### Community 112 - "Community 112"
 Cohesion: 0.09
-Nodes (33): ACTIVE_OPPORTUNITY_STATES, ACTIVE_OPPORTUNITY_STATUSES, buildOpportunityEvidence(), buildOpportunitySeedFromRecord(), canonicalizeCandidateName(), COMPACT_COMPANY_SUFFIX_TOKENS, { computePriorityCohortProfiles }, crypto (+25 more)
+Nodes (46): ACTIVE_OPPORTUNITY_STATES, ACTIVE_OPPORTUNITY_STATUSES, buildOpportunityEvidence(), buildOpportunityFieldEvidence(), buildOpportunityRefreshFocus(), buildOpportunitySeedFromRecord(), canonicalizeCandidateName(), COMPACT_COMPANY_SUFFIX_TOKENS (+38 more)
 
 ### Community 113 - "Community 113"
 Cohesion: 0.13
-Nodes (21): GET(), GET(), GET(), asPositiveNumber(), buildCustomerOperationsSummary(), CUSTOMER_VALUE_DELIVERABLES, CustomerOperationsAction, CustomerOperationsItem (+13 more)
+Nodes (22): GET(), GET(), GET(), asPositiveNumber(), buildCustomerOperationsSummary(), CUSTOMER_VALUE_DELIVERABLES, CustomerOperationsAction, CustomerOperationsItem (+14 more)
 
 ### Community 114 - "Community 114"
 Cohesion: 0.08
@@ -1046,21 +1054,12 @@ Cohesion: 0.21
 Nodes (19): gatherCompanyPipelineSignals(), applyFeedbackPressure(), buildTaskFamilyKeys(), countCompanyBlockedFamilies(), deriveFeedbackPressureDelta(), deriveFeedbackPressureReason(), getPressureForFamilyKeys(), isAnyFamilyBlocked() (+11 more)
 
 ### Community 119 - "Community 119"
-Cohesion: 0.12
-Nodes (19): buildLifecycleTelemetry(), {
-  buildDestinationDaemonLane,
-  buildLifecycleTelemetry,
-  buildMaintenanceDiff,
-}, defaultMissionConfig(), ensureDestinationInstance(), ensureMissionDefinition(), getDefaultRulebookPolicyForDestination(), {
-  getDestinationMissionKinds,
-  getDestinationTopology,
-  getUnitLifecycleRequirements,
-  listLifecycleDestinationKeys,
-}, inferActiveDestinationKeys() (+11 more)
+Cohesion: 0.08
+Nodes (18): Language, LANGUAGES, LanguageSelector(), LanguageSelectorProps, buildCapabilityDraftFromEffective(), buildEmptyCapabilityDraft(), CapabilityDraft, CapabilityIssue (+10 more)
 
 ### Community 120 - "Community 120"
-Cohesion: 0.14
-Nodes (23): GET(), asRecord(), PATCH(), asRecord(), POST(), GET(), getActiveDestinationInstance(), asBoolean() (+15 more)
+Cohesion: 0.15
+Nodes (22): GET(), asRecord(), PATCH(), asRecord(), POST(), GET(), asBoolean(), asRecord() (+14 more)
 
 ### Community 121 - "Community 121"
 Cohesion: 0.09
@@ -1071,8 +1070,8 @@ Cohesion: 0.09
 Nodes (22): 0. Product Foundation, 10. Budget Governor Architecture, 11. Local Self-Learning Architecture, 12. Planner And Quality Architecture, 1.1 Runtime entrypoints, 1.2 Runtime ports and operator surfaces, 1. Runtime Architecture, 2.1 Approved stack (+14 more)
 
 ### Community 123 - "Community 123"
-Cohesion: 0.18
-Nodes (16): executeDestinationMaintenanceAdapters(), readDestinationMaintenanceDefaults(), buildDestinationRunProfile(), clampDaemonLimit(), DAEMON_DESTINATION_KEYS, destinationLabel(), executeDestinationLaneForCompany(), executeDestinationMissionDaemonForCompany() (+8 more)
+Cohesion: 0.15
+Nodes (22): hashBridgeSecret(), isHashedBridgeSecret(), POST(), timingSafeHexEqual(), verifyBridgeSecret(), verifyLegacyHmac(), revalidateSources(), buildSourceLifecycleData() (+14 more)
 
 ### Community 124 - "Community 124"
 Cohesion: 0.09
@@ -1083,8 +1082,8 @@ Cohesion: 0.14
 Nodes (18): average(), bucketIceScore(), buildWindowDays(), bump(), formatDay(), normalizeWindowKey(), startOfDay(), WINDOW_DAYS_BY_KEY (+10 more)
 
 ### Community 126 - "Community 126"
-Cohesion: 0.19
-Nodes (21): getMiniappDefinition(), applyDefaults(), asRecord(), asString(), compareDefaultLocales, compareMiniappDefinition, ComparePublicI18nCopyMap, ComparePublicI18nDict (+13 more)
+Cohesion: 0.11
+Nodes (37): getMiniappDefinition(), applyDefaults(), asRecord(), asString(), buildComparePublicI18nPatch(), compareDefaultLocales, compareMiniappDefinition, ComparePublicI18nCopyMap (+29 more)
 
 ### Community 127 - "Community 127"
 Cohesion: 0.09
@@ -1099,8 +1098,8 @@ Cohesion: 0.09
 Nodes (21): 10. Acceptance Criteria, 11. GitHub Breakdown, 1. Problem Statement, 2. Target Principle, 3.1 Product / user truth, 3.2 Operator / runtime truth, 3.3 Miniapp truth, 3. Truth Split (+13 more)
 
 ### Community 130 - "Community 130"
-Cohesion: 0.20
-Nodes (13): pct(), TrainersHome(), classifyTrainersLandingState(), getTrainersLandingSummary(), LandingSectionFailureKey, TrainersLandingSummary, resolveTrainersEntryPoint(), resolveTrainersRoutes() (+5 more)
+Cohesion: 0.12
+Nodes (23): adaptDomainRowToBoardCard(), AdaptedBoardCardProjection, BOARD_ADAPTERS, BoardAdapterConfig, BoardAdapterDiagnostics, BoardAdapterInput, BoardAdapterReasonCode, BoardAdapterResolutionSource (+15 more)
 
 ### Community 131 - "Community 131"
 Cohesion: 0.08
@@ -1131,12 +1130,12 @@ Cohesion: 0.10
 Nodes (20): 2026 Market Feature Research, Acceptance Checks, Content & Communication, Conversion Optimization (CRO), Execution Boundary, Goal, Growth & Strategy, IDEABANK: Strategic Skills Integration (+12 more)
 
 ### Community 138 - "Community 138"
-Cohesion: 0.11
-Nodes (34): GET(), asRecord(), asRules(), asString(), hashValue(), listMiniappLearningMemory(), memoryKey(), MiniappLearningRule (+26 more)
+Cohesion: 0.20
+Nodes (17): GET(), asRecord(), asRules(), asString(), hashValue(), listMiniappLearningMemory(), memoryKey(), MiniappLearningRule (+9 more)
 
 ### Community 139 - "Community 139"
-Cohesion: 0.18
-Nodes (13): COMMON_FAILURE_POLICY, CONTRACTS, MiniappContractValidation, MiniappEvidenceType, MiniappIntelligenceContract, normalizeKey(), ResolvedMiniappIntelligenceContract, resolveMiniappIntelligenceContract() (+5 more)
+Cohesion: 0.24
+Nodes (17): CompareCandidateContractStatus, normalizeContractStatus(), pickBoolean(), pickNumber(), pickString(), pickStringArray(), readProjectionGate(), asNumber() (+9 more)
 
 ### Community 140 - "Community 140"
 Cohesion: 0.15
@@ -1148,7 +1147,7 @@ Nodes (19): buildCandidateAliases(), buildRegistryCandidate(), loadRunBundle(), 
 
 ### Community 142 - "Community 142"
 Cohesion: 0.09
-Nodes (21): Burst Controller, Capability Scopes (Contract Rule), ClassScout Compatibility Contract, ClassScout Manhattan Source Import, Compare Datacard Package Guidance, Compare Visitor Contract, Contract Runtime, Design System Requirement (+13 more)
+Nodes (22): Burst Controller, Capability Scopes (Contract Rule), ClassScout Compatibility Contract, ClassScout Manhattan Source Import, Compare Datacard Package Guidance, Compare Visitor Contract, Contract Runtime, Design System Requirement (+14 more)
 
 ### Community 143 - "Community 143"
 Cohesion: 0.12
@@ -1203,8 +1202,8 @@ Cohesion: 0.11
 Nodes (18): Active list changes, Chosen policy for checklist, Decision summary, Definition of done for the follow-on implementation, Fairness telemetry contract, Implementation follow-through, Pattern A: fixed-order serial scan, Pattern B: pure round-robin (+10 more)
 
 ### Community 156 - "Community 156"
-Cohesion: 0.20
-Nodes (16): buildComparePublicI18nPatch(), ComparePublicPatchInput, getActiveComparePublicConfig(), syncComparePublicI18n(), patchCompareSite(), asBoolean(), asRecord(), asRecordArray() (+8 more)
+Cohesion: 0.29
+Nodes (18): buildCompetitorDrafts(), buildCustomerDrafts(), buildFileDrafts(), buildFlashcardDrafts(), buildProductDrafts(), comparisonText(), competitorEvidenceSignals(), dedupeStrings() (+10 more)
 
 ### Community 157 - "Community 157"
 Cohesion: 0.20
@@ -1234,34 +1233,28 @@ Cohesion: 0.11
 Nodes (17): All companies, checklist Integration Guide, Create checklist recommendation, Existing checklist tasks, Flashcards by company, Integration Model, Notes, Read Inputs (+9 more)
 
 ### Community 162 - "Community 162"
-Cohesion: 0.23
-Nodes (13): asRecord(), AthleteIQDiscoveryArtifact, AthleteIQListingKind, AthleteIQLiveListingSummary, AthleteIQNormalizedListingInput, discoverAthleteIQCandidates(), extractAthleteIQCandidate(), getAthleteIQBridgeConfig() (+5 more)
+Cohesion: 0.21
+Nodes (14): failedCaseSummary(), GET(), POST(), compareEvaluationVariants(), EVALUATION_SUITES, EvaluationCaseResult, SEEDED_EVALUATION_CASES, EvaluationReport (+6 more)
 
 ### Community 163 - "Community 163"
 Cohesion: 0.17
 Nodes (19): GET(), isLocalOperatorRequest(), parseLane(), asJsonSafe(), getLaneAuditPrisma(), getSettingStore(), listLocalLaneEvents(), LocalLane (+11 more)
 
 ### Community 164 - "Community 164"
-Cohesion: 0.22
-Nodes (15): cleanOpportunityDescription(), isScrapedPageEvidenceNoise(), normalizeOpportunityContactInfo(), normalizeOpportunityPayload(), normalizeOpportunityType(), normalizeStringArray(), { normalizeTaskScores }, normalizeText() (+7 more)
+Cohesion: 0.18
+Nodes (19): cleanOpportunityDescription(), deriveOpportunityLane(), isScrapedPageEvidenceNoise(), normalizeOpportunityContactInfo(), normalizeOpportunityPayload(), normalizeOpportunityType(), normalizeStringArray(), { normalizeTaskScores } (+11 more)
 
 ### Community 165 - "Community 165"
-Cohesion: 0.24
-Nodes (15): applyEditorialQualityGate(), assessEditorialQuality(), normalizeBody(), normalizeTitle(), normalizeWhitespace(), scoreActionability(), scoreClarity(), scoreGrammar() (+7 more)
+Cohesion: 0.22
+Nodes (16): applyEditorialGate(), applyEditorialQualityGate(), assessEditorialQuality(), normalizeBody(), normalizeTitle(), normalizeWhitespace(), scoreActionability(), scoreClarity() (+8 more)
 
 ### Community 166 - "Community 166"
 Cohesion: 0.11
 Nodes (17): devDependencies, eslint, eslint-config-next, postcss-preset-mantine, postcss-simple-vars, prisma, @types/node, @types/react (+9 more)
 
 ### Community 167 - "Community 167"
-Cohesion: 0.11
-Nodes (17): assert, {
-  buildLifecycleControlCenterView,
-  buildLifecycleMigrationReport,
-  buildLifecycleVerificationReport,
-  buildPublicVerificationProof,
-  buildRecoveryActionView,
-}, controlCenter, { join }, migration, migrationSource, observabilityApiSource, observabilityPageSource (+9 more)
+Cohesion: 0.17
+Nodes (15): buildNoProgressTimeoutMessage(), PIPELINE_JOB_TYPES, recoverStaleRunningPipelineJobs(), shouldRunGlobalPipelineSync(), syncAllCompanyPipelineJobs(), syncAllCompanyPipelineJobsIfDue(), buildPlannerEventSummary(), buildPlannerStateSnapshot() (+7 more)
 
 ### Community 168 - "Community 168"
 Cohesion: 0.12
@@ -1300,8 +1293,8 @@ Cohesion: 0.24
 Nodes (14): asBoolean(), asRecord(), asString(), buildQueuedMutationResponse(), MiniappOpsAction, ACTION_TO_VISITOR_INTENT, asCleanString(), canQueueMiniappOpsAction() (+6 more)
 
 ### Community 177 - "Community 177"
-Cohesion: 0.23
-Nodes (12): clampLimit(), DESTINATION_MAINTENANCE_ADAPTERS, DestinationMaintenanceAdapterInput, DestinationMaintenanceAdapterResult, DestinationMaintenanceLimits, executeAthleteIQMaintenance(), executeCompareMaintenance(), executeTrainersMaintenance() (+4 more)
+Cohesion: 0.30
+Nodes (14): getCurrentSurfaceProjection(), handleUnitBoardProjectAction(), readBoardCardId(), readBoardMetadata(), readColumnKey(), readEffort(), readJsonBody(), readNullableString() (+6 more)
 
 ### Community 178 - "Community 178"
 Cohesion: 0.12
@@ -1320,8 +1313,8 @@ Cohesion: 0.29
 Nodes (5): blueprintSource, bootstrapSource, contractSource, qualityGateSource, ROOT
 
 ### Community 182 - "Community 182"
-Cohesion: 0.21
-Nodes (15): DEFAULT_VISITOR_CAPABILITY_RULES, EffectiveVisitorCapability, expandVisitorCapabilityParentChain(), isVisitorCapabilityScope(), normalizeScopeKey(), normalizeVisitorCapabilityScope(), PARENT_CHAIN_BY_SCOPE, resolveRulesForChain() (+7 more)
+Cohesion: 0.14
+Nodes (26): resolveDestinationKeyForVisitorWithHint(), DEFAULT_VISITOR_CAPABILITY_RULES, EffectiveVisitorCapability, expandVisitorCapabilityParentChain(), isVisitorCapabilityScope(), normalizeScopeKey(), normalizeVisitorCapabilityScope(), PARENT_CHAIN_BY_SCOPE (+18 more)
 
 ### Community 183 - "Community 183"
 Cohesion: 0.13
@@ -1352,16 +1345,16 @@ Cohesion: 0.13
 Nodes (14): 1. Contract And Audit, 1A. Hardcoded Surface Gating, 2. Sales Board Reference Refactor, 3. Navigation And Dashboard Counts, 4. Charts, 5. Cards, 6. Units, Blocks, Modules, 7. Miniapps (+6 more)
 
 ### Community 190 - "Community 190"
-Cohesion: 0.23
-Nodes (13): asRecord(), ClassScoutDiscoveryArtifact, ClassScoutListingType, ClassScoutLiveListingSummary, ClassScoutNormalizedListingInput, discoverClassScoutCandidates(), extractClassScoutCandidate(), getClassScoutBridgeConfig() (+5 more)
+Cohesion: 0.10
+Nodes (31): asListingType(), asRecord(), inferTarget(), ListingType, normalizeText(), PublishVerification, PublishVerificationStatus, readVerificationHistory() (+23 more)
 
 ### Community 191 - "Community 191"
 Cohesion: 0.28
 Nodes (12): countLocalInteractionEvents(), countLocalOutcomeEvents(), findLocalInteractionEvents(), findLocalOutcomeEvents(), buildDefaultObservabilitySummary(), buildDefaultOpportunitycardRepairState(), getCompanyObservabilitySnapshot(), readCapabilityTransactionSummary() (+4 more)
 
 ### Community 192 - "Community 192"
-Cohesion: 0.06
-Nodes (40): PIPELINE_JOB_TYPES, GENERATION_TIMEOUT_MS, MANUAL_LANE_COOLDOWN_MS, PLANNER_MIN_DATACARDS_FOR_ACTIVE, PLANNER_MIN_FLASHCARDS, PlannerLane, appendPlannerTelemetryLog(), buildPlannerEventSummary() (+32 more)
+Cohesion: 0.13
+Nodes (15): MANUAL_LANE_COOLDOWN_MS, PLANNER_MIN_DATACARDS_FOR_ACTIVE, PLANNER_MIN_FLASHCARDS, PlannerLane, canMoveTaskToLane, comparePlannerPromotionPriority, getCompanyOperatingMode, getLaneRank (+7 more)
 
 ### Community 193 - "Community 193"
 Cohesion: 0.13
@@ -1380,20 +1373,20 @@ Cohesion: 0.14
 Nodes (13): 1. Onboarding Workflow, 2. Delivery Workflow, 3. Onboarding Checklist, 4. Delivery Checklist, Onboarding and Delivery Workflow, Stage 1: Contract Received, Stage 1: Delivery Planning, Stage 2: Execution (+5 more)
 
 ### Community 197 - "Community 197"
-Cohesion: 0.18
-Nodes (14): getKnowmoreHealthSnapshot(), PATCH(), issueSystemCommand(), ensureWorkflowBlueprintTemplates(), listCompanyWorkflowBlueprints(), WORKFLOW_TEMPLATES, WorkflowTemplateDefinition, PATCH() (+6 more)
+Cohesion: 0.19
+Nodes (13): getKnowmoreHealthSnapshot(), PATCH(), issueSystemCommand(), ensureWorkflowBlueprintTemplates(), listCompanyWorkflowBlueprints(), WORKFLOW_TEMPLATES, WorkflowTemplateDefinition, GET() (+5 more)
 
 ### Community 198 - "Community 198"
-Cohesion: 0.24
-Nodes (13): asRecord(), createTrainersLiveRevision(), discoverTrainersCandidates(), extractTrainersCandidate(), getTrainersBridgeConfig(), isTrainersBridgeConfigured(), listTrainersLiveListings(), mapRevisionStatus() (+5 more)
+Cohesion: 0.22
+Nodes (13): applyNoveltyGate(), buildNoveltyClusterId(), combinedSimilarity(), crypto, evaluateCandidateNovelty(), loadComparableInventory(), normalizeTags(), normalizeText() (+5 more)
 
 ### Community 199 - "Community 199"
 Cohesion: 0.11
 Nodes (25): buildBaseData(), ConvertibleRecord, ConvertibleSourceType, ConvertibleTargetType, decodeUploadedFileContent(), deriveSourceTitle(), isBinaryLike(), isConvertibleSourceType() (+17 more)
 
 ### Community 200 - "Community 200"
-Cohesion: 0.09
-Nodes (22): resolveAutoDetected(), assertKnownBlock(), BlockDefinition, blockDefinitionByKey, blockKeys, CHECK_FOUNDATION_REGISTRY_SCHEMA_VERSION, blocks, modules (+14 more)
+Cohesion: 0.06
+Nodes (47): applyModuleOverrides(), asRecord(), convertLegacyModuleOverrides(), EffectiveUnitCapabilities, LEGACY_MODULE_TO_CANONICAL, LEGACY_PROFILE_BLOCK_MAP, LEGACY_PROFILE_MINIAPP_MAP, LegacyModuleKey (+39 more)
 
 ### Community 201 - "Community 201"
 Cohesion: 0.14
@@ -1408,8 +1401,8 @@ Cohesion: 0.14
 Nodes (13): API Surface, Blueprint + Taxonomy, Candidate Pipeline, Feedback + Refinement, Knowledge Pack, Operational Notes, Ops + Verification, Review + Publish (+5 more)
 
 ### Community 204 - "Community 204"
-Cohesion: 0.36
-Nodes (9): asListingType(), asRecord(), inferTarget(), ListingType, normalizeText(), PublishVerification, PublishVerificationStatus, readVerificationHistory() (+1 more)
+Cohesion: 0.20
+Nodes (11): asRecord(), DECISION_OPTIONS, DestinationReviewWorkspace(), latestPublishOutcome(), OutcomeMemory, packetTitle(), pretty(), readPublicUrlFromOutcome() (+3 more)
 
 ### Community 205 - "Community 205"
 Cohesion: 0.15
@@ -1424,20 +1417,20 @@ Cohesion: 0.15
 Nodes (12): Authority Rules, Board/Card Contract, Enforcement, Intent API Contract, Missing Projection Behavior, Projection Families, Purpose, Read API Contract (+4 more)
 
 ### Community 208 - "Community 208"
-Cohesion: 0.12
-Nodes (19): assertCardAllowedForBlock(), assertCardRegistryIntegrity(), assertKnownCardType(), CardDefinition, cardDefinitionByType, CardRegistryData, CardScoringMode, CHECK_FOUNDATION_CARD_REGISTRY_SCHEMA_VERSION (+11 more)
+Cohesion: 0.13
+Nodes (17): assertCardAllowedForBlock(), assertCardRegistryIntegrity(), assertKnownCardType(), CARD_TYPES, CardDefinition, cardDefinitionByType, CardRegistryData, CardScoringMode (+9 more)
 
 ### Community 209 - "Community 209"
-Cohesion: 0.17
-Nodes (15): GoalsPage(), CompanyKnowmorePage(), readAppSessionToken(), listCompanyFlashcardsPage(), serializeCompanyFlashcardsForKnowmore(), getGoalsInitialData(), getSessionAndMembership(), GoalsInitialData (+7 more)
+Cohesion: 0.26
+Nodes (10): CompanyKnowmorePage(), listCompanyFlashcardsPage(), serializeCompanyFlashcardsForKnowmore(), buildLiveKnowmoreSummary(), getKnowmoreHealthSnapshot(), getKnowmoreInitialData(), getSessionAndMembership(), KnowmoreHealth (+2 more)
 
 ### Community 210 - "Community 210"
-Cohesion: 0.15
-Nodes (11): FaqPageContent(), ManualPageContent(), DashboardTipContext, ExpertTip, expertTips, FaqItem, faqItems, HelpSection (+3 more)
+Cohesion: 0.22
+Nodes (6): FaqPageContent(), ManualPageContent(), faqItems, manualSections, getSemanticBulletStyle(), PageTitle()
 
 ### Community 211 - "Community 211"
-Cohesion: 0.07
-Nodes (64): asAttemptOutcome(), asRecord(), POST(), asRecord(), GET(), POST(), POST(), POST() (+56 more)
+Cohesion: 0.14
+Nodes (27): GET(), POST(), POST(), POST(), POST(), POST(), isDestinationKey(), resolveDestinationKeyForCompany() (+19 more)
 
 ### Community 212 - "Community 212"
 Cohesion: 0.23
@@ -1564,20 +1557,20 @@ Cohesion: 0.18
 Nodes (10): Accessibility And UX, APIs, Architecture, Contracts, Operational Behavior, Purpose, Rollback And Recovery, Runtime Flow (+2 more)
 
 ### Community 243 - "Community 243"
-Cohesion: 0.31
-Nodes (9): asNumber(), asRecord(), asStringArray(), clampPercent(), CompareQualitySignals, deriveCompareQualitySignals(), REJECTION_FLAGS, REVIEW_FLAGS (+1 more)
+Cohesion: 0.27
+Nodes (13): collapseWhitespace(), enrichUploadedFile(), extractText(), FileAnalysis, FileExtraction, parseDelimitedToText(), parseJsonToText(), previewLines() (+5 more)
 
 ### Community 244 - "Community 244"
-Cohesion: 0.27
-Nodes (11): applyBudgetControl(), boundNumber(), DEFAULT_POLICIES, dollarsFromMicros(), estimateWorkloadCostMicros(), getCompanyBudgetSnapshot(), recommendedBudgetEvents(), recordAiWorkloadUsage() (+3 more)
+Cohesion: 0.31
+Nodes (10): boundNumber(), DEFAULT_POLICIES, dollarsFromMicros(), estimateWorkloadCostMicros(), getCompanyBudgetSnapshot(), recommendedBudgetEvents(), recordAiWorkloadUsage(), summarizeUsage() (+2 more)
 
 ### Community 245 - "Community 245"
-Cohesion: 0.22
-Nodes (12): ComparePublicVerificationSummary, getComparePublicVerificationSummary(), evaluateCompareCandidate(), asRecord(), asString(), asStringArray(), evaluateCompareProjectionGate(), INHERITED_CLASSSCOUT_TERMS (+4 more)
+Cohesion: 0.13
+Nodes (21): ComparePublicVerificationSummary, getComparePublicVerificationSummary(), asNumber(), asRecord(), asStringArray(), clampPercent(), CompareQualitySignals, deriveCompareQualitySignals() (+13 more)
 
 ### Community 246 - "Community 246"
-Cohesion: 0.25
-Nodes (5): RuntimeOperationRequest, RuntimeOperationTelemetry, useGdsRuntimeOperationFeedback(), ObservabilityPage(), sortQueueJobs()
+Cohesion: 0.13
+Nodes (16): dateLabel(), EvaluationsPage(), gateColor(), scorePercent(), RuntimeOperationRequest, RuntimeOperationTelemetry, useGdsRuntimeOperationFeedback(), UnitModuleKey (+8 more)
 
 ### Community 247 - "Community 247"
 Cohesion: 0.18
@@ -1724,8 +1717,8 @@ Cohesion: 0.22
 Nodes (8): Active Priorities, CHECKLIST Roadmap Status, Delivered, Future Pipeline, Intelligence Quality, Product System, Scoring And Maintenance, Worker Queue
 
 ### Community 283 - "Community 283"
-Cohesion: 0.38
-Nodes (6): collectMacMemoryAccounting(), { execFile }, execFileAsync, fs, parseVmStat(), { promisify }
+Cohesion: 0.32
+Nodes (7): buildLogPressure(), collectMacMemoryAccounting(), { execFile }, execFileAsync, fs, parseVmStat(), { promisify }
 
 ### Community 284 - "Community 284"
 Cohesion: 0.22
@@ -1744,8 +1737,8 @@ Cohesion: 0.22
 Nodes (5): adapters, capabilityRoute, docs, root, route
 
 ### Community 288 - "Community 288"
-Cohesion: 0.25
-Nodes (8): assert(), contains(), contractSource, failures, miniappRouteSource, missionSource, root, visitorRouteSource
+Cohesion: 0.20
+Nodes (10): assert(), contains(), contractSource, failures, miniappRouteSource, missionSource, publishBridgeSource, root (+2 more)
 
 ### Community 289 - "Community 289"
 Cohesion: 0.39
@@ -1788,24 +1781,20 @@ Cohesion: 0.25
 Nodes (7): Allowed Product Tones, Enforcement, Forbidden Patterns, High-Risk Files, Rules, Semantic Design System Contract, Surface Contract
 
 ### Community 299 - "Community 299"
-Cohesion: 0.27
-Nodes (9): deriveOpportunityLane(), assignOpportunityLanes(), rebalanceOpportunitycardBoard(), refreshOldestOpportunitycards(), resolveOpportunityMaintenanceTake(), assert, {
-  buildOpportunitySeedFromRecord,
-  rebalanceOpportunitycardBoard,
-  refreshOldestOpportunitycards,
-}, main() (+1 more)
+Cohesion: 0.21
+Nodes (14): buildCompanyFlashcardWhere(), buildSourceDrafts(), clamp(), estimateSourceConfidence(), extractSourceInsights(), extractSourceUrls(), getWatchedString(), getWatchedStringArray() (+6 more)
 
 ### Community 300 - "Community 300"
-Cohesion: 0.09
-Nodes (39): buildExecutionOptionsForJob(), buildPlaylistMutationAuthority(), clearActivePipelineJobProgress(), createPipelineDeferredError(), resolveExecutionPlanDestinationKey(), resolvePipelineJobExecutionPlan(), runPipelineQueueBatch(), shouldDecomposeLowMemoryPipelineJob() (+31 more)
+Cohesion: 0.20
+Nodes (9): PROJECT_BOARD_COLUMNS, SurfaceReadModel, SurfaceReadModelAction, BoardCardMetadata, normalizeMetadata(), normalizeNumber(), normalizeString(), UnitBoardProjectionAction (+1 more)
 
 ### Community 301 - "Community 301"
-Cohesion: 0.29
-Nodes (13): buildOpportunityFieldEvidence(), buildOpportunityRefreshFocus(), extractAddressCandidate(), extractEmails(), extractLocationCandidate(), extractPhones(), looksWeakOpportunityBody(), looksWeakOpportunityFit() (+5 more)
+Cohesion: 0.31
+Nodes (9): POST(), classifyPersistenceFailure(), extractAtlasQuotaDetail(), includesText(), PersistenceFailureInfo, readErrorMessage(), readErrorName(), readPrismaCode() (+1 more)
 
 ### Community 302 - "Community 302"
-Cohesion: 0.53
-Nodes (4): getSessionAndMembership(), getTopicsInitialData(), TopicsInitialData, CompanyTopicsPage()
+Cohesion: 0.26
+Nodes (9): GoalsPage(), readAppSessionToken(), getGoalsInitialData(), getSessionAndMembership(), GoalsInitialData, getSessionAndMembership(), getTopicsInitialData(), TopicsInitialData (+1 more)
 
 ### Community 303 - "Community 303"
 Cohesion: 0.25
@@ -1890,6 +1879,10 @@ Nodes (7): 15. Implementation Plan, Phase 1. Foreground lane hardening, Phase 2.
 ### Community 323 - "Community 323"
 Cohesion: 0.29
 Nodes (7): 4.1 Guardian, 4.2 Foreground worker, 4.3.1 Memory governor, 4.3 Background worker, 4.4.1 Runtime verification and chaos recovery, 4.4 Status server, 4. Target Runtime Topology
+
+### Community 324 - "Community 324"
+Cohesion: 0.20
+Nodes (9): deduped, dirtyState, drained, left, missing, normalized, right, runtimeDirty (+1 more)
 
 ### Community 325 - "Community 325"
 Cohesion: 0.29
@@ -2014,6 +2007,10 @@ Nodes (6): 6.1 One claim only, 6.2 No full queue sync in hot path, 6.3 Increment
 ### Community 355 - "Community 355"
 Cohesion: 0.33
 Nodes (5): Canonical product terms, Failure policy, Inline allow, Legacy aliases, Terminology Audit
+
+### Community 356 - "Community 356"
+Cohesion: 0.22
+Nodes (6): args, prisma, { PrismaClient }, { refreshCompanyIntelligenceSnapshot }, require, ROOT
 
 ### Community 357 - "Community 357"
 Cohesion: 0.29
@@ -2187,13 +2184,13 @@ Nodes (5): 3.1 One foreground lane, 3.2 Background is opportunistic, 3.3 Truthfu
 Cohesion: 0.40
 Nodes (4): Forced Cycle Proof — 2026-04-12, Interpretation, Results, Scope
 
+### Community 400 - "Community 400"
+Cohesion: 0.40
+Nodes (5): buildFingerprint(), makeDraft(), sentenceize(), slugify(), stripSourceTypeHashtags()
+
 ### Community 401 - "Community 401"
 Cohesion: 0.40
 Nodes (5): Files to Edit, Fix Plan, Issue: Input Field Unreadable in Edit Mode, Problem, Root Cause
-
-### Community 402 - "Community 402"
-Cohesion: 0.50
-Nodes (4): applyRunnerIdentity(), getRunnerDefinition(), listRunnerDefinitions(), RUNNER_DEFINITIONS
 
 ### Community 403 - "Community 403"
 Cohesion: 0.40
@@ -2371,10 +2368,6 @@ Nodes (3): Architecture Diagram, Solution: Continuous Pipeline Architecture, Use
 Cohesion: 0.67
 Nodes (3): Files, In checklist (online), In mvp-factory-control
 
-### Community 513 - "Community 513"
-Cohesion: 0.36
-Nodes (7): GET(), PATCH(), DEFAULT_POLICIES, ENRICHMENT_PROVIDER_DEFINITIONS, EnrichmentProviderDefinition, ensureDefaultEnrichmentPolicies(), listCompanyEnrichmentPolicies()
-
 ### Community 515 - "Community 515"
 Cohesion: 0.25
 Nodes (7): batch, blocked, docs, graphSource, normalized, routeSource, serverSource
@@ -2383,32 +2376,24 @@ Nodes (7): batch, blocked, docs, graphSource, normalized, routeSource, serverSou
 Cohesion: 0.48
 Nodes (6): asNumber(), asRecord(), asString(), asStringArray(), GET(), readTask()
 
-### Community 518 - "Community 518"
-Cohesion: 0.39
-Nodes (8): buildIncident(), collectBreakerIncidents(), collectMemoryIncident(), collectQueueIncident(), collectServiceIncidents(), reduceRuntimeHealth(), { RESOURCE_BANDS }, { SERVICE_CRITICALITY, SERVICE_STATES }
-
-### Community 519 - "Community 519"
-Cohesion: 0.33
-Nodes (3): adapter, compareHome, root
-
 ## Knowledge Gaps
-- **4485 isolated node(s):** `PreToolUse`, `agents`, `nextConfig`, `schemaVersion`, `owner` (+4480 more)
+- **4488 isolated node(s):** `PreToolUse`, `agents`, `nextConfig`, `schemaVersion`, `owner` (+4483 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **55 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `prisma` connect `Community 16` to `Community 513`, `Community 130`, `Community 3`, `Community 131`, `Community 517`, `Community 134`, `Community 138`, `Community 14`, `Community 18`, `Community 21`, `Community 23`, `Community 153`, `Community 28`, `Community 30`, `Community 160`, `Community 162`, `Community 163`, `Community 35`, `Community 37`, `Community 36`, `Community 38`, `Community 170`, `Community 42`, `Community 302`, `Community 176`, `Community 177`, `Community 50`, `Community 51`, `Community 48`, `Community 54`, `Community 55`, `Community 185`, `Community 58`, `Community 59`, `Community 190`, `Community 191`, `Community 67`, `Community 69`, `Community 198`, `Community 199`, `Community 197`, `Community 75`, `Community 204`, `Community 78`, `Community 81`, `Community 209`, `Community 211`, `Community 85`, `Community 87`, `Community 220`, `Community 222`, `Community 97`, `Community 102`, `Community 105`, `Community 106`, `Community 107`, `Community 108`, `Community 109`, `Community 113`, `Community 244`, `Community 245`, `Community 120`, `Community 123`, `Community 125`, `Community 126`?**
-  _High betweenness centrality (0.079) - this node is a cross-community bridge._
+- **Why does `prisma` connect `Community 16` to `Community 3`, `Community 131`, `Community 517`, `Community 134`, `Community 138`, `Community 139`, `Community 14`, `Community 18`, `Community 23`, `Community 153`, `Community 28`, `Community 30`, `Community 31`, `Community 160`, `Community 162`, `Community 35`, `Community 163`, `Community 37`, `Community 36`, `Community 38`, `Community 170`, `Community 42`, `Community 302`, `Community 176`, `Community 48`, `Community 177`, `Community 51`, `Community 54`, `Community 55`, `Community 182`, `Community 185`, `Community 58`, `Community 59`, `Community 190`, `Community 191`, `Community 67`, `Community 69`, `Community 197`, `Community 199`, `Community 75`, `Community 78`, `Community 81`, `Community 209`, `Community 211`, `Community 85`, `Community 87`, `Community 220`, `Community 222`, `Community 97`, `Community 102`, `Community 105`, `Community 106`, `Community 107`, `Community 108`, `Community 109`, `Community 111`, `Community 113`, `Community 244`, `Community 245`, `Community 120`, `Community 123`, `Community 125`, `Community 126`?**
+  _High betweenness centrality (0.074) - this node is a cross-community bridge._
+- **Why does `verifyMembership()` connect `Community 3` to `Community 131`, `Community 517`, `Community 138`, `Community 14`, `Community 16`, `Community 18`, `Community 28`, `Community 30`, `Community 31`, `Community 160`, `Community 162`, `Community 36`, `Community 42`, `Community 170`, `Community 301`, `Community 48`, `Community 177`, `Community 176`, `Community 51`, `Community 54`, `Community 182`, `Community 59`, `Community 190`, `Community 67`, `Community 197`, `Community 69`, `Community 199`, `Community 78`, `Community 81`, `Community 211`, `Community 85`, `Community 87`, `Community 220`, `Community 222`, `Community 97`, `Community 102`, `Community 105`, `Community 106`, `Community 107`, `Community 108`, `Community 111`, `Community 113`, `Community 245`, `Community 120`, `Community 125`, `Community 126`?**
+  _High betweenness centrality (0.039) - this node is a cross-community bridge._
 - **Why does `en` connect `Community 1` to `Community 126`?**
   _High betweenness centrality (0.033) - this node is a cross-community bridge._
-- **Why does `verifyMembership()` connect `Community 211` to `Community 513`, `Community 130`, `Community 3`, `Community 131`, `Community 517`, `Community 138`, `Community 139`, `Community 14`, `Community 16`, `Community 18`, `Community 21`, `Community 28`, `Community 156`, `Community 30`, `Community 160`, `Community 35`, `Community 42`, `Community 170`, `Community 48`, `Community 176`, `Community 50`, `Community 51`, `Community 54`, `Community 59`, `Community 61`, `Community 67`, `Community 197`, `Community 69`, `Community 199`, `Community 78`, `Community 81`, `Community 85`, `Community 87`, `Community 220`, `Community 222`, `Community 97`, `Community 102`, `Community 105`, `Community 106`, `Community 107`, `Community 108`, `Community 111`, `Community 113`, `Community 245`, `Community 120`, `Community 125`?**
-  _High betweenness centrality (0.028) - this node is a cross-community bridge._
 - **Are the 69 inferred relationships involving `verifyMembership()` (e.g. with `GET()` and `PATCH()`) actually correct?**
   _`verifyMembership()` has 69 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `PreToolUse`, `agents`, `nextConfig` to the rest of the system?**
-  _4485 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _4488 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.013333333333333334 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**

@@ -13,6 +13,8 @@ assert(gates.includes("miniappOpportunityCard"), "promotion gate must evaluate m
 assert(gates.includes("minimumEvidenceScore"), "promotion gate must enforce evidence score");
 assert(gates.includes("minimumSourceAuthorityScore"), "promotion gate must enforce source authority score");
 assert(gates.includes("minimumCandidateScore"), "promotion gate must enforce candidate score");
+assert(gates.includes("minimumContentQualityScore"), "promotion gate must enforce content quality score");
+assert(gates.includes("content_quality_below_contract"), "promotion gate must block content below the publish-quality floor");
 assert(gates.includes("forbiddenSignals"), "promotion gate must enforce contract forbidden signals");
 assert(gates.includes("evaluateCompareProjectionGate"), "promotion gate must include public projection gate");
 assert(gates.includes('nextState: "NEEDS_REVIEW" | "REWORK_REQUIRED"'), "promotion gate states must be explicit");

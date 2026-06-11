@@ -56,7 +56,9 @@ export async function runVisitorPipelineOnce(input: {
             audienceFit: 0.9,
           }
         : {}, input.destinationKey);
-      const review = await prepareVisitorReviewPacket(input.companyId, input.visitorKey, String(candidate.id), input.destinationKey);
+      const review = score?.state === "NEEDS_REVIEW"
+        ? await prepareVisitorReviewPacket(input.companyId, input.visitorKey, String(candidate.id), input.destinationKey)
+        : null;
       let approval: unknown = null;
       let publish: unknown = null;
       if (input.autoApprove && autoPublishEligible && review?.latestReviewPacketId) {

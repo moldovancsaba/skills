@@ -13,6 +13,7 @@ const docs = readFileSync("docs/miniapps/sovereign-intelligence-contract.md", "u
 assert(lib.includes("getMiniappOpsSnapshot"), "ops snapshot read model must exist");
 assert(lib.includes("executeMiniappOpsAction"), "ops action handler must exist");
 assert(lib.includes("sourceCardInventoryIsSuccess"), "ops model must expose no-SOURCE success invariant");
+assert(lib.includes("contentQualityScore"), "ops model must expose content quality score");
 assert(lib.includes("publicVisibleCards") && lib.includes("targetVisibleCards"), "ops model must expose public-card target progress");
 assert(lib.includes("researchTasks") && lib.includes("opportunities") && lib.includes("learningMemory"), "ops model must expose sovereign loop sections");
 assert(lib.includes("pause_burst") && lib.includes("resume_burst") && lib.includes("retry_task"), "ops actions must support pause/resume/retry");

@@ -14,6 +14,9 @@ assert(lifecycle.includes("MiniappOpportunityCard"), "opportunity lifecycle must
 assert(lifecycle.includes("minimumEvidenceScore"), "promotion must enforce minimum evidence score");
 assert(lifecycle.includes("minimumSourceAuthorityScore"), "promotion must enforce source authority score");
 assert(lifecycle.includes("minimumCandidateScore"), "promotion must enforce candidate score");
+assert(lifecycle.includes("contentQualityScoreFromOpportunity"), "promotion must compute the 0..1000 content quality score");
+assert(lifecycle.includes("minimumContentQualityScore"), "promotion must enforce content quality score");
+assert(lifecycle.includes("content_quality_below_contract"), "promotion must loop low-quality content into rework");
 assert(lifecycle.includes('visitorCandidateState: "OPPORTUNITY_CANDIDATE"'), "solid opportunities must become visitor candidates");
 assert(lifecycle.includes('status: solid ? "CANDIDATE" : "REWORK_REQUIRED"'), "weak evidence must loop to rework");
 assert(lifecycle.includes("sourceCardInventoryIsSuccess: false"), "opportunity lifecycle must reject source inventory success");

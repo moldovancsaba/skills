@@ -14,6 +14,8 @@ import { evaluateVisitorQualityGate } from "@/lib/visitor-quality-gate";
 import { submitDestinationReviewPacket } from "@/lib/destination-review-bridge";
 import { listVisitorFeedbackMemory } from "@/lib/visitor-learning";
 import { DestinationWorkflowState } from "@prisma/client";
+import { assertMiniappIntelligenceContract } from "@/lib/miniapp-intelligence-contracts";
+import { contentQualityScoreFromUnitScale } from "@/lib/miniapp-content-quality";
 
 export const VISITOR_CANDIDATE_STATES = [
   "DISCOVERED",
@@ -356,6 +358,7 @@ export async function scoreVisitorCandidate(
 ) {
   const destinationKey = resolveDestinationKeyForVisitorWithHint(visitorKey, destinationKeyHint);
   if (!destinationKey) throw new Error("Unsupported visitorKey");
+  const contract = assertMiniappIntelligenceContract({ destinationKeyHint: destinationKey });
   const instance = await getInstance(companyId, visitorKey, destinationKeyHint);
   const taxonomy = await getVisitorTaxonomy(companyId, visitorKey, destinationKeyHint);
   const row = await prisma.destinationCandidate.findFirst({
@@ -374,6 +377,7 @@ export async function scoreVisitorCandidate(
     0.2 * taxonomyFit +
     0.1 * locationFit +
     0.1 * audienceFit;
+  const contentQualityScore = contentQualityScoreFromUnitScale(qualityScore);
   const qualityGate = evaluateVisitorQualityGate({
     taxonomy,
     destinationKey,
@@ -382,9 +386,12 @@ export async function scoreVisitorCandidate(
     extractedFacts: asRecord(metadata.extractedFacts),
     metadata,
   });
+  const scoreBlockingReasons = contentQualityScore < contract.promotionPolicy.minimumContentQualityScore
+    ? ["content_quality_below_contract"]
+    : [];
   const nextState: VisitorCandidateState = qualityGate.blockingReasons.length > 0
     ? "REWORK_REQUIRED"
-    : qualityScore >= 0.55
+    : scoreBlockingReasons.length === 0
       ? "NEEDS_REVIEW"
       : "REWORK_REQUIRED";
   await prisma.destinationCandidate.update({
@@ -394,6 +401,7 @@ export async function scoreVisitorCandidate(
       metadata: {
         ...metadata,
         qualityScore: Number(qualityScore.toFixed(4)),
+        contentQualityScore,
         qualitySignals: {
           sourceTrustScore,
           evidenceCompleteness,
@@ -401,15 +409,28 @@ export async function scoreVisitorCandidate(
           locationFit,
           audienceFit,
         },
-        qualityGate,
+        qualityGate: {
+          ...qualityGate,
+          pass: qualityGate.pass && scoreBlockingReasons.length === 0,
+          blockingReasons: [...new Set([...qualityGate.blockingReasons, ...scoreBlockingReasons])],
+          contentQualityScore,
+          minimumContentQualityScore: contract.promotionPolicy.minimumContentQualityScore,
+        },
         visitorCandidateState: nextState,
       } as never,
     },
   });
   return {
     qualityScore: Number(qualityScore.toFixed(4)),
+    contentQualityScore,
     state: nextState,
-    qualityGate,
+    qualityGate: {
+      ...qualityGate,
+      pass: qualityGate.pass && scoreBlockingReasons.length === 0,
+      blockingReasons: [...new Set([...qualityGate.blockingReasons, ...scoreBlockingReasons])],
+      contentQualityScore,
+      minimumContentQualityScore: contract.promotionPolicy.minimumContentQualityScore,
+    },
   };
 }
 

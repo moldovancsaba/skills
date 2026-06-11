@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "next-env.d.ts": {
-    "mtime": 1781191639.4133704,
-    "ast_hash": "d0f8375ae1199dc7acd3977fc33b78b8",
+    "mtime": 1781191698.4819167,
+    "ast_hash": "2a74d3909800ca5467fa83b0ab4a4890",
     "semantic_hash": ""
   },
   "next.config.js": {
@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1781191552.454448,
-    "ast_hash": "81221eeb0e2503a12d727abc129c7bb2",
+    "mtime": 1781192009.2719853,
+    "ast_hash": "4feb21787cfdb9788b8a6261f13f4210",
     "semantic_hash": ""
   },
   "postcss.config.js": {
@@ -935,18 +935,18 @@
     "semantic_hash": ""
   },
   "scripts/test-miniapp-opportunity-lifecycle.mjs": {
-    "mtime": 1780429009.1532514,
-    "ast_hash": "c2b0ce2272913affa691ab8aa7f74018",
+    "mtime": 1781191965.780098,
+    "ast_hash": "f52221fe072a09ad7f88de52c99c5d77",
     "semantic_hash": ""
   },
   "scripts/test-miniapp-ops-console.mjs": {
-    "mtime": 1780380671.6659508,
-    "ast_hash": "998081c231d57e5aec967dc7c512a6b9",
+    "mtime": 1781191989.2582345,
+    "ast_hash": "d50f5ca0278469787a051bde0ac2afb9",
     "semantic_hash": ""
   },
   "scripts/test-miniapp-promotion-gates.mjs": {
-    "mtime": 1780349724.93103,
-    "ast_hash": "8737cbd79ab07ecf2709051d28b13079",
+    "mtime": 1781191970.926594,
+    "ast_hash": "9b8070fe90ae9642837f3865696b892e",
     "semantic_hash": ""
   },
   "scripts/test-miniapp-research-planner.mjs": {
@@ -1025,8 +1025,8 @@
     "semantic_hash": ""
   },
   "scripts/test-sovereign-miniapp-contract.mjs": {
-    "mtime": 1780348840.2487636,
-    "ast_hash": "2d308f008c8a4eba5a5538c21c63a179",
+    "mtime": 1781191985.0918431,
+    "ast_hash": "cb9627cb94b883432a03d55ff5657353",
     "semantic_hash": ""
   },
   "scripts/test-sovereign-miniapp-proof-harness.mjs": {
@@ -1990,8 +1990,8 @@
     "semantic_hash": ""
   },
   "src/app/api/units/[unitId]/miniapps/[miniappId]/candidates/route.ts": {
-    "mtime": 1780835320.5136526,
-    "ast_hash": "210883d60d63fd531e8da47f181257dd",
+    "mtime": 1781191925.726228,
+    "ast_hash": "3a85ed640ebb4b126c863da992a4c496",
     "semantic_hash": ""
   },
   "src/app/api/units/[unitId]/miniapps/[miniappId]/cards/[cardId]/approve/route.ts": {
@@ -2155,8 +2155,8 @@
     "semantic_hash": ""
   },
   "src/app/api/visitor/[visitorKey]/research/opportunities/route.ts": {
-    "mtime": 1780835320.520428,
-    "ast_hash": "360f0f4c54d70eedba9fe3dc39ecb76e",
+    "mtime": 1781191930.368738,
+    "ast_hash": "e0ad487c9cc5d7d89fac0de333842af5",
     "semantic_hash": ""
   },
   "src/app/api/visitor/[visitorKey]/research/tasks/plan/route.ts": {
@@ -2925,8 +2925,8 @@
     "semantic_hash": ""
   },
   "src/lib/destination-publish-bridge.ts": {
-    "mtime": 1780902283.6132793,
-    "ast_hash": "47e93a23e94e2692e3fe0f95763ff0df",
+    "mtime": 1781191892.299921,
+    "ast_hash": "21f3ca49c44a6fb6f55c413d8b2bca67",
     "semantic_hash": ""
   },
   "src/lib/destination-review-bridge.ts": {
@@ -3085,8 +3085,8 @@
     "semantic_hash": ""
   },
   "src/lib/miniapp-intelligence-contracts.ts": {
-    "mtime": 1781186881.7920573,
-    "ast_hash": "3061b36e5c4f8f17c182824d9d610584",
+    "mtime": 1781191839.7575135,
+    "ast_hash": "65179744846955dda96e76ae32f956fc",
     "semantic_hash": ""
   },
   "src/lib/miniapp-intelligence-health.ts": {
@@ -3100,13 +3100,13 @@
     "semantic_hash": ""
   },
   "src/lib/miniapp-opportunity-lifecycle.ts": {
-    "mtime": 1780835320.6275485,
-    "ast_hash": "da926a9ff30f49bccea0c2ffc0c3a12f",
+    "mtime": 1781191852.985579,
+    "ast_hash": "1df7ddcc3d1b49c4c47dcc2fece1f26d",
     "semantic_hash": ""
   },
   "src/lib/miniapp-ops-console.ts": {
-    "mtime": 1780835320.5998752,
-    "ast_hash": "d38b3d22dd6b7db9bd0f331288f8ad17",
+    "mtime": 1781191944.919073,
+    "ast_hash": "e47b1426d1624d4dbf86bb009d455e1f",
     "semantic_hash": ""
   },
   "src/lib/miniapp-ops-queue.ts": {
@@ -3115,8 +3115,8 @@
     "semantic_hash": ""
   },
   "src/lib/miniapp-promotion-gates.ts": {
-    "mtime": 1780835320.5938485,
-    "ast_hash": "6079ee2c3942974863f620fbb43bbcbd",
+    "mtime": 1781191863.18176,
+    "ast_hash": "f07d28dfce213e46c41fd7c0f550b84e",
     "semantic_hash": ""
   },
   "src/lib/miniapp-research-planner.ts": {
@@ -3215,8 +3215,8 @@
     "semantic_hash": ""
   },
   "src/lib/release.ts": {
-    "mtime": 1780835320.6188493,
-    "ast_hash": "e17ace54b57d27b52f5f33e11b030c8e",
+    "mtime": 1781192079.713187,
+    "ast_hash": "9c0cea5f8336ec98b37f53196a699305",
     "semantic_hash": ""
   },
   "src/lib/request-profile.ts": {
@@ -3400,8 +3400,8 @@
     "semantic_hash": ""
   },
   "src/lib/visitor-candidate-pipeline.ts": {
-    "mtime": 1780835320.6140628,
-    "ast_hash": "30894747a2da81469eaac032299b4e16",
+    "mtime": 1781192041.1866498,
+    "ast_hash": "57841dbc92e6266d4eaa813400c0068b",
     "semantic_hash": ""
   },
   "src/lib/visitor-capability-resolver.ts": {
@@ -3445,8 +3445,8 @@
     "semantic_hash": ""
   },
   "src/lib/visitor-pipeline-runner.ts": {
-    "mtime": 1780835320.6213856,
-    "ast_hash": "5003ec02fda92f213804fcfcc19fd706",
+    "mtime": 1781191900.0314949,
+    "ast_hash": "65f52c2608e7f7c18be2f7ba51f5b914",
     "semantic_hash": ""
   },
   "src/lib/visitor-public-projection-gate.ts": {
@@ -3930,8 +3930,8 @@
     "semantic_hash": ""
   },
   "docs/miniapps/sovereign-intelligence-contract.md": {
-    "mtime": 1781187619.5346878,
-    "ast_hash": "03e0cfa0e31370e178bfff1421d9dd71",
+    "mtime": 1781192004.192047,
+    "ast_hash": "1d4719582a9d76a21cebb89ae22274c5",
     "semantic_hash": ""
   },
   "docs/technological_audit.md": {
@@ -4507,6 +4507,11 @@
   "src/lib/local-ai-focus.js": {
     "mtime": 1781189501.6867678,
     "ast_hash": "d03118c144a9ddffe479043645fda906",
+    "semantic_hash": ""
+  },
+  "src/lib/miniapp-content-quality.ts": {
+    "mtime": 1781191816.8202212,
+    "ast_hash": "e378426acf3f914465d3fc67b582ee50",
     "semantic_hash": ""
   }
 }

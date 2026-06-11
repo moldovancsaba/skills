@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { recordDestinationOutcomeMemory } from "@/lib/destination-review-bridge";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
 import type { DestinationKey } from "@/lib/destination-workflow-contract";
+import { assertMiniappIntelligenceContract } from "@/lib/miniapp-intelligence-contracts";
+import { readContentQualityScore } from "@/lib/miniapp-content-quality";
 
 type DestinationBridgeDefinition = {
   label: string;
@@ -125,6 +127,7 @@ export async function publishDestinationReviewPacket(input: {
     },
     include: {
       destinationInstance: true,
+      candidate: true,
       reviewDecisions: {
         orderBy: { reviewedAt: "desc" },
         take: 1,
@@ -144,6 +147,41 @@ export async function publishDestinationReviewPacket(input: {
 
   if (packet.packetState !== "APPROVED") {
     return { ok: false, status: 409, error: `Review card must be APPROVED before publish, got ${packet.packetState}` };
+  }
+
+  const contract = assertMiniappIntelligenceContract({ destinationKeyHint: destinationKey });
+  const contentQualityScore = readContentQualityScore({
+    metadata: packet.candidate.metadata,
+    evidenceSummary: packet.evidenceSummary,
+  });
+  if (contentQualityScore < contract.promotionPolicy.minimumContentQualityScore) {
+    await recordDestinationOutcomeMemory({
+      companyId: input.companyId,
+      destinationKey,
+      workflowRunId: packet.workflowRunId,
+      candidateId: packet.candidateId,
+      draftId: packet.draftId,
+      reviewPacketId: packet.id,
+      bridgeVersion: packet.bridgeVersion,
+      eventType: "publish_blocked",
+      reasonCode: "content_quality_below_contract",
+      notes: `Publish blocked: content quality score ${contentQualityScore} is below ${contract.promotionPolicy.minimumContentQualityScore}.`,
+      actorType: "SYSTEM",
+      actorId: input.reviewedBy,
+      payload: {
+        contentQualityScore,
+        minimumContentQualityScore: contract.promotionPolicy.minimumContentQualityScore,
+        contractKey: contract.key,
+      },
+    });
+    return {
+      ok: false,
+      status: 422,
+      error: "Content quality score is below the publish threshold",
+      reasonCode: "content_quality_below_contract",
+      contentQualityScore,
+      minimumContentQualityScore: contract.promotionPolicy.minimumContentQualityScore,
+    };
   }
 
   const config = getDestinationBridgeConfig(destinationKey);

@@ -1,5 +1,6 @@
 import type { DestinationKey } from "@/lib/destination-workflow-contract";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
+import { MINIAPP_DEFAULT_MINIMUM_CONTENT_QUALITY_SCORE, MINIAPP_CONTENT_QUALITY_SCORE_MAX } from "@/lib/miniapp-content-quality";
 
 export type MiniappEvidenceType = "official_site" | "directory" | "event_page" | "association_page" | "public_catalog";
 
@@ -34,6 +35,7 @@ export type MiniappIntelligenceContract = {
     minimumEvidenceScore: number;
     minimumSourceAuthorityScore: number;
     minimumCandidateScore: number;
+    minimumContentQualityScore: number;
     requirePublicVerification: boolean;
     successMetric: "verified_public_visible_cards";
     sourceCardInventoryIsSuccess: false;
@@ -71,6 +73,13 @@ function unique(values: string[]) {
 function validatePositiveNumber(value: number, path: string, errors: string[]) {
   if (!Number.isFinite(value) || value <= 0) {
     errors.push(`${path} must be a positive number`);
+  }
+}
+
+function validateContentQualityThreshold(value: number, path: string, errors: string[]) {
+  validatePositiveNumber(value, path, errors);
+  if (value > MINIAPP_CONTENT_QUALITY_SCORE_MAX) {
+    errors.push(`${path} must be <= ${MINIAPP_CONTENT_QUALITY_SCORE_MAX}`);
   }
 }
 
@@ -117,6 +126,7 @@ export function validateMiniappIntelligenceContract(contract: MiniappIntelligenc
   validatePositiveNumber(contract.promotionPolicy.minimumEvidenceScore, "promotionPolicy.minimumEvidenceScore", errors);
   validatePositiveNumber(contract.promotionPolicy.minimumSourceAuthorityScore, "promotionPolicy.minimumSourceAuthorityScore", errors);
   validatePositiveNumber(contract.promotionPolicy.minimumCandidateScore, "promotionPolicy.minimumCandidateScore", errors);
+  validateContentQualityThreshold(contract.promotionPolicy.minimumContentQualityScore, "promotionPolicy.minimumContentQualityScore", errors);
   if (contract.promotionPolicy.successMetric !== "verified_public_visible_cards") {
     errors.push("promotionPolicy.successMetric must be verified_public_visible_cards");
   }
@@ -209,6 +219,7 @@ const CONTRACTS: Record<string, MiniappIntelligenceContract> = {
       minimumEvidenceScore: 60,
       minimumSourceAuthorityScore: 70,
       minimumCandidateScore: 70,
+      minimumContentQualityScore: MINIAPP_DEFAULT_MINIMUM_CONTENT_QUALITY_SCORE,
       requirePublicVerification: true,
       successMetric: "verified_public_visible_cards",
       sourceCardInventoryIsSuccess: false,
@@ -283,6 +294,7 @@ const CONTRACTS: Record<string, MiniappIntelligenceContract> = {
       minimumEvidenceScore: 60,
       minimumSourceAuthorityScore: 65,
       minimumCandidateScore: 70,
+      minimumContentQualityScore: MINIAPP_DEFAULT_MINIMUM_CONTENT_QUALITY_SCORE,
       requirePublicVerification: true,
       successMetric: "verified_public_visible_cards",
       sourceCardInventoryIsSuccess: false,
@@ -336,6 +348,7 @@ const CONTRACTS: Record<string, MiniappIntelligenceContract> = {
       minimumEvidenceScore: 60,
       minimumSourceAuthorityScore: 65,
       minimumCandidateScore: 70,
+      minimumContentQualityScore: MINIAPP_DEFAULT_MINIMUM_CONTENT_QUALITY_SCORE,
       requirePublicVerification: true,
       successMetric: "verified_public_visible_cards",
       sourceCardInventoryIsSuccess: false,
@@ -392,6 +405,7 @@ const CONTRACTS: Record<string, MiniappIntelligenceContract> = {
       minimumEvidenceScore: 60,
       minimumSourceAuthorityScore: 65,
       minimumCandidateScore: 70,
+      minimumContentQualityScore: MINIAPP_DEFAULT_MINIMUM_CONTENT_QUALITY_SCORE,
       requirePublicVerification: true,
       successMetric: "verified_public_visible_cards",
       sourceCardInventoryIsSuccess: false,

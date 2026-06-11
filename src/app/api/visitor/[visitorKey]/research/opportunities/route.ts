@@ -76,6 +76,7 @@ export async function GET(
           evidenceScore: asNumber(opportunity.evidenceScore),
           sourceAuthorityScore: asNumber(opportunity.sourceAuthorityScore),
           candidateScore: asNumber(opportunity.candidateScore),
+          contentQualityScore: asNumber(opportunity.contentQualityScore),
           status: asString(opportunity.status),
           blockingReasons: asStringArray(opportunity.blockingReasons),
           createdAt: row.createdAt.toISOString(),

@@ -7,6 +7,7 @@ import { ensureDestinationInstance } from "@/lib/destination-workflows";
 import { resolveDestinationKeyForVisitorWithHint } from "@/lib/visitor-blueprints";
 import { assertMiniappIntelligenceContract } from "@/lib/miniapp-intelligence-contracts";
 import { MINIAPP_EVIDENCE_ARTIFACT_SOURCE_TYPE, type MiniappEvidenceArtifact } from "@/lib/miniapp-evidence-runtime";
+import { contentQualityScoreFromOpportunity } from "@/lib/miniapp-content-quality";
 
 export type MiniappOpportunityStatus = "LEAD" | "CANDIDATE" | "REWORK_REQUIRED";
 
@@ -23,6 +24,7 @@ export type MiniappOpportunityCard = {
   evidenceScore: number;
   sourceAuthorityScore: number;
   candidateScore: number;
+  contentQualityScore: number;
   status: MiniappOpportunityStatus;
   blockingReasons: string[];
   createdAt: string;
@@ -110,7 +112,12 @@ function scoreOpportunity(artifact: MiniappEvidenceArtifact) {
   const evidenceScore = Math.max(0, Math.min(100, artifact.relevanceScore));
   const sourceAuthorityScore = Math.max(0, Math.min(100, artifact.authorityScore));
   const candidateScore = Math.round(evidenceScore * 0.55 + sourceAuthorityScore * 0.45);
-  return { evidenceScore, sourceAuthorityScore, candidateScore };
+  const contentQualityScore = contentQualityScoreFromOpportunity({
+    evidenceScore,
+    sourceAuthorityScore,
+    candidateScore,
+  });
+  return { evidenceScore, sourceAuthorityScore, candidateScore, contentQualityScore };
 }
 
 function buildOpportunity(input: {
@@ -184,6 +191,7 @@ export async function listMiniappOpportunityCards(companyId: string, visitorKey:
         evidenceScore: asNumber(opportunity.evidenceScore),
         sourceAuthorityScore: asNumber(opportunity.sourceAuthorityScore),
         candidateScore: asNumber(opportunity.candidateScore),
+        contentQualityScore: asNumber(opportunity.contentQualityScore),
         status: asString(opportunity.status) as MiniappOpportunityStatus,
         blockingReasons: asStringArray(opportunity.blockingReasons),
         createdAt: row.createdAt.toISOString(),
@@ -227,6 +235,7 @@ export async function promoteMiniappEvidenceToOpportunities(input: PromoteInput)
       scores.evidenceScore < contract.promotionPolicy.minimumEvidenceScore ? "evidence_score_below_contract" : "",
       scores.sourceAuthorityScore < contract.promotionPolicy.minimumSourceAuthorityScore ? "source_authority_below_contract" : "",
       scores.candidateScore < contract.promotionPolicy.minimumCandidateScore ? "candidate_score_below_contract" : "",
+      scores.contentQualityScore < contract.promotionPolicy.minimumContentQualityScore ? "content_quality_below_contract" : "",
       artifact.httpStatus >= 400 ? "http_status_not_ok" : "",
     ].filter(Boolean);
     const solid = blockingReasons.length === 0;
@@ -278,6 +287,7 @@ export async function promoteMiniappEvidenceToOpportunities(input: PromoteInput)
           evidenceScore: scores.evidenceScore,
           sourceAuthorityScore: scores.sourceAuthorityScore,
           candidateScore: scores.candidateScore,
+          contentQualityScore: scores.contentQualityScore,
           blockingReasons: [],
         },
       };

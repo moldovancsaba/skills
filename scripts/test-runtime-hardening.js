@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const { readFileSync } = require("node:fs");
 
 const {
   buildTaskUpdatePayload,
@@ -237,6 +238,12 @@ File-backed pages: 555038.
 `),
     9019,
     "darwin memory guard should count safely reclaimable file-backed memory instead of raw free pages only",
+  );
+  const guardianSource = readFileSync("scripts/guardian.js", "utf8");
+  assert.match(
+    guardianSource,
+    /getFreeMemoryMb/,
+    "guardian memory governor must use the shared effective-memory estimator",
   );
 
   assert.equal(

@@ -220,8 +220,8 @@
     "semantic_hash": ""
   },
   "scripts/guardian.js": {
-    "mtime": 1780760685.1860774,
-    "ast_hash": "fc3ab6d3d3fae4625dad139d379c68df",
+    "mtime": 1781219534.7911615,
+    "ast_hash": "76471c73372e35d56ca541b45a1fc65c",
     "semantic_hash": ""
   },
   "scripts/health-check.js": {
@@ -1020,8 +1020,8 @@
     "semantic_hash": ""
   },
   "scripts/test-runtime-hardening.js": {
-    "mtime": 1781218883.3043244,
-    "ast_hash": "fb402551eec4647823f5124ca7a2944c",
+    "mtime": 1781219540.519481,
+    "ast_hash": "f2845561dbb4ddc1a1367b2f00d3b6ca",
     "semantic_hash": ""
   },
   "scripts/test-sovereign-miniapp-contract.mjs": {
@@ -4512,6 +4512,11 @@
   "src/lib/miniapp-content-quality.ts": {
     "mtime": 1781191816.8202212,
     "ast_hash": "e378426acf3f914465d3fc67b582ee50",
+    "semantic_hash": ""
+  },
+  "local-archives/retired-units-2026-06-11T23-10-03-592Z.json": {
+    "mtime": 1781219403.5947447,
+    "ast_hash": "d294a4a90b13784803f2aef0fa2330a1",
     "semantic_hash": ""
   }
 }

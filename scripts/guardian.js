@@ -19,7 +19,7 @@ const {
   buildRunnerEnvironment,
   getRunnerDefinition,
 } = require("./lib/runtime/runner-registry");
-const { getResourceBand } = require("./lib/runtime/resource-bands");
+const { getFreeMemoryMb, getResourceBand } = require("./lib/runtime/resource-bands");
 const {
   MEMORY_GOVERNOR_ACTIONS,
   MEMORY_GOVERNOR_STATE_KEY,
@@ -308,9 +308,8 @@ function checkOllama() {
  * Monitors system resources and updates internal stats.
  */
 function checkResources() {
-  const freeMem = os.freemem();
   const totalMem = os.totalmem();
-  const freeMB = Math.round(freeMem / 1024 / 1024);
+  const freeMB = getFreeMemoryMb(os);
   
   resourceStats = {
     freeMem: freeMB,

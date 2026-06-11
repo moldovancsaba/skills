@@ -23,6 +23,7 @@ const {
   shouldAllowForegroundWork,
   shouldAllowBackgroundSnapshotWork,
   FOREGROUND_HARD_PAUSE_MB,
+  parseVmStatAvailableMb,
 } = require("./lib/runtime/resource-bands");
 const {
   enqueueDirtyProjectionCompany,
@@ -222,6 +223,20 @@ async function main() {
     shouldAllowBackgroundSnapshotWork(760).allowed,
     false,
     "snapshot worker must still pause under degraded memory",
+  );
+  assert.equal(
+    parseVmStatAvailableMb(`Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free: 5627.
+Pages active: 420355.
+Pages inactive: 410403.
+Pages speculative: 9111.
+Pages purgeable: 7438.
+Pages stored in compressor: 169530.
+Pages occupied by compressor: 65205.
+File-backed pages: 555038.
+`),
+    9019,
+    "darwin memory guard should count safely reclaimable file-backed memory instead of raw free pages only",
   );
 
   assert.equal(

@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- macOS local AI memory checks now use effective available memory, including safely reclaimable file-backed/speculative/purgeable pages, so ClassScout work does not stall on raw free-page readings when system pressure is acceptable.
 - ClassScout local AI launch mode now keeps miniapp research jobs linear under memory pressure, preventing low-memory fan-out slices from competing for the same 16 GB host.
 - destination workspace semantic-audit violations in the content-ops, review, and rulebook-runner surfaces
 - unit board mutations now keep optimistic creates visible through transient write failures and automatically retry transient failures instead of removing cards silently

@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1781205231.4765558,
-    "ast_hash": "66831dcc087a897efa3b61704e991085",
+    "mtime": 1781218905.794864,
+    "ast_hash": "69dad26eeb3828cbfdd1948c79c70af0",
     "semantic_hash": ""
   },
   "postcss.config.js": {
@@ -465,8 +465,8 @@
     "semantic_hash": ""
   },
   "scripts/lib/runtime/resource-bands.js": {
-    "mtime": 1781205173.9626033,
-    "ast_hash": "f68ff8f82b93c9fdb1b46234712f306f",
+    "mtime": 1781218878.967961,
+    "ast_hash": "1badc0137c773a88263068fa37e7ca37",
     "semantic_hash": ""
   },
   "scripts/lib/runtime/runner-registry.js": {
@@ -1020,8 +1020,8 @@
     "semantic_hash": ""
   },
   "scripts/test-runtime-hardening.js": {
-    "mtime": 1781205207.758703,
-    "ast_hash": "830ef4eb09cc0e087f7b802da9b0e9d5",
+    "mtime": 1781218883.3043244,
+    "ast_hash": "fb402551eec4647823f5124ca7a2944c",
     "semantic_hash": ""
   },
   "scripts/test-sovereign-miniapp-contract.mjs": {
@@ -3595,8 +3595,8 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1781205231.4803815,
-    "ast_hash": "65e30614eabc69e3b55d65c20d494dd8",
+    "mtime": 1781218905.7968974,
+    "ast_hash": "cdd280cb683b330dda2e70fe211ad287",
     "semantic_hash": ""
   },
   "DESIGN_SYSTEM.md": {
@@ -3635,8 +3635,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1781205231.4796495,
-    "ast_hash": "9be4f4c689f768d73bc9ff1daf65f8c2",
+    "mtime": 1781218905.796556,
+    "ast_hash": "7ebadd761ce9556b9ebf28a4b476db97",
     "semantic_hash": ""
   },
   "ROADMAP_STATUS.md": {
@@ -3820,8 +3820,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_AI_RUNTIME_SOP.md": {
-    "mtime": 1781205242.3578897,
-    "ast_hash": "16fc41335bd38d98ae63ff6dc19d3fbe",
+    "mtime": 1781218905.7972438,
+    "ast_hash": "4dc86a479cd00a31bff9831f700f0d31",
     "semantic_hash": ""
   },
   "docs/LOCAL_SELF_LEARNING_SYSTEM.md": {

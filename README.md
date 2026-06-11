@@ -251,7 +251,7 @@ Knowmore evidence durability:
 
 Current shipped release:
 
-- `v0.17.14`
+- `v0.17.15`
 
 ## Open Source Quickstart
 

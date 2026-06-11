@@ -1,5 +1,7 @@
 "use strict";
 
+const { execFileSync } = require("child_process");
+
 const RESOURCE_BANDS = Object.freeze({
   HEALTHY: "HEALTHY",
   CONSTRAINED: "CONSTRAINED",
@@ -11,6 +13,12 @@ const DEFAULT_CONSTRAINED_MIN_FREE_MB = 1000;
 const DEFAULT_DEGRADED_MIN_FREE_MB = 600;
 const DEFAULT_FOREGROUND_HARD_PAUSE_MB = 256;
 const DEFAULT_BACKGROUND_SNAPSHOT_HARD_PAUSE_MB = 1000;
+
+function envFlag(name, fallback = false) {
+  const value = String(process.env[name] || "").trim().toLowerCase();
+  if (!value) return fallback;
+  return ["1", "true", "yes", "on"].includes(value);
+}
 
 function readPositiveIntegerEnv(name, fallback) {
   const value = Number(process.env[name]);
@@ -36,8 +44,46 @@ const BACKGROUND_SNAPSHOT_HARD_PAUSE_MB = readPositiveIntegerEnv(
   DEFAULT_BACKGROUND_SNAPSHOT_HARD_PAUSE_MB,
 );
 
+function parseVmStatAvailableMb(output) {
+  const text = String(output || "");
+  const pageSizeMatch = text.match(/page size of\s+(\d+)\s+bytes/i);
+  const pageSize = pageSizeMatch ? Number(pageSizeMatch[1]) : 4096;
+  if (!Number.isFinite(pageSize) || pageSize <= 0) return null;
+
+  const pages = {};
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(/^(?:Pages\s+([^:]+)|([^:]+)\s+pages):\s+(\d+)\./i);
+    if (!match) continue;
+    pages[String(match[1] || match[2]).trim().toLowerCase()] = Number(match[3]);
+  }
+
+  const availablePages = [
+    "free",
+    "speculative",
+    "purgeable",
+    "file-backed",
+  ].reduce((sum, key) => sum + (Number.isFinite(pages[key]) ? pages[key] : 0), 0);
+
+  if (!availablePages) return null;
+  return Math.round((availablePages * pageSize) / (1024 * 1024));
+}
+
+function readDarwinAvailableMemoryMb() {
+  try {
+    return parseVmStatAvailableMb(execFileSync("/usr/bin/vm_stat", { encoding: "utf8", timeout: 1000 }));
+  } catch (_) {
+    return null;
+  }
+}
+
 function getFreeMemoryMb(osModule = require("os")) {
-  return Math.round(osModule.freemem() / (1024 * 1024));
+  const rawFreeMb = Math.round(osModule.freemem() / (1024 * 1024));
+  if (envFlag("CHECK_LOCAL_RAW_FREE_MEMORY_ONLY", false)) return rawFreeMb;
+  if (typeof osModule.platform === "function" && osModule.platform() === "darwin") {
+    const availableMb = readDarwinAvailableMemoryMb();
+    if (Number.isFinite(availableMb) && availableMb > rawFreeMb) return availableMb;
+  }
+  return rawFreeMb;
 }
 
 function getResourceBand(freeMemMb) {
@@ -66,6 +112,7 @@ function shouldAllowBackgroundSnapshotWork(freeMemMb) {
 
 module.exports = {
   RESOURCE_BANDS,
+  parseVmStatAvailableMb,
   getFreeMemoryMb,
   getResourceBand,
   HEALTHY_MIN_FREE_MB,

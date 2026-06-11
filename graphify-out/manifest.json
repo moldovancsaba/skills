@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1781196827.6712308,
-    "ast_hash": "ceb68af3246462b897858ccd825cd7aa",
+    "mtime": 1781205231.4765558,
+    "ast_hash": "66831dcc087a897efa3b61704e991085",
     "semantic_hash": ""
   },
   "postcss.config.js": {
@@ -365,8 +365,8 @@
     "semantic_hash": ""
   },
   "scripts/lib/pipeline-jobs.js": {
-    "mtime": 1781189551.5474777,
-    "ast_hash": "258ce04bef616e8a78bf5bda240e3b4e",
+    "mtime": 1781205248.511762,
+    "ast_hash": "4d77e5de58def696e74331d66b939c55",
     "semantic_hash": ""
   },
   "scripts/lib/planner/editorial-gate.js": {
@@ -465,8 +465,8 @@
     "semantic_hash": ""
   },
   "scripts/lib/runtime/resource-bands.js": {
-    "mtime": 1780690667.8946774,
-    "ast_hash": "1e5086700b1bf2e0e54fb4a3b465b161",
+    "mtime": 1781205173.9626033,
+    "ast_hash": "f68ff8f82b93c9fdb1b46234712f306f",
     "semantic_hash": ""
   },
   "scripts/lib/runtime/runner-registry.js": {
@@ -1020,8 +1020,8 @@
     "semantic_hash": ""
   },
   "scripts/test-runtime-hardening.js": {
-    "mtime": 1780769180.224651,
-    "ast_hash": "9ac3812dc03d4a224f3583d9d285a1c6",
+    "mtime": 1781205207.758703,
+    "ast_hash": "830ef4eb09cc0e087f7b802da9b0e9d5",
     "semantic_hash": ""
   },
   "scripts/test-sovereign-miniapp-contract.mjs": {
@@ -3595,8 +3595,8 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1780312479.781217,
-    "ast_hash": "1976a61cb16501caa615149b96fe8ace",
+    "mtime": 1781205231.4803815,
+    "ast_hash": "65e30614eabc69e3b55d65c20d494dd8",
     "semantic_hash": ""
   },
   "DESIGN_SYSTEM.md": {
@@ -3635,8 +3635,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1780835430.9994624,
-    "ast_hash": "3a34b5b0f61519ef0eddcc1ddbaa112f",
+    "mtime": 1781205231.4796495,
+    "ast_hash": "9be4f4c689f768d73bc9ff1daf65f8c2",
     "semantic_hash": ""
   },
   "ROADMAP_STATUS.md": {
@@ -3820,8 +3820,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_AI_RUNTIME_SOP.md": {
-    "mtime": 1781196805.5012572,
-    "ast_hash": "1cc6d9ec3e501025208d7d40523e91d4",
+    "mtime": 1781205242.3578897,
+    "ast_hash": "16fc41335bd38d98ae63ff6dc19d3fbe",
     "semantic_hash": ""
   },
   "docs/LOCAL_SELF_LEARNING_SYSTEM.md": {

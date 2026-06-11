@@ -41,6 +41,7 @@ const {
 const {
   executePipelineJob,
   resolvePipelineJobExecutionPlan,
+  boundMiniappIntentLimit,
   shouldDecomposeLowMemoryPipelineJob,
   shouldDelegateQueueRefresh,
 } = require("./lib/pipeline-jobs");
@@ -336,6 +337,24 @@ async function main() {
     ),
     false,
     "decomposed child jobs must not recursively decompose themselves",
+  );
+  assert.equal(
+    shouldDecomposeLowMemoryPipelineJob(
+      { jobType: "RESEARCH_BACKFILL", entityType: "MINIAPP_OPS_ACTION", attemptCount: 3 },
+      { class: "LOW_MEMORY_SKIP" },
+    ),
+    false,
+    "miniapp ops jobs must stay linear instead of low-memory fan-out decomposition",
+  );
+  assert.equal(
+    boundMiniappIntentLimit(10, 30, 1),
+    1,
+    "miniapp intent limits must honor minimal memory profile caps",
+  );
+  assert.equal(
+    boundMiniappIntentLimit(10, 30, 2),
+    2,
+    "miniapp intent limits must honor degraded memory profile caps",
   );
 
   assert.equal(

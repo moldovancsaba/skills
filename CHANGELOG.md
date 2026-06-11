@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- ClassScout local AI launch mode now keeps miniapp research jobs linear under memory pressure, preventing low-memory fan-out slices from competing for the same 16 GB host.
 - destination workspace semantic-audit violations in the content-ops, review, and rulebook-runner surfaces
 - unit board mutations now keep optimistic creates visible through transient write failures and automatically retry transient failures instead of removing cards silently
 - board API write failure detection now broadens Atlas quota detection for quota/blocked-storage errors and enforces request timeouts on client calls
@@ -15,6 +16,7 @@
 
 ### Changed
 
+- local AI resource bands and hard-pause thresholds are environment-tunable, with the ClassScout host profile reserving more memory for Ollama, Codex, Remote Desktop, MongoDB, and Next.js.
 - product architecture docs now define `check` as the platform, with Unit, Block, Module, Card, Miniapp, Webapp, and Local as canonical terms
 - added a low-level `check` foundation plan for optional Block enablement, Miniapp parity, and safe migration from legacy profile/module naming
 - repo guards and repository operating docs now treat `npm run db:generate` as an explicit verification step before lint and typecheck when Prisma schema definitions may have changed

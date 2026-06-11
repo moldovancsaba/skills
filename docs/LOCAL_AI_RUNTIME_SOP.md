@@ -62,9 +62,14 @@ Enable it with:
 CHECK_LOCAL_FOCUS_ENABLED=true
 CHECK_LOCAL_FOCUS_DESTINATION_KEYS=classscout
 CHECK_LOCAL_FOCUS_REASON="ClassScout launch focus: only ClassScout product-building and quality-maintenance AI jobs may run locally."
-CHECK_LOCAL_ACTIVE_INTERVAL_MS=5000
-CHECK_LOCAL_IDLE_INTERVAL_MS=15000
-CHECK_LOCAL_POLLING_INTERVAL_MS=5000
+CHECK_LOCAL_ACTIVE_INTERVAL_MS=15000
+CHECK_LOCAL_IDLE_INTERVAL_MS=60000
+CHECK_LOCAL_POLLING_INTERVAL_MS=15000
+CHECK_LOCAL_HEALTHY_MIN_FREE_MB=3000
+CHECK_LOCAL_CONSTRAINED_MIN_FREE_MB=2000
+CHECK_LOCAL_DEGRADED_MIN_FREE_MB=1200
+CHECK_LOCAL_FOREGROUND_HARD_PAUSE_MB=1000
+CHECK_LOCAL_BACKGROUND_SNAPSHOT_HARD_PAUSE_MB=3000
 ```
 
 Operational behavior:
@@ -73,7 +78,9 @@ Operational behavior:
 - `claimNextPipelineJobs` filters runnable queue candidates to jobs whose persisted metadata is scoped to `classscout`.
 - `executePipelineJob` rejects any already-claimed non-ClassScout job before business mutation.
 - `executeDestinationMissionDaemonForCompany` filters daemon destination iteration to `classscout`, so multi-destination jobs cannot spend local capacity on Compare, Trainers, or AthleteIQ while focus mode is active.
-- `CHECK_LOCAL_ACTIVE_INTERVAL_MS`, `CHECK_LOCAL_IDLE_INTERVAL_MS`, and `CHECK_LOCAL_POLLING_INTERVAL_MS` tune the foreground worker cadence. The ClassScout launch profile uses short bounded intervals so the runner keeps cycling while the memory/resource governor still pauses work under pressure.
+- `CHECK_LOCAL_ACTIVE_INTERVAL_MS`, `CHECK_LOCAL_IDLE_INTERVAL_MS`, and `CHECK_LOCAL_POLLING_INTERVAL_MS` tune the foreground worker cadence. The ClassScout launch profile uses bounded intervals so the runner keeps cycling without creating unnecessary memory churn.
+- `CHECK_LOCAL_HEALTHY_MIN_FREE_MB`, `CHECK_LOCAL_CONSTRAINED_MIN_FREE_MB`, `CHECK_LOCAL_DEGRADED_MIN_FREE_MB`, `CHECK_LOCAL_FOREGROUND_HARD_PAUSE_MB`, and `CHECK_LOCAL_BACKGROUND_SNAPSHOT_HARD_PAUSE_MB` reserve memory headroom for the 16 GB local host. The ClassScout profile treats anything below 3 GB free as constrained and parks snapshot work below 3 GB so Ollama, Codex, Remote Desktop, MongoDB, and Next.js stay online.
+- Miniapp ops jobs stay linear under low-memory pressure. They do not fan out into multiple low-memory child slices, and degraded/minimal execution profiles cap miniapp research limits before calling the miniapp ops API.
 - General Checklist/company maintenance, sales opportunity search, generic card rescoring, and unscoped planner work must be parked or blocked while focus mode is active.
 
 Rollback:

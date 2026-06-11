@@ -212,6 +212,11 @@ function toPlainObject(value) {
   return isPlainObject(value) ? value : {};
 }
 
+function boundMiniappIntentLimit(rawValue, fallback, cap = null) {
+  const bounded = Math.max(1, Math.min(200, Math.floor(Number(rawValue || fallback)) || fallback));
+  return Number.isFinite(cap) ? Math.min(bounded, cap) : bounded;
+}
+
 function mapVisitorIntentToAction(intentKind) {
   switch (String(intentKind || "")) {
     case "candidate.discover":
@@ -272,8 +277,17 @@ async function runMiniappResearchIntentJob(job, executionOptions = {}) {
   const reason = typeof intent.reason === "string" && intent.reason.trim()
     ? intent.reason.trim()
     : typeof intentPayload.reason === "string" ? intentPayload.reason.trim() : "";
-  const discoverLimit = Math.max(1, Math.min(200, Math.floor(Number(intentPayload.discoverLimit || intentPayload.limit || 30)) || 30));
-  const processLimit = Math.max(1, Math.min(200, Math.floor(Number(intentPayload.processLimit || 30)) || 30));
+  const batchCap = Number.isFinite(Number(executionOptions.batchLimitOverride))
+    ? Math.max(1, Math.floor(Number(executionOptions.batchLimitOverride)))
+    : null;
+  const discoverLimit = boundMiniappIntentLimit(intentPayload.discoverLimit || intentPayload.limit, 30, batchCap);
+  const processLimit = boundMiniappIntentLimit(intentPayload.processLimit, 30, batchCap);
+  const tasksPerCycle = Number.isFinite(Number(intentPayload.tasksPerCycle))
+    ? boundMiniappIntentLimit(intentPayload.tasksPerCycle, 1, batchCap)
+    : undefined;
+  const limit = Number.isFinite(Number(intentPayload.limit))
+    ? boundMiniappIntentLimit(intentPayload.limit, 1, batchCap)
+    : undefined;
   const payload = {
     companyId: job.companyId,
     destinationKey: intent.destinationKey,
@@ -284,12 +298,12 @@ async function runMiniappResearchIntentJob(job, executionOptions = {}) {
     reason: reason || undefined,
     targetVisibleCards: Number.isFinite(Number(intentPayload.targetVisibleCards)) ? Number(intentPayload.targetVisibleCards) : undefined,
     maxCycles: Number.isFinite(Number(intentPayload.maxCycles)) ? Number(intentPayload.maxCycles) : undefined,
-    tasksPerCycle: Number.isFinite(Number(intentPayload.tasksPerCycle)) ? Number(intentPayload.tasksPerCycle) : undefined,
+    tasksPerCycle,
     discoverLimit,
     processLimit,
     autoApprove: intentPayload.autoApprove === true,
     autoPublish: intentPayload.autoPublish === true,
-    limit: Number.isFinite(Number(intentPayload.limit)) ? Number(intentPayload.limit) : undefined,
+    limit,
     payload: intentPayload,
   };
 
@@ -695,6 +709,8 @@ function shouldDecomposeLowMemoryPipelineJob(job, classification) {
   if (classification.class !== PIPELINE_FAILURE_CLASSES.LOW_MEMORY_SKIP) return false;
   if (!LOW_MEMORY_DECOMPOSABLE_PIPELINE_JOB_TYPES.has(job.jobType)) return false;
   if (String(job.entityType || "") === "PIPELINE_SLICE") return false;
+  // Miniapp ops already execute against the destination API; keep them serial to protect small local hosts.
+  if (String(job.entityType || "").toUpperCase() === "MINIAPP_OPS_ACTION") return false;
   return Number(job.attemptCount || 0) >= 3;
 }
 
@@ -1153,6 +1169,7 @@ module.exports = {
   runPipelineQueueBatch,
   resolvePipelineJobExecutionPlan,
   JOB_WEIGHT_CLASSES,
+  boundMiniappIntentLimit,
   shouldDecomposeLowMemoryPipelineJob,
   shouldDelegateQueueRefresh,
 };

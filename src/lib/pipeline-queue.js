@@ -13,6 +13,10 @@ const {
   getLegacyDestinationDaemonJobIdentities,
   listSchedulableDestinationMissionKinds,
 } = require("./check-lifecycle/topology-registry");
+const {
+  readLocalAiFocusPolicy,
+  isPipelineJobAllowedByLocalAiFocus,
+} = require("./local-ai-focus");
 
 const CORE_PIPELINE_JOB_TYPES = Object.freeze([
   "FEEDBACK_RECONCILIATION",
@@ -647,6 +651,18 @@ function buildRunnablePipelineJobWhere(now = new Date()) {
   };
 }
 
+function applyLocalAiFocusToPipelineJobWrite(data, policy = readLocalAiFocusPolicy()) {
+  if (!policy.enabled) return data;
+  if (isPipelineJobAllowedByLocalAiFocus(data, policy)) return data;
+  return {
+    ...data,
+    status: "PAUSED",
+    queueColumn: "PARKED",
+    reason: policy.reason,
+    lastError: policy.reason,
+  };
+}
+
 function roundPriority(value) {
   return Number(Math.max(0, value).toFixed(2));
 }
@@ -891,7 +907,7 @@ async function syncDestinationMissionDaemonJob(prisma, companyId, options = {}) 
 
   if (!destinationLaneJob) {
     return prisma.pipelineJob.create({
-      data: {
+      data: applyLocalAiFocusToPipelineJobWrite({
         companyId,
         jobType: jobKey.jobType,
         entityType: jobKey.entityType,
@@ -904,7 +920,7 @@ async function syncDestinationMissionDaemonJob(prisma, companyId, options = {}) 
         reason: profile.reason,
         sourceSignal: profile.sourceSignal,
         metadata: playlistMetadata,
-      },
+      }),
     });
   }
 
@@ -915,8 +931,11 @@ async function syncDestinationMissionDaemonJob(prisma, companyId, options = {}) 
 
   return prisma.pipelineJob.update({
     where: { id: destinationLaneJob.id },
-    data: {
+    data: applyLocalAiFocusToPipelineJobWrite({
+      companyId,
+      jobType: jobKey.jobType,
       entityId: jobKey.entityId,
+      entityType: jobKey.entityType,
       controlMode: "AI_ONLY",
       queueColumn: destinationLaneJob.controlMode === "AI_ONLY" ? profile.queueColumn : destinationLaneJob.queueColumn,
       status:
@@ -929,7 +948,7 @@ async function syncDestinationMissionDaemonJob(prisma, companyId, options = {}) 
       reason: profile.reason,
       sourceSignal: profile.sourceSignal,
       metadata: playlistMetadata,
-    },
+    }),
   });
 }
 
@@ -1612,7 +1631,7 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
 
       if (!existing) {
         jobs.push(await prisma.pipelineJob.create({
-          data: {
+          data: applyLocalAiFocusToPipelineJobWrite({
             companyId,
             jobType,
             entityId: companyId,
@@ -1625,7 +1644,7 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
             reason: autoProfile.reason,
             sourceSignal: autoProfile.sourceSignal,
             metadata: plannedMetadata,
-          },
+          }),
         }));
         playlistIndex += 1;
         continue;
@@ -1633,7 +1652,11 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
 
       jobs.push(await prisma.pipelineJob.update({
         where: { id: existing.id },
-        data: {
+        data: applyLocalAiFocusToPipelineJobWrite({
+          companyId,
+          jobType,
+          entityId: companyId,
+          entityType: "COMPANY",
           priorityScore: autoProfile.priorityScore,
           reason: autoProfile.reason,
           sourceSignal: autoProfile.sourceSignal,
@@ -1645,7 +1668,7 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
                 ? existing.status
                 : "ACTIVE",
           metadata: plannedMetadata,
-        },
+        }),
       }));
       playlistIndex += 1;
     }
@@ -1720,7 +1743,7 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
 
       if (!existing) {
         jobs.push(await prisma.pipelineJob.create({
-          data: {
+          data: applyLocalAiFocusToPipelineJobWrite({
             companyId,
             jobType: "WORKFLOW_BLUEPRINT",
             entityType: "WORKFLOW_BLUEPRINT",
@@ -1733,14 +1756,18 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
             reason: workflowReason,
             sourceSignal: `workflow:${blueprint.templateKey ?? blueprint.id}`,
             metadata: workflowMetadata,
-          },
+          }),
         }));
         continue;
       }
 
       jobs.push(await prisma.pipelineJob.update({
         where: { id: existing.id },
-        data: {
+        data: applyLocalAiFocusToPipelineJobWrite({
+          companyId,
+          jobType: "WORKFLOW_BLUEPRINT",
+          entityType: "WORKFLOW_BLUEPRINT",
+          entityId: blueprint.id,
           controlMode: blueprint.controlMode,
           queueColumn: blueprint.controlMode === "AI_ONLY" ? queueColumn : existing.queueColumn,
           status:
@@ -1753,7 +1780,7 @@ async function syncCompanyPipelineJobs(prisma, companyId) {
           reason: workflowReason,
           sourceSignal: `workflow:${blueprint.templateKey ?? blueprint.id}`,
           metadata: workflowMetadata,
-        },
+        }),
       }));
     }
 
@@ -2083,6 +2110,7 @@ async function applyManualPipelineQueueMove(prisma, companyId, movedJobId, sourc
 
 async function claimNextPipelineJobs(prisma, limit = 1) {
   const linearLimit = Math.max(1, Number(limit || 1));
+  const focusPolicy = readLocalAiFocusPolicy();
   const candidates = await prisma.pipelineJob.findMany({
     where: buildRunnablePipelineJobWhere(new Date()),
     orderBy: [{ updatedAt: "asc" }],
@@ -2091,7 +2119,10 @@ async function claimNextPipelineJobs(prisma, limit = 1) {
     },
   });
 
-  const baseOrder = sortPipelineJobs(candidates);
+  const scopedCandidates = focusPolicy.enabled
+    ? candidates.filter((job) => isPipelineJobAllowedByLocalAiFocus(job, focusPolicy))
+    : candidates;
+  const baseOrder = sortPipelineJobs(scopedCandidates);
   const baseRankById = new Map(baseOrder.map((job, index) => [job.id, index]));
   const fairOrder = [...baseOrder].sort((left, right) => {
     const leftNeverTried = !left.lastTriedAt || (left.attemptCount ?? 0) === 0;
@@ -2518,6 +2549,8 @@ module.exports = {
   recordQueueCircuitBreaker,
   maintainDestinationServiceOutageQueue,
   buildRunnablePipelineJobWhere,
+  readLocalAiFocusPolicy,
+  isPipelineJobAllowedByLocalAiFocus,
   buildAutoJobProfile,
   shouldRunGlobalPipelineSync,
   gatherCompanyPipelineSignals,

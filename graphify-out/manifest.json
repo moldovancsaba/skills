@@ -10,13 +10,13 @@
     "semantic_hash": ""
   },
   "bin/check-local-foreground-worker": {
-    "mtime": 1780303417.6995096,
-    "ast_hash": "2571919b93b057a09cb81619aa624971",
+    "mtime": 1781189656.6706817,
+    "ast_hash": "f0e3d0b5a43f01006f7d705a41a03ace",
     "semantic_hash": ""
   },
   "bin/check-local-guardian": {
-    "mtime": 1780303417.6991355,
-    "ast_hash": "f1ef088303ca11fb5d13ef3b3874dec9",
+    "mtime": 1781189669.3167665,
+    "ast_hash": "bd331f0aaf76a52e2dcd4c1987f0f078",
     "semantic_hash": ""
   },
   "bin/check-local-lifecycle-maintenance": {
@@ -30,13 +30,13 @@
     "semantic_hash": ""
   },
   "bin/check-local-snapshot-worker": {
-    "mtime": 1780303417.699821,
-    "ast_hash": "43aeedfafe6e5b0344cce174df06d01b",
+    "mtime": 1781189661.9597745,
+    "ast_hash": "e8933e0448d4c2f803aa99e7fa982909",
     "semantic_hash": ""
   },
   "bin/check-local-status-server": {
-    "mtime": 1780303417.7001045,
-    "ast_hash": "9c9d6ab404ddd2637b69ca81bee8fb3e",
+    "mtime": 1781189665.5665228,
+    "ast_hash": "20edeb4715857e78e3ed5f4363181dfc",
     "semantic_hash": ""
   },
   "eslint.config.js": {
@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1781188426.2492034,
-    "ast_hash": "da300d1eddffa27e0c401e4441aa9f79",
+    "mtime": 1781190021.8975885,
+    "ast_hash": "9c25c9f412b7a07b7a7fd914168af1ae",
     "semantic_hash": ""
   },
   "postcss.config.js": {
@@ -365,8 +365,8 @@
     "semantic_hash": ""
   },
   "scripts/lib/pipeline-jobs.js": {
-    "mtime": 1780769210.042096,
-    "ast_hash": "59c78c7912b3436e3bf7c4ceab97b20e",
+    "mtime": 1781189551.5474777,
+    "ast_hash": "258ce04bef616e8a78bf5bda240e3b4e",
     "semantic_hash": ""
   },
   "scripts/lib/planner/editorial-gate.js": {
@@ -690,8 +690,8 @@
     "semantic_hash": ""
   },
   "scripts/status-server.js": {
-    "mtime": 1780836751.9210951,
-    "ast_hash": "57fb1b75727e5ba638ddb4a3c4944fed",
+    "mtime": 1781189865.7484772,
+    "ast_hash": "2a3b413632a2b19d9086e9594aea7a59",
     "semantic_hash": ""
   },
   "scripts/sync.js": {
@@ -2900,8 +2900,8 @@
     "semantic_hash": ""
   },
   "src/lib/destination-mission-daemon.ts": {
-    "mtime": 1780835320.600452,
-    "ast_hash": "0a91f0acc651c6db4416e2473cd60fce",
+    "mtime": 1781189560.9681273,
+    "ast_hash": "ef184e564b5997c8ae7447963ebb394a",
     "semantic_hash": ""
   },
   "src/lib/destination-mission-definitions.ts": {
@@ -3175,13 +3175,13 @@
     "semantic_hash": ""
   },
   "src/lib/pipeline-queue.d.ts": {
-    "mtime": 1780835320.6008976,
-    "ast_hash": "64fe8ca7b11441ee197395b2a4e59c34",
+    "mtime": 1781189536.1195464,
+    "ast_hash": "8ab4a52425ff38b025603a9903bd2ddf",
     "semantic_hash": ""
   },
   "src/lib/pipeline-queue.js": {
-    "mtime": 1780760234.9112618,
-    "ast_hash": "2c14dea876904e6d746b3eaa1f1605fa",
+    "mtime": 1781189848.1351347,
+    "ast_hash": "912c83e46ff8fbb72077f70a8de1e649",
     "semantic_hash": ""
   },
   "src/lib/pipeline-ui-i18n.ts": {
@@ -3820,8 +3820,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_AI_RUNTIME_SOP.md": {
-    "mtime": 1780863922.552515,
-    "ast_hash": "eb5b6f442bf6e4a9179de8482e081aa3",
+    "mtime": 1781189592.6964903,
+    "ast_hash": "4295611bdce4abbf03d612dc7046ad13",
     "semantic_hash": ""
   },
   "docs/LOCAL_SELF_LEARNING_SYSTEM.md": {
@@ -4492,6 +4492,21 @@
   "src/lib/classscout-source-import.ts": {
     "mtime": 1781188433.1308434,
     "ast_hash": "4be87259085750bc38d9a891d22538da",
+    "semantic_hash": ""
+  },
+  "scripts/test-local-ai-focus-mode.mjs": {
+    "mtime": 1781189615.0597477,
+    "ast_hash": "0756fda0b73a2b3b2bcd09e3e3b23d6c",
+    "semantic_hash": ""
+  },
+  "src/lib/local-ai-focus.d.ts": {
+    "mtime": 1781189515.421141,
+    "ast_hash": "09562b8903101f5989d214a4b99f6919",
+    "semantic_hash": ""
+  },
+  "src/lib/local-ai-focus.js": {
+    "mtime": 1781189501.6867678,
+    "ast_hash": "d03118c144a9ddffe479043645fda906",
     "semantic_hash": ""
   }
 }

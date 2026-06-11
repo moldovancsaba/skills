@@ -52,6 +52,35 @@ Human-Approved Burst Lane:
 - must never start automatically
 - must not bypass content quality, evidence, image, i18n, review, or publish gates
 
+## 1.2 Local AI focus mode
+
+ClassScout launch focus mode keeps the local AI system online while restricting Playlist business mutation to ClassScout-scoped work.
+
+Enable it with:
+
+```bash
+CHECK_LOCAL_FOCUS_ENABLED=true
+CHECK_LOCAL_FOCUS_DESTINATION_KEYS=classscout
+CHECK_LOCAL_FOCUS_REASON="ClassScout launch focus: only ClassScout product-building and quality-maintenance AI jobs may run locally."
+```
+
+Operational behavior:
+
+- Codex, Ollama, Guardian, the foreground worker, the snapshot worker, the status server, the web/destination daemon, and Remote Desktop-related macOS processes stay running.
+- `claimNextPipelineJobs` filters runnable queue candidates to jobs whose persisted metadata is scoped to `classscout`.
+- `executePipelineJob` rejects any already-claimed non-ClassScout job before business mutation.
+- `executeDestinationMissionDaemonForCompany` filters daemon destination iteration to `classscout`, so multi-destination jobs cannot spend local capacity on Compare, Trainers, or AthleteIQ while focus mode is active.
+- General Checklist/company maintenance, sales opportunity search, generic card rescoring, and unscoped planner work must be parked or blocked while focus mode is active.
+
+Rollback:
+
+```bash
+CHECK_LOCAL_FOCUS_ENABLED=false
+CHECK_LOCAL_FOCUS_DESTINATION_KEYS=
+```
+
+After rollback, restart the managed foreground worker and snapshot worker from `/local-ai` or let Guardian restart them.
+
 Runnable inventory:
 
 - `scripts/local-runnable-inventory.mjs` generates the current local execution entrypoint inventory

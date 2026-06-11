@@ -18,6 +18,12 @@ const {
   getResourceBand,
   RESOURCE_BANDS,
 } = require("./runtime/resource-bands");
+const {
+  readLocalAiFocusPolicy,
+  isPipelineJobAllowedByLocalAiFocus,
+  buildLocalAiFocusBlockMessage,
+  filterDestinationKeysForLocalAiFocus,
+} = require("../../src/lib/local-ai-focus");
 const { processFeedbackEvents } = require("./feedback");
 const { runMaintenance, rescorePeriodicCards } = require("./maintenance");
 const { recomputeFrontier } = require("./frontier");
@@ -342,15 +348,21 @@ async function runMiniappResearchIntentJob(job, executionOptions = {}) {
 
 async function runDestinationMissionDaemonJob(job, executionOptions = {}) {
   const config = getChecklistLocalRuntimeBridgeConfig();
+  const focusPolicy = readLocalAiFocusPolicy();
   const boundedLimit = Number.isFinite(executionOptions.batchLimitOverride)
     ? Math.max(1, Math.min(Number(executionOptions.batchLimitOverride), 3))
     : null;
   const maxRuns = boundedLimit ?? 3;
   const maxPasses = boundedLimit ?? 3;
   const maxAutoRejections = boundedLimit ? Math.max(2, boundedLimit) : 5;
+  const requestedDestinationKey = job?.metadata?.destinationKey === "multi" ? undefined : job?.metadata?.destinationKey;
+  const focusedDestinationKeys = filterDestinationKeysForLocalAiFocus(
+    requestedDestinationKey ? [requestedDestinationKey] : focusPolicy.destinationKeys,
+    focusPolicy,
+  );
   const payload = {
     companyId: job.companyId,
-    destinationKey: job?.metadata?.destinationKey === "multi" ? undefined : job?.metadata?.destinationKey,
+    destinationKey: focusedDestinationKeys.length === 1 ? focusedDestinationKeys[0] : requestedDestinationKey,
     maxRuns,
     maxPasses,
     maxAutoRejections,
@@ -756,6 +768,11 @@ async function runPlannerQualityJob(prisma, company, jobType, executionOptions =
 
 async function executePipelineJob(prisma, job, executionOptions = {}) {
   assertPipelineMutationAuthority(executionOptions.mutationAuthority, job.jobType);
+  const focusPolicy = readLocalAiFocusPolicy();
+  if (!isPipelineJobAllowedByLocalAiFocus(job, focusPolicy)) {
+    throw createPipelineContractError(buildLocalAiFocusBlockMessage(job, focusPolicy), "MUTATION_AUTHORITY");
+  }
+
   const company = job.company ?? await prisma.company.findUnique({ where: { id: job.companyId } });
   if (!company) {
     throw new Error(`Pipeline job ${job.id} has no company`);

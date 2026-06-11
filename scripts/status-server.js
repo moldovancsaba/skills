@@ -25,6 +25,7 @@ const {
 const { collectManagedServiceObservations, buildManagedServiceReconciliationPlan } = require("./lib/runtime/service-reconciler");
 const { reduceRuntimeHealth } = require("./lib/runtime/health-model");
 const { buildLogPressure, DEFAULT_LOG_MAX_BYTES } = require("./lib/runtime/resource-accounting");
+const { readLocalAiFocusPolicy } = require("../src/lib/local-ai-focus");
 const RUNNER = applyRunnerIdentity("check.local.status-server");
 const prisma = new PrismaClient();
 
@@ -570,6 +571,7 @@ async function buildStatusPayload() {
   const queueCircuitBreakers = normalizeQueueCircuitBreakerState(queueCircuitBreakerSetting?.value);
   const verification = isPlainObject(verificationSetting?.value) ? verificationSetting.value : null;
   const topologyState = isPlainObject(topologySetting?.value) ? topologySetting.value : {};
+  const localAiFocus = readLocalAiFocusPolicy();
   const projectionState = isPlainObject(projectionSetting?.value) ? projectionSetting.value : {};
   const projectionDirtyCompanies = Array.isArray(projectionState.dirtyCompanies) ? projectionState.dirtyCompanies : [];
   const projectionRecentRefreshes = Array.isArray(projectionState.recentRefreshes) ? projectionState.recentRefreshes : [];
@@ -615,6 +617,7 @@ async function buildStatusPayload() {
   const logPressure = buildLogPressure(LOG_PRESSURE_FILES, { maxBytes: Number(process.env.CHECK_LOCAL_LOG_MAX_BYTES || DEFAULT_LOG_MAX_BYTES) });
   const runtimeHealth = reduceRuntimeHealth({
     managedServices,
+    localAiFocus,
     queueCircuitBreakers,
     memorySteward,
     queue,
@@ -640,6 +643,7 @@ async function buildStatusPayload() {
     memorySteward,
     logPressure,
     managedServices,
+    localAiFocus,
     queueCircuitBreakers,
     runtimeHealth,
     runtimeActions: {

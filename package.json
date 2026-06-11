@@ -1,6 +1,6 @@
 {
   "name": "checklist-os",
-  "version": "0.17.8",
+  "version": "0.17.9",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -90,6 +90,7 @@
     "migration:lifecycle": "node scripts/lifecycle-migration-backfill.mjs --dry-run",
     "migration:lifecycle:apply": "node scripts/lifecycle-migration-backfill.mjs --apply",
     "test:local-execution-lanes": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-local-execution-lanes.mjs",
+    "test:local-ai-focus": "node scripts/test-local-ai-focus-mode.mjs",
     "test:local-runnable-enforcement": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-local-runnable-enforcement.mjs",
     "test:local-lane-events": "NODE_ENV=production node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --experimental-specifier-resolution=node scripts/test-local-lane-events.mjs",
     "test:human-approved-burst": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --experimental-specifier-resolution=node scripts/test-human-approved-burst.mjs",

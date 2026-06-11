@@ -14,6 +14,7 @@ import { executeDestinationMissionUntilBlocked, SUPPORTED_DESTINATION_MISSION_KE
 import { listDestinationMissionRuns, startDestinationMissionRun } from "@/lib/destination-missions";
 import { publishDestinationReviewPacket } from "@/lib/destination-publish-bridge";
 import type { DestinationKey } from "@/lib/destination-workflow-contract";
+import { filterDestinationKeysForLocalAiFocus, readLocalAiFocusPolicy } from "@/lib/local-ai-focus";
 
 const DAEMON_DESTINATION_KEYS: DestinationKey[] = [...SUPPORTED_DESTINATION_MISSION_KEYS];
 
@@ -385,7 +386,11 @@ export async function executeDestinationMissionDaemonForCompany(input: {
   });
   const byDestinationLimits = {} as Record<DestinationKey, DestinationDaemonLimits>;
 
-  const destinationKeys = input.destinationKey ? [input.destinationKey] : DAEMON_DESTINATION_KEYS;
+  const focusPolicy = readLocalAiFocusPolicy();
+  const destinationKeys = filterDestinationKeysForLocalAiFocus(
+    input.destinationKey ? [input.destinationKey] : DAEMON_DESTINATION_KEYS,
+    focusPolicy,
+  ) as DestinationKey[];
   const destinationResults = [];
   for (const destinationKey of destinationKeys) {
     const destinationLimits = resolveDestinationDaemonLimits({
@@ -421,6 +426,7 @@ export async function executeDestinationMissionDaemonForCompany(input: {
     ok: true,
     companyId: input.companyId,
     destinationScope: input.destinationKey ?? null,
+    focusScope: focusPolicy.enabled ? focusPolicy.destinationKeys : null,
     materialized: destinationResults.reduce((sum, item) => sum + Number(item.materialized || 0), 0),
     processed: destinationResults.reduce((sum, item) => sum + Number(item.processed || 0), 0),
     skipped: destinationResults.reduce((sum, item) => sum + Number(item.skipped || 0), 0),

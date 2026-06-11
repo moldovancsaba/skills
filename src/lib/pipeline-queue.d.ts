@@ -69,6 +69,12 @@ export const GLOBAL_PIPELINE_SYNC_INTERVAL_MS: number;
 export const PIPELINE_JOB_RETRY_LIMITS: Readonly<Record<string, number>>;
 export const PIPELINE_FAILURE_CLASSES: Readonly<Record<string, string>>;
 
+export type LocalAiFocusPolicy = {
+  enabled: boolean;
+  destinationKeys: string[];
+  reason: string;
+};
+
 export function getPipelineJobLabel(jobType: PipelineJobType): string;
 export function getQueueColumnRank(column: PipelineQueueColumn): number;
 export function buildNoProgressTimeoutMessage(timeoutMs?: number): string;
@@ -80,6 +86,8 @@ export function classifyPipelineJobError(error: unknown): {
   message: string;
 };
 export function shouldRunGlobalPipelineSync(lastSyncAt: number, now?: number, intervalMs?: number): boolean;
+export function readLocalAiFocusPolicy(env?: NodeJS.ProcessEnv): LocalAiFocusPolicy;
+export function isPipelineJobAllowedByLocalAiFocus(job: unknown, policy?: LocalAiFocusPolicy): boolean;
 export function gatherCompanyPipelineSignals(prisma: unknown, companyId: string): Promise<unknown>;
 export function syncCompanyPipelineJobs(prisma: unknown, companyId: string): Promise<PipelineJobRecord[]>;
 export function syncAllCompanyPipelineJobs(prisma: unknown): Promise<void>;

@@ -343,6 +343,7 @@ Actions API:
 
 - `POST /api/miniapps/[miniappKey]/ops/actions`
 - Requires admin membership.
+- Background worker calls may authenticate with the configured bearer secret, so `/api/miniapps` must stay in the session-proxy public-prefix allowlist and the route must enforce Admin or background auth itself.
 - Supports `replan`, `run_burst`, `run_evidence`, `promote_opportunities`, `evaluate_gates`, `sync_learning`, `retry_task`, `pause_burst`, `resume_burst`, `suppress_domain`, and `override_suppression`.
 - Returns structured `ok`, `code`, `retryable`, `diagnostics`, and `correlationId` fields.
 

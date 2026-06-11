@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1781192009.2719853,
-    "ast_hash": "4feb21787cfdb9788b8a6261f13f4210",
+    "mtime": 1781196827.6712308,
+    "ast_hash": "ceb68af3246462b897858ccd825cd7aa",
     "semantic_hash": ""
   },
   "postcss.config.js": {
@@ -940,8 +940,8 @@
     "semantic_hash": ""
   },
   "scripts/test-miniapp-ops-console.mjs": {
-    "mtime": 1781191989.2582345,
-    "ast_hash": "d50f5ca0278469787a051bde0ac2afb9",
+    "mtime": 1781196747.371195,
+    "ast_hash": "10d249848a928dcdcb1c2a7b12be087d",
     "semantic_hash": ""
   },
   "scripts/test-miniapp-promotion-gates.mjs": {
@@ -3215,8 +3215,8 @@
     "semantic_hash": ""
   },
   "src/lib/release.ts": {
-    "mtime": 1781192079.713187,
-    "ast_hash": "9c0cea5f8336ec98b37f53196a699305",
+    "mtime": 1781196798.6728244,
+    "ast_hash": "503f5ba470bf5e2c671330323e210dc0",
     "semantic_hash": ""
   },
   "src/lib/request-profile.ts": {
@@ -3485,8 +3485,8 @@
     "semantic_hash": ""
   },
   "src/proxy.ts": {
-    "mtime": 1780845331.8912866,
-    "ast_hash": "12de21434d1f9b22942e27cdcc94f986",
+    "mtime": 1781196731.0188344,
+    "ast_hash": "5371bade61c024530a98b162b5bb4d7b",
     "semantic_hash": ""
   },
   "training/configs/llamafactory/dataset_info.template.json": {
@@ -3820,8 +3820,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_AI_RUNTIME_SOP.md": {
-    "mtime": 1781190214.8753881,
-    "ast_hash": "490c1aac4a89bc4a6926590a40bb1dee",
+    "mtime": 1781196805.5012572,
+    "ast_hash": "1cc6d9ec3e501025208d7d40523e91d4",
     "semantic_hash": ""
   },
   "docs/LOCAL_SELF_LEARNING_SYSTEM.md": {
@@ -3930,8 +3930,8 @@
     "semantic_hash": ""
   },
   "docs/miniapps/sovereign-intelligence-contract.md": {
-    "mtime": 1781192004.192047,
-    "ast_hash": "1d4719582a9d76a21cebb89ae22274c5",
+    "mtime": 1781196810.912724,
+    "ast_hash": "9506062273287b0916dd31581b50333a",
     "semantic_hash": ""
   },
   "docs/technological_audit.md": {

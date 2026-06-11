@@ -8,6 +8,7 @@ const lib = readFileSync("src/lib/miniapp-ops-console.ts", "utf8");
 const snapshotRoute = readFileSync("src/app/api/miniapps/[miniappKey]/ops/snapshot/route.ts", "utf8");
 const actionsRoute = readFileSync("src/app/api/miniapps/[miniappKey]/ops/actions/route.ts", "utf8");
 const component = readFileSync("src/components/visitor-ops-workspace.tsx", "utf8");
+const proxy = readFileSync("src/proxy.ts", "utf8");
 const docs = readFileSync("docs/miniapps/sovereign-intelligence-contract.md", "utf8");
 
 assert(lib.includes("getMiniappOpsSnapshot"), "ops snapshot read model must exist");
@@ -37,5 +38,6 @@ assert(!component.includes("style={{"), "console must not introduce custom inlin
 assert(docs.includes("Operator Console"), "docs must document operator console");
 assert(docs.includes("/api/miniapps/[miniappKey]/ops/snapshot"), "docs must document snapshot API");
 assert(docs.includes("/api/miniapps/[miniappKey]/ops/actions"), "docs must document actions API");
+assert(proxy.includes("\"/api/miniapps\""), "miniapp ops APIs must bypass the session proxy and rely on route-level auth");
 
 console.log("miniapp ops console contract OK");

@@ -113,6 +113,7 @@ Current inventory evidence:
   - operator/API calls enqueue persisted `RESEARCH_BACKFILL` jobs with `metadata.visitorIntent`
   - worker-secret calls may execute the action because they are the queued job runner consuming the work
   - queueable action responses must return `miniapp_ops_action_queued`
+  - the route must bypass the session proxy through the `/api/miniapps` public-prefix allowlist and rely on its route-level Admin or background bearer auth; otherwise local worker calls are redirected to `/login` before research tasks can be created
 - any future direct miniapp action must either be read-only, queue-owned Playlist work, or explicit Human-Approved Burst child work before it can pass inventory audit
 
 Playlist mutation authority contract:

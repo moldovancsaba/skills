@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1781190021.8975885,
-    "ast_hash": "9c25c9f412b7a07b7a7fd914168af1ae",
+    "mtime": 1781190316.4195004,
+    "ast_hash": "9d827039cb6c00ddeb5880825d4787b5",
     "semantic_hash": ""
   },
   "postcss.config.js": {
@@ -695,8 +695,8 @@
     "semantic_hash": ""
   },
   "scripts/sync.js": {
-    "mtime": 1780769147.3803196,
-    "ast_hash": "5a513e9e85bc78b6c75241a73da9a636",
+    "mtime": 1781190199.7654645,
+    "ast_hash": "5ed42dd39bfb954b12ad28e11a551fc9",
     "semantic_hash": ""
   },
   "scripts/test-board-lean-payloads.mjs": {
@@ -3820,8 +3820,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_AI_RUNTIME_SOP.md": {
-    "mtime": 1781189592.6964903,
-    "ast_hash": "4295611bdce4abbf03d612dc7046ad13",
+    "mtime": 1781190214.8753881,
+    "ast_hash": "490c1aac4a89bc4a6926590a40bb1dee",
     "semantic_hash": ""
   },
   "docs/LOCAL_SELF_LEARNING_SYSTEM.md": {

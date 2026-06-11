@@ -51,9 +51,15 @@ setInterval(async () => {
 }, 60000);
 
 let lastCycleStartTime = 0;
-const IDLE_INTERVAL = 300000;
-const ACTIVE_INTERVAL = 30000;
-const POLLING_INTERVAL = 30000;
+function readBoundedIntervalMs(envKey, fallbackMs, minMs, maxMs) {
+  const value = Number(process.env[envKey]);
+  if (!Number.isFinite(value)) return fallbackMs;
+  return Math.max(minMs, Math.min(Math.round(value), maxMs));
+}
+
+const IDLE_INTERVAL = readBoundedIntervalMs("CHECK_LOCAL_IDLE_INTERVAL_MS", 300000, 5000, 300000);
+const ACTIVE_INTERVAL = readBoundedIntervalMs("CHECK_LOCAL_ACTIVE_INTERVAL_MS", 30000, 1000, 120000);
+const POLLING_INTERVAL = readBoundedIntervalMs("CHECK_LOCAL_POLLING_INTERVAL_MS", 30000, 1000, 60000);
 const STARTUP_SCRUB_INTERVAL = 6 * 60 * 60 * 1000;
 
 let isRunning = false;
@@ -319,7 +325,7 @@ async function runStartupIntegrityPass() {
 async function runWorkerLoop() {
   if (isRunning) return;
   isRunning = true;
-  
+
   try {
     const hasLease = await ensureLinearWorkerLock();
     if (!hasLease) {

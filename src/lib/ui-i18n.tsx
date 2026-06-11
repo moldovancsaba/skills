@@ -1,12 +1,24 @@
 'use client';
 
+import { getGdsLocaleMetadata, isGdsRtlLocale } from "@doneisbetter/gds/client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { FALLBACK_LANGUAGE, UI_LANGUAGE_STORAGE_KEY, UI_LANGUAGE_VALUES, type TextDirection, type UiLanguage } from "@/lib/ui-language-config";
 
-export type UiLanguage = "en" | "hu" | "es" | "ar" | "he";
-type TextDirection = "ltr" | "rtl";
+export { FALLBACK_LANGUAGE, UI_LANGUAGE_STORAGE_KEY, UI_LANGUAGE_VALUES, type TextDirection, type UiLanguage };
 type TranslationParams = Record<string, string | number>;
 
-const UI_LANGUAGE_STORAGE_KEY = "checklist-ui-language";
+export function isUiLanguage(value: unknown): value is UiLanguage {
+  return typeof value === "string" && UI_LANGUAGE_VALUES.includes(value as UiLanguage);
+}
+
+export function resolveUiLanguage(value: unknown): UiLanguage {
+  return isUiLanguage(value) ? value : FALLBACK_LANGUAGE;
+}
+
+export function getUiLanguageDirection(language: UiLanguage): TextDirection {
+  const metadata = getGdsLocaleMetadata(language);
+  return metadata.direction === "rtl" || isGdsRtlLocale(language) ? "rtl" : "ltr";
+}
 
 export const UI_LANGUAGE_OPTIONS: Array<{
   value: UiLanguage;
@@ -14,14 +26,12 @@ export const UI_LANGUAGE_OPTIONS: Array<{
   nativeName: string;
   dir: TextDirection;
 }> = [
-  { value: "en", label: "English", nativeName: "English", dir: "ltr" },
-  { value: "hu", label: "Hungarian", nativeName: "Magyar", dir: "ltr" },
-  { value: "es", label: "Spanish", nativeName: "Español", dir: "ltr" },
-  { value: "ar", label: "Arabic", nativeName: "العربية", dir: "rtl" },
-  { value: "he", label: "Hebrew", nativeName: "עברית", dir: "rtl" },
+  { value: "en", label: "English", nativeName: "English", dir: getUiLanguageDirection("en") },
+  { value: "hu", label: "Hungarian", nativeName: "Magyar", dir: getUiLanguageDirection("hu") },
+  { value: "es", label: "Spanish", nativeName: "Español", dir: getUiLanguageDirection("es") },
+  { value: "ar", label: "Arabic", nativeName: "العربية", dir: getUiLanguageDirection("ar") },
+  { value: "he", label: "Hebrew", nativeName: "עברית", dir: getUiLanguageDirection("he") },
 ];
-
-const FALLBACK_LANGUAGE: UiLanguage = "en";
 
 const translations = {
   en: {
@@ -286,10 +296,6 @@ function getNestedValue(source: Record<string, unknown>, path: string): Translat
   }, source) as TranslationLeaf | undefined;
 }
 
-function isUiLanguage(value: string | null): value is UiLanguage {
-  return UI_LANGUAGE_OPTIONS.some((option) => option.value === value);
-}
-
 type UiI18nContextValue = {
   language: UiLanguage;
   dir: TextDirection;
@@ -303,11 +309,11 @@ export function UiLanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<UiLanguage>(() => {
     if (typeof window === "undefined") return FALLBACK_LANGUAGE;
     const stored = window.localStorage.getItem(UI_LANGUAGE_STORAGE_KEY);
-    return isUiLanguage(stored) ? stored : FALLBACK_LANGUAGE;
+    return resolveUiLanguage(stored);
   });
 
   const dir = useMemo<TextDirection>(() => {
-    return UI_LANGUAGE_OPTIONS.find((option) => option.value === language)?.dir ?? "ltr";
+    return getUiLanguageDirection(language);
   }, [language]);
 
   useEffect(() => {

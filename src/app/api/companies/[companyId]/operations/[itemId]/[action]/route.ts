@@ -13,7 +13,7 @@ type OperationalAction = "retry" | "cancel" | "replay" | "rollback" | "acknowled
 
 type ParsedOperationItem =
   | { source: "local_job"; itemId: string; jobId: string }
-  | { source: "miniapp_publish"; itemId: string; destinationKey: "classscout" | "compare" }
+  | { source: "miniapp_publish"; itemId: string; destinationKey: "classscout" | "compare" | "trainers" | "athleteiq" }
   | { source: "read_model"; itemId: string; projectionKey: "projection-stale" };
 
 function parseOperationAction(value: string): OperationalAction | null {
@@ -25,7 +25,7 @@ function parseOperationAction(value: string): OperationalAction | null {
     normalized === "rollback" ||
     normalized === "acknowledge"
   ) {
-    return normalized;
+    return normalized as OperationalAction;
   }
   return null;
 }
@@ -44,7 +44,7 @@ function parseOperationItem(rawItemId: string): ParsedOperationItem | null {
     return jobId ? { source: "local_job", itemId, jobId } : null;
   }
 
-  const miniappMatch = /^miniapp-publish:(classscout|compare)-review-pressure$/i.exec(itemId);
+  const miniappMatch = /^miniapp-publish:(classscout|compare|trainers|athleteiq)-review-pressure$/i.exec(itemId);
   if (miniappMatch) {
     const destinationKey = normalizeDestinationKey(miniappMatch[1]);
     if (!destinationKey) return null;

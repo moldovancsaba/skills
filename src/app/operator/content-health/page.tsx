@@ -7,7 +7,7 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import { MetricCard, Notice, PageHeader, PageShell } from "@/components/ui/app-shell";
 import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
-import { SEMANTIC_CHART_BAR_RADIUS, SEMANTIC_CHART_GRID_STROKE } from "@/lib/semantic-theme";
+import { SEMANTIC_CHART_BAR_RADIUS, SEMANTIC_CHART_COLORS, SEMANTIC_CHART_GRID_STROKE, getSemanticInsetStyle } from "@/lib/semantic-theme";
 
 type DashboardPayload = {
   generatedAt: string;
@@ -93,31 +93,31 @@ type DashboardPayload = {
 };
 
 const CREATED_SERIES = [
-  { key: "datacards", name: "Datacards", color: "var(--mantine-color-cyan-6)" },
-  { key: "files", name: "Files", color: "var(--mantine-color-blue-6)" },
-  { key: "flashcards", name: "Flashcards", color: "var(--mantine-color-lime-6)" },
-  { key: "goals", name: "Goals", color: "var(--mantine-color-violet-6)" },
-  { key: "tasks", name: "Tasks", color: "var(--mantine-color-orange-6)" },
-  { key: "opportunities", name: "Opportunities", color: "var(--mantine-color-pink-6)" },
-  { key: "boardCards", name: "Board cards", color: "var(--mantine-color-indigo-6)" },
-  { key: "destinationCandidates", name: "Candidates", color: "var(--mantine-color-teal-6)" },
-  { key: "destinationDrafts", name: "Drafts", color: "var(--mantine-color-grape-6)" },
-  { key: "reviewPackets", name: "Review packets", color: "var(--mantine-color-red-6)" },
+  { key: "datacards", name: "Datacards", color: SEMANTIC_CHART_COLORS.ingress },
+  { key: "files", name: "Files", color: SEMANTIC_CHART_COLORS.synthesis },
+  { key: "flashcards", name: "Flashcards", color: SEMANTIC_CHART_COLORS.knowmore },
+  { key: "goals", name: "Goals", color: SEMANTIC_CHART_COLORS.strategy },
+  { key: "tasks", name: "Tasks", color: SEMANTIC_CHART_COLORS.checklist },
+  { key: "opportunities", name: "Opportunities", color: SEMANTIC_CHART_COLORS.tactical },
+  { key: "boardCards", name: "Board cards", color: SEMANTIC_CHART_COLORS.review },
+  { key: "destinationCandidates", name: "Candidates", color: SEMANTIC_CHART_COLORS.ingress },
+  { key: "destinationDrafts", name: "Drafts", color: SEMANTIC_CHART_COLORS.synthesis },
+  { key: "reviewPackets", name: "Review packets", color: SEMANTIC_CHART_COLORS.review },
 ] as const;
 
 const UPDATED_SERIES = [
-  { key: "datacards", name: "Datacards", color: "var(--mantine-color-cyan-6)" },
-  { key: "files", name: "Files", color: "var(--mantine-color-blue-6)" },
-  { key: "flashcards", name: "Flashcards", color: "var(--mantine-color-lime-6)" },
-  { key: "goals", name: "Goals", color: "var(--mantine-color-violet-6)" },
-  { key: "tasks", name: "Tasks", color: "var(--mantine-color-orange-6)" },
-  { key: "opportunities", name: "Opportunities", color: "var(--mantine-color-pink-6)" },
-  { key: "boardCards", name: "Board cards", color: "var(--mantine-color-indigo-6)" },
-  { key: "feedback", name: "Feedback", color: "var(--mantine-color-yellow-6)" },
-  { key: "actions", name: "Actions", color: "var(--module-neutral-color)" },
-  { key: "corrections", name: "Corrections", color: "var(--mantine-color-red-6)" },
-  { key: "auditEvents", name: "Audit events", color: "var(--mantine-color-teal-6)" },
-  { key: "hashtagEvents", name: "Hashtag feedback", color: "var(--mantine-color-grape-6)" },
+  { key: "datacards", name: "Datacards", color: SEMANTIC_CHART_COLORS.ingress },
+  { key: "files", name: "Files", color: SEMANTIC_CHART_COLORS.synthesis },
+  { key: "flashcards", name: "Flashcards", color: SEMANTIC_CHART_COLORS.knowmore },
+  { key: "goals", name: "Goals", color: SEMANTIC_CHART_COLORS.strategy },
+  { key: "tasks", name: "Tasks", color: SEMANTIC_CHART_COLORS.checklist },
+  { key: "opportunities", name: "Opportunities", color: SEMANTIC_CHART_COLORS.tactical },
+  { key: "boardCards", name: "Board cards", color: SEMANTIC_CHART_COLORS.review },
+  { key: "feedback", name: "Feedback", color: SEMANTIC_CHART_COLORS.strategy },
+  { key: "actions", name: "Actions", color: SEMANTIC_CHART_COLORS.neutral },
+  { key: "corrections", name: "Corrections", color: SEMANTIC_CHART_COLORS.review },
+  { key: "auditEvents", name: "Audit events", color: SEMANTIC_CHART_COLORS.knowmore },
+  { key: "hashtagEvents", name: "Hashtag feedback", color: SEMANTIC_CHART_COLORS.synthesis },
 ] as const;
 
 const WINDOW_OPTIONS = [
@@ -312,15 +312,15 @@ export default function OperatorContentHealthPage() {
                 <Stack gap="sm">
                   <BodyText>{dashboard.health.summary}</BodyText>
                   <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-                    <Box p="sm" style={{ border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}>
+                    <Box p="sm" style={getSemanticInsetStyle("neutral")}>
                       <MetaText>Evaluated hour</MetaText>
                       <BodyText>{formatDateTime(dashboard.health.evaluatedHour)}</BodyText>
                     </Box>
-                    <Box p="sm" style={{ border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}>
+                    <Box p="sm" style={getSemanticInsetStyle("neutral")}>
                       <MetaText>Baseline snapshots</MetaText>
                       <BodyText>{dashboard.health.trend.baselineSnapshotCount} / {dashboard.health.trend.baselineDays} days</BodyText>
                     </Box>
-                    <Box p="sm" style={{ border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}>
+                    <Box p="sm" style={getSemanticInsetStyle("neutral")}>
                       <MetaText>Snapshot writes</MetaText>
                       <BodyText>{dashboard.snapshots.persisted}</BodyText>
                     </Box>
@@ -459,7 +459,7 @@ export default function OperatorContentHealthPage() {
               <UnifiedCardBody>
                 <Stack gap="sm">
                   {dashboard.recentSamples.length ? dashboard.recentSamples.map((sample) => (
-                    <Box key={`${sample.family}-${sample.id}`} p="sm" style={{ border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}>
+                    <Box key={`${sample.family}-${sample.id}`} p="sm" style={getSemanticInsetStyle("neutral")}>
                       <Group justify="space-between" align="flex-start" gap="sm">
                         <Stack gap={2}>
                           <BodyText>{sample.label}</BodyText>

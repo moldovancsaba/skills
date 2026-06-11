@@ -64,7 +64,27 @@ const DESTINATION_TOPOLOGY = Object.freeze({
       "public_verification_fresh",
     ]),
   }),
+  athleteiq: Object.freeze({
+    destinationKey: "athleteiq",
+    label: "AthleteIQ",
+    blockId: "miniapp",
+    requiredModules: Object.freeze(["data", "knowmore", "review", "analytics"]),
+    missionKinds: Object.freeze(["rulebook_new_listing"]),
+    requiredDaemonLane: Object.freeze({
+      jobType: "DESTINATION_MISSION_DAEMON",
+      entityType: "DESTINATION_SERVICE",
+      entityId: "destination-service",
+    }),
+    requiredHealthGates: Object.freeze([
+      "trainer_blueprint_active",
+      "trainer_taxonomy_ready",
+      "source_evidence_present",
+      "review_packet_ready",
+      "public_verification_fresh",
+    ]),
+  }),
 });
+
 
 function unique(values) {
   return Array.from(new Set(values.map((value) => String(value || "").trim()).filter(Boolean)));

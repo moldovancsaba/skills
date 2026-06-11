@@ -125,6 +125,17 @@ export function getSemanticInsetStyle(tone: ModuleTone = "neutral"): CSSProperti
 
 export const SEMANTIC_CHART_GRID_STROKE = "var(--surface-section-border)";
 
+export const SEMANTIC_CHART_COLORS = {
+  ingress: "var(--module-ingress-color)",
+  synthesis: "var(--module-synthesis-color)",
+  knowmore: "var(--module-knowmore-color)",
+  strategy: "var(--module-strategy-color)",
+  checklist: "var(--module-checklist-color)",
+  tactical: "var(--module-tactical-color)",
+  review: "var(--module-review-color)",
+  neutral: "var(--module-neutral-color)",
+} as const satisfies Record<ModuleTone, string>;
+
 export const SEMANTIC_CHART_BAR_RADIUS: [number, number, number, number] = [8, 8, 0, 0];
 
 export const SEMANTIC_CHART_BAR_RADIUS_COMPACT: [number, number, number, number] = [4, 4, 0, 0];

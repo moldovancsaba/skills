@@ -12,7 +12,8 @@ import {
   IconRocket as Rocket,
   IconSparkles as Sparkles,
 } from "@/components/gds/icons";
-import { EmptyState, LinkCard, MetricCard, Notice, PageHeader, PageShell, RouteCardGrid } from "@/components/ui/app-shell";
+import { MiniappPublicShell } from "@/components/gds/public-miniapp-shell";
+import { EmptyState, LinkCard, MetricCard, Notice, PageHeader, RouteCardGrid } from "@/components/ui/app-shell";
 import { MetaText } from "@/components/ui/typography";
 import { type UnitModuleKey } from "@/lib/intelligence-unit-capabilities";
 import { type ModuleTone } from "@/lib/semantic-theme";
@@ -59,26 +60,44 @@ export function CompareHome({ companyId, modules = {} }: { companyId: string; mo
   }, [load]);
 
   const actions = useMemo(() => COMPARE_QUICK_ACTIONS.filter((action) => modules[action.key] !== false), [modules]);
+  const shellNavItems = useMemo(() => [
+    { id: "overview", label: "Overview", href: `/${companyId}/compare` },
+    { id: "visitor-ops", label: "Visitor Ops", href: `/${companyId}/compare/visitor-ops` },
+    { id: "project-board", label: "Project Board", href: `/${companyId}/unit-board?module=compare` },
+    { id: "settings", label: "Capabilities", href: `/${companyId}/settings` },
+  ], [companyId]);
+
+  const shellActions = (
+    <Group gap="sm">
+      <Badge variant="light" color="review">Miniapp</Badge>
+      {summary?.bridgeConfigured ? (
+        <Badge variant="light" color="strategy">Bridge Ready</Badge>
+      ) : (
+        <Badge variant="light" color="gray">Bridge Missing</Badge>
+      )}
+      <Button variant="light" color="gray" leftSection={<Refresh size={14} />} onClick={() => void load()} loading={loading}>
+        Refresh
+      </Button>
+    </Group>
+  );
 
   return (
-    <PageShell width="full">
+    <MiniappPublicShell
+      brandTitle="Compare"
+      brandDescription="Visitor intelligence workflow"
+      navItems={shellNavItems}
+      actions={shellActions}
+      footerActions={(
+        <Button variant="light" color="review" component={Link} href={`/${companyId}/compare/visitor-ops`}>
+          Open Visitor Ops
+        </Button>
+      )}
+    >
       <Stack gap="xl">
         <PageHeader
           title="Compare"
           description="Dedicated operator home for Compare workflows, review cards, and mission follow-through."
-          actions={(
-            <Group gap="sm">
-              <Badge variant="light" color="review">Miniapp</Badge>
-              {summary?.bridgeConfigured ? (
-                <Badge variant="light" color="strategy">Bridge Ready</Badge>
-              ) : (
-                <Badge variant="light" color="gray">Bridge Missing</Badge>
-              )}
-              <Button variant="light" color="gray" leftSection={<Refresh size={14} />} onClick={() => void load()} loading={loading}>
-                Refresh
-              </Button>
-            </Group>
-          )}
+          actions={shellActions}
         />
 
         {loadError && !summary ? (
@@ -168,6 +187,6 @@ export function CompareHome({ companyId, modules = {} }: { companyId: string; mo
           <MetaText>Capabilities for this unit are configured in Settings.</MetaText>
         </Group>
       </Stack>
-    </PageShell>
+    </MiniappPublicShell>
   );
 }

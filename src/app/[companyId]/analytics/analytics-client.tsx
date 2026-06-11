@@ -2,13 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "@/components/gds/charts";
 import { Button, Group, Loader, SimpleGrid, Stack, Center } from "@/components/gds/primitives";
 import { IconActivity as Activity, IconChartBar as ChartBar, IconClockHour4 as Clock, IconListCheck as ListCheck, IconRefresh as RefreshIcon } from "@/components/gds/icons";
+import { GdsReportingBarChart, GdsReportingSection } from "@/components/gds/reporting";
 import { EmptyState, MetricCard, MetricGrid, PageHeader, PageShell } from "@/components/ui/app-shell";
-import { Text } from "@/components/ui/typography";
-import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
-import { SEMANTIC_CHART_BAR_RADIUS_COMPACT, SEMANTIC_CHART_GRID_STROKE } from "@/lib/semantic-theme";
 
 type WindowKey = "7d" | "30d" | "90d";
 
@@ -46,14 +43,6 @@ const WINDOW_OPTIONS: Array<{ key: WindowKey; label: string }> = [
   { key: "30d", label: "Monthly" },
   { key: "90d", label: "Quarterly" },
 ];
-
-function AxisTick({ x, y, payload }: any) {
-  return (
-    <text x={x} y={y} dy={14} textAnchor="middle" fill="currentColor" fontSize={11}>
-      {String(payload?.value || "").slice(5)}
-    </text>
-  );
-}
 
 type CompanyAnalyticsPageProps = {
   companyId: string;
@@ -177,81 +166,72 @@ export default function CompanyAnalyticsPage({ companyId }: CompanyAnalyticsPage
         </MetricGrid>
 
         <SimpleGrid cols={{ base: 1, xl: 2 }} spacing="lg">
-          <UnifiedCard tone="strategy">
-            <UnifiedCardHeader title="Throughput" supporting={<Text size="sm">{data.window}</Text>} />
-            <UnifiedCardBody>
-              <Stack gap="sm">
-                <Text size="sm">Created, accepted, declined, and delivered task events over the selected window.</Text>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={data.throughputSeries}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={SEMANTIC_CHART_GRID_STROKE} />
-                    <XAxis dataKey="date" tick={<AxisTick />} interval="preserveStartEnd" minTickGap={24} />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="created" fill="var(--mantine-color-strategy-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
-                    <Bar dataKey="accepted" fill="var(--mantine-color-review-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
-                    <Bar dataKey="declined" fill="var(--mantine-color-knowmore-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
-                    <Bar dataKey="delivered" fill="var(--mantine-color-checklist-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Stack>
-            </UnifiedCardBody>
-          </UnifiedCard>
+          <GdsReportingSection
+            title="Throughput"
+            description="Created, accepted, declined, and delivered task events over the selected window."
+            state={data.throughputSeries.length ? "ready" : "empty"}
+            stateMessage="No throughput events are available for this window."
+            periodControl={data.window}
+            chart={
+              <GdsReportingBarChart
+                type="stacked-bar"
+                title="Throughput"
+                summary="Task lifecycle events by day."
+                data={data.throughputSeries.flatMap((point) => [
+                  { label: point.date, group: "created", value: point.created },
+                  { label: point.date, group: "accepted", value: point.accepted },
+                  { label: point.date, group: "declined", value: point.declined },
+                  { label: point.date, group: "delivered", value: point.delivered },
+                ])}
+                config={{ minDataPoints: 1, groupLabel: "Event", tableValueHeader: "Tasks" }}
+              />
+            }
+          />
 
-          <UnifiedCard tone="tactical">
-            <UnifiedCardHeader title="Lane Distribution" />
-            <UnifiedCardBody>
-              <Stack gap="sm">
-                <Text size="sm">Current active planning load by lane.</Text>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={data.laneCounts}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={SEMANTIC_CHART_GRID_STROKE} />
-                    <XAxis dataKey="name" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="var(--mantine-color-tactical-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Stack>
-            </UnifiedCardBody>
-          </UnifiedCard>
+          <GdsReportingSection
+            title="Lane Distribution"
+            description="Current active planning load by lane."
+            state={data.laneCounts.length ? "ready" : "empty"}
+            stateMessage="No active lane data is available."
+            chart={
+              <GdsReportingBarChart
+                title="Lane Distribution"
+                summary="Current active planning load by lane."
+                data={data.laneCounts.map((point) => ({ label: point.name, value: point.value }))}
+                config={{ minDataPoints: 1, tableValueHeader: "Tasks" }}
+              />
+            }
+          />
 
-          <UnifiedCard tone="review">
-            <UnifiedCardHeader title="Lifecycle Distribution" />
-            <UnifiedCardBody>
-              <Stack gap="sm">
-                <Text size="sm">Current active task population by canonical lifecycle state.</Text>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={data.lifecycleCounts}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={SEMANTIC_CHART_GRID_STROKE} />
-                    <XAxis dataKey="name" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="var(--mantine-color-review-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Stack>
-            </UnifiedCardBody>
-          </UnifiedCard>
+          <GdsReportingSection
+            title="Lifecycle Distribution"
+            description="Current active task population by canonical lifecycle state."
+            state={data.lifecycleCounts.length ? "ready" : "empty"}
+            stateMessage="No active lifecycle data is available."
+            chart={
+              <GdsReportingBarChart
+                title="Lifecycle Distribution"
+                summary="Current active task population by canonical lifecycle state."
+                data={data.lifecycleCounts.map((point) => ({ label: point.name, value: point.value }))}
+                config={{ minDataPoints: 1, tableValueHeader: "Tasks" }}
+              />
+            }
+          />
 
-          <UnifiedCard tone="knowmore">
-            <UnifiedCardHeader title="ICE Distribution" />
-            <UnifiedCardBody>
-              <Stack gap="sm">
-                <Text size="sm">Current active task distribution by ICE band.</Text>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={data.scoreBuckets}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={SEMANTIC_CHART_GRID_STROKE} />
-                    <XAxis dataKey="name" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="var(--mantine-color-knowmore-6)" radius={SEMANTIC_CHART_BAR_RADIUS_COMPACT} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Stack>
-            </UnifiedCardBody>
-          </UnifiedCard>
+          <GdsReportingSection
+            title="ICE Distribution"
+            description="Current active task distribution by ICE band."
+            state={data.scoreBuckets.length ? "ready" : "empty"}
+            stateMessage="No active ICE score buckets are available."
+            chart={
+              <GdsReportingBarChart
+                title="ICE Distribution"
+                summary="Current active task distribution by ICE band."
+                data={data.scoreBuckets.map((point) => ({ label: point.name, value: point.value }))}
+                config={{ minDataPoints: 1, tableValueHeader: "Tasks" }}
+              />
+            }
+          />
         </SimpleGrid>
       </Stack>
     </PageShell>

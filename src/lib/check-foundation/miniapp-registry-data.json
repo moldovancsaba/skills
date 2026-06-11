@@ -24,6 +24,30 @@
       "defaultOpsRoute": "compare",
       "publicBaseUrlEnv": "COMPARE_BASE_URL",
       "description": "Public app for hunters to discover activities in Hungary."
+    },
+    {
+      "id": "trainers",
+      "name": "Trainers",
+      "blockId": "miniapp",
+      "supportedContentTypes": ["trainers_training_service"],
+      "defaultLocale": "en",
+      "availableLocales": ["en", "hu"],
+      "adapterKey": "trainers",
+      "defaultOpsRoute": "trainers",
+      "publicBaseUrlEnv": "TRAINERS_BASE_URL",
+      "description": "Athlete habit tracker and AI-supported training app for sport clubs, coaches, and academies."
+    },
+    {
+      "id": "athleteiq",
+      "name": "AthleteIQ",
+      "blockId": "miniapp",
+      "supportedContentTypes": ["athleteiq_training_service"],
+      "defaultLocale": "en",
+      "availableLocales": ["en", "hu"],
+      "adapterKey": "athleteiq",
+      "defaultOpsRoute": "athleteiq",
+      "publicBaseUrlEnv": "ATHLETEIQ_BASE_URL",
+      "description": "Sports discovery and intelligence platform for academies and performance centers."
     }
   ]
 }

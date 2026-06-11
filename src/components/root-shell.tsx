@@ -42,7 +42,7 @@ export function RootShell({ children, initialSession = null }: RootShellProps) {
       padding="0"
       navbar={{ width: 280, breakpoint: "sm" }}
       styles={{
-        main: { background: "var(--mantine-color-body)" },
+        main: { background: "var(--app-bg)" },
       }}
     >
       <ClientNav initialSession={initialSession} />

@@ -24,6 +24,13 @@ const rules = [
     pattern: /radius=\{\[\d+,\s*\d+,\s*\d+,\s*\d+\]\}/,
   },
   {
+    name: "No raw Mantine color tokens outside theme sources",
+    pattern: /var\(--mantine-color-[a-z-]+(?:-\d+)?\)/,
+    allowFiles: [
+      "src/components/providers.tsx",
+    ],
+  },
+  {
     name: "No negative component letter spacing",
     pattern: /letterSpacing:\s*["'`]-/,
   },

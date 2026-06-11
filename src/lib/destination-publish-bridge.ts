@@ -23,6 +23,18 @@ const DESTINATION_BRIDGE_DEFINITIONS: Record<DestinationKey, DestinationBridgeDe
     ingestKeyEnv: "COMPARE_INGEST_API_KEY",
     publishPath: "/api/content-intelligence/publish-reviewed",
   },
+  trainers: {
+    label: "Trainers",
+    baseUrlEnv: "TRAINERS_BASE_URL",
+    ingestKeyEnv: "TRAINERS_INGEST_API_KEY",
+    publishPath: "/api/content-intelligence/publish-reviewed",
+  },
+  athleteiq: {
+    label: "AthleteIQ",
+    baseUrlEnv: "ATHLETEIQ_BASE_URL",
+    ingestKeyEnv: "ATHLETEIQ_INGEST_API_KEY",
+    publishPath: "/api/content-intelligence/publish-reviewed",
+  },
 };
 
 function asMetadataRecord(metadata: unknown): Record<string, unknown> | null {

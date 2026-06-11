@@ -38,6 +38,11 @@ export type VisitorSourceDatacard = {
   locationRelevance: number;
   extractionHints: string[];
   knownContentTypes: string[];
+  coverageGoalIds?: string[];
+  geography?: string;
+  neighborhoods?: string[];
+  tags?: string[];
+  importBatchId?: string;
   sourceTitle?: string;
   entityKind?: "provider" | "meetupGroup";
   extractedFacts?: Record<string, unknown>;
@@ -135,6 +140,11 @@ function normalizeDatacard(visitorKey: string, input: Partial<VisitorSourceDatac
     locationRelevance: clamp01(asNumber(input.locationRelevance)),
     extractionHints: asStringArray(input.extractionHints),
     knownContentTypes: asStringArray(input.knownContentTypes),
+    coverageGoalIds: asStringArray(input.coverageGoalIds),
+    geography: asString(input.geography) || undefined,
+    neighborhoods: asStringArray(input.neighborhoods),
+    tags: asStringArray(input.tags),
+    importBatchId: asString(input.importBatchId) || undefined,
     sourceTitle: asString(input.sourceTitle) || undefined,
     entityKind: input.entityKind === "provider" || input.entityKind === "meetupGroup" ? input.entityKind : undefined,
     extractedFacts: asRecord(input.extractedFacts) ?? undefined,

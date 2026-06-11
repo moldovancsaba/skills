@@ -51,6 +51,21 @@ Rules:
 
 Every new product function with UI must define its GDS components, UX states, accessibility behavior, and any approved exception before implementation.
 
+### 2.0.0.1 Miniapp public shell rule
+
+Miniapp/public routes must use the GDS public shell family for shell, navigation, footer, and public-flow state behavior.
+
+Current adapter:
+
+- `src/components/gds/public-miniapp-shell.tsx`
+
+Rules:
+
+- use `PublicShell`, `PublicNav`, `PublicBrandFooter`, and `PublicFlowShell` through the adapter unless the route has a documented exception
+- mobile navigation mode must come from GDS, not route-local state or page-specific mobile menus
+- public/Miniapp nav items must be explicit, typed, and safe for long labels and external links
+- Compare is the first migrated proof surface; ClassScout and broader public flows should follow after the adapter is verified
+
 ### 2.0.1 Mandatory destination-daemon policy model
 
 Miniapp mission automation must use one shared destination-daemon contract across all Miniapps.

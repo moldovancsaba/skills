@@ -11,7 +11,7 @@ const forbiddenPatterns = [
   { label: "legacy light-dark helper", regex: /light-dark\(/i },
   { label: "brand loader", regex: /Loader[^>]+color="brand"/i },
   { label: "undefined subtle surface token", regex: /var\(--surface-subtle\)/i },
-  { label: "raw mantine dark palette", regex: /var\(--mantine-color-dark-\d+\)/i },
+  { label: "raw Mantine color token", regex: /var\(--mantine-color-[a-z-]+(?:-\d+)?\)/i },
   { label: "raw white text override", regex: /c="white"|color:\s*['"]white['"]/i },
   { label: "raw danger color", regex: /color="red"|c="red"|color:\s*['"]red['"]/i },
   { label: "hard-coded dark glass surface", regex: /rgba\(0,\s*0,\s*0,\s*0\.(2|8)\)|rgba\(20,\s*20,\s*20,\s*0\.95\)/i },

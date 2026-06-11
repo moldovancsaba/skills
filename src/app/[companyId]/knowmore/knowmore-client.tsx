@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { IconDatabase as Database, IconSearch as Search, IconSparkles as Sparkles, IconTarget as Target, IconBolt as Bolt, IconFilter as Filter, IconLayoutList as LayoutList, IconTrendingUp as TrendingUp, IconShieldCheck as ShieldCheck, IconRefresh as RefreshIcon, IconStethoscope as Stethoscope, IconAlertTriangle as AlertTriangle } from "@/components/gds/icons";
 import { 
-  Badge, Button, Group, TextInput, Box, Stack, Skeleton, Loader, Center, ActionIcon, Card, rem, ThemeIcon } from "@/components/gds/primitives";
+  Badge, Button, Group, TextInput, Box, Stack, Skeleton, Loader, Center, ActionIcon, rem, ThemeIcon } from "@/components/gds/primitives";
 import {
   EmptyState,
   MetricCard,

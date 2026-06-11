@@ -678,6 +678,8 @@ export function resolveUnitCapabilities(input: {
   workerConfig?: unknown;
   hasClassScoutDestination: boolean;
   hasCompareDestination: boolean;
+  hasTrainersDestination?: boolean;
+  hasAthleteIQDestination?: boolean;
 }) {
   const resolvedAutoProfile: UnitWebappProfile = input.hasCompareDestination
     ? "COMPARE"

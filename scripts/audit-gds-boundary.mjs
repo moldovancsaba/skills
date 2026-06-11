@@ -38,6 +38,33 @@ const malformedImportPatterns = [
   /recharts@\/components\/gds/,
 ];
 
+const primitiveImportPolicy = {
+  Card: new Set(["src/components/ui/unified-card.tsx"]),
+  Paper: new Set([]),
+  Text: new Set(["src/components/ui/typography.tsx"]),
+  Title: new Set(["src/components/ui/typography.tsx"]),
+};
+
+function parseNamedImports(source, moduleSpecifier) {
+  const imports = [];
+  const importPattern = /import\s*\{([\s\S]*?)\}\s*from\s*["']([^"']+)["']/g;
+  let match;
+
+  while ((match = importPattern.exec(source)) !== null) {
+    if (match[2] !== moduleSpecifier) continue;
+    for (const part of match[1].split(",")) {
+      const name = part
+        .replace(/\/\/.*$/g, "")
+        .trim()
+        .split(/\s+as\s+/)[0]
+        .trim();
+      if (name) imports.push(name);
+    }
+  }
+
+  return imports;
+}
+
 function walk(directory) {
   const entries = readdirSync(directory, { withFileTypes: true });
   const files = [];
@@ -82,6 +109,19 @@ for (const scanRoot of scanRoots) {
         if (pattern.test(line)) {
           findings.push({ file: rel, line: index + 1, label: "direct UI peer import outside GDS boundary", text: line.trim() });
         }
+      }
+    }
+
+    const primitiveImports = parseNamedImports(source, "@/components/gds/primitives");
+    for (const primitive of primitiveImports) {
+      const allowedFiles = primitiveImportPolicy[primitive];
+      if (allowedFiles && !allowedFiles.has(rel)) {
+        findings.push({
+          file: rel,
+          line: 1,
+          label: `raw ${primitive} primitive import outside approved GDS adapter`,
+          text: `import { ${primitive} } from "@/components/gds/primitives"`,
+        });
       }
     }
   }

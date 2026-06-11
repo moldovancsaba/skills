@@ -15,14 +15,30 @@ Professional operating rule:
 
 Current GDS alignment:
 
-- app version after GDS runtime hardening: `0.17.2`
+- app version after ClassScout Manhattan launch source/taxonomy enablement: `0.17.8`
 - consumed GDS version/package: `@doneisbetter/gds@3.4.3`
 - GDS package published: `2026-06-06T23:01:58.666Z`
 - shared package install path: adopted through direct npm consumption of `@doneisbetter/gds`, which brings `@doneisbetter/gds-theme`, `@doneisbetter/gds-core`, and `@doneisbetter/gds-admin`
 - root UI runtime: `src/components/providers.tsx` uses package-native `GdsProvider` plus GDS telemetry, confirmation, toast, notification, command, and overlay providers
+- `GdsProvider` locale is wired to the persisted UI language; `src/app/layout.tsx` consumes the GDS-verified bootstrap direction map, and `src/lib/ui-i18n.tsx` uses GDS locale metadata/RTL helpers for client direction
+- app-shell primitive adapters keep stable local exports while delegating `PageHeader`, `MetricCard`, `Notice`, and `EmptyState` internals to GDS package primitives
+- reporting adapters in `src/components/gds/reporting.tsx` use GDS `ReportingSection`, `GdsChart`, and `validateGdsChartData`; company analytics is the first migrated proof surface
+- Miniapp public shell adapter in `src/components/gds/public-miniapp-shell.tsx` uses GDS `PublicShell`, `PublicNav`, `PublicBrandFooter`, and `PublicFlowShell`; Compare is the first migrated proof surface
+- GDS maturity adoption report: [docs/GDS_MATURITY_ADOPTION_REPORT.md](/Users/Shared/Projects/checklist/docs/GDS_MATURITY_ADOPTION_REPORT.md)
+- GDS adoption manifest: [gds-adoption.json](/Users/Shared/Projects/checklist/gds-adoption.json)
+- GDS governance gates: `npm run verify:gds-adoption` and `npm run verify:gds-compliance`
+- GDS strict enforcement is active: `gds-adoption.json` is in `strict` mode, `npm run test:gds-strict-enforcement` blocks new UI drift, and current counts are 14 approved adapters, 2 brand exceptions, and 8 expiring native-dialog strict exceptions
 - frontend import boundary: product code must import Mantine, Tabler, Recharts, and drag/drop peers only through `src/components/gds/*`
 - drift gate: run `npm run audit:gds-boundary` before trusting UI changes; direct peer UI imports outside `src/components/gds/*` are forbidden
 - frontend load reduction: `next.config.js` enables `experimental.optimizePackageImports` for GDS, Mantine, Tabler, and Recharts packages
+
+Current ClassScout Manhattan launch enablement:
+
+- `classscout.visitor.sovereign@v1` now targets Manhattan provider launch coverage across classes, camps, birthday parties, drop-ins, family events, meetup groups, arts, STEM, music, sports, and enrichment categories
+- default ClassScout visitor blueprint/taxonomy fallback is active for `classscout` and `classscout-new-york`
+- incomplete ClassScout public profiles block at the quality gate with `missing_launch_profile_evidence`
+- admin source import is available at `POST /api/visitor/[visitorKey]/sources/import`, defaults to dry-run, caps batches at 500 leads, and writes through canonical URL upserts
+- verification commands: `npm run test:classscout-manhattan-launch`, `npm run test:classscout-source-import`, `npm run test:miniapp-research-planner`, `npm run test:miniapp-evidence-runtime`
 
 Read first:
 
@@ -54,6 +70,7 @@ Prisma hygiene:
 - a Unit can run Sales without Checklist, Project without intelligence automation, and Miniapp Ops without treating the Miniapp as a Webapp screen
 - the Sovereign Squad General Design System is the only approved product UI framework
 - the shared app shell owns persisted UI language selection for `English`, `Hungarian`, `Spanish`, `Arabic`, and `Hebrew`
+- GDS locale metadata is the only approved source for UI language direction; do not reintroduce route-level or bootstrap hardcoding such as `ar/he => rtl`
 - visible UI language and company AI `allowedLanguages` policy are separate contracts and must not be conflated
 - Mantine is an implementation peer only through GDS-owned provider/theme and `src/components/gds/*` compatibility modules
 - `UnifiedCard` remains the only approved feature-level product card API while legacy surfaces are migrated to package-native GDS primitives
@@ -92,6 +109,7 @@ Prisma hygiene:
 - the shipped follow-up slice now includes projection-backed planning summaries and projection-freshness telemetry for dashboard, tactical, and checklist surfaces
 - the shipped follow-up slice now also includes server-side Unit workspace bootstrap from prepared projection data, so the first page response is no longer blocked on a client dashboard fetch
 - the shipped follow-up slice now also includes server-side home/Webapp home bootstrap plus projection-backed home-card chart payloads, so the landing route no longer needs to pull full snapshot analytics documents on first load
+- `unitBoard.project` now has a typed surface projection builder in `src/lib/unit-board-projection.ts`; the surface read route returns server-ordered columns/items/actions, accessibility labels, state metadata, and checksum revision evidence for the Unit Project Board, the surface action route applies create/update/move/archive/restore with projection-revision receipts, and the Unit Board client consumes those surface DTO/action endpoints instead of `/api/board-items`
 - the shipped follow-up slice now also includes server-bootstrapped shell identity, so the authenticated sidebar can render immediately from the signed session cookie instead of waiting for a post-mount identity request
 - the shipped follow-up slice now also defers home-card chart rendering until those cards approach the viewport, reducing up-front client chart work on the landing page
 - the shipped Knowmore follow-up slice now also server-bootstraps the first page and uses database-level paging/filtering for knowledge rows, so the route no longer loads the full corpus and slices it in memory
@@ -121,6 +139,9 @@ Prisma hygiene:
 - Search & Answers now requires at least one explicitly selected layer and no longer silently falls back to all layers when the selection is empty
 - Search & Answers now clears stale results and grounded answers immediately when layer selection changes, so the visible answer/result state cannot lag behind the active scope
 - `Observability` now supports bounded queue repair actions and AI workload budget controls directly from the webapp mission-control surface
+- Observability runtime controls now use GDS confirmations, toasts, command registration, and UI telemetry through `src/lib/gds-operation-feedback.tsx`; do not reintroduce native browser dialogs on `/observability` or `/local-ai`
+- GDS maturity capability tracking now reads the upstream registry through `src/lib/gds-maturity-adoption.ts`; update `docs/GDS_MATURITY_ADOPTION_REPORT.md` and run `npm run test:gds-maturity-adoption` whenever capability status, evidence, or issue templates change.
+- GDS strict enforcement now runs through `scripts/test-gds-strict-enforcement.mjs`; rollback is to set the manifest back to transition mode for one release only, document the reason here, and keep the strict script manually runnable.
 - workflow blueprints and enrichment waterfall policies are persisted system contracts, not local page-only state
 - active workflow blueprints now become first-class `PipelineJob` records that the worker can claim and execute
 - enrichment waterfall policy now influences runtime URL-intelligence provider selection for product and competitor research paths
@@ -241,6 +262,7 @@ The work is not done until:
 - `snapshot-worker`, `guardian`, and `status-server` are support processes only. They must not become alternate queue runners or parallel AI mutation lanes.
 - productive queue work now refreshes queue topology for the touched company directly; if that direct refresh fails, the company falls back into a topology-dirty background retry queue owned by `snapshot-worker`.
 - the same touched-company pattern now also matters for product projections: company list/dashboard/nav should prefer `IntelligenceSnapshot.webappProjection`, with background/local-AI refresh owning projection freshness instead of hot-route live fan-out.
+- Unit Project Board projection contract verification: run `npm run test:unit-board-projection`; remaining work is only item-projection pagination if board payload size approaches the shared surface projection limit.
 - after those shipped read-model and server-bootstrap slices, further dashboard slowness should be attacked with authenticated live-route profiling (`Server-Timing` plus `npm run profile:webapp`), not blind payload trimming.
 - future mini-app work must follow `docs/IMPLEMENTATION_RULEBOOK.md`; do not repeat the pattern where prepared data exists but the webapp still rebuilds or overfetches live state on hot routes.
 - future Block, Module, and Miniapp work must also follow `docs/CHECK_FOUNDATION_LLD.md`; do not add product behavior without explicit Unit, Block, Module, Card, Webapp, Local, and Miniapp boundaries.

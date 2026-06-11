@@ -1,21 +1,19 @@
 import "server-only";
 
-import { upsertVisitorBlueprint, upsertVisitorTaxonomy, type VisitorBlueprint, type VisitorTaxonomy } from "@/lib/visitor-blueprints";
+import {
+  getDefaultVisitorBlueprint,
+  getDefaultVisitorTaxonomy,
+  upsertVisitorBlueprint,
+  upsertVisitorTaxonomy,
+  type VisitorBlueprint,
+  type VisitorTaxonomy,
+} from "@/lib/visitor-blueprints";
 
 export function buildDefaultVisitorBlueprints(): VisitorBlueprint[] {
+  const classScout = getDefaultVisitorBlueprint("classscout-new-york");
+  if (!classScout) throw new Error("ClassScout default visitor blueprint is missing");
   return [
-    {
-      visitorKey: "classscout-new-york",
-      state: "active",
-      industry: "kids_activities",
-      location: { country: "United States", city: "New York", geoGranularity: "city" },
-      audience: ["parents", "caregivers", "families"],
-      publicPromise: "Find verified classes, camps, programs, and activities for kids in New York.",
-      taxonomyVersion: "v1",
-      sourcePolicyVersion: "v1",
-      qualityGateVersion: "v1",
-      feedbackPolicyVersion: "v1",
-    },
+    classScout,
     {
       visitorKey: "compare",
       state: "active",
@@ -32,29 +30,10 @@ export function buildDefaultVisitorBlueprints(): VisitorBlueprint[] {
 }
 
 export function buildDefaultVisitorTaxonomies(): VisitorTaxonomy[] {
+  const classScout = getDefaultVisitorTaxonomy("classscout-new-york");
+  if (!classScout) throw new Error("ClassScout default visitor taxonomy is missing");
   return [
-    {
-      visitorKey: "classscout-new-york",
-      version: "v1",
-      contentTypes: [
-        { contentType: "class", primitive: "course", publicEligible: true, label: "Class" },
-        { contentType: "camp", primitive: "camp", publicEligible: true, label: "Camp" },
-        { contentType: "birthday_party", primitive: "service", publicEligible: true, label: "Birthday Party" },
-        { contentType: "drop_in", primitive: "program", publicEligible: true, label: "Drop-In Program" },
-        { contentType: "museum_program", primitive: "program", publicEligible: true, label: "Museum Program" },
-        { contentType: "source_only", primitive: "source-only", publicEligible: false, label: "Source Only" },
-      ],
-      forbiddenMappings: [],
-      aliases: [
-        { from: "storytime", to: "drop_in" },
-        { from: "after-school", to: "class" },
-      ],
-      requiredEvidenceByType: {
-        class: [{ field: "sourceUrl", required: true }, { field: "title", required: true }, { field: "provider", required: true }],
-        camp: [{ field: "sourceUrl", required: true }, { field: "title", required: true }, { field: "season", required: true }],
-        birthday_party: [{ field: "sourceUrl", required: true }, { field: "title", required: true }],
-      },
-    },
+    classScout,
     {
       visitorKey: "compare",
       version: "v1",

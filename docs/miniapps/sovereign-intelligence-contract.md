@@ -126,6 +126,8 @@ The ClassScout visitor contract is `classscout.visitor.sovereign@v1`.
 
 It preserves the existing visitor/class workflow while aligning it to the same public verification and learning-memory rules.
 
+The Manhattan launch profile, taxonomy, gate behavior, rollback path, and verification commands are documented in `docs/miniapps/classscout-manhattan-launch-contract.md`.
+
 ## Research Task Planner
 
 The planner is implemented in `src/lib/miniapp-research-planner.ts`.
@@ -144,6 +146,47 @@ Planner APIs:
 
 - `POST /api/visitor/[visitorKey]/research/tasks/plan` requires admin membership and accepts `companyId`, optional `destinationKey`, `targetVisibleCards`, and `limit`.
 - `GET /api/visitor/[visitorKey]/research/tasks` requires company membership and returns queued tasks for burst workers and operator surfaces.
+
+## ClassScout Manhattan Source Import
+
+The ClassScout Manhattan source import lane is implemented in `src/lib/classscout-source-import.ts`, `src/lib/classscout-source-import-server.ts`, and `POST /api/visitor/[visitorKey]/sources/import`.
+
+Import format:
+
+```json
+{
+  "companyId": "company-id",
+  "destinationKey": "classscout",
+  "dryRun": true,
+  "importBatchId": "classscout-manhattan-2026-06-11",
+  "leads": [
+    {
+      "url": "https://provider.example/classes",
+      "title": "Provider name",
+      "category": "STEM",
+      "neighborhood": "Upper West Side",
+      "extractionHints": ["Look for age ranges and registration URLs."],
+      "tags": ["robotics"],
+      "sourceUrls": ["https://provider.example/register"]
+    }
+  ]
+}
+```
+
+Operational behavior:
+
+- The route requires admin membership and defaults to `dryRun: true`.
+- Each request is capped at 500 leads.
+- Writes go through `createVisitorSourceDatacard`, so repeated imports upsert by canonical URL.
+- Source datacards carry Manhattan launch metadata: `coverageGoalIds`, `geography`, `neighborhoods`, `tags`, and `importBatchId`.
+- Official and government sources default to `trusted`; directories and calendars default to `usable`; social sources default to `weak`; adult-only/travel-guide signals become `blocked`.
+- `autoPublishEligible` remains `false`; source imports seed research and review, not direct public publishing.
+
+Rollback:
+
+- Bad imports can be located by `importBatchId`.
+- Individual source rows can be updated to `trustTier: "blocked"` with `blockedReasons`, or deleted through existing source maintenance tools if the whole batch is wrong.
+- Because imports upsert by canonical URL, rerunning a corrected batch replaces the datacard metadata without creating duplicate source rows.
 
 ## Evidence Runtime
 

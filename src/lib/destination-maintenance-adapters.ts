@@ -209,12 +209,56 @@ async function executeCompareMaintenance(
   };
 }
 
+async function executeTrainersMaintenance(
+  input: DestinationMaintenanceAdapterInput,
+): Promise<DestinationMaintenanceAdapterResult> {
+  const approvedPublishes = await publishApprovedPacketsForDestination({
+    companyId: input.companyId,
+    destinationKey: "trainers",
+    actorId: input.actorId,
+    limit: input.limits.maxApprovedPublishes,
+  });
+  const staleRevisionSweep = await scanReviewPressureForDestination({
+    companyId: input.companyId,
+    destinationKey: "trainers",
+  });
+
+  return {
+    supported: true,
+    approvedPublishes: approvedPublishes as Record<string, unknown>,
+    staleRevisionSweep: staleRevisionSweep as Record<string, unknown>,
+  };
+}
+
+async function executeAthleteIQMaintenance(
+  input: DestinationMaintenanceAdapterInput,
+): Promise<DestinationMaintenanceAdapterResult> {
+  const approvedPublishes = await publishApprovedPacketsForDestination({
+    companyId: input.companyId,
+    destinationKey: "athleteiq",
+    actorId: input.actorId,
+    limit: input.limits.maxApprovedPublishes,
+  });
+  const staleRevisionSweep = await scanReviewPressureForDestination({
+    companyId: input.companyId,
+    destinationKey: "athleteiq",
+  });
+
+  return {
+    supported: true,
+    approvedPublishes: approvedPublishes as Record<string, unknown>,
+    staleRevisionSweep: staleRevisionSweep as Record<string, unknown>,
+  };
+}
+
 const DESTINATION_MAINTENANCE_ADAPTERS: Record<
   DestinationKey,
   (input: DestinationMaintenanceAdapterInput) => Promise<DestinationMaintenanceAdapterResult>
 > = {
   classscout: executeClassScoutMaintenance,
   compare: executeCompareMaintenance,
+  trainers: executeTrainersMaintenance,
+  athleteiq: executeAthleteIQMaintenance,
 };
 
 export async function executeDestinationMaintenanceAdapters(input: {

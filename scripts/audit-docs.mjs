@@ -28,11 +28,11 @@ const requiredPhrases = [
   },
   {
     file: "HANDOVER.md",
-    phrases: ["docs/RULEBOOK.md", "UnifiedCard", "AI brain", "general-design-system", "consumed GDS version"],
+    phrases: ["docs/RULEBOOK.md", "UnifiedCard", "AI brain", "general-design-system", "consumed GDS version", "GDS maturity adoption report"],
   },
   {
     file: "DESIGN_SYSTEM.md",
-    phrases: ["Mantine `Card`", "UnifiedCard", "Typography is centrally defined only", "general-design-system", "Local Adapter Inventory"],
+    phrases: ["GDS is the only approved UI framework", "UnifiedCard", "Typography is centrally defined only", "general-design-system", "Reporting Architecture", "Local Adapter Inventory"],
   },
   {
     file: "docs/RULEBOOK.md",
@@ -40,7 +40,7 @@ const requiredPhrases = [
   },
   {
     file: "docs/SSOT.md",
-    phrases: ["Mantine only", "UnifiedCard", "general-design-system"],
+    phrases: ["GDS only", "UnifiedCard", "general-design-system", "GDS maturity adoption report"],
   },
   {
     file: "docs/CANONICAL_TERMINOLOGY.md",

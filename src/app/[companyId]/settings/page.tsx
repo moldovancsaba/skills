@@ -182,6 +182,8 @@ function cloneDestinationDaemonByDestination(
   return {
     classscout: { ...value.classscout },
     compare: { ...value.compare },
+    trainers: { ...value.trainers },
+    athleteiq: { ...value.athleteiq },
   };
 }
 
@@ -194,7 +196,7 @@ function clampDestinationDaemonLimit(
   return Math.max(field.min, Math.min(field.max, Math.round(rawValue)));
 }
 
-const DEFAULT_MINIAPP_KEYS = ["classscout", "compare"] as const;
+const DEFAULT_MINIAPP_KEYS = ["classscout", "compare", "trainers", "athleteiq"] as const;
 
 function buildEmptyCapabilityDraft(): CapabilityDraft {
   return {
@@ -343,7 +345,7 @@ export default function SettingsPage() {
       }
       if (daemonPolicyRes.ok) {
         const daemonPolicyData = await daemonPolicyRes.json() as DaemonPolicyResponse;
-        if (daemonPolicyData?.byDestination?.classscout && daemonPolicyData?.byDestination?.compare) {
+        if (daemonPolicyData?.byDestination) {
           setDaemonPolicy(daemonPolicyData);
           setDaemonPolicyDraft(cloneDestinationDaemonByDestination(daemonPolicyData.byDestination));
         }
@@ -661,7 +663,7 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         const next = await res.json() as DaemonPolicyResponse;
-        if (next?.byDestination?.classscout && next?.byDestination?.compare) {
+        if (next?.byDestination) {
           setDaemonPolicy(next);
           setDaemonPolicyDraft(cloneDestinationDaemonByDestination(next.byDestination));
         }
@@ -1151,7 +1153,7 @@ export default function SettingsPage() {
                     </Stack>
                   </UnifiedCardSection>
 
-                  {(["classscout", "compare"] as DestinationKey[]).map((destinationKey) => (
+                  {(["classscout", "compare", "trainers", "athleteiq"] as DestinationKey[]).map((destinationKey) => (
                     <UnifiedCardSection key={`daemon-${destinationKey}`} tone="tactical">
                       <Stack gap="sm">
                         <SectionTitle>
@@ -1159,7 +1161,11 @@ export default function SettingsPage() {
                             destination:
                               destinationKey === "classscout"
                                 ? t("settings.daemonPolicyDestinationClassScout")
-                                : t("settings.daemonPolicyDestinationCompare"),
+                                : destinationKey === "compare"
+                                ? t("settings.daemonPolicyDestinationCompare")
+                                : destinationKey === "trainers"
+                                ? "Trainers"
+                                : "AthleteIQ",
                           })}
                         </SectionTitle>
                         <MetaText>{t("settings.daemonPolicyLaneOverridesDescription")}</MetaText>

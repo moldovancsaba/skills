@@ -532,6 +532,21 @@ Expected load reduction:
 3. Add a projection builder for `unitBoard.project`.
 4. Replace `src/app/local-ai/page.tsx` raw payload derivation with a small DTO renderer.
 5. Replace `src/app/[companyId]/unit-board/unit-project-board-client.tsx` reconciliation with projection revision handling.
+
+## Delivered Surface Projection Slices
+
+### `unitBoard.project`
+
+Delivered on 2026-06-07:
+
+- `src/lib/unit-board-projection.ts` defines the `unitBoard.project` contract version 1 DTO.
+- `GET /api/companies/:companyId/surfaces/unitBoard.project?contractVersion=1` now returns server-ordered columns, item IDs, ordered item payloads, filter counts, allowed item actions, accessibility labels, state copy, and checksum-backed revision metadata.
+- `POST /api/companies/:companyId/surfaces/unitBoard.project/actions` now applies `create`, `update`, `move`, `archive`, `restore`, and `refreshProjection` through the canonical board tables and returns a receipt with previous revision, next revision, changed item IDs, and the next projection.
+- `src/app/[companyId]/unit-board/unit-project-board-client.tsx` now loads from the `unitBoard.project` surface DTO and applies create/update/move/archive through projection action receipts instead of calling the legacy `/api/board-items` endpoint.
+- `scripts/test-unit-board-projection-contract.mjs` guards the contract shape and surface-route wiring.
+
+Remaining follow-up:
+
+- add item projection pagination only if board payload size approaches the shared surface projection byte limit
 6. Add `scripts/audit-client-load.mjs` to fail on oversized client files and too many client fetches.
 7. Add Atlas query profiling documentation for the new surface endpoints.
-

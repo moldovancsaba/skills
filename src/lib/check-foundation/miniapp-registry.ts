@@ -2,7 +2,7 @@ import miniappRegistryData from "./miniapp-registry-data.json";
 import { publishDestinationReviewPacket } from "@/lib/destination-publish-bridge";
 
 export const CHECK_FOUNDATION_MINIAPP_REGISTRY_SCHEMA_VERSION = 1 as const;
-export const MINIAPP_IDS = ["classscout", "compare"] as const;
+export const MINIAPP_IDS = ["classscout", "compare", "trainers", "athleteiq"] as const;
 export type MiniappId = (typeof MINIAPP_IDS)[number];
 
 export type MiniappDefinition = {
@@ -74,6 +74,18 @@ function classScoutBridgeConfigured() {
 function compareBridgeConfigured() {
   const baseUrl = process.env.COMPARE_BASE_URL?.trim();
   const ingestKey = process.env.COMPARE_INGEST_API_KEY?.trim();
+  return Boolean(baseUrl && ingestKey);
+}
+
+function trainersBridgeConfigured() {
+  const baseUrl = process.env.TRAINERS_BASE_URL?.trim();
+  const ingestKey = process.env.TRAINERS_INGEST_API_KEY?.trim();
+  return Boolean(baseUrl && ingestKey);
+}
+
+function athleteiqBridgeConfigured() {
+  const baseUrl = process.env.ATHLETEIQ_BASE_URL?.trim();
+  const ingestKey = process.env.ATHLETEIQ_INGEST_API_KEY?.trim();
   return Boolean(baseUrl && ingestKey);
 }
 
@@ -167,9 +179,101 @@ const compareAdapter: MiniappAdapter = {
   },
 };
 
+const trainersAdapter: MiniappAdapter = {
+  key: "trainers",
+  miniappId: "trainers",
+  async getStatus() {
+    const configured = trainersBridgeConfigured();
+    return {
+      miniappId: "trainers",
+      configured,
+      ready: configured,
+      reason: configured ? undefined : "Trainers bridge credentials are missing.",
+    };
+  },
+  async publishCard(input) {
+    const reviewPacketId = String(input.card.payload.reviewPacketId || "").trim();
+    if (!reviewPacketId) {
+      return {
+        cardId: input.card.cardId,
+        status: "failed",
+        message: "reviewPacketId is required for Trainers publishing.",
+      };
+    }
+
+    const result = await publishDestinationReviewPacket({
+      companyId: input.unitId,
+      reviewPacketId,
+      reviewedBy: input.actorId,
+    });
+
+    if (!result.ok) {
+      return {
+        cardId: input.card.cardId,
+        status: result.status >= 500 ? "retryable_failed" : "failed",
+        message: typeof result.error === "string" ? result.error : `Trainers publish failed with status ${result.status}`,
+      };
+    }
+
+    return {
+      cardId: input.card.cardId,
+      status: "published",
+      externalId: reviewPacketId,
+      message: "Published through Trainers review-publish bridge.",
+    };
+  },
+};
+
+const athleteiqAdapter: MiniappAdapter = {
+  key: "athleteiq",
+  miniappId: "athleteiq",
+  async getStatus() {
+    const configured = athleteiqBridgeConfigured();
+    return {
+      miniappId: "athleteiq",
+      configured,
+      ready: configured,
+      reason: configured ? undefined : "AthleteIQ bridge credentials are missing.",
+    };
+  },
+  async publishCard(input) {
+    const reviewPacketId = String(input.card.payload.reviewPacketId || "").trim();
+    if (!reviewPacketId) {
+      return {
+        cardId: input.card.cardId,
+        status: "failed",
+        message: "reviewPacketId is required for AthleteIQ publishing.",
+      };
+    }
+
+    const result = await publishDestinationReviewPacket({
+      companyId: input.unitId,
+      reviewPacketId,
+      reviewedBy: input.actorId,
+    });
+
+    if (!result.ok) {
+      return {
+        cardId: input.card.cardId,
+        status: result.status >= 500 ? "retryable_failed" : "failed",
+        message: typeof result.error === "string" ? result.error : `AthleteIQ publish failed with status ${result.status}`,
+      };
+    }
+
+    return {
+      cardId: input.card.cardId,
+      status: "published",
+      externalId: reviewPacketId,
+      message: "Published through AthleteIQ review-publish bridge.",
+    };
+  },
+};
+
 const miniappAdapterById: Record<MiniappId, MiniappAdapter> = {
   classscout: classScoutAdapter,
   compare: compareAdapter,
+  trainers: trainersAdapter,
+  athleteiq: athleteiqAdapter,
 };
 
 export function isMiniappId(value: string): value is MiniappId {

@@ -73,6 +73,11 @@ function normalizeVisitorKey(value: string) {
   return String(value || "").trim().toLowerCase();
 }
 
+function isClassScoutVisitorKey(value: string) {
+  const visitorKey = normalizeVisitorKey(value);
+  return visitorKey === "classscout" || visitorKey === "classscout-new-york" || visitorKey.includes("classscout");
+}
+
 export function resolveDestinationKeyForVisitor(visitorKeyRaw: string): DestinationKey | null {
   const visitorKey = normalizeVisitorKey(visitorKeyRaw);
   if (!visitorKey) return null;
@@ -137,6 +142,96 @@ function writeVisitorStore(existingConfig: Prisma.JsonValue | null | undefined, 
   return record as Prisma.InputJsonValue;
 }
 
+const CLASSSCOUT_REQUIRED_PROVIDER_EVIDENCE = [
+  { field: "name", required: true, note: "Provider or program name shown on the public profile." },
+  { field: "category", required: true, note: "Primary launch category or enrichment category." },
+  { field: "borough", required: true, note: "Launch scope must resolve to Manhattan." },
+  { field: "neighborhood", required: true, note: "Neighborhood-level browse and map filtering require this." },
+  { field: "ageRanges", required: true, note: "Parent-facing eligibility filter." },
+  { field: "programType", required: true, note: "Class, camp, party, drop-in, event, meetup, or provider profile." },
+  { field: "shortDescription", required: true, note: "Human-readable public summary." },
+  { field: "website", required: true, note: "Provider claim/contact and outbound attribution path." },
+  { field: "image", required: true, note: "Uploaded public ImgBB image for launch-quality cards." },
+  { field: "sourceUrl", required: true, note: "Official source or reviewed directory evidence." },
+] as const;
+
+const CLASSSCOUT_LAUNCH_CONTENT_TYPES: VisitorContentType[] = [
+  { contentType: "Classes", primitive: "course", publicEligible: true, label: "Classes", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Camps", primitive: "camp", publicEligible: true, label: "Camps", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Birthday Parties", primitive: "service", publicEligible: true, label: "Birthday Parties", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Drop-In Activities", primitive: "program", publicEligible: true, label: "Drop-In Activities", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Family Events", primitive: "event", publicEligible: true, label: "Family Events", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Meetup Groups", primitive: "community", publicEligible: true, label: "Meetup Groups", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Arts", primitive: "course", publicEligible: true, label: "Arts", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "STEM", primitive: "course", publicEligible: true, label: "STEM", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Music", primitive: "course", publicEligible: true, label: "Music", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Sports", primitive: "program", publicEligible: true, label: "Sports", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Dance", primitive: "course", publicEligible: true, label: "Dance", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Theater", primitive: "course", publicEligible: true, label: "Theater", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Martial Arts", primitive: "course", publicEligible: true, label: "Martial Arts", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Swimming", primitive: "course", publicEligible: true, label: "Swimming", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Tutoring", primitive: "course", publicEligible: true, label: "Tutoring", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Language", primitive: "course", publicEligible: true, label: "Language", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Provider Profiles", primitive: "venue", publicEligible: true, label: "Provider Profiles", evidenceProfileKey: "classscout-provider-profile" },
+  { contentType: "Source Only", primitive: "source-only", publicEligible: false, label: "Source Only" },
+];
+
+const CLASSSCOUT_REQUIRED_EVIDENCE_BY_TYPE = Object.fromEntries(
+  CLASSSCOUT_LAUNCH_CONTENT_TYPES
+    .filter((contentType) => contentType.publicEligible)
+    .map((contentType) => [contentType.contentType.toLowerCase(), [...CLASSSCOUT_REQUIRED_PROVIDER_EVIDENCE]])
+) as VisitorTaxonomy["requiredEvidenceByType"];
+
+export function getDefaultVisitorBlueprint(visitorKeyRaw: string): VisitorBlueprint | null {
+  const visitorKey = normalizeVisitorKey(visitorKeyRaw);
+  if (!isClassScoutVisitorKey(visitorKey)) return null;
+  return {
+    visitorKey,
+    state: "active",
+    industry: "kids_family_activities",
+    location: { country: "United States", region: "New York", city: "Manhattan", geoGranularity: "city" },
+    audience: ["parents", "caregivers", "families", "providers"],
+    publicPromise: "Find reviewed Manhattan classes, camps, birthday parties, drop-ins, events, meetups, and enrichment providers for kids and families.",
+    taxonomyVersion: "classscout-manhattan-launch@v1",
+    sourcePolicyVersion: "classscout-manhattan-launch@v1",
+    qualityGateVersion: "classscout-manhattan-launch@v1",
+    feedbackPolicyVersion: "classscout-manhattan-launch@v1",
+  };
+}
+
+export function getDefaultVisitorTaxonomy(visitorKeyRaw: string): VisitorTaxonomy | null {
+  const visitorKey = normalizeVisitorKey(visitorKeyRaw);
+  if (!isClassScoutVisitorKey(visitorKey)) return null;
+  return {
+    visitorKey,
+    version: "classscout-manhattan-launch@v1",
+    contentTypes: CLASSSCOUT_LAUNCH_CONTENT_TYPES,
+    forbiddenMappings: [
+      { sourceTerm: "adult only", reason: "ClassScout launch profiles must be family or youth relevant." },
+      { sourceTerm: "21+", reason: "Adult-only venue signal." },
+      { sourceTerm: "school admissions", reason: "Admissions-only pages are not provider activity profiles." },
+      { sourceTerm: "daycare only", reason: "Daycare-only listings are outside the launch category set." },
+      { sourceTerm: "travel guide", reason: "Generic travel pages are not provider evidence." },
+      { sourceTerm: "source only", reason: "Source-only pages cannot become public provider profiles." },
+    ],
+    aliases: [
+      { from: "art", to: "Arts" },
+      { from: "arts classes", to: "Arts" },
+      { from: "coding", to: "STEM" },
+      { from: "robotics", to: "STEM" },
+      { from: "science", to: "STEM" },
+      { from: "music lessons", to: "Music" },
+      { from: "sports classes", to: "Sports" },
+      { from: "birthday party", to: "Birthday Parties" },
+      { from: "drop in", to: "Drop-In Activities" },
+      { from: "storytime", to: "Drop-In Activities" },
+      { from: "family event", to: "Family Events" },
+      { from: "parent meetup", to: "Meetup Groups" },
+    ],
+    requiredEvidenceByType: CLASSSCOUT_REQUIRED_EVIDENCE_BY_TYPE,
+  };
+}
+
 async function getDestinationInstanceForVisitor(companyId: string, visitorKey: string, destinationKeyHint?: unknown) {
   const destinationKey = resolveDestinationKeyForVisitorWithHint(visitorKey, destinationKeyHint);
   if (!destinationKey) {
@@ -151,7 +246,7 @@ export async function getVisitorBlueprint(companyId: string, visitorKey: string,
   const instance = await getActiveDestinationInstance(companyId, destinationKey);
   if (!instance) return null;
   const store = readVisitorStore(instance.config as Prisma.JsonValue);
-  return store.blueprints?.[normalizeVisitorKey(visitorKey)] ?? null;
+  return store.blueprints?.[normalizeVisitorKey(visitorKey)] ?? getDefaultVisitorBlueprint(visitorKey);
 }
 
 export async function upsertVisitorBlueprint(companyId: string, blueprint: VisitorBlueprint, destinationKeyHint?: unknown): Promise<VisitorBlueprint> {
@@ -222,7 +317,7 @@ export async function getVisitorTaxonomy(companyId: string, visitorKey: string, 
   const instance = await getActiveDestinationInstance(companyId, destinationKey);
   if (!instance) return null;
   const store = readVisitorStore(instance.config as Prisma.JsonValue);
-  return store.taxonomies?.[normalizeVisitorKey(visitorKey)] ?? null;
+  return store.taxonomies?.[normalizeVisitorKey(visitorKey)] ?? getDefaultVisitorTaxonomy(visitorKey);
 }
 
 export async function upsertVisitorTaxonomy(companyId: string, taxonomy: VisitorTaxonomy, destinationKeyHint?: unknown): Promise<VisitorTaxonomy> {

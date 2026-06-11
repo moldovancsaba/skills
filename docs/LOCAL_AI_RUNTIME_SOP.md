@@ -67,6 +67,8 @@ Runnable inventory:
 - lane event writes are best-effort observability; a transient event-ledger write failure must never stop Playlist content creation or Burst child-job creation
 - lane event payloads must be human-readable, bounded, and secret-redacted before storage
 - `/local-ai` renders the recent lane history so operators can see what the System Health, Playlist, and Human-Approved Burst lanes actually did without reading raw logs
+- `/observability` runtime controls must use GDS confirmation, toast, command registration, and UI telemetry primitives; native browser `confirm`, `alert`, or `prompt` dialogs are not allowed on `/observability` or `/local-ai`
+- operator-triggered observability actions must emit safe UI telemetry for started, cancelled, completed, and failed states; payloads must include surface/action metadata only and must not include secrets or raw sensitive runtime payloads
 - lane events are also mirrored into the local audit database as `OutcomeEvent` records when `LOCAL_DATABASE_URL` is available; the `SystemSetting` ring buffer is the quick dashboard cache, not the long-term ledger
 - Human-Approved Burst recovery uses `PATCH /api/local-ai/bursts` with `STOP_REQUESTED`, `ROLLBACK_PARK_CHILD_JOBS`, or `ROLLBACK_REWORK_CHILD_OUTPUTS`; recovery parks child shards, records the operator reason, includes operator-visible `recoveryMode`, and emits a lane event
 

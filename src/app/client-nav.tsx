@@ -272,6 +272,8 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
             pipeline: data.counts?.pipeline || 0,
             classscout: data.counts?.classscout || 0,
             compare: data.counts?.compare || 0,
+            trainers: data.counts?.trainers || 0,
+            athleteiq: data.counts?.athleteiq || 0,
           });
         }
       } catch (err) {
@@ -369,6 +371,28 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
 
                 if (routeByProfile && canShowMiniappOps) {
                   items.push(routeByProfile);
+                }
+
+                if (resolvedCompany?.features?.trainers || counts.trainers > 0 || (typeof window !== "undefined" && window.location.pathname.includes("/trainers"))) {
+                  items.push({
+                    key: "trainers",
+                    href: (companyId: string) => `/${companyId}/trainers`,
+                    label: "Trainers",
+                    icon: Activity,
+                    color: "review",
+                    tone: "review",
+                  });
+                }
+
+                if (resolvedCompany?.features?.athleteiq || counts.athleteiq > 0 || (typeof window !== "undefined" && window.location.pathname.includes("/athleteiq"))) {
+                  items.push({
+                    key: "athleteiq",
+                    href: (companyId: string) => `/${companyId}/athleteiq`,
+                    label: "AthleteIQ",
+                    icon: Activity,
+                    color: "review",
+                    tone: "review",
+                  });
                 }
 
                 for (const item of staticModuleNavItems) {

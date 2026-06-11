@@ -7,17 +7,17 @@ It is subordinate to [docs/RULEBOOK.md](/Users/Shared/Projects/checklist/docs/RU
 
 GDS alignment:
 
-- consumed GDS version: `2.4.0`
-- GDS last updated: `2026-05-25`
-- shared package install path: not adopted yet in this repo; target end state is direct package consumption through `@gds/theme`, `@gds/core`, and `@gds/admin`
+- consumed GDS version/package: `@doneisbetter/gds@3.4.3`
+- GDS package published: `2026-06-06T23:01:58.666Z`
+- shared package install path: direct package consumption through `@doneisbetter/gds`, `@doneisbetter/gds-theme`, `@doneisbetter/gds-core`, and `@doneisbetter/gds-admin`
 
 ## System Summary
 
 The CHECKLIST UI is:
 
-- Mantine only
+- GDS only
 - semantic-tone driven
-- Mantine-theme controlled
+- GDS-provider/theme controlled
 - centralized around one card API
 - centrally typed for typography
 - centrally controlled for interactions
@@ -25,7 +25,7 @@ The CHECKLIST UI is:
 
 ## Canonical Product UI Stack
 
-- Mantine theme in [src/components/providers.tsx](/Users/Shared/Projects/checklist/src/components/providers.tsx)
+- GDS provider/theme in [src/components/providers.tsx](/Users/Shared/Projects/checklist/src/components/providers.tsx)
 - global tokens in [src/app/globals.css](/Users/Shared/Projects/checklist/src/app/globals.css)
 - semantic surface helpers in [src/lib/semantic-theme.ts](/Users/Shared/Projects/checklist/src/lib/semantic-theme.ts)
 - state semantics in [src/lib/ui-state.ts](/Users/Shared/Projects/checklist/src/lib/ui-state.ts)
@@ -34,6 +34,7 @@ The CHECKLIST UI is:
 - card shell in [src/components/ui/unified-card.tsx](/Users/Shared/Projects/checklist/src/components/ui/unified-card.tsx)
 - modal shell in [src/components/ui/unified-card-modal.tsx](/Users/Shared/Projects/checklist/src/components/ui/unified-card-modal.tsx)
 - page/layout primitives in [src/components/ui/app-shell.tsx](/Users/Shared/Projects/checklist/src/components/ui/app-shell.tsx)
+- reporting and chart adapters in [src/components/gds/reporting.tsx](/Users/Shared/Projects/checklist/src/components/gds/reporting.tsx)
 
 ## Local Adapter Inventory
 
@@ -44,20 +45,22 @@ Required GDS contract families map to these local files:
 - product card: `src/components/ui/unified-card.tsx`
 - metric/progress card: `src/components/ui/app-shell.tsx`
 - state block and empty-state surface: `src/components/ui/app-shell.tsx`
+- reporting sections and validated charts: `src/components/gds/reporting.tsx`
 - article/docs shell: not currently implemented as a first-class local contract
 - auth shell: not currently implemented as a first-class local contract
 - data toolbar/responsive data view: no single shared local contract yet; per-surface implementations remain a backlog item rather than an approved alternate authority
 
 Known exception / migration backlog:
 
-- CHECKLIST currently does not consume published shared `@gds/*` packages.
-- CHECKLIST still uses a project-specific semantic tone/card grammar on top of Mantine because the product card family is product-defining here.
+- CHECKLIST still uses approved local compatibility adapters while migrating feature surfaces to package-native GDS primitives.
 - Shared contract families not yet centralized into one local adapter file remain backlog, not parallel authority.
+- Strict enforcement is active in `gds-adoption.json`; the current adapter count is 14 approved compatibility bridges, with 2 brand exceptions and 8 expiring strict native-dialog exceptions.
+- Native browser dialogs are not approved for new work. Existing dialog debt is tracked in `strictExceptions` and must be replaced with GDS runtime feedback confirmations by the listed review date.
 
 ## Core Non-Negotiable Rules
 
-1. Mantine is the only approved UI framework.
-2. Mantine `Card` is the only approved base primitive for product card surfaces.
+1. GDS is the only approved UI framework.
+2. Package-native GDS primitives are the preferred implementation authority; approved local adapters are tracked in `gds-adoption.json`.
 3. `UnifiedCard` is the only approved feature-level card API.
 4. `UnifiedCardModal` is the only approved modal content shell for card-driven surfaces.
 5. Semantic tones are the only approved product color vocabulary.
@@ -85,7 +88,8 @@ Feature code must not use legacy hue aliases as product semantics.
 
 Approved hierarchy:
 
-- Mantine `Card`
+- package-native GDS primitives
+- approved compatibility adapters
 - `UnifiedCard`
 - `UnifiedCardBody`
 - `UnifiedCardSection`
@@ -169,6 +173,22 @@ Rules:
 - no Mantine `Transition` wrappers for product surfaces
 - global no-motion rule remains authoritative
 
+## Reporting Architecture
+
+Approved reporting source:
+
+- `GdsReportingSection`
+- `GdsReportingBarChart`
+- `validateGdsChartData`
+- `GdsChart` table fallback
+
+Rules:
+
+- analytics-heavy surfaces must normalize chart data into the GDS chart datum contract
+- chart data must pass GDS validation before rendering
+- chart panels must include text summary and a table fallback through the GDS chart contract
+- direct route-level Recharts composition is a migration backlog item, not an approved final pattern
+
 ## Theme Defaults
 
 Centrally defined in `providers.tsx`:
@@ -204,8 +224,16 @@ Required verification:
 npm run audit:docs
 npm run lint
 npm run audit:semantic
-npx tsc --noEmit
+npm run verify:gds-compliance
+npm run build
 ```
+
+Strict enforcement rules:
+
+- `gds-adoption.json` must keep `mode: "strict"` and `strictMode: true` unless a rollback is explicitly documented.
+- every strict exception requires owner, reason, replacement path, review date, and expiry behavior
+- new direct Mantine, Tabler, Recharts, drag/drop, native-dialog, or route-local transition drift fails `npm run test:gds-strict-enforcement`
+- obsolete local adapters may be removed only after the strict test proves no imports remain and the manifest adapter count is updated
 
 If a new drift pattern is discovered:
 

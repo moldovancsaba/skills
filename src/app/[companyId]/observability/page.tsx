@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
+import { useCommandLauncher } from "@doneisbetter/gds/client";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Badge, Box, Button, Group, Loader, Select, SimpleGrid, Stack, Table } from "@/components/gds/primitives";
 import { IconActivity as Activity, IconAlertTriangle as AlertTriangle, IconCoins as Coins, IconGauge as Gauge, IconHeartbeat as Heartbeat, IconListCheck as ListCheck, IconRefresh as RefreshIcon, IconStethoscope as Stethoscope } from "@/components/gds/icons";
@@ -12,15 +13,49 @@ import { DestinationLearningPanel } from "@/components/destination-learning-pane
 import { DestinationMissionControl } from "@/components/destination-mission-control";
 import { normalizeDestinationKey, resolveDestinationLabel } from "@/lib/destination-scope";
 import { DESTINATION_KEYS } from "@/lib/destination-workflow-contract";
-import { SEMANTIC_CHART_BAR_RADIUS, SEMANTIC_CHART_GRID_STROKE, getSemanticListItemStyle } from "@/lib/semantic-theme";
+import { SEMANTIC_CHART_BAR_RADIUS, SEMANTIC_CHART_COLORS, SEMANTIC_CHART_GRID_STROKE, getSemanticListItemStyle } from "@/lib/semantic-theme";
 import { resolveEnabledLegacyModules } from "@/lib/module-capability-utils";
 import type { UnitModuleKey } from "@/lib/intelligence-unit-capabilities";
+import { useGdsRuntimeOperationFeedback } from "@/lib/gds-operation-feedback";
 
 const QUEUE_COLUMN_RANK: Record<string, number> = {
   NOW: 0,
   SOON: 1,
   LATER: 2,
   PARKED: 3,
+};
+
+const OBSERVABILITY_ACTIONS: Record<string, {
+  label: string;
+  description: string;
+  destructive?: boolean;
+}> = {
+  SYNC_QUEUE: {
+    label: "Sync Queue",
+    description: "Queue a bounded worker sync so queue state catches up with runtime truth.",
+  },
+  ESCALATE_SCORE_REPAIR: {
+    label: "Escalate Score Repair",
+    description: "Queue score repair work for degraded scoring health.",
+  },
+  RECOVER_FAILED_JOBS: {
+    label: "Recover Failed Jobs",
+    description: "Queue recovery for failed runtime jobs.",
+    destructive: true,
+  },
+  BUDGET_THROTTLE_QUEUE: {
+    label: "Throttle Queue",
+    description: "Apply runtime budget throttling to reduce workload pressure.",
+    destructive: true,
+  },
+  BUDGET_BATCH_EVALUATIONS: {
+    label: "Batch Evaluations",
+    description: "Queue evaluation batching to reduce repeated runtime work.",
+  },
+  BUDGET_CACHE_REUSE: {
+    label: "Cache / Reuse Ops",
+    description: "Apply cache and reuse policy for idempotent runtime operations.",
+  },
 };
 
 function sortQueueJobs(jobs: any[]) {
@@ -76,6 +111,8 @@ export default function ObservabilityPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [accessChecked, setAccessChecked] = useState(false);
+  const runGdsOperation = useGdsRuntimeOperationFeedback();
+  const commandLauncher = useCommandLauncher();
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -114,18 +151,55 @@ export default function ObservabilityPage() {
   }, [companyId, loadData, router]);
 
   const runAction = useCallback(async (action: string) => {
+    const contract = OBSERVABILITY_ACTIONS[action] ?? {
+      label: action.replace(/_/g, " ").toLowerCase(),
+      description: "Queue this runtime operation.",
+    };
     setActionLoading(action);
     try {
-      const response = await fetch("/api/observability", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, action }),
+      await runGdsOperation({
+        surface: "observability",
+        action,
+        targetType: "company",
+        targetId: companyId,
+        targetLabel: contract.label,
+        title: `Confirm ${contract.label}`,
+        message: contract.description,
+        destructive: Boolean(contract.destructive),
+        successTitle: `${contract.label} queued`,
+        successMessage: "The worker-facing request was accepted. Refreshing observability state now.",
+        errorTitle: `${contract.label} failed`,
+        run: async () => {
+          const response = await fetch("/api/observability", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ companyId, action }),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload?.message || payload?.error || `Request failed with ${response.status}`);
+          }
+          setData(payload);
+          return payload;
+        },
       });
-      setData(await response.json());
     } finally {
       setActionLoading(null);
     }
-  }, [companyId]);
+  }, [companyId, runGdsOperation]);
+
+  useEffect(() => {
+    commandLauncher.registerCommands(
+      Object.entries(OBSERVABILITY_ACTIONS).map(([action, contract]) => ({
+        id: `observability.${action.toLowerCase()}`,
+        label: contract.label,
+        group: "Observability runtime actions",
+        keywords: ["observability", "runtime", "worker", action.toLowerCase()],
+        run: () => runAction(action),
+        enabledWhen: () => actionLoading === null,
+      })),
+    );
+  }, [actionLoading, commandLauncher, runAction]);
 
   const updateDestinationScope = useCallback((nextScope: string | null) => {
     const scope = normalizeDestinationKey(nextScope) ?? "all";
@@ -514,7 +588,7 @@ export default function ObservabilityPage() {
                   <XAxis dataKey="family" tickLine={false} axisLine={false} />
                   <YAxis domain={[0, 100]} tickLine={false} axisLine={false} />
                   <Tooltip formatter={(value) => chartTooltipFormatter(value)} />
-                  <Bar dataKey="aggregate" fill="var(--mantine-color-cyan-6)" radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
+                  <Bar dataKey="aggregate" fill={SEMANTIC_CHART_COLORS.knowmore} radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </Box>
@@ -531,7 +605,7 @@ export default function ObservabilityPage() {
                   <XAxis dataKey="family" tickLine={false} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} />
                   <Tooltip formatter={(value) => chartTooltipFormatter(value)} />
-                  <Bar dataKey="count" fill="var(--mantine-color-orange-6)" radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
+                  <Bar dataKey="count" fill={SEMANTIC_CHART_COLORS.strategy} radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </Box>

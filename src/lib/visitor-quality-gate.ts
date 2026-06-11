@@ -40,6 +40,48 @@ function hasValue(value: unknown) {
   return true;
 }
 
+function readPath(record: Record<string, unknown>, path: string): unknown {
+  const direct = record[path];
+  if (hasValue(direct)) return direct;
+  if (!path.includes(".")) return direct;
+  let cursor: unknown = record;
+  for (const part of path.split(".")) {
+    const next = asRecord(cursor);
+    if (!next) return undefined;
+    cursor = next[part];
+  }
+  return cursor;
+}
+
+function readEvidenceField(field: string, facts: Record<string, unknown>, metadata: Record<string, unknown>) {
+  const publicPayload = asRecord(metadata.publicDraftPayload) ?? asRecord(facts.publicDraftPayload) ?? {};
+  const fieldAliases: Record<string, string[]> = {
+    name: ["name", "title", "provider"],
+    category: ["category", "primaryCategory", "contentType"],
+    borough: ["borough", "location.borough"],
+    neighborhood: ["neighborhood", "location.neighborhood"],
+    ageRanges: ["ageRanges", "ages", "ageRange"],
+    programType: ["programType", "contentType", "activityType"],
+    shortDescription: ["shortDescription", "description", "summary"],
+    website: ["website", "url", "sourceUrl"],
+    image: ["image", "coverImageUrl", "imageUrl"],
+    sourceUrl: ["sourceUrl", "url", "website"],
+  };
+  const candidates = fieldAliases[field] ?? [field];
+  for (const candidate of candidates) {
+    const value = readPath(facts, candidate) ?? readPath(metadata, candidate) ?? readPath(publicPayload, candidate);
+    if (hasValue(value)) return value;
+  }
+  return undefined;
+}
+
+function isClassScoutLaunchGate(input: { destinationKey?: string; taxonomy: VisitorTaxonomy }) {
+  const destinationKey = asString(input.destinationKey).toLowerCase();
+  const visitorKey = asString(input.taxonomy.visitorKey).toLowerCase();
+  const version = asString(input.taxonomy.version).toLowerCase();
+  return destinationKey === "classscout" || visitorKey.includes("classscout") || version.includes("classscout-manhattan-launch");
+}
+
 const PUBLIC_COPY_LEAK_PATTERNS = [
   /^listing\s+for\b/i,
   /^verified\s+listing\s+for\b/i,
@@ -152,11 +194,14 @@ export function evaluateVisitorQualityGate(input: VisitorQualityGateInput): Visi
   const requiredEvidence = taxonomy.requiredEvidenceByType?.[contentType] ?? [];
   const missingEvidenceFields = requiredEvidence
     .filter((field) => field.required)
-    .filter((field) => !hasValue(facts[field.field]) && !hasValue(metadata[field.field]))
+    .filter((field) => !hasValue(readEvidenceField(field.field, facts, metadata)))
     .map((field) => field.field);
 
   if (missingEvidenceFields.length > 0) {
     reviewReasons.push("missing_required_evidence");
+    if (isClassScoutLaunchGate({ destinationKey: input.destinationKey, taxonomy })) {
+      blockingReasons.push("missing_launch_profile_evidence");
+    }
   }
 
   blockingReasons.push(...collectPublicPayloadIssues({

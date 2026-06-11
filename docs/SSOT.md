@@ -11,8 +11,16 @@ Current GDS alignment:
 - consumed GDS version/package: `@doneisbetter/gds@3.4.3`
 - GDS package published: `2026-06-06T23:01:58.666Z`
 - shared package install path: adopted through direct npm consumption of `@doneisbetter/gds`, which brings `@doneisbetter/gds-theme`, `@doneisbetter/gds-core`, and `@doneisbetter/gds-admin`
-- root UI runtime is package-native: `src/components/providers.tsx` mounts `GdsProvider` and GDS runtime providers
+- root UI runtime is package-native: `src/components/providers.tsx` mounts `GdsProvider` and GDS runtime providers, with locale resolved from the persisted UI language instead of a hardcoded default
+- GDS locale metadata is the authority for language direction; `src/app/layout.tsx` consumes the verified `src/lib/gds-locale-bootstrap.generated.ts` bootstrap map, and `src/lib/ui-i18n.tsx` resolves client direction from GDS helpers
+- app-shell primitive adapters in `src/components/ui/app-shell.tsx` keep local imports stable while delegating page headers, metrics, notices, and empty states to package-native GDS primitives
+- reporting adapters in `src/components/gds/reporting.tsx` validate chart data through GDS and render analytics reports through GDS `ReportingSection`/`GdsChart` contracts
+- Miniapp/public shell adapter in `src/components/gds/public-miniapp-shell.tsx` delegates shell, navigation, footer, and flow state behavior to GDS public primitives; Compare is the first proof surface
+- GDS maturity adoption report: [docs/GDS_MATURITY_ADOPTION_REPORT.md](/Users/Shared/Projects/checklist/docs/GDS_MATURITY_ADOPTION_REPORT.md)
 - compatibility imports for Mantine, Tabler, Recharts, and drag/drop packages are centralized in `src/components/gds/*`
+- GDS adoption manifest: [gds-adoption.json](/Users/Shared/Projects/checklist/gds-adoption.json)
+- GDS governance gates: `npm run verify:gds-adoption` and `npm run verify:gds-compliance`
+- GDS strict enforcement is active: `gds-adoption.json` is in strict mode and `npm run test:gds-strict-enforcement` blocks new untracked native dialogs, route-local transitions, and direct UI peer imports
 - `npm run audit:gds-boundary` is the mandatory drift gate for GDS-only frontend operation
 - `next.config.js` enables package import optimization for GDS and heavy frontend peer packages to reduce client import cost
 
@@ -105,8 +113,9 @@ Backend and orchestration:
 
 Frontend:
 
-- Mantine only
-- centralized Mantine theme
+- GDS only
+- centralized GDS provider/theme
+- Mantine is an implementation peer only behind approved GDS compatibility modules
 - centralized semantic token layer
 - centralized card system through `UnifiedCard`
 - centralized DS-owned typography, including the approved `Text` and `Title` wrappers in `src/components/ui/typography.tsx`
@@ -116,9 +125,9 @@ Frontend:
 
 The product UI contract is:
 
-- Mantine only
+- GDS only
 - semantic tones only
-- Mantine `Card` as base primitive
+- package-native GDS primitives first, with approved compatibility adapters tracked in [gds-adoption.json](/Users/Shared/Projects/checklist/gds-adoption.json)
 - `UnifiedCard` as feature-level card API
 - `UnifiedCardModal` as modal content shell
 - centralized typography
@@ -239,6 +248,7 @@ Dashboard route contract:
 - home summary charts should not all hydrate eagerly on first paint; defer heavy chart rendering until the cards approach the viewport
 - non-critical panels such as membership or identity details should not block the first product-summary render
 - home-card chart data should come from the prepared projection too, not from broad snapshot analytics reads on the hot path
+- `unitBoard.project` is the prepared Unit Project Board surface projection contract; `src/lib/unit-board-projection.ts` builds server-ordered columns, item IDs, item payloads, filter counts, allowed actions, accessibility labels, state metadata, and checksum revision evidence, while the surface action route returns create/update/move/archive/restore receipts with previous and next projection revisions and the Unit Board client consumes that surface contract directly
 - if a Unit has an active Miniapp such as ClassScout or Compare, the root `/{companyId}` route may intentionally resolve to that Miniapp Ops Home instead of a generic tile dashboard
 - this exception must remain bounded by a dedicated landing summary contract and must not become a broad ad hoc analytics fan-out route
 
@@ -299,6 +309,9 @@ The current intelligence-operations contract also includes:
 - Search & Answers must clear stale result and answer state when the allowed layer selection changes so the visible output always reflects the current scope
 - one observability surface for worker health, queue pressure, score-health, AI workload budget pressure, and recent outcomes
 - observability captures bounded repair intents and budget-control records for queue sync, score-repair escalation, failed-job recovery, queue throttling, evaluation batching, and cache/reuse controls; the local AI system executes those actions after pulling them from MongoDB Atlas
+- observability runtime controls are GDS-governed: action confirmation, success/failure announcements, command registration, and UI telemetry flow through `src/lib/gds-operation-feedback.tsx`; native browser dialogs are forbidden on `/observability` and `/local-ai`
+- GDS maturity capability tracking is governed by `src/lib/gds-maturity-adoption.ts`, `docs/GDS_MATURITY_ADOPTION_REPORT.md`, and `npm run test:gds-maturity-adoption`; future adoption work must include owner, scope, dependencies, acceptance criteria, and GDS primitive mapping.
+- strict exception lifecycle is mandatory: each active exception needs owner, reason, replacement path, review date, and expiry behavior; adapter count and exception counts are release evidence, not informal notes
 - heavy runtime audit/event history belongs in the local MongoDB audit store, not in Atlas
 - Knowmore owns its own operator-visible health and bounded repair surface on top of the shared queue and score-health model
 - persisted workflow blueprints for bounded automation building, materialized as real worker-queue jobs when active

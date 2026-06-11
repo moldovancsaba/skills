@@ -13,7 +13,7 @@ import {
 } from "@doneisbetter/gds/client";
 import { rem, type MantineTheme } from "@/components/gds/primitives";
 import { ThemeProvider } from "@/lib/theme-provider";
-import { UiLanguageProvider } from "@/lib/ui-i18n";
+import { UiLanguageProvider, useI18n } from "@/lib/ui-i18n";
 import React from "react";
 import { getModuleTheme, resolveModuleTone } from "@/lib/semantic-theme";
 
@@ -245,10 +245,20 @@ const gdsTelemetrySink: GdsTelemetrySink = (event) => {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
+    <UiLanguageProvider>
+      <GdsRuntimeProviders>{children}</GdsRuntimeProviders>
+    </UiLanguageProvider>
+  );
+}
+
+function GdsRuntimeProviders({ children }: { children: React.ReactNode }) {
+  const { language } = useI18n();
+
+  return (
     <GdsProvider
       theme={theme}
       defaultColorScheme="auto"
-      locale="en"
+      locale={language}
     >
       <GdsTelemetryProvider sink={gdsTelemetrySink} sampleRate={0.1}>
         <GdsConfirmProvider>
@@ -257,18 +267,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
               <CommandRegistryProvider>
                 <OverlayManagerProvider>
                   <ThemeProvider>
-                    <UiLanguageProvider>
-                      {children}
-                      <style jsx global>{`
-                        *,
-                        *::before,
-                        *::after {
-                          animation: none !important;
-                          transition: none !important;
-                          scroll-behavior: auto !important;
-                        }
-                      `}</style>
-                    </UiLanguageProvider>
+                    {children}
+                    <style jsx global>{`
+                      *,
+                      *::before,
+                      *::after {
+                        animation: none !important;
+                        transition: none !important;
+                        scroll-behavior: auto !important;
+                      }
+                    `}</style>
                   </ThemeProvider>
                 </OverlayManagerProvider>
               </CommandRegistryProvider>

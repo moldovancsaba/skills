@@ -6,16 +6,17 @@ import "./globals.css";
 import { ColorSchemeScript } from "@/components/gds/primitives";
 import { Providers } from "@/components/providers";
 import { RootShell } from "@/components/root-shell";
+import { GDS_LOCALE_DIRECTION_MAP } from "@/lib/gds-locale-bootstrap.generated";
 import { getShellInitialSession } from "@/lib/server-shell-data";
+import { UI_LANGUAGE_STORAGE_KEY } from "@/lib/ui-language-config";
 
-const uiLanguageStorageKey = "checklist-ui-language";
 const uiLanguageBootstrapScript = `
 (() => {
   try {
-    const stored = window.localStorage.getItem(${JSON.stringify(uiLanguageStorageKey)});
-    const valid = new Set(["en", "hu", "es", "ar", "he"]);
-    const language = valid.has(stored) ? stored : "en";
-    const dir = language === "ar" || language === "he" ? "rtl" : "ltr";
+    const directions = ${JSON.stringify(GDS_LOCALE_DIRECTION_MAP)};
+    const stored = window.localStorage.getItem(${JSON.stringify(UI_LANGUAGE_STORAGE_KEY)});
+    const language = Object.prototype.hasOwnProperty.call(directions, stored) ? stored : "en";
+    const dir = directions[language] || "ltr";
     document.documentElement.lang = language;
     document.documentElement.dir = dir;
   } catch (_error) {

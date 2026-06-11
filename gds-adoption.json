@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "owner": "check-product",
+  "packageName": "@doneisbetter/gds",
+  "packageVersion": "3.4.3",
+  "upstreamRepository": "sovereignsquad/general-design-system",
+  "mode": "strict",
+  "strictMode": true,
+  "reviewCadence": "per-release",
+  "lastReviewedAt": "2026-06-07",
+  "nextReviewDue": "2026-06-14",
+  "approvedAdapters": [
+    {
+      "path": "src/components/providers.tsx",
+      "owner": "check-product",
+      "purpose": "Root GDS provider bridge, theme overrides, runtime providers, and language provider composition.",
+      "replacementPath": "@doneisbetter/gds/client provider and theme contracts",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/gds/primitives.ts",
+      "owner": "check-product",
+      "purpose": "Temporary compatibility barrel for approved Mantine implementation-peer primitives.",
+      "replacementPath": "Package-native named primitive exports from @doneisbetter/gds",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/gds/hooks.ts",
+      "owner": "check-product",
+      "purpose": "Temporary compatibility barrel for approved Mantine hooks.",
+      "replacementPath": "Package-native GDS hooks or local hook removal",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/gds/icons.ts",
+      "owner": "check-product",
+      "purpose": "Temporary compatibility barrel for approved Tabler icons.",
+      "replacementPath": "Package-native GDS icon exports or semantic icon wrapper",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/gds/charts.ts",
+      "owner": "check-product",
+      "purpose": "Temporary Recharts boundary with chart sizing safety.",
+      "replacementPath": "Package-native GDS chart primitives and semantic series palette",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/gds/drag-core.ts",
+      "owner": "check-product",
+      "purpose": "Temporary drag/drop implementation-peer boundary.",
+      "replacementPath": "Package-native GDS drag/drop primitives",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/gds/drag-sortable.ts",
+      "owner": "check-product",
+      "purpose": "Temporary sortable drag/drop implementation-peer boundary.",
+      "replacementPath": "Package-native GDS sortable primitives",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/gds/drag-utilities.ts",
+      "owner": "check-product",
+      "purpose": "Temporary drag/drop utility implementation-peer boundary.",
+      "replacementPath": "Package-native GDS drag/drop utilities",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/gds/drag-legacy.ts",
+      "owner": "check-product",
+      "purpose": "Temporary legacy drag/drop compatibility boundary.",
+      "replacementPath": "Package-native GDS drag/drop migration",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/gds/notifications.ts",
+      "owner": "check-product",
+      "purpose": "GDS notification bridge plus temporary Mantine notification compatibility.",
+      "replacementPath": "Package-native GDS notification API only",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/ui/app-shell.tsx",
+      "owner": "check-product",
+      "purpose": "Local app-shell compatibility adapter for page, metric, notice, route-card, and state surfaces.",
+      "replacementPath": "@doneisbetter/gds package-native page, metric, state, and layout primitives",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/ui/typography.tsx",
+      "owner": "check-product",
+      "purpose": "DS-owned typography bridge while package-native typography roles are adopted.",
+      "replacementPath": "@doneisbetter/gds package-native typography roles",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/ui/unified-card.tsx",
+      "owner": "check-product",
+      "purpose": "Product card compatibility adapter; the only approved feature-level card shell.",
+      "replacementPath": "@doneisbetter/gds card/surface primitives once product card contract is package-backed",
+      "reviewBy": "2026-06-14"
+    },
+    {
+      "path": "src/components/ui/unified-card-modal.tsx",
+      "owner": "check-product",
+      "purpose": "Product card modal compatibility adapter.",
+      "replacementPath": "@doneisbetter/gds modal/detail-surface primitives",
+      "reviewBy": "2026-06-14"
+    }
+  ],
+  "exceptionSurfaces": [
+    {
+      "path": "src/app/auth/page.tsx",
+      "owner": "check-product",
+      "reason": "Google brand SVG uses required brand colors.",
+      "replacementPath": "Package-native branded OAuth button/icon primitive when available.",
+      "reviewBy": "2026-06-14",
+      "expiryBehavior": "Blocks strict release after reviewBy unless renewed with GDS package replacement evidence."
+    },
+    {
+      "path": "src/app/login/page.tsx",
+      "owner": "check-product",
+      "reason": "Google brand SVG uses required brand colors.",
+      "replacementPath": "Package-native branded OAuth button/icon primitive when available.",
+      "reviewBy": "2026-06-14",
+      "expiryBehavior": "Blocks strict release after reviewBy unless renewed with GDS package replacement evidence."
+    }
+  ],
+  "strictExceptions": [
+    {
+      "path": "src/components/visitor-ops-workspace.tsx",
+      "owner": "check-product",
+      "reason": "Existing operator confirmation still uses a native dialog; tracked so no new native dialogs can enter strict mode unnoticed.",
+      "replacementPath": "GDS runtime feedback confirmation adapter with reason capture when upstream supports it.",
+      "reviewBy": "2026-06-14",
+      "expiryBehavior": "Blocks strict release after reviewBy unless migrated or explicitly renewed."
+    },
+    {
+      "path": "src/components/tactical-board.tsx",
+      "owner": "check-product",
+      "reason": "Existing archive confirmation still uses a native dialog; tracked so no new native dialogs can enter strict mode unnoticed.",
+      "replacementPath": "GDS runtime feedback confirmation adapter.",
+      "reviewBy": "2026-06-14",
+      "expiryBehavior": "Blocks strict release after reviewBy unless migrated or explicitly renewed."
+    },
+    {
+      "path": "src/components/member-list.tsx",
+      "owner": "check-product",
+      "reason": "Existing member removal confirmation still uses a native dialog; tracked so no new native dialogs can enter strict mode unnoticed.",
+      "replacementPath": "GDS runtime feedback confirmation adapter.",
+      "reviewBy": "2026-06-14",
+      "expiryBehavior": "Blocks strict release after reviewBy unless migrated or explicitly renewed."
+    },
+    {
+      "path": "src/app/[companyId]/topics/topics-client.tsx",
+      "owner": "check-product",
+      "reason": "Existing topic archive confirmation still uses a native dialog; tracked so no new native dialogs can enter strict mode unnoticed.",
+      "replacementPath": "GDS runtime feedback confirmation adapter.",
+      "reviewBy": "2026-06-14",
+      "expiryBehavior": "Blocks strict release after reviewBy unless migrated or explicitly renewed."
+    },
+    {
+      "path": "src/app/[companyId]/data/data-client.tsx",
+      "owner": "check-product",
+      "reason": "Existing data delete confirmation still uses a native dialog; tracked so no new native dialogs can enter strict mode unnoticed.",
+      "replacementPath": "GDS runtime feedback confirmation adapter.",
+      "reviewBy": "2026-06-14",
+      "expiryBehavior": "Blocks strict release after reviewBy unless migrated or explicitly renewed."
+    },
+    {
+      "path": "src/app/[companyId]/settings/page.tsx",
+      "owner": "check-product",
+      "reason": "Existing regenerate confirmation still uses a native dialog; tracked so no new native dialogs can enter strict mode unnoticed.",
+      "replacementPath": "GDS runtime feedback confirmation adapter.",
+      "reviewBy": "2026-06-14",
+      "expiryBehavior": "Blocks strict release after reviewBy unless migrated or explicitly renewed."
+    },
+    {
+      "path": "src/app/data/page.tsx",
+      "owner": "check-product",
+      "reason": "Existing data delete confirmation still uses a native dialog; tracked so no new native dialogs can enter strict mode unnoticed.",
+      "replacementPath": "GDS runtime feedback confirmation adapter.",
+      "reviewBy": "2026-06-14",
+      "expiryBehavior": "Blocks strict release after reviewBy unless migrated or explicitly renewed."
+    },
+    {
+      "path": "src/app/home-client.tsx",
+      "owner": "check-product",
+      "reason": "Existing company delete confirmation still uses a native dialog; tracked so no new native dialogs can enter strict mode unnoticed.",
+      "replacementPath": "GDS runtime feedback confirmation adapter.",
+      "reviewBy": "2026-06-14",
+      "expiryBehavior": "Blocks strict release after reviewBy unless migrated or explicitly renewed."
+    }
+  ],
+  "requiredScripts": [
+    "audit:gds-boundary",
+    "audit:semantic",
+    "test:gds-runtime-provider",
+    "test:gds-app-shell-adapters",
+    "test:gds-runtime-feedback",
+    "test:gds-reporting-contract",
+    "test:gds-public-miniapp-shell",
+    "test:gds-maturity-adoption",
+    "test:gds-strict-enforcement",
+    "test:gds-style-contract",
+    "test:no-hardcoded-ui-surfaces"
+  ],
+  "successCriteria": [
+    "Installed @doneisbetter/gds package version matches this manifest.",
+    "All approved adapter and exception paths exist.",
+    "Every exception has owner, reason, replacement path, and review date.",
+    "Feature code imports external UI peers only through src/components/gds/*.",
+    "Feature code does not use raw Mantine color tokens or raw feature-level card primitives."
+  ]
+}

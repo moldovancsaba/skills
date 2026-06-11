@@ -69,7 +69,10 @@ function actionsFromOperationalStatus(status: OperationalStatus): OperationalAct
 }
 
 function destinationLabel(destinationKey: SupportedDestinationKey) {
-  return destinationKey === "classscout" ? "ClassScout" : "Compare";
+  if (destinationKey === "classscout") return "ClassScout";
+  if (destinationKey === "compare") return "Compare";
+  if (destinationKey === "trainers") return "Trainers";
+  return destinationKey;
 }
 
 function buildDestinationDaemonHealth(input: {
@@ -135,7 +138,7 @@ export async function GET(
   if (auth.error) return auth.error;
   const destinationKeyRaw = request.nextUrl.searchParams.get("destinationKey");
   if (destinationKeyRaw && !normalizeDestinationKey(destinationKeyRaw)) {
-    return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+    return NextResponse.json({ error: "destinationKey must be one of: classscout, compare, trainers" }, { status: 400 });
   }
   const destinationKeyScope = normalizeDestinationKey(destinationKeyRaw);
 
@@ -275,9 +278,51 @@ export async function GET(
       });
     }
 
+    const trainersReviewPressureCount = Number(projection?.miniapps.trainers?.reviewPressureCount ?? 0);
+    if (trainersReviewPressureCount > 0) {
+      items.push({
+        id: "miniapp-publish:trainers-review-pressure",
+        unitId: companyId,
+        source: "miniapp_publish",
+        severity: trainersReviewPressureCount >= 10 ? "critical" : "warning",
+        status: "retrying",
+        summary: `${trainersReviewPressureCount} Trainers packets need review or publishing follow-up.`,
+        safeActions: ["replay", "acknowledge"],
+        lastAttemptAt: null,
+        nextAttemptAt: null,
+        meta: {
+          packetCount: trainersReviewPressureCount,
+          destinationKey: "trainers",
+          actionBasePath: `/api/companies/${companyId}/operations/${encodeURIComponent("miniapp-publish:trainers-review-pressure")}`,
+        },
+      });
+    }
+
+    const athleteiqReviewPressureCount = Number(projection?.miniapps.athleteiq?.reviewPressureCount ?? 0);
+    if (athleteiqReviewPressureCount > 0) {
+      items.push({
+        id: "miniapp-publish:athleteiq-review-pressure",
+        unitId: companyId,
+        source: "miniapp_publish",
+        severity: athleteiqReviewPressureCount >= 10 ? "critical" : "warning",
+        status: "retrying",
+        summary: `${athleteiqReviewPressureCount} AthleteIQ packets need review or publishing follow-up.`,
+        safeActions: ["replay", "acknowledge"],
+        lastAttemptAt: null,
+        nextAttemptAt: null,
+        meta: {
+          packetCount: athleteiqReviewPressureCount,
+          destinationKey: "athleteiq",
+          actionBasePath: `/api/companies/${companyId}/operations/${encodeURIComponent("miniapp-publish:athleteiq-review-pressure")}`,
+        },
+      });
+    }
+
     const activeDefinitionsByDestination: Record<SupportedDestinationKey, number> = {
       classscout: 0,
       compare: 0,
+      trainers: 0,
+      athleteiq: 0,
     };
     for (const definition of destinationDefinitions) {
       const destinationKey = normalizeDestinationKey(definition.destinationKey);
@@ -288,6 +333,8 @@ export async function GET(
     const runsByDestination: Record<SupportedDestinationKey, Array<{ state: string; updatedAt: Date }>> = {
       classscout: [],
       compare: [],
+      trainers: [],
+      athleteiq: [],
     };
     for (const run of destinationRuns) {
       const destinationKey = normalizeDestinationKey(run.destinationKey);

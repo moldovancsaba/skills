@@ -108,6 +108,8 @@ Approved product UI implementation lane:
 - Mantine theme only through package-native GDS theme creation in `src/components/providers.tsx`
 - direct Mantine, Tabler, Recharts, or drag/drop imports are forbidden outside `src/components/gds/*`
 - `npm run audit:gds-boundary` is mandatory before UI delivery is considered complete
+- GDS strict mode is active: `gds-adoption.json` must keep `mode: "strict"` and `strictMode: true` unless a rollback is documented in HANDOVER.
+- Native browser dialogs, route-local transitions, and new direct UI peer imports are blocked by `npm run test:gds-strict-enforcement`; any remaining exception must include owner, reason, replacement path, review date, and expiry behavior.
 - package-native GDS primitives are preferred for all new UI; compatibility wrappers exist only to keep legacy surfaces stable during migration
 - `UnifiedCard` as the only approved feature-level product card API
 - `UnifiedCardModal` as the only approved modal content shell for product cards

@@ -26,6 +26,8 @@ import { BOARD_RANK_STEP, PROJECT_BOARD_COLUMNS, sortBoardRecords } from "@/lib/
 
 const DEFAULT_BOARD_MODULE = "unit-board";
 const BOARD_API_KEY = "UNIT_PROJECT";
+const UNIT_BOARD_SURFACE_KEY = "unitBoard.project";
+const UNIT_BOARD_SURFACE_CONTRACT_VERSION = 1;
 
 type UnitBoardItem = {
   id: string;
@@ -59,8 +61,52 @@ type PendingBoardCard = {
   replacementId?: string;
 };
 
+type UnitBoardProjectionItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  columnKey: string;
+  orderRank: number;
+  priority: number;
+  metadata?: {
+    assignee?: string | null;
+    dueDate?: string | null;
+    estimatedEffort?: number | null;
+    sourceType?: string | null;
+    sourceId?: string | null;
+    notes?: string | null;
+    createdBy?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+  };
+};
+
+type UnitBoardSurfaceProjection = {
+  items?: UnitBoardProjectionItem[];
+  observability?: {
+    checksum?: string | null;
+  };
+};
+
+type UnitBoardSurfaceReadResponse = {
+  ok?: boolean;
+  projection?: UnitBoardSurfaceProjection;
+  error?: string;
+  detail?: string;
+};
+
+type UnitBoardSurfaceActionReceipt = {
+  ok?: boolean;
+  status?: "ACCEPTED" | "APPLIED" | "REJECTED" | "CONFLICT";
+  message?: string;
+  error?: string;
+  detail?: string;
+  projectionRevision?: string | null;
+  currentRevision?: string | null;
+  nextProjection?: UnitBoardSurfaceProjection;
+};
+
 const RECENT_CREATE_TTL_MS = 180_000;
-const BOARD_REQUEST_TIMEOUT_MS = 12_000;
 const BOARD_RETRY_MAX_ATTEMPTS = 3;
 const BOARD_RETRY_BASE_MS = 500;
 type BoardFilter = {
@@ -175,8 +221,35 @@ function normalizeBoardErrorPayload(payload: BoardWritePayload | null, fallback:
   return `${message}${detail} (traceId ${traceId})`;
 }
 
-function parseBoardPayload(response: Response) {
-  return response.json().catch(() => null) as Promise<BoardWritePayload | null>;
+function parseSurfaceReadPayload(response: Response) {
+  return response.json().catch(() => null) as Promise<UnitBoardSurfaceReadResponse | null>;
+}
+
+function parseSurfaceActionReceipt(response: Response) {
+  return response.json().catch(() => null) as Promise<UnitBoardSurfaceActionReceipt | null>;
+}
+
+function projectionItemsToBoardItems(projection: UnitBoardSurfaceProjection | null | undefined): UnitBoardItem[] {
+  const items = Array.isArray(projection?.items) ? projection.items : [];
+  return sortBoardRecords(items.map((item) => ({
+    id: item.id,
+    entityType: "BOARD_CARD" as const,
+    boardKey: BOARD_API_KEY,
+    title: item.title,
+    description: item.description,
+    createdBy: item.metadata?.createdBy ?? "webapp-user",
+    createdAt: item.metadata?.createdAt,
+    updatedAt: item.metadata?.updatedAt,
+    columnKey: item.columnKey,
+    orderRank: item.orderRank,
+    priority: item.priority,
+    assignee: item.metadata?.assignee ?? null,
+    dueDate: item.metadata?.dueDate ?? null,
+    estimatedEffort: item.metadata?.estimatedEffort ?? null,
+    sourceType: item.metadata?.sourceType ?? null,
+    sourceId: item.metadata?.sourceId ?? null,
+    notes: item.metadata?.notes ?? null,
+  })));
 }
 
 function describeBoardError(error: unknown) {
@@ -223,6 +296,7 @@ export function UnitProjectBoardClient({
   const [isSubmitting, setSubmitting] = useState(false);
   const recentlyCreatedCards = useRef<Map<string, PendingBoardCard>>(new Map());
   const loadRequestIdRef = useRef(0);
+  const [projectionRevision, setProjectionRevision] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [boardFilter, setBoardFilter] = useState<BoardFilter>({ priority: "all", sourceType: "all" });
 
@@ -269,48 +343,36 @@ export function UnitProjectBoardClient({
     });
   }, []);
 
-  const traceEnabled = useMemo(() => process.env.NODE_ENV !== "production", []);
+  const applySurfaceProjection = useCallback((projection: UnitBoardSurfaceProjection | null | undefined) => {
+    if (!projection) return;
+    setProjectionRevision(projection.observability?.checksum ?? null);
+    setItems(projectionItemsToBoardItems(projection));
+    recentlyCreatedCards.current = new Map();
+  }, []);
 
-  const appendBoardScope = useCallback((url: string) => {
-    const connector = url.includes("?") ? "&" : "?";
-    return `${url}${connector}module=${encodeURIComponent(normalizedBoardModule)}&boardKey=${encodeURIComponent(BOARD_API_KEY)}`;
-  }, [normalizedBoardModule]);
-
-  const requestBoardItems = useCallback(async (
-    url: string,
-    init: RequestInit & { headers?: HeadersInit } = {},
+  const requestSurfaceAction = useCallback(async (
+    action: string,
+    payload: Record<string, unknown>,
     traceId?: string,
   ) => {
-    const requestTraceId = traceId || makeBoardTraceId();
-    const headers = new Headers(init.headers ?? {});
-    headers.set("x-board-items-trace-id", requestTraceId);
-    if (traceEnabled) {
-      headers.set("x-board-items-debug", "1");
-    }
-
-    const normalizedUrl = `${url}${url.includes("?") ? "&" : "?"}traceId=${encodeURIComponent(requestTraceId)}${
-      traceEnabled ? "&debug=1" : ""
-    }`;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, BOARD_REQUEST_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(normalizedUrl, {
-        ...init,
-        headers,
-        signal: controller.signal,
-      });
-      return {
-        response,
-        traceId: response.headers.get("X-Board-Trace-Id") ?? requestTraceId,
-      };
-    } finally {
-      clearTimeout(timeout);
-    }
-  }, [traceEnabled]);
+    const response = await fetch(
+      `/api/companies/${encodeURIComponent(companyId)}/surfaces/${encodeURIComponent(UNIT_BOARD_SURFACE_KEY)}/actions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(traceId ? { "x-board-items-trace-id": traceId } : {}),
+        },
+        body: JSON.stringify({
+          action,
+          projectionRevision,
+          ...payload,
+        }),
+      },
+    );
+    const receipt = await parseSurfaceActionReceipt(response);
+    return { response, receipt };
+  }, [companyId, projectionRevision]);
 
   const reconcileLoadedItems = useCallback((loadedItems: UnitBoardItem[]) => {
     const now = Date.now();
@@ -350,22 +412,20 @@ export function UnitProjectBoardClient({
       setLoading(true);
     }
     try {
-      const { response } = await requestBoardItems(
-        appendBoardScope(`/api/board-items?companyId=${encodeURIComponent(companyId)}&_=${Date.now()}`),
+      const response = await fetch(
+        `/api/companies/${encodeURIComponent(companyId)}/surfaces/${encodeURIComponent(UNIT_BOARD_SURFACE_KEY)}?contractVersion=${UNIT_BOARD_SURFACE_CONTRACT_VERSION}&_=${Date.now()}${traceId ? `&traceId=${encodeURIComponent(traceId)}` : ""}`,
         { cache: "no-store" },
-        traceId,
       );
       if (requestId !== loadRequestIdRef.current) return;
       if (!response.ok) {
-        const payload = await parseBoardPayload(response);
+        const payload = await parseSurfaceReadPayload(response);
         presentBoardError(payload, "Unable to load the project board.");
         return;
       }
-      const data = await parseBoardPayload(response);
+      const data = await parseSurfaceReadPayload(response);
       setBoardError(null);
-      const loadedItems: UnitBoardItem[] = Array.isArray((data as { items?: unknown })?.items)
-        ? ((data as { items?: UnitBoardItem[] }).items ?? [])
-        : [];
+      const loadedItems = projectionItemsToBoardItems(data?.projection);
+      setProjectionRevision(data?.projection?.observability?.checksum ?? null);
       setItems(reconcileLoadedItems(loadedItems));
 
       const now = Date.now();
@@ -394,7 +454,7 @@ export function UnitProjectBoardClient({
         setLoading(false);
       }
     }
-  }, [appendBoardScope, companyId, presentBoardError, reconcileLoadedItems, requestBoardItems]);
+  }, [companyId, presentBoardError, reconcileLoadedItems]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -495,12 +555,8 @@ export function UnitProjectBoardClient({
       for (let attempt = 1; attempt <= BOARD_RETRY_MAX_ATTEMPTS; attempt += 1) {
         const requestTraceId = attempt === 1 ? baseTraceId : `${baseTraceId}-retry-${attempt - 1}`;
         try {
-          const { response } = await requestBoardItems("/api/board-items", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
-          }, requestTraceId);
-          const payload = await parseBoardPayload(response);
+          const { response, receipt } = await requestSurfaceAction("create", requestBody, requestTraceId);
+          const payload = receipt as BoardWritePayload | null;
           if (!response.ok) {
             const message = normalizeBoardErrorPayload(payload, "Unable to create the project card.", requestTraceId);
             if (isRetryableBoardFailure(payload, response.status) && attempt < BOARD_RETRY_MAX_ATTEMPTS) {
@@ -514,8 +570,7 @@ export function UnitProjectBoardClient({
             return;
           }
 
-          const createdItem = payload?.item as UnitBoardItem | undefined;
-          if (!createdItem || typeof createdItem.id !== "string" || createdItem.id.length === 0) {
+          if (!receipt?.nextProjection) {
             const message = normalizeBoardErrorPayload(payload, "Unable to read the created project card.", requestTraceId);
             presentBoardError(payload, "Unable to read the created project card.");
             setBoardError(message);
@@ -523,16 +578,10 @@ export function UnitProjectBoardClient({
             return;
           }
 
-          setItems((current) => current.map((item) => (item.id === optimisticId ? createdItem : item)));
-          recentlyCreatedCards.current.set(optimisticId, {
-            createdAt: Date.now(),
-            item: createdItem,
-            replacementId: createdItem.id,
-          });
+          applySurfaceProjection(receipt.nextProjection);
           setModalOpen(false);
           resetDraft();
           setBoardError(null);
-          await load(requestTraceId);
           return;
         } catch (error) {
           const message = `Unable to create the project card. ${(error instanceof Error ? error.message : "Network issue")} (traceId ${requestTraceId})`;
@@ -551,7 +600,7 @@ export function UnitProjectBoardClient({
     } finally {
       setSubmitting(false);
     }
-  }, [companyId, draftAssignee, draftColumnKey, draftDescription, draftDueDate, draftEstimatedEffort, draftNotes, draftPriority, draftSourceId, draftSourceType, draftTitle, isSubmitting, items, load, normalizedBoardModule, presentBoardError, requestBoardItems, resetDraft]);
+  }, [applySurfaceProjection, companyId, draftAssignee, draftColumnKey, draftDescription, draftDueDate, draftEstimatedEffort, draftNotes, draftPriority, draftSourceId, draftSourceType, draftTitle, isSubmitting, items, normalizedBoardModule, presentBoardError, requestSurfaceAction, resetDraft]);
 
   const updateCard = useCallback(async () => {
     if (!selected) return;
@@ -594,12 +643,8 @@ export function UnitProjectBoardClient({
     for (let attempt = 1; attempt <= BOARD_RETRY_MAX_ATTEMPTS; attempt += 1) {
       const requestTraceId = attempt === 1 ? traceId : `${traceId}-retry-${attempt - 1}`;
       try {
-        const { response: updateResponse } = await requestBoardItems("/api/board-items", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatePayload),
-        }, requestTraceId);
-        const payload = await parseBoardPayload(updateResponse);
+        const { response: updateResponse, receipt } = await requestSurfaceAction("update", updatePayload, requestTraceId);
+        const payload = receipt as BoardWritePayload | null;
           if (!updateResponse.ok) {
             if (isRetryableBoardFailure(payload, updateResponse.status) && attempt < BOARD_RETRY_MAX_ATTEMPTS) {
               setBoardError(`Unable to update the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${requestTraceId}`);
@@ -611,6 +656,7 @@ export function UnitProjectBoardClient({
             setItems(previousItems);
             return;
           }
+          applySurfaceProjection(receipt?.nextProjection);
           break;
         } catch (error) {
         if (attempt < BOARD_RETRY_MAX_ATTEMPTS) {
@@ -644,12 +690,8 @@ export function UnitProjectBoardClient({
       for (let attempt = 1; attempt <= BOARD_RETRY_MAX_ATTEMPTS; attempt += 1) {
         const moveTraceId = attempt === 1 ? traceId : `${traceId}-move-retry-${attempt - 1}`;
         try {
-          const { response: moveResponse } = await requestBoardItems("/api/board-items", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(movePayload),
-          }, moveTraceId);
-          const payload = await parseBoardPayload(moveResponse);
+          const { response: moveResponse, receipt } = await requestSurfaceAction("move", movePayload, moveTraceId);
+          const payload = receipt as BoardWritePayload | null;
           if (!moveResponse.ok) {
             if (isRetryableBoardFailure(payload, moveResponse.status) && attempt < BOARD_RETRY_MAX_ATTEMPTS) {
               setBoardError(`Unable to move the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${moveTraceId}`);
@@ -661,6 +703,7 @@ export function UnitProjectBoardClient({
             setItems(previousItems);
             return;
           }
+          applySurfaceProjection(receipt?.nextProjection);
           break;
         } catch {
           if (attempt < BOARD_RETRY_MAX_ATTEMPTS) {
@@ -679,7 +722,7 @@ export function UnitProjectBoardClient({
     resetDraft();
     setBoardError(null);
     await load(traceId);
-  }, [companyId, draftAssignee, draftColumnKey, draftDescription, draftDueDate, draftEstimatedEffort, draftNotes, draftPriority, draftSourceId, draftSourceType, draftTitle, load, normalizedBoardModule, presentBoardError, requestBoardItems, resetDraft, selected]);
+  }, [applySurfaceProjection, companyId, draftAssignee, draftColumnKey, draftDescription, draftDueDate, draftEstimatedEffort, draftNotes, draftPriority, draftSourceId, draftSourceType, draftTitle, load, normalizedBoardModule, presentBoardError, requestSurfaceAction, resetDraft, selected]);
 
   const archiveCard = useCallback(async (id: string) => {
     const previousItems = itemsRef.current;
@@ -689,12 +732,8 @@ export function UnitProjectBoardClient({
     for (let attempt = 1; attempt <= BOARD_RETRY_MAX_ATTEMPTS; attempt += 1) {
       const requestTraceId = attempt === 1 ? traceId : `${traceId}-retry-${attempt - 1}`;
       try {
-        const { response } = await requestBoardItems(
-          appendBoardScope(`/api/board-items?companyId=${encodeURIComponent(companyId)}&id=${encodeURIComponent(id)}`),
-          { method: "DELETE" },
-          requestTraceId,
-        );
-        const payload = response.ok ? null : await parseBoardPayload(response);
+        const { response, receipt } = await requestSurfaceAction("archive", { itemId: id }, requestTraceId);
+        const payload = response.ok ? null : receipt as BoardWritePayload | null;
         if (!response.ok) {
           if (isRetryableBoardFailure(payload, response.status) && attempt < BOARD_RETRY_MAX_ATTEMPTS) {
             setBoardError(`Unable to archive the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${requestTraceId}`);
@@ -706,12 +745,12 @@ export function UnitProjectBoardClient({
           setItems(previousItems);
           return;
         }
+        applySurfaceProjection(receipt?.nextProjection);
         if (wasSelected) {
           setModalOpen(false);
           resetDraft();
         }
         setBoardError(null);
-        await load(requestTraceId);
         return;
       } catch (error) {
         if (attempt < BOARD_RETRY_MAX_ATTEMPTS) {
@@ -730,7 +769,7 @@ export function UnitProjectBoardClient({
         setItems(previousItems);
       }
     }
-  }, [appendBoardScope, companyId, load, presentBoardError, requestBoardItems, resetDraft, selectedId]);
+  }, [applySurfaceProjection, presentBoardError, requestSurfaceAction, resetDraft, selectedId]);
 
   const submitCard = useCallback(async () => {
     if (selected) {
@@ -773,16 +812,8 @@ export function UnitProjectBoardClient({
       };
       for (let attempt = 1; attempt <= BOARD_RETRY_MAX_ATTEMPTS; attempt += 1) {
         const requestTraceId = attempt === 1 ? traceId : `${traceId}-retry-${attempt - 1}`;
-        const { response } = await requestBoardItems(
-          "/api/board-items",
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(movePayload),
-          },
-          requestTraceId,
-        );
-        const payload = await parseBoardPayload(response);
+        const { response, receipt } = await requestSurfaceAction("move", movePayload, requestTraceId);
+        const payload = receipt as BoardWritePayload | null;
         if (!response.ok) {
           if (isRetryableBoardFailure(payload, response.status) && attempt < BOARD_RETRY_MAX_ATTEMPTS) {
             setBoardError(`Unable to move the project card. Retrying (${attempt}/${BOARD_RETRY_MAX_ATTEMPTS}). TraceId ${requestTraceId}`);
@@ -794,6 +825,7 @@ export function UnitProjectBoardClient({
           await load(requestTraceId);
           return;
         }
+        applySurfaceProjection(receipt?.nextProjection);
         setBoardError(null);
         return;
       }
@@ -802,7 +834,7 @@ export function UnitProjectBoardClient({
       setItems(previousItems);
       await load(traceId);
     }
-  }, [companyId, load, normalizedBoardModule, presentBoardError, requestBoardItems]);
+  }, [applySurfaceProjection, companyId, load, normalizedBoardModule, presentBoardError, requestSurfaceAction]);
 
   if (loading && items.length === 0) {
     return (

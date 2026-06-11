@@ -166,7 +166,7 @@ export function MemberList({
                       <LabelText truncate>{member.email}</LabelText>
                       <Group gap="xs">
                         <Group gap={4}>
-                          <Shield size={12} color={member.role === 'OWNER' ? 'var(--mantine-color-strategy-4)' : 'var(--mantine-color-ingress-4)'} />
+                          <Shield size={12} color={member.role === 'OWNER' ? 'var(--module-strategy-color)' : 'var(--module-ingress-color)'} />
                           <MetaText>{member.role === 'OWNER' ? 'Admin' : 'Member'}</MetaText>
                         </Group>
                         <Badge color={member.acceptedAt ? resolveMantineColor("knowmore") : "gray"}>

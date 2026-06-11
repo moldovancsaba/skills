@@ -45,6 +45,8 @@ export type ResolveEffectiveUnitCapabilitiesInput = {
   workerConfig?: unknown;
   hasClassScoutDestination?: boolean;
   hasCompareDestination?: boolean;
+  hasTrainersDestination?: boolean;
+  hasAthleteIQDestination?: boolean;
   defaultBlocks?: BlockKey[];
 };
 
@@ -295,6 +297,14 @@ function resolveAutoDetected(input: ResolveEffectiveUnitCapabilitiesInput): Effe
   if (input.hasCompareDestination) {
     if (!detectedBlocks.includes("miniapp")) detectedBlocks.push("miniapp");
     if (!enabledMiniapps.includes("compare")) enabledMiniapps.push("compare");
+  }
+  if (input.hasTrainersDestination) {
+    if (!detectedBlocks.includes("miniapp")) detectedBlocks.push("miniapp");
+    if (!enabledMiniapps.includes("trainers")) enabledMiniapps.push("trainers");
+  }
+  if (input.hasAthleteIQDestination) {
+    if (!detectedBlocks.includes("miniapp")) detectedBlocks.push("miniapp");
+    if (!enabledMiniapps.includes("athleteiq")) enabledMiniapps.push("athleteiq");
   }
 
   const orderedBlocks = BLOCK_KEYS.filter((key) => detectedBlocks.includes(key));

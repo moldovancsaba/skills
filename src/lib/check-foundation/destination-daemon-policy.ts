@@ -121,6 +121,8 @@ export function resolveDestinationDaemonPolicy(input: ResolveDestinationDaemonPo
       byDestination: {
         classscout: { ...fallback },
         compare: { ...fallback },
+        trainers: { ...fallback },
+        athleteiq: { ...fallback },
       },
       warnings,
     };
@@ -150,6 +152,18 @@ export function resolveDestinationDaemonPolicy(input: ResolveDestinationDaemonPo
         warnings,
         scope: "destinationDaemonPolicy.miniapps.compare",
       }),
+      trainers: normalizeLimits({
+        candidate: miniapps?.trainers,
+        fallback: resolvedDefaults,
+        warnings,
+        scope: "destinationDaemonPolicy.miniapps.trainers",
+      }),
+      athleteiq: normalizeLimits({
+        candidate: miniapps?.athleteiq,
+        fallback: resolvedDefaults,
+        warnings,
+        scope: "destinationDaemonPolicy.miniapps.athleteiq",
+      }),
     },
     warnings,
   };
@@ -175,6 +189,8 @@ export function applyDestinationDaemonPolicyPatchToWorkerConfig(input: {
 
   const classScoutPatch = asRecord(input.patch.miniapps?.classscout);
   const comparePatch = asRecord(input.patch.miniapps?.compare);
+  const trainersPatch = asRecord(input.patch.miniapps?.trainers);
+  const athleteiqPatch = asRecord(input.patch.miniapps?.athleteiq);
 
   const classscout = normalizeLimits({
     candidate: { ...(resolved.byDestination.classscout as Record<string, unknown>), ...(classScoutPatch ?? {}) },
@@ -188,6 +204,18 @@ export function applyDestinationDaemonPolicyPatchToWorkerConfig(input: {
     warnings: [],
     scope: "patch.miniapps.compare",
   });
+  const trainers = normalizeLimits({
+    candidate: { ...(resolved.byDestination.trainers as Record<string, unknown>), ...(trainersPatch ?? {}) },
+    fallback: nextDefaults,
+    warnings: [],
+    scope: "patch.miniapps.trainers",
+  });
+  const athleteiq = normalizeLimits({
+    candidate: { ...(resolved.byDestination.athleteiq as Record<string, unknown>), ...(athleteiqPatch ?? {}) },
+    fallback: nextDefaults,
+    warnings: [],
+    scope: "patch.miniapps.athleteiq",
+  });
 
   return {
     workerConfig: {
@@ -197,6 +225,8 @@ export function applyDestinationDaemonPolicyPatchToWorkerConfig(input: {
         miniapps: {
           classscout,
           compare,
+          trainers,
+          athleteiq,
         },
       },
     },
@@ -206,6 +236,8 @@ export function applyDestinationDaemonPolicyPatchToWorkerConfig(input: {
       byDestination: {
         classscout,
         compare,
+        trainers,
+        athleteiq,
       },
       warnings: resolved.warnings,
     },

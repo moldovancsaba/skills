@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import {
+  EmptyState as GdsEmptyState,
+  InlineAlert as GdsInlineAlert,
+  MetricCard as GdsMetricCard,
+  PageHeader as GdsPageHeader,
+  StateBlock as GdsStateBlock,
+} from "@doneisbetter/gds/client";
 import { IconArrowLeft as ArrowLeft, IconArrowRight as ArrowRight } from "@/components/gds/icons";
 import { 
   Container, 
@@ -15,7 +22,6 @@ import {
   ThemeIcon,
   Anchor,
   Box,
-  Alert,
   SimpleGridProps,
   rem
 } from "@/components/gds/primitives";
@@ -26,11 +32,11 @@ import { UnifiedCard, UnifiedCardBody } from "@/components/ui/unified-card";
 import {
   getSemanticIndicatorStyle,
   getModuleCssVars,
+  getModuleTheme,
   resolveMantineColor,
   resolveModuleTone,
   type ModuleTone,
   type SemanticColor,
-  toneToMantineColor,
 } from "@/lib/semantic-theme";
 import { resolveStateTone } from "@/lib/ui-state";
 import { useI18n } from "@/lib/ui-i18n";
@@ -73,28 +79,27 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   const { t } = useI18n();
+  const backLink = backHref ? (
+    <Anchor
+      component={Link}
+      href={backHref}
+      c="dimmed"
+      display="inline-flex"
+      style={{ alignItems: "center", gap: 4 }}
+    >
+      <ArrowLeft size={12} />
+      {backLabel ?? t("common.back")}
+    </Anchor>
+  ) : undefined;
 
   return (
-    <Stack gap="md" mb="xl">
-      <Group justify="space-between" align="flex-end">
-        <Stack gap="xs">
-          {backHref && (
-            <Anchor 
-              component={Link} 
-              href={backHref}
-              c="dimmed"
-              display="inline-flex"
-              style={{ alignItems: "center", gap: 4 }}
-            >
-              <ArrowLeft size={12} />
-              {backLabel ?? t("common.back")}
-            </Anchor>
-          )}
-          <PageTitle>{title}</PageTitle>
-          {description ? <BodyText>{description}</BodyText> : null}
-        </Stack>
-        {actions && <Group gap="sm">{actions}</Group>}
-      </Group>
+    <Stack gap="xs" mb="xl">
+      {backLink}
+      <GdsPageHeader
+        title={title}
+        description={description}
+        actions={actions ? <Group gap="sm">{actions}</Group> : undefined}
+      />
     </Stack>
   );
 }
@@ -109,17 +114,15 @@ type NoticeProps = {
 export function Notice({
   title,
   children,
-  icon: Icon,
+  icon: _Icon,
   variant = "default",
 }: NoticeProps) {
   return (
-    <Alert
-      color={variant === "destructive" ? resolveStateTone("danger") : resolveStateTone("info")}
-      title={title} 
-      icon={Icon && <Icon size={16} />}
-    >
-      <BodyText c="var(--text-primary)">{children}</BodyText>
-    </Alert>
+    <GdsInlineAlert
+      title={title ?? (variant === "destructive" ? "Action required" : "Notice")}
+      message={children}
+      severity={variant === "destructive" ? "error" : "info"}
+    />
   );
 }
 
@@ -184,27 +187,18 @@ export function MetricCard({
   detail,
   color = "ingress",
 }: MetricCardProps) {
-  const tone = resolveModuleTone(color);
   const mantineColor = resolveMantineColor(color);
   return (
-    <UnifiedCard tone={tone}>
-      <UnifiedCardBody>
-      <Stack gap="xl">
-        <Group justify="space-between" align="flex-start">
-          <ThemeIcon color={mantineColor}>
-            <Icon size={20} />
-          </ThemeIcon>
-          
-          <MetaText c="var(--text-secondary)">{label}</MetaText>
-        </Group>
-
-        <Stack gap={4}>
-          <SectionTitle>{value}</SectionTitle>
-          {detail ? <BodyText c={`var(--mantine-color-${mantineColor}-4)`}>{detail}</BodyText> : null}
-        </Stack>
-      </Stack>
-      </UnifiedCardBody>
-    </UnifiedCard>
+    <GdsMetricCard
+      label={label}
+      value={value}
+      description={detail}
+      icon={
+        <ThemeIcon color={mantineColor}>
+          <Icon size={20} />
+        </ThemeIcon>
+      }
+    />
   );
 }
 
@@ -225,28 +219,37 @@ export function EmptyState({
   secondaryAction,
   tone = "neutral",
 }: EmptyStateProps) {
-  const resolvedTone = resolveModuleTone(tone);
+  const action = primaryAction || secondaryAction ? (
+    <Group gap="sm">
+      {primaryAction}
+      {secondaryAction}
+    </Group>
+  ) : undefined;
+
+  if (tone === "neutral") {
+    return (
+      <GdsStateBlock
+        variant="empty"
+        title={title}
+        description={description}
+        action={action}
+        icon={<Icon size={32} />}
+        presentation="centered"
+      />
+    );
+  }
+
   return (
-    <UnifiedCard
-      tone={resolvedTone}
-      dashed
-    >
-      <UnifiedCardBody>
-      <Stack align="center" gap="md">
+    <GdsEmptyState
+      title={title}
+      description={description ?? ""}
+      action={action}
+      icon={
         <ThemeIcon color={resolveMantineColor(tone)} size={64}>
           <Icon size={32} />
         </ThemeIcon>
-        <Stack gap={4}>
-          <CardTitle>{title}</CardTitle>
-          {description ? <BodyText ta="center" maw={400} mx="auto">{description}</BodyText> : null}
-        </Stack>
-        <Group gap="sm">
-          {primaryAction}
-          {secondaryAction}
-        </Group>
-      </Stack>
-      </UnifiedCardBody>
-    </UnifiedCard>
+      }
+    />
   );
 }
 
@@ -275,6 +278,7 @@ export function LinkCard({
 }: LinkCardProps) {
   const tone = resolveModuleTone(variant);
   const mantineColor = resolveMantineColor(variant);
+  const toneTheme = getModuleTheme(tone);
   const isCompact = density === "compact";
   const hasChart = Boolean(chartData && chartData.length > 0);
 
@@ -301,7 +305,7 @@ export function LinkCard({
               <Icon size={isCompact ? 18 : 20} />
             </ThemeIcon>
             {metric !== undefined && (
-              <LabelText c={`var(--mantine-color-${mantineColor}-4)`}>{metric}</LabelText>
+              <LabelText c={toneTheme.color}>{metric}</LabelText>
             )}
           </Group>
 
@@ -314,7 +318,7 @@ export function LinkCard({
             <Box mt="auto" pt={isCompact ? "xs" : "md"}>
               <DashboardChart 
                 data={chartData ?? []} 
-                color={`var(--mantine-color-${mantineColor}-6)`} 
+                color={toneTheme.color} 
                 height={isCompact ? 48 : 56}
               />
             </Box>
@@ -322,8 +326,8 @@ export function LinkCard({
 
           {!hasChart && (
             <Group gap={4} mt="auto" align="center">
-              <MetaText c={`var(--mantine-color-${mantineColor}-4)`}>Open</MetaText>
-              <ArrowRight size={12} color={`var(--mantine-color-${mantineColor}-4)`} />
+              <MetaText c={toneTheme.color}>Open</MetaText>
+              <ArrowRight size={12} color={toneTheme.color} />
             </Group>
           )}
         </Stack>
@@ -352,7 +356,7 @@ export function PipelineAccentHeader({
     { key: "review", tone: "review" },
   ];
   const activeTone = segments.find((segment) => segment.key === activeKey)?.tone ?? "ingress";
-  const activeColor = toneToMantineColor(activeTone as ModuleTone);
+  const activeColor = resolveMantineColor(activeTone);
 
   return (
     <Stack gap="md" mb="xl">

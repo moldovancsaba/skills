@@ -50,7 +50,7 @@ export function LanguageSelector({
               {(option as Language).nativeName}
             </Text>
           </Stack>
-          {checked && <Check size={14} color="var(--mantine-color-ingress-6)" />}
+          {checked && <Check size={14} color="var(--module-ingress-color)" />}
         </Group>
       )}
     />

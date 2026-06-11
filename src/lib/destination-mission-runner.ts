@@ -14,6 +14,12 @@ import {
   scoreCompareCandidate,
 } from "@/lib/destination-compare";
 import {
+  discoverAthleteIQCandidates,
+  extractAthleteIQCandidate,
+  prepareAthleteIQCandidateReview,
+  scoreAthleteIQCandidate,
+} from "@/lib/destination-athleteiq";
+import {
   advanceDestinationMissionAttempt,
   claimDestinationMissionAttempt,
   getDestinationMissionRun,
@@ -23,7 +29,7 @@ import {
 import { createDestinationFactSnapshot, upsertDestinationCandidate, upsertDestinationSourceDocument } from "@/lib/destination-workflows";
 
 type CandidateRecord = Awaited<ReturnType<typeof listMissionCandidates>>[number];
-type SupportedDestinationKey = "classscout" | "compare";
+type SupportedDestinationKey = "classscout" | "compare" | "athleteiq";
 
 type AdapterOutcome = {
   ok: boolean;
@@ -67,6 +73,17 @@ const DESTINATION_ADAPTERS: Record<SupportedDestinationKey, DestinationAdapter> 
     extract: (input) => extractCompareCandidate(input),
     score: (input) => scoreCompareCandidate(input),
     prepare: (input) => prepareCompareCandidateReview(input),
+  },
+  athleteiq: {
+    key: "athleteiq",
+    label: "AthleteIQ",
+    discover: (input) => discoverAthleteIQCandidates(input),
+    extract: (input) => extractAthleteIQCandidate(input as never),
+    score: (input) => scoreAthleteIQCandidate({ normalizedListing: input.normalizedListing as never }),
+    prepare: (input) => prepareAthleteIQCandidateReview({
+      ...input,
+      normalizedListing: input.normalizedListing as never,
+    }),
   },
 };
 

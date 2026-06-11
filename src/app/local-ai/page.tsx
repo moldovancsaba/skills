@@ -10,7 +10,7 @@ import { BodyText, MetaText } from "@/components/ui/typography";
 import { UnifiedCard, UnifiedCardBody, UnifiedCardHeader } from "@/components/ui/unified-card";
 import { useI18n, type UiLanguage } from "@/lib/ui-i18n";
 import { getPipelineJobLabel, translatePipelineReason } from "@/lib/pipeline-ui-i18n";
-import { SEMANTIC_CHART_BAR_RADIUS, SEMANTIC_CHART_GRID_STROKE, getSemanticListItemStyle } from "@/lib/semantic-theme";
+import { SEMANTIC_CHART_BAR_RADIUS, SEMANTIC_CHART_COLORS, SEMANTIC_CHART_GRID_STROKE, getSemanticListItemStyle } from "@/lib/semantic-theme";
 
 const STATUS_API_URL = "/api/local-ai/command-center?limit=40";
 const RAW_HEALTH_URL = "http://127.0.0.1:10005/health";
@@ -275,10 +275,10 @@ function getLaneEventTone(event: any) {
 }
 
 const CARD_TYPE_HISTORY = [
-  { key: "datacards", label: "Datacards", color: "var(--mantine-color-cyan-6)" },
-  { key: "flashcards", label: "Flashcards", color: "var(--mantine-color-orange-6)" },
-  { key: "goalcards", label: "Goals", color: "var(--mantine-color-lime-6)" },
-  { key: "taskcards", label: "Tasks", color: "var(--mantine-color-blue-6)" },
+  { key: "datacards", label: "Datacards", color: SEMANTIC_CHART_COLORS.ingress },
+  { key: "flashcards", label: "Flashcards", color: SEMANTIC_CHART_COLORS.synthesis },
+  { key: "goalcards", label: "Goals", color: SEMANTIC_CHART_COLORS.strategy },
+  { key: "taskcards", label: "Tasks", color: SEMANTIC_CHART_COLORS.checklist },
 ] as const;
 
 type ChartFrameProps = {
@@ -632,7 +632,7 @@ export default function LocalAiMissionControlPage() {
                       <XAxis dataKey="family" tickLine={false} axisLine={false} />
                       <YAxis tickLine={false} axisLine={false} />
                       <Tooltip formatter={(value) => chartTooltipFormatter(value)} />
-                      <Bar dataKey="count" fill="var(--mantine-color-orange-6)" radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
+                      <Bar dataKey="count" fill={SEMANTIC_CHART_COLORS.strategy} radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartFrame>
@@ -653,7 +653,7 @@ export default function LocalAiMissionControlPage() {
                         <XAxis dataKey="hour" tickLine={false} axisLine={false} minTickGap={24} />
                         <YAxis tickLine={false} axisLine={false} />
                         <Tooltip formatter={(value) => deltaTooltipFormatter(value)} labelFormatter={(value) => `Hour: ${value}`} />
-                        <Bar dataKey="totalCardsDelta" fill="var(--mantine-color-orange-6)" radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} name="Total cards" />
+                        <Bar dataKey="totalCardsDelta" fill={SEMANTIC_CHART_COLORS.strategy} radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} name="Total cards" />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartFrame>
@@ -674,7 +674,7 @@ export default function LocalAiMissionControlPage() {
                         <XAxis dataKey="company" tickLine={false} axisLine={false} interval={0} angle={-15} textAnchor="end" height={72} />
                         <YAxis tickLine={false} axisLine={false} />
                         <Tooltip formatter={(value) => chartTooltipFormatter(value)} />
-                        <Bar dataKey="jobs" fill="var(--mantine-color-cyan-6)" radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
+                        <Bar dataKey="jobs" fill={SEMANTIC_CHART_COLORS.knowmore} radius={SEMANTIC_CHART_BAR_RADIUS} isAnimationActive={false} />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartFrame>

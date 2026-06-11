@@ -191,7 +191,7 @@ export function ClassScoutHome({
               : "The destination exists in the product surface now, but this unit still needs its ClassScout workflow configured or seeded."}
             tone="review"
             primaryAction={(
-              <Button component={Link} href={`/${companyId}/review?tab=setup`} color="review">
+              <Button component={Link} href={`/${companyId}/review?tab=setup&destinationKey=classscout`} color="review">
                 Open mission setup
               </Button>
             )}

@@ -1,7 +1,7 @@
 # Graph Report - checklist  (2026-06-11)
 
 ## Corpus Check
-- 894 files · ~695,933 words
+- 894 files · ~696,092 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `af54fedc`
+- Built from commit: `09b29a82`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -315,6 +315,7 @@
 - [[_COMMUNITY_Community 297|Community 297]]
 - [[_COMMUNITY_Community 298|Community 298]]
 - [[_COMMUNITY_Community 299|Community 299]]
+- [[_COMMUNITY_Community 300|Community 300]]
 - [[_COMMUNITY_Community 301|Community 301]]
 - [[_COMMUNITY_Community 302|Community 302]]
 - [[_COMMUNITY_Community 303|Community 303]]
@@ -338,7 +339,6 @@
 - [[_COMMUNITY_Community 321|Community 321]]
 - [[_COMMUNITY_Community 322|Community 322]]
 - [[_COMMUNITY_Community 323|Community 323]]
-- [[_COMMUNITY_Community 324|Community 324]]
 - [[_COMMUNITY_Community 325|Community 325]]
 - [[_COMMUNITY_Community 326|Community 326]]
 - [[_COMMUNITY_Community 327|Community 327]]
@@ -580,15 +580,15 @@ Nodes (57): Language, LANGUAGES, LanguageSelector(), LanguageSelectorProps, UiLa
 
 ### Community 7 - "Community 7"
 Cohesion: 0.04
-Nodes (104): callOllama(), callOllamaJson(), callOllamaWithFailover(), extractJsonCandidate(), http, normalizeText(), {
-  OLLAMA_HOST,
+Nodes (104): callOllama(), callOllamaJson(), callOllamaWithFailover(), extractJsonCandidate(), http, normalizeText(), { 
+  OLLAMA_HOST, 
   OLLAMA_MODEL,
-  GLOBAL_OLLAMA_TIMEOUT_MS,
-  STAGE_MODELS,
+  GLOBAL_OLLAMA_TIMEOUT_MS, 
+  STAGE_MODELS, 
   DRAFT_STAGE_TIMEOUT_MS,
   WRITE_STAGE_TIMEOUT_MS,
   JUDGE_STAGE_TIMEOUT_MS,
-  queueAiInference
+  queueAiInference 
 }, runLocalAiPass() (+96 more)
 
 ### Community 8 - "Community 8"
@@ -604,12 +604,12 @@ Cohesion: 0.04
 Nodes (61): auditCheckedFlashCard(), { callOllamaWithFailover }, { CandidateState, ReworkRoute, toEvaluated, toRework, toSuppressed, toArchived }, computeFreshnessScore(), computeQualityScore(), computeRelativeDominance(), computeUrgencyScore(), DISPOSITION (+53 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.04
-Nodes (70): ActionMode, Flashcard, FlashcardAction, FlashcardCorrection, FlashcardSource, IntelligenceType, KnowledgeReviewCard(), Props (+62 more)
+Cohesion: 0.03
+Nodes (77): ActionMode, ChecklistItem, ChecklistPage(), ChecklistPageProps, ActionMode, Flashcard, FlashcardAction, FlashcardCorrection (+69 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.05
-Nodes (81): getLegacyDestinationDaemonJobIdentities(), clearActivePipelineJobProgress(), resolveExecutionPlanDestinationKey(), runPipelineQueueBatch(), shouldDecomposeLowMemoryPipelineJob(), appendPipelineTopologySyncResult(), applyLocalAiFocusToPipelineJobWrite(), buildAutoJobProfile() (+73 more)
+Cohesion: 0.07
+Nodes (51): getLegacyDestinationDaemonJobIdentities(), applyLocalAiFocusToPipelineJobWrite(), buildAutoJobProfile(), buildDecompositionSourceSignal(), buildDestinationLaneProfile(), buildLowMemoryDecompositionChildPlans(), buildNoProgressTimeoutMessage(), buildPlannerLaneProfile() (+43 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.05
@@ -810,8 +810,8 @@ Cohesion: 0.11
 Nodes (26): asRecord(), asString(), POST(), asString(), POST(), POST(), queueVisitorLocalIntent(), VisitorIntentKind (+18 more)
 
 ### Community 60 - "Community 60"
-Cohesion: 0.08
-Nodes (32): DestinationContentOpsWorkspace(), DestinationLiveListingOps(), configToFormState(), DestinationMissionSetup(), formStateToConfig(), MissionDefinitionFormState, MissionDefinitionPayload, MissionDefinitionRecord (+24 more)
+Cohesion: 0.06
+Nodes (44): DestinationContentOpsWorkspace(), DestinationLiveListingOps(), configToFormState(), DestinationMissionSetup(), formStateToConfig(), MissionDefinitionFormState, MissionDefinitionPayload, MissionDefinitionRecord (+36 more)
 
 ### Community 61 - "Community 61"
 Cohesion: 0.12
@@ -834,8 +834,8 @@ Cohesion: 0.15
 Nodes (30): args, asNumber(), asRecord(), asRecordArray(), asString(), asStringArray(), buildSafeDraftPayload(), buildVisitorSourceKey() (+22 more)
 
 ### Community 66 - "Community 66"
-Cohesion: 0.04
-Nodes (71): Footer(), Home(), CompanyDashboard(), ActionMode, ChecklistItem, ChecklistPage(), ChecklistPageProps, ExpertTipCard() (+63 more)
+Cohesion: 0.05
+Nodes (63): Footer(), Home(), CompanyDashboard(), ExpertTipCard(), TraceNode, TraceViewer(), getDashboardExpertTip(), CompanyDataClient() (+55 more)
 
 ### Community 67 - "Community 67"
 Cohesion: 0.14
@@ -966,8 +966,8 @@ Cohesion: 0.07
 Nodes (28): dependencies, date-fns, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @doneisbetter/gds, dotenv, framer-motion (+20 more)
 
 ### Community 99 - "Community 99"
-Cohesion: 0.12
-Nodes (28): buildExecutionOptionsForJob(), buildPlaylistMutationAuthority(), createPipelineDeferredError(), resolvePipelineJobExecutionPlan(), ACTION_TYPES, buildMemoryPlan(), buildProcessInventory(), CHECK_CRITICAL_TITLES (+20 more)
+Cohesion: 0.14
+Nodes (24): ACTION_TYPES, buildMemoryPlan(), buildProcessInventory(), CHECK_CRITICAL_TITLES, classifyProcess(), { collectMacMemoryAccounting }, collectMemoryStewardSnapshot(), collectProcessInventory() (+16 more)
 
 ### Community 100 - "Community 100"
 Cohesion: 0.07
@@ -1361,7 +1361,7 @@ Nodes (12): countLocalInteractionEvents(), countLocalOutcomeEvents(), findLocalI
 
 ### Community 192 - "Community 192"
 Cohesion: 0.06
-Nodes (45): buildNoProgressTimeoutMessage(), PIPELINE_JOB_TYPES, recoverStaleRunningPipelineJobs(), shouldRunGlobalPipelineSync(), syncAllCompanyPipelineJobs(), syncAllCompanyPipelineJobsIfDue(), GENERATION_TIMEOUT_MS, MANUAL_LANE_COOLDOWN_MS (+37 more)
+Nodes (40): PIPELINE_JOB_TYPES, GENERATION_TIMEOUT_MS, MANUAL_LANE_COOLDOWN_MS, PLANNER_MIN_DATACARDS_FOR_ACTIVE, PLANNER_MIN_FLASHCARDS, PlannerLane, appendPlannerTelemetryLog(), buildPlannerEventSummary() (+32 more)
 
 ### Community 193 - "Community 193"
 Cohesion: 0.13
@@ -1428,8 +1428,8 @@ Cohesion: 0.12
 Nodes (19): assertCardAllowedForBlock(), assertCardRegistryIntegrity(), assertKnownCardType(), CardDefinition, cardDefinitionByType, CardRegistryData, CardScoringMode, CHECK_FOUNDATION_CARD_REGISTRY_SCHEMA_VERSION (+11 more)
 
 ### Community 209 - "Community 209"
-Cohesion: 0.26
-Nodes (10): CompanyKnowmorePage(), listCompanyFlashcardsPage(), serializeCompanyFlashcardsForKnowmore(), buildLiveKnowmoreSummary(), getKnowmoreHealthSnapshot(), getKnowmoreInitialData(), getSessionAndMembership(), KnowmoreHealth (+2 more)
+Cohesion: 0.17
+Nodes (15): GoalsPage(), CompanyKnowmorePage(), readAppSessionToken(), listCompanyFlashcardsPage(), serializeCompanyFlashcardsForKnowmore(), getGoalsInitialData(), getSessionAndMembership(), GoalsInitialData (+7 more)
 
 ### Community 210 - "Community 210"
 Cohesion: 0.15
@@ -1795,13 +1795,17 @@ Nodes (9): deriveOpportunityLane(), assignOpportunityLanes(), rebalanceOpportuni
   refreshOldestOpportunitycards,
 }, main() (+1 more)
 
+### Community 300 - "Community 300"
+Cohesion: 0.09
+Nodes (39): buildExecutionOptionsForJob(), buildPlaylistMutationAuthority(), clearActivePipelineJobProgress(), createPipelineDeferredError(), resolveExecutionPlanDestinationKey(), resolvePipelineJobExecutionPlan(), runPipelineQueueBatch(), shouldDecomposeLowMemoryPipelineJob() (+31 more)
+
 ### Community 301 - "Community 301"
 Cohesion: 0.29
 Nodes (13): buildOpportunityFieldEvidence(), buildOpportunityRefreshFocus(), extractAddressCandidate(), extractEmails(), extractLocationCandidate(), extractPhones(), looksWeakOpportunityBody(), looksWeakOpportunityFit() (+5 more)
 
 ### Community 302 - "Community 302"
-Cohesion: 0.26
-Nodes (9): GoalsPage(), readAppSessionToken(), getGoalsInitialData(), getSessionAndMembership(), GoalsInitialData, getSessionAndMembership(), getTopicsInitialData(), TopicsInitialData (+1 more)
+Cohesion: 0.53
+Nodes (4): getSessionAndMembership(), getTopicsInitialData(), TopicsInitialData, CompanyTopicsPage()
 
 ### Community 303 - "Community 303"
 Cohesion: 0.25
@@ -1886,10 +1890,6 @@ Nodes (7): 15. Implementation Plan, Phase 1. Foreground lane hardening, Phase 2.
 ### Community 323 - "Community 323"
 Cohesion: 0.29
 Nodes (7): 4.1 Guardian, 4.2 Foreground worker, 4.3.1 Memory governor, 4.3 Background worker, 4.4.1 Runtime verification and chaos recovery, 4.4 Status server, 4. Target Runtime Topology
-
-### Community 324 - "Community 324"
-Cohesion: 0.20
-Nodes (11): asRecord(), DECISION_OPTIONS, DestinationReviewWorkspace(), latestPublishOutcome(), OutcomeMemory, packetTitle(), pretty(), readPublicUrlFromOutcome() (+3 more)
 
 ### Community 325 - "Community 325"
 Cohesion: 0.29

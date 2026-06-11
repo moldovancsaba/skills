@@ -478,12 +478,13 @@ Source for `initialData`:
 - `webapp.routeTargets.classscout` is owned by `src/lib/classscout-routes.ts` and resolves:
   - `/{companyId}/classscout` as the ClassScout landing route
   - `/{companyId}/review` as generic review infrastructure
-  - `/{companyId}/review?tab=ops` as generic review ops infrastructure
+  - `/{companyId}/review?tab=review&destinationKey=classscout` as the ClassScout content creation and review card route
+  - `/{companyId}/review?tab=ops&destinationKey=classscout` as ClassScout-scoped review ops infrastructure
   - `/{companyId}/observability` as generic mission-control infrastructure
 - `src/lib/classscout-routes.ts` also owns `resolveClassScoutEntryPoint`.
   - generic ClassScout entry points resolve to `/{companyId}/classscout`
-  - explicit Content Ops intent preserves `/{companyId}/review`
-  - explicit Live Catalog intent preserves `/{companyId}/review?tab=ops`
+  - explicit Content Ops intent preserves `/{companyId}/review?tab=review&destinationKey=classscout`
+  - explicit Live Catalog intent preserves `/{companyId}/review?tab=ops&destinationKey=classscout`
   - explicit Mission Control intent preserves `/{companyId}/observability`
   - explicit Visitor Ops intent preserves `/{companyId}/classscout/visitor-ops`
 - `webapp` profile route rendered if available.
@@ -498,6 +499,8 @@ Source for `initialData`:
 - Preserved deep links are allowed only when the visible label names the specific workflow.
 - The destination unit panel primary action now opens ClassScout home.
 - Destination unit panel Mission Control and Live Catalog buttons remain explicit deep links.
+- ClassScout Content Ops is always destination-scoped to the review card tab; it must not fall back to a generic contact/opportunity card surface.
+- Visitor Ops exposes a visible `Review Content Cards` action that returns operators to the ClassScout content creation/review queue.
 - Entry-point classifications include `sourceSurface`, `intent`, `targetDestination`, `preservesDeepLink`, `compatibilityRedirectRequired`, and `accessibleLabel`.
 - Rollback is local to each source surface because every migrated source calls the shared resolver instead of hardcoding routes.
 

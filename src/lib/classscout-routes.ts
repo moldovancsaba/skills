@@ -1,7 +1,8 @@
 export type ClassScoutRouteContract = {
   landingRoute: `/${string}/classscout`;
   reviewRoute: `/${string}/review`;
-  opsRoute: `/${string}/review?tab=ops`;
+  contentReviewRoute: `/${string}/review?tab=review&destinationKey=classscout`;
+  opsRoute: `/${string}/review?tab=ops&destinationKey=classscout`;
   observabilityRoute: `/${string}/observability`;
   visitorOpsRoute: `/${string}/classscout/visitor-ops`;
   destinationKey: "classscout";
@@ -29,7 +30,8 @@ export function resolveClassScoutRoutes(companyId: string): ClassScoutRouteContr
   return {
     landingRoute: `/${encodedCompanyId}/classscout`,
     reviewRoute: `/${encodedCompanyId}/review`,
-    opsRoute: `/${encodedCompanyId}/review?tab=ops`,
+    contentReviewRoute: `/${encodedCompanyId}/review?tab=review&destinationKey=classscout`,
+    opsRoute: `/${encodedCompanyId}/review?tab=ops&destinationKey=classscout`,
     observabilityRoute: `/${encodedCompanyId}/observability`,
     visitorOpsRoute: `/${encodedCompanyId}/classscout/visitor-ops`,
     destinationKey: "classscout",
@@ -52,7 +54,7 @@ export function resolveClassScoutEntryPoint(input: {
   if (intent === "open-content-ops") {
     return {
       ...base,
-      targetDestination: routes.reviewRoute,
+      targetDestination: routes.contentReviewRoute,
       preservesDeepLink: true,
       accessibleLabel: "Open ClassScout review cards",
     };

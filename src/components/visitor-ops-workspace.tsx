@@ -232,6 +232,7 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }
   }, [snapshot]);
 
   const primaryBlocker = snapshot?.blockers[0] ?? null;
+  const reviewQueueHref = `/${companyId}/review?tab=review&destinationKey=${encodeURIComponent(miniappKey)}`;
 
   return (
     <PageShell width="full">
@@ -241,6 +242,11 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }
           description="Contract-bound research, evidence, opportunity, burst, public verification, and learning state."
           actions={(
             <Group>
+              <Tooltip label="Open the destination content creation and review cards">
+                <Button component={Link} href={reviewQueueHref} variant="light" color="review">
+                  Review Content Cards
+                </Button>
+              </Tooltip>
               <TextInput
                 aria-label="Miniapp key"
                 value={miniappKey}
@@ -466,7 +472,7 @@ export function VisitorOpsWorkspace({ companyId, defaultVisitorKey = "compare" }
               </Tabs.Panel>
 
               <Tabs.Panel value="legacy" pt="md">
-                <Button component={Link} href={`/${companyId}/review?destinationKey=${encodeURIComponent(snapshot.destinationKey)}`} variant="light">
+                <Button component={Link} href={`/${companyId}/review?tab=review&destinationKey=${encodeURIComponent(snapshot.destinationKey)}`} variant="light">
                   Open Review Queue
                 </Button>
               </Tabs.Panel>

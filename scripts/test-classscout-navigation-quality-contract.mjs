@@ -18,13 +18,16 @@ const docs = read("docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md");
 assert.match(routes, /type\s+ClassScoutEntryPointIntent/, "ClassScout route policy must define entry point intents.");
 assert.match(routes, /resolveClassScoutEntryPoint/, "ClassScout route policy must expose an entry point resolver.");
 assert.match(routes, /intent === "open-content-ops"[\s\S]*preservesDeepLink:\s*true/, "Content Ops must remain an explicit deep link.");
+assert.match(routes, /contentReviewRoute:\s*`\/\$\{encodedCompanyId\}\/review\?tab=review&destinationKey=classscout`/, "Content Ops must deep-link to the ClassScout review cards tab.");
 assert.match(routes, /intent === "open-live-catalog"[\s\S]*preservesDeepLink:\s*true/, "Live Catalog must remain an explicit deep link.");
+assert.match(routes, /opsRoute:\s*`\/\$\{encodedCompanyId\}\/review\?tab=ops&destinationKey=classscout`/, "Live Catalog must keep the ClassScout destination scope.");
 assert.match(routes, /intent === "open-mission-control"[\s\S]*preservesDeepLink:\s*true/, "Mission Control must remain an explicit deep link.");
 assert.match(routes, /targetDestination:\s*routes\.landingRoute[\s\S]*preservesDeepLink:\s*false/, "Generic ClassScout launches must resolve to the canonical home.");
 assert.match(routes, /accessibleLabel/, "Entry-point classification must carry accessible labels.");
 
 assert.match(landing, /entryPoints/, "Landing summary must expose entry-point classifications.");
 assert.match(landing, /sourceSurface:\s*"destination-classscout-unit-panel"[\s\S]*intent:\s*"open-app-home"/, "Landing summary must inventory the unit-panel home entry.");
+assert.match(home, /review\?tab=setup&destinationKey=classscout/, "ClassScout empty state must keep setup destination-scoped.");
 
 assert.match(unitPanel, /resolveClassScoutEntryPoint/, "Unit panel must consume the canonical entry-point policy.");
 assert.match(unitPanel, /intent:\s*"open-app-home"/, "Unit panel primary launch must target the canonical ClassScout home.");

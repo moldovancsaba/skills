@@ -7,6 +7,7 @@ const files = {
   landing: readFileSync(join(ROOT, "src/lib/classscout-landing.ts"), "utf8"),
   landingApi: readFileSync(join(ROOT, "src/app/api/classscout/landing/route.ts"), "utf8"),
   classscoutPage: readFileSync(join(ROOT, "src/app/[companyId]/classscout/page.tsx"), "utf8"),
+  visitorOpsWorkspace: readFileSync(join(ROOT, "src/components/visitor-ops-workspace.tsx"), "utf8"),
   classscoutHome: readFileSync(join(ROOT, "src/components/classscout-home.tsx"), "utf8"),
   clientNav: readFileSync(join(ROOT, "src/app/client-nav.tsx"), "utf8"),
   refreshSync: readFileSync(join(ROOT, "src/app/api/classscout/refresh-lane/sync/route.ts"), "utf8"),
@@ -25,7 +26,8 @@ assert(/type\s+ClassScoutRouteContract/.test(files.routes), "ClassScout route co
 assert(/resolveClassScoutEntryPoint/.test(files.routes), "ClassScout entry-point resolver must exist");
 assert(/landingRoute:\s*`\/\$\{string\}\/classscout`/.test(files.routes), "landing route must be canonical /{companyId}/classscout");
 assert(/reviewRoute:\s*`\/\$\{string\}\/review`/.test(files.routes), "review route ownership must remain generic");
-assert(/opsRoute:\s*`\/\$\{string\}\/review\?tab=ops`/.test(files.routes), "ops route ownership must remain generic review ops");
+assert(/contentReviewRoute:\s*`\/\$\{string\}\/review\?tab=review&destinationKey=classscout`/.test(files.routes), "content route must open ClassScout review cards directly");
+assert(/opsRoute:\s*`\/\$\{string\}\/review\?tab=ops&destinationKey=classscout`/.test(files.routes), "ops route must remain scoped to ClassScout review ops");
 assert(/observabilityRoute:\s*`\/\$\{string\}\/observability`/.test(files.routes), "observability route ownership must remain generic");
 
 for (const field of ["liveListings", "reviewPackets", "learning", "missionControl", "routeTargets", "fetchHealth"]) {
@@ -39,6 +41,9 @@ assert(/getClassScoutLandingSummary/.test(files.classscoutPage), "ClassScout rou
 assert(/initialSummary/.test(files.classscoutHome), "ClassScout home must accept server-loaded initial summary");
 assert(/\/api\/classscout\/landing/.test(files.classscoutHome), "ClassScout home refresh must use the canonical landing API");
 assert(/fetchHealth/.test(files.classscoutHome), "ClassScout home must render canonical degraded-source health");
+assert(/reviewQueueHref/.test(files.visitorOpsWorkspace), "Visitor ops workspace must expose a content review escape hatch");
+assert(/Review Content Cards/.test(files.visitorOpsWorkspace), "Visitor ops workspace must label the content review action clearly");
+assert(/tab=review&destinationKey/.test(files.visitorOpsWorkspace), "Visitor ops review action must open destination-scoped review cards");
 assert(/key:\s*webappProfile === "CLASSSCOUT" \? "classscout"/.test(files.clientNav), "sidebar item key must be profile-specific for ClassScout");
 assert(/classscout:\s*data\.counts\?\.classscout/.test(files.clientNav), "sidebar must carry optional ClassScout badge count");
 

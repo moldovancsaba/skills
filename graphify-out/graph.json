@@ -9070,7 +9070,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "lib_pipeline_jobs_clearactivepipelinejobprogress",
-      "community": 12,
+      "community": 300,
       "norm_label": "clearactivepipelinejobprogress()"
     },
     {
@@ -9180,7 +9180,7 @@
       "source_location": "L524",
       "_origin": "ast",
       "id": "lib_pipeline_jobs_createpipelinedeferrederror",
-      "community": 99,
+      "community": 300,
       "norm_label": "createpipelinedeferrederror()"
     },
     {
@@ -9190,7 +9190,7 @@
       "source_location": "L532",
       "_origin": "ast",
       "id": "lib_pipeline_jobs_buildplaylistmutationauthority",
-      "community": 99,
+      "community": 300,
       "norm_label": "buildplaylistmutationauthority()"
     },
     {
@@ -9220,7 +9220,7 @@
       "source_location": "L567",
       "_origin": "ast",
       "id": "lib_pipeline_jobs_resolveexecutionplandestinationkey",
-      "community": 12,
+      "community": 300,
       "norm_label": "resolveexecutionplandestinationkey()"
     },
     {
@@ -9230,7 +9230,7 @@
       "source_location": "L571",
       "_origin": "ast",
       "id": "lib_pipeline_jobs_buildexecutionoptionsforjob",
-      "community": 99,
+      "community": 300,
       "norm_label": "buildexecutionoptionsforjob()"
     },
     {
@@ -9240,7 +9240,7 @@
       "source_location": "L650",
       "_origin": "ast",
       "id": "lib_pipeline_jobs_resolvepipelinejobexecutionplan",
-      "community": 99,
+      "community": 300,
       "norm_label": "resolvepipelinejobexecutionplan()"
     },
     {
@@ -9250,7 +9250,7 @@
       "source_location": "L694",
       "_origin": "ast",
       "id": "lib_pipeline_jobs_shoulddecomposelowmemorypipelinejob",
-      "community": 12,
+      "community": 300,
       "norm_label": "shoulddecomposelowmemorypipelinejob()"
     },
     {
@@ -9330,7 +9330,7 @@
       "source_location": "L948",
       "_origin": "ast",
       "id": "lib_pipeline_jobs_runpipelinequeuebatch",
-      "community": 12,
+      "community": 300,
       "norm_label": "runpipelinequeuebatch()"
     },
     {
@@ -13070,7 +13070,7 @@
       "source_location": "L88",
       "_origin": "ast",
       "id": "lib_synthesis_getsynthesisprogress",
-      "community": 12,
+      "community": 300,
       "norm_label": "getsynthesisprogress()"
     },
     {
@@ -19385,7 +19385,7 @@
       "label": "failures",
       "file_type": "code",
       "source_file": "scripts/test-classscout-surface-contract.mjs",
-      "source_location": "L18",
+      "source_location": "L19",
       "_origin": "ast",
       "id": "scripts_test_classscout_surface_contract_failures",
       "community": 408,
@@ -19395,7 +19395,7 @@
       "label": "assert()",
       "file_type": "code",
       "source_file": "scripts/test-classscout-surface-contract.mjs",
-      "source_location": "L20",
+      "source_location": "L21",
       "_origin": "ast",
       "id": "scripts_test_classscout_surface_contract_assert",
       "community": 408,
@@ -22658,7 +22658,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_test_runtime_hardening",
-      "community": 12,
+      "community": 300,
       "norm_label": "test-runtime-hardening.js"
     },
     {
@@ -22668,7 +22668,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_test_runtime_hardening_assert",
-      "community": 12,
+      "community": 300,
       "norm_label": "assert"
     },
     {
@@ -22678,7 +22678,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "scripts_test_runtime_hardening_buildtaskupdatepayload_buildflashcardrefineupdatepayload_buildflashcardjudgeupdatepayload",
-      "community": 12,
+      "community": 300,
       "norm_label": "{\n  buildtaskupdatepayload,\n  buildflashcardrefineupdatepayload,\n  buildflashcardjudgeupdatepayload,\n}"
     },
     {
@@ -22688,7 +22688,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "scripts_test_runtime_hardening_classifypipelinejoberror_getpipelinejobretrylimit_destination_service_outage_cooldown_ms_builddestinationserviceoutagemaintenancepatch_builddestinationserviceoutagebreaker_normalizequeuecircuitbreakerstate_buildrunnablepipelinejobwhere_buildlowmemorydecompositionchildplans_enqueuedirtypipelinetopologycompany_draindirtypipelinetopologycompanies_normalizepipelinetopologystate_recordpipelinetopologysyncresult",
-      "community": 12,
+      "community": 300,
       "norm_label": "{\n  classifypipelinejoberror,\n  getpipelinejobretrylimit,\n  destination_service_outage_cooldown_ms,\n  builddestinationserviceoutagemaintenancepatch,\n  builddestinationserviceoutagebreaker,\n  normalizequeuecircuitbreakerstate,\n  buildrunnablepipelinejobwhere,\n  buildlowmemorydecompositionchildplans,\n  enqueuedirtypipelinetopologycompany,\n  draindirtypipelinetopologycompanies,\n  normalizepipelinetopologystate,\n  recordpipelinetopologysyncresult,\n}"
     },
     {
@@ -22698,7 +22698,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "scripts_test_runtime_hardening_shouldallowforegroundwork_shouldallowbackgroundsnapshotwork_foreground_hard_pause_mb",
-      "community": 12,
+      "community": 300,
       "norm_label": "{\n  shouldallowforegroundwork,\n  shouldallowbackgroundsnapshotwork,\n  foreground_hard_pause_mb,\n}"
     },
     {
@@ -22708,7 +22708,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "scripts_test_runtime_hardening_enqueuedirtyprojectioncompany_draindirtyprojectioncompanies_getprojectionbackfillstatus_normalizeprojectionrefreshstate_recordprojectionrefreshresult",
-      "community": 12,
+      "community": 300,
       "norm_label": "{\n  enqueuedirtyprojectioncompany,\n  draindirtyprojectioncompanies,\n  getprojectionbackfillstatus,\n  normalizeprojectionrefreshstate,\n  recordprojectionrefreshresult,\n}"
     },
     {
@@ -22718,7 +22718,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "scripts_test_runtime_hardening_memory_governor_actions_default_memory_governor_policy_creatememorygovernorobservedstate_isworkeractivelyusingmodel_evaluatememorygovernorpolicy",
-      "community": 12,
+      "community": 300,
       "norm_label": "{\n  memory_governor_actions,\n  default_memory_governor_policy,\n  creatememorygovernorobservedstate,\n  isworkeractivelyusingmodel,\n  evaluatememorygovernorpolicy,\n}"
     },
     {
@@ -22728,7 +22728,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "scripts_test_runtime_hardening_executepipelinejob_resolvepipelinejobexecutionplan_shoulddecomposelowmemorypipelinejob_shoulddelegatequeuerefresh",
-      "community": 12,
+      "community": 300,
       "norm_label": "{\n  executepipelinejob,\n  resolvepipelinejobexecutionplan,\n  shoulddecomposelowmemorypipelinejob,\n  shoulddelegatequeuerefresh,\n}"
     },
     {
@@ -22738,7 +22738,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "scripts_test_runtime_hardening_getsynthesisprogress",
-      "community": 12,
+      "community": 300,
       "norm_label": "{ getsynthesisprogress }"
     },
     {
@@ -22748,7 +22748,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "scripts_test_runtime_hardening_main",
-      "community": 12,
+      "community": 300,
       "norm_label": "main()"
     },
     {
@@ -24368,7 +24368,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "checklist_archived_page",
-      "community": 66,
+      "community": 11,
       "norm_label": "page.tsx"
     },
     {
@@ -24378,7 +24378,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "checklist_archived_page_companyarchivedchecklistpage",
-      "community": 66,
+      "community": 11,
       "norm_label": "companyarchivedchecklistpage()"
     },
     {
@@ -24778,7 +24778,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "goals_page",
-      "community": 302,
+      "community": 209,
       "norm_label": "page.tsx"
     },
     {
@@ -24788,7 +24788,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "goals_page_goalspage",
-      "community": 302,
+      "community": 209,
       "norm_label": "goalspage()"
     },
     {
@@ -34068,7 +34068,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_checklist_page",
-      "community": 66,
+      "community": 11,
       "norm_label": "checklist-page.tsx"
     },
     {
@@ -34078,7 +34078,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "components_checklist_page_checklistitem",
-      "community": 66,
+      "community": 11,
       "norm_label": "checklistitem"
     },
     {
@@ -34088,7 +34088,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "components_checklist_page_actionmode",
-      "community": 66,
+      "community": 11,
       "norm_label": "actionmode"
     },
     {
@@ -34098,7 +34098,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "components_checklist_page_checklistpageprops",
-      "community": 66,
+      "community": 11,
       "norm_label": "checklistpageprops"
     },
     {
@@ -34108,7 +34108,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "components_checklist_page_checklistpage",
-      "community": 66,
+      "community": 11,
       "norm_label": "checklistpage()"
     },
     {
@@ -34608,7 +34608,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_destination_review_workspace",
-      "community": 324,
+      "community": 60,
       "norm_label": "destination-review-workspace.tsx"
     },
     {
@@ -34618,7 +34618,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "components_destination_review_workspace_reviewpacket",
-      "community": 324,
+      "community": 60,
       "norm_label": "reviewpacket"
     },
     {
@@ -34628,7 +34628,7 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "components_destination_review_workspace_outcomememory",
-      "community": 324,
+      "community": 60,
       "norm_label": "outcomememory"
     },
     {
@@ -34638,7 +34638,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "components_destination_review_workspace_decision_options",
-      "community": 324,
+      "community": 60,
       "norm_label": "decision_options"
     },
     {
@@ -34648,7 +34648,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "components_destination_review_workspace_reason_options",
-      "community": 324,
+      "community": 60,
       "norm_label": "reason_options"
     },
     {
@@ -34658,7 +34658,7 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "components_destination_review_workspace_review_card_state_options",
-      "community": 324,
+      "community": 60,
       "norm_label": "review_card_state_options"
     },
     {
@@ -34668,7 +34668,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "components_destination_review_workspace_pretty",
-      "community": 324,
+      "community": 60,
       "norm_label": "pretty()"
     },
     {
@@ -34678,7 +34678,7 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "components_destination_review_workspace_packettitle",
-      "community": 324,
+      "community": 60,
       "norm_label": "packettitle()"
     },
     {
@@ -34688,7 +34688,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "components_destination_review_workspace_packetsubtitle",
-      "community": 324,
+      "community": 60,
       "norm_label": "packetsubtitle()"
     },
     {
@@ -34698,7 +34698,7 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "components_destination_review_workspace_livelistinglabel",
-      "community": 324,
+      "community": 60,
       "norm_label": "livelistinglabel()"
     },
     {
@@ -34708,7 +34708,7 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "components_destination_review_workspace_asrecord",
-      "community": 324,
+      "community": 60,
       "norm_label": "asrecord()"
     },
     {
@@ -34718,7 +34718,7 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "components_destination_review_workspace_latestpublishoutcome",
-      "community": 324,
+      "community": 60,
       "norm_label": "latestpublishoutcome()"
     },
     {
@@ -34728,7 +34728,7 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "components_destination_review_workspace_readpublicurlfromoutcome",
-      "community": 324,
+      "community": 60,
       "norm_label": "readpublicurlfromoutcome()"
     },
     {
@@ -34738,7 +34738,7 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "components_destination_review_workspace_destinationreviewworkspace",
-      "community": 324,
+      "community": 60,
       "norm_label": "destinationreviewworkspace()"
     },
     {
@@ -36118,7 +36118,7 @@
       "source_location": "L340",
       "_origin": "ast",
       "id": "ui_app_shell_pipelineaccentheader",
-      "community": 11,
+      "community": 60,
       "norm_label": "pipelineaccentheader()"
     },
     {
@@ -41228,7 +41228,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "lib_auth_readappsessiontoken",
-      "community": 302,
+      "community": 209,
       "norm_label": "readappsessiontoken()"
     },
     {
@@ -42048,7 +42048,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "lib_candidate_lifecycle_buildacceptedtaskpatch",
-      "community": 66,
+      "community": 11,
       "norm_label": "buildacceptedtaskpatch()"
     },
     {
@@ -42058,7 +42058,7 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "lib_candidate_lifecycle_buildarchivedtaskpatch",
-      "community": 66,
+      "community": 11,
       "norm_label": "buildarchivedtaskpatch()"
     },
     {
@@ -42068,7 +42068,7 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "lib_candidate_lifecycle_builddeliveredtaskpatch",
-      "community": 66,
+      "community": 11,
       "norm_label": "builddeliveredtaskpatch()"
     },
     {
@@ -44995,7 +44995,7 @@
       "label": "ClassScoutEntryPointIntent",
       "file_type": "code",
       "source_file": "src/lib/classscout-routes.ts",
-      "source_location": "L10",
+      "source_location": "L11",
       "_origin": "ast",
       "id": "lib_classscout_routes_classscoutentrypointintent",
       "community": 78,
@@ -45005,7 +45005,7 @@
       "label": "ClassScoutEntryPointClassification",
       "file_type": "code",
       "source_file": "src/lib/classscout-routes.ts",
-      "source_location": "L18",
+      "source_location": "L19",
       "_origin": "ast",
       "id": "lib_classscout_routes_classscoutentrypointclassification",
       "community": 78,
@@ -45015,7 +45015,7 @@
       "label": "resolveClassScoutRoutes()",
       "file_type": "code",
       "source_file": "src/lib/classscout-routes.ts",
-      "source_location": "L27",
+      "source_location": "L28",
       "_origin": "ast",
       "id": "lib_classscout_routes_resolveclassscoutroutes",
       "community": 78,
@@ -45025,7 +45025,7 @@
       "label": "resolveClassScoutEntryPoint()",
       "file_type": "code",
       "source_file": "src/lib/classscout-routes.ts",
-      "source_location": "L39",
+      "source_location": "L41",
       "_origin": "ast",
       "id": "lib_classscout_routes_resolveclassscoutentrypoint",
       "community": 78,
@@ -55568,7 +55568,7 @@
       "source_location": "L184",
       "_origin": "ast",
       "id": "lib_pipeline_queue_buildnoprogresstimeoutmessage",
-      "community": 192,
+      "community": 12,
       "norm_label": "buildnoprogresstimeoutmessage()"
     },
     {
@@ -55578,7 +55578,7 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "lib_pipeline_queue_getpipelinejobretrylimit",
-      "community": 12,
+      "community": 300,
       "norm_label": "getpipelinejobretrylimit()"
     },
     {
@@ -55588,7 +55588,7 @@
       "source_location": "L193",
       "_origin": "ast",
       "id": "lib_pipeline_queue_classifypipelinejoberror",
-      "community": 12,
+      "community": 300,
       "norm_label": "classifypipelinejoberror()"
     },
     {
@@ -55598,7 +55598,7 @@
       "source_location": "L302",
       "_origin": "ast",
       "id": "lib_pipeline_queue_builddestinationserviceoutagemaintenancepatch",
-      "community": 12,
+      "community": 300,
       "norm_label": "builddestinationserviceoutagemaintenancepatch()"
     },
     {
@@ -55608,7 +55608,7 @@
       "source_location": "L313",
       "_origin": "ast",
       "id": "lib_pipeline_queue_normalizequeuecircuitbreakerstate",
-      "community": 12,
+      "community": 300,
       "norm_label": "normalizequeuecircuitbreakerstate()"
     },
     {
@@ -55618,7 +55618,7 @@
       "source_location": "L321",
       "_origin": "ast",
       "id": "lib_pipeline_queue_builddestinationserviceoutagebreaker",
-      "community": 12,
+      "community": 300,
       "norm_label": "builddestinationserviceoutagebreaker()"
     },
     {
@@ -55628,7 +55628,7 @@
       "source_location": "L338",
       "_origin": "ast",
       "id": "lib_pipeline_queue_recordqueuecircuitbreaker",
-      "community": 12,
+      "community": 300,
       "norm_label": "recordqueuecircuitbreaker()"
     },
     {
@@ -55638,7 +55638,7 @@
       "source_location": "L370",
       "_origin": "ast",
       "id": "lib_pipeline_queue_maintaindestinationserviceoutagequeue",
-      "community": 12,
+      "community": 300,
       "norm_label": "maintaindestinationserviceoutagequeue()"
     },
     {
@@ -55648,7 +55648,7 @@
       "source_location": "L402",
       "_origin": "ast",
       "id": "lib_pipeline_queue_buildpipelinefailuremessage",
-      "community": 12,
+      "community": 300,
       "norm_label": "buildpipelinefailuremessage()"
     },
     {
@@ -55748,7 +55748,7 @@
       "source_location": "L525",
       "_origin": "ast",
       "id": "lib_pipeline_queue_normalizepipelinetopologystate",
-      "community": 12,
+      "community": 300,
       "norm_label": "normalizepipelinetopologystate()"
     },
     {
@@ -55758,7 +55758,7 @@
       "source_location": "L538",
       "_origin": "ast",
       "id": "lib_pipeline_queue_enqueuedirtypipelinetopologycompany",
-      "community": 12,
+      "community": 300,
       "norm_label": "enqueuedirtypipelinetopologycompany()"
     },
     {
@@ -55768,7 +55768,7 @@
       "source_location": "L553",
       "_origin": "ast",
       "id": "lib_pipeline_queue_draindirtypipelinetopologycompanies",
-      "community": 12,
+      "community": 300,
       "norm_label": "draindirtypipelinetopologycompanies()"
     },
     {
@@ -55778,7 +55778,7 @@
       "source_location": "L563",
       "_origin": "ast",
       "id": "lib_pipeline_queue_recordpipelinetopologysyncresult",
-      "community": 12,
+      "community": 300,
       "norm_label": "recordpipelinetopologysyncresult()"
     },
     {
@@ -55788,7 +55788,7 @@
       "source_location": "L580",
       "_origin": "ast",
       "id": "lib_pipeline_queue_readpipelinetopologystate",
-      "community": 12,
+      "community": 300,
       "norm_label": "readpipelinetopologystate()"
     },
     {
@@ -55798,7 +55798,7 @@
       "source_location": "L588",
       "_origin": "ast",
       "id": "lib_pipeline_queue_writepipelinetopologystate",
-      "community": 12,
+      "community": 300,
       "norm_label": "writepipelinetopologystate()"
     },
     {
@@ -55808,7 +55808,7 @@
       "source_location": "L598",
       "_origin": "ast",
       "id": "lib_pipeline_queue_appendpipelinetopologysyncresult",
-      "community": 12,
+      "community": 300,
       "norm_label": "appendpipelinetopologysyncresult()"
     },
     {
@@ -55818,7 +55818,7 @@
       "source_location": "L603",
       "_origin": "ast",
       "id": "lib_pipeline_queue_isdecomposedpipelinejob",
-      "community": 12,
+      "community": 300,
       "norm_label": "isdecomposedpipelinejob()"
     },
     {
@@ -55998,7 +55998,7 @@
       "source_location": "L1814",
       "_origin": "ast",
       "id": "lib_pipeline_queue_syncallcompanypipelinejobs",
-      "community": 192,
+      "community": 12,
       "norm_label": "syncallcompanypipelinejobs()"
     },
     {
@@ -56018,7 +56018,7 @@
       "source_location": "L1854",
       "_origin": "ast",
       "id": "lib_pipeline_queue_markcompanypipelinetopologydirty",
-      "community": 12,
+      "community": 300,
       "norm_label": "markcompanypipelinetopologydirty()"
     },
     {
@@ -56028,7 +56028,7 @@
       "source_location": "L1865",
       "_origin": "ast",
       "id": "lib_pipeline_queue_syncdirtycompanypipelinejobs",
-      "community": 12,
+      "community": 300,
       "norm_label": "syncdirtycompanypipelinejobs()"
     },
     {
@@ -56038,7 +56038,7 @@
       "source_location": "L1938",
       "_origin": "ast",
       "id": "lib_pipeline_queue_shouldrunglobalpipelinesync",
-      "community": 192,
+      "community": 12,
       "norm_label": "shouldrunglobalpipelinesync()"
     },
     {
@@ -56048,7 +56048,7 @@
       "source_location": "L1943",
       "_origin": "ast",
       "id": "lib_pipeline_queue_syncallcompanypipelinejobsifdue",
-      "community": 192,
+      "community": 12,
       "norm_label": "syncallcompanypipelinejobsifdue()"
     },
     {
@@ -56058,7 +56058,7 @@
       "source_location": "L1955",
       "_origin": "ast",
       "id": "lib_pipeline_queue_recoverstalerunningpipelinejobs",
-      "community": 192,
+      "community": 12,
       "norm_label": "recoverstalerunningpipelinejobs()"
     },
     {
@@ -56138,7 +56138,7 @@
       "source_location": "L2194",
       "_origin": "ast",
       "id": "lib_pipeline_queue_completepipelinejob",
-      "community": 12,
+      "community": 300,
       "norm_label": "completepipelinejob()"
     },
     {
@@ -56158,7 +56158,7 @@
       "source_location": "L2253",
       "_origin": "ast",
       "id": "lib_pipeline_queue_finalizesuccessfulpipelinejob",
-      "community": 12,
+      "community": 300,
       "norm_label": "finalizesuccessfulpipelinejob()"
     },
     {
@@ -56188,7 +56188,7 @@
       "source_location": "L2355",
       "_origin": "ast",
       "id": "lib_pipeline_queue_failpipelinejob",
-      "community": 12,
+      "community": 300,
       "norm_label": "failpipelinejob()"
     },
     {
@@ -58298,7 +58298,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_server_goals_page_data",
-      "community": 302,
+      "community": 209,
       "norm_label": "server-goals-page-data.ts"
     },
     {
@@ -58308,7 +58308,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "lib_server_goals_page_data_goalsinitialdata",
-      "community": 302,
+      "community": 209,
       "norm_label": "goalsinitialdata"
     },
     {
@@ -58318,7 +58318,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "lib_server_goals_page_data_getsessionandmembership",
-      "community": 302,
+      "community": 209,
       "norm_label": "getsessionandmembership()"
     },
     {
@@ -58328,7 +58328,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "lib_server_goals_page_data_getgoalsinitialdata",
-      "community": 302,
+      "community": 209,
       "norm_label": "getgoalsinitialdata()"
     },
     {
@@ -63048,7 +63048,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "lib_webapp_projection_projectionfreshness",
-      "community": 66,
+      "community": 11,
       "norm_label": "projectionfreshness"
     },
     {
@@ -72325,7 +72325,7 @@
       "label": "7.2.1 ClassScout Entry-Point Migration",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L496",
+      "source_location": "L497",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_7_2_1_classscout_entry_point_migration",
       "community": 206,
@@ -72335,7 +72335,7 @@
       "label": "7.2.2 ClassScout Navigation Quality",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L504",
+      "source_location": "L507",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_7_2_2_classscout_navigation_quality",
       "community": 206,
@@ -72345,7 +72345,7 @@
       "label": "7.3 Settings flow",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L517",
+      "source_location": "L520",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_7_3_settings_flow",
       "community": 206,
@@ -72355,7 +72355,7 @@
       "label": "7.5 Capability transaction flow (canonical)",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L535",
+      "source_location": "L538",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_7_5_capability_transaction_flow_canonical",
       "community": 206,
@@ -72365,7 +72365,7 @@
       "label": "7.6 Local-to-Miniapp intelligence flow",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L547",
+      "source_location": "L550",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_7_6_local_to_miniapp_intelligence_flow",
       "community": 206,
@@ -72375,7 +72375,7 @@
       "label": "7.4 Board CRUD flow",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L592",
+      "source_location": "L595",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_7_4_board_crud_flow",
       "community": 206,
@@ -72385,7 +72385,7 @@
       "label": "Create",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L594",
+      "source_location": "L597",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_create",
       "community": 206,
@@ -72395,7 +72395,7 @@
       "label": "Move",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L604",
+      "source_location": "L607",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_move",
       "community": 206,
@@ -72405,7 +72405,7 @@
       "label": "Update",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L610",
+      "source_location": "L613",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_update",
       "community": 206,
@@ -72415,7 +72415,7 @@
       "label": "Archive",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L615",
+      "source_location": "L618",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_archive",
       "community": 206,
@@ -72425,7 +72425,7 @@
       "label": "8. API contracts (request/response)",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L618",
+      "source_location": "L621",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_8_api_contracts_request_response",
       "community": 296,
@@ -72435,7 +72435,7 @@
       "label": "8.1 `/api/companies/[companyId]/settings`",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L620",
+      "source_location": "L623",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_8_1_api_companies_companyid_settings",
       "community": 296,
@@ -72445,7 +72445,7 @@
       "label": "8.2 `/api/companies/[companyId]/nav`",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L634",
+      "source_location": "L637",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_8_2_api_companies_companyid_nav",
       "community": 296,
@@ -72455,7 +72455,7 @@
       "label": "8.5 `/api/classscout/landing`",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L644",
+      "source_location": "L647",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_8_5_api_classscout_landing",
       "community": 296,
@@ -72465,7 +72465,7 @@
       "label": "8.6 `/api/classscout/refresh-lane`",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L662",
+      "source_location": "L665",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_8_6_api_classscout_refresh_lane",
       "community": 296,
@@ -72475,7 +72475,7 @@
       "label": "8.7 `/api/destination-missions/runs/[id]/verification-tick`",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L675",
+      "source_location": "L678",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_8_7_api_destination_missions_runs_id_verification_tick",
       "community": 296,
@@ -72485,7 +72485,7 @@
       "label": "8.4 `/api/companies/[companyId]/capabilities/transaction`",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L699",
+      "source_location": "L702",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_8_4_api_companies_companyid_capabilities_transaction",
       "community": 296,
@@ -72495,7 +72495,7 @@
       "label": "8.3 `/api/board-items`",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L727",
+      "source_location": "L730",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_8_3_api_board_items",
       "community": 296,
@@ -72505,7 +72505,7 @@
       "label": "9. Pseudo-code",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L739",
+      "source_location": "L742",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_9_pseudo_code",
       "community": 397,
@@ -72515,7 +72515,7 @@
       "label": "9.1 Capability resolution",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L741",
+      "source_location": "L744",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_9_1_capability_resolution",
       "community": 397,
@@ -72525,7 +72525,7 @@
       "label": "9.2 Module filtering",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L754",
+      "source_location": "L757",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_9_2_module_filtering",
       "community": 397,
@@ -72535,7 +72535,7 @@
       "label": "9.3 Board rank request validation",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L761",
+      "source_location": "L764",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_9_3_board_rank_request_validation",
       "community": 397,
@@ -72545,7 +72545,7 @@
       "label": "9.4 Failure and retry envelope",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L771",
+      "source_location": "L774",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_9_4_failure_and_retry_envelope",
       "community": 397,
@@ -72555,7 +72555,7 @@
       "label": "10. UI/UX state model and accessibility",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L784",
+      "source_location": "L787",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_10_ui_ux_state_model_and_accessibility",
       "community": 427,
@@ -72565,7 +72565,7 @@
       "label": "10.1 Global UI state rules",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L786",
+      "source_location": "L789",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_10_1_global_ui_state_rules",
       "community": 427,
@@ -72575,7 +72575,7 @@
       "label": "10.2 Unit board UI state model",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L791",
+      "source_location": "L794",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_10_2_unit_board_ui_state_model",
       "community": 427,
@@ -72585,7 +72585,7 @@
       "label": "10.3 Accessibility requirements",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L797",
+      "source_location": "L800",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_10_3_accessibility_requirements",
       "community": 427,
@@ -72595,7 +72595,7 @@
       "label": "11. Observability and instrumentation",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L804",
+      "source_location": "L807",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_11_observability_and_instrumentation",
       "community": 392,
@@ -72605,7 +72605,7 @@
       "label": "11.1 Board endpoint telemetry",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L806",
+      "source_location": "L809",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_11_1_board_endpoint_telemetry",
       "community": 392,
@@ -72615,7 +72615,7 @@
       "label": "11.2 Capability telemetry",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L813",
+      "source_location": "L816",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_11_2_capability_telemetry",
       "community": 392,
@@ -72625,7 +72625,7 @@
       "label": "11.3 Local AI collaboration telemetry",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L832",
+      "source_location": "L835",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_11_3_local_ai_collaboration_telemetry",
       "community": 392,
@@ -72635,7 +72635,7 @@
       "label": "11.4 Logging",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L838",
+      "source_location": "L841",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_11_4_logging",
       "community": 392,
@@ -72645,7 +72645,7 @@
       "label": "12. Retries, timeouts, and failure policy",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L842",
+      "source_location": "L845",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_12_retries_timeouts_and_failure_policy",
       "community": 393,
@@ -72655,7 +72655,7 @@
       "label": "12.1 Board write policy",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L844",
+      "source_location": "L847",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_12_1_board_write_policy",
       "community": 393,
@@ -72665,7 +72665,7 @@
       "label": "12.2 Client retry policy",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L850",
+      "source_location": "L853",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_12_2_client_retry_policy",
       "community": 393,
@@ -72675,7 +72675,7 @@
       "label": "12.3 Profile/API failure policy",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L855",
+      "source_location": "L858",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_12_3_profile_api_failure_policy",
       "community": 393,
@@ -72685,7 +72685,7 @@
       "label": "12.4 Timeout strategy",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L859",
+      "source_location": "L862",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_12_4_timeout_strategy",
       "community": 393,
@@ -72695,7 +72695,7 @@
       "label": "13. Rollback and recovery",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L863",
+      "source_location": "L866",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_13_rollback_and_recovery",
       "community": 179,
@@ -72705,7 +72705,7 @@
       "label": "13.1 Disaster recovery notes",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L870",
+      "source_location": "L873",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_13_1_disaster_recovery_notes",
       "community": 179,
@@ -72715,7 +72715,7 @@
       "label": "14. Testing strategy",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L878",
+      "source_location": "L881",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_14_testing_strategy",
       "community": 352,
@@ -72725,7 +72725,7 @@
       "label": "14.1 Unit tests",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L880",
+      "source_location": "L883",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_14_1_unit_tests",
       "community": 352,
@@ -72735,7 +72735,7 @@
       "label": "14.2 API tests",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L885",
+      "source_location": "L888",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_14_2_api_tests",
       "community": 352,
@@ -72745,7 +72745,7 @@
       "label": "14.3 Integration tests",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L893",
+      "source_location": "L896",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_14_3_integration_tests",
       "community": 352,
@@ -72755,7 +72755,7 @@
       "label": "14.4 E2E tests",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L898",
+      "source_location": "L901",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_14_4_e2e_tests",
       "community": 352,
@@ -72765,7 +72765,7 @@
       "label": "14.5 Regression tests (must-have)",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L905",
+      "source_location": "L908",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_14_5_regression_tests_must_have",
       "community": 352,
@@ -72775,7 +72775,7 @@
       "label": "15. Security and governance",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L911",
+      "source_location": "L914",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_15_security_and_governance",
       "community": 179,
@@ -72785,7 +72785,7 @@
       "label": "16. Block-based surface composition",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L918",
+      "source_location": "L921",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_16_block_based_surface_composition",
       "community": 179,
@@ -72795,7 +72795,7 @@
       "label": "17. Cross-surface adapter model for Miniapps",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L934",
+      "source_location": "L937",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_17_cross_surface_adapter_model_for_miniapps",
       "community": 179,
@@ -72805,7 +72805,7 @@
       "label": "17.1 Miniapp Ops surface contract",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L936",
+      "source_location": "L939",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_17_1_miniapp_ops_surface_contract",
       "community": 179,
@@ -72815,7 +72815,7 @@
       "label": "17.2 Data sources",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L944",
+      "source_location": "L947",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_17_2_data_sources",
       "community": 179,
@@ -72825,7 +72825,7 @@
       "label": "18. Deployment and execution order",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L949",
+      "source_location": "L952",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_18_deployment_and_execution_order",
       "community": 394,
@@ -72835,7 +72835,7 @@
       "label": "18.1 Phase A - foundation hardening",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L951",
+      "source_location": "L954",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_18_1_phase_a_foundation_hardening",
       "community": 394,
@@ -72845,7 +72845,7 @@
       "label": "18.2 Phase B - board reliability",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L956",
+      "source_location": "L959",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_18_2_phase_b_board_reliability",
       "community": 394,
@@ -72855,7 +72855,7 @@
       "label": "18.3 Phase C - control-plane completion",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L962",
+      "source_location": "L965",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_18_3_phase_c_control_plane_completion",
       "community": 394,
@@ -72865,7 +72865,7 @@
       "label": "18.4 Phase D - generalization",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L967",
+      "source_location": "L970",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_18_4_phase_d_generalization",
       "community": 394,
@@ -72875,7 +72875,7 @@
       "label": "19. Edge cases",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L972",
+      "source_location": "L975",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_19_edge_cases",
       "community": 179,
@@ -72885,7 +72885,7 @@
       "label": "20. Operational behavior",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L984",
+      "source_location": "L987",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_20_operational_behavior",
       "community": 179,
@@ -72895,7 +72895,7 @@
       "label": "Development",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L986",
+      "source_location": "L989",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_development",
       "community": 179,
@@ -72905,7 +72905,7 @@
       "label": "Production",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L990",
+      "source_location": "L993",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_production",
       "community": 179,
@@ -72915,7 +72915,7 @@
       "label": "21. Current implementation status",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L995",
+      "source_location": "L998",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_21_current_implementation_status",
       "community": 428,
@@ -72925,7 +72925,7 @@
       "label": "Mission State Hardening",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L1023",
+      "source_location": "L1026",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_mission_state_hardening",
       "community": 428,
@@ -72935,7 +72935,7 @@
       "label": "Publish Verification And Catalog Orchestration",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L1040",
+      "source_location": "L1043",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_publish_verification_and_catalog_orchestration",
       "community": 428,
@@ -72945,7 +72945,7 @@
       "label": "Correction-To-Policy Loop",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L1052",
+      "source_location": "L1055",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_correction_to_policy_loop",
       "community": 428,
@@ -72955,7 +72955,7 @@
       "label": "22. Reference file map",
       "file_type": "document",
       "source_file": "docs/INTELLIGENCE_UNIT_CONTROL_PLANE_LLD.md",
-      "source_location": "L1058",
+      "source_location": "L1061",
       "_origin": "ast",
       "id": "docs_intelligence_unit_control_plane_lld_22_reference_file_map",
       "community": 179,
@@ -129281,9 +129281,9 @@
       "source_file": "scripts/sync.js",
       "source_location": "L61",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scripts_sync",
-      "target": "scripts_sync_active_interval",
-      "confidence_score": 1.0
+      "target": "scripts_sync_active_interval"
     },
     {
       "relation": "contains",
@@ -129351,9 +129351,9 @@
       "source_file": "scripts/sync.js",
       "source_location": "L60",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scripts_sync",
-      "target": "scripts_sync_idle_interval",
-      "confidence_score": 1.0
+      "target": "scripts_sync_idle_interval"
     },
     {
       "relation": "contains",
@@ -129401,9 +129401,9 @@
       "source_file": "scripts/sync.js",
       "source_location": "L62",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scripts_sync",
-      "target": "scripts_sync_polling_interval",
-      "confidence_score": 1.0
+      "target": "scripts_sync_polling_interval"
     },
     {
       "relation": "contains",
@@ -129441,9 +129441,9 @@
       "source_file": "scripts/sync.js",
       "source_location": "L54",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scripts_sync",
-      "target": "scripts_sync_readboundedintervalms",
-      "confidence_score": 1.0
+      "target": "scripts_sync_readboundedintervalms"
     },
     {
       "relation": "contains",
@@ -268842,5 +268842,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "af54fedc4604894a2cfcc0b2681ca20194b331db"
+  "built_at_commit": "09b29a824b35f9d49e291c86d1f004192170903a"
 }

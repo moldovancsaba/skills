@@ -56,7 +56,7 @@ function parseArgs(argv) {
 
 function usage() {
   return [
-    "Usage: node scripts/backfill-destination-mission-lineage.mjs --companyId <companyId> --destinationKey <classscout|compare> [--dry-run]",
+    "Usage: node scripts/backfill-destination-mission-lineage.mjs --companyId <companyId> --destinationKey <compare|compare> [--dry-run]",
     "",
     "Creates one adopted legacy mission-run lineage when real destination review/publish evidence exists but no mission run exists yet.",
   ].join("\n");
@@ -68,7 +68,7 @@ function fail(message) {
 }
 
 function cleanDestinationKey(value) {
-  if (value === "classscout" || value === "compare") return value;
+  if (value === "compare" || value === "compare") return value;
   return "";
 }
 

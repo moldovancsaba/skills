@@ -65,9 +65,9 @@ export const CUSTOMER_VALUE_DELIVERABLES: CustomerValueDeliverable[] = [
   },
   {
     issueNumber: 410,
-    slug: "classscout-rulebook-ops",
-    title: "ClassScout Rulebook and Continuous Ops Consolidation",
-    customerValue: "Always-on ClassScout/Compare discovery with governed review pressure and recovery actions.",
+    slug: "destination-rulebook-ops",
+    title: "Destination Rulebook and Continuous Ops Consolidation",
+    customerValue: "Always-on destination discovery with governed review pressure and recovery actions.",
     executionOrder: 70,
     dependencies: [409],
     status: "todo",
@@ -87,7 +87,7 @@ export const CUSTOMER_VALUE_DELIVERABLES: CustomerValueDeliverable[] = [
     issueNumber: 319,
     slug: "destination-golden-path",
     title: "Destination workspace golden path",
-    customerValue: "Mission-to-publish operator flow for ClassScout/Compare customer destinations.",
+    customerValue: "Mission-to-publish operator flow for customer destinations.",
     executionOrder: 72,
     dependencies: [403, 410],
     status: "todo",
@@ -295,7 +295,6 @@ export async function buildCustomerOperationsSummary(companyId: string) {
   const projectionMetadata = buildProjectionMetadata(projection);
   const failedJobs = pipelineJobs.filter((job) => job.status === "FAILED" || job.status === "PAUSED");
   const reviewPressure =
-    asPositiveNumber(projection?.miniapps.classscout?.reviewPressureCount) +
     asPositiveNumber(projection?.miniapps.compare?.reviewPressureCount);
   const failedDestinations = destinationRuns.filter((run) => run.state === "FAILED_RECOVERABLE" || run.state === "PAUSED");
   const highValueReady = highValueOpportunities.filter((item) => Number(item.iceScore || 0) >= 80);

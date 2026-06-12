@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!companyId) return NextResponse.json({ error: "companyId is required" }, { status: 400 });
   const destinationKeyRaw = body.destinationKey;
   if (destinationKeyRaw !== undefined && !normalizeDestinationKey(destinationKeyRaw)) {
-    return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+    return NextResponse.json({ error: "destinationKey must be supported by checklist" }, { status: 400 });
   }
   const destinationKey = normalizeDestinationKey(destinationKeyRaw);
   const auth = await verifyMembership(request, companyId, "ADMIN");
@@ -27,14 +27,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!mission || (destinationKey && mission.destinationKey !== destinationKey)) {
     return NextResponse.json({ error: "Mission run not found" }, { status: 404 });
   }
-  if (mission.destinationKey !== "classscout" && mission.destinationKey !== "compare") {
+  const missionDestinationKey = normalizeDestinationKey(mission.destinationKey);
+  if (!missionDestinationKey) {
     return NextResponse.json({ error: "Mission destination is not supported for extraction" }, { status: 400 });
   }
 
   const result = await queueDestinationMissionRunAction({
     companyId,
     missionId: id,
-    destinationScope: destinationKey ?? mission.destinationKey,
+    destinationScope: destinationKey ?? missionDestinationKey,
     actorId: auth.session.email,
     action: "extract-candidate",
   });

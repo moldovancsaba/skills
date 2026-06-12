@@ -15,7 +15,7 @@ Use this page to see:
 - Overall customer operations health.
 - High-value sales opportunities.
 - Runtime jobs that need recovery.
-- Destination review pressure for ClassScout and Compare.
+- Destination review pressure for External Miniapp and Compare.
 - Customer read-model freshness.
 - Opportunity learning memory.
 - Notification readiness.

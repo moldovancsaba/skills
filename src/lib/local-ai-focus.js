@@ -1,5 +1,5 @@
 const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
-const DEFAULT_FOCUS_REASON = "Local AI focus mode is restricted to ClassScout product-building work.";
+const DEFAULT_FOCUS_REASON = "Local AI focus mode is restricted to configured destination work.";
 
 function splitCsv(value) {
   return String(value || "")

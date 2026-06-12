@@ -2,7 +2,7 @@ import miniappRegistryData from "./miniapp-registry-data.json";
 import { publishDestinationReviewPacket } from "@/lib/destination-publish-bridge";
 
 export const CHECK_FOUNDATION_MINIAPP_REGISTRY_SCHEMA_VERSION = 1 as const;
-export const MINIAPP_IDS = ["classscout", "compare", "trainers", "athleteiq"] as const;
+export const MINIAPP_IDS = ["compare", "trainers", "athleteiq"] as const;
 export type MiniappId = (typeof MINIAPP_IDS)[number];
 
 export type MiniappDefinition = {
@@ -65,12 +65,6 @@ const miniappDefinitionById = new Map<MiniappId, MiniappDefinition>(
   typedMiniappRegistry.miniapps.map((definition) => [definition.id, definition]),
 );
 
-function classScoutBridgeConfigured() {
-  const baseUrl = process.env.CLASSSCOUT_BASE_URL?.trim();
-  const ingestKey = process.env.CLASSSCOUT_INGEST_API_KEY?.trim();
-  return Boolean(baseUrl && ingestKey);
-}
-
 function compareBridgeConfigured() {
   const baseUrl = process.env.COMPARE_BASE_URL?.trim();
   const ingestKey = process.env.COMPARE_INGEST_API_KEY?.trim();
@@ -88,51 +82,6 @@ function athleteiqBridgeConfigured() {
   const ingestKey = process.env.ATHLETEIQ_INGEST_API_KEY?.trim();
   return Boolean(baseUrl && ingestKey);
 }
-
-const classScoutAdapter: MiniappAdapter = {
-  key: "classscout",
-  miniappId: "classscout",
-  async getStatus() {
-    const configured = classScoutBridgeConfigured();
-    return {
-      miniappId: "classscout",
-      configured,
-      ready: configured,
-      reason: configured ? undefined : "ClassScout bridge credentials are missing.",
-    };
-  },
-  async publishCard(input) {
-    const reviewPacketId = String(input.card.payload.reviewPacketId || "").trim();
-    if (!reviewPacketId) {
-      return {
-        cardId: input.card.cardId,
-        status: "failed",
-        message: "reviewPacketId is required for ClassScout publishing.",
-      };
-    }
-
-    const result = await publishDestinationReviewPacket({
-      companyId: input.unitId,
-      reviewPacketId,
-      reviewedBy: input.actorId,
-    });
-
-    if (!result.ok) {
-      return {
-        cardId: input.card.cardId,
-        status: result.status >= 500 ? "retryable_failed" : "failed",
-        message: typeof result.error === "string" ? result.error : `ClassScout publish failed with status ${result.status}`,
-      };
-    }
-
-    return {
-      cardId: input.card.cardId,
-      status: "published",
-      externalId: reviewPacketId,
-      message: "Published through ClassScout review-publish bridge.",
-    };
-  },
-};
 
 const compareAdapter: MiniappAdapter = {
   key: "compare",
@@ -270,7 +219,6 @@ const athleteiqAdapter: MiniappAdapter = {
 };
 
 const miniappAdapterById: Record<MiniappId, MiniappAdapter> = {
-  classscout: classScoutAdapter,
   compare: compareAdapter,
   trainers: trainersAdapter,
   athleteiq: athleteiqAdapter,

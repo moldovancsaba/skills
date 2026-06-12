@@ -38,7 +38,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!companyId) return NextResponse.json({ error: "companyId is required" }, { status: 400 });
   const destinationKeyRaw = body.destinationKey;
   if (destinationKeyRaw !== undefined && !normalizeDestinationKey(destinationKeyRaw)) {
-    return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+    return NextResponse.json({ error: "destinationKey must be supported by checklist" }, { status: 400 });
   }
   const destinationKey = normalizeDestinationKey(destinationKeyRaw);
   const auth = await verifyMembership(request, companyId, "ADMIN");

@@ -41,7 +41,7 @@ assert(/webapp:\s*{[\s\S]*profile:[\s\S]*modules:[\s\S]*profileLabel:/.test(file
 assert(/routeTargets/.test(files.nav), "nav response must include routeTargets for profile-owned routes");
 
 assert(/unitCapabilitiesV2/.test(files.docs), "docs must describe unitCapabilitiesV2");
-assert(/webapp\.routeTargets\.classscout/.test(files.docs), "docs must describe ClassScout route targets on nav");
+assert(/webapp\.routeTargets\.compare/.test(files.docs), "docs must describe Compare route targets on nav");
 
 if (failures.length > 0) {
   console.error("Unit capability v2 contract failed:\n");

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const packetState = request.nextUrl.searchParams.get("packetState");
   const destinationKeyRaw = request.nextUrl.searchParams.get("destinationKey");
   if (destinationKeyRaw && !normalizeDestinationKey(destinationKeyRaw)) {
-    return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+    return NextResponse.json({ error: "destinationKey must be supported by checklist" }, { status: 400 });
   }
   const destinationKey = normalizeDestinationKey(destinationKeyRaw);
   const cards = await prisma.destinationReviewPacket.findMany({
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
     const destinationKey = normalizeDestinationKey(body.destinationKey);
     if (!destinationKey) {
-      return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+      return NextResponse.json({ error: "destinationKey must be supported by checklist" }, { status: 400 });
     }
 
     const card = await submitDestinationReviewPacket({

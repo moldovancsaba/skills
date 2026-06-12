@@ -8,7 +8,6 @@ import {
   getVisitorTaxonomy,
   resolveDestinationKeyForVisitor,
 } from "@/lib/visitor-blueprints";
-import { buildDefaultVisitorBlueprints, buildDefaultVisitorTaxonomies } from "@/lib/visitor-bootstrap";
 import { createVisitorSourceDatacard } from "@/lib/visitor-source-graph";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -38,22 +37,14 @@ export async function migrateVisitorFromExistingDestination(
   const destinationKey = resolveDestinationKeyForVisitor(visitorKey);
   if (!destinationKey) throw new Error("Unsupported visitorKey");
   const instance = await ensureDestinationInstance(companyId, destinationKey);
-  const defaultBlueprint = buildDefaultVisitorBlueprints().find((item) => item.visitorKey === visitorKey);
-  const defaultTaxonomy = buildDefaultVisitorTaxonomies().find((item) => item.visitorKey === visitorKey);
-
-  if (!defaultBlueprint || !defaultTaxonomy) {
-    throw new Error(`No default Visitor bootstrap config found for ${visitorKey}`);
-  }
 
   const existingBlueprint = await getVisitorBlueprint(companyId, visitorKey);
   if (!existingBlueprint) {
-    const { upsertVisitorBlueprint } = await import("@/lib/visitor-blueprints");
-    await upsertVisitorBlueprint(companyId, defaultBlueprint);
+    throw new Error(`Visitor blueprint is missing for ${visitorKey}`);
   }
   const existingTaxonomy = await getVisitorTaxonomy(companyId, visitorKey);
   if (!existingTaxonomy) {
-    const { upsertVisitorTaxonomy } = await import("@/lib/visitor-blueprints");
-    await upsertVisitorTaxonomy(companyId, defaultTaxonomy);
+    throw new Error(`Visitor taxonomy is missing for ${visitorKey}`);
   }
 
   const candidates = await prisma.destinationCandidate.findMany({
@@ -83,7 +74,7 @@ export async function migrateVisitorFromExistingDestination(
         datacardType: "source_datacard",
         url,
         canonicalUrl: url,
-        sourceKind: destinationKey === "classscout" ? "official_site" : "federation",
+        sourceKind: "federation",
         trustTier: "usable",
         industryRelevance: 0.75,
         locationRelevance: 0.75,
@@ -112,4 +103,3 @@ export async function migrateVisitorFromExistingDestination(
     blueprintActivated: activated,
   };
 }
-

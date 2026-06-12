@@ -82,9 +82,9 @@ flowchart TB
 ```mermaid
 flowchart LR
   WebappProfile["resolve legacy profile / effective Blocks"] -->|NONE| RouteGeneric["/{companyId} -> UnitHome"]
-  WebappProfile -->|CLASSSCOUT| RouteClassScout["/{companyId} -> ClassScout Miniapp Ops"]
+  WebappProfile -->|EXTERNAL_MINIAPP| RouteExternal Miniapp["/{companyId} -> External Miniapp Miniapp Ops"]
   WebappProfile -->|COMPARE| RouteCompare["/{companyId} -> Compare Miniapp Ops"]
-  RouteClassScout -->|gates modules| Nav["/api/companies/{companyId}/nav"]
+  RouteExternal Miniapp -->|gates modules| Nav["/api/companies/{companyId}/nav"]
   RouteCompare -->|gates modules| Nav
   RouteGeneric -->|gates modules| Nav
   Nav -->|module matrix| Sidebar["client-nav"]
@@ -106,7 +106,7 @@ flowchart LR
 - Build webapp projection and operational refresh state.
 - Consume operator intents and feed queue/state back to Atlas.
 - Persist heavy events in local audit DB, not Atlas.
-- Feed Miniapp intelligence flows for ClassScout and Compare.
+- Feed Miniapp intelligence flows for External Miniapp and Compare.
 - Expose enough health evidence for CHECK to show when Miniapp content is fresh, stale, blocked, retrying, or disconnected.
 
 ### 3.2 Miniapp intelligence health rule
@@ -114,7 +114,7 @@ flowchart LR
 Miniapp enablement is only the control-plane permission to expose a Miniapp.
 It is not proof that the Miniapp content loop is healthy.
 
-ClassScout and Compare are healthy only when all of these are true:
+External Miniapp and Compare are healthy only when all of these are true:
 
 - the Miniapp Block is enabled for the Unit
 - the matching destination instance is active
@@ -155,7 +155,7 @@ Initial Blocks:
 ### 4.3 Legacy webapp profile
 `unitCapabilities.webappProfile` values:
 - `NONE`
-- `CLASSSCOUT`
+- `EXTERNAL_MINIAPP`
 - `COMPARE`
 
 This is a compatibility field. Product-facing work should say Block, Miniapp, Miniapp Ops, Webapp, and Local.
@@ -176,7 +176,7 @@ The module key set is:
 - `unit-board`
 - `webapp`
 
-`webapp` is currently present in every legacy UI profile and maps the dedicated Miniapp Ops surface route (`/classscout` or `/compare`).
+`webapp` is currently present in every legacy UI profile and maps the dedicated Miniapp Ops surface route (`/external-miniapp` or `/compare`).
 
 ### 4.5 Board domain
 - `BoardCard` holds stable card metadata (`title`, `description`, creator, timestamps).
@@ -394,7 +394,7 @@ Stored in `company.workerConfig` as JSON:
         "project": false
       },
       "miniapps": {
-        "classscout": { "enabled": true },
+        "external-miniapp": { "enabled": true },
         "compare": { "enabled": false }
       }
     }
@@ -459,7 +459,7 @@ From `src/lib/intelligence-unit-capabilities.ts`:
 
 ### 7.1 Route resolution flow
 ```ts
-if (initialData.webappProfile === "CLASSSCOUT") render ClassScoutHome;
+if (initialData.webappProfile === "EXTERNAL_MINIAPP") render External MiniappHome;
 else if (initialData.webappProfile === "COMPARE") render CompareHome;
 else render CompanyDashboard;
 ```
@@ -475,47 +475,47 @@ Source for `initialData`:
 - `ClientNav` fetches `/api/companies/{companyId}/nav`.
 - `webapp.profile` and `webapp.modules` come back from nav API.
 - `webapp.route` is the resolved dedicated profile route or `null`.
-- `webapp.routeTargets.classscout` is owned by `src/lib/classscout-routes.ts` and resolves:
-  - `/{companyId}/classscout` as the ClassScout landing route
+- `webapp.routeTargets.external-miniapp` is owned by `src/lib/external-miniapp-routes.ts` and resolves:
+  - `/{companyId}/external-miniapp` as the External Miniapp landing route
   - `/{companyId}/review` as generic review infrastructure
-  - `/{companyId}/review?tab=review&destinationKey=classscout` as the ClassScout content creation and review card route
-  - `/{companyId}/review?tab=ops&destinationKey=classscout` as ClassScout-scoped review ops infrastructure
+  - `/{companyId}/review?tab=review&destinationKey=external-miniapp` as the External Miniapp content creation and review card route
+  - `/{companyId}/review?tab=ops&destinationKey=external-miniapp` as External Miniapp-scoped review ops infrastructure
   - `/{companyId}/observability` as generic mission-control infrastructure
-- `src/lib/classscout-routes.ts` also owns `resolveClassScoutEntryPoint`.
-  - generic ClassScout entry points resolve to `/{companyId}/classscout`
-  - explicit Content Ops intent preserves `/{companyId}/review?tab=review&destinationKey=classscout`
-  - explicit Live Catalog intent preserves `/{companyId}/review?tab=ops&destinationKey=classscout`
+- `src/lib/external-miniapp-routes.ts` also owns `resolveExternal MiniappEntryPoint`.
+  - generic External Miniapp entry points resolve to `/{companyId}/external-miniapp`
+  - explicit Content Ops intent preserves `/{companyId}/review?tab=review&destinationKey=external-miniapp`
+  - explicit Live Catalog intent preserves `/{companyId}/review?tab=ops&destinationKey=external-miniapp`
   - explicit Mission Control intent preserves `/{companyId}/observability`
-  - explicit Visitor Ops intent preserves `/{companyId}/classscout/visitor-ops`
+  - explicit Visitor Ops intent preserves `/{companyId}/external-miniapp/visitor-ops`
 - `webapp` profile route rendered if available.
 - Module list filtered to `moduleCapabilities[key] !== false`.
 - Deep-link not required to exist in nav to navigate currently; route should still recover gracefully.
-- ClassScout renders with stable sidebar key `classscout`; Compare renders with stable sidebar key `compare`.
-- ClassScout badge counts come from the nav read model when available; badge absence must not hide the item.
-- ClassScout active state covers `/{companyId}/classscout` and grouped descendant routes.
+- External Miniapp renders with stable sidebar key `external-miniapp`; Compare renders with stable sidebar key `compare`.
+- External Miniapp badge counts come from the nav read model when available; badge absence must not hide the item.
+- External Miniapp active state covers `/{companyId}/external-miniapp` and grouped descendant routes.
 
-### 7.2.1 ClassScout Entry-Point Migration
-- Default policy: every generic ClassScout launch opens the canonical ClassScout home.
+### 7.2.1 External Miniapp Entry-Point Migration
+- Default policy: every generic External Miniapp launch opens the canonical External Miniapp home.
 - Preserved deep links are allowed only when the visible label names the specific workflow.
-- The destination unit panel primary action now opens ClassScout home.
+- The destination unit panel primary action now opens External Miniapp home.
 - Destination unit panel Mission Control and Live Catalog buttons remain explicit deep links.
-- ClassScout Content Ops is always destination-scoped to the review card tab; it must not fall back to a generic contact/opportunity card surface.
-- Visitor Ops exposes a visible `Review Content Cards` action that returns operators to the ClassScout content creation/review queue.
+- External Miniapp Content Ops is always destination-scoped to the review card tab; it must not fall back to a generic contact/opportunity card surface.
+- Visitor Ops exposes a visible `Review Content Cards` action that returns operators to the External Miniapp content creation/review queue.
 - Entry-point classifications include `sourceSurface`, `intent`, `targetDestination`, `preservesDeepLink`, `compatibilityRedirectRequired`, and `accessibleLabel`.
 - Rollback is local to each source surface because every migrated source calls the shared resolver instead of hardcoding routes.
 
-### 7.2.2 ClassScout Navigation Quality
-- Sidebar visibility uses the stable `classscout` item key and optional `counts.classscout`.
+### 7.2.2 External Miniapp Navigation Quality
+- Sidebar visibility uses the stable `external-miniapp` item key and optional `counts.external-miniapp`.
 - Sidebar active state covers the canonical route and descendants.
 - Landing telemetry emits:
-  - `CLASSSCOUT_HOME_LOADED`
-  - `CLASSSCOUT_ACTION_OPEN`
-- Migrated unit-panel launches emit `CLASSSCOUT_ENTRY_POINT_OPEN`.
+  - `EXTERNAL_MINIAPP_HOME_LOADED`
+  - `EXTERNAL_MINIAPP_ACTION_OPEN`
+- Migrated unit-panel launches emit `EXTERNAL_MINIAPP_ENTRY_POINT_OPEN`.
 - Landing load telemetry includes degraded source slices so support can distinguish data failure from route/UI failure.
 - Action controls keep accessible labels and text labels; status is never color-only.
 - Regression coverage lives in:
-  - `scripts/test-classscout-surface-contract.mjs`
-  - `scripts/test-classscout-navigation-quality-contract.mjs`
+  - `scripts/test-external-miniapp-surface-contract.mjs`
+  - `scripts/test-external-miniapp-navigation-quality-contract.mjs`
 
 ### 7.3 Settings flow
 - `GET /api/companies/{companyId}/settings` returns `unitCapabilities`.
@@ -549,11 +549,11 @@ Source for `initialData`:
 
 ### 7.6 Local-to-Miniapp intelligence flow
 1. Local runtime ingests or refreshes source intelligence for the Unit.
-2. Destination mission policy selects ClassScout or Compare scope.
+2. Destination mission policy selects External Miniapp or Compare scope.
 3. Mission run consumes Unit intelligence and creates destination candidates or review cards.
 4. Operator reviews, approves, publishes, or requests recovery from Miniapp Ops.
 5. Observability records freshness, failures, retries, blocked states, and successful outcomes.
-6. Release evidence must prove this flow separately for ClassScout and Compare.
+6. Release evidence must prove this flow separately for External Miniapp and Compare.
 
 Legacy adoption rule:
 
@@ -573,7 +573,7 @@ Shared health contract:
 
 - resolver: `src/lib/miniapp-intelligence-health.ts`
 - API: `GET /api/companies/{companyId}/miniapp-health`
-- optional query: `destinationKey=classscout|compare`
+- optional query: `destinationKey=external-miniapp|compare`
 - observability field: `miniappIntelligenceHealth`
 
 The contract reports:
@@ -639,16 +639,16 @@ The contract reports:
   - `company`
   - `counts` + `features`
   - `webapp.profile`, `webapp.modules`, `webapp.profileLabel`, `webapp.route`
-  - `webapp.routeTargets.classscout`
+  - `webapp.routeTargets.external-miniapp`
   - `normalizedCapabilities`
 - Auth:
   - membership required.
 
-### 8.5 `/api/classscout/landing`
+### 8.5 `/api/external-miniapp/landing`
 - `GET` query:
   - `companyId`
 - Response:
-  - `destinationKey: "classscout"`
+  - `destinationKey: "external-miniapp"`
   - `companyId`
   - `liveListings.total/needsReview/published`
   - `reviewCards.total/pending/approved/rejected`
@@ -657,18 +657,18 @@ The contract reports:
   - `routeTargets.review/ops/observability`
   - `fetchHealth.degraded` and source-level health rows
   - `entryPoints[]` with canonical/deep-link classification
-- The legacy `/api/classscout/landing-summary` route remains available for existing UI consumers.
+- The legacy `/api/external-miniapp/landing-summary` route remains available for existing UI consumers.
 - Partial source failures must return degraded source health instead of crashing the whole landing surface.
-- `/{companyId}/classscout` server-loads this summary and passes it to the GDS-only ClassScout operator home.
+- `/{companyId}/external-miniapp` server-loads this summary and passes it to the GDS-only External Miniapp operator home.
 - Client refresh uses this canonical endpoint and keeps degraded-source detail visible.
 
-### 8.6 `/api/classscout/refresh-lane`
-- `POST /api/classscout/refresh-lane/sync`
+### 8.6 `/api/external-miniapp/refresh-lane`
+- `POST /api/external-miniapp/refresh-lane/sync`
   - request: `companyId`, optional `limit`
   - returns refresh candidates with `id`, `targetType`, `targetId`, `reason`, `freshnessScore`, `refreshAttempts`, `nextEligibleAt`, and `idempotencyKey`
-- `POST /api/classscout/refresh-lane/tick`
+- `POST /api/external-miniapp/refresh-lane/tick`
   - request: `companyId`, optional `limit`
-  - publishes approved ClassScout revision cards and drafts refresh revisions for eligible stale live listings
+  - publishes approved External Miniapp revision cards and drafts refresh revisions for eligible stale live listings
   - admin membership required
 - Refresh lane ownership:
   - candidate selection is non-destructive
@@ -678,14 +678,14 @@ The contract reports:
 ### 8.7 `/api/destination-missions/runs/[id]/verification-tick`
 - `POST` request:
   - `companyId`
-  - `destinationKey: "classscout"`
+  - `destinationKey: "external-miniapp"`
   - optional `targetListingId`
   - optional `targetListingType: "provider" | "meetupGroup"`
   - optional `expectedTitle`
   - optional `expectedImageUrl`
   - optional `attemptsMax`
 - Runtime behavior:
-  - polls ClassScout public listings through the existing live-listings bridge
+  - polls External Miniapp public listings through the existing live-listings bridge
   - persists `publishVerification` and bounded `publishVerificationHistory` in mission metadata
   - moves a run to `PUBLISHED_VERIFIED` only after positive public evidence
   - marks unresolved, schema-mismatched, or image-invalid verification as `FAILED_RECOVERABLE`
@@ -746,12 +746,12 @@ The contract reports:
 // Input: workerConfig + destination flags
 const capabilities = resolveUnitCapabilities({
   workerConfig: company.workerConfig,
-  hasClassScoutDestination: Boolean(classScoutInstance),
+  hasExternal MiniappDestination: Boolean(classScoutInstance),
   hasCompareDestination: Boolean(compareInstance),
 });
 
 // Output:
-// { profile: 'CLASSSCOUT'|'COMPARE'|'NONE', modules: Record<module, boolean> }
+// { profile: 'EXTERNAL_MINIAPP'|'COMPARE'|'NONE', modules: Record<module, boolean> }
 ```
 
 ### 9.2 Module filtering
@@ -895,14 +895,14 @@ if (isQuotaBlocked(error)) {
 
 ### 14.3 Integration tests
 - `getDashboardInitialData` profile fallback and module assignment.
-- webapp profile switch (NONE->CLASSSCOUT->COMPARE).
+- webapp profile switch (NONE->EXTERNAL_MINIAPP->COMPARE).
 - nav module gating and deep-link handling.
 
 ### 14.4 E2E tests
 - create card visible after successful write.
 - move card across columns.
 - edit, delete, filter, search.
-- compare and classscout profile route rendering.
+- compare and external-miniapp profile route rendering.
 - disabled module not visible in nav.
 
 ### 14.5 Regression tests (must-have)
@@ -929,7 +929,7 @@ Business-level Block model:
 
 Current profile presets:
 - NONE preset: core modules mostly on, content OFF
-- CLASSSCOUT preset: class-specific modules ON/OFF as curated
+- EXTERNAL_MINIAPP preset: class-specific modules ON/OFF as curated
 - COMPARE preset: tailored reduced module set
 
 Current profile presets are compatibility shortcuts. Future work should model Block enablement directly, then derive route and Module availability from Blocks.
@@ -1007,13 +1007,13 @@ Shipped today:
 - root route dispatch in `src/app/[companyId]/page.tsx`
 - shared board APIs in `src/app/api/board-items/route.ts`
 - shared board component + project board client in `src/components/board/shared-board.tsx`, `src/app/[companyId]/unit-board/unit-project-board-client.tsx`
-- class-specific landing summary contract and UI for ClassScout
+- class-specific landing summary contract and UI for External Miniapp
 - local audit separation primitives in `src/lib/local-audit-db.ts`, `src/lib/audit-ledger.ts`
 
 Remaining hardening (not fully implemented today):
 - standardized cross-surface board adapters for non-project future boards
 - operational dashboards for module drift and deep-link mismatch events
-- Local-to-Miniapp intelligence health proof for ClassScout and Compare
+- Local-to-Miniapp intelligence health proof for External Miniapp and Compare
 - recovery behavior when Local is down, stale, or not feeding destination content
 
 Implemented in this iteration:
@@ -1025,7 +1025,7 @@ Implemented in this iteration:
 
 ### Mission State Hardening
 
-ClassScout and Compare mission runs now use an explicit transition map plus JSON metadata audit rather than ad hoc state writes. Each transition records:
+External Miniapp and Compare mission runs now use an explicit transition map plus JSON metadata audit rather than ad hoc state writes. Each transition records:
 - `missionTransitionAudit`
 - `recoveryHint`
 - `nextAction`
@@ -1069,7 +1069,7 @@ Policy suggestions are advisory until an operator approves them; raw review deci
 - `/src/app/api/board-items/route.ts`
 - `/src/app/[companyId]/unit-board/unit-project-board-client.tsx`
 - `/src/components/board/shared-board.tsx`
-- `/src/components/classscout-home.tsx`
+- `/src/components/external-miniapp-home.tsx`
 - `/src/components/compare-home.tsx`
 - `/src/lib/local-audit-db.ts`
 - `/src/lib/audit-ledger.ts`
@@ -1084,7 +1084,7 @@ Policy suggestions are advisory until an operator approves them; raw review deci
 - `/src/app/api/companies/[companyId]/miniapp-health/route.ts`
 - `/scripts/test-capability-transaction-contract.mjs`
 - `/scripts/test-miniapp-health-contract.mjs`
-- `/scripts/test-classscout-runtime-quality-contract.mjs`
+- `/scripts/test-external-miniapp-runtime-quality-contract.mjs`
 - `/scripts/refresh-company-intelligence-snapshot.mjs`
 - `/scripts/backfill-destination-mission-lineage.mjs`
 - `/scripts/bootstrap-compare-local-proof.mjs`

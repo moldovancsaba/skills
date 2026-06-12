@@ -167,7 +167,7 @@ const DEFAULT_NORMALIZED_LISTING = pretty({
 
 export function DestinationRulebookRunner({
   companyId,
-  destinationKey = "classscout",
+  destinationKey = "compare",
 }: {
   companyId: string;
   destinationKey?: DestinationKey;

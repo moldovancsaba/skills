@@ -88,7 +88,7 @@ Rules:
 - do not describe a main Webapp as a product concept; say `Webapp`
 - do not treat the Checklist Block as mandatory for every Unit
 - any Unit may enable only the Blocks it needs
-- Miniapps such as ClassScout and Compare are public apps, not Webapp screens
+- Miniapps such as External Miniapp and Compare are public apps, not Webapp screens
 - Miniapp Ops workspaces inside Webapp operate Miniapps but are not the Miniapps themselves
 
 Approved application stack:
@@ -131,9 +131,9 @@ Approved product UI implementation lane:
 - source-backed knowledge must persist durable citation snapshots and explicit conflict state; URL-only provenance is not accepted
 - the active self-learning path must stay Apple-Silicon-native: dataset export plus MLX / MLX-LM training plus Ollama deployment
 - Unsloth, LLaMA-Factory, and Axolotl are not part of the active delivery plan today and must not be represented as current rollout dependencies
-- Miniapp workflow state is forbidden on a generic Unit Home unless that Home is the Miniapp Ops surface: ClassScout, Compare, or other Miniapp mission-control, live-listing, review-card, or publish telemetry must stay inside dedicated Miniapp Ops, review, or observability surfaces
-- destination mission daemon behavior is shared infrastructure for all Miniapps; it must not fork into ClassScout-only or Compare-only runtime code paths for scheduling, execution, or policy resolution
-- destination mission run action routes are Webapp controls only: discovery, extraction, scoring, preparation, next-attempt, and run-until-blocked requests must enqueue `DESTINATION_MISSION_DAEMON` work and must not execute ClassScout/Compare intelligence helpers, candidate persistence, fact snapshots, or mission-state movement inside the Webapp process
+- Miniapp workflow state is forbidden on a generic Unit Home unless that Home is the Miniapp Ops surface: External Miniapp, Compare, or other Miniapp mission-control, live-listing, review-card, or publish telemetry must stay inside dedicated Miniapp Ops, review, or observability surfaces
+- destination mission daemon behavior is shared infrastructure for all Miniapps; it must not fork into External Miniapp-only or Compare-only runtime code paths for scheduling, execution, or policy resolution
+- destination mission run action routes are Webapp controls only: discovery, extraction, scoring, preparation, next-attempt, and run-until-blocked requests must enqueue `DESTINATION_MISSION_DAEMON` work and must not execute External Miniapp/Compare intelligence helpers, candidate persistence, fact snapshots, or mission-state movement inside the Webapp process
 - destination mission daemon limit tuning is allowed only through the shared per-Unit policy contract in `company.workerConfig.destinationDaemonPolicy` (defaults + per-miniapp overrides), not through ad hoc route-specific constants
 - cron and manual daemon routes must preserve policy precedence: explicit request override, then per-miniapp policy, then shared environment defaults
 - every Miniapp lane must expose a destination maintenance adapter contract for approved publish sweep and stale/review-pressure sweep behavior; lane-specific logic is implemented inside the adapter, not by forking daemon orchestration

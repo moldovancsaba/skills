@@ -12,7 +12,7 @@ function asStringArray(value: unknown) {
   return value.map((entry) => asString(entry)).filter(Boolean);
 }
 
-const INHERITED_CLASSSCOUT_TERMS = [
+const INHERITED_NON_COMPARE_TERMS = [
   "birthday party",
   "birthday parties",
   "storytime",
@@ -119,8 +119,8 @@ export function evaluateCompareProjectionGate(input: {
     .join(" ")
     .toLowerCase();
 
-  if (INHERITED_CLASSSCOUT_TERMS.some((term) => searchable.includes(term))) {
-    blockedReasons.push("inherited_classscout_label");
+  if (INHERITED_NON_COMPARE_TERMS.some((term) => searchable.includes(term))) {
+    blockedReasons.push("inherited_non_compare_label");
   }
   if (STATIC_OR_FAKE_CONTENT_TERMS.some((term) => searchable.includes(term))) {
     blockedReasons.push("fake_static_cms_content");

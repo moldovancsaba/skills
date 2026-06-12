@@ -75,13 +75,6 @@ function readEvidenceField(field: string, facts: Record<string, unknown>, metada
   return undefined;
 }
 
-function isClassScoutLaunchGate(input: { destinationKey?: string; taxonomy: VisitorTaxonomy }) {
-  const destinationKey = asString(input.destinationKey).toLowerCase();
-  const visitorKey = asString(input.taxonomy.visitorKey).toLowerCase();
-  const version = asString(input.taxonomy.version).toLowerCase();
-  return destinationKey === "classscout" || visitorKey.includes("classscout") || version.includes("classscout-manhattan-launch");
-}
-
 const PUBLIC_COPY_LEAK_PATTERNS = [
   /^listing\s+for\b/i,
   /^verified\s+listing\s+for\b/i,
@@ -199,9 +192,6 @@ export function evaluateVisitorQualityGate(input: VisitorQualityGateInput): Visi
 
   if (missingEvidenceFields.length > 0) {
     reviewReasons.push("missing_required_evidence");
-    if (isClassScoutLaunchGate({ destinationKey: input.destinationKey, taxonomy })) {
-      blockingReasons.push("missing_launch_profile_evidence");
-    }
   }
 
   blockingReasons.push(...collectPublicPayloadIssues({

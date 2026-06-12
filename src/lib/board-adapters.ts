@@ -41,8 +41,8 @@ export type BoardAdapterConfig = {
   module: BoardModuleKey;
   boardKey: string;
   entityType: string;
-  sourceProfile: "NONE" | "CLASSSCOUT" | "COMPARE" | "ANY";
-  targetProfile: "NONE" | "CLASSSCOUT" | "COMPARE" | "ANY";
+  sourceProfile: "NONE" | "COMPARE" | "ANY";
+  targetProfile: "NONE" | "COMPARE" | "ANY";
   allowWrite: boolean;
   columns: BoardColumn[];
   aliases: string[];

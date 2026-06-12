@@ -26,7 +26,7 @@ export type UnitModuleKey = (typeof UNIT_MODULE_KEYS)[number];
 
 export type UnitCapabilityBlock = "CHECKLIST" | "SALES" | "CONTENT" | "PROJECT";
 
-export type UnitWebappProfile = "NONE" | "CLASSSCOUT" | "COMPARE";
+export type UnitWebappProfile = "NONE" | "COMPARE";
 
 export type RawWorkerUnitCapabilities = {
   webappProfile?: string;
@@ -247,11 +247,6 @@ export const UNIT_MODULE_BLOCKS: UnitModuleBlockDefinition[] = [
 
 const UNIT_MODULE_PRESET_BY_WEBAPP: Record<UnitWebappProfile, Record<UnitModuleKey, boolean>> = {
   NONE: { ...BASE_DEFAULT_MODULES },
-  CLASSSCOUT: {
-    ...BASE_DEFAULT_MODULES,
-    content: true,
-    sales: true,
-  },
   COMPARE: {
     ...BASE_DEFAULT_MODULES,
     sales: false,
@@ -285,7 +280,6 @@ export type UnitProfileMigrationResult = {
 
 const DENIED_MODULES_BY_WEBAPP_PROFILE: Record<UnitWebappProfile, UnitModuleKey[]> = {
   NONE: ["content"],
-  CLASSSCOUT: [],
   COMPARE: ["sales", "goals", "topics", "tactical"],
 };
 
@@ -294,11 +288,6 @@ export const UNIT_PROFILE_COMPATIBILITY: Record<UnitWebappProfile, UnitProfileCo
     profile: "NONE",
     defaults: UNIT_MODULE_PRESET_BY_WEBAPP.NONE,
     deniedModules: DENIED_MODULES_BY_WEBAPP_PROFILE.NONE,
-  },
-  CLASSSCOUT: {
-    profile: "CLASSSCOUT",
-    defaults: UNIT_MODULE_PRESET_BY_WEBAPP.CLASSSCOUT,
-    deniedModules: DENIED_MODULES_BY_WEBAPP_PROFILE.CLASSSCOUT,
   },
   COMPARE: {
     profile: "COMPARE",
@@ -486,28 +475,11 @@ function parseUnitCapabilitiesV3Envelope(
     candidate.miniapps && typeof candidate.miniapps === "object" && !Array.isArray(candidate.miniapps)
       ? candidate.miniapps as Record<string, unknown>
       : null;
-  const classScoutEnabled = miniappsRecord?.classscout && typeof miniappsRecord.classscout === "object"
-    ? (miniappsRecord.classscout as { enabled?: unknown }).enabled === true
-    : false;
   const compareEnabled = miniappsRecord?.compare && typeof miniappsRecord.compare === "object"
     ? (miniappsRecord.compare as { enabled?: unknown }).enabled === true
     : false;
 
-  if (classScoutEnabled && compareEnabled) {
-    validation.warnings.push(
-      validateIssue(
-        "multi-miniapp-profile-projection",
-        "unitCapabilities.miniapps",
-        "Both classscout and compare were enabled; legacy profile projection defaults to CLASSSCOUT",
-      ),
-    );
-  }
-
-  const profile: UnitWebappProfile = compareEnabled && !classScoutEnabled
-    ? "COMPARE"
-    : classScoutEnabled
-      ? "CLASSSCOUT"
-      : "NONE";
+  const profile: UnitWebappProfile = compareEnabled ? "COMPARE" : "NONE";
 
   const modules: Record<UnitModuleKey, boolean> = { ...BASE_DEFAULT_MODULES };
   for (const legacyKey of Object.values(CANONICAL_MODULE_TO_LEGACY)) {
@@ -533,7 +505,6 @@ function normalizeRawProfile(
   raw: unknown,
   validation?: UnitCapabilityValidation,
 ): UnitWebappProfile {
-  if (raw === "CLASSSCOUT") return "CLASSSCOUT";
   if (raw === "COMPARE") return "COMPARE";
   if (raw === "NONE") return "NONE";
   if (validation && raw !== undefined) {
@@ -676,16 +647,11 @@ export function previewUnitProfileMigration(input: {
 
 export function resolveUnitCapabilities(input: {
   workerConfig?: unknown;
-  hasClassScoutDestination: boolean;
   hasCompareDestination: boolean;
   hasTrainersDestination?: boolean;
   hasAthleteIQDestination?: boolean;
 }) {
-  const resolvedAutoProfile: UnitWebappProfile = input.hasCompareDestination
-    ? "COMPARE"
-    : input.hasClassScoutDestination
-      ? "CLASSSCOUT"
-      : "NONE";
+  const resolvedAutoProfile: UnitWebappProfile = input.hasCompareDestination ? "COMPARE" : "NONE";
 
   const workerCapabilitiesRaw =
     (typeof input.workerConfig === "object" && input.workerConfig !== null
@@ -925,15 +891,14 @@ export function formatCapabilityPayload(input: {
 }
 
 export function getWebappProfileLabel(profile: UnitWebappProfile) {
-  return profile === "CLASSSCOUT" ? "ClassScout" : profile === "COMPARE" ? "Compare" : "No Webapp";
+  return profile === "COMPARE" ? "Compare" : "No Webapp";
 }
 
 export function getWebappRoute(profile: UnitWebappProfile) {
-  return profile === "CLASSSCOUT" ? "classscout" : profile === "COMPARE" ? "compare" : null;
+  return profile === "COMPARE" ? "compare" : null;
 }
 
 export const UNIT_WEBAPP_PROFILE_DESCRIPTIONS: Record<UnitWebappProfile, string> = {
   NONE: "No dedicated webapp surface; this unit uses the general dashboard and shared modules.",
-  CLASSSCOUT: "ClassScout operator surface with review, goals, and active workflow context.",
   COMPARE: "Compare surface focused on competitive comparison and signal analysis.",
 };

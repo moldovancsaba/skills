@@ -83,7 +83,7 @@ for (const [file, source] of destinationMissionActionRoutes) {
   assert.match(source, /queueDestinationMissionRunAction/, `${file} must enqueue destination mission work`);
   assert.match(source, /verifyMembership\(request,\s*companyId,\s*"ADMIN"\)/, `${file} must require admin membership`);
   assert.match(source, /status:\s*202/, `${file} must return a queued response`);
-  assert.doesNotMatch(source, /discoverClassScoutCandidates|discoverCompareCandidates|extractClassScoutCandidate|extractCompareCandidate|scoreClassScoutCandidate|scoreCompareCandidate|prepareClassScoutCandidateReview|prepareCompareCandidateReview/, `${file} must not execute destination intelligence helpers in Webapp`);
+  assert.doesNotMatch(source, /discoverCompareCandidates|extractCompareCandidate|scoreCompareCandidate|prepareCompareCandidateReview/, `${file} must not execute destination intelligence helpers in Webapp`);
 }
 
 console.log("Three-lane route contract tests passed.");

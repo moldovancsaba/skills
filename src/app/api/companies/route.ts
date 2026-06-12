@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
         destinationInstances: {
           where: {
             isActive: true,
-            destinationKey: { in: ["classscout", "compare"] },
+            destinationKey: { in: ["compare", "trainers", "athleteiq"] },
           },
           select: {
             destinationKey: true,
@@ -76,8 +76,9 @@ export async function GET(request: NextRequest) {
       const destinationKeys = new Set(company.destinationInstances.map((instance) => instance.destinationKey));
       const effectiveCapabilities = resolveEffectiveUnitCapabilities({
         workerConfig: company.workerConfig,
-        hasClassScoutDestination: destinationKeys.has("classscout"),
         hasCompareDestination: destinationKeys.has("compare"),
+        hasTrainersDestination: destinationKeys.has("trainers"),
+        hasAthleteIQDestination: destinationKeys.has("athleteiq"),
       });
       return {
         ...company,

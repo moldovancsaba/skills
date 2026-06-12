@@ -204,9 +204,9 @@ Miniapp canonical workflow APIs:
 - [src/app/api/units/[unitId]/miniapps/[miniappId]/cards/[cardId]/publish/route.ts](/Users/Shared/Projects/checklist/src/app/api/units/[unitId]/miniapps/[miniappId]/cards/[cardId]/publish/route.ts)
 - [src/app/api/units/[unitId]/miniapps/[miniappId]/content/[contentId]/refresh/route.ts](/Users/Shared/Projects/checklist/src/app/api/units/[unitId]/miniapps/[miniappId]/content/[contentId]/refresh/route.ts)
 
-ClassScout and Compare landing APIs:
+External Miniapp and Compare landing APIs:
 
-- [src/app/api/classscout/landing-summary/route.ts](/Users/Shared/Projects/checklist/src/app/api/classscout/landing-summary/route.ts)
+- [src/app/api/external-miniapp/landing-summary/route.ts](/Users/Shared/Projects/checklist/src/app/api/external-miniapp/landing-summary/route.ts)
 - [src/app/api/compare/landing-summary/route.ts](/Users/Shared/Projects/checklist/src/app/api/compare/landing-summary/route.ts)
 
 ## 6. API Ownership, Permissions, Retry, Rollback
@@ -252,7 +252,7 @@ mission start
 
 Daemon default policy rule:
 
-- Local destination daemon uses the same guarded/autopilot execution defaults across `classscout`, `compare`, and future miniapps in this family.
+- Local destination daemon uses the same guarded/autopilot execution defaults across `external-miniapp`, `compare`, and future miniapps in this family.
 - New miniapps should plug into the shared destination adapter and mission runtime, not receive custom daemon forks.
 - Pipeline queue destination-lane activation must evaluate active mission definitions/runs generically, not by hardcoded single-miniapp assumptions.
 - Destination maintenance reporting is per-destination; if a miniapp does not yet have specialized maintenance hooks, daemon output must declare that explicitly.
@@ -261,7 +261,7 @@ Operational visibility surfaces:
 
 - Unit operations feed (`/api/companies/{companyId}/operations`)
 - Block summary feed (`/api/companies/{companyId}/blocks/summary`)
-- Miniapp landing summaries (ClassScout and Compare)
+- Miniapp landing summaries (External Miniapp and Compare)
 
 ## 8. User-Visible Webapp States
 
@@ -291,7 +291,7 @@ npm run test:check-foundation-packages
 Golden-path checks:
 
 ```bash
-npm run verify:classscout-golden-path -- --companyId <companyId> [--strict]
+npm run verify:external-miniapp-golden-path -- --companyId <companyId> [--strict]
 npm run verify:compare-golden-path -- --companyId <companyId> [--strict]
 ```
 
@@ -360,19 +360,19 @@ No umbrella or vague tickets.
 
 ## 14. Known Current Limitations
 
-- Some mission/extractor runtime internals remain classscout-first and are being pulled into stricter multi-miniapp parity incrementally.
+- Some mission/extractor runtime internals remain external-miniapp-first and are being pulled into stricter multi-miniapp parity incrementally.
 - Legacy payload aliases (`webappProfile`, legacy module keys) still exist for compatibility and should be removed only after migration/backfill is complete.
 
 ## Destination daemon policy operator guide
 
-This guide is mandatory for Unit operators tuning ClassScout and Compare mission automation.
+This guide is mandatory for Unit operators tuning External Miniapp and Compare mission automation.
 
 ### Policy source of truth
 
 - per-Unit daemon policy is stored in `company.workerConfig.destinationDaemonPolicy`
 - policy shape:
   - `defaults`
-  - `miniapps.classscout`
+  - `miniapps.external-miniapp`
   - `miniapps.compare`
 
 ### Runtime precedence
@@ -398,7 +398,7 @@ All values are clamped to safe bounds at API and runtime layers.
 Use this order when tuning a Unit:
 
 1. start from shared defaults
-2. change one destination lane at a time (`classscout` or `compare`)
+2. change one destination lane at a time (`external-miniapp` or `compare`)
 3. increase `maxRuns` only when queue pressure is sustained
 4. increase `maxPasses` only when candidates frequently stop before review-ready
 5. increase `maxAutoRejections` carefully; high values can hide quality drift
@@ -453,9 +453,9 @@ To keep destination workflows consistent across enabled Miniapps within a Unit, 
 
 1. explicit `destinationKey` request parameter (if valid)
 2. most recently updated active destination instance on the Unit
-3. static fallback `classscout` when no active destination exists yet
+3. static fallback `external-miniapp` when no active destination exists yet
 
-Write routes for mission definitions and mission runs now reject invalid destination keys with `400` instead of silently coercing to `classscout`.
+Write routes for mission definitions and mission runs now reject invalid destination keys with `400` instead of silently coercing to `external-miniapp`.
 
 Updated endpoints:
 
@@ -470,7 +470,7 @@ Updated endpoints:
 
 The destination content-ops workspace now accepts a query-level destination scope:
 
-- `destinationKey=classscout`
+- `destinationKey=external-miniapp`
 - `destinationKey=compare`
 
 Current UI propagation is wired for mission runner and learning panel in `review` workspace mission tab, and the page header label mirrors the selected destination.
@@ -482,13 +482,13 @@ The review workspace now forwards destination scope into core mission controls:
 - `DestinationMissionSetup` accepts `destinationKey` and sends it on mission definition and mission run mutations.
 - `DestinationRulebookRunner` accepts `destinationKey` and uses it for run listing and run start operations.
 - `DestinationLearningPanel` accepts optional `destinationKey`; if omitted, APIs resolve destination from active Unit configuration.
-- Human-facing text in destination review/live-listing surfaces was normalized to avoid ClassScout-only wording where behavior is shared.
+- Human-facing text in destination review/live-listing surfaces was normalized to avoid External Miniapp-only wording where behavior is shared.
 
 ## Destination capability gating in review workspace
 
 The `ops` tab in destination content ops is now capability-gated:
 
-- shown only when destination scope is `classscout` (current live-listing bridge support)
+- shown only when destination scope is `external-miniapp` (current live-listing bridge support)
 - automatically falls back to `setup` when `tab=ops` is requested for destinations without live-listing support
 
 This prevents cross-destination UI drift where a destination lane exposes controls not backed by adapter/runtime capability.
@@ -497,7 +497,7 @@ This prevents cross-destination UI drift where a destination lane exposes contro
 
 `GET /api/companies/:companyId/nav` now emits attention counters for both supported Miniapps:
 
-- `counts.classscout`
+- `counts.external-miniapp`
 - `counts.compare`
 
 Both counters use the same review-card pressure criteria (`AWAITING_REVIEW`, `APPROVED`, `REWORK_REQUESTED`) scoped per destination instance.
@@ -506,12 +506,12 @@ Both counters use the same review-card pressure criteria (`AWAITING_REVIEW`, `AP
 
 Fallback Miniapp Ops workspace route selection in package/summary contracts now prefers:
 
-1. `classscout` when enabled
+1. `external-miniapp` when enabled
 2. `compare` when enabled
 3. first enabled miniapp key for forward-compatibility
-4. legacy `/classscout` fallback when no miniapp key exists yet
+4. legacy `/external-miniapp` fallback when no miniapp key exists yet
 
-This prevents future destination keys from being forced through a ClassScout-only URL assumption.
+This prevents future destination keys from being forced through a External Miniapp-only URL assumption.
 
 ## Shared mission defaults naming
 
@@ -522,20 +522,20 @@ Destination mission contract defaults were normalized to shared names:
 
 Backward-compatible aliases are kept:
 
-- `DEFAULT_CLASSSCOUT_RULEBOOK_POLICY`
-- `DEFAULT_CLASSSCOUT_MISSION_DEFINITION`
+- `DEFAULT_EXTERNAL_MINIAPP_RULEBOOK_POLICY`
+- `DEFAULT_EXTERNAL_MINIAPP_MISSION_DEFINITION`
 
-This preserves runtime compatibility while removing ClassScout-only naming at the shared contract layer.
+This preserves runtime compatibility while removing External Miniapp-only naming at the shared contract layer.
 
 ## Destination landing and review default scope
 
 Miniapp landing scope now follows enabled miniapp order when available:
 
-- `GET /:companyId` home route resolves first supported miniapp key from `enabledMiniapps` (`classscout` or `compare`) and loads the matching home surface.
+- `GET /:companyId` home route resolves first supported miniapp key from `enabledMiniapps` (`external-miniapp` or `compare`) and loads the matching home surface.
 - `/:companyId/review` now resolves an initial destination scope from the same enabled-miniapp order and passes it into destination ops workspace.
 - Query `destinationKey` still overrides initial scope in workspace.
 
-This prevents compare-first Units from being forced into classscout-default review surfaces.
+This prevents compare-first Units from being forced into external-miniapp-default review surfaces.
 
 ## Destination-scoped review queue
 
@@ -572,7 +572,7 @@ Destination-scoped read endpoints now reject invalid destination keys with `400`
 - `GET /api/destination-review/cards`
 - `GET /api/destination-workflows/mission-control/summary`
 
-Accepted values remain `classscout` and `compare`.
+Accepted values remain `external-miniapp` and `compare`.
 
 Additional request validation added:
 
@@ -582,7 +582,7 @@ Additional request validation added:
 
 `GET /api/companies/:companyId/operations` now supports optional `destinationKey` query scope:
 
-- accepted: `classscout`, `compare`
+- accepted: `external-miniapp`, `compare`
 - invalid destination key returns `400`
 - scoped response filters:
   - `items` miniapp publish rows to requested destination
@@ -625,13 +625,13 @@ This removes duplicate destination key parsing logic and keeps resolution behavi
 
 ## Observability destination scope selector
 
-Observability UI now includes an explicit destination scope selector (`all`, `classscout`, `compare`) that updates query state (`destinationKey`) and drives scoped destination mission control + learning panels.
+Observability UI now includes an explicit destination scope selector (`all`, `external-miniapp`, `compare`) that updates query state (`destinationKey`) and drives scoped destination mission control + learning panels.
 
 This makes destination-lane observability switching operator-visible without manual URL edits.
 
 ## Mission definition destination coercion fixes
 
-Fixed two shared mission-path coercions that incorrectly forced `classscout` typing:
+Fixed two shared mission-path coercions that incorrectly forced `external-miniapp` typing:
 
 - active mission definition resolution in `startDestinationMissionRun`
 - mission definition duplication destination assignment
@@ -686,14 +686,14 @@ Observability destination selector options are now derived from shared destinati
 
 ## Live-listing ops route contract hardening
 
-`/api/destination-review/live-listings` is explicitly classscout-only at runtime contract level.
+`/api/destination-review/live-listings` is explicitly external-miniapp-only at runtime contract level.
 
 Updates:
 
 - `GET` now requires `companyId` (`400` when missing)
-- `GET` rejects non-classscout `destinationKey` (`400`)
-- `POST` rejects non-classscout `destinationKey` (`400`)
-- live-listing ops UI now sends explicit `destinationKey=classscout` on both list/read and create-revision requests
+- `GET` rejects non-external-miniapp `destinationKey` (`400`)
+- `POST` rejects non-external-miniapp `destinationKey` (`400`)
+- live-listing ops UI now sends explicit `destinationKey=external-miniapp` on both list/read and create-revision requests
 
 `GET /api/destination-review/live-listing-status` now explicitly requires `companyId` query param (`400` when missing).
 
@@ -726,7 +726,7 @@ This closes the contract gap where destination-scoped UI calls could still hit u
 
 ## Cron daemon scope parity
 
-`GET /api/cron/destination-missions` now supports optional `destinationKey` scope (`classscout`, `compare`) and validates invalid keys as `400`.
+`GET /api/cron/destination-missions` now supports optional `destinationKey` scope (`external-miniapp`, `compare`) and validates invalid keys as `400`.
 
 Behavior updates:
 
@@ -801,7 +801,7 @@ Additional API consistency updates completed:
 
 ## Miniapp Ops workspace route type cleanup
 
-Removed unnecessary `as DestinationKey` casts in canonical Miniapp Ops workspace routes where the route guard already guarantees a typed miniapp id (`classscout`/`compare`):
+Removed unnecessary `as DestinationKey` casts in canonical Miniapp Ops workspace routes where the route guard already guarantees a typed miniapp id (`external-miniapp`/`compare`):
 
 - `src/app/api/units/[unitId]/miniapps/[miniappId]/missions/route.ts`
 - `src/app/api/units/[unitId]/miniapps/[miniappId]/content/[contentId]/refresh/route.ts`
@@ -841,14 +841,14 @@ Audit result: all destination API routes that call `verifyMembership(...)` now p
 
 ## Live-listing route normalization convergence
 
-ClassScout-only live-listing routes now use shared destination normalization/capability helpers instead of ad-hoc string checks:
+External Miniapp-only live-listing routes now use shared destination normalization/capability helpers instead of ad-hoc string checks:
 
 - `GET/POST /api/destination-review/live-listings`
 - `GET/POST /api/destination-review/live-listing-status`
 
 Behavior preserved:
 
-- routes remain classscout-only
+- routes remain external-miniapp-only
 - invalid/non-live-listing destination scopes are rejected with `400`
 
 Implementation effect:
@@ -1067,7 +1067,7 @@ Change:
 
 Effect:
 
-- classscout live-listing mutation route now matches payload-shape handling used across destination, miniapp, and operations mutation endpoints.
+- external-miniapp live-listing mutation route now matches payload-shape handling used across destination, miniapp, and operations mutation endpoints.
 
 ## Company + unit API payload-shape hardening and miniapp-id cast removal
 
@@ -1235,7 +1235,7 @@ This pass focuses on canonical miniapp/public-destination flows and aligns body-
 ### Delivery impact
 - Tightens canonical miniapp + destination review mutation surfaces.
 - Reduces silent acceptance of malformed payloads in key operator workflows.
-- Improves long-term readiness for destination-key expansion while keeping existing classscout behavior intact.
+- Improves long-term readiness for destination-key expansion while keeping existing external-miniapp behavior intact.
 
 ## 2026-05-31 — Destination mission definition API contract hardening
 
@@ -1262,7 +1262,7 @@ This pass hardens all definition-management mutation routes in the destination m
 
 ## 2026-05-31 — Destination mission run lifecycle API hardening
 
-This pass hardens the mission run-control lifecycle used by ClassScout/Compare operational flows.
+This pass hardens the mission run-control lifecycle used by External Miniapp/Compare operational flows.
 
 ### Files updated
 - `src/app/api/destination-missions/runs/[id]/route.ts`
@@ -1283,7 +1283,7 @@ This pass hardens the mission run-control lifecycle used by ClassScout/Compare o
 - Tightened destination key checks from truthy-only guards to explicit provided-value validation (`destinationKeyRaw !== undefined`).
 - Preserved direct state-machine behavior only for lifecycle/operator state controls such as pause/resume, terminal marking, advance-attempt, and run `PATCH`.
 - Replaced Webapp-side mission intelligence execution for `discover-candidates`, `extract-candidate`, `score-candidate`, `prepare-candidate`, `execute-next-attempt`, and `execute-until-blocked` with queued `DESTINATION_MISSION_DAEMON` Playlist receipts via `src/lib/destination-mission-queue.ts`.
-- ClassScout/Compare discovery, extraction, scoring, preparation, candidate persistence, fact snapshots, retry/timeout behavior, and mission-state movement now belong to CHECK Local for those action routes.
+- External Miniapp/Compare discovery, extraction, scoring, preparation, candidate persistence, fact snapshots, retry/timeout behavior, and mission-state movement now belong to CHECK Local for those action routes.
 
 ### Why this matters
 - Removes malformed payload drift across the most critical mission execution controls.

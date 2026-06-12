@@ -37,7 +37,7 @@ function getDefaultRulebookPolicyForDestination(destinationKey) {
   }
 
   return {
-    version: "classscout-rulebook@v1",
+    version: "destination-rulebook@v1",
     executionMode: "manual",
     minimumScarcityScore: 70,
     allowedListingTypes: [
@@ -212,7 +212,7 @@ async function retireStaleDestinationRuns(prisma, input) {
   const staleRuns = runs.filter((run) => {
     const policy = run.policySnapshot?.policyJson;
     return policy && typeof policy === "object" && !Array.isArray(policy)
-      && policy.version === "classscout-rulebook@v1";
+      && policy.version === "destination-rulebook@v1";
   });
   if (staleRuns.length === 0) return [];
 
@@ -221,7 +221,7 @@ async function retireStaleDestinationRuns(prisma, input) {
     data: {
       state: "FAILED_TERMINAL",
       failureCode: "stale_destination_policy_snapshot",
-      failureDetail: "Run retired because Compare was using legacy ClassScout rulebook defaults.",
+      failureDetail: "Run retired because Compare was using legacy destination rulebook defaults.",
       updatedAt: new Date(),
     },
   });
@@ -229,7 +229,7 @@ async function retireStaleDestinationRuns(prisma, input) {
   return staleRuns.map((run) => ({
     id: `mission-run:${run.id}`,
     status: "repaired",
-    summary: "Retired stale Compare mission run that used ClassScout rulebook defaults.",
+    summary: "Retired stale Compare mission run that used legacy destination rulebook defaults.",
     metadata: { missionRunId: run.id },
   }));
 }

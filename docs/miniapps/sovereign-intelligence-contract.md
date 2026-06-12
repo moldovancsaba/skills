@@ -54,13 +54,13 @@ Miniapp capability checks are evaluated on explicit parent scope chains:
 - `check.miniapp`
 - `check.miniapp.visitors`
 - `check.miniapp.visitors.compare` for Compare
-- `check.miniapp.visitors.classscout` for ClassScout
+- `check.miniapp.visitors.external-miniapp` for External Miniapp
 
 This means:
 
-- compare/classscout must inherit shared check and miniapp-level rules.
-- compare/classscout level rules apply at `check.miniapp.visitors.compare` and `check.miniapp.visitors.classscout`.
-- no issue can treat `ClassScout` or `Compare` as independent from the parent `check`/`check.miniapp` contracts.
+- compare/external-miniapp must inherit shared check and miniapp-level rules.
+- compare/external-miniapp level rules apply at `check.miniapp.visitors.compare` and `check.miniapp.visitors.external-miniapp`.
+- no issue can treat `External Miniapp` or `Compare` as independent from the parent `check`/`check.miniapp` contracts.
 
 Implementation reference:
 
@@ -121,13 +121,13 @@ At startup and on maintenance, the Compare local intelligence model should start
 
 This structure is not a second-card type system; it is an operational content source for local intelligence planning and maintenance loops.
 
-## ClassScout Compatibility Contract
+## External Miniapp Compatibility Contract
 
-The ClassScout visitor contract is `classscout.visitor.sovereign@v1`.
+The External Miniapp visitor contract is `external-miniapp.visitor.sovereign@v1`.
 
 It preserves the existing visitor/class workflow while aligning it to the same public verification and learning-memory rules.
 
-The Manhattan launch profile, taxonomy, gate behavior, rollback path, and verification commands are documented in `docs/miniapps/classscout-manhattan-launch-contract.md`.
+The Manhattan launch profile, taxonomy, gate behavior, rollback path, and verification commands are documented in `docs/miniapps/external-miniapp-manhattan-launch-contract.md`.
 
 ## Research Task Planner
 
@@ -148,18 +148,18 @@ Planner APIs:
 - `POST /api/visitor/[visitorKey]/research/tasks/plan` requires admin membership and accepts `companyId`, optional `destinationKey`, `targetVisibleCards`, and `limit`.
 - `GET /api/visitor/[visitorKey]/research/tasks` requires company membership and returns queued tasks for burst workers and operator surfaces.
 
-## ClassScout Manhattan Source Import
+## External Miniapp Manhattan Source Import
 
-The ClassScout Manhattan source import lane is implemented in `src/lib/classscout-source-import.ts`, `src/lib/classscout-source-import-server.ts`, and `POST /api/visitor/[visitorKey]/sources/import`.
+The External Miniapp Manhattan source import lane is implemented in `src/lib/external-miniapp-source-import.ts`, `src/lib/external-miniapp-source-import-server.ts`, and `POST /api/visitor/[visitorKey]/sources/import`.
 
 Import format:
 
 ```json
 {
   "companyId": "company-id",
-  "destinationKey": "classscout",
+  "destinationKey": "external-miniapp",
   "dryRun": true,
-  "importBatchId": "classscout-manhattan-2026-06-11",
+  "importBatchId": "external-miniapp-manhattan-2026-06-11",
   "leads": [
     {
       "url": "https://provider.example/classes",
@@ -252,7 +252,7 @@ The content loop is:
 4. Prepare review cards only for candidates that meet the threshold.
 5. Publish approved review cards only when `contentQualityScore >= minimumContentQualityScore`.
 
-For ClassScout and the other sovereign miniapps, the default production floor is `500/1000`. The publish bridge re-checks this threshold immediately before sending content to the website and returns `content_quality_below_contract` with status `422` when the score is too low.
+For External Miniapp and the other sovereign miniapps, the default production floor is `500/1000`. The publish bridge re-checks this threshold immediately before sending content to the website and returns `content_quality_below_contract` with status `422` when the score is too low.
 
 Gate API:
 
@@ -384,7 +384,7 @@ npm run test:lifecycle-topology
 Expected result:
 
 - contract module exports the schema and validator
-- Compare and ClassScout contracts exist
+- Compare and External Miniapp contracts exist
 - source-card inventory is rejected as a success metric
 - contract routes enforce membership
 - mission metadata stores contract identity

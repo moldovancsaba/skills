@@ -22,7 +22,7 @@ const PROJECTION_RECENT_REFRESH_LIMIT = 24;
 const WEBAPP_PROJECTION_VERSION = 1;
 const WEBAPP_PROJECTION_STALE_AFTER_MS = 60 * 60 * 1000;
 const MINIAPP_REVIEW_PRESSURE_PACKET_STATES = Object.freeze(["AWAITING_REVIEW", "REVIEW_REQUIRED", "APPROVED"]);
-const MINIAPP_REVIEW_KEYS = Object.freeze(["classscout", "compare"]);
+const MINIAPP_REVIEW_KEYS = Object.freeze(["compare", "compare"]);
 const KNOWMORE_PIPELINE_JOB_TYPES = Object.freeze([
   "ENSURE_FLASHCARD_MINIMUM",
   "RESEARCH_BACKFILL",
@@ -1394,7 +1394,7 @@ async function refreshCompanyIntelligenceSnapshot(prisma, companyId) {
       topDomains: toRankedEntries(searchState?.domainScores, 6),
     },
     miniapps: {
-      classscout: readMiniappProjectionCounts("classscout"),
+      compare: readMiniappProjectionCounts("compare"),
       compare: readMiniappProjectionCounts("compare"),
     },
   };

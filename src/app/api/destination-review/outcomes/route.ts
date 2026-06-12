@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "companyId is required" }, { status: 400 });
     }
     if (!destinationKey) {
-      return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+      return NextResponse.json({ error: "destinationKey must be supported by checklist" }, { status: 400 });
     }
 
     const outcome = await recordDestinationOutcomeMemory({

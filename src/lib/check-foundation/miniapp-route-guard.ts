@@ -43,17 +43,13 @@ export async function resolveMiniappRouteContext(input: {
   const auth = await verifyMembership(input.request, unitId, input.requiredRole);
   if (auth.error) return { error: auth.error };
 
-  const [company, classScoutInstance, compareInstance] = await Promise.all([
+  const [company, compareInstance] = await Promise.all([
     prisma.company.findUnique({
       where: { id: unitId },
       select: {
         id: true,
         workerConfig: true,
       },
-    }),
-    prisma.destinationInstance.findFirst({
-      where: { companyId: unitId, destinationKey: "classscout", isActive: true },
-      select: { id: true },
     }),
     prisma.destinationInstance.findFirst({
       where: { companyId: unitId, destinationKey: "compare", isActive: true },
@@ -67,7 +63,6 @@ export async function resolveMiniappRouteContext(input: {
 
   const effective = resolveEffectiveUnitCapabilities({
     workerConfig: company.workerConfig,
-    hasClassScoutDestination: Boolean(classScoutInstance),
     hasCompareDestination: Boolean(compareInstance),
   });
 

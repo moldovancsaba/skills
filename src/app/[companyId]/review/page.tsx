@@ -21,7 +21,7 @@ export default async function ReviewRoutePage(
   const initialData = await getDashboardInitialData(companyId);
   const enabledMiniapps = Array.isArray(initialData?.enabledMiniapps) ? initialData.enabledMiniapps : [];
   const firstEnabledMiniapp = resolveFirstSupportedDestinationKey(enabledMiniapps);
-  const initialDestinationKey = firstEnabledMiniapp === "compare" ? "compare" : "classscout";
+  const initialDestinationKey = firstEnabledMiniapp ?? "compare";
 
   return <ReviewPage companyId={companyId} initialDestinationKey={initialDestinationKey} />;
 }

@@ -13,12 +13,6 @@ type DestinationBridgeDefinition = {
 };
 
 const DESTINATION_BRIDGE_DEFINITIONS: Record<DestinationKey, DestinationBridgeDefinition> = {
-  classscout: {
-    label: "ClassScout",
-    baseUrlEnv: "CLASSSCOUT_BASE_URL",
-    ingestKeyEnv: "CLASSSCOUT_INGEST_API_KEY",
-    publishPath: "/api/content-intelligence/publish-reviewed",
-  },
   compare: {
     label: "Compare",
     baseUrlEnv: "COMPARE_BASE_URL",
@@ -71,15 +65,6 @@ function inferEntityKind(packet: {
     typeof metadata?.entityKind === "string" && metadata.entityKind.trim()
       ? metadata.entityKind.trim()
       : null;
-
-  if (packet.destinationKey === "classscout") {
-    if (metadataEntityKind === "provider" || metadataEntityKind === "meetupGroup") {
-      return metadataEntityKind;
-    }
-    if (typeof packet.draftPayload.category === "string") return "provider";
-    if (typeof packet.draftPayload.groupType === "string") return "meetupGroup";
-    return null;
-  }
 
   if (metadataEntityKind) {
     return metadataEntityKind;

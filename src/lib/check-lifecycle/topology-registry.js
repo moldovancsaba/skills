@@ -25,25 +25,6 @@ const CORE_UNIT_PIPELINE_JOBS = Object.freeze([
 ]);
 
 const DESTINATION_TOPOLOGY = Object.freeze({
-  classscout: Object.freeze({
-    destinationKey: "classscout",
-    label: "ClassScout",
-    blockId: "miniapp",
-    requiredModules: Object.freeze(["data", "knowmore", "review", "analytics"]),
-    missionKinds: Object.freeze(["rulebook_new_listing"]),
-    requiredDaemonLane: Object.freeze({
-      jobType: "DESTINATION_MISSION_DAEMON",
-      entityType: "DESTINATION_SERVICE",
-      entityId: "destination-service",
-    }),
-    requiredHealthGates: Object.freeze([
-      "visitor_blueprint_active",
-      "visitor_taxonomy_ready",
-      "source_evidence_present",
-      "review_packet_ready",
-      "public_verification_fresh",
-    ]),
-  }),
   compare: Object.freeze({
     destinationKey: "compare",
     label: "Compare",
@@ -126,13 +107,7 @@ function getDestinationDaemonJobIdentity() {
 }
 
 function getLegacyDestinationDaemonJobIdentities() {
-  return [
-    {
-      jobType: "DESTINATION_MISSION_DAEMON",
-      entityType: "DESTINATION_SERVICE",
-      entityId: "classscout",
-    },
-  ];
+  return [];
 }
 
 function getUnitLifecycleRequirements(profile = {}) {

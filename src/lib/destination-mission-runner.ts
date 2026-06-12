@@ -2,12 +2,6 @@ import { createHash, randomUUID } from "node:crypto";
 import { DestinationMissionState, DestinationWorkflowState, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
-  discoverClassScoutCandidates,
-  extractClassScoutCandidate,
-  prepareClassScoutCandidateReview,
-  scoreClassScoutCandidate,
-} from "@/lib/destination-classscout";
-import {
   discoverCompareCandidates,
   extractCompareCandidate,
   prepareCompareCandidateReview,
@@ -29,7 +23,7 @@ import {
 import { createDestinationFactSnapshot, upsertDestinationCandidate, upsertDestinationSourceDocument } from "@/lib/destination-workflows";
 
 type CandidateRecord = Awaited<ReturnType<typeof listMissionCandidates>>[number];
-type SupportedDestinationKey = "classscout" | "compare" | "athleteiq";
+type SupportedDestinationKey = "compare" | "athleteiq";
 
 type AdapterOutcome = {
   ok: boolean;
@@ -55,17 +49,6 @@ type DestinationAdapter = {
 };
 
 const DESTINATION_ADAPTERS: Record<SupportedDestinationKey, DestinationAdapter> = {
-  classscout: {
-    key: "classscout",
-    label: "ClassScout",
-    discover: (input) => discoverClassScoutCandidates(input),
-    extract: (input) => extractClassScoutCandidate(input as never),
-    score: (input) => scoreClassScoutCandidate({ normalizedListing: input.normalizedListing as never }),
-    prepare: (input) => prepareClassScoutCandidateReview({
-      ...input,
-      normalizedListing: input.normalizedListing as never,
-    }),
-  },
   compare: {
     key: "compare",
     label: "Compare",
@@ -228,8 +211,8 @@ function buildDomainAttemptMap(mission: NonNullable<Awaited<ReturnType<typeof ge
 }
 
 function getDestinationAdapter(destinationKey: string): DestinationAdapter | null {
-  return destinationKey === "classscout" || destinationKey === "compare"
-    ? DESTINATION_ADAPTERS[destinationKey]
+  return Object.prototype.hasOwnProperty.call(DESTINATION_ADAPTERS, destinationKey)
+    ? DESTINATION_ADAPTERS[destinationKey as SupportedDestinationKey]
     : null;
 }
 
@@ -949,23 +932,4 @@ export async function executeDestinationMissionUntilBlocked(input: {
     trail: lastResult.trail ?? [],
     passes,
   };
-}
-
-export async function executeClassScoutMissionNextAttempt(input: {
-  companyId: string;
-  missionId: string;
-  actorId: string;
-  maxAutoRejections?: number;
-}) {
-  return executeDestinationMissionNextAttempt(input);
-}
-
-export async function executeClassScoutMissionUntilBlocked(input: {
-  companyId: string;
-  missionId: string;
-  actorId: string;
-  maxPasses?: number;
-  maxAutoRejections?: number;
-}) {
-  return executeDestinationMissionUntilBlocked(input);
 }

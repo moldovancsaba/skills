@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { DESTINATION_KEYS, type DestinationKey } from "@/lib/destination-workflow-contract";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
 
-const FALLBACK_DESTINATION_KEY: DestinationKey = "classscout";
+const FALLBACK_DESTINATION_KEY: DestinationKey = "compare";
 
 export function isDestinationKey(value: unknown): value is DestinationKey {
   return normalizeDestinationKey(value) !== null;

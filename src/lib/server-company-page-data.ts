@@ -145,23 +145,23 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
   const auth = await getSessionAndMembership(companyId);
   if (!auth) return null;
 
-  const [company, snapshot, classScoutInstance, compareInstance] = await Promise.all([
+  const [company, snapshot, compareInstance, trainersInstance, athleteiqInstance] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
     prisma.intelligenceSnapshot.findUnique({ where: { companyId } }),
-    prisma.destinationInstance.findFirst({
-      where: {
-        companyId,
-        destinationKey: "classscout",
-        isActive: true,
-      },
-      select: { id: true },
-    }),
     prisma.destinationInstance.findFirst({
       where: {
         companyId,
         destinationKey: "compare",
         isActive: true,
       },
+      select: { id: true },
+    }),
+    prisma.destinationInstance.findFirst({
+      where: { companyId, destinationKey: "trainers", isActive: true },
+      select: { id: true },
+    }),
+    prisma.destinationInstance.findFirst({
+      where: { companyId, destinationKey: "athleteiq", isActive: true },
       select: { id: true },
     }),
   ]);
@@ -171,13 +171,15 @@ export async function getDashboardInitialData(companyId: string): Promise<Dashbo
   const readModel = buildCompanyReadModel(snapshot);
   const capabilities = resolveUnitCapabilities({
     workerConfig: company?.workerConfig,
-    hasClassScoutDestination: Boolean(classScoutInstance),
     hasCompareDestination: Boolean(compareInstance),
+    hasTrainersDestination: Boolean(trainersInstance),
+    hasAthleteIQDestination: Boolean(athleteiqInstance),
   });
   const effectiveCapabilities = resolveEffectiveUnitCapabilities({
     workerConfig: company?.workerConfig,
-    hasClassScoutDestination: Boolean(classScoutInstance),
     hasCompareDestination: Boolean(compareInstance),
+    hasTrainersDestination: Boolean(trainersInstance),
+    hasAthleteIQDestination: Boolean(athleteiqInstance),
   });
 
   return {

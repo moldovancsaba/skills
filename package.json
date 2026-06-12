@@ -48,9 +48,6 @@
     "test:unit-capability-v2": "node scripts/test-unit-capability-v2-contract.mjs",
     "test:unit-crud": "node scripts/test-unit-crud-contract.mjs",
     "test:intelligence-unit-refactor": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-intelligence-unit-refactor-contracts.mjs",
-    "test:classscout-surface": "node scripts/test-classscout-surface-contract.mjs",
-    "test:classscout-publish-verification": "node scripts/test-classscout-publish-verification-contract.mjs",
-    "test:classscout-navigation-quality": "node scripts/test-classscout-navigation-quality-contract.mjs",
     "test:miniapp-health": "node scripts/test-miniapp-health-contract.mjs",
     "test:visitor-capability-resolver": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-visitor-capability-resolver.mjs",
     "test:visitor-card-classification": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-visitor-card-classification.mjs",
@@ -81,9 +78,6 @@
     "test:miniapp-learning-memory": "node scripts/test-miniapp-learning-memory.mjs",
     "test:miniapp-ops-console": "node scripts/test-miniapp-ops-console.mjs",
     "test:sovereign-miniapp-proof-harness": "node scripts/test-sovereign-miniapp-proof-harness.mjs",
-    "test:classscout-rulebook-workspace": "node scripts/test-classscout-rulebook-workspace-contract.mjs",
-    "test:classscout-manhattan-launch": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-classscout-manhattan-launch-contract.mjs",
-    "test:classscout-source-import": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-classscout-source-import-contract.mjs",
     "test:lifecycle-topology": "node scripts/test-lifecycle-topology.js",
     "test:lifecycle-automation-spine": "node scripts/test-lifecycle-automation-spine.js",
     "test:lifecycle-delivery-gates": "node scripts/test-lifecycle-delivery-gates.js",
@@ -121,7 +115,6 @@
     "verify:gds-adoption": "node scripts/verify-gds-adoption.mjs",
     "verify:gds-compliance": "node scripts/verify-gds-compliance.mjs",
     "recover:local-memory": "node scripts/recover-local-memory.mjs",
-    "verify:classscout-golden-path": "node scripts/verify-classscout-golden-path.mjs",
     "verify:compare-golden-path": "node scripts/verify-compare-golden-path.mjs",
     "verify:ui-alignment-proof-gate:init": "node scripts/verify-ui-alignment-proof-gate.mjs --init-templates",
     "verify:ui-alignment-proof-gate": "node scripts/verify-ui-alignment-proof-gate.mjs --strict",
@@ -135,8 +128,7 @@
     "bootstrap:compare-local-proof": "node scripts/bootstrap-compare-local-proof.mjs",
     "research:compare-visitor-sources": "node scripts/research-compare-visitor-sources.mjs",
     "publish:compare-source-backed": "node scripts/publish-compare-source-backed-content.mjs",
-    "profile:webapp": "node scripts/profile-webapp-routes.mjs",
-    "test:classscout-runtime-quality": "node scripts/test-classscout-runtime-quality-contract.mjs"
+    "profile:webapp": "node scripts/profile-webapp-routes.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

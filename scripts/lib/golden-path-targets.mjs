@@ -1,5 +1,4 @@
 const ENV_TARGETS = Object.freeze({
-  classscout: "CHECK_GOLDEN_PATH_CLASSSCOUT_COMPANY_ID",
   compare: "CHECK_GOLDEN_PATH_COMPARE_COMPANY_ID",
 });
 
@@ -16,7 +15,7 @@ export class GoldenPathTargetError extends Error {
 
 function normalizeVisitorKey(visitorKey) {
   const key = String(visitorKey || "").trim().toLowerCase();
-  if (key !== "classscout" && key !== "compare") {
+  if (key !== "compare") {
     throw new GoldenPathTargetError(`Unsupported golden-path visitor key: ${visitorKey}`, {
       code: "UNSUPPORTED_VISITOR_KEY",
       visitorKey: key,

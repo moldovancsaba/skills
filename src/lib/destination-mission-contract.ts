@@ -86,7 +86,7 @@ export type DestinationMissionAttemptOutcome = {
 };
 
 export const DEFAULT_DESTINATION_RULEBOOK_POLICY: DestinationRulebookPolicySnapshot = {
-  version: "classscout-rulebook@v1",
+  version: "destination-rulebook@v1",
   executionMode: "manual",
   minimumScarcityScore: 70,
   allowedListingTypes: [
@@ -128,7 +128,7 @@ export const DEFAULT_COMPARE_RULEBOOK_POLICY: DestinationRulebookPolicySnapshot 
 };
 
 export const DEFAULT_DESTINATION_MISSION_DEFINITION: DestinationMissionDefinitionConfig = {
-  version: "classscout-mission-definition@v1",
+  version: "destination-mission-definition@v1",
   geographyScope: {
     boroughs: [],
     neighborhoods: [],
@@ -142,9 +142,6 @@ export const DEFAULT_DESTINATION_MISSION_DEFINITION: DestinationMissionDefinitio
   },
   rulebookPolicy: { ...DEFAULT_DESTINATION_RULEBOOK_POLICY },
 };
-
-export const DEFAULT_CLASSSCOUT_RULEBOOK_POLICY = DEFAULT_DESTINATION_RULEBOOK_POLICY;
-export const DEFAULT_CLASSSCOUT_MISSION_DEFINITION = DEFAULT_DESTINATION_MISSION_DEFINITION;
 
 export function getDefaultRulebookPolicyForDestination(destinationKey: string): DestinationRulebookPolicySnapshot {
   return destinationKey === "compare"

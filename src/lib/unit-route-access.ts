@@ -120,7 +120,7 @@ export async function requireUnitRouteAccess({
     };
   }
 
-  const [company, classScoutInstance, compareInstance] = await Promise.all([
+  const [company, compareInstance, trainersInstance, athleteiqInstance] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
       select: { id: true, workerConfig: true },
@@ -128,17 +128,17 @@ export async function requireUnitRouteAccess({
     prisma.destinationInstance.findFirst({
       where: {
         companyId,
-        destinationKey: "classscout",
+        destinationKey: "compare",
         isActive: true,
       },
       select: { id: true },
     }),
     prisma.destinationInstance.findFirst({
-      where: {
-        companyId,
-        destinationKey: "compare",
-        isActive: true,
-      },
+      where: { companyId, destinationKey: "trainers", isActive: true },
+      select: { id: true },
+    }),
+    prisma.destinationInstance.findFirst({
+      where: { companyId, destinationKey: "athleteiq", isActive: true },
       select: { id: true },
     }),
   ]);
@@ -152,13 +152,15 @@ export async function requireUnitRouteAccess({
 
   const capabilities = resolveUnitCapabilities({
     workerConfig: company.workerConfig,
-    hasClassScoutDestination: Boolean(classScoutInstance),
     hasCompareDestination: Boolean(compareInstance),
+    hasTrainersDestination: Boolean(trainersInstance),
+    hasAthleteIQDestination: Boolean(athleteiqInstance),
   });
   const effectiveCapabilities = resolveEffectiveUnitCapabilities({
     workerConfig: company.workerConfig,
-    hasClassScoutDestination: Boolean(classScoutInstance),
     hasCompareDestination: Boolean(compareInstance),
+    hasTrainersDestination: Boolean(trainersInstance),
+    hasAthleteIQDestination: Boolean(athleteiqInstance),
   });
 
   if (moduleKey && capabilities.modules[moduleKey] === false) {

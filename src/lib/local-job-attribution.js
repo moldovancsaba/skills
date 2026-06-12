@@ -58,14 +58,14 @@ function resolvePipelineJobAttribution(job) {
       .map((value) => String(value || "").trim().toLowerCase())
       .filter(Boolean)
     : [];
-  const inferredMiniappId = destinationKey === "classscout" || destinationKey === "compare"
+  const inferredMiniappId = destinationKey === "compare" || destinationKey === "trainers" || destinationKey === "athleteiq"
     ? destinationKey
-    : (activeDestinationKeys.length === 1 && (activeDestinationKeys[0] === "classscout" || activeDestinationKeys[0] === "compare")
+    : (activeDestinationKeys.length === 1 && (activeDestinationKeys[0] === "compare" || activeDestinationKeys[0] === "trainers" || activeDestinationKeys[0] === "athleteiq")
       ? activeDestinationKeys[0]
       : null);
   const miniappId = normalizedDeclaredMiniappId
     ? normalizedDeclaredMiniappId
-    : (inferredMiniappId || (blockId === "miniapp" ? "classscout" : null));
+    : (inferredMiniappId || (blockId === "miniapp" ? "compare" : null));
 
   return {
     unitId: job?.companyId || null,

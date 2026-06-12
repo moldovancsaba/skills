@@ -45,7 +45,7 @@ const fullBoardPayloadPatterns = [
 ];
 
 const miniappScopedComponentFiles = new Set([
-  "src/components/classscout-home.tsx",
+  "src/components/compare-home.tsx",
   "src/components/destination-learning-panel.tsx",
   "src/components/destination-mission-control.tsx",
   "src/components/visitor-ops-workspace.tsx",

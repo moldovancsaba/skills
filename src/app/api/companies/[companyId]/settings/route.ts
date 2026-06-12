@@ -36,7 +36,7 @@ export async function GET(
   if (auth.error) return auth.error;
 
   try {
-    const [company, classScoutInstance, compareInstance] = await Promise.all([
+    const [company, compareInstance] = await Promise.all([
       prisma.company.findUnique({
         where: { id: companyId },
         select: {
@@ -45,14 +45,6 @@ export async function GET(
           allowedLanguages: true,
           workerConfig: true,
         },
-      }),
-      prisma.destinationInstance.findFirst({
-        where: {
-          companyId,
-          destinationKey: "classscout",
-          isActive: true,
-        },
-        select: { id: true },
       }),
       prisma.destinationInstance.findFirst({
         where: {
@@ -69,7 +61,6 @@ export async function GET(
     }
     const capabilities = resolveUnitCapabilities({
       workerConfig: company.workerConfig,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
 
@@ -123,15 +114,7 @@ export async function PATCH(
         workerConfig: true,
       },
     });
-    const [classScoutInstance, compareInstance] = await Promise.all([
-      prisma.destinationInstance.findFirst({
-        where: {
-          companyId,
-          destinationKey: "classscout",
-          isActive: true,
-        },
-        select: { id: true },
-      }),
+    const [compareInstance] = await Promise.all([
       prisma.destinationInstance.findFirst({
         where: {
           companyId,
@@ -186,7 +169,6 @@ export async function PATCH(
     }
     const currentCapabilities = resolveUnitCapabilities({
       workerConfig: existing?.workerConfig,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
     const profileMigration = profileMigrationRequest
@@ -338,7 +320,6 @@ export async function PATCH(
 
     const nextCapabilities = resolveUnitCapabilities({
       workerConfig: updated.workerConfig,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
 

@@ -27,7 +27,7 @@ contains(contractSource, /MINIAPP_DEFAULT_MINIMUM_CONTENT_QUALITY_SCORE/, "contr
 contains(contractSource, /validateContentQualityThreshold/, "contract validator must validate content-quality thresholds");
 contains(contractSource, /countDuplicateUpdatesAsNewCards:\s*false/, "duplicate updates must not count as new cards");
 contains(contractSource, /compare\.visitor\.sovereign@v1/, "Compare sovereign contract must exist");
-contains(contractSource, /classscout\.visitor\.sovereign@v1/, "ClassScout sovereign contract must exist");
+contains(contractSource, /compare\.visitor\.sovereign@v1/, "Compare sovereign contract must exist");
 contains(contractSource, /allowedSearchProviders:\s*\["duckduckgo",\s*"bing-html",\s*"seed-fallback"\]/, "free search provider policy must be explicit");
 contains(contractSource, /validateMiniappIntelligenceContract/, "contract validator must be exported");
 contains(contractSource, /failurePolicy retryable\/terminal overlap/, "validator must reject retryable/terminal overlap");

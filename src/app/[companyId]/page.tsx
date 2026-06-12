@@ -1,5 +1,4 @@
 import CompanyDashboard from "./company-dashboard";
-import { ClassScoutHome } from "@/components/classscout-home";
 import { CompareHome } from "@/components/compare-home";
 import { Center, Loader, Stack } from "@/components/gds/primitives";
 import { Text } from "@/components/ui/typography";
@@ -14,16 +13,8 @@ export default async function CompanyPage(
   const enabledMiniapps = Array.isArray(initialData?.enabledMiniapps) ? initialData.enabledMiniapps : [];
   const firstEnabledMiniapp = resolveFirstSupportedDestinationKey(enabledMiniapps);
 
-  if (firstEnabledMiniapp === "classscout") {
-    return <ClassScoutHome companyId={companyId} />;
-  }
-
   if (firstEnabledMiniapp === "compare") {
     return <CompareHome companyId={companyId} />;
-  }
-
-  if (initialData?.webappProfile === "CLASSSCOUT") {
-    return <ClassScoutHome companyId={companyId} />;
   }
 
   if (initialData?.webappProfile === "COMPARE") {

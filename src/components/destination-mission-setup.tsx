@@ -110,7 +110,7 @@ function formStateToConfig(form: MissionDefinitionFormState): DestinationMission
 
 export function DestinationMissionSetup({
   companyId,
-  destinationKey = "classscout",
+  destinationKey = "compare",
 }: {
   companyId: string;
   destinationKey?: DestinationKey;

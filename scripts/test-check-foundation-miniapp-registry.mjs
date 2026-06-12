@@ -7,7 +7,7 @@ const registry = JSON.parse(
 );
 
 const failures = [];
-const requiredMiniapps = ["classscout", "compare"];
+const requiredMiniapps = ["compare", "trainers", "athleteiq"];
 
 function assert(condition, message) {
   if (!condition) failures.push(message);

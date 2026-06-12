@@ -124,7 +124,6 @@ function main() {
     "src/app/api/units/[unitId]/miniapps/[miniappId]/cards/[cardId]/approve/route.ts",
     "src/app/api/units/[unitId]/miniapps/[miniappId]/cards/[cardId]/publish/route.ts",
     "src/app/api/units/[unitId]/miniapps/[miniappId]/content/[contentId]/refresh/route.ts",
-    "src/app/api/classscout/landing-summary/route.ts",
     "src/app/api/compare/landing-summary/route.ts",
   ];
 
@@ -146,7 +145,6 @@ function main() {
     "test:check-foundation-cards",
     "test:check-foundation-miniapps",
     "test:check-foundation-packages",
-    "verify:classscout-golden-path",
     "verify:compare-golden-path",
     "verify:check-foundation",
   ]);
@@ -184,12 +182,7 @@ function main() {
     ? checkResult("unit_package_contract", "passed", "Unit package contract passed.")
     : checkResult("unit_package_contract", "failed", packageContract.output || "Unit package contract failed."));
 
-  if (args.companyId && args.miniapp === "classscout") {
-    const result = runNodeScript("scripts/verify-classscout-golden-path.mjs", ["--companyId", args.companyId]);
-    checks.push(result.ok
-      ? checkResult("miniapp_classscout_golden_path", "passed", "ClassScout golden path passed.")
-      : checkResult("miniapp_classscout_golden_path", "failed", result.output || "ClassScout golden path failed."));
-  } else if (args.companyId && args.miniapp === "compare") {
+  if (args.companyId && args.miniapp === "compare") {
     const result = runNodeScript("scripts/verify-compare-golden-path.mjs", ["--companyId", args.companyId]);
     checks.push(result.ok
       ? checkResult("miniapp_compare_golden_path", "passed", "Compare golden path passed.")
@@ -198,7 +191,7 @@ function main() {
     checks.push(checkResult(
       "miniapp_live_golden_path",
       "skipped",
-      "Skipped live miniapp golden-path check. Use --miniapp <classscout|compare> and --companyId <id> to run.",
+      "Skipped live miniapp golden-path check. Use --miniapp compare and --companyId <id> to run.",
     ));
   }
 

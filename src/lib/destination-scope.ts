@@ -18,12 +18,12 @@ export function resolveFirstSupportedDestinationKey(values: string[]): Destinati
 }
 
 export function resolveDestinationLabel(destinationKey: DestinationKey): string {
-  if (destinationKey === "classscout") return "ClassScout";
   if (destinationKey === "compare") return "Compare";
   if (destinationKey === "trainers") return "Trainers";
+  if (destinationKey === "athleteiq") return "AthleteIQ";
   return destinationKey;
 }
 
 export function supportsDestinationLiveListingOps(destinationKey: DestinationKey): boolean {
-  return destinationKey === "classscout";
+  return false;
 }

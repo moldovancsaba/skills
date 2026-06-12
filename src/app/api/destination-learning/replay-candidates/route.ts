@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
     const destinationKey = request.nextUrl.searchParams.get("destinationKey");
     if (destinationKey && !normalizeDestinationKey(destinationKey)) {
-      return NextResponse.json({ ok: false, error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "destinationKey must be supported by checklist" }, { status: 400 });
     }
     const auth = await verifyMembership(request, companyId);
     if (auth.error) return auth.error;

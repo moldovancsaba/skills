@@ -54,9 +54,6 @@ function normalizePatchPayload(input: unknown): { patch: DestinationDaemonPolicy
     if (!miniapps) {
       return { error: `"miniapps" must be an object when provided.` };
     }
-    if (miniapps.classscout !== undefined && !asRecord(miniapps.classscout)) {
-      return { error: `"miniapps.classscout" must be an object when provided.` };
-    }
     if (miniapps.compare !== undefined && !asRecord(miniapps.compare)) {
       return { error: `"miniapps.compare" must be an object when provided.` };
     }

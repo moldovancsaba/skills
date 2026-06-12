@@ -5,6 +5,7 @@ import { guardedUnitMutation, type UnitPermission } from "@/lib/check-foundation
 import { recordInteractionEventFromRequest, recordOutcomeEvent } from "@/lib/audit-ledger";
 import { issueSystemCommand } from "@/lib/system-commands";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
+import type { DestinationKey } from "@/lib/destination-workflow-contract";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ type OperationalAction = "retry" | "cancel" | "replay" | "rollback" | "acknowled
 
 type ParsedOperationItem =
   | { source: "local_job"; itemId: string; jobId: string }
-  | { source: "miniapp_publish"; itemId: string; destinationKey: "classscout" | "compare" | "trainers" | "athleteiq" }
+  | { source: "miniapp_publish"; itemId: string; destinationKey: DestinationKey }
   | { source: "read_model"; itemId: string; projectionKey: "projection-stale" };
 
 function parseOperationAction(value: string): OperationalAction | null {
@@ -44,7 +45,7 @@ function parseOperationItem(rawItemId: string): ParsedOperationItem | null {
     return jobId ? { source: "local_job", itemId, jobId } : null;
   }
 
-  const miniappMatch = /^miniapp-publish:(classscout|compare|trainers|athleteiq)-review-pressure$/i.exec(itemId);
+  const miniappMatch = /^miniapp-publish:(compare|trainers|athleteiq)-review-pressure$/i.exec(itemId);
   if (miniappMatch) {
     const destinationKey = normalizeDestinationKey(miniappMatch[1]);
     if (!destinationKey) return null;

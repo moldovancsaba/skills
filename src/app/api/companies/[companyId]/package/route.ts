@@ -18,14 +18,10 @@ export async function GET(
   if (auth.error) return auth.error;
 
   try {
-    const [company, classScoutInstance, compareInstance] = await Promise.all([
+    const [company, compareInstance] = await Promise.all([
       prisma.company.findUnique({
         where: { id: companyId },
         select: { id: true, workerConfig: true },
-      }),
-      prisma.destinationInstance.findFirst({
-        where: { companyId, destinationKey: "classscout", isActive: true },
-        select: { id: true },
       }),
       prisma.destinationInstance.findFirst({
         where: { companyId, destinationKey: "compare", isActive: true },
@@ -39,14 +35,12 @@ export async function GET(
 
     const effectiveCapabilities = resolveEffectiveUnitCapabilities({
       workerConfig: company.workerConfig,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
     const effectivePackage = resolveEffectiveUnitPackage({
       unitId: companyId,
       workerConfig: company.workerConfig,
       effectiveCapabilities,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
 

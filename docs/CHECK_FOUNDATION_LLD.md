@@ -198,7 +198,7 @@ Target payload:
     "miniapp": {
       "enabled": true,
       "miniapps": {
-        "classscout": { "enabled": true },
+        "external-miniapp": { "enabled": true },
         "compare": { "enabled": false }
       }
     }
@@ -308,7 +308,7 @@ A Miniapp is a public-facing app powered by a Unit.
 
 Examples:
 
-- `ClassScout`
+- `External Miniapp`
 - `Compare`
 
 Miniapp Ops is the Webapp workspace that operates a Miniapp.
@@ -331,8 +331,8 @@ Rules:
 - Miniapps are not Webapp screens
 - Miniapp content creation must run through Local
 - Miniapp publish and verification must be explicit
-- ClassScout-specific rules must live behind a Miniapp adapter
-- Compare must use the same Miniapp foundation without copy-paste ClassScout logic
+- External Miniapp-specific rules must live behind a Miniapp adapter
+- Compare must use the same Miniapp foundation without copy-paste External Miniapp logic
 
 ## 10. Read-Model Foundation
 
@@ -416,7 +416,7 @@ npm run test:check-foundation-packages
 Golden-path verification command:
 
 ```bash
-npm run verify:classscout-golden-path -- --companyId <companyId> [--strict]
+npm run verify:external-miniapp-golden-path -- --companyId <companyId> [--strict]
 npm run verify:compare-golden-path -- --companyId <companyId> [--strict]
 ```
 
@@ -465,13 +465,13 @@ Current implementation note:
 
 Phase 6: Miniapp parity
 
-- restore ClassScout content creation and maintenance through the Miniapp foundation
+- restore External Miniapp content creation and maintenance through the Miniapp foundation
 - bring Compare to the same Miniapp workflow pattern
 - keep Miniapp adapters isolated
 
 Current implementation note:
 
-- `src/lib/destination-publish-bridge.ts` now supports both `classscout` and `compare` through the same review-publish bridge contract
+- `src/lib/destination-publish-bridge.ts` now supports both `external-miniapp` and `compare` through the same review-publish bridge contract
 - `src/lib/check-foundation/miniapp-registry.ts` now ships a working Compare adapter (status + publish flow) using the shared bridge
 - canonical Miniapp workflow APIs now exist at:
   - `POST /api/units/{unitId}/miniapps/{miniappId}/missions`
@@ -483,7 +483,7 @@ Current implementation note:
 - `GET /api/visitor/{visitorKey}/candidates`
   - returns a public-safe projection by default and only includes raw/internal runtime fields when `includeInternal=true` or `mode=internal`
   - for visitorKey `compare`, blocked projection rows are filtered out by default (`source-only`, weak/blocked source, inherited legacy/placeholder signals, static fake content)
-- Local destination daemon and queue lane now evaluate both `classscout` and `compare` with the same default execution policy model, establishing the baseline for future miniapps in this family
+- Local destination daemon and queue lane now evaluate both `external-miniapp` and `compare` with the same default execution policy model, establishing the baseline for future miniapps in this family
 - queue activation for destination daemon is now derived from active mission definitions/runs generically, reducing hardcoded single-miniapp coupling
 
 Phase 7: cleanup and rename

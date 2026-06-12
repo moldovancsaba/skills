@@ -18,19 +18,19 @@ const REQUIRED_SCENARIOS = [
     description: "Project board block enabled with no checklist/sales/miniapp business logic coupling.",
   },
   {
-    scenarioId: "miniapp-classscout-only",
+    scenarioId: "miniapp-compare-only",
     blockConfig: ["miniapp"],
-    description: "Miniapp block enabled with classscout active and compare disabled.",
+    description: "Miniapp block enabled with compare active and compare disabled.",
   },
   {
     scenarioId: "miniapp-compare-only",
     blockConfig: ["miniapp"],
-    description: "Miniapp block enabled with compare active and classscout disabled.",
+    description: "Miniapp block enabled with compare active and compare disabled.",
   },
   {
     scenarioId: "miniapp-dual-destination",
     blockConfig: ["miniapp"],
-    description: "Miniapp block enabled with classscout and compare both active.",
+    description: "Miniapp block enabled with compare and compare both active.",
   },
   {
     scenarioId: "miniapp-disabled-no-destination",
@@ -38,9 +38,9 @@ const REQUIRED_SCENARIOS = [
     description: "Miniapp block disabled with no miniapp destination active.",
   },
   {
-    scenarioId: "local-classscout-intelligence-flow",
+    scenarioId: "local-compare-intelligence-flow",
     blockConfig: ["miniapp"],
-    description: "ClassScout receives fresh Local intelligence and can move from mission input to review/publish evidence.",
+    description: "Compare receives fresh Local intelligence and can move from mission input to review/publish evidence.",
   },
   {
     scenarioId: "local-compare-intelligence-flow",

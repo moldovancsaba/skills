@@ -74,7 +74,7 @@ Some Webapp routes are Miniapp Ops homes rather than generic Unit Homes or Block
 
 Current shipped case:
 
-- `/{companyId}/classscout`
+- `/{companyId}/external-miniapp`
 - `/{companyId}/compare`
 
 These routes must follow a bounded landing-summary contract:
@@ -85,13 +85,13 @@ These routes must follow a bounded landing-summary contract:
 - explicit ownership of launch actions into subordinate destination workflows
 - clear separation between the Webapp-side Miniapp Ops surface and the public Miniapp
 
-Current shipped ClassScout landing contract:
+Current shipped External Miniapp landing contract:
 
-- route: `/{companyId}/classscout`
-- API: `GET /api/classscout/landing?companyId=...`
-- compatibility API: `GET /api/classscout/landing-summary?companyId=...`
-- server contract owner: `src/lib/classscout-landing.ts`
-- primary UI consumer: `src/components/classscout-home.tsx`
+- route: `/{companyId}/external-miniapp`
+- API: `GET /api/external-miniapp/landing?companyId=...`
+- compatibility API: `GET /api/external-miniapp/landing-summary?companyId=...`
+- server contract owner: `src/lib/external-miniapp-landing.ts`
+- primary UI consumer: `src/components/external-miniapp-home.tsx`
 
 Allowed slices in that contract:
 
@@ -268,9 +268,9 @@ Hot routes improved in this slice:
 - server-side topics bootstrap in `src/lib/server-topics-page-data.ts` via `/:companyId/topics`
 - server-side goals bootstrap in `src/lib/server-goals-page-data.ts` via `/:companyId/goals`
 - bounded file paging in `GET /api/data-files` so the datacard route no longer pulls the full file corpus on first load
-- canonical ClassScout landing-summary contract and destination home route so ClassScout-enabled units no longer fall back to the generic company tile dashboard
+- canonical External Miniapp landing-summary contract and destination home route so External Miniapp-enabled units no longer fall back to the generic company tile dashboard
 - canonical Compare landing-summary contract and destination home route so Compare-enabled units have a first-class operational home state
-- canonical Company home route now prioritizes effective enabled Miniapps (`classscout`, `compare`) before legacy profile fallback
+- canonical Company home route now prioritizes effective enabled Miniapps (`external-miniapp`, `compare`) before legacy profile fallback
 
 ## 7.1 Knowmore pagination contract
 

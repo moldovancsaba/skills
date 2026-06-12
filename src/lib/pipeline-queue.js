@@ -705,8 +705,9 @@ function readDestinationMissionExecutionMode(policyJson) {
 }
 
 function destinationLabel(destinationKey) {
-  if (destinationKey === "classscout") return "ClassScout";
   if (destinationKey === "compare") return "Compare";
+  if (destinationKey === "trainers") return "Trainers";
+  if (destinationKey === "athleteiq") return "AthleteIQ";
   return String(destinationKey || "Destination");
 }
 

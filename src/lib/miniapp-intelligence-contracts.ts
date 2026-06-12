@@ -231,81 +231,6 @@ const CONTRACTS: Record<string, MiniappIntelligenceContract> = {
       countDuplicateUpdatesAsNewCards: false,
     },
   },
-  classscout: {
-    key: "classscout.visitor.sovereign@v1",
-    miniappKey: "classscout",
-    destinationKey: "classscout",
-    schemaVersion: "sovereign-miniapp-intelligence@v1",
-    domainProfile: {
-      title: "ClassScout Visitor",
-      description:
-        "Research-backed public visitor content for Manhattan kids and family providers across classes, camps, birthday parties, drop-ins, events, meetup groups, arts, STEM, music, sports, and enrichment.",
-      allowedContentTypes: [
-        "Classes",
-        "Camps",
-        "Birthday Parties",
-        "Drop-In Activities",
-        "Family Events",
-        "Meetup Groups",
-        "Arts",
-        "STEM",
-        "Music",
-        "Sports",
-        "Dance",
-        "Theater",
-        "Martial Arts",
-        "Swimming",
-        "Tutoring",
-        "Language",
-        "Provider Profiles",
-      ],
-      forbiddenSignals: [
-        "source-only policy page",
-        "adult-only unrelated venue",
-        "generic travel guide",
-        "school admissions only",
-        "daycare-only listing",
-        "private household service",
-        "provider profile without public contact path",
-      ],
-    },
-    coverageGoals: [
-      { id: "classscout-manhattan-arts", category: "Arts", geography: "Manhattan", targetVisibleCards: 30, priority: 100 },
-      { id: "classscout-manhattan-stem", category: "STEM", geography: "Manhattan", targetVisibleCards: 30, priority: 98 },
-      { id: "classscout-manhattan-music", category: "Music", geography: "Manhattan", targetVisibleCards: 30, priority: 96 },
-      { id: "classscout-manhattan-sports", category: "Sports", geography: "Manhattan", targetVisibleCards: 30, priority: 94 },
-      { id: "classscout-manhattan-classes", category: "Classes", geography: "Manhattan", targetVisibleCards: 60, priority: 92 },
-      { id: "classscout-manhattan-camps", category: "Camps", geography: "Manhattan", targetVisibleCards: 40, priority: 90 },
-      { id: "classscout-manhattan-birthday-parties", category: "Birthday Parties", geography: "Manhattan", targetVisibleCards: 25, priority: 86 },
-      { id: "classscout-manhattan-drop-ins", category: "Drop-In Activities", geography: "Manhattan", targetVisibleCards: 25, priority: 84 },
-      { id: "classscout-manhattan-family-events", category: "Family Events", geography: "Manhattan", targetVisibleCards: 25, priority: 82 },
-      { id: "classscout-manhattan-meetups", category: "Meetup Groups", geography: "Manhattan", targetVisibleCards: 15, priority: 78 },
-    ],
-    researchPolicy: {
-      allowedSearchProviders: ["duckduckgo", "bing-html", "seed-fallback"],
-      requireOfficialSource: true,
-      maxDomainRetries: 2,
-      crawlDepth: 2,
-      timeoutMs: 15000,
-      maxResultsPerTask: 8,
-      expectedEvidenceTypes: ["official_site", "event_page", "directory"],
-    },
-    promotionPolicy: {
-      minimumEvidenceScore: 60,
-      minimumSourceAuthorityScore: 65,
-      minimumCandidateScore: 70,
-      minimumContentQualityScore: MINIAPP_DEFAULT_MINIMUM_CONTENT_QUALITY_SCORE,
-      requirePublicVerification: true,
-      successMetric: "verified_public_visible_cards",
-      sourceCardInventoryIsSuccess: false,
-    },
-    failurePolicy: COMMON_FAILURE_POLICY,
-    verificationPolicy: {
-      publicApiRequired: true,
-      visibleCardTargetField: "publicVisibleCards",
-      countDuplicateUpdatesAsNewCards: false,
-    },
-  },
   trainers: {
     key: "trainers.training-services.sovereign@v1",
     miniappKey: "trainers",
@@ -434,8 +359,8 @@ export function resolveMiniappIntelligenceContract(input: {
   const rawKey = normalizeKey(input.miniappKey || input.visitorKey || "");
   const destinationKey =
     normalizeDestinationKey(input.destinationKeyHint) ??
-    (rawKey.includes("classscout") ? "classscout" : rawKey.includes("compare") ? "compare" : rawKey.includes("athleteiq") ? "athleteiq" : rawKey.includes("trainers") ? "trainers" : null);
-  const contractKey = destinationKey ?? (rawKey.includes("classscout") ? "classscout" : rawKey.includes("compare") ? "compare" : rawKey.includes("athleteiq") ? "athleteiq" : rawKey.includes("trainers") ? "trainers" : rawKey);
+    (rawKey.includes("compare") ? "compare" : rawKey.includes("athleteiq") ? "athleteiq" : rawKey.includes("trainers") ? "trainers" : null);
+  const contractKey = destinationKey ?? (rawKey.includes("compare") ? "compare" : rawKey.includes("athleteiq") ? "athleteiq" : rawKey.includes("trainers") ? "trainers" : rawKey);
   const contract = CONTRACTS[contractKey];
 
   if (!contract) {

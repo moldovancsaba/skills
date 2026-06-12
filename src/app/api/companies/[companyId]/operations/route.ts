@@ -69,9 +69,9 @@ function actionsFromOperationalStatus(status: OperationalStatus): OperationalAct
 }
 
 function destinationLabel(destinationKey: SupportedDestinationKey) {
-  if (destinationKey === "classscout") return "ClassScout";
   if (destinationKey === "compare") return "Compare";
   if (destinationKey === "trainers") return "Trainers";
+  if (destinationKey === "athleteiq") return "AthleteIQ";
   return destinationKey;
 }
 
@@ -138,7 +138,7 @@ export async function GET(
   if (auth.error) return auth.error;
   const destinationKeyRaw = request.nextUrl.searchParams.get("destinationKey");
   if (destinationKeyRaw && !normalizeDestinationKey(destinationKeyRaw)) {
-    return NextResponse.json({ error: "destinationKey must be one of: classscout, compare, trainers" }, { status: 400 });
+    return NextResponse.json({ error: "destinationKey must be supported by checklist" }, { status: 400 });
   }
   const destinationKeyScope = normalizeDestinationKey(destinationKeyRaw);
 
@@ -238,26 +238,6 @@ export async function GET(
       });
     }
 
-    const classScoutReviewPressureCount = Number(projection?.miniapps.classscout?.reviewPressureCount ?? 0);
-    if (classScoutReviewPressureCount > 0) {
-      items.push({
-        id: "miniapp-publish:classscout-review-pressure",
-        unitId: companyId,
-        source: "miniapp_publish",
-        severity: classScoutReviewPressureCount >= 10 ? "critical" : "warning",
-        status: "retrying",
-        summary: `${classScoutReviewPressureCount} ClassScout packets need review or publishing follow-up.`,
-        safeActions: ["replay", "acknowledge"],
-        lastAttemptAt: null,
-        nextAttemptAt: null,
-        meta: {
-          packetCount: classScoutReviewPressureCount,
-          destinationKey: "classscout",
-          actionBasePath: `/api/companies/${companyId}/operations/${encodeURIComponent("miniapp-publish:classscout-review-pressure")}`,
-        },
-      });
-    }
-
     const compareReviewPressureCount = Number(projection?.miniapps.compare?.reviewPressureCount ?? 0);
     if (compareReviewPressureCount > 0) {
       items.push({
@@ -319,7 +299,6 @@ export async function GET(
     }
 
     const activeDefinitionsByDestination: Record<SupportedDestinationKey, number> = {
-      classscout: 0,
       compare: 0,
       trainers: 0,
       athleteiq: 0,
@@ -331,7 +310,6 @@ export async function GET(
     }
 
     const runsByDestination: Record<SupportedDestinationKey, Array<{ state: string; updatedAt: Date }>> = {
-      classscout: [],
       compare: [],
       trainers: [],
       athleteiq: [],

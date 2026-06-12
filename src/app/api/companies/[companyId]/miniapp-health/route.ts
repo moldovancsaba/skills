@@ -21,7 +21,7 @@ export async function GET(
   const destinationKeyRaw = request.nextUrl.searchParams.get("destinationKey");
   const destinationKey = normalizeDestinationKey(destinationKeyRaw);
   if (destinationKeyRaw && !destinationKey) {
-    return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+    return NextResponse.json({ error: "destinationKey must be supported by checklist" }, { status: 400 });
   }
 
   try {

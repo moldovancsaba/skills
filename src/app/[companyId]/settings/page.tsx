@@ -180,7 +180,6 @@ function cloneDestinationDaemonByDestination(
   value: Record<DestinationKey, DestinationDaemonLimits>,
 ): Record<DestinationKey, DestinationDaemonLimits> {
   return {
-    classscout: { ...value.classscout },
     compare: { ...value.compare },
     trainers: { ...value.trainers },
     athleteiq: { ...value.athleteiq },
@@ -196,7 +195,7 @@ function clampDestinationDaemonLimit(
   return Math.max(field.min, Math.min(field.max, Math.round(rawValue)));
 }
 
-const DEFAULT_MINIAPP_KEYS = ["classscout", "compare", "trainers", "athleteiq"] as const;
+const DEFAULT_MINIAPP_KEYS = ["compare", "trainers", "athleteiq"] as const;
 
 function buildEmptyCapabilityDraft(): CapabilityDraft {
   return {
@@ -1153,15 +1152,13 @@ export default function SettingsPage() {
                     </Stack>
                   </UnifiedCardSection>
 
-                  {(["classscout", "compare", "trainers", "athleteiq"] as DestinationKey[]).map((destinationKey) => (
+                  {(["compare", "trainers", "athleteiq"] as DestinationKey[]).map((destinationKey) => (
                     <UnifiedCardSection key={`daemon-${destinationKey}`} tone="tactical">
                       <Stack gap="sm">
                         <SectionTitle>
                           {t("settings.daemonPolicyLaneOverrides", {
                             destination:
-                              destinationKey === "classscout"
-                                ? t("settings.daemonPolicyDestinationClassScout")
-                                : destinationKey === "compare"
+                              destinationKey === "compare"
                                 ? t("settings.daemonPolicyDestinationCompare")
                                 : destinationKey === "trainers"
                                 ? "Trainers"

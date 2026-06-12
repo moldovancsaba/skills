@@ -312,14 +312,6 @@
   ],
   "contentProfiles": [
     {
-      "contentType": "classscout_activity",
-      "extendsCardType": "miniappcard",
-      "allowedCategories": ["Classes", "Camps", "Programs", "Venues", "Drop-In Activities", "Events"],
-      "allowedPrimitives": ["venue", "program", "course", "event", "series", "camp", "service"],
-      "enabledProperties": ["title", "description", "category", "provider", "website", "contact", "location", "schedule", "audience", "price", "media", "source", "evidence", "publish"],
-      "publicSummaryProperties": ["title", "description", "category", "provider", "location", "audience", "schedule", "media"]
-    },
-    {
       "contentType": "compare_activity",
       "extendsCardType": "miniappcard",
       "allowedCategories": ["Shooting Ranges", "Sport Shooting Clubs", "Shooting Courses", "Competitions", "Hunting Associations", "Hunting Courses", "Hunting Expos"],

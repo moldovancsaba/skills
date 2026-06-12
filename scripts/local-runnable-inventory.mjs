@@ -55,7 +55,7 @@ const PLAYLIST_TERMS = [
   "board",
   "bootstrap-compare",
   "card",
-  "classscout",
+  "compare",
   "compare",
   "destination",
   "enrichment",

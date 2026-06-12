@@ -47,7 +47,7 @@ Destination daemon:
 1. Resolve mission kinds through lifecycle topology.
 2. Use one destination-agnostic daemon identity: `DESTINATION_MISSION_DAEMON` / `DESTINATION_SERVICE` / `destination-service`.
 3. Store lane metadata with `destinationKeys`, `missionKinds`, `activeDefinitionIds`, `activeRunIds`, and `serviceLane`.
-4. Keep ClassScout `rulebook_new_listing` and Compare `VISITOR_CONTENT_CURATION` in the same scheduling contract.
+4. Keep External Miniapp `rulebook_new_listing` and Compare `VISITOR_CONTENT_CURATION` in the same scheduling contract.
 
 Visitor content maintenance:
 
@@ -225,7 +225,7 @@ Required events:
 - Existing destination with stale config.
 - Missing pipeline job.
 - Missing daemon lane.
-- Compare mission using legacy ClassScout policy.
+- Compare mission using legacy External Miniapp policy.
 - Low local memory.
 - Source-only record attempting to publish as listing.
 - Fake/test/placeholder public content.

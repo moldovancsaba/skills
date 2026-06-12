@@ -41,13 +41,13 @@ for (const file of intentFiles) {
 }
 
 const forbiddenDestinationRuntimeHelpers = [
-  "discoverClassScoutCandidates",
   "discoverCompareCandidates",
-  "extractClassScoutCandidate",
+  "discoverCompareCandidates",
   "extractCompareCandidate",
-  "scoreClassScoutCandidate",
+  "extractCompareCandidate",
   "scoreCompareCandidate",
-  "prepareClassScoutCandidateReview",
+  "scoreCompareCandidate",
+  "prepareCompareCandidateReview",
   "prepareCompareCandidateReview",
   "upsertDestinationCandidate",
   "upsertDestinationSourceDocument",

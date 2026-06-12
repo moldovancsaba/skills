@@ -3,7 +3,6 @@ export const VISITOR_CAPABILITY_SCOPES = [
   "check.miniapp",
   "check.miniapp.visitors",
   "check.miniapp.visitors.compare",
-  "check.miniapp.visitors.classscout",
 ] as const;
 
 export type VisitorCapabilityScope = (typeof VISITOR_CAPABILITY_SCOPES)[number];
@@ -32,7 +31,6 @@ const PARENT_CHAIN_BY_SCOPE: Record<VisitorCapabilityScope, VisitorCapabilitySco
   "check.miniapp": ["check", "check.miniapp"],
   "check.miniapp.visitors": ["check", "check.miniapp", "check.miniapp.visitors"],
   "check.miniapp.visitors.compare": ["check", "check.miniapp", "check.miniapp.visitors", "check.miniapp.visitors.compare"],
-  "check.miniapp.visitors.classscout": ["check", "check.miniapp", "check.miniapp.visitors", "check.miniapp.visitors.classscout"],
 };
 
 export const DEFAULT_VISITOR_CAPABILITY_RULES: VisitorCapabilityRule[] = [
@@ -78,13 +76,6 @@ export const DEFAULT_VISITOR_CAPABILITY_RULES: VisitorCapabilityRule[] = [
     appliesTo: ["ranges", "training", "competitions", "hunting", "clubs"],
     precedence: 400,
   },
-  {
-    id: "classscout-family-taxonomy",
-    scope: "check.miniapp.visitors.classscout",
-    version: "v1",
-    appliesTo: ["classes", "camps", "drop-ins", "events", "age-fit"],
-    precedence: 400,
-  },
 ];
 
 function normalizeScopeKey(value: string) {
@@ -106,8 +97,7 @@ export function normalizeVisitorCapabilityScope(value: string): VisitorCapabilit
 export function resolveVisitorCapabilityScopeForVisitorKey(visitorKeyRaw: string): VisitorCapabilityScope {
   const visitorKey = normalizeScopeKey(visitorKeyRaw);
   if (visitorKey === "compare" || visitorKey.includes("compare")) return "check.miniapp.visitors.compare";
-  if (visitorKey.includes("classscout")) return "check.miniapp.visitors.classscout";
-  throw new Error(`Unsupported visitorKey "${visitorKeyRaw}". Expected compare or classscout visitor.`);
+  throw new Error(`Unsupported visitorKey "${visitorKeyRaw}". Expected compare visitor.`);
 }
 
 export function expandVisitorCapabilityParentChain(scopeRaw: string): VisitorCapabilityScope[] {

@@ -16,7 +16,7 @@ assert.match(projection, /export function buildProjectionMetadata/, "webapp proj
 assert.match(projection, /export function normalizeWebappProjection/, "webapp projection adapter must normalize projection payloads");
 assert.match(snapshotWorker, /webappProjection\s*=\s*{/, "Local snapshot worker must write webappProjection");
 assert.match(snapshotWorker, /scanMiniappReviewPressureForDestination/, "snapshot worker should scan destination review cards for miniapp attention pressure");
-assert.match(snapshotWorker, /miniapps:\s*\{\s*classscout:/, "snapshot worker should populate miniapp review pressure projection entries");
+assert.match(snapshotWorker, /miniapps:\s*\{\s*compare:/, "snapshot worker should populate miniapp review pressure projection entries");
 assert.match(snapshotWorker, /projectionType:\s*"companyWebappProjection"/, "Local projection writer must stamp projectionType");
 assert.match(snapshotWorker, /sourceRunId:/, "Local projection writer must stamp sourceRunId");
 assert.match(snapshotWorker, /inputWatermark:/, "Local projection writer must stamp inputWatermark");

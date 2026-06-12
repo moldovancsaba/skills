@@ -14,7 +14,10 @@ import { DestinationWorkflowState } from "@prisma/client";
 const DEFAULT_AUTH_REF = "ingest-secret-managed";
 
 function normalizeDestinationName(destinationKey: DestinationKey) {
-  return destinationKey === "classscout" ? "ClassScout" : destinationKey;
+  if (destinationKey === "compare") return "Compare";
+  if (destinationKey === "trainers") return "Trainers";
+  if (destinationKey === "athleteiq") return "AthleteIQ";
+  return destinationKey;
 }
 
 function normalizeJsonRecord(value: Record<string, unknown> | null | undefined): Prisma.InputJsonValue {

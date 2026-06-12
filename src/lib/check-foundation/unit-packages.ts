@@ -89,21 +89,18 @@ function buildVisibleWebappAreas(blocks: BlockKey[], effective: EffectiveUnitCap
     areas.push("/unit-board");
   }
   if (blocks.includes("miniapp")) {
-    if (effective.enabledMiniapps.includes("classscout")) {
-      areas.push("/classscout");
-    }
     if (effective.enabledMiniapps.includes("compare")) {
       areas.push("/compare");
     }
     if (effective.enabledMiniapps.includes("trainers")) {
       areas.push("/trainers");
     }
-    if (!effective.enabledMiniapps.includes("classscout") && !effective.enabledMiniapps.includes("compare") && !effective.enabledMiniapps.includes("trainers")) {
+    if (!effective.enabledMiniapps.includes("compare") && !effective.enabledMiniapps.includes("trainers")) {
       const firstEnabledMiniapp = effective.enabledMiniapps[0];
       if (firstEnabledMiniapp) {
         areas.push(`/${firstEnabledMiniapp}`);
       } else {
-        areas.push("/classscout");
+        areas.push("/compare");
       }
     }
   }
@@ -143,14 +140,12 @@ export function resolveEffectiveUnitPackage(input: {
   unitId: string;
   workerConfig?: unknown;
   effectiveCapabilities?: EffectiveUnitCapabilities;
-  hasClassScoutDestination?: boolean;
   hasCompareDestination?: boolean;
 }): EffectiveUnitPackage {
   const packageKey = normalizeUnitPackageKey(input.workerConfig);
   const packageDefinition = getUnitPackageDefinition(packageKey);
   const effective = input.effectiveCapabilities ?? resolveEffectiveUnitCapabilities({
     workerConfig: input.workerConfig,
-    hasClassScoutDestination: input.hasClassScoutDestination,
     hasCompareDestination: input.hasCompareDestination,
     defaultBlocks: packageDefinition.defaultEnabledBlocks,
   });
@@ -173,7 +168,7 @@ export function resolveEffectiveUnitPackage(input: {
 
   const setupRequired: string[] = [];
   if (defaultedBlocks.includes("miniapp") && effective.enabledMiniapps.length === 0) {
-    setupRequired.push("Enable at least one Miniapp instance (ClassScout, Compare, or Trainers).");
+    setupRequired.push("Enable at least one Miniapp instance (Compare or Trainers).");
   }
 
   return {
@@ -193,7 +188,6 @@ export function validateUnitPackageChange(input: {
   packageKey?: unknown;
   enabledBlocks?: unknown;
   effectiveCapabilities?: EffectiveUnitCapabilities;
-  hasClassScoutDestination?: boolean;
   hasCompareDestination?: boolean;
 }): UnitPackageValidationResult {
   const requestedPackageKey = typeof input.packageKey === "string" && isUnitPackageKey(input.packageKey)
@@ -203,7 +197,6 @@ export function validateUnitPackageChange(input: {
   const requestedBlocks = normalizeRequestedBlocks(input.enabledBlocks);
   const fallbackCapabilities = input.effectiveCapabilities ?? resolveEffectiveUnitCapabilities({
     workerConfig: input.workerConfig,
-    hasClassScoutDestination: input.hasClassScoutDestination,
     hasCompareDestination: input.hasCompareDestination,
     defaultBlocks: packageDefinition.defaultEnabledBlocks,
   });
@@ -233,7 +226,7 @@ export function validateUnitPackageChange(input: {
     : packageDefinition.defaultEnabledBlocks.filter((blockKey) => allowedSet.has(blockKey));
   const setupRequired: string[] = [];
   if (defaultedBlocks.includes("miniapp") && fallbackCapabilities.enabledMiniapps.length === 0) {
-    setupRequired.push("Enable at least one Miniapp instance (ClassScout, Compare, or Trainers).");
+    setupRequired.push("Enable at least one Miniapp instance (Compare or Trainers).");
   }
 
   return {

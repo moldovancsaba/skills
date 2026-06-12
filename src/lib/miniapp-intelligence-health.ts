@@ -72,8 +72,7 @@ function readVisitorReadiness(
   if (!blueprints) return { blueprintActive: false, taxonomyReady: false, sourceDatacards: 0 };
   const candidateKeys = Object.keys(blueprints).filter((key) => {
     const lower = key.toLowerCase();
-    if (destinationKey === "classscout") return lower.includes("classscout");
-    return lower.includes("compare");
+    return lower.includes(destinationKey);
   });
   for (const key of candidateKeys) {
     const blueprint = asRecord(blueprints[key]);
@@ -241,17 +240,21 @@ function buildBlockers(input: {
 }
 
 export async function getMiniappIntelligenceHealth(companyId: string, destinationKey: DestinationKey): Promise<MiniappIntelligenceHealth> {
-  const [company, classScoutInstance, compareInstance, destinationInstance, snapshot] = await Promise.all([
+  const [company, compareInstance, trainersInstance, athleteiqInstance, destinationInstance, snapshot] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
       select: { id: true, workerConfig: true },
     }),
     prisma.destinationInstance.findFirst({
-      where: { companyId, destinationKey: "classscout", isActive: true },
+      where: { companyId, destinationKey: "compare", isActive: true },
       select: { id: true },
     }),
     prisma.destinationInstance.findFirst({
-      where: { companyId, destinationKey: "compare", isActive: true },
+      where: { companyId, destinationKey: "trainers", isActive: true },
+      select: { id: true },
+    }),
+    prisma.destinationInstance.findFirst({
+      where: { companyId, destinationKey: "athleteiq", isActive: true },
       select: { id: true },
     }),
     prisma.destinationInstance.findFirst({
@@ -267,8 +270,9 @@ export async function getMiniappIntelligenceHealth(companyId: string, destinatio
 
   const effective = resolveEffectiveUnitCapabilities({
     workerConfig: company?.workerConfig,
-    hasClassScoutDestination: Boolean(classScoutInstance),
     hasCompareDestination: Boolean(compareInstance),
+    hasTrainersDestination: Boolean(trainersInstance),
+    hasAthleteIQDestination: Boolean(athleteiqInstance),
   });
   const miniappBlockEnabled = effective.enabledBlocks.includes("miniapp");
   const enabled = miniappBlockEnabled && effective.enabledMiniapps.includes(destinationKey);

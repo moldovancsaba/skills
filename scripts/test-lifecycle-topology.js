@@ -17,8 +17,8 @@ const root = process.cwd();
 
 assert.deepEqual(
   listLifecycleDestinationKeys().sort(),
-  ["classscout", "compare"],
-  "lifecycle registry must include ClassScout and Compare destinations",
+  ["athleteiq", "compare"],
+  "lifecycle registry must include active checklist destinations",
 );
 
 assert.equal(
@@ -37,17 +37,7 @@ assert.deepEqual(
   "destination daemon identity must be destination-agnostic",
 );
 
-assert.equal(
-  getLegacyDestinationDaemonJobIdentities().some((identity) => identity.entityId === "classscout"),
-  true,
-  "legacy ClassScout daemon identity must be declared for migration/reconciliation",
-);
-
-assert.deepEqual(
-  getDestinationMissionKinds("classscout"),
-  ["rulebook_new_listing"],
-  "ClassScout must keep the legacy rulebook mission kind",
-);
+assert.deepEqual(getLegacyDestinationDaemonJobIdentities(), [], "legacy destination daemon identities must be retired");
 
 assert.deepEqual(
   getDestinationMissionKinds("compare"),
@@ -100,8 +90,8 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   pipelineQueueSource,
-  /entityId:\s*"classscout"/,
-  "pipeline queue daemon sync must not create ClassScout-only daemon identity",
+  /entityId:\s*"compare"/,
+  "pipeline queue daemon sync must not create destination-specific daemon identity",
 );
 
 const daemonSource = readFileSync(join(root, "src/lib/destination-mission-daemon.ts"), "utf8");

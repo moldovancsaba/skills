@@ -12,7 +12,7 @@ This release binds the top 10 customer-value deliverables into one executable de
 2. #405 Intelligence Unit Control Plane Refactor
 3. #406 Sales Opportunitycard MVP Delivery
 4. #409 Content Intelligence Workflow Consolidation
-5. #410 ClassScout Rulebook and Continuous Ops Consolidation
+5. #410 External Miniapp Rulebook and Continuous Ops Consolidation
 6. #403 Lifecycle Automation Refactor
 7. #319 Destination workspace golden path
 8. #448 Customer Operations Dashboard

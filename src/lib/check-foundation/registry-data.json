@@ -37,10 +37,10 @@
     {
       "key": "miniapp",
       "displayName": "Miniapp Block",
-      "description": "Operational workspace for public Miniapps such as ClassScout and Compare.",
+      "description": "Operational workspace for public Miniapps such as Compare, Trainers, and AthleteIQ.",
       "requiredModules": ["data", "knowmore", "analytics", "aiQueue", "miniapp"],
       "optionalModules": ["review"],
-      "defaultRoute": "classscout",
+      "defaultRoute": "compare",
       "cardTypes": ["datacard", "reviewcard", "logiccard", "miniappcard"],
       "publicService": true,
       "accessibleDescription": "Miniapp Block for operating public Miniapps through the Webapp."
@@ -152,7 +152,7 @@
       "description": "Miniapp registry, content cards, adapter state, publish status, and public-service operations.",
       "cardTypes": ["miniappcard", "reviewcard", "logiccard"],
       "runtimeOwner": "shared",
-      "defaultRoute": "classscout",
+      "defaultRoute": "compare",
       "accessibleDescription": "Miniapp Module for public Miniapp operations and publishing state."
     }
   ]

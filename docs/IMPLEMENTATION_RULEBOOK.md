@@ -64,7 +64,7 @@ Rules:
 - use `PublicShell`, `PublicNav`, `PublicBrandFooter`, and `PublicFlowShell` through the adapter unless the route has a documented exception
 - mobile navigation mode must come from GDS, not route-local state or page-specific mobile menus
 - public/Miniapp nav items must be explicit, typed, and safe for long labels and external links
-- Compare is the first migrated proof surface; ClassScout and broader public flows should follow after the adapter is verified
+- Compare is the first migrated proof surface; External Miniapp and broader public flows should follow after the adapter is verified
 
 ### 2.0.1 Mandatory destination-daemon policy model
 
@@ -274,7 +274,7 @@ Examples:
 - planning summary sub-projection
 - compact chart series inside the product projection
 - server-bootstrapped paged corpus views where the hot path still needs direct entity rows, such as Knowmore
-- Miniapp landing summary contract for ClassScout or Compare
+- Miniapp landing summary contract for External Miniapp or Compare
 
 ### Step 5. Define invalidation and repair
 

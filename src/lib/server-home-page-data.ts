@@ -105,7 +105,7 @@ export async function getHomeInitialData(): Promise<HomeInitialData> {
         destinationInstances: {
           where: {
             isActive: true,
-            destinationKey: { in: ["classscout", "compare"] },
+            destinationKey: { in: ["compare", "trainers", "athleteiq"] },
           },
           select: {
             destinationKey: true,
@@ -133,8 +133,9 @@ export async function getHomeInitialData(): Promise<HomeInitialData> {
     const destinationKeys = new Set(company.destinationInstances.map((instance) => instance.destinationKey));
     const effectiveCapabilities = resolveEffectiveUnitCapabilities({
       workerConfig: company.workerConfig,
-      hasClassScoutDestination: destinationKeys.has("classscout"),
       hasCompareDestination: destinationKeys.has("compare"),
+      hasTrainersDestination: destinationKeys.has("trainers"),
+      hasAthleteIQDestination: destinationKeys.has("athleteiq"),
     });
 
     for (const tag of company.industries || []) {

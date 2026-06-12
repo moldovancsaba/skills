@@ -16,9 +16,9 @@ assert.deepEqual(
 );
 
 assert.deepEqual(
-  expandVisitorCapabilityParentChain("check.miniapp.visitors.classscout"),
-  ["check", "check.miniapp", "check.miniapp.visitors", "check.miniapp.visitors.classscout"],
-  "ClassScout scope must inherit every parent level in order.",
+  expandVisitorCapabilityParentChain("check.miniapp.visitors.compare"),
+  ["check", "check.miniapp", "check.miniapp.visitors", "check.miniapp.visitors.compare"],
+  "Compare scope must inherit every parent level in order.",
 );
 
 assert.equal(
@@ -28,9 +28,9 @@ assert.equal(
 );
 
 assert.equal(
-  resolveVisitorCapabilityScopeForVisitorKey("classscout-new-york"),
-  "check.miniapp.visitors.classscout",
-  "classscout visitorKey variants must resolve to the ClassScout visitor product scope.",
+  resolveVisitorCapabilityScopeForVisitorKey("compare-new-york"),
+  "check.miniapp.visitors.compare",
+  "compare visitorKey variants must resolve to the Compare visitor product scope.",
 );
 
 const compareCapability = resolveVisitorCapabilityForVisitorKey("compare");
@@ -38,7 +38,7 @@ assert.equal(compareCapability.scope, "check.miniapp.visitors.compare");
 assert(compareCapability.rules.some((rule) => rule.id === "stable-card-identity"), "check-level identity rule must be inherited.");
 assert(compareCapability.rules.some((rule) => rule.id === "visitor-category-affinity"), "visitor-level affinity rule must be inherited.");
 assert(compareCapability.rules.some((rule) => rule.id === "compare-shooting-taxonomy"), "Compare product rule must be present.");
-assert(!compareCapability.rules.some((rule) => rule.id === "classscout-family-taxonomy"), "ClassScout rules must not leak into Compare.");
+assert(!compareCapability.rules.some((rule) => rule.id === "compare-family-taxonomy"), "Compare rules must not leak into Compare.");
 
 const overrideCapability = resolveVisitorCapability("check.miniapp.visitors.compare", [
   {

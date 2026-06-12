@@ -29,7 +29,7 @@ export async function GET(
 
   try {
     const cid = companyId;
-    const [company, members, snapshot, classScoutInstance, compareInstance] = await profiler.measure("loadDashboardModels", () => Promise.all([
+    const [company, members, snapshot, compareInstance] = await profiler.measure("loadDashboardModels", () => Promise.all([
       prisma.company.findUnique({ where: { id: cid } }),
       prisma.user.findMany({
         where: { companyId: cid },
@@ -46,14 +46,6 @@ export async function GET(
       prisma.destinationInstance.findFirst({
         where: {
           companyId: cid,
-          destinationKey: "classscout",
-          isActive: true,
-        },
-        select: { id: true },
-      }),
-      prisma.destinationInstance.findFirst({
-        where: {
-          companyId: cid,
           destinationKey: "compare",
           isActive: true,
         },
@@ -65,12 +57,10 @@ export async function GET(
     const readModel = buildCompanyReadModel(snapshot);
     const capabilities = resolveUnitCapabilities({
       workerConfig: company?.workerConfig,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
     const effectiveCapabilities = resolveEffectiveUnitCapabilities({
       workerConfig: company?.workerConfig,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
 

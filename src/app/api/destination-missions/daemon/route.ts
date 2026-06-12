@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const explicitCompanyId = typeof body.companyId === "string" ? body.companyId.trim() : "";
     const destinationKeyRaw = body.destinationKey;
     if (destinationKeyRaw !== undefined && !normalizeDestinationKey(destinationKeyRaw)) {
-      return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+      return NextResponse.json({ error: "destinationKey must be supported by checklist" }, { status: 400 });
     }
     const destinationKey = normalizeDestinationKey(destinationKeyRaw);
     const configuredCompanyIds = readConfiguredDaemonCompanyIds();

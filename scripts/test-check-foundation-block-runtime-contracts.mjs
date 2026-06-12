@@ -38,7 +38,7 @@ const unitBoardSource = read("src/app/[companyId]/unit-board/unit-project-board-
 assert.match(unitBoardSource, /unit-board|Project/i, "Project Block must have a dedicated Unit board surface.");
 assert.doesNotMatch(
   unitBoardSource,
-  /opportunitycard|miniapp|classscout|compare/i,
+  /opportunitycard|miniapp|compare|compare/i,
   "Project Block board surface must not depend on Sales or Miniapp business concepts.",
 );
 
@@ -93,8 +93,8 @@ assert.match(blockSummaryRoute, /stale: isProjectionStale/, "Block summary must 
 assert.match(blockSummaryRoute, /enabledMiniapps\.includes\("compare"\)/, "Miniapp next-action route must support Compare.");
 assert.doesNotMatch(
   blockSummaryRoute,
-  /const preferredMiniapp = "classscout"/,
-  "Block summary must not hardcode ClassScout as the only Miniapp action target.",
+  /const preferredMiniapp = "compare"/,
+  "Block summary must not hardcode Compare as the only Miniapp action target.",
 );
 
 console.log("check foundation block runtime contracts passed.");

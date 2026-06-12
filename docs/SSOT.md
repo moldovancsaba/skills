@@ -51,7 +51,7 @@ Internal governance exception:
 
 Delegated destination-app exception:
 
-- public Miniapps such as `ClassScout` and `Compare` may be powered by a Unit
+- public Miniapps such as `External Miniapp` and `Compare` may be powered by a Unit
 - their Webapp-side Miniapp Ops surfaces may exist inside the authenticated shell
 - the public Miniapp is not the Webapp operator surface
 - Miniapp Ops must own one canonical route, one bounded landing summary contract, and one explicit deep-link policy
@@ -204,11 +204,11 @@ Foreground execution contract:
 Miniapp execution contract:
 
 - Miniapp services are not allowed to run as a parallel shadow scheduler beside the general playlist
-- ClassScout and Compare Miniapp work must be materialized into the same queue-owned worker lane as other `check` jobs
-- the current shipped bridge uses the claimable `DESTINATION_MISSION_DAEMON` queue job to dispatch into the internal mission daemon runtime for ClassScout and Compare mission scopes
+- External Miniapp and Compare Miniapp work must be materialized into the same queue-owned worker lane as other `check` jobs
+- the current shipped bridge uses the claimable `DESTINATION_MISSION_DAEMON` queue job to dispatch into the internal mission daemon runtime for External Miniapp and Compare mission scopes
 - destination mission run action routes are queue controls only; they validate operator scope, enqueue `DESTINATION_MISSION_DAEMON`, and return queued Playlist receipts instead of running discovery, extraction, scoring, preparation, persistence, or mission-state transitions in the Webapp
 - this bridge is a transitional implementation detail; the architectural rule is that Miniapp work is queue-owned, single-lane, and visible in mission control
-- the current shipped ClassScout operator home route is `/{companyId}/classscout`
+- the current shipped External Miniapp operator home route is `/{companyId}/external-miniapp`
 - that route is allowed to aggregate Miniapp-owned review, live-catalog, mission-control, and Project Board state behind one bounded landing contract
 
 The older broad per-company “load companies and run a full synthesis cycle” description is no longer the runtime contract.
@@ -249,7 +249,7 @@ Dashboard route contract:
 - non-critical panels such as membership or identity details should not block the first product-summary render
 - home-card chart data should come from the prepared projection too, not from broad snapshot analytics reads on the hot path
 - `unitBoard.project` is the prepared Unit Project Board surface projection contract; `src/lib/unit-board-projection.ts` builds server-ordered columns, item IDs, item payloads, filter counts, allowed actions, accessibility labels, state metadata, and checksum revision evidence, while the surface action route returns create/update/move/archive/restore receipts with previous and next projection revisions and the Unit Board client consumes that surface contract directly
-- if a Unit has an active Miniapp such as ClassScout or Compare, the root `/{companyId}` route may intentionally resolve to that Miniapp Ops Home instead of a generic tile dashboard
+- if a Unit has an active Miniapp such as External Miniapp or Compare, the root `/{companyId}` route may intentionally resolve to that Miniapp Ops Home instead of a generic tile dashboard
 - this exception must remain bounded by a dedicated landing summary contract and must not become a broad ad hoc analytics fan-out route
 
 Allowed bounded fallback:

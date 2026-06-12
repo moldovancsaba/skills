@@ -13,11 +13,11 @@ Evidence must exist for each scenario id below:
 - `checklist-core`
 - `sales-only`
 - `project-only`
-- `miniapp-classscout-only`
+- `miniapp-external-miniapp-only`
 - `miniapp-compare-only`
 - `miniapp-dual-destination`
 - `miniapp-disabled-no-destination`
-- `local-classscout-intelligence-flow`
+- `local-external-miniapp-intelligence-flow`
 - `local-compare-intelligence-flow`
 
 ## Evidence contract per scenario
@@ -53,22 +53,22 @@ npm run verify:ui-alignment-proof-gate:init
    - capability transaction apply events
    - capability transaction preview/conflict/validation counts
    - observability snapshots/screenshots
-   - Local runtime health evidence for ClassScout and Compare
-   - Miniapp mission/review/publish evidence for ClassScout and Compare
+   - Local runtime health evidence for External Miniapp and Compare
+   - Miniapp mission/review/publish evidence for External Miniapp and Compare
 
 Local Miniapp evidence can be generated with:
 
 ```bash
 npm run refresh:intelligence-snapshot -- --companyId <companyId>
-npm run verify:classscout-golden-path -- --companyId <companyId> --proofGateDir logs/ui-alignment-proof
+npm run verify:external-miniapp-golden-path -- --companyId <companyId> --proofGateDir logs/ui-alignment-proof
 npm run verify:compare-golden-path -- --companyId <companyId> --proofGateDir logs/ui-alignment-proof
 ```
 
 If a Unit has real legacy Miniapp evidence that predates destination mission runs, adopt that evidence into explicit mission lineage before rerunning the proof:
 
 ```bash
-npm run backfill:destination-mission-lineage -- --companyId <companyId> --destinationKey classscout --dry-run
-npm run backfill:destination-mission-lineage -- --companyId <companyId> --destinationKey classscout
+npm run backfill:destination-mission-lineage -- --companyId <companyId> --destinationKey external-miniapp --dry-run
+npm run backfill:destination-mission-lineage -- --companyId <companyId> --destinationKey external-miniapp
 ```
 
 Use `--destinationKey compare` for Compare. The backfill refuses to create duplicate mission lineage and refuses to run when input plus review/publish evidence is missing.
@@ -102,7 +102,7 @@ For each scenario, rollback evidence must prove:
 
 ## Local intelligence health requirements
 
-ClassScout and Compare are not considered healthy just because the Miniapp Block is enabled.
+External Miniapp and Compare are not considered healthy just because the Miniapp Block is enabled.
 
 Before release, each Miniapp must prove:
 
@@ -123,7 +123,7 @@ Legacy Miniapp evidence can satisfy the mission-run requirement only after expli
 - [ ] Security/access-control verification is true for all scenarios.
 - [ ] Performance verification is true for all scenarios.
 - [ ] Rollback verification is true for all scenarios.
-- [ ] Local intelligence flow is proven for ClassScout.
+- [ ] Local intelligence flow is proven for External Miniapp.
 - [ ] Local intelligence flow is proven for Compare.
 - [ ] Strict proof-gate command passed.
 

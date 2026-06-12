@@ -48,7 +48,7 @@ type CapabilityMutationResult = {
   mode: MutationMode;
   version: string;
   resolutionSource: "auto" | "custom" | "legacy-auto" | "legacy-v2" | "legacy-v3" | "v3";
-  effectiveProfile: "NONE" | "CLASSSCOUT" | "COMPARE";
+  effectiveProfile: "NONE" | "COMPARE";
   effectiveModules: string[];
   changedBy?: {
     actorId?: string;
@@ -227,11 +227,9 @@ function normalizeUiIntent(input: unknown): UiIntent | null {
 
 type CapabilityResolutionSource = CapabilityMutationResult["resolutionSource"];
 
-function getLegacyCapabilityResolution(workerConfig: unknown, hasClassScoutDestination: boolean, hasCompareDestination: boolean) {
+function getLegacyCapabilityResolution(workerConfig: unknown, hasCompareDestination: boolean) {
   const resolved = resolveLegacyUnitCapabilities({
-    workerConfig,
-    hasClassScoutDestination,
-    hasCompareDestination,
+    workerConfig,    hasCompareDestination,
   });
 
   const root = asRecord(workerConfig);
@@ -283,7 +281,7 @@ function buildFailureResult(input: {
   version: string;
   resolutionSummary: {
     resolutionSource: CapabilityResolutionSource;
-    effectiveProfile: "NONE" | "CLASSSCOUT" | "COMPARE";
+    effectiveProfile: "NONE" | "COMPARE";
     effectiveModules: string[];
   };
   enabledBlocks: BlockKey[];
@@ -346,7 +344,7 @@ function buildSuccessResult(input: {
   mode: MutationMode;
   version: string;
   resolutionSource: "auto" | "custom" | "legacy-auto" | "legacy-v2" | "legacy-v3" | "v3";
-  effectiveProfile: "NONE" | "CLASSSCOUT" | "COMPARE";
+  effectiveProfile: "NONE" | "COMPARE";
   effectiveModules: string[];
   changedBy?: {
     actorId?: string;
@@ -769,7 +767,7 @@ export async function POST(
       });
     }
 
-    const [company, classScoutInstance, compareInstance] = await Promise.all([
+    const [company, compareInstance] = await Promise.all([
       prisma.company.findUnique({
         where: { id: companyId },
         select: {
@@ -777,10 +775,6 @@ export async function POST(
           workerConfig: true,
           updatedAt: true,
         },
-      }),
-      prisma.destinationInstance.findFirst({
-        where: { companyId, destinationKey: "classscout", isActive: true },
-        select: { id: true },
       }),
       prisma.destinationInstance.findFirst({
         where: { companyId, destinationKey: "compare", isActive: true },
@@ -795,19 +789,16 @@ export async function POST(
     const currentVersion = buildVersionToken(company.updatedAt, company.workerConfig);
     const currentResolutionSummary = getLegacyCapabilityResolution(
       company.workerConfig,
-      Boolean(classScoutInstance),
       Boolean(compareInstance),
     );
     const currentEffective = resolveEffectiveUnitCapabilities({
       workerConfig: company.workerConfig,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
     const currentPackage = resolveEffectiveUnitPackage({
       unitId: company.id,
       workerConfig: company.workerConfig,
       effectiveCapabilities: currentEffective,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
 
@@ -856,19 +847,16 @@ export async function POST(
 
     const nextEffective = resolveEffectiveUnitCapabilities({
       workerConfig: nextWorkerConfig,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
     const nextResolutionSummary = getLegacyCapabilityResolution(
       nextWorkerConfig,
-      Boolean(classScoutInstance),
       Boolean(compareInstance),
     );
     const packageValidation = validateUnitPackageChange({
       workerConfig: nextWorkerConfig,
       packageKey: currentPackage.packageKey,
       effectiveCapabilities: nextEffective,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
     if (!packageValidation.isValid) {
@@ -912,7 +900,6 @@ export async function POST(
       unitId: company.id,
       workerConfig: nextWorkerConfig,
       effectiveCapabilities: nextEffective,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
 
@@ -1204,11 +1191,7 @@ export async function POST(
       nextEnabledMiniapps: nextEffective.enabledMiniapps,
       actorId: auth.session?.sub ?? "capability-transaction-api",
     });
-    const [appliedClassScoutInstance, appliedCompareInstance] = await Promise.all([
-      prisma.destinationInstance.findFirst({
-        where: { companyId, destinationKey: "classscout", isActive: true },
-        select: { id: true },
-      }),
+    const [appliedCompareInstance] = await Promise.all([
       prisma.destinationInstance.findFirst({
         where: { companyId, destinationKey: "compare", isActive: true },
         select: { id: true },
@@ -1216,14 +1199,12 @@ export async function POST(
     ]);
     const appliedEffective = resolveEffectiveUnitCapabilities({
       workerConfig: updatedCompany.workerConfig,
-      hasClassScoutDestination: Boolean(appliedClassScoutInstance),
       hasCompareDestination: Boolean(appliedCompareInstance),
     });
     const appliedPackage = resolveEffectiveUnitPackage({
       unitId: updatedCompany.id,
       workerConfig: updatedCompany.workerConfig,
       effectiveCapabilities: appliedEffective,
-      hasClassScoutDestination: Boolean(appliedClassScoutInstance),
       hasCompareDestination: Boolean(appliedCompareInstance),
     });
     const appliedImpact = createImpact(
@@ -1236,7 +1217,6 @@ export async function POST(
     );
     const appliedResolutionSummary = getLegacyCapabilityResolution(
       updatedCompany.workerConfig,
-      Boolean(appliedClassScoutInstance),
       Boolean(appliedCompareInstance),
     );
     const nextVersion = buildVersionToken(updatedCompany.updatedAt, updatedCompany.workerConfig);

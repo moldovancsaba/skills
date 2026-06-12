@@ -174,7 +174,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [resolvedCompany, setResolvedCompany] = useState<any>(null);
   const [portfolioUnits, setPortfolioUnits] = useState<PortfolioUnit[]>([]);
-  const [webappProfile, setWebappProfile] = useState<"NONE" | "CLASSSCOUT" | "COMPARE">("NONE");
+  const [webappProfile, setWebappProfile] = useState<"NONE" | "COMPARE">("NONE");
   const [moduleCapabilities, setModuleCapabilities] = useState<ModuleCapabilityState>({});
   const [enabledBlocks, setEnabledBlocks] = useState<EffectiveBlockKey[]>([]);
 
@@ -270,7 +270,6 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
             tactical: planningCount,
             review: data.counts?.review || 0,
             pipeline: data.counts?.pipeline || 0,
-            classscout: data.counts?.classscout || 0,
             compare: data.counts?.compare || 0,
             trainers: data.counts?.trainers || 0,
             athleteiq: data.counts?.athleteiq || 0,
@@ -360,7 +359,7 @@ export function ClientNav({ initialSession = null }: ClientNavProps) {
                 const canShowMiniappOps = enabledBlocks.length === 0 || enabledBlocks.includes("miniapp");
                 const routeByProfile = webappRoute
                   ? ({
-                      key: webappProfile === "CLASSSCOUT" ? "classscout" : webappProfile === "COMPARE" ? "compare" : "webapp",
+                      key: webappProfile === "COMPARE" ? "compare" : "webapp",
                       href: (companyId: string) => `/${companyId}/${webappRoute}`,
                       label: getWebappProfileLabel(webappProfile),
                       icon: Activity,

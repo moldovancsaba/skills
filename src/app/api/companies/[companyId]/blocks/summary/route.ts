@@ -94,11 +94,9 @@ function buildNextActions(input: {
     case "sales":
       return [{ label: "Open Sales", href: `${hrefBase}/sales`, severity: "info" }];
     case "miniapp": {
-      const preferredMiniapp = input.enabledMiniapps.includes("classscout")
-        ? "classscout"
-        : (input.enabledMiniapps.includes("compare")
-          ? "compare"
-          : (input.enabledMiniapps[0] || "classscout"));
+      const preferredMiniapp = input.enabledMiniapps.includes("compare")
+        ? "compare"
+        : (input.enabledMiniapps[0] || "compare");
       return [{ label: "Open Miniapp Ops", href: `${hrefBase}/${preferredMiniapp}`, severity: "info" }];
     }
     case "checklist":
@@ -120,7 +118,7 @@ export async function GET(
   if (auth.error) return auth.error;
 
   try {
-    const [company, snapshot, classScoutInstance, compareInstance] = await Promise.all([
+    const [company, snapshot, compareInstance] = await Promise.all([
       prisma.company.findUnique({
         where: { id: companyId },
         select: { id: true, workerConfig: true },
@@ -130,10 +128,6 @@ export async function GET(
         select: {
           webappProjection: true,
         },
-      }),
-      prisma.destinationInstance.findFirst({
-        where: { companyId, destinationKey: "classscout", isActive: true },
-        select: { id: true },
       }),
       prisma.destinationInstance.findFirst({
         where: { companyId, destinationKey: "compare", isActive: true },
@@ -149,7 +143,6 @@ export async function GET(
     const projectionMetadata = buildProjectionMetadata(readModel.projection);
     const effective = resolveEffectiveUnitCapabilities({
       workerConfig: company.workerConfig,
-      hasClassScoutDestination: Boolean(classScoutInstance),
       hasCompareDestination: Boolean(compareInstance),
     });
 
@@ -188,12 +181,13 @@ export async function GET(
         recentFailures: [],
       };
     });
+    const isProjectionStale = projectionMetadata.freshness.status === "STALE" || projectionMetadata.freshness.status === "MISSING";
 
     return NextResponse.json({
       companyId,
       generatedAt: new Date().toISOString(),
       sourceGeneratedAt: projectionMetadata.generatedAt,
-      stale: projectionMetadata.freshness.status === "STALE" || projectionMetadata.freshness.status === "MISSING",
+      stale: isProjectionStale,
       projection: {
         ...projectionMetadata,
         available: Boolean(readModel.projection),

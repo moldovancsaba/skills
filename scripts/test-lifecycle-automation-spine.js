@@ -14,7 +14,7 @@ const {
 
 const provisioningPlan = buildProvisioningPlan({
   companyId: "unit_1",
-  destinationKeys: ["classscout", "compare"],
+  destinationKeys: ["compare", "compare"],
   actorId: "operator_1",
   idempotencyKey: "idem_1",
 });
@@ -55,7 +55,7 @@ assert.equal(lowMemoryDiff.state, "paused_low_memory", "low memory must surface 
 assert.equal(lowMemoryDiff.metrics.skipped > 0, true, "low memory pause must report skipped work");
 
 const daemonLane = buildDestinationDaemonLane({
-  destinationKeys: ["classscout", "compare"],
+  destinationKeys: ["compare", "compare"],
   activeDefinitionIds: ["definition_1"],
   activeRunIds: ["run_1"],
 });

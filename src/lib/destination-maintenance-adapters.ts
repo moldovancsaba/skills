@@ -1,9 +1,4 @@
 import { prisma } from "@/lib/db";
-import {
-  publishApprovedClassScoutRevisionPackets,
-  readClassScoutMaintenanceDefaults,
-  sweepStaleClassScoutListings,
-} from "@/lib/destination-classscout-maintenance";
 import { publishDestinationReviewPacket } from "@/lib/destination-publish-bridge";
 import { normalizeDestinationKey } from "@/lib/destination-scope";
 import type { DestinationKey } from "@/lib/destination-workflow-contract";
@@ -56,10 +51,9 @@ function isFinalPublishOutcome(outcome: { eventType: string; reasonCode?: string
 }
 
 export function readDestinationMaintenanceDefaults(): DestinationMaintenanceLimits {
-  const defaults = readClassScoutMaintenanceDefaults();
   return {
-    maxRevisionIntakes: defaults.maxRevisionIntakes,
-    maxApprovedPublishes: defaults.maxApprovedPublishes,
+    maxRevisionIntakes: clampLimit(Number(process.env.DESTINATION_MAINTENANCE_MAX_REVISION_INTAKES), 5, 1, 20),
+    maxApprovedPublishes: clampLimit(Number(process.env.DESTINATION_MAINTENANCE_MAX_APPROVED_PUBLISHES), 5, 1, 20),
   };
 }
 
@@ -168,26 +162,6 @@ async function scanReviewPressureForDestination(input: {
   };
 }
 
-async function executeClassScoutMaintenance(
-  input: DestinationMaintenanceAdapterInput,
-): Promise<DestinationMaintenanceAdapterResult> {
-  const approvedPublishes = await publishApprovedClassScoutRevisionPackets({
-    companyId: input.companyId,
-    actorId: input.actorId,
-    limit: input.limits.maxApprovedPublishes,
-  });
-  const staleRevisionSweep = await sweepStaleClassScoutListings({
-    companyId: input.companyId,
-    limit: input.limits.maxRevisionIntakes,
-  });
-
-  return {
-    supported: true,
-    approvedPublishes: approvedPublishes as Record<string, unknown>,
-    staleRevisionSweep: staleRevisionSweep as Record<string, unknown>,
-  };
-}
-
 async function executeCompareMaintenance(
   input: DestinationMaintenanceAdapterInput,
 ): Promise<DestinationMaintenanceAdapterResult> {
@@ -255,7 +229,6 @@ const DESTINATION_MAINTENANCE_ADAPTERS: Record<
   DestinationKey,
   (input: DestinationMaintenanceAdapterInput) => Promise<DestinationMaintenanceAdapterResult>
 > = {
-  classscout: executeClassScoutMaintenance,
   compare: executeCompareMaintenance,
   trainers: executeTrainersMaintenance,
   athleteiq: executeAthleteIQMaintenance,
@@ -285,11 +258,10 @@ export async function executeDestinationMaintenanceAdapters(input: {
     });
   }
 
-  const classScout = byDestination.classscout;
+  const primary = byDestination.compare ?? byDestination.trainers ?? byDestination.athleteiq ?? null;
   return {
     byDestination,
-    classscout: classScout,
-    approvedPublishes: classScout?.approvedPublishes ?? null,
-    staleRevisionSweep: classScout?.staleRevisionSweep ?? null,
+    approvedPublishes: primary?.approvedPublishes ?? null,
+    staleRevisionSweep: primary?.staleRevisionSweep ?? null,
   };
 }

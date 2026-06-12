@@ -54,14 +54,14 @@ Human-Approved Burst Lane:
 
 ## 1.2 Local AI focus mode
 
-ClassScout launch focus mode keeps the local AI system online while restricting Playlist business mutation to ClassScout-scoped work.
+External Miniapp launch focus mode keeps the local AI system online while restricting Playlist business mutation to External Miniapp-scoped work.
 
 Enable it with:
 
 ```bash
 CHECK_LOCAL_FOCUS_ENABLED=true
-CHECK_LOCAL_FOCUS_DESTINATION_KEYS=classscout
-CHECK_LOCAL_FOCUS_REASON="ClassScout launch focus: only ClassScout product-building and quality-maintenance AI jobs may run locally."
+CHECK_LOCAL_FOCUS_DESTINATION_KEYS=external-miniapp
+CHECK_LOCAL_FOCUS_REASON="External Miniapp launch focus: only External Miniapp product-building and quality-maintenance AI jobs may run locally."
 CHECK_LOCAL_ACTIVE_INTERVAL_MS=15000
 CHECK_LOCAL_IDLE_INTERVAL_MS=60000
 CHECK_LOCAL_POLLING_INTERVAL_MS=15000
@@ -75,12 +75,12 @@ CHECK_LOCAL_BACKGROUND_SNAPSHOT_HARD_PAUSE_MB=3000
 Operational behavior:
 
 - Codex, Ollama, Guardian, the foreground worker, the snapshot worker, the status server, the web/destination daemon, and Remote Desktop-related macOS processes stay running.
-- `claimNextPipelineJobs` filters runnable queue candidates to jobs whose persisted metadata is scoped to `classscout`.
-- `executePipelineJob` rejects any already-claimed non-ClassScout job before business mutation.
-- `executeDestinationMissionDaemonForCompany` filters daemon destination iteration to `classscout`, so multi-destination jobs cannot spend local capacity on Compare, Trainers, or AthleteIQ while focus mode is active.
-- `CHECK_LOCAL_ACTIVE_INTERVAL_MS`, `CHECK_LOCAL_IDLE_INTERVAL_MS`, and `CHECK_LOCAL_POLLING_INTERVAL_MS` tune the foreground worker cadence. The ClassScout launch profile uses bounded intervals so the runner keeps cycling without creating unnecessary memory churn.
-- `CHECK_LOCAL_HEALTHY_MIN_FREE_MB`, `CHECK_LOCAL_CONSTRAINED_MIN_FREE_MB`, `CHECK_LOCAL_DEGRADED_MIN_FREE_MB`, `CHECK_LOCAL_FOREGROUND_HARD_PAUSE_MB`, and `CHECK_LOCAL_BACKGROUND_SNAPSHOT_HARD_PAUSE_MB` reserve memory headroom for the 16 GB local host. The ClassScout profile treats anything below 3 GB available memory as constrained and parks snapshot work below 3 GB so Ollama, Codex, Remote Desktop, MongoDB, and Next.js stay online.
-- On macOS, available memory uses the effective `vm_stat` estimate instead of raw free pages only. The estimate includes free, speculative, purgeable, and file-backed pages so ClassScout does not pause while the OS still has safely reclaimable memory. Set `CHECK_LOCAL_RAW_FREE_MEMORY_ONLY=true` to roll back to raw `os.freemem()` behavior.
+- `claimNextPipelineJobs` filters runnable queue candidates to jobs whose persisted metadata is scoped to `external-miniapp`.
+- `executePipelineJob` rejects any already-claimed non-External Miniapp job before business mutation.
+- `executeDestinationMissionDaemonForCompany` filters daemon destination iteration to `external-miniapp`, so multi-destination jobs cannot spend local capacity on Compare, Trainers, or AthleteIQ while focus mode is active.
+- `CHECK_LOCAL_ACTIVE_INTERVAL_MS`, `CHECK_LOCAL_IDLE_INTERVAL_MS`, and `CHECK_LOCAL_POLLING_INTERVAL_MS` tune the foreground worker cadence. The External Miniapp launch profile uses bounded intervals so the runner keeps cycling without creating unnecessary memory churn.
+- `CHECK_LOCAL_HEALTHY_MIN_FREE_MB`, `CHECK_LOCAL_CONSTRAINED_MIN_FREE_MB`, `CHECK_LOCAL_DEGRADED_MIN_FREE_MB`, `CHECK_LOCAL_FOREGROUND_HARD_PAUSE_MB`, and `CHECK_LOCAL_BACKGROUND_SNAPSHOT_HARD_PAUSE_MB` reserve memory headroom for the 16 GB local host. The External Miniapp profile treats anything below 3 GB available memory as constrained and parks snapshot work below 3 GB so Ollama, Codex, Remote Desktop, MongoDB, and Next.js stay online.
+- On macOS, available memory uses the effective `vm_stat` estimate instead of raw free pages only. The estimate includes free, speculative, purgeable, and file-backed pages so External Miniapp does not pause while the OS still has safely reclaimable memory. Set `CHECK_LOCAL_RAW_FREE_MEMORY_ONLY=true` to roll back to raw `os.freemem()` behavior.
 - Miniapp ops jobs stay linear under low-memory pressure. They do not fan out into multiple low-memory child slices, and degraded/minimal execution profiles cap miniapp research limits before calling the miniapp ops API.
 - General Checklist/company maintenance, sales opportunity search, generic card rescoring, and unscoped planner work must be parked or blocked while focus mode is active.
 
@@ -417,6 +417,6 @@ Rules:
 1. `discover-candidates`, `extract-candidate`, `score-candidate`, `prepare-candidate`, `execute-next-attempt`, and `execute-until-blocked` validate the operator and mission scope
 2. those routes enqueue `DESTINATION_MISSION_DAEMON` work for the `DESTINATION_MISSION_RUN`
 3. those routes return a `202` Playlist receipt with `queued: true`
-4. those routes must not import or execute ClassScout or Compare discovery, extraction, scoring, preparation, fact snapshot, candidate persistence, or state-transition helpers
+4. those routes must not import or execute External Miniapp or Compare discovery, extraction, scoring, preparation, fact snapshot, candidate persistence, or state-transition helpers
 5. CHECK Local owns retries, timeout handling, candidate selection, scoring, preparation, persistence, and mission state movement
 6. the Webapp UI refreshes mission/candidate read models after enqueue and must treat immediate local-AI artifacts as unavailable

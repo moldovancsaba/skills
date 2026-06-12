@@ -119,7 +119,6 @@ export function resolveDestinationDaemonPolicy(input: ResolveDestinationDaemonPo
       source: "default",
       defaults: fallback,
       byDestination: {
-        classscout: { ...fallback },
         compare: { ...fallback },
         trainers: { ...fallback },
         athleteiq: { ...fallback },
@@ -140,12 +139,6 @@ export function resolveDestinationDaemonPolicy(input: ResolveDestinationDaemonPo
     source: "worker-config",
     defaults: resolvedDefaults,
     byDestination: {
-      classscout: normalizeLimits({
-        candidate: miniapps?.classscout,
-        fallback: resolvedDefaults,
-        warnings,
-        scope: "destinationDaemonPolicy.miniapps.classscout",
-      }),
       compare: normalizeLimits({
         candidate: miniapps?.compare,
         fallback: resolvedDefaults,
@@ -187,17 +180,10 @@ export function applyDestinationDaemonPolicyPatchToWorkerConfig(input: {
     scope: "patch.defaults",
   });
 
-  const classScoutPatch = asRecord(input.patch.miniapps?.classscout);
   const comparePatch = asRecord(input.patch.miniapps?.compare);
   const trainersPatch = asRecord(input.patch.miniapps?.trainers);
   const athleteiqPatch = asRecord(input.patch.miniapps?.athleteiq);
 
-  const classscout = normalizeLimits({
-    candidate: { ...(resolved.byDestination.classscout as Record<string, unknown>), ...(classScoutPatch ?? {}) },
-    fallback: nextDefaults,
-    warnings: [],
-    scope: "patch.miniapps.classscout",
-  });
   const compare = normalizeLimits({
     candidate: { ...(resolved.byDestination.compare as Record<string, unknown>), ...(comparePatch ?? {}) },
     fallback: nextDefaults,
@@ -223,7 +209,6 @@ export function applyDestinationDaemonPolicyPatchToWorkerConfig(input: {
       destinationDaemonPolicy: {
         defaults: nextDefaults,
         miniapps: {
-          classscout,
           compare,
           trainers,
           athleteiq,
@@ -234,7 +219,6 @@ export function applyDestinationDaemonPolicyPatchToWorkerConfig(input: {
       source: "worker-config" as const,
       defaults: nextDefaults,
       byDestination: {
-        classscout,
         compare,
         trainers,
         athleteiq,

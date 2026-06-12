@@ -302,7 +302,7 @@ Active project board:
 
 - Owner: `sovereignsquad`
 - Repository: `sovereignsquad/checklist`
-- Project: `{checklist} - From IDEA to LIVE`
+- Project: `check - From IDEA to LIVE`
 - Project number: `3`
 - Status field target: `Todo (NEXT)`
 - Status option id: `f75ad846`

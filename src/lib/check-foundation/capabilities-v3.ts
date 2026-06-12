@@ -8,7 +8,7 @@ import {
   type ModuleKey,
 } from "./registry";
 
-type LegacyProfile = "NONE" | "CLASSSCOUT" | "COMPARE";
+type LegacyProfile = "NONE" | "COMPARE";
 
 type LegacyModuleKey =
   | "webapp"
@@ -43,7 +43,6 @@ export type EffectiveUnitCapabilities = {
 
 export type ResolveEffectiveUnitCapabilitiesInput = {
   workerConfig?: unknown;
-  hasClassScoutDestination?: boolean;
   hasCompareDestination?: boolean;
   hasTrainersDestination?: boolean;
   hasAthleteIQDestination?: boolean;
@@ -63,13 +62,11 @@ type ParsedLegacyPayload = {
 
 const LEGACY_PROFILE_BLOCK_MAP: Record<LegacyProfile, BlockKey[]> = {
   NONE: ["checklist"],
-  CLASSSCOUT: ["checklist", "sales", "miniapp"],
   COMPARE: ["checklist", "miniapp"],
 };
 
 const LEGACY_PROFILE_MINIAPP_MAP: Record<LegacyProfile, string[]> = {
   NONE: [],
-  CLASSSCOUT: ["classscout"],
   COMPARE: ["compare"],
 };
 
@@ -90,7 +87,6 @@ const LEGACY_MODULE_TO_CANONICAL: Partial<Record<LegacyModuleKey | "unitBoard", 
 };
 
 export function mapLegacyProfileToBlocks(profile: string): BlockKey[] {
-  if (profile === "CLASSSCOUT") return [...LEGACY_PROFILE_BLOCK_MAP.CLASSSCOUT];
   if (profile === "COMPARE") return [...LEGACY_PROFILE_BLOCK_MAP.COMPARE];
   return [...LEGACY_PROFILE_BLOCK_MAP.NONE];
 }
@@ -101,7 +97,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function normalizeLegacyProfile(raw: unknown, warnings: string[]): LegacyProfile {
-  if (raw === "CLASSSCOUT" || raw === "COMPARE" || raw === "NONE") return raw;
+  if (raw === "COMPARE" || raw === "NONE") return raw;
   if (raw !== undefined) {
     warnings.push(`Unsupported legacy profile "${String(raw)}"; defaulted to NONE.`);
   }
@@ -290,10 +286,6 @@ function resolveAutoDetected(input: ResolveEffectiveUnitCapabilitiesInput): Effe
   const detectedBlocks: BlockKey[] = [...(input.defaultBlocks ?? ["checklist"])];
   const enabledMiniapps: string[] = [];
 
-  if (input.hasClassScoutDestination) {
-    if (!detectedBlocks.includes("miniapp")) detectedBlocks.push("miniapp");
-    if (!enabledMiniapps.includes("classscout")) enabledMiniapps.push("classscout");
-  }
   if (input.hasCompareDestination) {
     if (!detectedBlocks.includes("miniapp")) detectedBlocks.push("miniapp");
     if (!enabledMiniapps.includes("compare")) enabledMiniapps.push("compare");

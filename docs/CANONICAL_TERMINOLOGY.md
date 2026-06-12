@@ -35,7 +35,7 @@ Current Block examples:
 - `Checklist Block`: the original product block that helps a Unit identify and deliver priority taskcards
 - `Sales Block`: the product block that finds and manages sales opportunities from company intelligence and internet research
 - `Project Block`: the standalone user-managed kanban block
-- `Miniapp Block`: the block that creates, maintains, reviews, publishes, and verifies public Miniapps such as ClassScout and Compare
+- `Miniapp Block`: the block that creates, maintains, reviews, publishes, and verifies public Miniapps such as External Miniapp and Compare
 
 Current Module examples:
 
@@ -144,9 +144,9 @@ Rules:
 
 Examples:
 
-- `ClassScout` is a Miniapp
+- `External Miniapp` is a Miniapp
 - `Compare` is a Miniapp
-- the ClassScout workspace inside Webapp is Miniapp Ops, not the Miniapp itself
+- the External Miniapp workspace inside Webapp is Miniapp Ops, not the Miniapp itself
 
 ## Implementation Mapping
 

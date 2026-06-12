@@ -28,7 +28,7 @@ type MissionRunWithPolicy = {
 };
 
 function destinationLabel(destinationKey: DestinationKey) {
-  return destinationKey === "classscout" ? "ClassScout" : destinationKey === "compare" ? "Compare" : destinationKey;
+  return destinationKey === "compare" ? "Compare" : destinationKey === "trainers" ? "Trainers" : destinationKey === "athleteiq" ? "AthleteIQ" : destinationKey;
 }
 
 function readExecutionMode(run: MissionRunWithPolicy) {

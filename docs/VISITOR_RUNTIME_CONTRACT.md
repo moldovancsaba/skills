@@ -12,7 +12,7 @@ Scope is enforced by the miniapp capability chain:
 - `check.miniapp`
 - `check.miniapp.visitors`
 - `check.miniapp.visitors.compare`
-- `check.miniapp.visitors.classscout`
+- `check.miniapp.visitors.external-miniapp`
 
 ## API Surface
 

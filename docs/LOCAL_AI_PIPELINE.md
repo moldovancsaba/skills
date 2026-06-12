@@ -302,10 +302,10 @@ Current managed job families:
 Miniapp service lane contract:
 
 - Miniapp execution must join the same queue-owned worker model as the rest of `check`
-- ClassScout and Compare share one Miniapp service lane contract
+- External Miniapp and Compare share one Miniapp service lane contract
 - active scheduled mission definitions and active guarded/autopilot mission runs materialize into the claimable `DESTINATION_MISSION_DAEMON` queue job
 - Webapp destination mission run action routes are queue controls only: `discover-candidates`, `extract-candidate`, `score-candidate`, `prepare-candidate`, `execute-next-attempt`, and `execute-until-blocked` validate operator scope, enqueue `DESTINATION_MISSION_DAEMON`, and return a `202` Playlist receipt
-- ClassScout/Compare discovery, extraction, scoring, preparation, persistence, retries, timeout handling, and mission-state movement are CHECK Local responsibilities
+- External Miniapp/Compare discovery, extraction, scoring, preparation, persistence, retries, timeout handling, and mission-state movement are CHECK Local responsibilities
 - the queue job dispatches into the internal daemon endpoint so the existing mission runtime can be reused without reintroducing a second independent scheduler
 - this keeps Miniapp work under the same one-task-at-a-time, retry, timeout, and queue-visibility rules as the rest of the local AI system
 

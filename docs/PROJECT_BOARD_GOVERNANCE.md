@@ -8,7 +8,7 @@ This document governs how `checklist` delivery issues are organized, sequenced, 
 It applies to:
 
 - all open and future issues that touch delivery
-- classscout/compare visitor operations
+- external-miniapp/compare visitor operations
 - miniapp, runtime, webapp, and local-ai workstreams that require production sequencing
 
 ## Project Board Structure

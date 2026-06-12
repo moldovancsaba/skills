@@ -2,18 +2,6 @@
   "schemaVersion": 1,
   "miniapps": [
     {
-      "id": "classscout",
-      "name": "ClassScout",
-      "blockId": "miniapp",
-      "supportedContentTypes": ["classscout_activity"],
-      "defaultLocale": "en",
-      "availableLocales": ["en", "hu", "it"],
-      "adapterKey": "classscout",
-      "defaultOpsRoute": "classscout",
-      "publicBaseUrlEnv": "CLASSSCOUT_BASE_URL",
-      "description": "Public app for parents to discover activities for kids in New York."
-    },
-    {
       "id": "compare",
       "name": "Compare",
       "blockId": "miniapp",

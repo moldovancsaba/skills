@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
     const destinationKey = normalizeDestinationKey(destinationKeyRaw);
     if (!destinationKey) {
-      return NextResponse.json({ error: "destinationKey must be one of: classscout, compare" }, { status: 400 });
+      return NextResponse.json({ error: "destinationKey must be supported by checklist" }, { status: 400 });
     }
     if (!body.draftJson || !body.provenanceJson) {
       return NextResponse.json({ error: "draftJson and provenanceJson are required" }, { status: 400 });

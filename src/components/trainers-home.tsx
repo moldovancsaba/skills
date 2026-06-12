@@ -76,7 +76,7 @@ export function TrainersHome({
     void logClientInteraction({
       companyId,
       surface: "trainers-home",
-      interactionType: "CLASSSCOUT_HOME_LOADED",
+      interactionType: "TRAINERS_HOME_LOADED",
       entityType: "ROUTE",
       entityId: "trainers",
       payload: {
@@ -94,7 +94,7 @@ export function TrainersHome({
     void logClientInteraction({
       companyId,
       surface: "trainers-home",
-      interactionType: "CLASSSCOUT_ACTION_OPEN",
+      interactionType: "TRAINERS_ACTION_OPEN",
       entityType: "ROUTE",
       entityId: actionKey,
       payload: { href },
